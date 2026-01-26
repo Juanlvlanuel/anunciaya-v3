@@ -227,13 +227,6 @@ interface ResultadoEmail {
   id?: string;
 }
 
-/**
- * Extrae solo el email de un string tipo "Nombre <email@ejemplo.com>"
- */
-function extraerEmail(from: string): string {
-  const match = from.match(/<(.+)>/);
-  return match ? match[1] : from;
-}
 
 /**
  * Envía un email usando el proveedor configurado (AWS SES o Nodemailer)
