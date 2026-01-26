@@ -1,0 +1,25 @@
+{
+  "botones": {
+    "enviar": "Enviar",
+    "cancelar": "Cancelar",
+    "guardar": "Guardar",
+    "continuar": "Continuar",
+    "volver": "Volver",
+    "cerrar": "Cerrar",
+    "cargando": "Cargando..."
+  },
+  "errores": {
+    "requerido": "Este campo es requerido",
+    "emailInvalido": "Correo electrónico inválido",
+    "errorGeneral": "Ocurrió un error, intenta de nuevo"
+  },
+  "navegacion": {
+    "inicio": "Inicio",
+    "perfil": "Perfil",
+    "cerrarSesion": "Cerrar Sesión"
+  },
+  "confirmacion": {
+    "confirmar": "Sí, continuar",
+    "cancelar": "Cancelar"
+  }
+}

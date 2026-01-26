@@ -1,0 +1,354 @@
+/**
+ * email.ts
+ * =========
+ * Utilidad para envío de correos electrónicos con Nodemailer + Zoho SMTP.
+ * 
+ * ¿Qué hace este archivo?
+ * - Se conecta con Zoho SMTP para enviar emails
+ * - Tiene funciones específicas para cada tipo de correo (verificación, etc.)
+ * - Genera emails con diseño HTML bonito
+ * 
+ * Ubicación: apps/api/src/utils/email.ts
+ */
+
+import nodemailer from 'nodemailer';
+import { env } from '../config/env.js';
+
+// =============================================================================
+// CONFIGURACIÓN DEL TRANSPORTER (CONEXIÓN SMTP)
+// =============================================================================
+
+/**
+ * Transporter de Nodemailer configurado para Zoho SMTP
+ * - host: smtp.zoho.com
+ * - port: 465 (SSL)
+ * - secure: true (porque usamos puerto 465)
+ */
+const transporter = nodemailer.createTransport({
+  host: env.SMTP_HOST,
+  port: env.SMTP_PORT,
+  secure: true,
+  auth: {
+    user: env.SMTP_USER,
+    pass: env.SMTP_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
+
+// Remitente configurado en .env
+const EMAIL_FROM = env.EMAIL_FROM;
+
+// =============================================================================
+// PLANTILLAS DE EMAIL
+// =============================================================================
+
+/**
+ * Genera el HTML para el email de verificación
+ * @param nombre - Nombre del usuario para personalizar
+ * @param codigo - Código de 6 dígitos
+ */
+function plantillaVerificacion(nombre: string, codigo: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid #e4e4e7;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #3b82f6;">
+                🚀 AnunciaYA
+              </h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px;">
+              <h2 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: #18181b;">
+                ¡Hola ${nombre}!
+              </h2>
+              <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #52525b;">
+                Gracias por registrarte en AnunciaYA. Para completar tu registro, usa el siguiente código de verificación:
+              </p>
+              
+              <!-- Código -->
+              <div style="background-color: #f4f4f5; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
+                <div style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #3b82f6;">
+                  ${codigo}
+                </div>
+                <p style="margin: 12px 0 0; font-size: 13px; color: #71717a;">
+                  Expira en 15 minutos
+                </p>
+              </div>
+              
+              <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #71717a;">
+                Si no solicitaste este código, puedes ignorar este mensaje de forma segura.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 12px 12px; border-top: 1px solid #e4e4e7;">
+              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
+                © ${new Date().getFullYear()} AnunciaYA - Comercio Local en México
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+// =============================================================================
+// FUNCIONES DE ENVÍO
+// =============================================================================
+
+/**
+ * Resultado del envío de email
+ */
+interface ResultadoEmail {
+  success: boolean;
+  message: string;
+  id?: string; // ID del email si fue exitoso
+}
+
+/**
+ * Envía el código de verificación al correo del usuario
+ * 
+ * @param correo - Email del destinatario
+ * @param nombre - Nombre del usuario para personalizar
+ * @param codigo - Código de 6 dígitos
+ * @returns Resultado del envío
+ * 
+ * @example
+ * const resultado = await enviarCodigoVerificacion(
+ *   'juan@ejemplo.com',
+ *   'Juan',
+ *   '847293'
+ * );
+ * 
+ * if (resultado.success) {
+ *   console.log('Email enviado:', resultado.id);
+ * }
+ */
+export async function enviarCodigoVerificacion(
+  correo: string,
+  nombre: string,
+  codigo: string
+): Promise<ResultadoEmail> {
+  try {
+    const info = await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: correo,
+      subject: `${codigo} - Tu código de verificación de AnunciaYA`,
+      html: plantillaVerificacion(nombre, codigo),
+    });
+
+    return {
+      success: true,
+      message: 'Correo de verificación enviado',
+      id: info.messageId,
+    };
+  } catch (error) {
+    console.error('Error al enviar email de verificación:', error);
+    return {
+      success: false,
+      message: 'No se pudo enviar el correo de verificación',
+    };
+  }
+}
+
+/**
+ * Reenvía el código de verificación
+ * Usa la misma plantilla pero con un asunto ligeramente diferente
+ */
+export async function reenviarCodigoVerificacion(
+  correo: string,
+  nombre: string,
+  codigo: string
+): Promise<ResultadoEmail> {
+  try {
+    const info = await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: correo,
+      subject: `${codigo} - Nuevo código de verificación de AnunciaYA`,
+      html: plantillaVerificacion(nombre, codigo),
+    });
+
+    return {
+      success: true,
+      message: 'Nuevo código enviado a tu correo',
+      id: info.messageId,
+    };
+  } catch (error) {
+    console.error('Error al reenviar email de verificación:', error);
+    return {
+      success: false,
+      message: 'No se pudo reenviar el correo de verificación',
+    };
+  }
+}
+
+// =============================================================================
+// VERIFICAR CONEXIÓN SMTP
+// =============================================================================
+
+/**
+ * Verifica que la conexión SMTP funcione correctamente
+ * Útil para probar la configuración al iniciar la app
+ */
+export async function verificarConexionSMTP(): Promise<boolean> {
+  try {
+    await transporter.verify();
+    console.log('✅ Conexión SMTP verificada correctamente');
+    return true;
+  } catch (error) {
+    console.error('❌ Error al verificar conexión SMTP:', error);
+    return false;
+  }
+}
+
+// =============================================================================
+// PLANTILLA: RECUPERACIÓN DE CONTRASEÑA
+// =============================================================================
+
+/**
+ * Genera el HTML para el email de recuperación de contraseña
+ * @param nombre - Nombre del usuario para personalizar
+ * @param codigo - Código de 6 dígitos
+ */
+function plantillaRecuperacion(nombre: string, codigo: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid #e4e4e7;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #3b82f6;">
+                🚀 AnunciaYA
+              </h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px;">
+              <h2 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: #18181b;">
+                ¡Hola ${nombre}!
+              </h2>
+              <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #52525b;">
+                Recibimos una solicitud para restablecer la contraseña de tu cuenta. Usa el siguiente código:
+              </p>
+              
+              <!-- Código -->
+              <div style="background-color: #fef3c7; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px; border: 1px solid #fcd34d;">
+                <div style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #d97706;">
+                  ${codigo}
+                </div>
+                <p style="margin: 12px 0 0; font-size: 13px; color: #92400e;">
+                  ⏱️ Expira en 15 minutos
+                </p>
+              </div>
+              
+              <div style="background-color: #fef2f2; border-radius: 8px; padding: 16px; margin-bottom: 24px; border: 1px solid #fecaca;">
+                <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #991b1b;">
+                  <strong>⚠️ Importante:</strong> Si no solicitaste este cambio, ignora este mensaje y tu contraseña seguirá siendo la misma.
+                </p>
+              </div>
+              
+              <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #71717a;">
+                Por seguridad, nunca compartas este código con nadie.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 12px 12px; border-top: 1px solid #e4e4e7;">
+              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
+                © ${new Date().getFullYear()} AnunciaYA - Comercio Local en México
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+// =============================================================================
+// FUNCIÓN: ENVIAR EMAIL DE RECUPERACIÓN
+// =============================================================================
+
+/**
+ * Envía el código de recuperación de contraseña al correo del usuario
+ * 
+ * @param correo - Email del destinatario
+ * @param nombre - Nombre del usuario para personalizar
+ * @param codigo - Código de 6 dígitos
+ * @returns Resultado del envío
+ * 
+ * @example
+ * const resultado = await enviarCodigoRecuperacion(
+ *   'juan@ejemplo.com',
+ *   'Juan',
+ *   '847293'
+ * );
+ * 
+ * if (resultado.success) {
+ *   console.log('Email de recuperación enviado');
+ * }
+ */
+export async function enviarCodigoRecuperacion(
+  correo: string,
+  nombre: string,
+  codigo: string
+): Promise<ResultadoEmail> {
+  try {
+    const info = await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: correo,
+      subject: `${codigo} - Recupera tu contraseña de AnunciaYA`,
+      html: plantillaRecuperacion(nombre, codigo),
+    });
+
+    return {
+      success: true,
+      message: 'Correo de recuperación enviado',
+      id: info.messageId,
+    };
+  } catch (error) {
+    console.error('Error al enviar email de recuperación:', error);
+    return {
+      success: false,
+      message: 'No se pudo enviar el correo de recuperación',
+    };
+  }
+}

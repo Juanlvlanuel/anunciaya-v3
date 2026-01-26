@@ -1,0 +1,213 @@
+/**
+ * SelectorSucursalesInline.tsx
+ * =============================
+ * Selector de sucursales integrado inline con flechas de navegación
+ * 
+ * COMPORTAMIENTO:
+ * - DUEÑO con 1 sucursal: Solo muestra nombre del NEGOCIO (sin decoraciones)
+ * - DUEÑO con 2+ sucursales: Muestra nombre del NEGOCIO + flechas + contador + etiqueta sucursal
+ * - GERENTE: Muestra nombre del NEGOCIO + etiqueta "Sucursal Fija"
+ * 
+ * DISEÑO v4.0 (FINAL):
+ * - Primera línea: Nombre del NEGOCIO (texto más grande)
+ * - Segunda línea: "Matriz" o nombre de sucursal específica
+ * - Contador "1 de 3" va ENTRE las flechas (lado izquierdo de →)
+ * - SIN etiqueta "Administrando:" (textos más grandes y legibles)
+ * 
+ * UBICACIÓN: apps/web/src/pages/private/business-studio/dashboard/componentes/SelectorSucursalesInline.tsx
+ */
+
+import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { obtenerSucursalesNegocio } from '../../services/negociosService';
+
+// =============================================================================
+// TIPOS
+// =============================================================================
+
+interface Sucursal {
+  id: string;
+  nombre: string;
+  esPrincipal: boolean;
+  activa: boolean;
+}
+
+// =============================================================================
+// COMPONENTE
+// =============================================================================
+
+export default function SelectorSucursalesInline() {
+  const { usuario, setSucursalActiva } = useAuthStore();
+  const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  // Determinar tipo de usuario
+  const esDueño = usuario?.negocioId && !usuario?.sucursalAsignada;
+  const esGerente = usuario?.negocioId && usuario?.sucursalAsignada;
+
+  // Cargar sucursales
+  useEffect(() => {
+    async function cargar() {
+      // ✅ VALIDAR que hay usuario logueado Y en modo comercial
+      if (!usuario?.negocioId || usuario?.modoActivo !== 'comercial') {
+        setSucursales([]);
+        setCargando(false);
+        return;
+      }
+
+      try {
+        setCargando(true);
+        const respuesta = await obtenerSucursalesNegocio(usuario.negocioId);
+
+        if (respuesta.success && respuesta.data) {
+          // Ordenar: Principal primero, luego por nombre
+          const ordenadas = [...respuesta.data].sort((a, b) => {
+            if (a.esPrincipal) return -1;
+            if (b.esPrincipal) return 1;
+            return a.nombre.localeCompare(b.nombre);
+          });
+          setSucursales(ordenadas);
+
+          // ✅ Si no hay sucursal activa, asignar la primera (principal)
+          if (!usuario?.sucursalActiva && ordenadas.length > 0) {
+            setSucursalActiva(ordenadas[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('[SELECTOR] Error cargando sucursales:', error);
+        setSucursales([]);
+      } finally {
+        setCargando(false);
+      }
+    }
+
+    cargar();
+  }, [usuario?.negocioId, usuario?.modoActivo]);
+
+  // Obtener índice de sucursal actual
+  const indiceActual = sucursales.findIndex(s => s.id === usuario?.sucursalActiva);
+  const sucursalActual = sucursales[indiceActual];
+
+  // Handlers: Navegar entre sucursales
+  const irAnterior = () => {
+    if (indiceActual > 0) {
+      setSucursalActiva(sucursales[indiceActual - 1].id);
+    }
+  };
+
+  const irSiguiente = () => {
+    if (indiceActual < sucursales.length - 1) {
+      setSucursalActiva(sucursales[indiceActual + 1].id);
+    }
+  };
+
+  // =========================================================================
+  // RENDERIZADO CONDICIONAL
+  // =========================================================================
+
+  // Si está cargando
+  if (cargando) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-2 w-32 bg-slate-200 rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // CASO 1: GERENTE (sin flechas, muestra nombre fijo)
+  // =========================================================================
+  if (esGerente) {
+    return (
+      <div className="flex flex-col">
+        {/* Nombre del NEGOCIO - Texto más grande */}
+        <span className="text-base font-semibold text-slate-900">
+          {usuario?.nombreNegocio || 'Sin asignar'}
+        </span>
+        {/* Etiqueta de sucursal fija */}
+        <span className="text-sm text-blue-600 font-medium">
+          Sucursal Fija
+        </span>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // CASO 2: DUEÑO con SOLO 1 SUCURSAL (sin decoraciones)
+  // =========================================================================
+  if (esDueño && sucursales.length === 1) {
+    return (
+      <div className="flex flex-col">
+        {/* Nombre del NEGOCIO - Texto más grande */}
+        <span className="text-base font-semibold text-slate-900">
+          {usuario?.nombreNegocio || 'Sin nombre'}
+        </span>
+        {/* Etiqueta "Matriz" */}
+        <span className="text-sm text-emerald-600 font-medium">
+          Matriz
+        </span>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // CASO 3: DUEÑO con 2+ SUCURSALES (con flechas y contador)
+  // =========================================================================
+  if (esDueño && sucursales.length > 1) {
+    return (
+      <div className="flex items-center gap-2">
+        {/* Flecha Izquierda */}
+        <button
+          onClick={irAnterior}
+          disabled={indiceActual === 0}
+          className={`p-1.5 rounded-lg transition-all ${
+            indiceActual === 0
+              ? 'text-slate-300 cursor-not-allowed'
+              : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 active:scale-95'
+          }`}
+          title="Sucursal anterior"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+
+        {/* Nombre del NEGOCIO + Etiqueta de Sucursal */}
+        <div className="flex flex-col min-w-[200px]">
+          {/* Primera línea: Nombre del NEGOCIO - Texto más grande */}
+          <span className="text-base font-semibold text-slate-900 truncate">
+            {usuario?.nombreNegocio || 'Sin nombre'}
+          </span>
+          
+          {/* Segunda línea: "Matriz" o Nombre de Sucursal */}
+          <span className={`text-sm font-medium ${
+            sucursalActual?.esPrincipal ? 'text-emerald-600' : 'text-blue-600'
+          }`}>
+            {sucursalActual?.esPrincipal ? 'Matriz' : sucursalActual?.nombre}
+          </span>
+        </div>
+
+        {/* Contador "1 de 3" antes de la flecha derecha */}
+        <span className="text-sm text-slate-500 font-medium">
+          {indiceActual + 1} de {sucursales.length}
+        </span>
+
+        {/* Flecha Derecha */}
+        <button
+          onClick={irSiguiente}
+          disabled={indiceActual === sucursales.length - 1}
+          className={`p-1.5 rounded-lg transition-all ${
+            indiceActual === sucursales.length - 1
+              ? 'text-slate-300 cursor-not-allowed'
+              : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 active:scale-95'
+          }`}
+          title="Siguiente sucursal"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+    );
+  }
+
+  // Usuario sin negocio o sin sucursales
+  return null;
+}

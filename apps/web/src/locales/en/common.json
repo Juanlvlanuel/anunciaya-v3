@@ -1,0 +1,25 @@
+{
+  "botones": {
+    "enviar": "Submit",
+    "cancelar": "Cancel",
+    "guardar": "Save",
+    "continuar": "Continue",
+    "volver": "Back",
+    "cerrar": "Close",
+    "cargando": "Loading..."
+  },
+  "errores": {
+    "requerido": "This field is required",
+    "emailInvalido": "Invalid email address",
+    "errorGeneral": "An error occurred, please try again"
+  },
+  "navegacion": {
+    "inicio": "Home",
+    "perfil": "Profile",
+    "cerrarSesion": "Log Out"
+  },
+  "confirmacion": {
+    "confirmar": "Yes, continue",
+    "cancelar": "Cancel"
+  }
+}

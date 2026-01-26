@@ -1,0 +1,29 @@
+{
+  "name": "anunciaya",
+  "version": "3.0.0",
+  "private": true,
+  "description": "AnunciaYA - Plataforma de negocios locales",
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
+    "db:logs": "docker-compose logs -f",
+    "type:check": "pnpm type:check:api && pnpm type:check:web",
+    "type:check:api": "pnpm --filter api exec tsc --noEmit",
+    "type:check:web": "pnpm --filter web exec tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1"
+  }
+}

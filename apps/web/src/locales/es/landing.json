@@ -1,0 +1,149 @@
+{
+  "navbar": {
+    "google": "Google",
+    "o": "o",
+    "iniciarSesion": "Iniciar Sesión",
+    "registrate": "Regístrate"
+  },
+  "hero": {
+    "badgeParte1": "Una tarjeta, Múltiples Recompensas.",
+    "badgeParte2": "",
+    "badgeParte3": "",
+    "titulo1": "Tus compras",
+    "titulo2": "ahora valen",
+    "titulo3": "",
+    "titulo4": "más",
+    "subtitulo1": "Acumula puntos comprando",
+    "subtitulo2": "en tus",
+    "subtitulo3": "comercios favoritos",
+    "subtitulo4": "y",
+    "subtitulo5": "canjéalos",
+    "subtitulo6": "por",
+    "subtitulo7": "recompensas.",
+    "botonPrimario": "Comenzar Ahora",
+    "beneficio1": "Gana puntos",
+    "beneficio2": "Publica gratis",
+    "beneficio3": "Crea tus sorteos",
+    "scrollIndicador": "Descubre más"
+  },
+  "secciones": {
+    "negocios": {
+      "titulo": "Negocios Locales",
+      "subtitulo": "Encuentra negocios y servicios cerca de ti",
+      "descripcion": "*Gana puntos en cada compra.<br />*Acumula y Canjea por recompensas.",
+      "stats": "+100 Negocios",
+      "highlight": "Cerca de ti"
+    },
+    "marketplace": {
+      "titulo": "Marketplace",
+      "subtitulo": "Genera Ingresos",
+      "descripcion": "*0 Comisiones.<br />*Compra y Venta P2P.<br />*Apoya a Micro Emprendedores.",
+      "stats": "+1,000 productos",
+      "highlight": "Publica GRATIS"
+    },
+    "ofertas": {
+      "titulo": "Ofertas",
+      "subtitulo": "Promociones y Cupones",
+      "descripcion": "*Cupones Digitales.<br />*Ofertas por tiempo limitado.",
+      "stats": "+200 Ofertas",
+      "highlight": "Exclusivas"
+    },
+    "dinamicas": {
+      "titulo": "Dinámicas",
+      "subtitulo": "Rifas y Sorteos",
+      "descripcion": "*Utiliza tus puntos para participar.<br />*Crea tus propias Rifas.<br />*0 Comisiones.",
+      "stats": "+100 Sorteos",
+      "highlight": "En vivo"
+    },
+    "disponible": "Disponible",
+    "activo": "Activo",
+    "chatIntegrado": "Chat Integrado"
+  },
+  "carousel": {
+    "chatIntegrado": "Chat Integrado"
+  },
+  "onboarding": {
+    "negocios": {
+      "titulo": "Compra en Negocios Locales",
+      "subtitulo": "Acumula y Canjea tus Puntos."
+    },
+    "marketplace": {
+      "titulo": "CardYA-Digital",
+      "subtitulo": "Utiliza tu Tarjeta-Digital para Acumular o Canjear tus puntos."
+    },
+    "marketplaceVenta": {
+      "titulo": "Marketplace",
+      "subtitulo": "Genera ingresos vendiendo tus productos."
+    },
+    "chatya": {
+      "titulo": "Participa en Sorteos",
+      "subtitulo": "También puedes usar tus puntos para participar en sorteos."
+    },
+    "gratis": {
+      "titulo": "Apoya a tu comunidad",
+      "subtitulo": "Tus compras impulsan la economía local."
+    }
+  },
+  "beneficios": {
+    "titulo1": "¿Por qué elegir",
+    "titulo2": "AnunciaYA",
+    "titulo3": "?",
+    "items": {
+      "chat": {
+        "titulo": "CardYA",
+        "descripcion": "Una sola tarjeta de Lealtad para todas tus compras."
+      },
+      "descuentos": {
+        "titulo": "ChatYA",
+        "descripcion": "Comunicación directa entre compradores y vendedores."
+      },
+      "todoEnUno": {
+        "titulo": "100% Comercio Local",
+        "descripcion": "Tu dinero se queda donde más importa: cerca de ti."
+      }
+    }
+  },
+  "cta": {
+    "titulo": "Empieza hoy...",
+    "subtitulo": "",
+    "personal": {
+      "titulo": "Cuenta Personal",
+      "precio": "Gratis",
+      "siempre": "siempre",
+      "features": {
+        "f1": "Publica en Marketplace",
+        "f2": "Crea tu propia Dinámica",
+        "f3": "Cupones y Descuentos Exclusivos",
+        "f4": "Participa en Sorteos",
+        "f5": "CardYA-Digital",
+        "f6": "Chat integrado"
+      },
+      "boton": "Crear cuenta gratis"
+    },
+    "comercial": {
+      "titulo": "Cuenta Comercial",
+      "badge": "POPULAR",
+      "precio": "7 días gratis",
+      "features": {
+        "f1": "Publica en Negocios Locales",
+        "f2": "Publica en Ofertas",
+        "f3": "Crea tu propia Dinámica",
+        "f4": "Crea Cupones y Promociones",
+        "f5": "ScanCardYA",
+        "f6": "Chat integrado",
+        "f7": "Business Studio (Herramienta de Gestión)"
+      },
+      "boton": "Probar 7 días gratis"
+    },
+    "trial": {
+      "dias": "7 días de prueba gratis",
+      "cancela": "Cancela antes y no pagas nada",
+      "nota": "Al registrar cuenta Comercial, ingresas tu tarjeta para activar el trial. Se cobra automáticamente después de 7 días si no cancelas."
+    }
+  },
+  "footer": {
+    "slogan": "\"Tus compras ahora valen más.\"",
+    "contactanos": "¡Contáctanos!",
+    "derechos": "AnunciaYA. Todos los derechos reservados."
+  }
+}

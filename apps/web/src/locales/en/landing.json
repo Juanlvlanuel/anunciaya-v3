@@ -1,0 +1,149 @@
+{
+  "navbar": {
+    "google": "Google",
+    "o": "or",
+    "iniciarSesion": "Sign In",
+    "registrate": "Sign Up"
+  },
+  "hero": {
+    "badgeParte1": "One card, Multiple Rewards.",
+    "badgeParte2": "",
+    "badgeParte3": "",
+    "titulo1": "Your purchases",
+    "titulo2": "are now worth",
+    "titulo3": "",
+    "titulo4": "more",
+    "subtitulo1": "Earn points shopping",
+    "subtitulo2": "at your",
+    "subtitulo3": "favorite stores",
+    "subtitulo4": "and",
+    "subtitulo5": "redeem them",
+    "subtitulo6": "for",
+    "subtitulo7": "rewards.",
+    "botonPrimario": "Get Started",
+    "beneficio1": "Earn points",
+    "beneficio2": "Post for free",
+    "beneficio3": "Create raffles",
+    "scrollIndicador": "Discover more"
+  },
+  "secciones": {
+    "negocios": {
+      "titulo": "Local Businesses",
+      "subtitulo": "Find businesses and services near you",
+      "descripcion": "*Earn points on every purchase.<br />*Collect and Redeem for rewards.",
+      "stats": "+100 Businesses",
+      "highlight": "Near you"
+    },
+    "marketplace": {
+      "titulo": "Marketplace",
+      "subtitulo": "Generate Income",
+      "descripcion": "*0 Commissions.<br />*P2P Buy and Sell.<br />*Support Micro Entrepreneurs.",
+      "stats": "+1,000 products",
+      "highlight": "Post FREE"
+    },
+    "ofertas": {
+      "titulo": "Deals",
+      "subtitulo": "Promotions and Coupons",
+      "descripcion": "*Digital Coupons.<br />*Limited time offers.",
+      "stats": "+200 Deals",
+      "highlight": "Exclusive"
+    },
+    "dinamicas": {
+      "titulo": "Dynamics",
+      "subtitulo": "Raffles and Giveaways",
+      "descripcion": "*Use your points to participate.<br />*Create your own Raffles.<br />*0 Commissions.",
+      "stats": "+100 Raffles",
+      "highlight": "Live"
+    },
+    "disponible": "Available",
+    "activo": "Active",
+    "chatIntegrado": "Integrated Chat"
+  },
+  "carousel": {
+    "chatIntegrado": "Integrated Chat"
+  },
+  "onboarding": {
+    "negocios": {
+      "titulo": "Shop at Local Businesses",
+      "subtitulo": "Earn and Redeem your Points."
+    },
+    "marketplace": {
+      "titulo": "CardYA-Digital",
+      "subtitulo": "Use your Digital Card to Earn or Redeem your points."
+    },
+    "marketplaceVenta": {
+      "titulo": "Marketplace",
+      "subtitulo": "Generate income by selling your products."
+    },
+    "chatya": {
+      "titulo": "Join Raffles",
+      "subtitulo": "You can also use your points to participate in raffles."
+    },
+    "gratis": {
+      "titulo": "Support your community",
+      "subtitulo": "Your purchases boost the local economy."
+    }
+  },
+  "beneficios": {
+    "titulo1": "Why choose",
+    "titulo2": "AnunciaYA",
+    "titulo3": "?",
+    "items": {
+      "chat": {
+        "titulo": "CardYA",
+        "descripcion": "One loyalty card for all your purchases."
+      },
+      "descuentos": {
+        "titulo": "ChatYA",
+        "descripcion": "Direct communication between buyers and sellers."
+      },
+      "todoEnUno": {
+        "titulo": "100% Local Commerce",
+        "descripcion": "Your money stays where it matters most: close to you."
+      }
+    }
+  },
+  "cta": {
+    "titulo": "Start today...",
+    "subtitulo": "",
+    "personal": {
+      "titulo": "Personal Account",
+      "precio": "Free",
+      "siempre": "forever",
+      "features": {
+        "f1": "Post in Marketplace",
+        "f2": "Create your own Dynamic",
+        "f3": "Exclusive Coupons and Discounts",
+        "f4": "Join Raffles",
+        "f5": "CardYA-Digital",
+        "f6": "Integrated chat"
+      },
+      "boton": "Create free account"
+    },
+    "comercial": {
+      "titulo": "Business Account",
+      "badge": "POPULAR",
+      "precio": "7 days free",
+      "features": {
+        "f1": "Post in Local Businesses",
+        "f2": "Post in Deals",
+        "f3": "Create your own Dynamic",
+        "f4": "Create Coupons and Promotions",
+        "f5": "ScanCardYA",
+        "f6": "Integrated chat",
+        "f7": "Business Studio (Management Tool)"
+      },
+      "boton": "Try 7 days free"
+    },
+    "trial": {
+      "dias": "7-day free trial",
+      "cancela": "Cancel before and pay nothing",
+      "nota": "When registering a Business account, enter your card to activate the trial. It charges automatically after 7 days if you don't cancel."
+    }
+  },
+  "footer": {
+    "slogan": "\"Your purchases are now worth more.\"",
+    "contactanos": "Contact us!",
+    "derechos": "AnunciaYA. All rights reserved."
+  }
+}

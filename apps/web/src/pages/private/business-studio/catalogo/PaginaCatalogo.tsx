@@ -1,0 +1,638 @@
+/**
+ * ============================================================================
+ * PÁGINA: Catálogo (Business Studio)
+ * ============================================================================
+ * 
+ * UBICACIÓN: apps/web/src/pages/private/business-studio/catalogo/PaginaCatalogo.tsx
+ * 
+ * PROPÓSITO:
+ * Página principal del módulo de catálogo en Business Studio
+ * Lista de productos y servicios con CRUD completo
+ * 
+ * FEATURES:
+ * - Lista con filtros (búsqueda, tipo, categoría, disponibilidad)
+ * - CRUD completo (Crear, Editar, Eliminar)
+ * - Duplicar a otras sucursales (solo dueños)
+ * - Actualizaciones optimistas
+ * - Responsive (móvil, laptop, desktop)
+ * 
+ * CREADO: Fase 5.4.1 - Catálogo CRUD Frontend
+ */
+
+import { useState, useMemo, useEffect } from 'react';
+import {
+    Plus,
+    Search,
+    Package,
+    Wrench,
+    X,
+    ChevronRight,
+    Layers,
+    Tag,
+    CheckCircle,
+    XCircle,
+} from 'lucide-react';
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useArticulos } from '../../../../hooks/useArticulos';
+import { Boton } from '../../../../components/ui/Boton';
+import { Input } from '../../../../components/ui/Input';
+import { Spinner } from '../../../../components/ui/Spinner';
+import { ModalImagenes } from '../../../../components/ui';
+import { notificar } from '../../../../utils/notificaciones';
+import { ModalArticulo } from './ModalArticulo';
+import { ModalDuplicar } from './ModalDuplicar';
+import { CardArticulo } from './CardArticulo';
+import { obtenerSucursalesNegocio } from '../../../../services/negociosService';
+import type { Articulo, FiltrosArticulos, CrearArticuloInput } from '../../../../types/articulos';
+
+// =============================================================================
+// CONSTANTES
+// =============================================================================
+
+const ARTICULOS_POR_PAGINA = 9; // Cargar 6 artículos a la vez
+
+// =============================================================================
+// COMPONENTE PRINCIPAL
+// =============================================================================
+
+export function PaginaCatalogo() {
+    const { usuario } = useAuthStore();
+    const { articulos, loading, crear, actualizar, eliminar, duplicar } = useArticulos();
+
+    // Estados UI
+    const [modalAbierto, setModalAbierto] = useState(false);
+    const [modalDuplicarAbierto, setModalDuplicarAbierto] = useState(false);
+    const [articuloEditando, setArticuloEditando] = useState<Articulo | null>(null);
+    const [articuloDuplicando, setArticuloDuplicando] = useState<Articulo | null>(null);
+    const [totalSucursales, setTotalSucursales] = useState(0);
+    const [paginaActual, setPaginaActual] = useState(0); // Bloque actual (0, 1, 2...)
+    const [previewAbierto, setPreviewAbierto] = useState(false); // Detectar preview
+    const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number; }>({ isOpen: false, images: [], initialIndex: 0 });
+
+    // Filtros
+    const [filtros, setFiltros] = useState<FiltrosArticulos>({
+        busqueda: '',
+        tipo: 'todos',
+        categoria: 'todas',
+        disponible: 'todos',
+    });
+
+    // Determinar si es dueño (puede duplicar a otras sucursales)
+    const esDueno = !usuario?.sucursalAsignada;
+
+    // ===========================================================================
+    // HANDLERS PARA MODAL DE IMÁGENES
+    // ===========================================================================
+
+    const abrirImagenUnica = (url: string) => {
+        setModalImagenes({
+            isOpen: true,
+            images: [url],
+            initialIndex: 0,
+        });
+    };
+
+    const cerrarModalImagenes = () => {
+        setModalImagenes({
+            isOpen: false,
+            images: [],
+            initialIndex: 0,
+        });
+    };
+
+    // ===========================================================================
+    // CARGAR CANTIDAD DE SUCURSALES
+    // ===========================================================================
+
+    useEffect(() => {
+        if (usuario?.negocioId && esDueno) {
+            obtenerSucursalesNegocio(usuario.negocioId)
+                .then((res) => {
+                    if (res.success && res.data) {
+                        setTotalSucursales(res.data.length);
+                    }
+                })
+                .catch(() => setTotalSucursales(0));
+        }
+    }, [usuario?.negocioId, esDueno]);
+
+    // ===========================================================================
+    // CATEGORÍAS ÚNICAS
+    // ===========================================================================
+
+    const categoriasUnicas = useMemo(() => {
+        const categorias = new Set<string>();
+        articulos.forEach((art) => {
+            if (art.categoria && art.categoria !== 'General') {
+                categorias.add(art.categoria);
+            }
+        });
+        return Array.from(categorias).sort();
+    }, [articulos]);
+
+    // ===========================================================================
+    // ESTADÍSTICAS RÁPIDAS
+    // ===========================================================================
+
+    const estadisticas = useMemo(() => {
+        const productos = articulos.filter((a) => a.tipo === 'producto').length;
+        const servicios = articulos.filter((a) => a.tipo === 'servicio').length;
+        const disponibles = articulos.filter((a) => a.disponible === true).length;
+        const noDisponibles = articulos.filter((a) => a.disponible === false).length;
+
+        return { productos, servicios, disponibles, noDisponibles, total: articulos.length };
+    }, [articulos]);
+
+    // ===========================================================================
+    // FILTRAR ARTÍCULOS
+    // ===========================================================================
+
+    const articulosFiltrados = useMemo(() => {
+        return articulos.filter((art) => {
+            // Búsqueda por nombre
+            if (
+                filtros.busqueda &&
+                !art.nombre.toLowerCase().includes(filtros.busqueda.toLowerCase())
+            ) {
+                return false;
+            }
+
+            // Filtro por tipo
+            if (filtros.tipo !== 'todos' && art.tipo !== filtros.tipo) {
+                return false;
+            }
+
+            // Filtro por categoría
+            if (filtros.categoria !== 'todas' && art.categoria !== filtros.categoria) {
+                return false;
+            }
+
+            // Filtro por disponibilidad
+            if (filtros.disponible !== 'todos') {
+                const disponibleBool = filtros.disponible === true;
+                if (art.disponible !== disponibleBool) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }, [articulos, filtros]);
+
+    // ===========================================================================
+    // SISTEMA PAGINACIÓN POR BLOQUES
+    // ===========================================================================
+
+    const articulosMostrados = useMemo(() => {
+        const inicio = paginaActual * ARTICULOS_POR_PAGINA;
+        const fin = inicio + ARTICULOS_POR_PAGINA;
+        return articulosFiltrados.slice(inicio, fin);
+    }, [articulosFiltrados, paginaActual]);
+
+    const totalPaginas = Math.ceil(articulosFiltrados.length / ARTICULOS_POR_PAGINA);
+    const hayMas = paginaActual < totalPaginas - 1;
+    const hayAnterior = paginaActual > 0;
+
+    const avanzar = () => {
+        if (hayMas) setPaginaActual(prev => prev + 1);
+    };
+
+    const retroceder = () => {
+        if (hayAnterior) setPaginaActual(prev => prev - 1);
+    };
+
+    // Resetear página cuando cambien filtros
+    useEffect(() => {
+        setPaginaActual(0);
+    }, [filtros]);
+
+    // Detectar si el preview está abierto
+    useEffect(() => {
+        const checkPreview = () => {
+            // Método 1: Buscar por texto "Vista Previa" o "Cerrar Preview"
+            const textoPrevia = Array.from(document.querySelectorAll('*')).some(el =>
+                el.textContent?.includes('Vista Previa') ||
+                el.textContent?.includes('Cerrar Preview')
+            );
+
+            // Método 2: Buscar clases relacionadas con preview
+            const clasePreview = document.querySelector('[class*="Previa"]') ||
+                document.querySelector('[class*="preview"]');
+
+            // Método 3: Detectar si el contenedor principal está reducido
+            const main = document.querySelector('main');
+            const anchoReducido = main && main.offsetWidth < window.innerWidth * 0.75;
+
+            const estaAbierto = !!(textoPrevia || clasePreview || anchoReducido);
+
+            setPreviewAbierto(estaAbierto);
+        };
+
+        // Verificar inmediatamente
+        checkPreview();
+
+        // Observer para cambios en el DOM
+        const observer = new MutationObserver(checkPreview);
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style']
+        });
+
+        // Verificación ultrarrápida para respuesta instantánea
+        const interval = setInterval(checkPreview, 25); // 25ms = instantáneo
+
+        return () => {
+            observer.disconnect();
+            clearInterval(interval);
+        };
+    }, []);
+
+    // ===========================================================================
+    // HANDLERS
+    // ===========================================================================
+
+    const handleCrear = () => {
+        setArticuloEditando(null);
+        setModalAbierto(true);
+    };
+
+    const handleEditar = (articulo: Articulo) => {
+        setArticuloEditando(articulo);
+        setModalAbierto(true);
+    };
+
+    const handleEliminar = async (id: string) => {
+        await eliminar(id);
+    };
+
+    const handleToggle = async (id: string, campo: 'disponible' | 'destacado', valor: boolean) => {
+        await actualizar(id, { [campo]: valor });
+    };
+
+    const handleDuplicar = async (articulo: Articulo) => {
+        // Si hay más de 1 sucursal, mostrar modal para seleccionar
+        if (totalSucursales >= 1) {
+            setArticuloDuplicando(articulo);
+            setModalDuplicarAbierto(true);
+            return;
+        }
+
+        // Si hay 1 sola sucursal, duplicar directo en la misma
+        if (usuario?.sucursalActiva) {
+            const exito = await duplicar(articulo.id, {
+                sucursalesIds: [usuario.sucursalActiva],
+            });
+            if (exito) {
+                notificar.exito('Artículo duplicado correctamente');
+            }
+        }
+    };
+
+    const limpiarFiltros = () => {
+        setFiltros({
+            busqueda: '',
+            tipo: 'todos',
+            categoria: 'todas',
+            disponible: 'todos',
+        });
+    };
+
+    const hayFiltrosActivos =
+        filtros.busqueda ||
+        filtros.tipo !== 'todos' ||
+        filtros.categoria !== 'todas' ||
+        filtros.disponible !== 'todos';
+
+    // ===========================================================================
+    // RENDER: LOADING
+    // ===========================================================================
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <Spinner tamanio="lg" />
+            </div>
+        );
+    }
+
+    // ===========================================================================
+    // RENDER: PRINCIPAL
+    // ===========================================================================
+
+    return (
+        <div className="bg-linear-to-br from-slate-50 via-blue-50/30 to-cyan-50/20 p-3 lg:p-1.5 2xl:p-3">
+            {/* CONTENEDOR CON ANCHO REDUCIDO EN LAPTOP */}
+            <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-2 2xl:space-y-3">
+
+                {/* ===================================================================== */}
+                {/* KPIs CLICKEABLES */}
+                {/* ===================================================================== */}
+
+                <div className="overflow-x-auto lg:overflow-visible">
+                    <div className="flex lg:grid lg:grid-cols-5 gap-1.5 lg:gap-2 2xl:gap-3 pb-1 lg:pb-0">
+                    {/* Total - NO clickeable */}
+                    <div className="shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border border-slate-200 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 min-w-[105px] lg:min-w-0">
+                        <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
+                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-blue-100 rounded-lg">
+                                    <Layers className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
+                                </div>
+                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Total</span>
+                            </div>
+                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-slate-900">{estadisticas.total}</span>
+                        </div>
+                    </div>
+
+                    {/* Productos - Clickeable */}
+                    <button
+                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
+                        className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.tipo === 'producto' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-blue-300'
+                            }`}
+                    >
+                        <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
+                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-blue-100 rounded-lg">
+                                    <Package className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
+                                </div>
+                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Productos</span>
+                            </div>
+                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-blue-600">{estadisticas.productos}</span>
+                        </div>
+                    </button>
+
+                    {/* Servicios - Clickeable */}
+                    <button
+                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
+                        className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.tipo === 'servicio' ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-slate-200 hover:border-purple-300'
+                            }`}
+                    >
+                        <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
+                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-purple-100 rounded-lg">
+                                    <Wrench className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-purple-600" />
+                                </div>
+                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Servicios</span>
+                            </div>
+                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-purple-600">{estadisticas.servicios}</span>
+                        </div>
+                    </button>
+
+                    {/* Disponibles - Clickeable */}
+                    <button
+                        onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === true ? 'todos' : true }))}
+                        className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.disponible === true ? 'border-green-500 ring-2 ring-green-500/20' : 'border-slate-200 hover:border-green-300'
+                            }`}
+                    >
+                        <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
+                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-green-100 rounded-lg">
+                                    <CheckCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-green-600" />
+                                </div>
+                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Disponibles</span>
+                            </div>
+                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-green-600">{estadisticas.disponibles}</span>
+                        </div>
+                    </button>
+
+                    {/* No disponibles - Clickeable */}
+                    <button
+                        onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === false ? 'todos' : false }))}
+                        className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.disponible === false ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-200 hover:border-red-300'
+                            }`}
+                    >
+                        <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
+                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-red-100 rounded-lg">
+                                    <XCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-600" />
+                                </div>
+                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Ocultos</span>
+                            </div>
+                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-red-600">{estadisticas.noDisponibles}</span>
+                        </div>
+                    </button>
+                    </div>
+                </div>
+
+                {/* ===================================================================== */}
+                {/* BARRA DE BÚSQUEDA + FILTROS DE CATEGORÍA */}
+                {/* ===================================================================== */}
+
+                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border border-slate-200 p-3 lg:p-2 2xl:p-3 ">
+                    <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 ">
+                        {/* Búsqueda */}
+                        <div className="flex-1">
+                            <Input
+                                id="input-busqueda-catalogo"
+                                name="input-busqueda-catalogo"
+                                type="text"
+                                placeholder="Buscar por nombre..."
+                                icono={<Search className="w-5 h-5" />}
+                                value={filtros.busqueda}
+                                onChange={(e) =>
+                                    setFiltros((prev) => ({ ...prev, busqueda: e.target.value }))
+                                }
+                            />
+                        </div>
+
+                        {/* Botón Agregar */}
+                        <Boton
+                            variante="primario"
+                            iconoIzquierda={<Plus className="w-4 h-4" />}
+                            onClick={handleCrear}
+                            className="shrink-0"
+                        >
+                            <span className="hidden lg:inline">Nuevo Artículo</span>
+                            <span className="lg:hidden">Nuevo</span>
+                        </Boton>
+                    </div>
+
+                    {/* Filtros de categoría - Scroll horizontal */}
+                    <div className="mt-2 pt-2 border-t border-slate-100 overflow-x-auto">
+                        <div className="flex gap-1.5 pb-1">
+                        {/* Todas las categorías */}
+                        <button
+                            onClick={() => setFiltros(prev => ({ ...prev, categoria: 'todas' }))}
+                            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all ${filtros.categoria === 'todas'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                        >
+                            <Tag className="w-3.5 h-3.5" />
+                            Todas
+                        </button>
+
+                        {/* Categorías dinámicas */}
+                        {categoriasUnicas.map((cat) => (
+                            <button
+                                key={cat}
+                                onClick={() => setFiltros(prev => ({
+                                    ...prev,
+                                    categoria: prev.categoria === cat ? 'todas' : cat
+                                }))}
+                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all ${filtros.categoria === cat
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+
+                        {/* Limpiar filtros si hay activos */}
+                        {hayFiltrosActivos && (
+                            <button
+                                onClick={limpiarFiltros}
+                                className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                                Limpiar
+                            </button>
+                        )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ===================================================================== */}
+                {/* LISTA DE ARTÍCULOS */}
+                {/* ===================================================================== */}
+
+                {articulosFiltrados.length === 0 ? (
+                    <div className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl shadow-lg border border-slate-200 p-12 lg:p-8 2xl:p-12 text-center">
+                        <Package className="w-16 h-16 lg:w-12 lg:h-12 2xl:w-16 2xl:h-16 text-slate-300 mx-auto mb-4" />
+                        <p className="text-slate-600 text-lg lg:text-base 2xl:text-lg">
+                            {hayFiltrosActivos
+                                ? 'No se encontraron artículos con estos filtros'
+                                : 'Aún no tienes artículos en tu catálogo'}
+                        </p>
+                        {!hayFiltrosActivos && (
+                            <Boton variante="primario" iconoIzquierda={<Plus className="w-5 h-5" />} onClick={handleCrear} className="mt-4">
+                                Agregar Primer Artículo
+                            </Boton>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        {/* Grid Responsive - Móvil y Desktop */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-3 2xl:gap-7 mt-10 lg:mt-8 2xl:mt-12">
+                            {articulosMostrados.map((articulo) => (
+                                <CardArticulo
+                                    key={articulo.id}
+                                    articulo={articulo}
+                                    onEditar={handleEditar}
+                                    onEliminar={handleEliminar}
+                                    onDuplicar={esDueno ? handleDuplicar : undefined}
+                                    onToggle={handleToggle}
+                                    onImagenClick={abrirImagenUnica}
+                                />
+                            ))}
+                        </div>
+
+                        {/* FAB Superior - Volver (encima del de abajo) */}
+                        {hayAnterior && (
+                            <div className={`fixed right-6 2xl:right-1/2 bottom-24 z-40 transition-transform duration-75 group ${previewAbierto ? 'lg:right-[375px] 2xl:translate-x-[500px]' : '2xl:translate-x-[900px]'
+                                }`}>
+                                <button
+                                    onClick={retroceder}
+                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center"
+                                >
+                                    <ChevronRight className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 -rotate-90 group-hover:-translate-y-0.5 transition-transform" />
+                                </button>
+
+                                {/* Tooltip a la izquierda */}
+                                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200">
+                                    <div className="bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap relative">
+                                        Anteriores
+                                        {/* Puntita derecha */}
+                                        <div className="absolute left-full top-1/2 -translate-y-1/2 w-0 h-0 border-t-4 border-b-4 border-l-4 border-t-transparent border-b-transparent border-l-slate-900"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* FAB Inferior - Ver más */}
+                        {hayMas && (
+                            <div className={`fixed right-6 2xl:right-1/2 bottom-6 z-40 transition-transform duration-75 group ${previewAbierto ? 'lg:right-[375px] 2xl:translate-x-[500px]' : '2xl:translate-x-[900px]'
+                                }`}>
+                                <button
+                                    onClick={avanzar}
+                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center"
+                                >
+                                    <ChevronRight className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rotate-90 group-hover:translate-y-0.5 transition-transform" />
+                                </button>
+
+                                {/* Tooltip a la izquierda */}
+                                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200">
+                                    <div className="bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap relative">
+                                        Siguientes
+                                        {/* Puntita derecha */}
+                                        <div className="absolute left-full top-1/2 -translate-y-1/2 w-0 h-0 border-t-4 border-b-4 border-l-4 border-t-transparent border-b-transparent border-l-slate-900"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* ===================================================================== */}
+                {/* MODALES */}
+                {/* ===================================================================== */}
+
+                {modalAbierto && (
+                    <ModalArticulo
+                        articulo={articuloEditando}
+                        categoriasExistentes={categoriasUnicas}
+                        onGuardar={async (datos) => {
+                            const exito = articuloEditando
+                                ? await actualizar(articuloEditando.id, datos)
+                                : await crear(datos as CrearArticuloInput);
+
+                            if (exito) {
+                                setModalAbierto(false);
+                                setArticuloEditando(null);
+                            }
+                        }}
+                        onCerrar={() => {
+                            setModalAbierto(false);
+                            setArticuloEditando(null);
+                        }}
+                    />
+                )}
+
+                {modalDuplicarAbierto && articuloDuplicando && (
+                    <ModalDuplicar
+                        articulo={articuloDuplicando}
+                        onDuplicar={async (datos) => {
+                            const exito = await duplicar(articuloDuplicando.id, datos);
+                            if (exito) {
+                                setModalDuplicarAbierto(false);
+                                setArticuloDuplicando(null);
+                            }
+                        }}
+                        onCerrar={() => {
+                            setModalDuplicarAbierto(false);
+                            setArticuloDuplicando(null);
+                        }}
+                    />
+                )}
+
+
+                {/* ✅ Modal Universal de Imágenes */}
+                <ModalImagenes
+                    images={modalImagenes.images}
+                    initialIndex={modalImagenes.initialIndex}
+                    isOpen={modalImagenes.isOpen}
+                    onClose={cerrarModalImagenes}
+                />
+            </div>
+        </div>
+    );
+}
+
+// =============================================================================
+// EXPORT DEFAULT
+// =============================================================================
+
+export default PaginaCatalogo;
