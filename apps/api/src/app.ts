@@ -19,6 +19,8 @@ import routes from './routes';
 // Crear app
 const app: Express = express();
 
+app.set('trust proxy', 1);
+
 // Middleware de seguridad
 app.use(configurarHelmet);
 app.use(configurarCors);
