@@ -1,10 +1,12 @@
 /**
  * email.ts
  * =========
- * Utilidad para envío de correos electrónicos con Nodemailer + Zoho SMTP.
+ * Utilidad para envío de correos electrónicos.
  * 
  * ¿Qué hace este archivo?
- * - Se conecta con Zoho SMTP para enviar emails
+ * - Detecta automáticamente qué proveedor usar:
+ *   - AWS SES SDK (API HTTP) → Para producción (Render, etc.)
+ *   - Nodemailer SMTP → Para desarrollo local
  * - Tiene funciones específicas para cada tipo de correo (verificación, etc.)
  * - Genera emails con diseño HTML bonito
  * 
@@ -12,33 +14,55 @@
  */
 
 import nodemailer from 'nodemailer';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { env } from '../config/env.js';
 
 // =============================================================================
-// CONFIGURACIÓN DEL TRANSPORTER (CONEXIÓN SMTP)
+// CONFIGURACIÓN DE PROVEEDORES
 // =============================================================================
 
 /**
- * Transporter de Nodemailer configurado para Zoho SMTP
- * - host: smtp.zoho.com
- * - port: 465 (SSL)
- * - secure: true (porque usamos puerto 465)
+ * Detectar qué proveedor de email usar
+ * - Si hay AWS_ACCESS_KEY_ID → AWS SES (API HTTP, funciona en cualquier host)
+ * - Si no → Nodemailer SMTP (para desarrollo local)
  */
-const transporter = nodemailer.createTransport({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  secure: true,
-  auth: {
-    user: env.SMTP_USER,
-    pass: env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const useAwsSes = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
 
-// Remitente configurado en .env
-const EMAIL_FROM = env.EMAIL_FROM;
+// Cliente de AWS SES (solo se crea si hay credenciales)
+let sesClient: SESClient | null = null;
+
+if (useAwsSes) {
+  sesClient = new SESClient({
+    region: process.env.AWS_REGION || 'us-east-2',
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  });
+  console.log('📧 Email configurado con AWS SES SDK (región:', process.env.AWS_REGION || 'us-east-2', ')');
+}
+
+// Transporter de Nodemailer (fallback para desarrollo local)
+let transporter: nodemailer.Transporter | null = null;
+
+if (!useAwsSes && env.SMTP_HOST) {
+  transporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: true,
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+  console.log('📧 Email configurado con Nodemailer SMTP');
+}
+
+// Remitente configurado
+const EMAIL_FROM = env.EMAIL_FROM || 'AnunciaYA <admin@anunciaya.online>';
 
 // =============================================================================
 // PLANTILLAS DE EMAIL
@@ -113,119 +137,6 @@ function plantillaVerificacion(nombre: string, codigo: string): string {
 </html>
   `.trim();
 }
-
-// =============================================================================
-// FUNCIONES DE ENVÍO
-// =============================================================================
-
-/**
- * Resultado del envío de email
- */
-interface ResultadoEmail {
-  success: boolean;
-  message: string;
-  id?: string; // ID del email si fue exitoso
-}
-
-/**
- * Envía el código de verificación al correo del usuario
- * 
- * @param correo - Email del destinatario
- * @param nombre - Nombre del usuario para personalizar
- * @param codigo - Código de 6 dígitos
- * @returns Resultado del envío
- * 
- * @example
- * const resultado = await enviarCodigoVerificacion(
- *   'juan@ejemplo.com',
- *   'Juan',
- *   '847293'
- * );
- * 
- * if (resultado.success) {
- *   console.log('Email enviado:', resultado.id);
- * }
- */
-export async function enviarCodigoVerificacion(
-  correo: string,
-  nombre: string,
-  codigo: string
-): Promise<ResultadoEmail> {
-  try {
-    const info = await transporter.sendMail({
-      from: EMAIL_FROM,
-      to: correo,
-      subject: `${codigo} - Tu código de verificación de AnunciaYA`,
-      html: plantillaVerificacion(nombre, codigo),
-    });
-
-    return {
-      success: true,
-      message: 'Correo de verificación enviado',
-      id: info.messageId,
-    };
-  } catch (error) {
-    console.error('Error al enviar email de verificación:', error);
-    return {
-      success: false,
-      message: 'No se pudo enviar el correo de verificación',
-    };
-  }
-}
-
-/**
- * Reenvía el código de verificación
- * Usa la misma plantilla pero con un asunto ligeramente diferente
- */
-export async function reenviarCodigoVerificacion(
-  correo: string,
-  nombre: string,
-  codigo: string
-): Promise<ResultadoEmail> {
-  try {
-    const info = await transporter.sendMail({
-      from: EMAIL_FROM,
-      to: correo,
-      subject: `${codigo} - Nuevo código de verificación de AnunciaYA`,
-      html: plantillaVerificacion(nombre, codigo),
-    });
-
-    return {
-      success: true,
-      message: 'Nuevo código enviado a tu correo',
-      id: info.messageId,
-    };
-  } catch (error) {
-    console.error('Error al reenviar email de verificación:', error);
-    return {
-      success: false,
-      message: 'No se pudo reenviar el correo de verificación',
-    };
-  }
-}
-
-// =============================================================================
-// VERIFICAR CONEXIÓN SMTP
-// =============================================================================
-
-/**
- * Verifica que la conexión SMTP funcione correctamente
- * Útil para probar la configuración al iniciar la app
- */
-export async function verificarConexionSMTP(): Promise<boolean> {
-  try {
-    await transporter.verify();
-    console.log('✅ Conexión SMTP verificada correctamente');
-    return true;
-  } catch (error) {
-    console.error('❌ Error al verificar conexión SMTP:', error);
-    return false;
-  }
-}
-
-// =============================================================================
-// PLANTILLA: RECUPERACIÓN DE CONTRASEÑA
-// =============================================================================
 
 /**
  * Genera el HTML para el email de recuperación de contraseña
@@ -304,51 +215,177 @@ function plantillaRecuperacion(nombre: string, codigo: string): string {
 }
 
 // =============================================================================
-// FUNCIÓN: ENVIAR EMAIL DE RECUPERACIÓN
+// FUNCIÓN GENÉRICA DE ENVÍO
 // =============================================================================
 
 /**
+ * Resultado del envío de email
+ */
+interface ResultadoEmail {
+  success: boolean;
+  message: string;
+  id?: string;
+}
+
+/**
+ * Extrae solo el email de un string tipo "Nombre <email@ejemplo.com>"
+ */
+function extraerEmail(from: string): string {
+  const match = from.match(/<(.+)>/);
+  return match ? match[1] : from;
+}
+
+/**
+ * Envía un email usando el proveedor configurado (AWS SES o Nodemailer)
+ */
+async function enviarEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<ResultadoEmail> {
+  // Opción 1: AWS SES SDK (API HTTP)
+  if (useAwsSes && sesClient) {
+    try {
+      const command = new SendEmailCommand({
+        Source: EMAIL_FROM,
+        Destination: {
+          ToAddresses: [to],
+        },
+        Message: {
+          Subject: {
+            Data: subject,
+            Charset: 'UTF-8',
+          },
+          Body: {
+            Html: {
+              Data: html,
+              Charset: 'UTF-8',
+            },
+          },
+        },
+      });
+
+      const response = await sesClient.send(command);
+
+      return {
+        success: true,
+        message: 'Email enviado con AWS SES',
+        id: response.MessageId,
+      };
+    } catch (error) {
+      console.error('Error al enviar email con AWS SES:', error);
+      return {
+        success: false,
+        message: 'No se pudo enviar el email con AWS SES',
+      };
+    }
+  }
+
+  // Opción 2: Nodemailer SMTP (desarrollo local)
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from: EMAIL_FROM,
+        to,
+        subject,
+        html,
+      });
+
+      return {
+        success: true,
+        message: 'Email enviado con Nodemailer',
+        id: info.messageId,
+      };
+    } catch (error) {
+      console.error('Error al enviar email con Nodemailer:', error);
+      return {
+        success: false,
+        message: 'No se pudo enviar el email con Nodemailer',
+      };
+    }
+  }
+
+  // Sin proveedor configurado
+  console.error('❌ No hay proveedor de email configurado');
+  return {
+    success: false,
+    message: 'No hay proveedor de email configurado',
+  };
+}
+
+// =============================================================================
+// FUNCIONES DE ENVÍO ESPECÍFICAS
+// =============================================================================
+
+/**
+ * Envía el código de verificación al correo del usuario
+ */
+export async function enviarCodigoVerificacion(
+  correo: string,
+  nombre: string,
+  codigo: string
+): Promise<ResultadoEmail> {
+  return enviarEmail(
+    correo,
+    `${codigo} - Tu código de verificación de AnunciaYA`,
+    plantillaVerificacion(nombre, codigo)
+  );
+}
+
+/**
+ * Reenvía el código de verificación
+ */
+export async function reenviarCodigoVerificacion(
+  correo: string,
+  nombre: string,
+  codigo: string
+): Promise<ResultadoEmail> {
+  return enviarEmail(
+    correo,
+    `${codigo} - Nuevo código de verificación de AnunciaYA`,
+    plantillaVerificacion(nombre, codigo)
+  );
+}
+
+/**
  * Envía el código de recuperación de contraseña al correo del usuario
- * 
- * @param correo - Email del destinatario
- * @param nombre - Nombre del usuario para personalizar
- * @param codigo - Código de 6 dígitos
- * @returns Resultado del envío
- * 
- * @example
- * const resultado = await enviarCodigoRecuperacion(
- *   'juan@ejemplo.com',
- *   'Juan',
- *   '847293'
- * );
- * 
- * if (resultado.success) {
- *   console.log('Email de recuperación enviado');
- * }
  */
 export async function enviarCodigoRecuperacion(
   correo: string,
   nombre: string,
   codigo: string
 ): Promise<ResultadoEmail> {
-  try {
-    const info = await transporter.sendMail({
-      from: EMAIL_FROM,
-      to: correo,
-      subject: `${codigo} - Recupera tu contraseña de AnunciaYA`,
-      html: plantillaRecuperacion(nombre, codigo),
-    });
+  return enviarEmail(
+    correo,
+    `${codigo} - Recupera tu contraseña de AnunciaYA`,
+    plantillaRecuperacion(nombre, codigo)
+  );
+}
 
-    return {
-      success: true,
-      message: 'Correo de recuperación enviado',
-      id: info.messageId,
-    };
-  } catch (error) {
-    console.error('Error al enviar email de recuperación:', error);
-    return {
-      success: false,
-      message: 'No se pudo enviar el correo de recuperación',
-    };
+// =============================================================================
+// VERIFICAR CONEXIÓN
+// =============================================================================
+
+/**
+ * Verifica que la conexión de email funcione correctamente
+ */
+export async function verificarConexionSMTP(): Promise<boolean> {
+  if (useAwsSes && sesClient) {
+    console.log('✅ AWS SES SDK configurado correctamente');
+    return true;
   }
+
+  if (transporter) {
+    try {
+      await transporter.verify();
+      console.log('✅ Conexión SMTP verificada correctamente');
+      return true;
+    } catch (error) {
+      console.error('❌ Error al verificar conexión SMTP:', error);
+      return false;
+    }
+  }
+
+  console.warn('⚠️ No hay proveedor de email configurado');
+  return false;
 }

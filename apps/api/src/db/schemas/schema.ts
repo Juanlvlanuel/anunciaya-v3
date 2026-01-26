@@ -1,18 +1,6 @@
 
-import { pgTable, check, integer, varchar, type AnyPgColumn, index, uniqueIndex, foreignKey, unique, uuid, boolean, smallint, timestamp, numeric, text, date, serial, time, jsonb, bigserial, bigint, pgView } from "drizzle-orm/pg-core"
+import { pgTable, check, integer, varchar, type AnyPgColumn, index, uniqueIndex, foreignKey, unique, uuid, boolean, smallint, timestamp, numeric, text, date, serial, time, jsonb, bigserial, bigint } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
-
-
-
-export const spatialRefSys = pgTable("spatial_ref_sys", {
-	srid: integer().primaryKey().notNull(),
-	authName: varchar("auth_name", { length: 256 }),
-	authSrid: integer("auth_srid"),
-	srtext: varchar({ length: 2048 }),
-	proj4Text: varchar({ length: 2048 }),
-}, (table) => [
-	check("spatial_ref_sys_srid_check", sql`(srid > 0) AND (srid <= 998999)`),
-]);
 
 export const regiones = pgTable("regiones", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
