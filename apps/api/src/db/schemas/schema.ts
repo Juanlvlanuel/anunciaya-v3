@@ -10,8 +10,8 @@ export const regiones = pgTable("regiones", {
 	activa: boolean().default(true).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_regiones_activa").using("btree", table.activa.asc().nullsLast().op("bool_ops")).where(sql`(activa = true)`),
-	index("idx_regiones_estado").using("btree", table.estado.asc().nullsLast().op("text_ops")),
+	index("idx_regiones_activa").using("btree", table.activa.asc().nullsLast()).where(sql`(activa = true)`),
+	index("idx_regiones_estado").using("btree", table.estado.asc().nullsLast()),
 	unique("regiones_nombre_estado_unique").on(table.nombre, table.estado),
 ]);
 
@@ -26,10 +26,10 @@ export const embajadores = pgTable("embajadores", {
 	estado: varchar({ length: 20 }).default('activo').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_embajadores_codigo").using("btree", table.codigoReferido.asc().nullsLast().op("text_ops")),
-	index("idx_embajadores_estado").using("btree", table.estado.asc().nullsLast().op("text_ops")).where(sql`((estado)::text = 'activo'::text)`),
-	index("idx_embajadores_region").using("btree", table.regionId.asc().nullsLast().op("uuid_ops")),
-	uniqueIndex("idx_embajadores_usuario").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_embajadores_codigo").using("btree", table.codigoReferido.asc().nullsLast()),
+	index("idx_embajadores_estado").using("btree", table.estado.asc().nullsLast()).where(sql`((estado)::text = 'activo'::text)`),
+	index("idx_embajadores_region").using("btree", table.regionId.asc().nullsLast()),
+	uniqueIndex("idx_embajadores_usuario").using("btree", table.usuarioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.regionId],
 		foreignColumns: [regiones.id],
@@ -86,20 +86,20 @@ export const usuarios = pgTable("usuarios", {
 	negocioId: uuid('negocio_id').references((): AnyPgColumn => negocios.id, { onDelete: 'set null' }),
 	sucursalAsignada: uuid('sucursal_asignada').references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'set null' }),
 }, (table) => [
-	index("idx_usuarios_correo_verificado").using("btree", table.correoVerificado.asc().nullsLast().op("bool_ops")),
-	index("idx_usuarios_created_at").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_usuarios_es_embajador").using("btree", table.esEmbajador.asc().nullsLast().op("bool_ops")).where(sql`(es_embajador = true)`),
-	index("idx_usuarios_estado").using("btree", table.estado.asc().nullsLast().op("text_ops")),
-	index("idx_usuarios_perfil_membresia").using("btree", table.perfil.asc().nullsLast().op("text_ops"), table.membresia.asc().nullsLast().op("text_ops")),
-	index("idx_usuarios_referido_por").using("btree", table.referidoPor.asc().nullsLast().op("uuid_ops")).where(sql`(referido_por IS NOT NULL)`),
-	index("idx_usuarios_stripe_customer_id").using("btree", table.stripeCustomerId.asc().nullsLast().op("text_ops")),
-	index("idx_usuarios_stripe_subscription_id").using("btree", table.stripeSubscriptionId.asc().nullsLast().op("text_ops")),
-	index("idx_usuarios_telefono").using("btree", table.telefono.asc().nullsLast().op("text_ops")),
-	index("idx_usuarios_modo_activo").using("btree", table.modoActivo.asc().nullsLast().op("text_ops")),
-	index("idx_usuarios_modo_comercial").using("btree", table.tieneModoComercial.asc().nullsLast().op("bool_ops"), table.modoActivo.asc().nullsLast().op("text_ops")).where(sql`(tiene_modo_comercial = true)`),
-	index("idx_usuarios_negocio_id").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")).where(sql`(negocio_id IS NOT NULL)`),
-	index("idx_usuarios_sucursal_asignada").using("btree", table.sucursalAsignada.asc().nullsLast().op("uuid_ops")).where(sql`(sucursal_asignada IS NOT NULL)`),
-	uniqueIndex("usuarios_alias_unique").using("btree", table.alias.asc().nullsLast().op("text_ops")).where(sql`(alias IS NOT NULL)`),
+	index("idx_usuarios_correo_verificado").using("btree", table.correoVerificado.asc().nullsLast()),
+	index("idx_usuarios_created_at").using("btree", table.createdAt.asc().nullsLast()),
+	index("idx_usuarios_es_embajador").using("btree", table.esEmbajador.asc().nullsLast()).where(sql`(es_embajador = true)`),
+	index("idx_usuarios_estado").using("btree", table.estado.asc().nullsLast()),
+	index("idx_usuarios_perfil_membresia").using("btree", table.perfil.asc().nullsLast(), table.membresia.asc().nullsLast()),
+	index("idx_usuarios_referido_por").using("btree", table.referidoPor.asc().nullsLast()).where(sql`(referido_por IS NOT NULL)`),
+	index("idx_usuarios_stripe_customer_id").using("btree", table.stripeCustomerId.asc().nullsLast()),
+	index("idx_usuarios_stripe_subscription_id").using("btree", table.stripeSubscriptionId.asc().nullsLast()),
+	index("idx_usuarios_telefono").using("btree", table.telefono.asc().nullsLast()),
+	index("idx_usuarios_modo_activo").using("btree", table.modoActivo.asc().nullsLast()),
+	index("idx_usuarios_modo_comercial").using("btree", table.tieneModoComercial.asc().nullsLast(), table.modoActivo.asc().nullsLast()).where(sql`(tiene_modo_comercial = true)`),
+	index("idx_usuarios_negocio_id").using("btree", table.negocioId.asc().nullsLast()).where(sql`(negocio_id IS NOT NULL)`),
+	index("idx_usuarios_sucursal_asignada").using("btree", table.sucursalAsignada.asc().nullsLast()).where(sql`(sucursal_asignada IS NOT NULL)`),
+	uniqueIndex("usuarios_alias_unique").using("btree", table.alias.asc().nullsLast()).where(sql`(alias IS NOT NULL)`),
 	unique("usuarios_correo_unique").on(table.correo),
 	check("usuarios_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'inactivo'::character varying, 'suspendido'::character varying])::text[])`),
 	check("usuarios_genero_check", sql`(genero)::text = ANY ((ARRAY['masculino'::character varying, 'femenino'::character varying, 'otro'::character varying, 'no_especificado'::character varying])::text[])`),
@@ -116,7 +116,7 @@ export const usuarioCodigosRespaldo = pgTable("usuario_codigos_respaldo", {
 	usadoAt: timestamp("usado_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_usuario_codigos_respaldo_usuario_id").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_usuario_codigos_respaldo_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.usuarioId],
 		foreignColumns: [usuarios.id],
@@ -145,14 +145,14 @@ export const negocios = pgTable("negocios", {
 	participaPuntos: boolean('participa_puntos').default(true).notNull(),
 	fechaPrimerPago: date("fecha_primer_pago"),
 }, (table) => [
-	index("idx_negocios_activo").using("btree", table.activo.asc().nullsLast().op("bool_ops")),
-	index("idx_negocios_embajador").using("btree", table.embajadorId.asc().nullsLast().op("uuid_ops")).where(sql`(embajador_id IS NOT NULL)`),
-	index("idx_negocios_es_borrador").using("btree", table.esBorrador.asc().nullsLast().op("bool_ops")),
-	index("idx_negocios_fecha_primer_pago").using("btree", table.fechaPrimerPago.asc().nullsLast().op("date_ops")).where(sql`(fecha_primer_pago IS NOT NULL)`),
-	index("idx_negocios_meses_gratis").using("btree", table.mesesGratisRestantes.asc().nullsLast().op("int4_ops")).where(sql`(meses_gratis_restantes > 0)`),
-	index("idx_negocios_onboarding").using("btree", table.onboardingCompletado.asc().nullsLast().op("bool_ops")).where(sql`(onboarding_completado = false)`),
-	index("idx_negocios_region").using("btree", table.regionId.asc().nullsLast().op("uuid_ops")).where(sql`(region_id IS NOT NULL)`),
-	index("idx_negocios_usuario_id").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_negocios_activo").using("btree", table.activo.asc().nullsLast()),
+	index("idx_negocios_embajador").using("btree", table.embajadorId.asc().nullsLast()).where(sql`(embajador_id IS NOT NULL)`),
+	index("idx_negocios_es_borrador").using("btree", table.esBorrador.asc().nullsLast()),
+	index("idx_negocios_fecha_primer_pago").using("btree", table.fechaPrimerPago.asc().nullsLast()).where(sql`(fecha_primer_pago IS NOT NULL)`),
+	index("idx_negocios_meses_gratis").using("btree", table.mesesGratisRestantes.asc().nullsLast()).where(sql`(meses_gratis_restantes > 0)`),
+	index("idx_negocios_onboarding").using("btree", table.onboardingCompletado.asc().nullsLast()).where(sql`(onboarding_completado = false)`),
+	index("idx_negocios_region").using("btree", table.regionId.asc().nullsLast()).where(sql`(region_id IS NOT NULL)`),
+	index("idx_negocios_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.embajadorId],
 		foreignColumns: [embajadores.id],
@@ -195,12 +195,12 @@ export const negocioSucursales = pgTable("negocio_sucursales", {
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_sucursales_negocio_id").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_sucursales_activa").using("btree", table.activa.asc().nullsLast().op("bool_ops")),
-	index("idx_sucursales_ubicacion").using("gist", table.ubicacion.asc().nullsLast().op("gist_geography_ops")),
-	index("idx_sucursales_calificacion").using("btree", table.calificacionPromedio.asc().nullsLast().op("numeric_ops")),
-	index("idx_sucursales_visitas").using("btree", table.totalVisitas.asc().nullsLast().op("int4_ops")),
-	uniqueIndex("negocio_sucursales_principal_unique").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops"), table.esPrincipal.asc().nullsLast().op("bool_ops")).where(sql`es_principal = true`),
+	index("idx_sucursales_negocio_id").using("btree", table.negocioId.asc().nullsLast()),
+	index("idx_sucursales_activa").using("btree", table.activa.asc().nullsLast()),
+	// index("idx_sucursales_ubicacion").using("gist", table.ubicacion),
+	index("idx_sucursales_calificacion").using("btree", table.calificacionPromedio.asc().nullsLast()),
+	index("idx_sucursales_visitas").using("btree", table.totalVisitas.asc().nullsLast()),
+	uniqueIndex("negocio_sucursales_principal_unique").using("btree", table.negocioId.asc().nullsLast(), table.esPrincipal.asc().nullsLast()).where(sql`es_principal = true`),
 ]);
 
 export const asignacionSubcategorias = pgTable('asignacion_subcategorias', {
@@ -210,8 +210,8 @@ export const asignacionSubcategorias = pgTable('asignacion_subcategorias', {
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	unique().on(table.negocioId, table.subcategoriaId),
-	index('idx_asignacion_negocio').using('btree', table.negocioId.asc().nullsLast().op("uuid_ops")),
-	index('idx_asignacion_subcategoria').using('btree', table.subcategoriaId.asc().nullsLast().op("int4_ops")),
+	index('idx_asignacion_negocio').using('btree', table.negocioId.asc().nullsLast()),
+	index('idx_asignacion_subcategoria').using('btree', table.subcategoriaId.asc().nullsLast()),
 ]);
 
 export const negocioHorarios = pgTable("negocio_horarios", {
@@ -243,8 +243,8 @@ export const negocioModulos = pgTable("negocio_modulos", {
 	apartadosActivo: boolean("apartados_activo").default(false),
 	empleadosActivo: boolean("empleados_activo").default(false),
 }, (table) => [
-	index("idx_negocio_modulos_citas").using("btree", table.citasActivo.asc().nullsLast().op("bool_ops")),
-	index("idx_negocio_modulos_pedidos").using("btree", table.pedidosOnlineActivo.asc().nullsLast().op("bool_ops")),
+	index("idx_negocio_modulos_citas").using("btree", table.citasActivo.asc().nullsLast()),
+	index("idx_negocio_modulos_pedidos").using("btree", table.pedidosOnlineActivo.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -260,7 +260,7 @@ export const negocioMetodosPago = pgTable("negocio_metodos_pago", {
 	activo: boolean().default(true),
 	instrucciones: text(),
 }, (table) => [
-	index("idx_negocio_metodos_pago_sucursal_id").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")),
+	index("idx_negocio_metodos_pago_sucursal_id").using("btree", table.sucursalId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -293,7 +293,7 @@ export const negocioCitasFechasEspecificas = pgTable("negocio_citas_fechas_espec
 	horaInicio: time("hora_inicio"),
 	horaFin: time("hora_fin"),
 }, (table) => [
-	index("idx_negocio_citas_fechas_fecha").using("btree", table.fecha.asc().nullsLast().op("date_ops")),
+	index("idx_negocio_citas_fechas_fecha").using("btree", table.fecha.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -312,8 +312,8 @@ export const negocioGaleria = pgTable("negocio_galeria", {
 	orden: integer().default(0),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_negocio_galeria_negocio_id").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_negocio_galeria_sucursal_id").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")),
+	index("idx_negocio_galeria_negocio_id").using("btree", table.negocioId.asc().nullsLast()),
+	index("idx_negocio_galeria_sucursal_id").using("btree", table.sucursalId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -361,9 +361,9 @@ export const articulos = pgTable("articulos", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_articulos_categoria").using("btree", table.categoria.asc().nullsLast().op("text_ops")),
-	index("idx_articulos_disponible").using("btree", table.disponible.asc().nullsLast().op("bool_ops")),
-	index("idx_articulos_negocio_id").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_articulos_categoria").using("btree", table.categoria.asc().nullsLast()),
+	index("idx_articulos_disponible").using("btree", table.disponible.asc().nullsLast()),
+	index("idx_articulos_negocio_id").using("btree", table.negocioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -379,8 +379,8 @@ export const articuloSucursales = pgTable("articulo_sucursales", {
 	sucursalId: uuid("sucursal_id").notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_articulo_sucursales_articulo").using("btree", table.articuloId.asc().nullsLast().op("uuid_ops")),
-	index("idx_articulo_sucursales_sucursal").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")),
+	index("idx_articulo_sucursales_articulo").using("btree", table.articuloId.asc().nullsLast()),
+	index("idx_articulo_sucursales_sucursal").using("btree", table.sucursalId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.articuloId],
 		foreignColumns: [articulos.id],
@@ -423,7 +423,7 @@ export const articuloVariantes = pgTable("articulo_variantes", {
 	orden: integer().default(0),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_articulo_variantes_articulo_id").using("btree", table.articuloId.asc().nullsLast().op("uuid_ops")),
+	index("idx_articulo_variantes_articulo_id").using("btree", table.articuloId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.articuloId],
 		foreignColumns: [articulos.id],
@@ -440,7 +440,7 @@ export const articuloVarianteOpciones = pgTable("articulo_variante_opciones", {
 	orden: integer().default(0),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_articulo_variante_opciones_variante_id").using("btree", table.varianteId.asc().nullsLast().op("uuid_ops")),
+	index("idx_articulo_variante_opciones_variante_id").using("btree", table.varianteId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.varianteId],
 		foreignColumns: [articuloVariantes.id],
@@ -484,11 +484,11 @@ export const citas = pgTable("citas", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_citas_cliente_id").using("btree", table.clienteId.asc().nullsLast().op("uuid_ops")),
-	index("idx_citas_empleado_id").using("btree", table.empleadoId.asc().nullsLast().op("uuid_ops")),
-	index("idx_citas_estado").using("btree", table.estado.asc().nullsLast().op("text_ops")),
-	index("idx_citas_fecha").using("btree", table.fecha.asc().nullsLast().op("date_ops")),
-	index("idx_citas_negocio_id").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_citas_cliente_id").using("btree", table.clienteId.asc().nullsLast()),
+	index("idx_citas_empleado_id").using("btree", table.empleadoId.asc().nullsLast()),
+	index("idx_citas_estado").using("btree", table.estado.asc().nullsLast()),
+	index("idx_citas_fecha").using("btree", table.fecha.asc().nullsLast()),
+	index("idx_citas_negocio_id").using("btree", table.negocioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.clienteId],
 		foreignColumns: [usuarios.id],
@@ -524,7 +524,7 @@ export const empleadoHorarios = pgTable("empleado_horarios", {
 	horaEntrada: time("hora_entrada").notNull(),
 	horaSalida: time("hora_salida").notNull(),
 }, (table) => [
-	index("idx_empleado_horarios_empleado_id").using("btree", table.empleadoId.asc().nullsLast().op("uuid_ops")),
+	index("idx_empleado_horarios_empleado_id").using("btree", table.empleadoId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.empleadoId],
 		foreignColumns: [empleados.id],
@@ -554,7 +554,7 @@ export const direccionesUsuario = pgTable("direcciones_usuario", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_direcciones_usuario_usuario_id").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_direcciones_usuario_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.usuarioId],
 		foreignColumns: [usuarios.id],
@@ -575,7 +575,7 @@ export const pedidoArticulos = pgTable("pedido_articulos", {
 	modificadores: jsonb().default([]),
 	notas: text(),
 }, (table) => [
-	index("idx_pedido_articulos_pedido_id").using("btree", table.pedidoId.asc().nullsLast().op("uuid_ops")),
+	index("idx_pedido_articulos_pedido_id").using("btree", table.pedidoId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.pedidoId],
 		foreignColumns: [pedidos.id],
@@ -592,7 +592,7 @@ export const carrito = pgTable("carrito", {
 	tipoVendedor: varchar("tipo_vendedor", { length: 10 }).default('comercial').notNull(),
 	vendedorId: uuid("vendedor_id").default(sql`'00000000-0000-0000-0000-000000000000'`).notNull(),
 }, (table) => [
-	index("idx_carrito_usuario_id").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_carrito_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.usuarioId],
 		foreignColumns: [usuarios.id],
@@ -630,9 +630,9 @@ export const pedidos = pgTable("pedidos", {
 	entregadoAt: timestamp("entregado_at", { withTimezone: true, mode: 'string' }),
 	referenciaPago: varchar("referencia_pago", { length: 100 }),
 }, (table) => [
-	index("idx_pedidos_comprador_estado").using("btree", table.compradorId.asc().nullsLast().op("text_ops"), table.estado.asc().nullsLast().op("text_ops")),
-	index("idx_pedidos_sucursal").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops"), table.estado.asc().nullsLast().op("text_ops")),
-	index("idx_pedidos_negocio").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops"), table.estado.asc().nullsLast().op("text_ops")),
+	index("idx_pedidos_comprador_estado").using("btree", table.compradorId.asc().nullsLast(), table.estado.asc().nullsLast()),
+	index("idx_pedidos_sucursal").using("btree", table.sucursalId.asc().nullsLast(), table.estado.asc().nullsLast()),
+	index("idx_pedidos_negocio").using("btree", table.negocioId.asc().nullsLast(), table.estado.asc().nullsLast()),
 	foreignKey({
 		columns: [table.cuponId],
 		foreignColumns: [cupones.id],
@@ -668,11 +668,11 @@ export const ofertas = pgTable("ofertas", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_ofertas_activo").using("btree", table.activo.asc().nullsLast().op("bool_ops")),
-	index("idx_ofertas_fecha_fin").using("btree", table.fechaFin.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_ofertas_fecha_inicio").using("btree", table.fechaInicio.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_ofertas_negocio_id").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_ofertas_sucursal_id").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")),
+	index("idx_ofertas_activo").using("btree", table.activo.asc().nullsLast()),
+	index("idx_ofertas_fecha_fin").using("btree", table.fechaFin.asc().nullsLast()),
+	index("idx_ofertas_fecha_inicio").using("btree", table.fechaInicio.asc().nullsLast()),
+	index("idx_ofertas_negocio_id").using("btree", table.negocioId.asc().nullsLast()),
+	index("idx_ofertas_sucursal_id").using("btree", table.sucursalId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.articuloId],
 		foreignColumns: [articulos.id],
@@ -696,7 +696,7 @@ export const cuponGaleria = pgTable("cupon_galeria", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	esLogo: boolean("es_logo").default(false),
 }, (table) => [
-	index("idx_cupon_galeria_cupon_id").using("btree", table.cuponId.asc().nullsLast().op("uuid_ops")),
+	index("idx_cupon_galeria_cupon_id").using("btree", table.cuponId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.cuponId],
 		foreignColumns: [cupones.id],
@@ -721,12 +721,12 @@ export const cuponUsos = pgTable("cupon_usos", {
 	empleadoId: uuid("empleado_id"),
 	sucursalId: uuid("sucursal_id"),
 }, (table) => [
-	index("idx_cupon_usos_created_at").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_cupon_usos_cupon_usuario").using("btree", table.cuponId.asc().nullsLast().op("uuid_ops"), table.usuarioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_cupon_usos_usado_at").using("btree", table.usadoAt.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_cupon_usos_usuario_estado").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops"), table.estado.asc().nullsLast().op("uuid_ops")),
-	index("idx_cupon_usos_sucursal").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")),
-	index("idx_cupon_usos_empleado").using("btree", table.empleadoId.asc().nullsLast().op("uuid_ops")),
+	index("idx_cupon_usos_created_at").using("btree", table.createdAt.asc().nullsLast()),
+	index("idx_cupon_usos_cupon_usuario").using("btree", table.cuponId.asc().nullsLast(), table.usuarioId.asc().nullsLast()),
+	index("idx_cupon_usos_usado_at").using("btree", table.usadoAt.asc().nullsLast()),
+	index("idx_cupon_usos_usuario_estado").using("btree", table.usuarioId.asc().nullsLast(), table.estado.asc().nullsLast()),
+	index("idx_cupon_usos_sucursal").using("btree", table.sucursalId.asc().nullsLast()),
+	index("idx_cupon_usos_empleado").using("btree", table.empleadoId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.cuponId],
 		foreignColumns: [cupones.id],
@@ -759,8 +759,8 @@ export const cuponUsuarios = pgTable("cupon_usuarios", {
 	motivo: varchar({ length: 200 }),
 	asignadoAt: timestamp("asignado_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_cupon_usuarios_cupon_id").using("btree", table.cuponId.asc().nullsLast().op("uuid_ops")),
-	index("idx_cupon_usuarios_usuario_id").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_cupon_usuarios_cupon_id").using("btree", table.cuponId.asc().nullsLast()),
+	index("idx_cupon_usuarios_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.cuponId],
 		foreignColumns: [cupones.id],
@@ -795,9 +795,9 @@ export const cupones = pgTable("cupones", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	visibilidad: varchar({ length: 15 }).default('publico'),
 }, (table) => [
-	index("idx_cupones_activo").using("btree", table.activo.asc().nullsLast().op("bool_ops")),
-	index("idx_cupones_negocio_id").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_cupones_sucursal_id").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")),
+	index("idx_cupones_activo").using("btree", table.activo.asc().nullsLast()),
+	index("idx_cupones_negocio_id").using("btree", table.negocioId.asc().nullsLast()),
+	index("idx_cupones_sucursal_id").using("btree", table.sucursalId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -829,10 +829,10 @@ export const marketplace = pgTable("marketplace", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_marketplace_autor_id").using("btree", table.autorId.asc().nullsLast().op("uuid_ops")),
-	index("idx_marketplace_categoria_id").using("btree", table.categoriaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_marketplace_ciudad").using("btree", table.ciudad.asc().nullsLast().op("text_ops")),
-	index("idx_marketplace_estado").using("btree", table.estado.asc().nullsLast().op("text_ops")),
+	index("idx_marketplace_autor_id").using("btree", table.autorId.asc().nullsLast()),
+	index("idx_marketplace_categoria_id").using("btree", table.categoriaId.asc().nullsLast()),
+	index("idx_marketplace_ciudad").using("btree", table.ciudad.asc().nullsLast()),
+	index("idx_marketplace_estado").using("btree", table.estado.asc().nullsLast()),
 	foreignKey({
 		columns: [table.autorId],
 		foreignColumns: [usuarios.id],
@@ -877,7 +877,7 @@ export const planes = pgTable("planes", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_planes_activo").using("btree", table.activo.asc().nullsLast().op("bool_ops")),
+	index("idx_planes_activo").using("btree", table.activo.asc().nullsLast()),
 	unique("planes_unique").on(table.perfil, table.membresia),
 	check("planes_membresia_check", sql`membresia = ANY (ARRAY[1, 2, 3])`),
 	check("planes_perfil_check", sql`(perfil)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
@@ -896,9 +896,9 @@ export const planReglas = pgTable("plan_reglas", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_plan_reglas_activo").using("btree", table.activo.asc().nullsLast().op("bool_ops")),
-	index("idx_plan_reglas_plan_id").using("btree", table.planId.asc().nullsLast().op("int4_ops")),
-	index("idx_plan_reglas_seccion").using("btree", table.seccion.asc().nullsLast().op("text_ops")),
+	index("idx_plan_reglas_activo").using("btree", table.activo.asc().nullsLast()),
+	index("idx_plan_reglas_plan_id").using("btree", table.planId.asc().nullsLast()),
+	index("idx_plan_reglas_seccion").using("btree", table.seccion.asc().nullsLast()),
 	foreignKey({
 		columns: [table.planId],
 		foreignColumns: [planes.id],
@@ -926,11 +926,11 @@ export const bitacoraUso = pgTable("bitacora_uso", {
 	entidadTipo: varchar("entidad_tipo", { length: 50 }),
 	notas: text(),
 }, (table) => [
-	index("idx_bitacora_uso_clave").using("btree", table.clave.asc().nullsLast().op("text_ops")),
-	index("idx_bitacora_uso_seccion").using("btree", table.seccion.asc().nullsLast().op("text_ops")),
-	index("idx_bitacora_uso_usuario_clave").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops"), table.clave.asc().nullsLast().op("uuid_ops")),
-	index("idx_bitacora_uso_usuario_created").using("btree", table.usuarioId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_bitacora_uso_usuario_id").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
+	index("idx_bitacora_uso_clave").using("btree", table.clave.asc().nullsLast()),
+	index("idx_bitacora_uso_seccion").using("btree", table.seccion.asc().nullsLast()),
+	index("idx_bitacora_uso_usuario_clave").using("btree", table.usuarioId.asc().nullsLast(), table.clave.asc().nullsLast()),
+	index("idx_bitacora_uso_usuario_created").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.asc().nullsLast()),
+	index("idx_bitacora_uso_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -953,9 +953,9 @@ export const votos = pgTable("votos", {
 	votanteSucursalId: uuid("votante_sucursal_id"),  // ← AGREGAR ESTA LÍNEA
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_votos_entity").using("btree", table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("uuid_ops"), table.tipoAccion.asc().nullsLast().op("text_ops")),
-	index("idx_votos_user_id").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
-	index("idx_votos_votante_sucursal_id").using("btree", table.votanteSucursalId.asc().nullsLast().op("uuid_ops")),  // ← AGREGAR ÍNDICE
+	index("idx_votos_entity").using("btree", table.entityType.asc().nullsLast(), table.entityId.asc().nullsLast(), table.tipoAccion.asc().nullsLast()),
+	index("idx_votos_user_id").using("btree", table.userId.asc().nullsLast()),
+	index("idx_votos_votante_sucursal_id").using("btree", table.votanteSucursalId.asc().nullsLast()),  // ← AGREGAR ÍNDICE
 	foreignKey({
 		columns: [table.userId],
 		foreignColumns: [usuarios.id],
@@ -977,9 +977,9 @@ export const guardados = pgTable("guardados", {
 	entityId: uuid("entity_id").notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_guardados_usuario").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_guardados_entity").using("btree", table.entityType.asc().nullsLast().op("varchar_ops"), table.entityId.asc().nullsLast().op("uuid_ops")),
-	index("idx_guardados_usuario_entity").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops"), table.entityType.asc().nullsLast().op("varchar_ops")),
+	index("idx_guardados_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_guardados_entity").using("btree", table.entityType.asc().nullsLast(), table.entityId.asc().nullsLast()),
+	index("idx_guardados_usuario_entity").using("btree", table.usuarioId.asc().nullsLast(), table.entityType.asc().nullsLast()),
 	unique("guardados_unique").on(table.usuarioId, table.entityType, table.entityId),
 	check("guardados_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['oferta'::character varying, 'rifa'::character varying, 'empleo'::character varying])::text[])`),
 ]);
@@ -998,9 +998,9 @@ export const resenas = pgTable("resenas", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_resenas_destino").using("btree", table.destinoTipo.asc().nullsLast().op("uuid_ops"), table.destinoId.asc().nullsLast().op("text_ops")),
-	index("idx_resenas_interaccion").using("btree", table.interaccionTipo.asc().nullsLast().op("text_ops"), table.interaccionId.asc().nullsLast().op("uuid_ops")),
-	index("idx_resenas_sucursal_id").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")),
+	index("idx_resenas_destino").using("btree", table.destinoTipo.asc().nullsLast(), table.destinoId.asc().nullsLast()),
+	index("idx_resenas_interaccion").using("btree", table.interaccionTipo.asc().nullsLast(), table.interaccionId.asc().nullsLast()),
+	index("idx_resenas_sucursal_id").using("btree", table.sucursalId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.autorId],
 		foreignColumns: [usuarios.id],
@@ -1029,7 +1029,7 @@ export const metricasEntidad = pgTable("metricas_entidad", {
 	totalFollows: integer("total_follows").default(0),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_metricas_entidad_entity").using("btree", table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("uuid_ops")),
+	index("idx_metricas_entidad_entity").using("btree", table.entityType.asc().nullsLast(), table.entityId.asc().nullsLast()),
 	unique("metricas_entidad_unique").on(table.entityType, table.entityId),
 	// ⚠️ ACTUALIZADO: 'sucursal' en lugar de 'negocio'
 	check("metricas_entidad_type_check", sql`(entity_type)::text = ANY ((ARRAY['sucursal'::character varying, 'articulo'::character varying, 'publicacion'::character varying, 'oferta'::character varying, 'rifa'::character varying, 'subasta'::character varying, 'empleo'::character varying])::text[])`),
@@ -1045,7 +1045,7 @@ export const metricasUsuario = pgTable("metricas_usuario", {
 	totalResenas: integer("total_resenas").default(0),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_metricas_usuario_user_id").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
+	index("idx_metricas_usuario_user_id").using("btree", table.userId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.userId],
 		foreignColumns: [usuarios.id],
@@ -1064,7 +1064,7 @@ export const carritoArticulos = pgTable("carrito_articulos", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_carrito_articulos_carrito_id").using("btree", table.carritoId.asc().nullsLast().op("uuid_ops")),
+	index("idx_carrito_articulos_carrito_id").using("btree", table.carritoId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.articuloId],
 		foreignColumns: [articulos.id],
@@ -1115,8 +1115,8 @@ export const configuracionSistema = pgTable("configuracion_sistema", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_configuracion_categoria").using("btree", table.categoria.asc().nullsLast().op("text_ops")),
-	index("idx_configuracion_clave").using("btree", table.clave.asc().nullsLast().op("text_ops")),
+	index("idx_configuracion_categoria").using("btree", table.categoria.asc().nullsLast()),
+	index("idx_configuracion_clave").using("btree", table.clave.asc().nullsLast()),
 	foreignKey({
 		columns: [table.actualizadoPor],
 		foreignColumns: [usuarios.id],
@@ -1140,7 +1140,7 @@ export const planesAnuncios = pgTable("planes_anuncios", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_planes_anuncios_activo_orden").using("btree", table.activo.asc().nullsLast().op("int4_ops"), table.orden.asc().nullsLast().op("int4_ops")).where(sql`(activo = true)`),
+	index("idx_planes_anuncios_activo_orden").using("btree", table.activo.asc().nullsLast(), table.orden.asc().nullsLast()).where(sql`(activo = true)`),
 	check("planes_anuncios_duracion_dias_check", sql`duracion_dias > 0`),
 	check("planes_anuncios_max_secciones_check", sql`(max_secciones >= 1) AND (max_secciones <= 5)`),
 	check("planes_anuncios_precio_check", sql`precio >= (0)::numeric`),
@@ -1167,10 +1167,10 @@ export const promocionesPagadas = pgTable("promociones_pagadas", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_promociones_estado_expira").using("btree", table.estado.asc().nullsLast().op("text_ops"), table.expiraAt.asc().nullsLast().op("text_ops")).where(sql`((estado)::text = 'activo'::text)`),
-	index("idx_promociones_secciones").using("gin", table.seccionesActivas.asc().nullsLast().op("jsonb_ops")),
-	index("idx_promociones_tipo_entidad").using("btree", table.tipoEntidad.asc().nullsLast().op("uuid_ops"), table.entidadId.asc().nullsLast().op("uuid_ops")),
-	index("idx_promociones_usuario").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
+	index("idx_promociones_estado_expira").using("btree", table.estado.asc().nullsLast(), table.expiraAt.asc().nullsLast()).where(sql`((estado)::text = 'activo'::text)`),
+	index("idx_promociones_secciones").using("gin", table.seccionesActivas.asc().nullsLast()),
+	index("idx_promociones_tipo_entidad").using("btree", table.tipoEntidad.asc().nullsLast(), table.entidadId.asc().nullsLast()),
+	index("idx_promociones_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	foreignKey({
 		columns: [table.planAnuncioId],
 		foreignColumns: [planesAnuncios.id],
@@ -1208,10 +1208,10 @@ export const promocionesTemporales = pgTable("promociones_temporales", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_promociones_temp_activo_fechas").using("btree", table.activo.asc().nullsLast().op("timestamptz_ops"), table.fechaInicio.asc().nullsLast().op("bool_ops"), table.fechaFin.asc().nullsLast().op("bool_ops")).where(sql`(activo = true)`),
-	index("idx_promociones_temp_aplica").using("btree", table.aplicaA.asc().nullsLast().op("text_ops")),
+	index("idx_promociones_temp_activo_fechas").using("btree", table.activo.asc().nullsLast(), table.fechaInicio.asc().nullsLast(), table.fechaFin.asc().nullsLast()).where(sql`(activo = true)`),
+	index("idx_promociones_temp_aplica").using("btree", table.aplicaA.asc().nullsLast()),
 	index("idx_promociones_temp_codigo").using("btree", sql`upper((codigo)::text)`),
-	index("idx_promociones_temp_visible").using("btree", table.visiblePublico.asc().nullsLast().op("bool_ops")).where(sql`(visible_publico = true)`),
+	index("idx_promociones_temp_visible").using("btree", table.visiblePublico.asc().nullsLast()).where(sql`(visible_publico = true)`),
 	foreignKey({
 		columns: [table.creadoPor],
 		foreignColumns: [usuarios.id],
@@ -1239,9 +1239,9 @@ export const promocionesUsadas = pgTable("promociones_usadas", {
 	stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_promociones_usadas_promocion_fecha").using("btree", table.promocionId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_promociones_usadas_promocion_usuario").using("btree", table.promocionId.asc().nullsLast().op("uuid_ops"), table.usuarioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_promociones_usadas_usuario_fecha").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+	index("idx_promociones_usadas_promocion_fecha").using("btree", table.promocionId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_promociones_usadas_promocion_usuario").using("btree", table.promocionId.asc().nullsLast(), table.usuarioId.asc().nullsLast()),
+	index("idx_promociones_usadas_usuario_fecha").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	foreignKey({
 		columns: [table.promocionId],
 		foreignColumns: [promocionesTemporales.id],
@@ -1268,10 +1268,10 @@ export const embajadorComisiones = pgTable("embajador_comisiones", {
 	pagadaAt: timestamp("pagada_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_embajador_comisiones_embajador").using("btree", table.embajadorId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
-	index("idx_embajador_comisiones_estado").using("btree", table.estado.asc().nullsLast().op("text_ops")).where(sql`((estado)::text = 'pendiente'::text)`),
-	index("idx_embajador_comisiones_negocio").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_embajador_comisiones_tipo").using("btree", table.tipo.asc().nullsLast().op("text_ops")),
+	index("idx_embajador_comisiones_embajador").using("btree", table.embajadorId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_embajador_comisiones_estado").using("btree", table.estado.asc().nullsLast()).where(sql`((estado)::text = 'pendiente'::text)`),
+	index("idx_embajador_comisiones_negocio").using("btree", table.negocioId.asc().nullsLast()),
+	index("idx_embajador_comisiones_tipo").using("btree", table.tipo.asc().nullsLast()),
 	foreignKey({
 		columns: [table.embajadorId],
 		foreignColumns: [embajadores.id],
@@ -1302,8 +1302,8 @@ export const dinamicaPremios = pgTable("dinamica_premios", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_dinamica_premios_dinamica").using("btree", table.dinamicaId.asc().nullsLast().op("int4_ops"), table.orden.asc().nullsLast().op("int4_ops")),
-	index("idx_dinamica_premios_proveedor").using("btree", table.proveedorNegocioId.asc().nullsLast().op("uuid_ops")).where(sql`(proveedor_negocio_id IS NOT NULL)`),
+	index("idx_dinamica_premios_dinamica").using("btree", table.dinamicaId.asc().nullsLast(), table.orden.asc().nullsLast()),
+	index("idx_dinamica_premios_proveedor").using("btree", table.proveedorNegocioId.asc().nullsLast()).where(sql`(proveedor_negocio_id IS NOT NULL)`),
 	foreignKey({
 		columns: [table.dinamicaId],
 		foreignColumns: [dinamicas.id],
@@ -1343,11 +1343,11 @@ export const empleados = pgTable("empleados", {
 	puedeResponderChat: boolean("puede_responder_chat").default(true),
 	puedeResponderResenas: boolean("puede_responder_resenas").default(true),
 }, (table) => [
-	index("idx_empleados_activo").using("btree", table.activo.asc().nullsLast().op("bool_ops")),
-	index("idx_empleados_pin_acceso").using("btree", table.pinAcceso.asc().nullsLast().op("text_ops")).where(sql`(pin_acceso IS NOT NULL)`),
-	index("idx_empleados_usuario_id").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_empleados_sucursal_id").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")).where(sql`(sucursal_id IS NOT NULL)`),
-	uniqueIndex("idx_empleados_nick_unique").using("btree", table.nick.asc().nullsLast().op("text_ops")).where(sql`(nick IS NOT NULL)`),
+	index("idx_empleados_activo").using("btree", table.activo.asc().nullsLast()),
+	index("idx_empleados_pin_acceso").using("btree", table.pinAcceso.asc().nullsLast()).where(sql`(pin_acceso IS NOT NULL)`),
+	index("idx_empleados_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_empleados_sucursal_id").using("btree", table.sucursalId.asc().nullsLast()).where(sql`(sucursal_id IS NOT NULL)`),
+	uniqueIndex("idx_empleados_nick_unique").using("btree", table.nick.asc().nullsLast()).where(sql`(nick IS NOT NULL)`),
 	foreignKey({
 		columns: [table.sucursalId],
 		foreignColumns: [negocioSucursales.id],
@@ -1373,14 +1373,14 @@ export const dinamicas = pgTable("dinamicas", {
 	esPublica: boolean("es_publica").default(true).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_dinamicas_creado_por").using("btree", table.creadoPor.asc().nullsLast().op("uuid_ops")),
-	index("idx_dinamicas_es_publica").using("btree", table.esPublica.asc().nullsLast().op("bool_ops")).where(sql`(es_publica = true)`),
-	index("idx_dinamicas_estado").using("btree", table.estado.asc().nullsLast().op("text_ops")).where(sql`((estado)::text = 'activa'::text)`),
-	index("idx_dinamicas_fecha_sorteo").using("btree", table.fechaSorteo.asc().nullsLast().op("timestamptz_ops")).where(sql`(fecha_sorteo IS NOT NULL)`),
-	index("idx_dinamicas_fechas").using("btree", table.fechaInicio.asc().nullsLast().op("timestamptz_ops"), table.fechaFin.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_dinamicas_negocio").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")).where(sql`(negocio_id IS NOT NULL)`),
-	index("idx_dinamicas_sucursal").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")).where(sql`(sucursal_id IS NOT NULL)`),
-	index("idx_dinamicas_tipo").using("btree", table.tipo.asc().nullsLast().op("text_ops")),
+	index("idx_dinamicas_creado_por").using("btree", table.creadoPor.asc().nullsLast()),
+	index("idx_dinamicas_es_publica").using("btree", table.esPublica.asc().nullsLast()).where(sql`(es_publica = true)`),
+	index("idx_dinamicas_estado").using("btree", table.estado.asc().nullsLast()).where(sql`((estado)::text = 'activa'::text)`),
+	index("idx_dinamicas_fecha_sorteo").using("btree", table.fechaSorteo.asc().nullsLast()).where(sql`(fecha_sorteo IS NOT NULL)`),
+	index("idx_dinamicas_fechas").using("btree", table.fechaInicio.asc().nullsLast(), table.fechaFin.asc().nullsLast()),
+	index("idx_dinamicas_negocio").using("btree", table.negocioId.asc().nullsLast()).where(sql`(negocio_id IS NOT NULL)`),
+	index("idx_dinamicas_sucursal").using("btree", table.sucursalId.asc().nullsLast()).where(sql`(sucursal_id IS NOT NULL)`),
+	index("idx_dinamicas_tipo").using("btree", table.tipo.asc().nullsLast()),
 	foreignKey({
 		columns: [table.creadoPor],
 		foreignColumns: [usuarios.id],
@@ -1405,9 +1405,9 @@ export const dinamicaParticipaciones = pgTable("dinamica_participaciones", {
 	datosExtra: jsonb("datos_extra"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_dinamica_participaciones_dinamica").using("btree", table.dinamicaId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
-	index("idx_dinamica_participaciones_entradas").using("btree", table.entradas.asc().nullsLast().op("int4_ops")).where(sql`(entradas > 1)`),
-	index("idx_dinamica_participaciones_usuario").using("btree", table.usuarioId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
+	index("idx_dinamica_participaciones_dinamica").using("btree", table.dinamicaId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_dinamica_participaciones_entradas").using("btree", table.entradas.asc().nullsLast()).where(sql`(entradas > 1)`),
+	index("idx_dinamica_participaciones_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	foreignKey({
 		columns: [table.dinamicaId],
 		foreignColumns: [dinamicas.id],
@@ -1446,15 +1446,15 @@ export const bolsaTrabajo = pgTable("bolsa_trabajo", {
 	contactoTelefono: varchar("contacto_telefono", { length: 20 }),
 	fechaExpiracion: date("fecha_expiracion"),
 }, (table) => [
-	index("idx_bolsa_trabajo_categoria").using("btree", table.categoriaServicio.asc().nullsLast().op("text_ops")).where(sql`(categoria_servicio IS NOT NULL)`),
-	index("idx_bolsa_trabajo_fecha_expiracion").using("btree", table.fechaExpiracion.asc().nullsLast().op("date_ops")).where(sql`(fecha_expiracion IS NOT NULL)`),
-	index("idx_bolsa_trabajo_modalidad").using("btree", table.modalidad.asc().nullsLast().op("text_ops")),
-	index("idx_bolsa_trabajo_negocio").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")).where(sql`(negocio_id IS NOT NULL)`),
-	index("idx_bolsa_trabajo_sucursal").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops")).where(sql`(sucursal_id IS NOT NULL)`),
-	index("idx_bolsa_trabajo_tipo_contrato").using("btree", table.tipoContrato.asc().nullsLast().op("text_ops")).where(sql`(tipo_contrato IS NOT NULL)`),
-	index("idx_bolsa_trabajo_tipo_estado").using("btree", table.tipo.asc().nullsLast().op("text_ops"), table.estado.asc().nullsLast().op("text_ops")).where(sql`((estado)::text = 'activo'::text)`),
-	index("idx_bolsa_trabajo_ubicacion").using("btree", table.ubicacion.asc().nullsLast().op("text_ops")),
-	index("idx_bolsa_trabajo_usuario").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops")).where(sql`(usuario_id IS NOT NULL)`),
+	index("idx_bolsa_trabajo_categoria").using("btree", table.categoriaServicio.asc().nullsLast()).where(sql`(categoria_servicio IS NOT NULL)`),
+	index("idx_bolsa_trabajo_fecha_expiracion").using("btree", table.fechaExpiracion.asc().nullsLast()).where(sql`(fecha_expiracion IS NOT NULL)`),
+	index("idx_bolsa_trabajo_modalidad").using("btree", table.modalidad.asc().nullsLast()),
+	index("idx_bolsa_trabajo_negocio").using("btree", table.negocioId.asc().nullsLast()).where(sql`(negocio_id IS NOT NULL)`),
+	index("idx_bolsa_trabajo_sucursal").using("btree", table.sucursalId.asc().nullsLast()).where(sql`(sucursal_id IS NOT NULL)`),
+	index("idx_bolsa_trabajo_tipo_contrato").using("btree", table.tipoContrato.asc().nullsLast()).where(sql`(tipo_contrato IS NOT NULL)`),
+	index("idx_bolsa_trabajo_tipo_estado").using("btree", table.tipo.asc().nullsLast(), table.estado.asc().nullsLast()).where(sql`((estado)::text = 'activo'::text)`),
+	index("idx_bolsa_trabajo_ubicacion").using("btree", table.ubicacion.asc().nullsLast()),
+	index("idx_bolsa_trabajo_usuario").using("btree", table.usuarioId.asc().nullsLast()).where(sql`(usuario_id IS NOT NULL)`),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -1504,7 +1504,7 @@ export const puntosConfiguracion = pgTable("puntos_configuracion", {
 	nivelOroMultiplicador: numeric("nivel_oro_multiplicador", { precision: 3, scale: 2 }).default('1.5'),
 	nivelOroNombre: varchar("nivel_oro_nombre", { length: 50 }),
 }, (table) => [
-	index("idx_puntos_configuracion_activo").using("btree", table.activo.asc().nullsLast().op("bool_ops")).where(sql`(activo = true)`),
+	index("idx_puntos_configuracion_activo").using("btree", table.activo.asc().nullsLast()).where(sql`(activo = true)`),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -1529,9 +1529,9 @@ export const puntosBilletera = pgTable("puntos_billetera", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	nivelActual: varchar("nivel_actual", { length: 20 }).default('bronce'),
 }, (table) => [
-	index("idx_puntos_billetera_negocio").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_puntos_billetera_usuario_negocio").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops"), table.negocioId.asc().nullsLast().op("uuid_ops")),
-	index("idx_puntos_billetera_nivel").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops"), table.nivelActual.asc().nullsLast().op("text_ops")),
+	index("idx_puntos_billetera_negocio").using("btree", table.negocioId.asc().nullsLast()),
+	index("idx_puntos_billetera_usuario_negocio").using("btree", table.usuarioId.asc().nullsLast(), table.negocioId.asc().nullsLast()),
+	index("idx_puntos_billetera_nivel").using("btree", table.negocioId.asc().nullsLast(), table.nivelActual.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -1560,8 +1560,8 @@ export const recompensas = pgTable("recompensas", {
 	orden: integer().default(0).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_recompensas_negocio_activa").using("btree", table.negocioId.asc().nullsLast().op("bool_ops"), table.activa.asc().nullsLast().op("bool_ops")).where(sql`(activa = true)`),
-	index("idx_recompensas_orden").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops"), table.orden.asc().nullsLast().op("uuid_ops")),
+	index("idx_recompensas_negocio_activa").using("btree", table.negocioId.asc().nullsLast(), table.activa.asc().nullsLast()).where(sql`(activa = true)`),
+	index("idx_recompensas_orden").using("btree", table.negocioId.asc().nullsLast(), table.orden.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -1590,11 +1590,11 @@ export const scanyaTurnos = pgTable("scanya_turnos", {
 	uniqueIndex("idx_scanya_turnos_operador_abierto").using("btree",
 		sql`COALESCE(${table.empleadoId}, ${table.usuarioId})`
 	).where(sql`(hora_fin IS NULL)`),
-	index("idx_scanya_turnos_negocio").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops"), table.horaInicio.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_scanya_turnos_sucursal").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops"), table.horaInicio.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_scanya_turnos_empleado").using("btree", table.empleadoId.asc().nullsLast().op("uuid_ops"), table.horaInicio.desc().nullsFirst().op("timestamptz_ops")),
+	index("idx_scanya_turnos_negocio").using("btree", table.negocioId.asc().nullsLast(), table.horaInicio.desc().nullsFirst()),
+	index("idx_scanya_turnos_sucursal").using("btree", table.sucursalId.asc().nullsLast(), table.horaInicio.desc().nullsFirst()),
+	index("idx_scanya_turnos_empleado").using("btree", table.empleadoId.asc().nullsLast(), table.horaInicio.desc().nullsFirst()),
 	// NUEVO ÍNDICE para usuarios (dueños/gerentes)
-	index("idx_scanya_turnos_usuario").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops"), table.horaInicio.desc().nullsFirst().op("timestamptz_ops")),
+	index("idx_scanya_turnos_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.horaInicio.desc().nullsFirst()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -1661,8 +1661,8 @@ export const scanyaRecordatorios = pgTable("scanya_recordatorios", {
 	transaccionId: uuid("transaccion_id"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_scanya_recordatorios_pendientes").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops"), table.sucursalId.asc().nullsLast().op("uuid_ops"), table.estado.asc().nullsLast().op("text_ops")).where(sql`((estado)::text = 'pendiente'::text)`),
-	index("idx_scanya_recordatorios_empleado").using("btree", table.empleadoId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
+	index("idx_scanya_recordatorios_pendientes").using("btree", table.negocioId.asc().nullsLast(), table.sucursalId.asc().nullsLast(), table.estado.asc().nullsLast()).where(sql`((estado)::text = 'pendiente'::text)`),
+	index("idx_scanya_recordatorios_empleado").using("btree", table.empleadoId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -1717,12 +1717,12 @@ export const puntosTransacciones = pgTable("puntos_transacciones", {
 	cuponUsoId: bigint("cupon_uso_id", { mode: 'number' }),
 	nota: text("nota"),
 }, (table) => [
-	index("idx_puntos_transacciones_billetera").using("btree", table.billeteraId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_puntos_transacciones_cliente").using("btree", table.clienteId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_puntos_transacciones_estado").using("btree", table.estado.asc().nullsLast().op("timestamptz_ops"), table.expiraConfirmacion.asc().nullsLast().op("text_ops")),
-	index("idx_puntos_transacciones_negocio").using("btree", table.negocioId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
-	index("idx_puntos_transacciones_sucursal").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_puntos_transacciones_turno").using("btree", table.turnoId.asc().nullsLast().op("uuid_ops")).where(sql`(turno_id IS NOT NULL)`),
+	index("idx_puntos_transacciones_billetera").using("btree", table.billeteraId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_puntos_transacciones_cliente").using("btree", table.clienteId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_puntos_transacciones_estado").using("btree", table.estado.asc().nullsLast(), table.expiraConfirmacion.asc().nullsLast()),
+	index("idx_puntos_transacciones_negocio").using("btree", table.negocioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_puntos_transacciones_sucursal").using("btree", table.sucursalId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_puntos_transacciones_turno").using("btree", table.turnoId.asc().nullsLast()).where(sql`(turno_id IS NOT NULL)`),
 	foreignKey({
 		columns: [table.billeteraId],
 		foreignColumns: [puntosBilletera.id],
@@ -1771,7 +1771,7 @@ export const transaccionesEvidencia = pgTable("transacciones_evidencia", {
 	tipo: varchar({ length: 20 }).default('ticket').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_transacciones_evidencia_transaccion").using("btree", table.transaccionId.asc().nullsLast().op("uuid_ops")),
+	index("idx_transacciones_evidencia_transaccion").using("btree", table.transaccionId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.transaccionId],
 		foreignColumns: [puntosTransacciones.id],
@@ -1796,11 +1796,11 @@ export const vouchersCanje = pgTable("vouchers_canje", {
 	sucursalId: uuid('sucursal_id').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_vouchers_canje_codigo").using("btree", table.codigo.asc().nullsLast().op("text_ops")),
-	index("idx_vouchers_canje_estado").using("btree", table.estado.asc().nullsLast().op("text_ops"), table.expiraAt.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_vouchers_canje_negocio").using("btree", table.negocioId.asc().nullsLast().op("text_ops"), table.estado.asc().nullsLast().op("text_ops")),
-	index("idx_vouchers_canje_usuario").using("btree", table.usuarioId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
-	index("idx_vouchers_canje_sucursal").using("btree", table.sucursalId.asc().nullsLast().op("uuid_ops"), table.estado.asc().nullsLast().op("text_ops")),
+	index("idx_vouchers_canje_codigo").using("btree", table.codigo.asc().nullsLast()),
+	index("idx_vouchers_canje_estado").using("btree", table.estado.asc().nullsLast(), table.expiraAt.asc().nullsLast()),
+	index("idx_vouchers_canje_negocio").using("btree", table.negocioId.asc().nullsLast(), table.estado.asc().nullsLast()),
+	index("idx_vouchers_canje_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_vouchers_canje_sucursal").using("btree", table.sucursalId.asc().nullsLast(), table.estado.asc().nullsLast()),
 	foreignKey({
 		columns: [table.billeteraId],
 		foreignColumns: [puntosBilletera.id],
@@ -1851,9 +1851,9 @@ export const alertasSeguridad = pgTable("alertas_seguridad", {
 	leidaAt: timestamp("leida_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_alertas_seguridad_negocio_leida").using("btree", table.negocioId.asc().nullsLast().op("timestamptz_ops"), table.leida.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("bool_ops")),
-	index("idx_alertas_seguridad_severidad").using("btree", table.severidad.asc().nullsLast().op("text_ops")).where(sql`((severidad)::text = 'alta'::text)`),
-	index("idx_alertas_seguridad_tipo").using("btree", table.tipo.asc().nullsLast().op("text_ops")),
+	index("idx_alertas_seguridad_negocio_leida").using("btree", table.negocioId.asc().nullsLast(), table.leida.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_alertas_seguridad_severidad").using("btree", table.severidad.asc().nullsLast()).where(sql`((severidad)::text = 'alta'::text)`),
+	index("idx_alertas_seguridad_tipo").using("btree", table.tipo.asc().nullsLast()),
 	foreignKey({
 		columns: [table.empleadoId],
 		foreignColumns: [empleados.id],

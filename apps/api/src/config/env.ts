@@ -15,8 +15,12 @@ const esquemaEnv = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   API_PORT: z.string().default('4000').transform(Number),
 
-  // -------- PostgreSQL --------
+  // -------- PostgreSQL Local --------
   DATABASE_URL: z.string().min(1, 'DATABASE_URL es requerida'),
+  
+  // -------- Supabase (Producción) --------
+  DATABASE_URL_PRODUCTION: z.string().min(1, 'DATABASE_URL_PRODUCTION es requerida'),
+  DB_ENVIRONMENT: z.enum(['local', 'production']).default('local'),
 
   // -------- MongoDB --------
   MONGODB_URI: z.string().min(1, 'MONGODB_URI es requerida'),
@@ -49,6 +53,18 @@ const esquemaEnv = z.object({
   STRIPE_PUBLISHABLE_KEY: z.string().min(1, 'STRIPE_PUBLISHABLE_KEY es requerida'),
   STRIPE_PRICE_COMERCIAL: z.string().min(1, 'STRIPE_PRICE_COMERCIAL es requerida'),
   STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET es requerida'),
+
+  // -------- Cloudinary --------
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME es requerido'),
+  CLOUDINARY_API_KEY: z.string().min(1, 'CLOUDINARY_API_KEY es requerida'),
+  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET es requerida'),
+
+  // -------- Cloudflare R2 --------
+  R2_ACCESS_KEY_ID: z.string().min(1, 'R2_ACCESS_KEY_ID es requerido'),
+  R2_SECRET_ACCESS_KEY: z.string().min(1, 'R2_SECRET_ACCESS_KEY es requerida'),
+  R2_ENDPOINT: z.string().url('R2_ENDPOINT debe ser una URL válida'),
+  R2_BUCKET_NAME: z.string().min(1, 'R2_BUCKET_NAME es requerido'),
+  R2_PUBLIC_URL: z.string().url('R2_PUBLIC_URL debe ser una URL válida'),
 });
 
 // ====================================
@@ -67,6 +83,15 @@ if (!resultadoValidacion.success) {
 
 // Exportar las variables validadas y tipadas
 export const env = resultadoValidacion.data;
+
+// ====================================
+// Helper para obtener DATABASE_URL según ambiente
+// ====================================
+export const getDatabaseUrl = (): string => {
+  return env.DB_ENVIRONMENT === 'production' 
+    ? env.DATABASE_URL_PRODUCTION 
+    : env.DATABASE_URL;
+};
 
 // ====================================
 // Tipos exportados
