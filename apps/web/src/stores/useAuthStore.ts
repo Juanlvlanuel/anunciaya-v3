@@ -763,6 +763,12 @@ if (typeof window !== 'undefined') {
  */
 export function iniciarSincronizacionTokens(): () => void {
   const handleStorageChange = (event: StorageEvent) => {
+    // CRÍTICO: Ignorar sincronización si estamos en rutas de ScanYA
+    // ScanYA usa su propio store (useScanYAStore) con tokens sy_*
+    if (window.location.pathname.startsWith('/scanya')) {
+      return;
+    }
+
     // Solo procesar cambios en nuestras claves de auth
     if (
       event.key === STORAGE_KEYS.accessToken ||

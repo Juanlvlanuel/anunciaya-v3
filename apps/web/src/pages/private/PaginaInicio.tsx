@@ -10,52 +10,58 @@
  */
 
 import { useAuthStore } from '../../stores/useAuthStore';
+import { BannerScanYAPWA } from '../../components/scanya';
 
 export function PaginaInicio() {
   const usuario = useAuthStore((state) => state.usuario);
   const esComercial = usuario?.perfil === 'comercial';
 
   return (
-    <div className="space-y-6">
-      {/* Saludo */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          ¡Hola, {usuario?.nombre}! 👋
-        </h1>
-        <p className="text-gray-500">
-          {esComercial
-            ? 'Bienvenido a tu centro de operaciones'
-            : 'Descubre ofertas y negocios cerca de ti'}
-        </p>
-      </div>
+    <>
+      {/* Banner helper para PWA de ScanYA */}
+      <BannerScanYAPWA />
 
-      {/* Placeholder de secciones */}
       <div className="space-y-6">
-        {/* Ofertas */}
-        <SeccionPlaceholder
-          titulo="🔥 Ofertas que expiran pronto"
-          color="red"
-        />
+        {/* Saludo */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            ¡Hola, {usuario?.nombre}! 👋
+          </h1>
+          <p className="text-gray-500">
+            {esComercial
+              ? 'Bienvenido a tu centro de operaciones'
+              : 'Descubre ofertas y negocios cerca de ti'}
+          </p>
+        </div>
 
-        {/* Negocios */}
-        <SeccionPlaceholder
-          titulo="🏪 Negocios cerca de ti"
-          color="blue"
-        />
+        {/* Placeholder de secciones */}
+        <div className="space-y-6">
+          {/* Ofertas */}
+          <SeccionPlaceholder
+            titulo="🔥 Ofertas que expiran pronto"
+            color="red"
+          />
 
-        {/* Marketplace */}
-        <SeccionPlaceholder
-          titulo="🛒 MarketPlace reciente"
-          color="green"
-        />
+          {/* Negocios */}
+          <SeccionPlaceholder
+            titulo="🏪 Negocios cerca de ti"
+            color="blue"
+          />
 
-        {/* Dinámicas */}
-        <SeccionPlaceholder
-          titulo="🎁 Dinámicas activas"
-          color="purple"
-        />
+          {/* Marketplace */}
+          <SeccionPlaceholder
+            titulo="🛒 MarketPlace reciente"
+            color="green"
+          />
+
+          {/* Dinámicas */}
+          <SeccionPlaceholder
+            titulo="🎁 Dinámicas activas"
+            color="purple"
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

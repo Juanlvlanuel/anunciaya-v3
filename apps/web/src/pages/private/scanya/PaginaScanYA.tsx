@@ -17,10 +17,12 @@ import { useNavigate } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import { useScanYAStore, selectContadorRecordatorios } from '@/stores/useScanYAStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useTituloPagina } from '@/hooks/useTituloPagina';
 import { notificar } from '@/utils/notificaciones';
 import scanyaService from '@/services/scanyaService';
 import {
   HeaderScanYA,
+  HeaderScanYACustom,
   ResumenTurno,
   IndicadoresRapidos,
   ModalCerrarTurno,
@@ -47,6 +49,9 @@ export default function PaginaScanYA() {
   const online = useOnlineStatus();
   const contadorRecordatorios = useScanYAStore(selectContadorRecordatorios);
   const prevOnlineRef = useRef(online);
+
+  // Cambiar título de la página
+  useTituloPagina('ScanYA - Puntos de Lealtad');
 
   const [turno, setTurno] = useState<TurnoScanYA | null>(turnoActivo);
   const [contadores, setContadores] = useState({
@@ -131,7 +136,7 @@ export default function PaginaScanYA() {
   useEffect(() => {
     // Solo bloquear scroll en pantallas grandes (lg: 1024px+)
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
-    
+
     const aplicarOverflow = () => {
       if (mediaQuery.matches) {
         document.documentElement.style.overflow = 'hidden';
@@ -524,13 +529,13 @@ export default function PaginaScanYA() {
       {/* Todo el contenido con z-index para estar encima del fondo */}
       <div className={`relative z-10 transition-all duration-300 ${(['venta', 'historial', 'vouchers', 'canjear', 'recordatorios'].includes(modalActivo)) ? 'lg:mr-[350px] 2xl:mr-[450px]' : ''}`}>        {/* Header */}
         <HeaderScanYA />
+        <HeaderScanYACustom />
 
         {/* Barra Info Negocio (solo móvil, sin contenedor) */}
         <InfoNegocioBar />
 
         {/* Contenido Principal */}
-        <main className="px-4 lg:px-6 2xl:px-8 py-6 lg:py-5 2xl:py-6 2xl:mt-30 lg:flex lg:items-center lg:justify-center lg:min-h-[calc(100vh-140px)] 2xl:block 2xl:min-h-0">
-          {/* Loading inicial */}
+        <main className="px-4 lg:px-6 2xl:px-8 py-6 lg:py-5 2xl:py-6 2xl:mt-30 lg:flex lg:items-center lg:justify-center lg:min-h-[calc(100vh-140px)] 2xl:block 2xl:min-h-0 pt-[70px]">          {/* Loading inicial */}
           {cargandoDatos ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center space-y-3">

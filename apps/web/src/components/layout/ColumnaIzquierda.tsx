@@ -66,7 +66,6 @@
 
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
-  QrCode,
   BarChart3,
   DollarSign,
   Users,
@@ -81,6 +80,8 @@ import {
 import { useAuthStore } from '../../stores/useAuthStore';
 import { WidgetCardYA } from './WidgetCardYA';
 import { MenuBusinessStudio } from './MenuBusinessStudio';
+import { BotonInstalarScanYA } from '../scanya';
+
 
 
 // =============================================================================
@@ -300,17 +301,8 @@ function ContenidoComercial() {
         </div>
       </div>
 
-      {/* ScanYA - RESPONSIVO */}
-      <button onClick={() => navigate('/scanya')} className="w-full relative group overflow-hidden">
-        <div className="flex items-center justify-center gap-2 lg:p-2.5 2xl:p-3 p-3 bg-linear-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]">
-          <div className="lg:w-8 2xl:w-10 w-9 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-            <QrCode className="lg:w-4 2xl:w-6 w-5" />
-          </div>
-          <span className="font-bold lg:text-sm 2xl:text-lg text-base">ScanYA</span>
-          <ChevronRight className="lg:w-4 2xl:w-5 w-5 ml-auto group-hover:translate-x-1 transition-transform" />
-        </div>
-        <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-transparent via-white/40 to-transparent"></div>
-      </button>
+      {/* ScanYA - Botón inteligente con instalación PWA */}
+      <BotonInstalarScanYA />
 
       {/* Business Studio / Configurar Negocio - DINÁMICO */}
       <button

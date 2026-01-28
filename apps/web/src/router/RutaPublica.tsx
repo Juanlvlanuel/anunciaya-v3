@@ -5,28 +5,49 @@
  *
  * ¿Qué hace?
  * - Si el usuario NO está logueado → muestra el contenido
- * - Si el usuario ESTÁ logueado → redirige a /inicio
+ * - Si el usuario ESTÁ logueado → redirige a /inicio (AnunciaYA) o /scanya (ScanYA)
  * - Mientras verifica → muestra loading
+ *
+ * IMPORTANTE: Detecta automáticamente si es ruta de ScanYA o AnunciaYA
+ * y usa el store correspondiente.
  *
  * Uso:
  *   <Route path="/registro" element={<RutaPublica><Registro /></RutaPublica>} />
+ *   <Route path="/scanya/login" element={<RutaPublica><LoginScanYA /></RutaPublica>} />
  *
  * Ubicación: apps/web/src/router/RutaPublica.tsx
  */
 
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useScanYAStore } from '../stores/useScanYAStore';
 
 interface RutaPublicaProps {
   children: React.ReactNode;
 }
 
 export function RutaPublica({ children }: RutaPublicaProps) {
-  // Estados de autenticación
-  const usuario = useAuthStore((state) => state.usuario);
-  const accessToken = useAuthStore((state) => state.accessToken);
-  const cargando = useAuthStore((state) => state.cargando);
-  const hidratado = useAuthStore((state) => state.hidratado);
+  const location = useLocation();
+
+  // Detectar si es ruta de ScanYA
+  const esScanYA = location.pathname.startsWith('/scanya');
+
+  // Estados de autenticación según el tipo de ruta
+  const usuarioAY = useAuthStore((state) => state.usuario);
+  const accessTokenAY = useAuthStore((state) => state.accessToken);
+  const cargandoAY = useAuthStore((state) => state.cargando);
+  const hidratadoAY = useAuthStore((state) => state.hidratado);
+
+  const usuarioSY = useScanYAStore((state) => state.usuario);
+  const accessTokenSY = useScanYAStore((state) => state.accessToken);
+  const cargandoSY = useScanYAStore((state) => state.cargando);
+  const hidratadoSY = useScanYAStore((state) => state.hidratado);
+
+  // Seleccionar estados según el tipo de ruta
+  const usuario = esScanYA ? usuarioSY : usuarioAY;
+  const accessToken = esScanYA ? accessTokenSY : accessTokenAY;
+  const cargando = esScanYA ? cargandoSY : cargandoAY;
+  const hidratado = esScanYA ? hidratadoSY : hidratadoAY;
 
   // Verificar si está autenticado
   const isAuthenticated = !!usuario && !!accessToken;
@@ -43,17 +64,23 @@ export function RutaPublica({ children }: RutaPublicaProps) {
     );
   }
 
-  // Si está autenticado, redirigir a inicio
+  // Si está autenticado, redirigir según el tipo de ruta
   if (isAuthenticated) {
-    // Verificar si hay una ruta pendiente guardada
-    const rutaPendiente = sessionStorage.getItem('ay_ruta_pendiente');
-    
-    if (rutaPendiente) {
-      sessionStorage.removeItem('ay_ruta_pendiente');
-      return <Navigate to={rutaPendiente} replace />;
-    }
+    if (esScanYA) {
+      // Si ya está logueado en ScanYA → Redirigir al dashboard de ScanYA
+      return <Navigate to="/scanya" replace />;
+    } else {
+      // Si ya está logueado en AnunciaYA → Redirigir a inicio de AnunciaYA
+      // Verificar si hay una ruta pendiente guardada
+      const rutaPendiente = sessionStorage.getItem('ay_ruta_pendiente');
+      
+      if (rutaPendiente) {
+        sessionStorage.removeItem('ay_ruta_pendiente');
+        return <Navigate to={rutaPendiente} replace />;
+      }
 
-    return <Navigate to="/inicio" replace />;
+      return <Navigate to="/inicio" replace />;
+    }
   }
 
   // Si no está autenticado, mostrar el contenido

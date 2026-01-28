@@ -22,6 +22,7 @@ export { default as ModalVouchers } from './ModalVouchers';
 export { default as IndicadorOffline } from './IndicadorOffline';
 export { default as TarjetaRecordatorio } from './TarjetaRecordatorio';
 export { default as ModalRecordatorios } from './ModalRecordatorios';
-
-
+export { BotonInstalarScanYA } from './BotonInstalarScanYA';
+export { BannerScanYAPWA } from './BannerScanYAPWA';
+export { default as HeaderScanYACustom } from './HeaderScanYACustom';
 
