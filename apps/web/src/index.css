@@ -513,8 +513,22 @@ body {
 /* ============================================= */
 /* SCANYA - Deshabilitar pull-to-refresh        */
 /* ============================================= */
-.scanya-no-refresh,
-.scanya-no-refresh * {
+
+/* Aplicar al contenedor principal */
+.scanya-no-refresh {
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Aplicar a elementos con scroll dentro de ScanYA */
+.scanya-no-refresh [class*="overflow-y"] {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Permitir scroll vertical mientras tocas botones/elementos interactivos */
+.scanya-no-refresh button,
+.scanya-no-refresh a,
+.scanya-no-refresh [role="button"] {
+  touch-action: pan-y;
 }
