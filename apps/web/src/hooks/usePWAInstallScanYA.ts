@@ -102,7 +102,7 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
       const themeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
       if (themeColor) {
         themeColor.setAttribute('data-original-color', themeColor.content);
-        themeColor.content = '#2563eb';
+        themeColor.content = '#000000';
       }
     } else {
       // Quitar manifest si existe y no estamos en ScanYA
