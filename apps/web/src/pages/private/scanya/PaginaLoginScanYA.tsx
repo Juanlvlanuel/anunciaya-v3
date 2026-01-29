@@ -127,7 +127,7 @@ export function PaginaLoginScanYA() {
     if (puedeInstalar) {
       const exito = await instalar();
       if (exito) {
-        notificar.exito('ScanYA instalado correctamente');
+        notificar.exito('Instalando ScanYA...');
       }
       return;
     }

@@ -510,11 +510,11 @@ body {
   animation: shimmer 3s infinite;
 }
 
-
 /* ============================================= */
 /* SCANYA - Deshabilitar pull-to-refresh        */
 /* ============================================= */
-.scanya-no-refresh {
+.scanya-no-refresh,
+.scanya-no-refresh * {
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
 }
