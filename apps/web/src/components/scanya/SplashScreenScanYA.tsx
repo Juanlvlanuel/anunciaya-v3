@@ -32,26 +32,58 @@ export function SplashScreenScanYA({ onComplete }: SplashScreenScanYAProps) {
   const [fase, setFase] = useState<'zoom-in' | 'visible' | 'fade-out'>('zoom-in');
 
   useEffect(() => {
-    // Timer 1: Cambiar a "visible" después del zoom in (800ms)
-    const timer1 = setTimeout(() => {
-      setFase('visible');
-    }, 800);
+    let timer1: ReturnType<typeof setTimeout>;
+    let timer2: ReturnType<typeof setTimeout>;
+    let timer3: ReturnType<typeof setTimeout>;
+    let cleanupVisibility: (() => void) | null = null;
 
-    // Timer 2: Cambiar a "fade-out" (1500ms después del inicio)
-    const timer2 = setTimeout(() => {
-      setFase('fade-out');
-    }, 1500);
+    // Función que inicia los timers de animación
+    const iniciarAnimacion = () => {
+      // Timer 1: Cambiar a "visible" después del zoom in (800ms)
+      timer1 = setTimeout(() => {
+        setFase('visible');
+      }, 800);
 
-    // Timer 3: Llamar a onComplete (2200ms después del inicio)
-    const timer3 = setTimeout(() => {
-      onComplete();
-    }, 2200);
+      // Timer 2: Cambiar a "fade-out" (1500ms después del inicio)
+      timer2 = setTimeout(() => {
+        setFase('fade-out');
+      }, 1500);
+
+      // Timer 3: Llamar a onComplete (2200ms después del inicio)
+      timer3 = setTimeout(() => {
+        onComplete();
+      }, 2200);
+    };
+
+    // Si la página está visible, iniciar inmediatamente
+    if (document.visibilityState === 'visible') {
+      iniciarAnimacion();
+    } else {
+      // Si está en background (ej: apertura desde banner PWA),
+      // esperar a que esté visible para iniciar los timers
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+          iniciarAnimacion();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      cleanupVisibility = () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Fallback: Si después de 5 segundos sigue en background, forzar onComplete
+      // Esto evita que el splash se quede infinitamente si algo falla
+      timer3 = setTimeout(() => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        onComplete();
+      }, 5000);
+    }
 
     // Cleanup
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
+      if (cleanupVisibility) cleanupVisibility();
     };
   }, [onComplete]);
 

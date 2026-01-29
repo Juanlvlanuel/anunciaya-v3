@@ -53,7 +53,11 @@ export function PaginaLoginScanYA() {
   // ---------------------------------------------------------------------------
   // Estado
   // ---------------------------------------------------------------------------
-  const [mostrarSplash, setMostrarSplash] = useState(true);
+  // Detectar si viene de PWA (?source=pwa) para skipear el splash
+  const vieneDePWA = new URLSearchParams(window.location.search).get('source') === 'pwa';
+  // Detectar si es móvil para evitar autoFocus (que abre el teclado automáticamente)
+  const esMobile = window.matchMedia('(max-width: 1023px)').matches;
+  const [mostrarSplash, setMostrarSplash] = useState(!vieneDePWA);
   const [modo, setModo] = useState<ModoLogin>('dueno');
   const [cargando, setCargando] = useState(false);
 
@@ -488,7 +492,7 @@ export function PaginaLoginScanYA() {
                     borderColor: 'rgba(255, 255, 255, 0.1)',
                   }}
                   className="[&>input]:text-white! [&>input]:bg-transparent!"
-                  autoFocus
+                  autoFocus={!esMobile}
                 />
 
                 {/* Password */}
@@ -572,7 +576,7 @@ export function PaginaLoginScanYA() {
                     borderColor: 'rgba(255, 255, 255, 0.1)',
                   }}
                   className="[&>input]:text-white! [&>input]:bg-transparent! [&>input]:lowercase"
-                  autoFocus
+                  autoFocus={!esMobile}
                 />
 
                 {/* Indicador: Presiona Enter */}
