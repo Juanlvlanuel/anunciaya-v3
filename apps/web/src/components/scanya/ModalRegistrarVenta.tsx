@@ -779,8 +779,8 @@ export function ModalRegistrarVenta({
                 <header
                     className="
             relative
-            flex items-center gap-3 lg:gap-2 2xl:gap-3
-            px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-4
+            flex items-center gap-2 lg:gap-2 2xl:gap-3
+            px-4 lg:px-3 2xl:px-4 py-2 lg:py-2.5 2xl:py-4
             border-b border-white/10
           "
                     style={{ background: 'rgba(0, 0, 0, 0.3)' }}
@@ -802,8 +802,8 @@ export function ModalRegistrarVenta({
                 {/* ============================================================== */}
                 {/* CONTENIDO CON SCROLL */}
                 {/* ============================================================== */}
-                <div className="flex-1 overflow-y-auto pb-32">
-                    <div className="px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4 space-y-3 lg:space-y-2 2xl:space-y-3">
+                <div className="flex-1 overflow-y-auto pb-28 lg:pb-28 2xl:pb-32">
+                    <div className="px-4 lg:px-3 2xl:px-4 py-2 lg:py-3 2xl:py-4 space-y-2 lg:space-y-2 2xl:space-y-3">
                         {/* ========================================= */}
                         {/* SECCIÓN: CLIENTE */}
                         {/* ========================================= */}
@@ -817,7 +817,7 @@ export function ModalRegistrarVenta({
                             {/* Header de sección */}
                             <button
                                 onClick={() => setSeccionActiva('cliente')}
-                                className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 cursor-pointer"
+                                className="w-full px-4 lg:px-3 2xl:px-4 py-2 lg:py-2 2xl:py-3 flex items-center gap-2 lg:gap-2 2xl:gap-3 cursor-pointer"
                             >
                                 <div
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
@@ -858,7 +858,7 @@ export function ModalRegistrarVenta({
 
                             {/* Contenido expandido */}
                             {seccionActiva === 'cliente' && (
-                                <div className="px-4 pb-4">
+                                <div className="px-4 pb-2 lg:pb-4">
                                     {modoOffline ? (
                                         /* ===== MODO OFFLINE: Input con lada + teléfono ===== */
                                         <div>
@@ -1050,7 +1050,7 @@ export function ModalRegistrarVenta({
                             <button
                                 onClick={() => seccionCompletada('cliente') && setSeccionActiva('monto')}
                                 disabled={!seccionCompletada('cliente')}
-                                className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                className="w-full px-4 lg:px-3 2xl:px-4 py-2 lg:py-2 2xl:py-3 flex items-center gap-2 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <div
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
@@ -1080,9 +1080,9 @@ export function ModalRegistrarVenta({
                             </button>
 
                             {seccionActiva === 'monto' && seccionCompletada('cliente') && (
-                                <div className="px-4 pb-4">
+                                <div className="px-4 pb-2 lg:pb-4">
                                     <div
-                                        className="p-4 lg:p-3 2xl:p-4 rounded-lg lg:rounded-md 2xl:rounded-lg mb-3 lg:mb-2 2xl:mb-3"
+                                        className="p-2.5 lg:p-3 2xl:p-4 rounded-lg lg:rounded-md 2xl:rounded-lg mb-2 lg:mb-2 2xl:mb-3"
                                         style={{
                                             background: 'rgba(0, 0, 0, 0.4)',
                                             border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -1132,7 +1132,7 @@ export function ModalRegistrarVenta({
                             <button
                                 onClick={() => seccionCompletada('cliente') && seccionCompletada('monto') && setSeccionActiva('metodoPago')}
                                 disabled={!seccionCompletada('cliente') || !seccionCompletada('monto')}
-                                className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                className="w-full px-4 lg:px-3 2xl:px-4 py-2 lg:py-2 2xl:py-3 flex items-center gap-2 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <div
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
@@ -1160,7 +1160,7 @@ export function ModalRegistrarVenta({
                             </button>
 
                             {seccionActiva === 'metodoPago' && seccionCompletada('cliente') && seccionCompletada('monto') && (
-                                <div className="px-4 pb-4">
+                                <div className="px-4 pb-2 lg:pb-4">
                                     <div className="grid grid-cols-4 gap-2 lg:gap-1.5 2xl:gap-2">
                                         {METODOS_PAGO.map((m) => {
                                             const Icono = m.icono;
@@ -1263,7 +1263,7 @@ export function ModalRegistrarVenta({
                             <button
                                 onClick={() => seccionCompletada('cliente') && seccionCompletada('metodoPago') && setSeccionActiva('nota')}
                                 disabled={!seccionCompletada('cliente') || !seccionCompletada('metodoPago')}
-                                className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                className="w-full px-4 lg:px-3 2xl:px-4 py-2 lg:py-2 2xl:py-3 flex items-center gap-2 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <div
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
@@ -1295,7 +1295,7 @@ export function ModalRegistrarVenta({
                             </button>
 
                             {seccionActiva === 'nota' && seccionCompletada('cliente') && seccionCompletada('metodoPago') && (
-                                <div className="px-4 pb-4">
+                                <div className="px-4 pb-2 lg:pb-4">
                                     <textarea
                                         value={nota}
                                         onChange={(e) => setNota(e.target.value)}
@@ -1325,7 +1325,7 @@ export function ModalRegistrarVenta({
                                 <button
                                     onClick={() => seccionCompletada('cliente') && seccionCompletada('metodoPago') && setSeccionActiva('foto')}
                                     disabled={!seccionCompletada('cliente') || !seccionCompletada('metodoPago')}
-                                    className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                    className="w-full px-4 lg:px-3 2xl:px-4 py-2 lg:py-2 2xl:py-3 flex items-center gap-2 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                 >
                                     <div
                                         className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
@@ -1356,7 +1356,7 @@ export function ModalRegistrarVenta({
                                 </button>
 
                                 {seccionActiva === 'foto' && seccionCompletada('cliente') && seccionCompletada('metodoPago') && (
-                                    <div className="px-4 pb-4">
+                                    <div className="px-4 pb-2 lg:pb-4">
                                         {fotoUrl ? (
                                             <div className="relative">
                                                 <img
@@ -1411,7 +1411,7 @@ export function ModalRegistrarVenta({
                                 <button
                                     onClick={() => seccionCompletada('cliente') && seccionCompletada('metodoPago') && setSeccionActiva('cupon')}
                                     disabled={!seccionCompletada('cliente') || !seccionCompletada('metodoPago')}
-                                    className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                    className="w-full px-4 lg:px-3 2xl:px-4 py-2 lg:py-2 2xl:py-3 flex items-center gap-2 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                 >
                                     <div
                                         className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
@@ -1443,7 +1443,7 @@ export function ModalRegistrarVenta({
                                 </button>
 
                                 {seccionActiva === 'cupon' && seccionCompletada('cliente') && seccionCompletada('metodoPago') && (
-                                    <div className="px-4 pb-4">
+                                    <div className="px-4 pb-2 lg:pb-4">
                                         {cupon ? (
                                             <div className="flex items-center justify-between p-3 lg:p-2 2xl:p-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.3)]">
                                                 <div>
@@ -1491,14 +1491,14 @@ export function ModalRegistrarVenta({
                 <div
                     className="
             absolute bottom-0 left-0 right-0
-            px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4
+            px-4 lg:px-3 2xl:px-4 py-3 lg:py-3 2xl:py-4
             border-t border-white/10
           "
                     style={{ background: 'rgba(0, 0, 0, 0.9)' }}
                 >
                     {/* Resumen de puntos */}
                     {cliente && parseFloat(monto) > 0 && (
-                        <div className="flex items-center justify-between mb-3 lg:mb-2 2xl:mb-3 px-2">
+                        <div className="flex items-center justify-between mb-2 lg:mb-2 2xl:mb-3 px-2">
                             <span className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">Puntos a otorgar:</span>
                             <div className="flex items-center gap-1">
                                 <Coins className="w-5 h-5 text-[#F59E0B]" />

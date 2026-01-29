@@ -56,11 +56,19 @@
   <meta name="msapplication-TileImage" content="/icons/scanya-512.png" />
   <meta name="msapplication-TileColor" content="#0A0A0A" />
   
-  <!-- CSS Fallback: Fondo para #root en móvil -->
+  <!-- CSS Fallback: Fondo gradiente ScanYA en móvil -->
   <style>
+    /* Aplicar INMEDIATAMENTE en móvil - Mismo gradiente que SplashScreenScanYA */
     @media (max-width: 1023px) {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(180deg, #000000 0%, #001d3d 50%, #000000 100%) !important;
+        overflow: hidden;
+      }
+      
       #root {
-        background: transparent;
+        background: transparent !important;
         min-height: 100vh;
       }
     }
@@ -80,21 +88,13 @@
         const pwaInstalada = estadoPWA === 'instalada' || estadoPWA === 'intento';
         
         if (esScanYA || (esStandalone && pwaInstalada)) {
-          // Aplicar al body
-          document.body.style.background = '#000000';
-          document.body.style.margin = '0';
-          document.body.style.overflow = 'hidden';
-          
-          // Aplicar al #root para evitar flash blanco
-          document.addEventListener('DOMContentLoaded', function() {
-            const root = document.getElementById('root');
-            if (root) {
-              root.style.background = 'transparent';
-              root.style.minHeight = '100vh';
-            }
-          });
-          
-          console.log('[ScanYA Init] Fondo negro aplicado');
+          // ScanYA: mantener gradiente azul del CSS
+          console.log('[ScanYA Init] Gradiente azul mantenido');
+        } else {
+          // AnunciaYA: cambiar a blanco
+          document.documentElement.style.background = '#ffffff';
+          document.body.style.background = '#ffffff';
+          console.log('[AnunciaYA Init] Fondo blanco aplicado');
         }
       }
     })();

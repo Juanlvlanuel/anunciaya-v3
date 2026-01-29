@@ -105,13 +105,13 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
         themeColor.content = '#000000';
       }
 
-      // Cambiar background del body a negro (solo en móvil)
+      // Cambiar background del body al gradiente ScanYA (solo en móvil)
       const mediaQuery = window.matchMedia('(max-width: 1023px)');
       if (mediaQuery.matches) {
         document.body.setAttribute('data-original-background', document.body.style.background || '');
-        document.body.style.background = '#000000';
+        document.body.style.background = 'linear-gradient(180deg, #000000 0%, #001d3d 50%, #000000 100%)';
         document.body.style.overflow = 'hidden';
-        console.log('[PWA ScanYA] Background negro aplicado (móvil)');
+        console.log('[PWA ScanYA] Background gradiente aplicado (móvil)');
       }
     } else {
       // Quitar manifest si existe y no estamos en ScanYA
@@ -131,11 +131,20 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
       }
 
       // Restaurar background original del body
-      const originalBackground = document.body.getAttribute('data-original-background');
-      if (originalBackground !== null) {
-        document.body.style.background = originalBackground;
+      const mediaQuery = window.matchMedia('(max-width: 1023px)');
+      if (mediaQuery.matches) {
+        // En móvil, poner blanco cuando NO estamos en ScanYA
+        document.body.style.background = '#ffffff';
         document.body.style.overflow = '';
-        console.log('[PWA ScanYA] Background restaurado');
+        console.log('[PWA ScanYA] Background blanco aplicado (AnunciaYA móvil)');
+      } else {
+        // En desktop, restaurar original
+        const originalBackground = document.body.getAttribute('data-original-background');
+        if (originalBackground !== null) {
+          document.body.style.background = originalBackground;
+          document.body.style.overflow = '';
+          console.log('[PWA ScanYA] Background restaurado');
+        }
       }
     }
 
