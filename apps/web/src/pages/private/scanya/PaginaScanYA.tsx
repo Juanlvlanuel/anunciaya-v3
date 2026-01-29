@@ -576,7 +576,7 @@ export default function PaginaScanYA() {
                 {/* ========================================== */}
                 {/* COLUMNA DERECHA: ACCIONES (40%) */}
                 {/* ========================================== */}
-                <div className="flex flex-col gap-0 lg:gap-4 2xl:gap-5">
+                <div className="flex flex-col -mt-1 lg:gap-4 2xl:gap-5">
 
                   {/* Botón Principal: Otorgar Puntos */}
                   <button

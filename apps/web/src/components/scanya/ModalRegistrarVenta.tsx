@@ -690,7 +690,7 @@ export function ModalRegistrarVenta({
                 <div
                     className="
             fixed z-50
-            inset-x-0 bottom-0 h-[75vh]
+            inset-x-0 bottom-0 h-[85vh]
             lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px]
             flex items-center justify-center
             rounded-t-3xl lg:rounded-none
@@ -762,7 +762,7 @@ export function ModalRegistrarVenta({
             <div
                 className="
           fixed z-50
-          inset-x-0 bottom-0 h-[75vh]
+          inset-x-0 bottom-0 h-[85vh]
           lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px]
           flex flex-col
           rounded-t-3xl lg:rounded-none
@@ -1511,7 +1511,7 @@ export function ModalRegistrarVenta({
                     <button
                         onClick={handleConfirmar}
                         disabled={!puedeConfirmar() || procesando}
-                        className="w-full py-4 lg:py-3 2xl:py-4 rounded-xl lg:rounded-md 2xl:rounded-xl font-bold text-lg lg:text-base 2xl:text-lg flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        className="w-full py-2.5 lg:py-3 2xl:py-4 rounded-xl lg:rounded-md 2xl:rounded-xl font-bold text-lg lg:text-base 2xl:text-lg flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                         style={{
                             background:
                                 puedeConfirmar() && !procesando
