@@ -342,7 +342,7 @@ export function PaginaLoginScanYA() {
   // Render: Login
   // ---------------------------------------------------------------------------
   return (
-    <div className="h-screen flex items-start justify-center p-4 lg:p-3 2xl:p-6 pt-6 lg:pt-4 2xl:pt-0 overflow-x-hidden overflow-y-auto lg:overflow-hidden relative">
+    <div className="h-screen flex items-start justify-center p-4 lg:p-3 2xl:p-6 pt-6 lg:pt-4 2xl:pt-0 overflow-hidden relative scanya-no-refresh">
       {/* Fondo Gradient Flow */}
       <div
         className="absolute inset-0 overflow-hidden"
