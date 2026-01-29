@@ -533,7 +533,7 @@ export default function PaginaScanYA() {
         <InfoNegocioBar />
 
         {/* Contenido Principal */}
-        <main className="px-4 lg:px-6 2xl:px-8 py-6 lg:py-5 2xl:py-6 2xl:mt-30 lg:flex lg:items-center lg:justify-center lg:min-h-[calc(100vh-140px)] 2xl:block 2xl:min-h-0">
+        <main className="px-4 lg:px-6 2xl:px-8 py-3 lg:py-5 2xl:py-6 2xl:mt-30 lg:flex lg:items-center lg:justify-center lg:min-h-[calc(100vh-140px)] 2xl:block 2xl:min-h-0">
           {/* Loading inicial */}
           {cargandoDatos ? (
             <div className="flex items-center justify-center py-12">
@@ -557,7 +557,7 @@ export default function PaginaScanYA() {
                 
                 flex flex-col
                 lg:grid lg:grid-cols-[1.5fr_1fr]
-                gap-6 lg:gap-0 2xl:gap-8
+                gap-5 lg:gap-0 2xl:gap-8
                 lg:mt-12 2xl:mt-0
               ">
                 {/* ========================================== */}
@@ -576,7 +576,7 @@ export default function PaginaScanYA() {
                 {/* ========================================== */}
                 {/* COLUMNA DERECHA: ACCIONES (40%) */}
                 {/* ========================================== */}
-                <div className="flex flex-col gap-4 lg:gap-4 2xl:gap-5">
+                <div className="flex flex-col gap-0 lg:gap-4 2xl:gap-5">
 
                   {/* Botón Principal: Otorgar Puntos */}
                   <button
@@ -591,7 +591,7 @@ export default function PaginaScanYA() {
                       disabled:cursor-not-allowed
                       text-white font-bold
                       disabled:text-white/50
-                      py-3 mt-3 lg:py-3 lg:mt-1 2xl:py-5 2xl:mt-0
+                      py-3 lg:py-3 lg:mt-1 2xl:py-5 2xl:mt-0
                       rounded-xl
                       flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2
                       shadow-lg
@@ -618,9 +618,10 @@ export default function PaginaScanYA() {
                     onNavigate={handleNavigate}
                   />
 
-                  {/* Información de ayuda */}
+                  {/* Información de ayuda - SOLO DESKTOP */}
                   <div
                     className="
+                      hidden lg:block
                       rounded-xl
                       p-3 mt-0 lg:p-2 2xl:p-3.5 2xl:mt-6.5
                     "
