@@ -514,21 +514,24 @@ body {
 /* SCANYA - Deshabilitar pull-to-refresh        */
 /* ============================================= */
 
-/* Aplicar al contenedor principal */
-.scanya-no-refresh {
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
+/* Headers de modales ScanYA - Bloquear pull-to-refresh */
+/* Los headers tienen style="background: rgba(0, 0, 0, 0.3)" */
+header[style*="rgba(0, 0, 0, 0.3)"] {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* Aplicar a elementos con scroll dentro de ScanYA */
-.scanya-no-refresh [class*="overflow-y"] {
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
+/* Clase utilitaria para headers de modales */
+.modal-header-no-refresh {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* Permitir scroll vertical mientras tocas botones/elementos interactivos */
-.scanya-no-refresh button,
-.scanya-no-refresh a,
-.scanya-no-refresh [role="button"] {
-  touch-action: pan-y;
+/* Handle visual de modales (la barrita de arrastre) - Bloquear drag */
+.modal-handle-no-drag {
+  touch-action: none;
 }
