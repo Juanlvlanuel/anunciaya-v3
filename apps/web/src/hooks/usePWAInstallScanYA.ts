@@ -105,6 +105,14 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
         themeColor.content = '#000000';
       }
 
+      // Deshabilitar pinch-to-zoom para que se sienta como app nativa
+      const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+      if (viewport) {
+        viewport.setAttribute('data-original-content', viewport.content);
+        viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        console.log('[PWA ScanYA] Pinch-to-zoom deshabilitado');
+      }
+
       // Cambiar background del body al gradiente ScanYA (solo en móvil)
       const mediaQuery = window.matchMedia('(max-width: 1023px)');
       if (mediaQuery.matches) {
@@ -127,6 +135,16 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
         const originalColor = themeColor.getAttribute('data-original-color');
         if (originalColor) {
           themeColor.content = originalColor;
+        }
+      }
+
+      // Restaurar viewport original (habilitar pinch-to-zoom)
+      const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+      if (viewport) {
+        const originalContent = viewport.getAttribute('data-original-content');
+        if (originalContent) {
+          viewport.content = originalContent;
+          console.log('[PWA ScanYA] Viewport restaurado (pinch-to-zoom habilitado)');
         }
       }
 
