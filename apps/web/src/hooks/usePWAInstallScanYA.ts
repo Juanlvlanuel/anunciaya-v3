@@ -113,6 +113,11 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
         console.log('[PWA ScanYA] Pinch-to-zoom deshabilitado');
       }
 
+      // Deshabilitar pull-to-refresh (overscroll) para que se sienta como app nativa
+      document.body.style.overscrollBehavior = 'none';
+      document.documentElement.style.overscrollBehavior = 'none';
+      console.log('[PWA ScanYA] Pull-to-refresh deshabilitado');
+
       // Cambiar background del body al gradiente ScanYA (solo en móvil)
       const mediaQuery = window.matchMedia('(max-width: 1023px)');
       if (mediaQuery.matches) {
@@ -147,6 +152,11 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
           console.log('[PWA ScanYA] Viewport restaurado (pinch-to-zoom habilitado)');
         }
       }
+
+      // Restaurar overscroll-behavior (habilitar pull-to-refresh)
+      document.body.style.overscrollBehavior = '';
+      document.documentElement.style.overscrollBehavior = '';
+      console.log('[PWA ScanYA] Pull-to-refresh habilitado');
 
       // Restaurar background original del body
       const mediaQuery = window.matchMedia('(max-width: 1023px)');
