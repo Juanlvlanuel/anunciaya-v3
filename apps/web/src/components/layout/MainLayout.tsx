@@ -157,7 +157,7 @@ export function MainLayout() {
                 className="fixed left-0 lg:w-56 2xl:w-72 w-64 bg-linear-to-br from-slate-50 via-white to-slate-50 lg:border-2 2xl:border-4 border-4 border-slate-200 shadow-2xl rounded-2xl overflow-y-auto z-10"
                 style={{ top: '90px', height: 'calc(100vh - 106px)', left: '16px' }}
               >
-                <div className="lg:p-3 2xl:p-4 p-4">
+                <div className="lg:p-3 2xl:p-4 p-4 h-full relative">
                   <ColumnaIzquierda />
                 </div>
               </aside>

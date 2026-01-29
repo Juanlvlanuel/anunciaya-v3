@@ -16,7 +16,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
     X,
     Store,
-    BarChart3,
     LayoutDashboard,
     User,
     ShoppingBag,
@@ -107,7 +106,6 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
 
     // Determinar tipo de usuario
     const esDueño = usuario?.negocioId && !usuario?.sucursalAsignada;
-    const esGerente = usuario?.negocioId && usuario?.sucursalAsignada;
 
     // Cargar sucursales
     useEffect(() => {
@@ -182,11 +180,10 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
             {/* Panel */}
             <div className="fixed top-0 left-0 bottom-0 w-[75%] max-w-[280px] bg-white z-61 shadow-2xl overflow-y-auto">
                 {/* Header del drawer */}
-                <div className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-4 py-4">
+                <div className="bg-linear-to-r from-gray-900 to-blue-600 text-white px-4 py-4">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                            <BarChart3 className="w-6 h-6" />
-                            <span className="font-bold text-lg">Business Studio</span>
+                            <img src="/BusinessStudio.webp" alt="Business Studio" className="h-7 w-auto object-contain" />
                         </div>
                         <button
                             onClick={onCerrar}
@@ -233,7 +230,7 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                             ) : (
                                 <>
                                     <p className="font-semibold text-sm truncate">
-                                        {sucursalActual?.nombre || usuario?.nombreNegocio || 'Mi Negocio'}
+                                        {usuario?.nombreNegocio || 'Mi Negocio'}
                                     </p>
                                     <div className="flex items-center gap-1.5">
                                         {/* Badge Principal */}

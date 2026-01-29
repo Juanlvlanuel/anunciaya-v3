@@ -41,8 +41,6 @@ import {
   Settings,
   LogOut,
   CreditCard,
-  QrCode,
-  BarChart3,
   ChevronRight,
   Gift,
   Heart,
@@ -216,8 +214,13 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             <>
               {/* ScanYA */}
               <MenuDrawerItem
-                icon={QrCode}
-                label="ScanYA"
+                iconoImagen="/IconoScanYA.webp"
+                label={
+                  <span>
+                    <span className="text-blue-700">Scan</span>
+                    <span className="text-red-600">YA</span>
+                  </span>
+                }
                 bgColor="bg-linear-to-br from-orange-500 to-orange-600"
                 iconColor="text-white"
                 hoverGradient="hover:from-orange-50"
@@ -228,8 +231,13 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
               {/* Business Studio */}
               <MenuDrawerItem
-                icon={BarChart3}
-                label="Business Studio"
+                iconoImagen="/IconoBS.webp"
+                label={
+                  <span>
+                    <span className=" text-blue-700">Business</span>
+                    <span className=" text-blue-700"> Studio</span>
+                  </span>
+                }
                 bgColor="bg-linear-to-br from-blue-500 to-blue-600"
                 iconColor="text-white"
                 hoverGradient="hover:from-orange-50"
@@ -336,8 +344,9 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 // =============================================================================
 
 interface MenuDrawerItemProps {
-  icon: React.ElementType;
-  label: string;
+  icon?: React.ElementType;
+  iconoImagen?: string;
+  label: string | React.ReactNode;
   badge?: number;
   bgColor: string;
   iconColor: string;
@@ -349,6 +358,7 @@ interface MenuDrawerItemProps {
 
 function MenuDrawerItem({
   icon: Icon,
+  iconoImagen,
   label,
   badge,
   bgColor,
@@ -362,15 +372,17 @@ function MenuDrawerItem({
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-linear-to-r ${hoverGradient} hover:to-transparent group transition-all duration-150 hover:translate-x-1`}
     >
-      {/* Icono con background - MÁS PEQUEÑO */}
-      <div
-        className={`w-8 h-8 ${bgColor} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-150 shadow-sm shrink-0`}
-      >
-        <Icon className={`w-4 h-4 ${iconColor}`} />
+      {/* Icono con o sin background */}
+      <div className={`${iconoImagen ? 'w-auto h-8' : 'w-8 h-8'} ${iconoImagen ? '' : bgColor} ${iconoImagen ? '' : 'rounded-lg'} flex items-center justify-center group-hover:scale-110 transition-transform duration-150 ${iconoImagen ? '' : 'shadow-sm'} shrink-0`}>
+        {iconoImagen ? (
+          <img src={iconoImagen} alt={typeof label === 'string' ? label : 'Icono'} className="w-full h-full object-contain" />
+        ) : Icon ? (
+          <Icon className={`w-4 h-4 ${iconColor}`} />
+        ) : null}
       </div>
 
       {/* Label - TEXTO MÁS PEQUEÑO */}
-      <span className="font-semibold text-gray-900 text-sm">{label}</span>
+      <span className="font-semibold text-gray-900 text-md">{label}</span>
 
       {/* Badge o Chevron */}
       {badge !== undefined && badge > 0 ? (

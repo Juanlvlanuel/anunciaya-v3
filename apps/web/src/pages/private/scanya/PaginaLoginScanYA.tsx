@@ -17,28 +17,16 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, UserCircle, Briefcase, AlertTriangle, Download } from 'lucide-react';
+import { Mail, Lock, User, UserCircle, Briefcase, Download } from 'lucide-react';
 import { Input } from '../../../components/ui/Input';
 import { Boton } from '../../../components/ui/Boton';
 import { SplashScreenScanYA } from '../../../components/scanya/SplashScreenScanYA';
 import { TecladoNumerico } from '../../../components/scanya/TecladoNumerico';
 import { notificar } from '../../../utils/notificaciones';
 import { useScanYAStore } from '../../../stores/useScanYAStore';
+import { usePWAInstallScanYA } from '../../../hooks/usePWAInstallScanYA';
 import scanyaService from '../../../services/scanyaService';
 import type { UsuarioScanYA } from '../../../types/scanya';
-
-// =============================================================================
-// TIPOS PWA
-// =============================================================================
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
-interface NavigatorStandalone extends Navigator {
-  standalone?: boolean;
-}
 
 // =============================================================================
 // TIPOS
@@ -78,10 +66,8 @@ export function PaginaLoginScanYA() {
   const [nick, setNick] = useState('');
   const [tecladoListo, setTecladoListo] = useState(true);
 
-  // Estado PWA
-  const [pwaInstalada, setPwaInstalada] = useState(false);
-  const [promptDisponible, setPromptDisponible] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  // PWA - Usando el hook centralizado
+  const { puedeInstalar, estadoInstalacion, esStandalone, instalando, instalar } = usePWAInstallScanYA();
 
   // Referencias
   const passwordInputRef = useRef<HTMLInputElement>(null);
@@ -112,7 +98,7 @@ export function PaginaLoginScanYA() {
   useEffect(() => {
     // Solo bloquear scroll en pantallas grandes (lg: 1024px+)
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
-    
+
     const aplicarOverflow = () => {
       if (mediaQuery.matches) {
         document.documentElement.style.overflow = 'hidden';
@@ -134,74 +120,25 @@ export function PaginaLoginScanYA() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Efecto: Detectar si PWA ya está instalada
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    const esStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const esIosStandalone = (navigator as NavigatorStandalone).standalone;
-    
-    if (esStandalone || esIosStandalone) {
-      setPwaInstalada(true);
-    }
-  }, []);
-
-  // ---------------------------------------------------------------------------
-  // Efecto: Capturar evento beforeinstallprompt
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      const promptEvent = e as BeforeInstallPromptEvent;
-      setDeferredPrompt(promptEvent);
-      setPromptDisponible(true);
-      console.log('✅ beforeinstallprompt capturado, botón de instalación disponible');
-    };
-
-    // Esperar un momento para que Chrome procese el manifest
-    const timeout = setTimeout(() => {
-      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    }, 1000);
-
-    // Detectar cuando se instala la PWA
-    window.addEventListener('appinstalled', () => {
-      console.log('✅ ScanYA PWA instalada exitosamente');
-      setPwaInstalada(true);
-      setPromptDisponible(false);
-      setDeferredPrompt(null);
-      notificar.exito('ScanYA instalado correctamente');
-    });
-
-    return () => {
-      clearTimeout(timeout);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-    };
-  }, []);
-
-  // ---------------------------------------------------------------------------
-  // Handler: Instalar PWA
+  // Handler: Instalar PWA (usando el hook)
   // ---------------------------------------------------------------------------
   const handleInstalarPWA = async () => {
-    if (!promptDisponible || !deferredPrompt) {
-      notificar.info('Usa el botón de tu navegador para instalar ScanYA');
+    // Si puede instalar, hacerlo directamente
+    if (puedeInstalar) {
+      const exito = await instalar();
+      if (exito) {
+        notificar.exito('ScanYA instalado correctamente');
+      }
       return;
     }
-
-    try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        console.log('✅ Usuario aceptó instalar ScanYA');
-        setPwaInstalada(true);
-      } else {
-        console.log('❌ Usuario canceló la instalación');
-      }
-      
-      setDeferredPrompt(null);
-      setPromptDisponible(false);
-    } catch (error) {
-      console.error('Error al instalar PWA:', error);
-      notificar.error('Error al instalar ScanYA');
+    
+    // No puede instalar - mostrar mensaje según estado
+    if (estadoInstalacion === 'instalada') {
+      notificar.info('ScanYA ya está instalada');
+    } else if (estadoInstalacion === 'intento') {
+      notificar.info('Recarga la página para intentar de nuevo');
+    } else {
+      notificar.info('Instalación no disponible en este navegador');
     }
   };
 
@@ -671,27 +608,17 @@ export function PaginaLoginScanYA() {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-6 lg:mt-4 2xl:mt-8">
-          <p className="text-xs lg:text-[10px] 2xl:text-sm text-[#8b8b8bce] flex items-center justify-center gap-2">
-            <AlertTriangle className="w-3.5 h-3.5 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
-            Solo personal autorizado
-          </p>
-        </div>
-
-        {/* Botón Instalar PWA - Solo visible si NO está instalada y estamos en navegador */}
-        {!pwaInstalada && (
-          <div className="mt-4 lg:mt-3 2xl:mt-6">
+        {/* Footer - Link para instalar PWA (oculto solo en modo standalone) */}
+        {!esStandalone && (
+          <div className="text-center mt-6 lg:mt-4 2xl:mt-8">
             <button
               onClick={handleInstalarPWA}
-              className="w-full flex items-center justify-center gap-2 py-3 lg:py-2 2xl:py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-semibold text-sm lg:text-xs 2xl:text-base transition-all duration-200 shadow-lg hover:shadow-xl"
+              disabled={instalando}
+              className="text-sm lg:text-xs 2xl:text-sm text-[#9ca3af] hover:text-[#3B82F6] transition-colors flex items-center justify-center gap-2 mx-auto"
             >
-              <Download className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5" />
-              Instalar ScanYA
+              <Download className="w-4 h-4" />
+              {instalando ? 'Instalando...' : 'Instalar como app'}
             </button>
-            <p className="text-center text-xs lg:text-[10px] 2xl:text-xs text-[#8b8b8bce] mt-2">
-              Instala la app para acceso rápido desde tu pantalla inicio
-            </p>
           </div>
         )}
       </div>

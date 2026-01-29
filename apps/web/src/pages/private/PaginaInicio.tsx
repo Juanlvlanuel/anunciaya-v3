@@ -10,7 +10,6 @@
  */
 
 import { useAuthStore } from '../../stores/useAuthStore';
-import { BannerScanYAPWA } from '../../components/scanya';
 
 export function PaginaInicio() {
   const usuario = useAuthStore((state) => state.usuario);
@@ -18,9 +17,6 @@ export function PaginaInicio() {
 
   return (
     <>
-      {/* Banner helper para PWA de ScanYA */}
-      <BannerScanYAPWA />
-
       <div className="space-y-6">
         {/* Saludo */}
         <div>

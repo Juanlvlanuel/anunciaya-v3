@@ -15,7 +15,6 @@ import { useScanYAStore } from '../stores/useScanYAStore';
 import { useGpsStore } from '../stores/useGpsStore';
 import { buscarCiudadCercana } from '../data/ciudadesPopulares';
 import { useTituloDinamico } from '../hooks/useTituloDinamico';
-import { useRedirectScanYAPWA } from '../hooks/useRedirectScanYAPWA';
 
 /**
  * Verifica si hay ciudad guardada en localStorage
@@ -44,12 +43,8 @@ export function RootLayout() {
   // Ref para evitar doble ejecución
   const deteccionEjecutada = useRef(false);
 
-  // ✅ NUEVO: Cambiar título dinámicamente según la ruta
+  // ✅ Cambiar título dinámicamente según la ruta
   useTituloDinamico();
-
-  // ✅ NUEVO: Redirección automática para PWA de ScanYA
-  // Si la PWA se abre fuera de /scanya/*, redirige automáticamente
-  useRedirectScanYAPWA();
 
   // Hidratar autenticación al cargar la app (AnunciaYA y ScanYA)
   useEffect(() => {

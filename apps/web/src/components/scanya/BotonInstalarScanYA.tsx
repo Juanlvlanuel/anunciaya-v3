@@ -18,15 +18,15 @@ export function BotonInstalarScanYA() {
   return (
     <button 
       onClick={handleClick} 
-      className="w-full relative group overflow-hidden"
+      className="w-full relative group overflow-visible"
       aria-label="Ir a ScanYA"
     >
-      <div className="flex items-center justify-center gap-2 lg:p-2.5 2xl:p-3 p-3 bg-linear-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]">
+      <div className="flex items-center justify-center gap-2 lg:p-2.5 2xl:p-3 p-3 bg-linear-to-br from-gray-900 to-blue-600 hover:from-black hover:to-blue-800 text-white rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.03]">
         {/* Logo de ScanYA */}
         <img 
-          src="/logo-scanya-blanco.webp" 
+          src="/ScanYA-Blanco.webp" 
           alt="ScanYA" 
-          className="lg:h-6 2xl:h-8 h-7 w-auto object-contain"
+          className="h-7 lg:h-6 2xl:h-6 w-auto object-contain"
         />
         <ChevronRight className="lg:w-4 2xl:w-5 w-5 ml-auto group-hover:translate-x-1 transition-transform" />
       </div>
