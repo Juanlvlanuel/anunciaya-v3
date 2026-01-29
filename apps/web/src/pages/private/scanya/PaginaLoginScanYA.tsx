@@ -205,7 +205,6 @@ export function PaginaLoginScanYA() {
         // Login exitoso en el store
         await loginExitoso(usuarioData as UsuarioScanYA, accessToken, refreshToken);
 
-        notificar.exito('Bienvenido a ScanYA');
 
         // Redirigir al dashboard
         navigate('/scanya');
