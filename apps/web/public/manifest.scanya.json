@@ -6,8 +6,8 @@
   "scope": "/scanya",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#2563eb",
-  "background_color": "#0A0A0A",
+  "theme_color": "#000000",
+  "background_color": "#001d3d",
   "categories": ["business", "productivity"],
   "lang": "es-MX",
   "dir": "ltr",
@@ -39,7 +39,7 @@
   ],
   "shortcuts": [
     {
-      "name": "Registrar Venta",
+      "name": "ScanYA",
       "short_name": "Venta",
       "description": "Registrar una nueva venta",
       "url": "/scanya?action=venta",
