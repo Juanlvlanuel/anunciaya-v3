@@ -469,7 +469,7 @@ export default function PaginaScanYA() {
   // RENDER
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen overflow-x-hidden overflow-y-auto lg:overflow-hidden relative">
+    <div className="h-screen overflow-hidden relative scanya-no-refresh">
       {/* Fondo Gradient Flow */}
       <div
         className="absolute inset-0 overflow-hidden"
@@ -526,14 +526,14 @@ export default function PaginaScanYA() {
       </div>
 
       {/* Todo el contenido con z-index para estar encima del fondo */}
-      <div className={`relative z-10 transition-all duration-300 ${(['venta', 'historial', 'vouchers', 'canjear', 'recordatorios'].includes(modalActivo)) ? 'lg:mr-[350px] 2xl:mr-[450px]' : ''}`}>        {/* Header */}
+      <div className={`relative z-10 h-full flex flex-col transition-all duration-300 ${(['venta', 'historial', 'vouchers', 'canjear', 'recordatorios'].includes(modalActivo)) ? 'lg:mr-[350px] 2xl:mr-[450px]' : ''}`}>        {/* Header */}
         <HeaderScanYA />
 
         {/* Barra Info Negocio (solo móvil, sin contenedor) */}
         <InfoNegocioBar />
 
         {/* Contenido Principal */}
-        <main className="px-4 lg:px-6 2xl:px-8 py-3 lg:py-5 2xl:py-6 2xl:mt-30 lg:flex lg:items-center lg:justify-center lg:min-h-[calc(100vh-140px)] 2xl:block 2xl:min-h-0">
+        <main className="flex-1 overflow-y-auto px-4 lg:px-6 2xl:px-8 py-3 lg:py-5 2xl:py-6 2xl:mt-30 lg:flex lg:items-center lg:justify-center 2xl:block">
           {/* Loading inicial */}
           {cargandoDatos ? (
             <div className="flex items-center justify-center py-12">
