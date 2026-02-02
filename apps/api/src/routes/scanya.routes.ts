@@ -31,6 +31,8 @@ import {
   actualizarConfigScanYAController,
   uploadTicketController,
   contadoresController,
+  sucursalesListaController,
+  operadoresListaController,
 } from '../controllers/scanya.controller.js';
 import { verificarTokenScanYA } from '../middleware/scanyaAuth.middleware.js';
 
@@ -137,5 +139,14 @@ router.post('/upload-ticket', verificarTokenScanYA, uploadTicketController);
 // GET /api/scanya/contadores - Obtener contadores para dashboard
 router.get('/contadores', verificarTokenScanYA, contadoresController);
 
+// =============================================================================
+// RUTAS DE LISTAS PARA FILTROS (Fase 12 - Filtros)
+// =============================================================================
+
+// GET /api/scanya/sucursales-lista - Lista de sucursales para dropdown
+router.get('/sucursales-lista', verificarTokenScanYA, sucursalesListaController);
+
+// GET /api/scanya/empleados-lista - Lista de empleados para dropdown
+router.get('/operadores-lista', verificarTokenScanYA, operadoresListaController);
 
 export default router;

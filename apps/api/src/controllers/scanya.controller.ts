@@ -45,6 +45,8 @@ import {
   actualizarConfigScanYA,
   generarUrlUploadTicket,
   obtenerContadores,
+  obtenerSucursalesLista,
+  obtenerOperadoresLista,
 } from '../services/scanya.service.js';
 
 // =============================================================================
@@ -580,6 +582,8 @@ export async function historialController(req: Request, res: Response): Promise<
   const periodo = (req.query.periodo as string) || 'mes';
   const pagina = parseInt(req.query.pagina as string) || 1;
   const limite = parseInt(req.query.limite as string) || 20;
+  const sucursalId = req.query.sucursalId as string | undefined;
+  const empleadoId = req.query.empleadoId as string | undefined;
 
   const validacion = historialSchema.safeParse({ periodo, pagina, limite });
 
@@ -599,7 +603,9 @@ export async function historialController(req: Request, res: Response): Promise<
     req.scanyaUsuario,
     validacion.data.periodo,
     validacion.data.pagina,
-    validacion.data.limite
+    validacion.data.limite,
+    sucursalId,
+    empleadoId
   );
 
   // ---------------------------------------------------------------------------
@@ -707,6 +713,7 @@ export async function obtenerVouchersController(req: Request, res: Response): Pr
   const sucursalId = req.query.sucursalId as string | undefined;
   const pagina = parseInt(req.query.pagina as string) || 1;
   const limite = parseInt(req.query.limite as string) || 20;
+  const empleadoId = req.query.empleadoId as string | undefined;
 
   // ---------------------------------------------------------------------------
   // Paso 3: Validar con Zod
@@ -716,6 +723,7 @@ export async function obtenerVouchersController(req: Request, res: Response): Pr
     sucursalId,
     pagina,
     limite,
+    empleadoId,
   });
 
   if (!validacion.success) {
@@ -1150,4 +1158,69 @@ export async function contadoresController(req: Request, res: Response): Promise
       message: 'Error interno del servidor',
     });
   }
+}
+
+// =============================================================================
+// CONTROLLER 22: LISTAR SUCURSALES PARA FILTROS
+// =============================================================================
+
+/**
+ * GET /api/scanya/sucursales-lista
+ * 
+ * Obtiene lista de sucursales para dropdowns de filtros.
+ * - Dueño: ve todas las sucursales
+ * - Gerente/Empleado: solo su sucursal
+ */
+export async function sucursalesListaController(req: Request, res: Response): Promise<void> {
+  if (!req.scanyaUsuario) {
+    res.status(401).json({
+      success: false,
+      message: 'No autenticado',
+    });
+    return;
+  }
+
+  const resultado = await obtenerSucursalesLista(req.scanyaUsuario);
+
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
+    message: resultado.message,
+    data: resultado.data,
+  });
+}
+
+// =============================================================================
+// CONTROLLER 23: LISTAR OPERADORES PARA FILTROS
+// =============================================================================
+
+/**
+ * GET /api/scanya/operadores-lista
+ * 
+ * Obtiene lista de operadores (empleados + gerentes + dueño) para dropdowns de filtros.
+ * Query params:
+ * - sucursalId: filtrar por sucursal (solo dueño)
+ * 
+ * Permisos:
+ * - Dueño: ve todos (o filtrados por sucursal)
+ * - Gerente: solo operadores de su sucursal
+ * - Empleado: lista vacía
+ */
+export async function operadoresListaController(req: Request, res: Response): Promise<void> {
+  if (!req.scanyaUsuario) {
+    res.status(401).json({
+      success: false,
+      message: 'No autenticado',
+    });
+    return;
+  }
+
+  const sucursalId = req.query.sucursalId as string | undefined;
+
+  const resultado = await obtenerOperadoresLista(req.scanyaUsuario, sucursalId);
+
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
+    message: resultado.message,
+    data: resultado.data,
+  });
 }

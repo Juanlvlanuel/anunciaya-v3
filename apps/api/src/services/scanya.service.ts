@@ -42,6 +42,10 @@ import type {
     ActualizarConfigScanYAInput,
     ObtenerVouchersInput,
 } from '../validations/scanya.schema.js';
+import {
+    obtenerSucursalesNegocio,
+    listarOperadoresNegocio
+} from './negocios.service.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -1864,7 +1868,9 @@ export async function obtenerHistorial(
     payload: PayloadTokenScanYA,
     periodo: PeriodoHistorial = 'mes',
     pagina: number = 1,
-    limite: number = 20
+    limite: number = 20,
+    filtroSucursalId?: string,    // ← AGREGAR
+    filtroEmpleadoId?: string     // ← AGREGAR
 ): Promise<RespuestaServicio<{
     transacciones: Array<{
         id: string;
@@ -1936,31 +1942,63 @@ export async function obtenerHistorial(
 
         // Filtrar según tipo de usuario
         if (payload.tipo === 'empleado' && payload.empleadoId) {
-            // Empleado: solo sus transacciones
-            condicionesBase.push(eq(puntosTransacciones.empleadoId, payload.empleadoId));
+            // Empleado: solo sus transacciones (via turno)
+            condicionesBase.push(
+                sql`${puntosTransacciones.turnoId} IN (
+                    SELECT id FROM scanya_turnos 
+                    WHERE empleado_id = ${payload.empleadoId}::uuid
+                )`
+            );
         } else if (payload.tipo === 'gerente') {
-            // Gerente: solo su sucursal Y solo transacciones de:
-            // 1. Empleados de la sucursal
-            // 2. Turnos que ÉL mismo abrió
+            // Gerente: TODAS las transacciones de su sucursal
             condicionesBase.push(
                 eq(puntosTransacciones.sucursalId, payload.sucursalId)
             );
-
-            // Subconsulta: IDs de turnos del gerente
-            const turnosGerente = db
-                .select({ id: scanyaTurnos.id })
-                .from(scanyaTurnos)
-                .where(eq(scanyaTurnos.usuarioId, payload.usuarioId!));
-
-            // Filtrar: transacciones de empleados O de turnos del gerente
-            condicionesBase.push(
-                or(
-                    isNotNull(puntosTransacciones.empleadoId),
-                    sql`${puntosTransacciones.turnoId} IN (${turnosGerente})`
-                )!
-            );
         }
         // Dueño: ve todo el negocio (no se agrega filtro adicional)
+
+        // -------------------------------------------------------------------------
+        // Paso 2.5: Filtros opcionales (desde dropdowns)
+        // -------------------------------------------------------------------------
+        // Filtro por sucursal (solo si el usuario tiene permiso)
+        if (filtroSucursalId) {
+            if (payload.tipo === 'dueno') {
+                // Dueño puede filtrar por cualquier sucursal de su negocio
+                condicionesBase.push(eq(puntosTransacciones.sucursalId, filtroSucursalId));
+            }
+            // Gerente y empleado ya están filtrados por su sucursal
+        }
+
+        // Filtro por operador (empleado/gerente/dueño)
+        if (filtroEmpleadoId) {
+            if (payload.tipo === 'dueno' || payload.tipo === 'gerente') {
+                // Primero verificar si es empleado o usuario (gerente/dueño)
+                const [esEmpleado] = await db
+                    .select({ id: empleados.id })
+                    .from(empleados)
+                    .where(eq(empleados.id, filtroEmpleadoId))
+                    .limit(1);
+
+                if (esEmpleado) {
+                    // Es empleado - filtrar por turno.empleado_id
+                    condicionesBase.push(
+                        sql`${puntosTransacciones.turnoId} IN (
+                            SELECT id FROM scanya_turnos 
+                            WHERE empleado_id = ${filtroEmpleadoId}::uuid
+                        )`
+                    );
+                } else {
+                    // Es gerente/dueño - filtrar por turno.usuario_id
+                    condicionesBase.push(
+                        sql`${puntosTransacciones.turnoId} IN (
+                            SELECT id FROM scanya_turnos 
+                            WHERE usuario_id = ${filtroEmpleadoId}::uuid
+                        )`
+                    );
+                }
+            }
+            // Empleado no puede filtrar por otro operador
+        }
 
         // -------------------------------------------------------------------------
         // Paso 3: Contar total
@@ -2394,23 +2432,30 @@ export async function validarVoucher(
         // Paso 5: Marcar voucher como usado
         // -------------------------------------------------------------------------
 
-        // Guardar quién canjeó (empleado, gerente o dueño)
-        let empleadoIdValidador = null;
+        // Guardar quién canjeó según su tipo
+        const updateData: {
+            estado: string;
+            usadoAt: string;
+            usadoPorEmpleadoId?: string | null;
+            usadoPorUsuarioId?: string | null;
+            sucursalId: string;
+        } = {
+            estado: 'usado',
+            usadoAt: new Date().toISOString(),
+            sucursalId: payload.sucursalId,
+        };
 
         if (payload.tipo === 'empleado' && payload.empleadoId) {
-            empleadoIdValidador = payload.empleadoId;
+            // Empleado: guardar en usadoPorEmpleadoId
+            updateData.usadoPorEmpleadoId = payload.empleadoId;
         } else if ((payload.tipo === 'gerente' || payload.tipo === 'dueno') && payload.usuarioId) {
-            empleadoIdValidador = payload.usuarioId;
+            // Gerente/Dueño: guardar en usadoPorUsuarioId
+            updateData.usadoPorUsuarioId = payload.usuarioId;
         }
 
         await db
             .update(vouchersCanje)
-            .set({
-                estado: 'usado',
-                usadoAt: new Date().toISOString(),
-                usadoPorEmpleadoId: empleadoIdValidador,
-                sucursalId: payload.sucursalId,
-            })
+            .set(updateData)
             .where(eq(vouchersCanje.id, voucher.id));
 
         // -------------------------------------------------------------------------
@@ -2572,6 +2617,19 @@ export async function obtenerVouchers(
 }>> {
     try {
         // -------------------------------------------------------------------------
+        // Paso 0: Auto-actualizar vouchers vencidos por fecha
+        // -------------------------------------------------------------------------
+        await db
+            .update(vouchersCanje)
+            .set({ estado: 'expirado' })
+            .where(
+                and(
+                    eq(vouchersCanje.negocioId, payload.negocioId),
+                    eq(vouchersCanje.estado, 'pendiente'),
+                    sql`${vouchersCanje.expiraAt} < NOW()`
+                )
+            );
+        // -------------------------------------------------------------------------
         // Paso 1: Construir condiciones base según rol
         // -------------------------------------------------------------------------
         const condiciones = [eq(vouchersCanje.negocioId, payload.negocioId)];
@@ -2611,6 +2669,18 @@ export async function obtenerVouchers(
         }
 
         // -------------------------------------------------------------------------
+        // Paso 3.5: Filtro por operador que canjeó (empleado o gerente/dueño)
+        // -------------------------------------------------------------------------
+        if (filtros.empleadoId && payload.tipo !== 'empleado') {
+            // Buscar en ambas columnas (empleado o usuario)
+            condiciones.push(
+                or(
+                    eq(vouchersCanje.usadoPorEmpleadoId, filtros.empleadoId),
+                    eq(vouchersCanje.usadoPorUsuarioId, filtros.empleadoId)
+                )!
+            );
+        }
+        // -------------------------------------------------------------------------
         // Paso 4: Contar total de vouchers
         // -------------------------------------------------------------------------
         const [{ total }] = await db
@@ -2642,6 +2712,7 @@ export async function obtenerVouchers(
                 expiraAt: vouchersCanje.expiraAt,
                 usadoAt: vouchersCanje.usadoAt,
                 usadoPorEmpleadoId: vouchersCanje.usadoPorEmpleadoId,
+                usadoPorUsuarioId: vouchersCanje.usadoPorUsuarioId,
                 sucursalNombre: negocioSucursales.nombre,
             })
             .from(vouchersCanje)
@@ -2654,32 +2725,30 @@ export async function obtenerVouchers(
             .offset(offset);
 
         // -------------------------------------------------------------------------
-        // Paso 7: Obtener nombres de empleados que canjearon (si aplica)
+        // Paso 7: Obtener nombres de quien canjeó (empleado o gerente/dueño)
         // -------------------------------------------------------------------------
         const vouchersConEmpleado = await Promise.all(
             vouchers.map(async (v) => {
                 let usadoPorEmpleadoNombre = null;
 
                 if (v.usadoPorEmpleadoId) {
-                    // Primero intentar buscar en empleados
+                    // Canjeado por empleado - buscar en tabla empleados
                     const [empleado] = await db
                         .select({ nick: empleados.nick })
                         .from(empleados)
                         .where(eq(empleados.id, v.usadoPorEmpleadoId))
                         .limit(1);
 
-                    if (empleado) {
-                        usadoPorEmpleadoNombre = empleado.nick;
-                    } else {
-                        // Si no está en empleados, buscar en usuarios (gerente/dueño)
-                        const [usuario] = await db
-                            .select({ nombre: usuarios.nombre })
-                            .from(usuarios)
-                            .where(eq(usuarios.id, v.usadoPorEmpleadoId))
-                            .limit(1);
+                    usadoPorEmpleadoNombre = empleado?.nick || null;
+                } else if (v.usadoPorUsuarioId) {
+                    // Canjeado por gerente/dueño - buscar en tabla usuarios
+                    const [usuario] = await db
+                        .select({ nombre: usuarios.nombre })
+                        .from(usuarios)
+                        .where(eq(usuarios.id, v.usadoPorUsuarioId))
+                        .limit(1);
 
-                        usadoPorEmpleadoNombre = usuario?.nombre || null;
-                    }
+                    usadoPorEmpleadoNombre = usuario?.nombre || null;
                 }
 
                 return {
@@ -3597,6 +3666,124 @@ export async function obtenerContadores(
         return {
             success: false,
             message: 'Error interno al obtener contadores',
+            code: 500,
+        };
+    }
+}
+
+// =============================================================================
+// FUNCIÓN 22: LISTAR SUCURSALES PARA FILTROS (Reutiliza negocios.service)
+// =============================================================================
+
+/**
+ * Obtiene lista de sucursales del negocio para dropdowns de filtros.
+ * Solo el dueño puede ver todas las sucursales.
+ * Gerente y empleado solo ven su sucursal asignada.
+ */
+export async function obtenerSucursalesLista(
+    payload: PayloadTokenScanYA
+): Promise<RespuestaServicio<Array<{ id: string; nombre: string }>>> {
+    try {
+        // Obtener todas las sucursales del negocio
+        const resultado = await obtenerSucursalesNegocio(payload.negocioId);
+
+        if (!resultado.success || !resultado.data) {
+            return {
+                success: false,
+                message: 'Error al obtener sucursales',
+                code: 500,
+            };
+        }
+
+        let sucursales = resultado.data.map((s) => ({
+            id: s.id,
+            nombre: s.nombre,
+        }));
+
+        // Empleado/Gerente: filtrar solo su sucursal
+        if (payload.tipo === 'empleado' || payload.tipo === 'gerente') {
+            sucursales = sucursales.filter((s) => s.id === payload.sucursalId);
+        }
+
+        return {
+            success: true,
+            message: `${sucursales.length} sucursal${sucursales.length !== 1 ? 'es' : ''} disponible${sucursales.length !== 1 ? 's' : ''}`,
+            data: sucursales,
+            code: 200,
+        };
+    } catch (error) {
+        console.error('Error en obtenerSucursalesLista:', error);
+        return {
+            success: false,
+            message: 'Error interno al obtener sucursales',
+            code: 500,
+        };
+    }
+}
+
+// =============================================================================
+// FUNCIÓN 23: LISTAR EMPLEADOS PARA FILTROS (Reutiliza negocios.service)
+// =============================================================================
+
+/**
+ * Obtiene lista de operadores (empleados + gerentes + dueño) para dropdowns de filtros.
+ * - Dueño: ve todos los operadores (opcionalmente filtrados por sucursal)
+ * - Gerente: solo operadores de su sucursal
+ * - Empleado: no ve este dropdown (retorna vacío)
+ */
+export async function obtenerOperadoresLista(
+    payload: PayloadTokenScanYA,
+    sucursalId?: string
+): Promise<RespuestaServicio<Array<{
+    id: string;
+    nombre: string;
+    tipo: 'empleado' | 'gerente' | 'dueno';
+    sucursalId: string | null;
+    sucursalNombre: string | null;
+}>>> {
+    try {
+        // Empleado: no puede filtrar por operador
+        if (payload.tipo === 'empleado') {
+            return {
+                success: true,
+                message: 'Sin acceso a lista de operadores',
+                data: [],
+                code: 200,
+            };
+        }
+
+        // Determinar sucursal a filtrar
+        let filtroSucursal: string | undefined;
+
+        if (payload.tipo === 'gerente') {
+            // Gerente: forzar su sucursal
+            filtroSucursal = payload.sucursalId;
+        } else if (sucursalId) {
+            // Dueño: usar sucursal del query param si viene
+            filtroSucursal = sucursalId;
+        }
+
+        const resultado = await listarOperadoresNegocio(payload.negocioId, filtroSucursal);
+
+        if (!resultado.success || !resultado.data) {
+            return {
+                success: false,
+                message: 'Error al obtener operadores',
+                code: 500,
+            };
+        }
+
+        return {
+            success: true,
+            message: `${resultado.data.length} operadores encontrados`,
+            data: resultado.data,
+            code: 200,
+        };
+    } catch (error) {
+        console.error('Error en obtenerOperadoresLista:', error);
+        return {
+            success: false,
+            message: 'Error interno al obtener operadores',
             code: 500,
         };
     }

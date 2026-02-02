@@ -1480,7 +1480,7 @@ export const puntosConfiguracion = pgTable("puntos_configuracion", {
 	negocioId: uuid("negocio_id").notNull(),
 	puntosPorPeso: numeric("puntos_por_peso", { precision: 10, scale: 4 }).default('1.0').notNull(),
 	minimoCompra: numeric("minimo_compra", { precision: 10, scale: 2 }).default('0').notNull(),
-	diasExpiracionPuntos: integer("dias_expiracion_puntos").default(90).notNull(),
+	diasExpiracionPuntos: integer("dias_expiracion_puntos").default(90),
 	diasExpiracionVoucher: integer("dias_expiracion_voucher").default(30).notNull(),
 	validarHorario: boolean("validar_horario").default(true).notNull(),
 	horarioInicio: time("horario_inicio").default('09:00:00').notNull(),
@@ -1511,7 +1511,7 @@ export const puntosConfiguracion = pgTable("puntos_configuracion", {
 		name: "fk_puntos_configuracion_negocio"
 	}).onDelete("cascade"),
 	unique("puntos_configuracion_negocio_unique").on(table.negocioId),
-	check("puntos_configuracion_dias_expiracion_check", sql`(dias_expiracion_puntos > 0) AND (dias_expiracion_voucher > 0)`),
+	check("puntos_configuracion_dias_expiracion_check", sql`(dias_expiracion_puntos IS NULL OR dias_expiracion_puntos > 0) AND (dias_expiracion_voucher > 0)`),
 	check("puntos_configuracion_horario_check", sql`horario_fin > horario_inicio`),
 	check("puntos_configuracion_minimo_compra_check", sql`minimo_compra >= (0)::numeric`),
 	check("puntos_configuracion_puntos_por_peso_check", sql`puntos_por_peso > (0)::numeric`),
@@ -1554,11 +1554,12 @@ export const recompensas = pgTable("recompensas", {
 	descripcion: text(),
 	puntosRequeridos: integer("puntos_requeridos").notNull(),
 	imagenUrl: varchar("imagen_url", { length: 500 }),
-	stock: integer().default(sql`'-1'`).notNull(),
+	stock: integer(), // Nullable por defecto - NULL = ilimitado
 	requiereAprobacion: boolean("requiere_aprobacion").default(false).notNull(),
 	activa: boolean().default(true).notNull(),
 	orden: integer().default(0).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_recompensas_negocio_activa").using("btree", table.negocioId.asc().nullsLast(), table.activa.asc().nullsLast()).where(sql`(activa = true)`),
 	index("idx_recompensas_orden").using("btree", table.negocioId.asc().nullsLast(), table.orden.asc().nullsLast()),
@@ -1793,6 +1794,7 @@ export const vouchersCanje = pgTable("vouchers_canje", {
 	expiraAt: timestamp("expira_at", { withTimezone: true, mode: 'string' }).notNull(),
 	usadoAt: timestamp("usado_at", { withTimezone: true, mode: 'string' }),
 	usadoPorEmpleadoId: uuid("usado_por_empleado_id"),
+	usadoPorUsuarioId: uuid("usado_por_usuario_id"),
 	sucursalId: uuid('sucursal_id').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
@@ -1810,6 +1812,11 @@ export const vouchersCanje = pgTable("vouchers_canje", {
 		columns: [table.usadoPorEmpleadoId],
 		foreignColumns: [empleados.id],
 		name: "fk_vouchers_canje_empleado"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.usadoPorUsuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_vouchers_canje_usuario_validador"
 	}).onDelete("set null"),
 	foreignKey({
 		columns: [table.negocioId],

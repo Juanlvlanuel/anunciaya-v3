@@ -11,9 +11,9 @@
  * ACTUALIZADO: Fase 5.3 - Agregados mappers para transformar snake_case a camelCase
  */
 
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
-import { negocios, negocioGaleria, negocioSucursales } from '../db/schemas/schema';
+import { negocios, negocioGaleria, negocioSucursales, empleados, usuarios } from '../db/schemas/schema';
 import type { PerfilSucursalRow, SucursalResumenRow } from '../types/negocios.types';
 
 // =============================================================================
@@ -277,9 +277,9 @@ export async function listarSucursalesCercanas(
                           AND v.entity_id = s.id 
                           AND v.user_id = ${userId}
                           AND v.tipo_accion = 'like'
-                          AND ${votanteSucursalId 
-                              ? sql`v.votante_sucursal_id = ${votanteSucursalId}` 
-                              : sql`v.votante_sucursal_id IS NULL`}
+                          AND ${votanteSucursalId
+                    ? sql`v.votante_sucursal_id = ${votanteSucursalId}`
+                    : sql`v.votante_sucursal_id IS NULL`}
                     ) as liked,
                     EXISTS(
                         SELECT 1 FROM votos v 
@@ -287,9 +287,9 @@ export async function listarSucursalesCercanas(
                           AND v.entity_id = s.id 
                           AND v.user_id = ${userId}
                           AND v.tipo_accion = 'follow'
-                          AND ${votanteSucursalId 
-                              ? sql`v.votante_sucursal_id = ${votanteSucursalId}` 
-                              : sql`v.votante_sucursal_id IS NULL`}
+                          AND ${votanteSucursalId
+                    ? sql`v.votante_sucursal_id = ${votanteSucursalId}`
+                    : sql`v.votante_sucursal_id IS NULL`}
                     ) as followed,
                 ` : sql`
                     false as liked,
@@ -560,9 +560,9 @@ export async function obtenerPerfilSucursal(
                           AND v.entity_id = s.id 
                           AND v.user_id = ${userId}
                           AND v.tipo_accion = 'like'
-                          AND ${votanteSucursalId 
-                              ? sql`v.votante_sucursal_id = ${votanteSucursalId}` 
-                              : sql`v.votante_sucursal_id IS NULL`}
+                          AND ${votanteSucursalId
+                    ? sql`v.votante_sucursal_id = ${votanteSucursalId}`
+                    : sql`v.votante_sucursal_id IS NULL`}
                     ) as liked,
                     EXISTS(
                         SELECT 1 FROM votos v 
@@ -570,9 +570,9 @@ export async function obtenerPerfilSucursal(
                           AND v.entity_id = s.id 
                           AND v.user_id = ${userId}
                           AND v.tipo_accion = 'follow'
-                          AND ${votanteSucursalId 
-                              ? sql`v.votante_sucursal_id = ${votanteSucursalId}` 
-                              : sql`v.votante_sucursal_id IS NULL`}
+                          AND ${votanteSucursalId
+                    ? sql`v.votante_sucursal_id = ${votanteSucursalId}`
+                    : sql`v.votante_sucursal_id IS NULL`}
                     ) as followed
                 ` : sql`
                     false as liked,
@@ -778,6 +778,222 @@ export async function obtenerDatosNegocio(negocioId: string | null): Promise<Dat
 }
 
 // =============================================================================
+// LISTAR EMPLEADOS DEL NEGOCIO (Para filtros ScanYA / Business Studio)
+// =============================================================================
+
+/**
+ * Formatea nombre: Primera palabra + Última palabra
+ * "Carlos Alberto Pérez García" → "Carlos García"
+ * "María López" → "María López"
+ * "Juan" → "Juan"
+ */
+function formatearNombreEmpleado(nombreCompleto: string): string {
+    const palabras = nombreCompleto.trim().split(/\s+/);
+    if (palabras.length <= 2) {
+        return nombreCompleto.trim();
+    }
+    return `${palabras[0]} ${palabras[palabras.length - 1]}`;
+}
+
+/**
+ * Obtiene lista de empleados del negocio para dropdowns/filtros
+ * 
+ * @param negocioId - UUID del negocio
+ * @param sucursalId - UUID de sucursal (opcional, para filtrar)
+ * @returns Lista de empleados con id, nombre formateado, nick, sucursal
+ */
+export async function listarEmpleadosNegocio(
+    negocioId: string,
+    sucursalId?: string
+) {
+    try {
+        // Construir condiciones
+        const condiciones = [
+            eq(negocioSucursales.negocioId, negocioId),
+            eq(empleados.activo, true),
+        ];
+
+        // Filtrar por sucursal si se especifica
+        if (sucursalId) {
+            condiciones.push(eq(empleados.sucursalId, sucursalId));
+        }
+
+        const lista = await db
+            .select({
+                id: empleados.id,
+                nombreCompleto: empleados.nombre,
+                nick: empleados.nick,
+                sucursalId: empleados.sucursalId,
+                sucursalNombre: negocioSucursales.nombre,
+            })
+            .from(empleados)
+            .innerJoin(
+                negocioSucursales,
+                eq(empleados.sucursalId, negocioSucursales.id)
+            )
+            .where(and(...condiciones))
+            .orderBy(empleados.nombre);
+
+        // Formatear nombres
+        const empleadosFormateados = lista.map((emp) => ({
+            id: emp.id,
+            nombre: formatearNombreEmpleado(emp.nombreCompleto),
+            nick: emp.nick,
+            sucursalId: emp.sucursalId,
+            sucursalNombre: emp.sucursalNombre,
+        }));
+
+        return {
+            success: true,
+            data: empleadosFormateados,
+        };
+    } catch (error) {
+        console.error('Error al listar empleados del negocio:', error);
+        throw error;
+    }
+}
+
+// =============================================================================
+// LISTAR OPERADORES DEL NEGOCIO (Empleados + Gerentes + Dueño)
+// Para filtros de ScanYA - Quién registró la venta
+// =============================================================================
+
+/**
+ * Obtiene lista de todas las personas que pueden registrar ventas:
+ * - Empleados activos
+ * - Gerentes (usuarios con sucursal_asignada)
+ * - Dueño del negocio
+ * 
+ * @param negocioId - UUID del negocio
+ * @param sucursalId - UUID de sucursal (opcional, para filtrar)
+ * @returns Lista con id, nombre, tipo, sucursalId
+ */
+export async function listarOperadoresNegocio(
+    negocioId: string,
+    sucursalId?: string
+) {
+    try {
+        const operadores: Array<{
+            id: string;
+            nombre: string;
+            tipo: 'empleado' | 'gerente' | 'dueno';
+            sucursalId: string | null;
+            sucursalNombre: string | null;
+        }> = [];
+
+        // -----------------------------------------------------------------
+        // 1. Obtener EMPLEADOS
+        // -----------------------------------------------------------------
+        const condicionesEmpleados = [
+            eq(negocioSucursales.negocioId, negocioId),
+            eq(empleados.activo, true),
+        ];
+
+        if (sucursalId) {
+            condicionesEmpleados.push(eq(empleados.sucursalId, sucursalId));
+        }
+
+        const listaEmpleados = await db
+            .select({
+                id: empleados.id,
+                nombreCompleto: empleados.nombre,
+                sucursalId: empleados.sucursalId,
+                sucursalNombre: negocioSucursales.nombre,
+            })
+            .from(empleados)
+            .innerJoin(
+                negocioSucursales,
+                eq(empleados.sucursalId, negocioSucursales.id)
+            )
+            .where(and(...condicionesEmpleados))
+            .orderBy(empleados.nombre);
+
+        for (const emp of listaEmpleados) {
+            operadores.push({
+                id: emp.id,
+                nombre: formatearNombreEmpleado(emp.nombreCompleto),
+                tipo: 'empleado',
+                sucursalId: emp.sucursalId,
+                sucursalNombre: emp.sucursalNombre,
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // 2. Obtener GERENTES (usuarios con sucursal_asignada del negocio)
+        // -----------------------------------------------------------------
+        const condicionesGerentes = [
+            eq(negocioSucursales.negocioId, negocioId),
+            isNotNull(usuarios.sucursalAsignada),
+        ];
+
+        if (sucursalId) {
+            condicionesGerentes.push(eq(usuarios.sucursalAsignada, sucursalId));
+        }
+
+        const listaGerentes = await db
+            .select({
+                id: usuarios.id,
+                nombre: usuarios.nombre,
+                apellidos: usuarios.apellidos,
+                sucursalId: usuarios.sucursalAsignada,
+                sucursalNombre: negocioSucursales.nombre,
+            })
+            .from(usuarios)
+            .innerJoin(
+                negocioSucursales,
+                eq(usuarios.sucursalAsignada, negocioSucursales.id)
+            )
+            .where(and(...condicionesGerentes))
+            .orderBy(usuarios.nombre);
+
+        for (const gte of listaGerentes) {
+            const nombreCompleto = `${gte.nombre || ''} ${gte.apellidos || ''}`.trim();
+            operadores.push({
+                id: gte.id,
+                nombre: formatearNombreEmpleado(nombreCompleto) + ' (Gte)',
+                tipo: 'gerente',
+                sucursalId: gte.sucursalId,
+                sucursalNombre: gte.sucursalNombre,
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // 3. Obtener DUEÑO (siempre, puede vender en cualquier sucursal)
+        // -----------------------------------------------------------------
+        const [dueno] = await db
+            .select({
+                id: usuarios.id,
+                nombre: usuarios.nombre,
+                apellidos: usuarios.apellidos,
+            })
+            .from(usuarios)
+            .innerJoin(negocios, eq(negocios.usuarioId, usuarios.id))
+            .where(eq(negocios.id, negocioId))
+            .limit(1);
+
+        if (dueno) {
+            const nombreCompleto = `${dueno.nombre || ''} ${dueno.apellidos || ''}`.trim();
+            operadores.push({
+                id: dueno.id,
+                nombre: formatearNombreEmpleado(nombreCompleto) + ' (Dueño)',
+                tipo: 'dueno',
+                sucursalId: null,
+                sucursalNombre: null,
+            });
+        }
+
+        return {
+            success: true,
+            data: operadores,
+        };
+    }
+    catch (error) {
+        console.error('Error al listar operadores del negocio:', error);
+        throw error;
+    }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -788,4 +1004,6 @@ export default {
     obtenerGaleriaNegocio,
     obtenerDatosNegocio,
     obtenerSucursalesNegocio,
+    listarEmpleadosNegocio,
+    listarOperadoresNegocio,
 };

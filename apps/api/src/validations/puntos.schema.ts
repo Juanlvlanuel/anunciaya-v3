@@ -1,9 +1,17 @@
 /**
  * puntos.schema.ts
  * =================
- * Validaciones Zod para los endpoints de Configuración de Puntos.
+ * Validaciones Zod para los endpoints de Configuración de Puntos y Recompensas.
  * 
  * Ubicación: apps/api/src/validations/puntos.schema.ts
+ * 
+ * CAMBIOS EN ESTA VERSIÓN:
+ * - diasExpiracionPuntos ahora permite NULL (puntos nunca expiran)
+ * - Eliminado minimoCompra (no se usa en MVP)
+ * - Eliminados validarHorario, horarioInicio, horarioFin (irán en Seguridad futura)
+ * - Eliminados nivel*Nombre (nombres siempre fijos: Bronce/Plata/Oro)
+ * - Agregados schemas para CRUD de recompensas
+ * - PATRÓN: Frontend sube a Cloudinary, backend recibe URL
  */
 
 import { z } from 'zod';
@@ -21,34 +29,21 @@ export const actualizarConfigPuntosSchema = z.object({
     .number()
     .positive('Los puntos por peso deben ser mayores a 0')
     .optional(),
-  minimoCompra: z
-    .number()
-    .min(0, 'El mínimo de compra no puede ser negativo')
-    .optional(),
+  
+  // IMPORTANTE: Ahora permite NULL para "nunca expiran"
   diasExpiracionPuntos: z
     .number()
     .int('Debe ser un número entero')
     .min(1, 'Mínimo 1 día de expiración')
     .max(365, 'Máximo 365 días de expiración')
+    .nullable()
     .optional(),
+  
   diasExpiracionVoucher: z
     .number()
     .int('Debe ser un número entero')
     .min(1, 'Mínimo 1 día de expiración')
     .max(365, 'Máximo 365 días de expiración')
-    .optional(),
-  
-  // Configuración de horario
-  validarHorario: z
-    .boolean()
-    .optional(),
-  horarioInicio: z
-    .string()
-    .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/, 'Formato de hora inválido (HH:MM o HH:MM:SS)')
-    .optional(),
-  horarioFin: z
-    .string()
-    .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/, 'Formato de hora inválido (HH:MM o HH:MM:SS)')
     .optional(),
   
   // Estado
@@ -61,7 +56,7 @@ export const actualizarConfigPuntosSchema = z.object({
     .boolean()
     .optional(),
   
-  // Nivel Bronce
+  // Nivel Bronce (rangos configurables, nombre fijo "Bronce" en frontend)
   nivelBronceMin: z
     .number()
     .int()
@@ -77,12 +72,8 @@ export const actualizarConfigPuntosSchema = z.object({
     .min(0.1, 'El multiplicador mínimo es 0.1')
     .max(10, 'El multiplicador máximo es 10')
     .optional(),
-  nivelBronceNombre: z
-    .string()
-    .max(50, 'El nombre no puede tener más de 50 caracteres')
-    .optional(),
   
-  // Nivel Plata
+  // Nivel Plata (rangos configurables, nombre fijo "Plata" en frontend)
   nivelPlataMin: z
     .number()
     .int()
@@ -98,12 +89,8 @@ export const actualizarConfigPuntosSchema = z.object({
     .min(0.1, 'El multiplicador mínimo es 0.1')
     .max(10, 'El multiplicador máximo es 10')
     .optional(),
-  nivelPlataNombre: z
-    .string()
-    .max(50, 'El nombre no puede tener más de 50 caracteres')
-    .optional(),
   
-  // Nivel Oro
+  // Nivel Oro (rangos configurables, nombre fijo "Oro" en frontend)
   nivelOroMin: z
     .number()
     .int()
@@ -114,26 +101,130 @@ export const actualizarConfigPuntosSchema = z.object({
     .min(0.1, 'El multiplicador mínimo es 0.1')
     .max(10, 'El multiplicador máximo es 10')
     .optional(),
-  nivelOroNombre: z
+});
+
+// =============================================================================
+// SCHEMA: CREAR RECOMPENSA
+// =============================================================================
+
+/**
+ * Crear nueva recompensa
+ * NOTA: Frontend sube imagen a Cloudinary primero, luego envía URL
+ */
+export const crearRecompensaSchema = z.object({
+  nombre: z
     .string()
-    .max(50, 'El nombre no puede tener más de 50 caracteres')
+    .min(1, 'El nombre es requerido')
+    .max(200, 'El nombre no puede tener más de 200 caracteres'),
+  
+  descripcion: z
+    .string()
+    .max(1000, 'La descripción no puede tener más de 1000 caracteres')
+    .optional()
+    .nullable(),
+  
+  puntosRequeridos: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(1, 'Mínimo 1 punto requerido'),
+  
+  // URL de Cloudinary (ya subida desde frontend)
+  imagenUrl: z
+    .string()
+    .url('Debe ser una URL válida')
+    .optional()
+    .nullable(),
+  
+  stock: z
+    .number()
+    .int('Debe ser un número entero')
+    .positive('El stock debe ser positivo')
+    .nullable()
+    .optional(), // NULL = ilimitado
+  
+  requiereAprobacion: z
+    .boolean()
+    .default(false),
+  
+  activa: z
+    .boolean()
+    .default(true),
+  
+  orden: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(0)
+    .default(0)
     .optional(),
-}).refine(
-  (data) => {
-    // Si se envían ambos horarios, validar que fin > inicio
-    if (data.horarioInicio && data.horarioFin) {
-      return data.horarioFin > data.horarioInicio;
-    }
-    return true;
-  },
-  { message: 'El horario de fin debe ser mayor al de inicio' }
-);
+});
+
+// =============================================================================
+// SCHEMA: ACTUALIZAR RECOMPENSA
+// =============================================================================
+
+/**
+ * Actualizar recompensa existente
+ */
+export const actualizarRecompensaSchema = z.object({
+  nombre: z
+    .string()
+    .min(1, 'El nombre es requerido')
+    .max(200, 'El nombre no puede tener más de 200 caracteres')
+    .optional(),
+  
+  descripcion: z
+    .string()
+    .max(1000, 'La descripción no puede tener más de 1000 caracteres')
+    .optional()
+    .nullable(),
+  
+  puntosRequeridos: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(1, 'Mínimo 1 punto requerido')
+    .optional(),
+  
+  // Nueva URL de Cloudinary (si se cambió la imagen)
+  imagenUrl: z
+    .string()
+    .url('Debe ser una URL válida')
+    .optional()
+    .nullable(),
+  
+  // Flag para eliminar imagen actual
+  eliminarImagen: z
+    .boolean()
+    .optional(),
+  
+  stock: z
+    .number()
+    .int('Debe ser un número entero')
+    .positive('El stock debe ser positivo')
+    .nullable()
+    .optional(), // NULL = ilimitado
+  
+  requiereAprobacion: z
+    .boolean()
+    .optional(),
+  
+  activa: z
+    .boolean()
+    .optional(),
+  
+  orden: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(0)
+    .optional(),
+});
 
 // =============================================================================
 // TIPOS EXPORTADOS
 // =============================================================================
 
 export type ActualizarConfigPuntosInput = z.infer<typeof actualizarConfigPuntosSchema>;
+export type CrearRecompensaInput = z.infer<typeof crearRecompensaSchema>;
+export type ActualizarRecompensaInput = z.infer<typeof actualizarRecompensaSchema>;
 
 // =============================================================================
 // FUNCIÓN AUXILIAR PARA FORMATEAR ERRORES

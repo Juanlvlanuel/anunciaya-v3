@@ -201,12 +201,13 @@ export const buscarClienteConVouchersSchema = z.object({
  */
 export const obtenerVouchersSchema = z.object({
   estado: z
-    .enum(['pendiente', 'usado', 'vencido', 'cancelado', 'todos'])
+    .enum(['pendiente', 'usado', 'expirado', 'cancelado', 'todos'])
     .default('pendiente'),
   sucursalId: z
     .string()
     .uuid('ID de sucursal inválido')
     .optional(),
+  empleadoId: z.string().uuid().optional(),
   pagina: z
     .number()
     .int()

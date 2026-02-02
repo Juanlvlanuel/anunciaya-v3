@@ -31,6 +31,8 @@ import metricasRoutes from './metricas.routes';
 import guardadosRoutes from './guardados.routes';
 import scanyaRoutes from './scanya.routes';
 import puntosRoutes from './puntos.routes';
+import transaccionesRoutes from './transacciones.routes';
+import clientesRoutes from './clientes.routes';
 
 const router: Router = Router();
 
@@ -90,6 +92,12 @@ router.use('/scanya', scanyaRoutes);
 
 // Rutas de configuración de puntos (Business Studio)
 router.use('/puntos', puntosRoutes);
+
+// Rutas de transacciones de puntos (Business Studio)
+router.use('/transacciones', transaccionesRoutes);   
+
+// Rutas de clientes con puntos (Business Studio)
+router.use('/clientes', clientesRoutes);           
 
 // Aquí se agregarán más rutas:
 // router.use('/marketplace', marketplaceRoutes);
