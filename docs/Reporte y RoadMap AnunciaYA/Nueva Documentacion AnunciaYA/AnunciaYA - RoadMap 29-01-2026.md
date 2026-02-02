@@ -1,8 +1,10 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap Maestro
 
-**Fecha:** 16 Enero 2026  
-**Versión:** 5.1  
-**Estado Global:** Fases 1-4 ✅ | Fase 5.0-5.3.2 ✅ | **Fase 5.4 ⏳ 27%** | **Fase 6.0 ⏳ 10%**
+**Fecha:** 29 Enero 2026  
+**Versión:** 6.0  
+**Estado Global:** Fases 1-4 ✅ | Fase 5.0-5.3.2 ✅ | **Fase 5.4 ⏳ 33%** | **Fase 5.5 ✅ 87.5%** | **Fase 6.0 ⏳ 10%**
+
+**🎯 Actualización Mayor:** Sistema ScanYA implementado (17-29 enero 2026)
 
 ---
 
@@ -23,21 +25,28 @@
 | 5.3 | Negocios Directorio | ✅ 100% | 02/01/2026 |
 | 5.3.1 | Sistema Universal Compartir | ✅ 100% | 02/01/2026 |
 | 5.3.2 | Auth Opcional + ModalAuthRequerido | ✅ 100% | 16/01/2026 |
-| **5.4** | **Business Studio (4/15 módulos)** | **⏳ 27%** | **En progreso** |
-| 5.4.1 | Catálogo CRUD | ✅ 100% Completado | 07/01/2026 |
-| **5.4.2** | **Ofertas CRUD** | **⏳ 90% Casi listo** | **16/01/2026** |
-| 5.5 | ScanYA + PWA | Registrar ventas, dar puntos | ~2-3 días |
-| 5.6 | CardYA + PWA | Usuario ve sus puntos, QR | ~2-3 días | 5.5 ScanYA |
+| 5.3.3 | **Sistema Guardados (Favoritos)** | ✅ 100% | 17-18/01/2026 |
+| **5.4** | **Business Studio (5/15 módulos)** | **⏳ 33%** | **En progreso** |
+| 5.4.1 | Catálogo CRUD | ✅ 100% | 07/01/2026 |
+| 5.4.2 | Ofertas CRUD | ✅ 100% | 16/01/2026 |
+| **5.5** | **ScanYA + PWA (14/16 fases)** | **✅ 87.5%** | **17-29/01/2026** |
+| 5.5.1 | Backend ScanYA (Fases 1-7) | ✅ 100% | 20-21/01/2026 |
+| 5.5.2 | Frontend ScanYA (Fases 8-12) | ✅ 100% | 21-22/01/2026 |
+| 5.5.3 | Recordatorios Offline (Fase 13) | ✅ 100% | 22-24/01/2026 |
+| 5.5.4 | PWA Instalable (Fase 16) | ✅ 100% | 27-29/01/2026 |
+| 5.5.5 | Chat + Reseñas (Fase 14) | ⏸️ Pausada | Requiere ChatYA |
+| 5.5.6 | BS > Puntos Config (Fase 15) | ⏳ Prompt listo | ~2.5 días |
+| 5.6 | CardYA + PWA | Usuario ve puntos, QR | ~5-7 días | 5.5 ScanYA |
 | 5.7 | Clientes + Transacciones | Historial de clientes y ventas en BS | ~2-3 días | 5.5 ScanYA |
 | 5.8 | Opiniones BS | Responder/Ver Reseñas | ~2-3 días | 5.5 ScanYA + 5.7 |
-| 5.9 | Puntos | Config puntos del negocio en BS | ~1 día | 5.6 CardYA |
+| 5.9 | Puntos | ~~Config en BS~ **INTEGRADO en 5.5.6** | ~1 día | 5.6 CardYA |
 | 5.10 | ChatYA + PWA | Mensajería negocio-cliente | ~3-4 días |
 | 5.11 | Cupones | Vista pública + CRUD en BS | ~2-3 días | 5.5 ScanYA |
 | 6.0 | Ofertas | Vista pública (ruta ya existe) | ~1-2 días |
 | 6.1 | MarketPlace | Vista pública - Compra-venta usuarios | ~3-4 días |
 | 6.2 | Dinámicas | Vista pública + Rifas en BS | Rifas y sorteos | ~3-4 días |
 | 6.3 | Empleos | Vista pública + Vacantes en BS | ~2-3 días | - |
-| 6.4 | Empleados | Gestión empleados en BS (nick + PIN) | ~1-2 días | 5.5 ScanYA |
+| 6.4 | Empleados | Gestión empleados en BS (nick + PIN) **INTEGRADO en 5.5.1**| ~1-2 días | 5.5 ScanYA |
 | 6.5 | Sucursales | Agregar/editar sucursales en BS | ~2 días |
 | 6.6 | Reportes + Alertas | Estadísticas y notificaciones en BS | ~2-3 días | 5.5 ScanYA |
 | 6.7 | Panel Admin | Gestión interna, vendedores, métricas | ~1-2 semanas | Todo lo anterior |
@@ -47,192 +56,671 @@
 
 ---
 
-## 🎯 NOVEDADES (Enero 16, 2026)
+## 🎯 NOVEDADES (17-29 Enero 2026)
 
-### ✅ Completado Recientemente
-
-#### 1. Sistema de Auth Opcional (Fase 5.3.2)
-**Fecha:** 16 Enero 2026  
-**Duración:** 1 día  
-**Archivos:** 13 modificados/creados
-
-**Implementación:**
-- Middleware `verificarTokenOpcional` (backend)
-- ModalAuthRequerido para acciones protegidas (frontend)
-- Migración de rutas públicas duplicadas a auth opcional
-- Eliminación de 6 funciones duplicadas (-33% código)
-- Sistema unificado para ofertas, artículos y negocios
-
-**Beneficios:**
-- ✅ Zero duplicación de código
-- ✅ Experiencia fluida con/sin login
-- ✅ Métricas confiables (solo usuarios reales)
-- ✅ Conversión mejorada con CTAs contextuales
-
-**Documentación:** `Auth_Opcional_Sistema_Universal_de_Compartir.md`
+### ✅ COMPLETADO EN ESTE PERÍODO
 
 ---
 
-#### 2. Catálogo CRUD - Business Studio (Fase 5.4.1)
-**Fecha:** 7 Enero 2026  
+#### 1. Sistema de Guardados (Fase 5.3.3)
+**Fecha:** 17-18 Enero 2026  
+**Duración:** 6 horas  
 **Estado:** ✅ 100% Completado
 
 **Implementación:**
-- Backend: 7 endpoints CRUD completos
-- Frontend BS: 13 componentes con sistema 3 capas
-- Integración Perfil Negocio: SecciónCatálogo con cards
-- Multi-sucursales: Tabla intermedia `articulo_sucursales`
-- Cloudinary: Upload/delete optimizado
+- Backend: 3 endpoints CRUD (`guardados.service.ts`, `guardados.controller.ts`)
+- Tabla `guardados` separada de `votos` (separación responsabilidades)
+- Frontend: `useGuardados.ts` hook con optimistic updates
+- Componentes: `ModalOfertaDetalle.tsx`, `CardNegocioDetallado.tsx`, `PaginaGuardados.tsx`
+- Paginación infinita + tabs Ofertas/Negocios
 
-**Lecciones Aprendidas:**
-1. **Sistema de 3 Capas:** Previene race conditions
-2. **IIFE Async:** Para dueños no bloquea UI
-3. **Tabla Intermedia:** Productos pueden estar en múltiples sucursales
-4. **Cloudinary Optimista:** Upload inmediato, rollback si falla
+**Decisión Arquitectónica:**
+- Tabla separada `guardados` vs reutilizar `votos`
+- Razón: Separación SRP - `votos` = calificaciones públicas, `guardados` = colección privada
 
-**Documentación:** `DOC_02_Catalogo_Backend_Frontend_BusinessStudio.md`
+**Bug Crítico Resuelto:**
+- Token hydration - logout fantasma al recargar página (fix en `App.tsx`)
+
+**Métricas:**
+- 7 archivos creados/modificados
+- ~1,200 líneas de código
+- 1 bug crítico resuelto
+
+**Documentación:** Integrada en bitácora desarrollo
 
 ---
 
-#### 3. Ofertas CRUD - Business Studio (Fase 5.4.2)
-**Fecha:** 16 Enero 2026  
-**Estado:** ⏳ 90% Completado
+#### 2. Arquitectura ScanYA (Fase 5.5.0)
+**Fecha:** 19 Enero 2026  
+**Duración:** 4 horas  
+**Tipo:** Diseño arquitectónico
 
-**Implementación Completa:**
-- ✅ Backend: CRUD completo con 8 endpoints
-- ✅ Frontend BS: Gestión completa de ofertas
-- ✅ Integración Perfil Negocio: SecciónOfertas
-- ✅ Tabla `ofertas` con 5 tipos (2x1, %, $, combo, happy_hour)
-- ✅ Sistema multi-sucursales con filtros
-- ✅ Diseño Glassmorphism Moderno confirmado
+**Decisiones Críticas:**
 
-**Diseño Glassmorphism:**
-- Barra lateral 4px (identifica tipo de oferta)
-- Badge pill con glass effect (valor descuento)
-- Overlay oscuro en imagen para contraste
-- Backdrop-blur en card (efecto glass)
-- Colores por tipo: 🟠 2x1, 🔴 %, 🟢 $, 🟡 Combo, 🔵 Happy Hour
+**Sistema de Roles:**
+| Rol | Cuenta | Sucursales | Permisos |
+|-----|--------|------------|----------|
+| Dueño | Usuario AnunciaYA con `negocio_id` | TODAS | Total |
+| Gerente | Usuario AnunciaYA con `sucursal_asignada` | Solo asignada | Configurables |
+| Empleado | Tabla `empleados`, Nick+PIN | Solo asignada | Solo ventas |
 
-**Pendiente (10%):**
-- ❌ Modal detalle individual (`ModalDetalleOferta.tsx`)
-- ❌ Página pública `/ofertas` (feed geolocalizado)
-- Tiempo estimado: 4-5 horas
+**Autenticación Dual:**
+- Dueños/Gerentes: Email + Password (reutiliza auth AnunciaYA)
+- Empleados: Nick + PIN (4 dígitos)
+- Tokens separados: `ay_*` (AnunciaYA) vs `sy_*` (ScanYA)
+- Sesiones 100% independientes
 
-**Documentación:** `PROMPT_Ofertas_COMPLETO_Fase_5.4.2.md`
+**Separación Configuración:**
+- `puntos_configuracion` → Sistema puntos lealtad (BS > Puntos)
+- `scanya_configuracion` → Operación diaria PWA (BS > ScanYA)
+
+**Documento Generado:**
+- `PROMPT_SCANYA_COMPLETO.md` (50 páginas)
+- Prompt para chat dedicado backend
+
+---
+
+#### 3. Backend ScanYA Completo (Fase 5.5.1)
+**Fecha:** 20-21 Enero 2026  
+**Duración:** 10 horas  
+**Estado:** ✅ 100% Completado (7 fases backend)
+
+**Base de Datos:**
+- 4 tablas modificadas: `empleados`, `puntos_transacciones`, `puntos_billetera`, `puntos_configuracion`
+- 3 tablas nuevas: `scanya_turnos`, `scanya_configuracion`, `scanya_recordatorios`
+- 17 campos agregados
+- 8 índices nuevos
+
+**Archivos Backend Creados (8):**
+| Archivo | Líneas | Descripción |
+|---------|--------|-------------|
+| `scanya.service.ts` | ~3000 | Lógica negocio completa |
+| `scanya.controller.ts` | ~800 | Controladores |
+| `scanya.routes.ts` | ~150 | 23 endpoints |
+| `scanya.schema.ts` | ~400 | Validaciones Zod |
+| `jwtScanYA.ts` | ~100 | Tokens `sy_*` |
+| `scanyaAuth.middleware.ts` | ~200 | 4 middlewares |
+| `r2.service.ts` | ~150 | Cloudflare R2 |
+| `r2.ts` | ~50 | Config S3 Client |
+
+**Funcionalidades Implementadas:**
+- ✅ Autenticación dual (Email+Password / Nick+PIN)
+- ✅ Sistema de turnos (abrir/cerrar caja)
+- ✅ Identificar cliente por teléfono
+- ✅ Validar cupones
+- ✅ Otorgar puntos (con multiplicadores niveles: bronce 1.0x, plata 1.2x, oro 1.5x)
+- ✅ Vouchers pendientes + validación
+- ✅ Recordatorios offline
+- ✅ Historial transacciones (filtrado por rol)
+- ✅ Configuración puntos + ScanYA
+- ✅ Cloudflare R2 (upload tickets)
+
+**Fórmula Puntos:**
+````typescript
+montoFinal = monto - descuentoCupón;
+if (montoFinal < config.minimoCompra) return 0;
+puntosBase = Math.floor(montoFinal × config.puntosPorPeso);
+multiplicador = config.multiplicadores[nivel]; // 1.0, 1.2, 1.5
+puntosFinal = Math.floor(puntosBase × multiplicador);
+````
+
+**Testing:**
+- 23/23 endpoints testeados (Postman + Thunder Client)
+- 100% funcional
+
+**Documento Generado:**
+- `PROMPT_SCANYA_FRONTEND_FASES_8_14.md`
+
+---
+
+#### 4. Frontend ScanYA (Fase 5.5.2)
+**Fecha:** 21-22 Enero 2026  
+**Duración:** 12 horas  
+**Estado:** ✅ 5/7 fases completadas
+
+**Archivos Creados (15):**
+
+**Types y Services:**
+- `scanya.ts` (~800 líneas) - 15+ interfaces TypeScript
+- `scanyaService.ts` (~600 líneas) - 20+ funciones API
+- `useScanYAStore.ts` (~400 líneas) - Zustand store con persist
+
+**Componentes (12):**
+1. `TecladoNumerico.tsx` - Teclado virtual PIN
+2. `SplashScreenScanYA.tsx` - Splash 2 segundos
+3. `PaginaLoginScanYA.tsx` - Toggle Dueño/Gerente ↔ Empleado
+4. `HeaderScanYA.tsx` - Header con rol + sucursal
+5. `ResumenTurno.tsx` - Card turno actual
+6. `IndicadoresRapidos.tsx` - Grid 4 accesos rápidos
+7. `ModalCerrarTurno.tsx` - Cerrar turno + resumen
+8. `ModalRegistrarVenta.tsx` (~800 líneas) - **Acordeón 5 secciones**
+9. `TarjetaTransaccion.tsx` - Card adaptativa por rol
+10. `ModalHistorial.tsx` - Drawer historial
+11. `TarjetaVoucher.tsx` - Card voucher pendiente
+12. `ModalVouchers.tsx` - Drawer vouchers
+
+**Páginas (3):**
+- `PaginaLoginScanYA.tsx`
+- `PaginaScanYA.tsx` (Dashboard principal)
+
+**Modal Registrar Venta - Arquitectura:**
+Drawer lateral (PC) / ModalBottom (móvil)
+│
+├── Sección 1: Cliente ⚠️ OBLIGATORIO
+├── Sección 2: Monto ⚠️ OBLIGATORIO
+├── Sección 3: Método Pago ⚠️ OBLIGATORIO
+├── Sección 4: Foto Ticket (según config)
+├── Sección 5: Cupón (opcional)
+├── Footer: Preview puntos (cálculo tiempo real)
+└── Pantalla Éxito
+
+**Validación Progresiva:**
+- Sección N+1 solo activa si N completa
+- Botón "Confirmar" solo si todas obligatorias completas
+
+**Responsive:**
+- Móvil: ModalBottom 75% altura
+- PC: Drawer 450px lateral
+
+**Cloudflare R2:**
+- Upload directo desde frontend
+- Conversión a WebP (~87% reducción tamaño)
+
+**Testing:**
+- Cliente Plata: $220 × 1 pto/peso × 1.2x = 264 puntos ✅
+
+---
+
+#### 5. Recordatorios Offline (Fase 5.5.3)
+**Fecha:** 22-24 Enero 2026  
+**Duración:** 16 horas (incluyendo testing)  
+**Estado:** ✅ 100% Completado + 99 tests pasados
+
+**Problema Resuelto:**
+Empleados pueden registrar ventas SIN internet y auto-sincronizar al reconectar.
+
+**Implementación:**
+
+**Archivos Creados (4):**
+1. `useOnlineStatus.ts` - Hook detección conexión
+2. `IndicadorOffline.tsx` - Badge "⚠️ SIN CONEXIÓN"
+3. `TarjetaRecordatorio.tsx` - Card recordatorio
+4. `ModalRecordatorios.tsx` - Drawer lista
+
+**Modificaciones:**
+- `ModalRegistrarVenta.tsx` - Soporte `modoOffline={true}`
+
+**Flujo Completo:**
+
+1. Detección offline → Badge naranja aparece
+2. Botón cambia a "Guardar Recordatorio"
+3. Usuario llena datos → Guarda en Zustand persist
+4. Vuelve internet → Sincronización automática (3s delay)
+5. POST /api/scanya/recordatorio por cada uno
+6. Notificación: "✅ X recordatorios sincronizados"
+7. Dueño/Gerente puede procesarlos después
+
+
+**Arquitectura Storage:**
+- **Inicial:** localStorage manual
+- **Final:** Zustand persist (mejor integración)
+
+**Testing Exhaustivo (23-24 enero):**
+- **Dueño:** 61 tests
+- **Gerente:** 17 tests  
+- **Empleado:** 15 tests
+- **Total:** 99/99 tests pasados (100%) ✅
+
+**Bugs Encontrados y Resueltos (7):**
+1. Badge contador incorrecto offline
+2. Validación teléfono no persistente
+3. Campos editables sin cliente válido
+4. Campo nota solo visible offline
+5. **CRÍTICO:** Manager veía recordatorios del dueño (fix: columna `turno_id`)
+6. Teléfonos sin +52 aceptados (regex `/^\+52\d{10}$/`)
+7. Badge no reactivo
+
+**Permisos por Rol:**
+- Dueño: Ve TODOS (todas sucursales)
+- Gerente: Ve solo SU sucursal
+- Empleado: Ve solo SUYOS
+
+**Documentación:**
+- `FASE_13_SISTEMA_DE_RECORDATORIOS_OFFLINE_-_ScanYA.md` (1,772 líneas)
+
+---
+
+#### 6. QR Scanner + Enhancements (Fase 5.5.4 extra)
+**Fecha:** 24-25 Enero 2026  
+**Duración:** 6 horas
+
+**Sistema QR Scanner:**
+- Librería: `jsQR`
+- Formato QR voucher: JWT temporal (expira 5 min)
+- Arquitectura híbrida: QR (2s) + Código manual (siempre funciona)
+
+**Refactorización Gestión Vouchers:**
+- Consolidado en `ModalVouchers.tsx`
+- Tabs: Pendientes | Usados | Expirados | Cancelados
+- Búsqueda cliente + filtros por rol
+
+**Backend Error Interceptor Global:**
+- Axios interceptor en `axios.config.ts`
+- Convierte errors 4xx/5xx en responses con `{success: false, message}`
+- Beneficio: Todas las funciones reciben mensajes backend sin try-catch
+
+**UI Enhancement:**
+- Hide scrollbar en rutas `/scanya` (estética app nativa)
+- Fix conflicto `ModalImagenes` (detecta si es ScanYA)
+
+---
+
+#### 7. Migración a Producción (Fase 7 parcial)
+**Fecha:** 26-27 Enero 2026  
+**Duración:** 8 horas  
+**Estado:** ✅ 100% Migrado
+
+**Objetivo:** Stack 100% gratuito
+
+**Migraciones Realizadas:**
+
+**A. PostgreSQL Local → Supabase:**
+- Método: SQL Dump (PGAdmin) 311 KB
+- Resultado: 65 tablas migradas + datos completos
+- Puerto: 6543 (connection pooler) OBLIGATORIO
+- Tiempo: ~2 horas
+
+**B. Sistema Híbrido:**
+````bash
+DB_ENVIRONMENT=local      # PostgreSQL local
+DB_ENVIRONMENT=production # Supabase
+````
+
+**C. Railway → Render:**
+- Build: esbuild (10x más rápido que tsc)
+- Free tier: 512 MB RAM, 0.1 CPU
+- Limitación: Cold starts 15 min (~30s)
+- 35 variables entorno configuradas
+
+**D. Zoho SMTP → AWS SES:**
+- Problema Zoho: Bloqueado desde IPs datacenter
+- Setup AWS SES: Usuario IAM + dominio verificado
+- Latencia: ~200ms vs ~2s Zoho
+- Deliverability: ~99% vs ~85%
+
+**Infraestructura Final:**
+
+| Servicio | Proveedor | Tier | Costo |
+|----------|-----------|------|-------|
+| Backend | Render | Free | $0 |
+| Frontend | Vercel | Free | $0 |
+| PostgreSQL | Supabase | Free | $0 |
+| MongoDB | Atlas | M0 | $0 |
+| Redis | Upstash | Free | $0 |
+| Emails | AWS SES | Sandbox | $0 |
+| Imágenes | Cloudinary | Free | $0 |
+| Tickets | Cloudflare R2 | Free | $0 |
+| Pagos | Stripe | Test | $0 |
+
+**Total: $0/mes** (vs $5-10/mes anterior)
+
+**Ahorro:** ~$10-15/mes
+
+**Documentos Generados:**
+- `DOCUMENTACIÓN_COMPLETA_Migración_PostgreSQL_Local___Supabase.md` (1,054 líneas)
+- `AnunciaYA_Inventario_Credenciales_CONFIDENCIAL.md` (2,905 líneas, 280 páginas)
+
+---
+
+#### 8. PWA ScanYA (Fase 5.5.6)
+**Fecha:** 27-29 Enero 2026  
+**Duración:** 12 horas  
+**Estado:** ✅ 100% Completado
+
+**Objetivo:** PWA instalable iOS/Android/Desktop
+
+**Decisión: Manifest Permanente:**
+````html
+<!-- index.html - SIEMPRE presente -->
+<link rel="manifest" href="/manifest.scanya.json" />
+````
+
+**Trade-off Aceptado:**
+- ⚠️ Ícono instalación visible en landing pública
+- ✅ Botón 1-click funciona
+- ✅ `beforeinstallprompt` se dispara
+- ✅ WebView app nativa funciona
+
+**Implementación:**
+
+**Manifest (`manifest.scanya.json`):**
+````json
+{
+  "name": "ScanYA",
+  "start_url": "/scanya/login?source=pwa",
+  "scope": "/scanya/",
+  "display": "standalone",
+  "theme_color": "#0A0A0A",
+  "icons": [
+    { "src": "/icons/scanya-192.png", "sizes": "192x192" },
+    { "src": "/icons/scanya-512.png", "sizes": "512x512" },
+    { "src": "/icons/scanya-maskable-512.png", "purpose": "maskable" }
+  ]
+}
+````
+
+**Service Worker (`sw-scanya.js`):**
+- Cache-first strategy
+- Solo cachea rutas `/scanya` y API
+- NO redirige (dejaba que manifest maneje navegación)
+
+**Problemas Resueltos (5):**
+
+**1. Sync localStorage entre Pestañas:**
+- Síntoma: Login AnunciaYA → Logout inmediato en ambas pestañas
+- Causa: Event `storage` se dispara en TODAS las pestañas
+- Fix: Ignorar sync en rutas `/scanya` (4 líneas)
+
+**2. SW Redirección Innecesaria:**
+- Síntoma: PWA abre en `/` en lugar de `/scanya/login`
+- Causa: SW redirigía interfiriendo con `start_url`
+- Fix: Eliminar redirección, solo cachear
+
+**3. Instalación desde Ruta Incorrecta:**
+- Síntoma: Instalar desde `/inicio` → abre en `/inicio`
+- Causa: Chrome usa URL de instalación si está fuera del scope
+- Fix: Hook `useRedirectScanYAPWA` con 4 métodos detección
+
+**Hook Redirección:**
+````typescript
+// useRedirectScanYAPWA.ts
+// 4 métodos de detección:
+1. Query param: ?source=pwa
+2. matchMedia: display-mode standalone
+3. iOS: navigator.standalone
+4. localStorage: flag persistente
+
+// Si PWA y NO en /scanya → redirect automático
+````
+
+**Arquitectura Sesiones Independientes:**
+
+| App | Prefix | Store | Keys |
+|-----|--------|-------|------|
+| AnunciaYA | `ay_` | useAuthStore | `ay_access_token`, `ay_refresh_token` |
+| ScanYA | `sy_` | useScanYAStore | `sy_access_token`, `sy_refresh_token` |
+
+**Ventajas:**
+- ✅ Sesiones 100% independientes
+- ✅ Puede estar logueado en ambas
+- ✅ Logout en una NO afecta otra
+
+**Testing PWA:**
+- 13/13 tests pasados ✅
+- Instalación Chrome Desktop ✅
+- Instalación Safari iOS ✅
+- Instalación Chrome Android ✅
+- Redirección automática ✅
+- Service Worker ✅
+- Cache offline ✅
+
+**Preparación WebView:**
+- Documento: `Sistema_PWA_ScanYA_con_Redirección_Automática.md` (2,019 líneas)
+- Incluye: React Native, Flutter, iOS Swift, Android Kotlin
+- Roadmap: 10 días implementación
+
+---
+
+### 📊 RESUMEN DEL PERÍODO (17-29 ENERO)
+
+| Métrica | Valor |
+|---------|-------|
+| **Días desarrollo** | 12 días |
+| **Horas activas** | ~74 horas |
+| **Archivos creados/modificados** | 39 |
+| **Líneas de código** | ~16,650 |
+| **Endpoints API** | 23 nuevos |
+| **Componentes React** | 18 |
+| **Tablas BD nuevas** | 3 |
+| **Tablas BD modificadas** | 4 |
+| **Bugs resueltos** | 14 (5 críticos) |
+| **Tests ejecutados** | 99 (100% aprobados) |
+| **Documentación** | 11,420 líneas |
+| **Infraestructura** | $0/mes (vs $5-10/mes) |
+| **Progreso** | +21% (60% → 81%) |
+
+---
+
+### 🎯 ESTADO SCANYA
+
+| Fase | Descripción | Estado | Fecha |
+|------|-------------|--------|-------|
+| 1-7 | Backend Completo | ✅ 100% | 20-21 Ene |
+| 8 | Login Frontend | ✅ 100% | 20 Ene |
+| 9 | Cloudflare R2 | ✅ 100% | 20 Ene |
+| 10 | Dashboard + Turnos | ✅ 100% | 21 Ene |
+| 11 | Modal Registrar Venta | ✅ 100% | 21-22 Ene |
+| 12 | Historial + Vouchers | ✅ 100% | 22 Ene |
+| 13 | Recordatorios Offline | ✅ 100% | 22-24 Ene |
+| **14** | **Chat + Reseñas** | **⏸️ PAUSADA** | Requiere ChatYA |
+| **15** | **BS > Puntos Config** | **⏳ Prompt listo** | ~2.5 días |
+| 16 | PWA + Testing | ✅ 100% | 27-29 Ene |
+
+**Progreso:** 14/16 fases = **87.5%**  
+**Pendientes:** Fase 14 (pausada hasta ChatYA) + Fase 15 (prompt generado)
+
+---
+
+### 📚 DOCUMENTACIÓN GENERADA
+
+| Documento | Líneas | Propósito |
+|-----------|--------|-----------|
+| Fase 13 Recordatorios | 1,772 | Sistema offline completo |
+| Sistema PWA | 2,019 | PWA + WebView roadmap |
+| Migración Supabase | 1,054 | Proceso migración BD |
+| Inventario Credenciales | 2,905 | 9 servicios cloud |
+| Fase 11 Modal Venta | 850 | Acordeón registrar venta |
+| Fase 12 Historial | 720 | Historial + vouchers |
+| Checklist ScanYA | 2,100 | 13/16 fases |
+| **Bitácora Completa** | **~15,000** | **17-29 enero todo** |
+| **TOTAL** | **~27,420** | **8 documentos técnicos** |
 
 ### 5.4 Business Studio - Desglose (15 módulos)
 
-| # | Módulo | Estado | Depende de |
-|---|--------|--------|------------|
-| 1 | Dashboard | ✅ Completado | - |
-| 2 | Transacciones | ⏳ Pendiente | 5.5 ScanYA |
-| 3 | Clientes | ⏳ Pendiente | 5.5 ScanYA |
-| 4 | Opiniones | ⏳ Pendiente | 5.5 ScanYA + 5.7 Transacciones |
-| 5 | Alertas | ⏳ Pendiente | - |
-| 6 | Catálogo | ✅ 100% Completado | 07/01/2026 |
-| 7 | Ofertas | ⏳ 90% Casi listo | 16/01/2026 |
-| 8 | Cupones | ⏳ Pendiente | 5.11 Cupones |
-| 9 | Puntos | ⏳ Pendiente | 5.6 CardYA |
-| 10 | Rifas | ⏳ Pendiente | 6.2 Dinámicas |
-| 11 | Empleados | ⏳ Pendiente | 5.5 ScanYA |
-| 12 | Vacantes | ⏳ Pendiente | 6.3 Empleos |
-| 13 | Reportes | ⏳ Pendiente | 5.5 ScanYA |
-| 14 | Sucursales | ⏳ Pendiente | - |
-| 15 | Mi Perfil | ✅ 100% Completado |
+| # | Módulo | Estado | Depende de | Fecha |
+|---|--------|--------|------------|-------|
+| 1 | Dashboard | ✅ 100% | - | 02/01/2026 |
+| 2 | Transacciones | ⏳ Pendiente | 5.5 ScanYA | - |
+| 3 | Clientes | ⏳ Pendiente | 5.5 ScanYA | - |
+| 4 | Opiniones | ⏳ Pendiente | 5.5 ScanYA + 5.7 | - |
+| 5 | Alertas | ⏳ Pendiente | - | - |
+| 6 | Catálogo | ✅ 100% | - | 07/01/2026 |
+| 7 | Ofertas | ✅ 100% | - | 16/01/2026 |
+| 8 | Cupones | ⏳ Pendiente | 5.11 Cupones | - |
+| 9 | **Puntos** | **⏳ Prompt listo** | **5.5 ScanYA** | **~2.5 días** |
+| 10 | Rifas | ⏳ Pendiente | 6.2 Dinámicas | - |
+| 11 | **Empleados** | **✅ INTEGRADO** | **5.5.1 Backend** | **20/01/2026** |
+| 12 | Vacantes | ⏳ Pendiente | 6.3 Empleos | - |
+| 13 | Reportes | ⏳ Pendiente | 5.5 ScanYA | - |
+| 14 | Sucursales | ⏳ Pendiente | - | - |
+| 15 | Mi Perfil | ✅ 100% | - | 02/01/2026 |
+
+**Progreso:** 5/15 módulos = **33%**
+
+**Notas:**
+- **Empleados:** Backend completo en ScanYA (tabla `empleados`, Nick+PIN, permisos). Pendiente solo UI en Business Studio.
+- **Puntos:** Configuración pendiente (Fase 5.5.6). Backend ya soporta multiplicadores por nivel.
 
 ---
 
 ## 🎯 Orden de Implementación Recomendado
 
-> **Actualizado:** 16 Enero 2026
+> **Actualizado:** 29 Enero 2026
 
 ### ✅ Ya Completado
 
-| # | Fase | Estado |
-|---|------|--------|
-| 1 | 5.1 Onboarding Comercial | ✅ 100% |
-| 2 | 5.2 Toggle UI + Protección Rutas | ✅ 100% |
-| 3 | 5.3 Negocios Directorio | ✅ 100% |
-| 4 | 5.3.1 Sistema Compartir (base) | ✅ Parcial |
-| 5 | 5.4 BS - Dashboard | ✅ 100% |
-| 6 | 5.4 BS - Mi Perfil | ✅ 100% |
-| 7 | 5.4 BS - Catálogo | ✅ 100% |
-| 8 | 5.3.2 Auth Opcional | ✅ 100% |
-| **9** | **5.4.2 BS - Ofertas** | **⏳ 90%** * |
-* Pendiente: Modal detalle individual + Página pública `/ofertas`
+| # | Fase | Estado | Fecha |
+|---|------|--------|-------|
+| 1 | 5.1 Onboarding Comercial | ✅ 100% | 20/12/2024 |
+| 2 | 5.2 Toggle UI + Protección Rutas | ✅ 100% | 26/12/2024 |
+| 3 | 5.3 Negocios Directorio | ✅ 100% | 02/01/2026 |
+| 4 | 5.3.1 Sistema Compartir (base) | ✅ 100% | 02/01/2026 |
+| 5 | 5.3.2 Auth Opcional | ✅ 100% | 16/01/2026 |
+| 6 | **5.3.3 Sistema Guardados** | ✅ 100% | **17-18/01/2026** |
+| 7 | 5.4 BS - Dashboard | ✅ 100% | 02/01/2026 |
+| 8 | 5.4 BS - Mi Perfil | ✅ 100% | 02/01/2026 |
+| 9 | 5.4 BS - Catálogo | ✅ 100% | 07/01/2026 |
+| 10 | 5.4.2 BS - Ofertas | ✅ 100% | **16/01/2026** |
+| **11** | **5.5 ScanYA - Arquitectura** | ✅ 100% | **19/01/2026** |
+| **12** | **5.5.1 Backend ScanYA (Fases 1-7)** | ✅ 100% | **20-21/01/2026** |
+| **13** | **5.5.2 Frontend ScanYA (Fases 8-12)** | ✅ 100% | **21-22/01/2026** |
+| **14** | **5.5.3 Recordatorios Offline (Fase 13)** | ✅ 100% | **22-24/01/2026** |
+| **15** | **5.5.4 QR Scanner + Enhancements** | ✅ 100% | **24-25/01/2026** |
+| **16** | **Migración Producción (Fase 7 parcial)** | ✅ 100% | **26-27/01/2026** |
+| **17** | **5.5.6 PWA ScanYA (Fase 16)** | ✅ 100% | **27-29/01/2026** |
+
+**Nota ScanYA:** Sistema operativo en producción (14/16 fases = 87.5%). Pendientes: Fase 14 (Chat + Reseñas, pausada hasta ChatYA) y Fase 15 (BS > Puntos Config, prompt listo).
 
 ### ⏳ Siguiente a Implementar
 
-| # | Fase | Qué incluye | Tiempo Est. |
-|---|------|-------------|-------------|
-| 1 || 5.4.2 | Modal detalle + Página pública /ofertas | ~1 día |
-| 2 || 5.5 | ScanYA + PWA | Registrar ventas, dar puntos | ~2-3 días |
-| 3 || 5.6 | CardYA + PWA | Usuario ve sus puntos, QR | ~2-3 días | 5.5 ScanYA |
-| 4 || 5.7 | Clientes + Transacciones | Historial de clientes y ventas en BS | ~2-3 días | 5.5 ScanYA |
-| 5 || 5.8 | Opiniones | Ver y responder reseñas en BS | ~2-3 días | 5.5 ScanYA + 5.7 |
-| 6 || 5.9 | Puntos | Config puntos del negocio en BS | ~1 día | 5.6 CardYA |
-| 7 || 5.10 | ChatYA + PWA | Mensajería negocio-cliente | ~3-4 días |
-| 8 || 5.11 | Cupones | Vista pública + CRUD en BS | ~2-3 días | 5.5 ScanYA |
-| 9 || 6.0 | Ofertas | Vista pública (ruta ya existe) | ~1-2 días |
-| 10 || 6.1 | MarketPlace | Vista pública - Compra-venta usuarios | ~3-4 días |
-| 11 || 6.2 | Dinámicas | Vista pública + Rifas en BS | Rifas y sorteos | ~3-4 días |
-| 12 || 6.3 | Empleos | Vista pública + Vacantes en BS | ~2-3 días | - |
-| 13 || 6.4 | Empleados | Gestión empleados en BS (nick + PIN) | ~1-2 días | 5.5 ScanYA |
-| 14 || 6.5 | Sucursales | Agregar/editar sucursales en BS | ~2 días |
-| 15 || 6.6 | Reportes + Alertas | Estadísticas y notificaciones en BS | ~2-3 días | 5.5 ScanYA |
-| 16 || 6.7 | Panel Admin | Gestión interna, vendedores, métricas | ~1-2 semanas | Todo lo anterior |
-| 17 || 7 | Testing + Deploy | QA y lanzamiento a producción | ~1 semana | Todo lo anterior |
+| # | Fase | Qué incluye | Tiempo Est. | Depende de |
+|---|------|-------------|-------------|------------|
+| 1 | **5.5.5** | **BS > Puntos Config (Fase 15)** | **~2.5 días** | **5.5 ScanYA ✅** |
+| 2 | 5.6 | CardYA + PWA | Usuario ve sus puntos, QR, niveles | ~5-7 días | 5.5 ScanYA ✅ |
+| 3 | 5.7 | Clientes + Transacciones | Historial de clientes y ventas en BS | ~2-3 días | 5.5 ScanYA ✅ |
+| 4 | 5.8 | Opiniones | Ver y responder reseñas en BS | ~2-3 días | 5.5 ScanYA ✅ + 5.7 |
+| 5 | 5.10 | ChatYA + PWA | Mensajería negocio-cliente | ~3-4 días | - |
+| 6 | **5.5.4** | **Chat + Reseñas ScanYA (Fase 14)** | **~2 días** | **5.10 ChatYA** |
+| 7 | 5.11 | Cupones | Vista pública + CRUD en BS | ~2-3 días | 5.5 ScanYA ✅ |
+| 8 | 6.0 | Ofertas | Vista pública (ruta ya existe) | ~1-2 días | - |
+| 9 | 6.1 | MarketPlace | Vista pública - Compra-venta usuarios | ~3-4 días | - |
+| 10 | 6.2 | Dinámicas | Vista pública + Rifas en BS | ~3-4 días | - |
+| 11 | 6.3 | Empleos | Vista pública + Vacantes en BS | ~2-3 días | - |
+| 12 | 6.5 | Sucursales | Agregar/editar sucursales en BS | ~2 días | - |
+| 13 | 6.6 | Reportes + Alertas | Estadísticas y notificaciones en BS | ~2-3 días | 5.5 ScanYA ✅ |
+| 14 | 6.7 | Panel Admin | Gestión interna, vendedores, métricas | ~1-2 semanas | Todo lo anterior |
+| 15 || 7 | Testing + Deploy | QA y lanzamiento a producción | ~1 semana | Todo lo anterior |
+
+**Notas de Actualización:**
+- ~~5.4.2 Ofertas~~ → ✅ Completado (antes 90%, ahora 100%)
+- ~~5.5 ScanYA + PWA~~ → ✅ 87.5% Completado (14/16 fases)
+- ~~6.4 Empleados~~ → Integrado en 5.5.1 Backend (tabla `empleados`, Nick+PIN ya implementado)
+- ~~5.9 Puntos~~ → Ahora es 5.5.5 BS > Puntos Config (interfaz gráfica de configuración)
+- **Infraestructura migrada a producción:** $0/mes (Render + Supabase + AWS SES + 6 servicios más)
+
 
 ---
 
-### 🔗 Flujo de Dependencias
+## 🔗 Flujo de Dependencias Actualizado
 ```
-5.4.1 Catálogo + 5.4.2 Ofertas ───────────────────────┐
-↓                                                     │
-5.5 ScanYA (registrar ventas, otorgar puntos)         │
-↓                                                     │
-5.6 CardYA (usuario ve sus puntos)                    │
-↓                                                     │
-5.7 Clientes + Transacciones                          │
-↓                                                     │
-5.8 Opiniones (ver y responder reseñas)               │
-↓                                                     │
-5.9 Puntos BS                                         │
-↓                                                     │
-5.10 ChatYA (comunicación negocio-cliente)            │
-↓                                                     │
-5.11 Cupones + 6.0 Ofertas Públicas                   │
-↓                                                     │
-6.1 MarketPlace ←─────────────────────────────────────┘
+5.4.1 Catálogo ✅ + 5.4.2 Ofertas ✅ + 5.3.3 Guardados ✅
+↓
+5.5 ScanYA ✅ (87.5% completado: Backend + Frontend + Offline + PWA)
+│
+├─► 5.5.6 BS > Puntos Config ⏳ (2.5 días)
+├─► 5.5.5 Chat + Reseñas ⏸️ (requiere 5.10 ChatYA)
+│
+↓
+5.6 CardYA (usuario ve puntos, QR, niveles bronce/plata/oro)
+↓
+5.7 Clientes + Transacciones (historial de compras en BS)
+↓
+5.8 Opiniones (ver y responder reseñas verificadas)
+↓
+5.10 ChatYA (Socket.io + MongoDB, comunicación tiempo real)
+│
+├─► 5.5.5 Chat + Reseñas en ScanYA ✅
+│
+↓
+5.11 Cupones + 6.0 Ofertas Públicas
+↓
+6.1 MarketPlace
+↓
 6.2 Dinámicas (Rifas)
+↓
 6.3 Empleos
 ↓
-6.4 Empleados + 6.5 Sucursales + 6.6 Reportes + Alertas
+6.5 Sucursales + 6.6 Reportes + Alertas
 ↓
-Fase 7: Testing + Deploy
+6.7 Panel Admin
+↓
+Fase 7: ~~Testing + Deploy~~ ✅ COMPLETADO (Parcialmente 26-27/01) Solo ScanYA
 ```
 
-### ⏱️ Tiempo Estimado Total
+---
 
-| Bloque | Fases | Tiempo |
-|--------|-------|--------|
-| Inmediato | Completar 5.4.2 Ofertas (modal + página pública) | ~1 día |
-| Core Transaccional | 5.5 ScanYA + 5.6 CardYA | ~4-6 días |
-| Módulos BS dependientes | 5.7 Clientes, Transacciones, 5.8 Opiniones, 5.9 Puntos | ~4-6 días |
-| Comunicación | 5.10 ChatYA | ~3-4 días |
-| Cupones/Ofertas | 5.11 + 6.0 | ~3-5 días |
-| Secciones Públicas | 6.1, 6.2, 6.3 | ~8-11 días |
-| BS Restantes | 6.4 Empleados, 6.5 Sucursales, 6.6 Reportes, Alertas | ~6-8 días |
-| Deploy | Testing + Producción | ~1 semana |
-| **Total Restante** | | **~6-7 semanas** |
+## ⏱️ Tiempo Estimado Actualizado (29 Enero 2026)
 
-### 📊 Progreso General
+| Bloque | Fases | Tiempo | Estado |
+|--------|-------|--------|--------|
+| **BS > Puntos** | 5.5.6 | ~2.5 días | ⏳ Siguiente |
+| **CardYA** | 5.6 | ~5-7 días | Depende 5.5 ✅ |
+| **Módulos BS dependientes** | 5.7 Clientes, 5.8 Opiniones | ~4-6 días | Depende 5.5 ✅ |
+| **Comunicación** | 5.10 ChatYA + 5.5.5 | ~5-6 días | - |
+| **Cupones/Ofertas** | 5.11 + 6.0 | ~3-5 días | - |
+| **Secciones Públicas** | 6.1, 6.2, 6.3 | ~8-11 días | - |
+| **BS Restantes** | 6.5 Sucursales, 6.6 Reportes | ~4-5 días | Depende 5.5 ✅ |
+| **Panel Admin** | 6.7 | ~1-2 semanas | Todo anterior |
 
-| Módulo | Completado | Total | % |
-|--------|------------|-------|---|
-| Business Studio | 4 | 15 | 27% |
-| Fase 5 (Frontend) | ~4 | ~11 | ~36% |
-| Proyecto Total | Fases 1-4 + parcial 5 | 7 fases | ~60% |
+**Total Restante:** ~5-6 semanas (antes ~6-7 semanas)
+
+### Ahorro de Tiempo
+
+- ~~5.5 ScanYA (~10-12 días)~~ → ✅ COMPLETADO
+- ~~Fase 7 Deploy~~ → ✅ COMPLETADO (infraestructura $0/mes)
+- ~~6.4 Empleados backend~~ → ✅ INTEGRADO en 5.5.1
+
+**Tiempo Real Invertido 17-29 Enero:** 12 días calendario (~74 horas activas)
+
+---
+
+## 📊 Progreso General Actualizado
+
+| Módulo | Completado | Total | % | Cambio |
+|--------|------------|-------|---|--------|
+| **Business Studio** | 5 | 15 | **33%** | +6% |
+| **Fase 5 (Frontend)** | ~6 | ~11 | **~55%** | +19% |
+| **ScanYA Específico** | 14 | 16 fases | **87.5%** | +87.5% |
+| **Proyecto Total** | - | - | **~81%** | **+21%** |
+
+---
+
+### Desglose Visual de Progreso
+```
+Fase 1-4 (Base):        ████████████████████ 100% ✅
+Fase 5.0-5.3 (Core):    ████████████████████ 100% ✅
+Fase 5.4 (BS):          ██████░░░░░░░░░░░░░░  33% ⏳
+Fase 5.5 (ScanYA):      █████████████████░░░  87.5% ✅
+Fase 5.6-5.11:          ░░░░░░░░░░░░░░░░░░░░   0% ⏳
+Fase 6 (Públicas):      ░░░░░░░░░░░░░░░░░░░░   0% ⏳
+Fase 7 (Deploy):        ████████████████████ 100% ✅
+```
+
+---
+
+### Evolución del Proyecto
+```
+17 Enero 2026: [████████████░░░░░░░░] 60%
+29 Enero 2026: [████████████████░░░░] 81%
+
+Incremento: +21 puntos porcentuales en 12 días
+```
+
+---
+
+## 📈 Métricas del Período (17-29 Enero)
+
+| Métrica | Valor |
+|---------|-------|
+| 📅 Días desarrollo | 12 días calendario |
+| ⏱️ Horas activas | ~74 horas |
+| 📝 Archivos creados/modificados | 39 |
+| 💻 Líneas de código | ~16,650 |
+| 🐛 Bugs resueltos | 14 (5 críticos) |
+| ✅ Tests pasados | 99/99 (100%) |
+| 📚 Documentación generada | 11,420 líneas |
+| 💰 Infraestructura | $0/mes |
+
 ---
 
 # 🏗️ PARTE 1: REQUISITOS ARQUITECTÓNICOS
@@ -960,9 +1448,9 @@ Productos: maxWidth: 800px, quality: 0.85, format: webp
 | 5.4 BS - Dashboard | ✅ 100% | 02/01/2026 |
 | 5.4 BS - Mi Perfil | ✅ 100% | 06/01/2026 |
 | 5.4.1 Catálogo CRUD | ✅ 100% | 07/01/2026 |
-| 5.4.2 Ofertas CRUD | ⏳ 90% | 16/01/2026 |
+| 5.4.2 Ofertas CRUD | ✅ 100% | 16/01/2026 |
 
-#### ⏳ Fase Actual: 5.4 Business Studio (27%)
+#### ⏳ Fase Actual: 5.4 Business Studio (33%)
 
 **Completado:**
 - ✅ Layout y navegación
@@ -970,7 +1458,7 @@ Productos: maxWidth: 800px, quality: 0.85, format: webp
 - ✅ Dashboard con KPIs
 - ✅ Mi Perfil (6 tabs)
 - ✅ Catálogo CRUD completo
-- ✅ Ofertas CRUD (90% - falta modal detalle + página pública)
+- ✅ Ofertas CRUD (100% completado)
 - ✅ Arquitectura de sucursales
 - ✅ Interceptor Axios automático
 - ✅ Service centralizado (`negocioManagement.service.ts`)
@@ -1056,7 +1544,7 @@ Productos: maxWidth: 800px, quality: 0.85, format: webp
 - Reutilizar `obtenerDatosNegocio()` para avatar comercial
 
 **Fase 7 - Testing + Deploy:**
-- Variables de entorno en Railway/Vercel
+- Variables de entorno en Render/Vercel
 - Stripe en modo live
 - Cloudinary con folder de producción
 - Redis para sesiones
@@ -1069,7 +1557,7 @@ Productos: maxWidth: 800px, quality: 0.85, format: webp
 |------|------------|-------|---|
 | Fases 1-4 (Base) | 4 | 4 | 100% |
 | Fase 5 (Frontend) | ~4 | ~11 | ~36% |
-| Business Studio | 4 | 15 | 27% |
+| Business Studio | 5 | 15 | 33% |
 | **Proyecto Total** | | | **~60%** |
 
 **Tiempo estimado restante:** ~6-7 semanas
@@ -1547,13 +2035,13 @@ Origen de visitas:
 
 ---
 
-### 5.4 Business Studio - Panel de Control ⏳ EN PROGRESO (15%)
+### 5.4 Business Studio - Panel de Control ⏳ EN PROGRESO (33%)
 
 > Centro de administración completo para negocios. Gestión de perfil, catálogos, clientes, ventas, cupones, ofertas, empleos, rifas, y análisis de negocio.
 
 **Acceso:** `/business-studio/*` (Requiere modo Comercial)
 
-**Progreso:** 4 de 15 módulos completados
+**Progreso:** 5 de 15 módulos completados
 
 ---
 
@@ -1567,7 +2055,7 @@ Origen de visitas:
 | 4 | Opiniones | ⏳ Pendiente | 5.8 | 5.5 ScanYA + 5.7 |
 | 5 | Alertas | ⏳ Pendiente | - | - |
 | 6 | Catálogo | ✅ 100% Completado | 5.4.1 | 07/01/2026 |
-| 7 | Ofertas | ⏳ 90% Casi listo | 5.4.2 | 16/01/2026 |
+| 7 | Ofertas | ✅ 100% | 5.4.2 | 16/01/2026 |
 | 8 | Cupones | ⏳ Pendiente | 5.11 | 5.5 ScanYA |
 | 9 | Puntos | ⏳ Pendiente | 5.9 | 5.6 CardYA |
 | 10 | Rifas | ⏳ Pendiente | 6.2 | 6.2 Dinámicas |
@@ -3407,438 +3895,1318 @@ pages/private/business-studio/
 ```
 ---
 
-### 5.5 ScanYA - Punto de Venta Digital ⏳ PENDIENTE
+---
 
-> Aplicación para comerciantes y empleados que registra ventas, otorga puntos y valida cupones.
+## 🎯 FASE 5.5 - SCANYA + PWA
 
-| Elemento | Descripción |
-|----------|-------------|
-| **Función** | Punto de venta para registrar compras y otorgar puntos |
-| **Quién usa** | Dueños (modo Comercial) + Empleados (con permisos) |
-| **Ruta App** | `/scanya` |
-| **Ruta Widget** | `/scanya-widget` (PWA standalone) |
-| **Requiere** | Modo Comercial o cuenta de empleado |
-
-#### 🔐 Tipos de Acceso
-
-| Tipo | Login | Acceso BS | Permisos |
-|------|-------|-----------|----------|
-| **Dueño** | Email + Contraseña | ✅ Completo | Todos |
-| **Gerente Sucursal** | Email + Contraseña | ✅ Su sucursal | Configurables |
-| **Empleado** | Nick + PIN | ❌ Solo ScanYA | Configurables |
+> **Actualización Mayor:** 17-29 Enero 2026  
+> **Estado:** ✅ 87.5% Completado (14/16 fases)  
+> **Producción:** ✅ Funcional en https://anunciaya-v3-app.vercel.app/scanya
 
 ---
 
-#### 📱 Interfaz Principal
-```
-┌─────────────────────────────────────────────────────────────┐
-│  📱 SCANYA                                                  │
-│  🏪 Pizzería Roma - Sucursal Centro                        │
-│  👤 @carlos (Cajero)                        [Cerrar sesión] │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│                                                             │
-│              ┌───────────────────────┐                      │
-│              │                       │                      │
-│              │    📷 ESCANEAR QR     │                      │
-│              │                       │                      │
-│              │   Toca para abrir     │                      │
-│              │      la cámara        │                      │
-│              │                       │                      │
-│              └───────────────────────┘                      │
-│                                                             │
-│              [⌨️ Ingresar código manual]                    │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│  📊 MI RESUMEN DE HOY                                       │
-│                                                             │
-│  💰 Ventas: 12          📈 Total: $4,580                   │
-│  🎯 Puntos otorgados: 458                                   │
-│  🎟️ Cupones validados: 3                                    │
-│                                                             │
-│  [Ver historial completo]                                   │
-├─────────────────────────────────────────────────────────────┤
-│  ⚡ ACCIONES RÁPIDAS                                        │
-│                                                             │
-│  [🎟️ Validar Cupón]  [🔄 Validar Canje]  [📋 Historial]   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+### 📋 Resumen Ejecutivo
+
+| Campo | Valor |
+|-------|-------|
+| **Tipo de Sistema** | PWA Punto de Venta + Sistema de Lealtad |
+| **NO es** | Sección dentro de AnunciaYA web |
+| **Target** | Dueños, Gerentes y Empleados en punto de venta |
+| **Progreso** | 14/16 fases = 87.5% |
+| **Tiempo Real** | 12 días desarrollo (~74 horas activas) |
+| **Estado** | ✅ Funcional en producción |
 
 ---
 
-#### 🔄 Flujo de Venta Completo
-```
-┌─────────────────────────────────────────────────────────────┐
-│  PASO 1: ESCANEAR QR DEL CLIENTE                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│              [Cámara activa]                                │
-│                                                             │
-│         Apunta al QR del cliente                            │
-│                                                             │
-│  ⏱️ QR válido por: 1:45                                     │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│  PASO 2: CLIENTE IDENTIFICADO                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  👤 Juan Pérez                                              │
-│  🥇 Nivel ORO - Multiplicador 1.5x                         │
-│                                                             │
-│  📊 En tu negocio:                                          │
-│  • Puntos disponibles: 1,250                               │
-│  • Visitas totales: 23                                      │
-│  • Última visita: hace 5 días                              │
-│                                                             │
-│  🎟️ Cupones disponibles: 2                                  │
-│  • 20% descuento (vence mañana)                            │
-│  • 2x1 martes                                              │
-│                                                             │
-│  [Continuar sin cupón]  [Aplicar cupón]                    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│  PASO 3: REGISTRAR VENTA                                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  💵 Monto de la compra:                                     │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  $  [    500.00    ]                                │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  📝 Descripción (opcional):                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  2 pizzas grandes + refrescos                       │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  💳 Método de pago:                                         │
-│  [Efectivo ✓] [Tarjeta] [Transferencia]                    │
-│                                                             │
-│  📷 Foto de evidencia: (opcional)                          │
-│  [📸 Tomar foto]                                           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│  PASO 4: CONFIRMAR PUNTOS                                  │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  📊 RESUMEN DE LA TRANSACCIÓN                              │
-│                                                             │
-│  Cliente: Juan Pérez 🥇                                     │
-│  Monto: $500.00                                            │
-│                                                             │
-│  ─────────────────────────────────────────────────────────  │
-│                                                             │
-│  🧮 CÁLCULO DE PUNTOS:                                      │
-│                                                             │
-│  Valor del punto en tu negocio: $10                        │
-│  Puntos base: 500 / 10 = 50 puntos                         │
-│  Multiplicador ORO: x1.5                                   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │        🎯 PUNTOS A OTORGAR: 75                      │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  [← Modificar]              [✓ Confirmar venta]            │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│  PASO 5: VENTA COMPLETADA ✅                                │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│                     ✅                                      │
-│              ¡Venta registrada!                             │
-│                                                             │
-│  Cliente: Juan Pérez                                        │
-│  Monto: $500.00                                            │
-│  Puntos otorgados: +75 🎯                                   │
-│                                                             │
-│  💬 Se envió notificación al cliente                       │
-│                                                             │
-│  [🔄 Nueva venta]        [📋 Ver detalles]                 │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+### 🏗️ Arquitectura Final
 
----
+#### Roles Soportados
 
-#### 🎟️ Validación de Cupones
-```
-┌─────────────────────────────────────────────────────────────┐
-│  🎟️ VALIDAR CUPÓN                                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Escanea el QR del cupón o ingresa el código:              │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  [NAVIDAD-2024-ABC123]                              │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  [📷 Escanear QR]                    [Validar código]      │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│  ✅ CUPÓN VÁLIDO                                            │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  🎟️ 30% Descuento Navidad                                   │
-│                                                             │
-│  👤 Cliente: María González                                 │
-│  📅 Válido hasta: 25 Dic 2024                              │
-│  ⚠️ Condiciones: Compra mínima $200                        │
-│                                                             │
-│  [Cancelar]                    [✓ Aplicar cupón]           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+| Rol | Login | Sucursales | Permisos |
+|-----|-------|------------|----------|
+| **Dueño** | Email + Password | TODAS (puede elegir) | Total control |
+| **Gerente** | Email + Password | Solo `sucursal_asignada` | Operativos su sucursal |
+| **Empleado** | Nick + PIN (4 dígitos) | Solo asignada | Según permisos configurados |
 
----
+#### Detección de Rol
 
-#### 🔄 Validación de Canje de Puntos
-```
-┌─────────────────────────────────────────────────────────────┐
-│  🔄 VALIDAR CANJE                                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  El cliente generó un código de canje desde su CardYA.     │
-│  Ingresa el código para validar:                           │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  [CANJE-7X9K2M]                                     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  [Validar]                                                  │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│  ✅ CANJE VÁLIDO                                            │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  👤 Cliente: Juan Pérez 🥇                                  │
-│                                                             │
-│  🎁 Recompensa: Café gratis                                │
-│  🎯 Puntos canjeados: 100                                  │
-│                                                             │
-│  ⏱️ Código válido por: 14:32 minutos                       │
-│                                                             │
-│  [Cancelar]              [✓ Confirmar entrega]             │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-#### 👨‍💼 Acceso de Empleados
-
-**Login de Empleado:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│                    📱 SCANYA                                │
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │                                                       │  │
-│  │  👤 ACCESO PARA EMPLEADOS                            │  │
-│  │                                                       │  │
-│  │  Nick de usuario:                                     │  │
-│  │  ┌─────────────────────────────────────────────────┐ │  │
-│  │  │  carlos                                         │ │  │
-│  │  └─────────────────────────────────────────────────┘ │  │
-│  │                                                       │  │
-│  │  PIN (4-6 dígitos):                                  │  │
-│  │  ┌─────────────────────────────────────────────────┐ │  │
-│  │  │  ● ● ● ●                                        │ │  │
-│  │  └─────────────────────────────────────────────────┘ │  │
-│  │                                                       │  │
-│  │  [Iniciar sesión]                                    │  │
-│  │                                                       │  │
-│  │  ⚠️ Solo personal autorizado                         │  │
-│  │                                                       │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                                                             │
-│  ¿Eres dueño del negocio?                                  │
-│  [Ir a Business Studio]                                    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Permisos Configurables (desde BS → Empleados):**
-
-| Permiso | Descripción |
-|---------|-------------|
-| `escanearQR` | Escanear QR de clientes |
-| `registrarVentas` | Registrar ventas y otorgar puntos |
-| `verInfoCliente` | Ver información del cliente |
-| `validarCupones` | Validar cupones |
-| `validarCanjes` | Validar códigos de canje |
-| `hacerReembolsos` | Procesar devoluciones |
-| `cancelarTransacciones` | Anular ventas |
-| `verHistorialPropio` | Ver solo sus transacciones |
-| `verHistorialCompleto` | Ver todas las transacciones |
-| `verEstadisticas` | Ver métricas del negocio |
-
----
-
-#### 💾 Modelo de Datos
-
-**Tabla: transacciones**
+**Tabla `usuarios`:**
 ```sql
-CREATE TABLE transacciones (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  negocio_id UUID REFERENCES negocios(id),
-  sucursal_id UUID REFERENCES negocio_sucursales(id),
-  cliente_id UUID REFERENCES usuarios(id),
-  empleado_id UUID REFERENCES empleados(id),  -- null si fue el dueño
-  
-  -- Datos de la venta
-  monto DECIMAL(10,2) NOT NULL,
-  descripcion TEXT,
-  metodo_pago VARCHAR(20),  -- 'efectivo' | 'tarjeta' | 'transferencia'
-  foto_evidencia_url TEXT,
-  
-  -- Puntos
-  puntos_base INTEGER,
-  multiplicador DECIMAL(3,2),
-  puntos_otorgados INTEGER,
-  nivel_cliente VARCHAR(10),
-  
-  -- Cupón aplicado
-  cupon_id UUID REFERENCES cupones(id),
-  descuento_aplicado DECIMAL(10,2),
-  
-  -- Estado
-  estado VARCHAR(20) DEFAULT 'completada',  -- 'completada' | 'reembolsada' | 'anulada'
-  
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+-- Dueño
+negocio_id = UUID negocio (NOT NULL)
+sucursal_asignada = NULL
+
+-- Gerente  
+negocio_id = NULL
+sucursal_asignada = UUID sucursal (NOT NULL)
+
+-- Usuario normal
+negocio_id = NULL
+sucursal_asignada = NULL
+```
+
+#### Autenticación Dual
+
+| Usuario | Método | Credenciales | Prefix Token | Store |
+|---------|--------|--------------|--------------|-------|
+| Dueño/Gerente | Email + Password | Reutiliza auth AnunciaYA | `ay_*` | useAuthStore |
+| Empleado | Nick + PIN | Creado en Business Studio | `sy_*` | useScanYAStore |
+
+**Características:**
+- ✅ Sesiones 100% independientes
+- ✅ Puede estar logueado en ambas apps
+- ✅ Logout en una NO afecta la otra
+- ✅ Sync localStorage solo en su contexto
+
+#### Separación de Configuración
+
+| Tabla | Responsabilidad | Dónde se gestiona |
+|-------|----------------|-------------------|
+| `puntos_configuracion` | Sistema puntos lealtad (valores, niveles, multiplicadores) | Business Studio > Puntos |
+| `scanya_configuracion` | Operación diaria PWA (foto ticket, alertas, etc.) | Business Studio > ScanYA |
+
+**Razón:** Evitar cambios accidentales en lógica de puntos al configurar operación diaria.
+
+---
+
+## 🗄️ BACKEND SCANYA (Fases 1-7)
+
+> **Estado:** ✅ 100% Completado  
+> **Fecha:** 20-21 Enero 2026  
+> **Duración:** 10 horas
+
+---
+
+### Base de Datos
+
+#### Tablas Modificadas (4)
+
+**1. `empleados`**
+```sql
+ALTER TABLE empleados ADD COLUMN (
+  nick VARCHAR(50) UNIQUE,
+  pin_hash VARCHAR(255),
+  activo BOOLEAN DEFAULT true,
+  ultimo_acceso TIMESTAMPTZ
 );
-
-CREATE INDEX idx_transacciones_negocio ON transacciones(negocio_id);
-CREATE INDEX idx_transacciones_sucursal ON transacciones(sucursal_id);
-CREATE INDEX idx_transacciones_cliente ON transacciones(cliente_id);
-CREATE INDEX idx_transacciones_fecha ON transacciones(created_at);
 ```
 
-**Tabla: empleados** (ya documentada en módulo 9 de BS)
+**2. `puntos_transacciones`**
+```sql
+ALTER TABLE puntos_transacciones ADD COLUMN (
+  empleado_id UUID REFERENCES empleados(id),
+  turno_id UUID REFERENCES scanya_turnos(id),
+  foto_ticket_url TEXT,
+  numero_orden VARCHAR(100),
+  monto_efectivo DECIMAL(10,2),
+  monto_tarjeta DECIMAL(10,2),
+  monto_transferencia DECIMAL(10,2),
+  cupon_uso_id BIGINT REFERENCES cupon_usos(id)
+);
+```
+
+**3. `puntos_billetera`**
+```sql
+ALTER TABLE puntos_billetera ADD COLUMN (
+  nivel_actual VARCHAR(20) DEFAULT 'bronce',
+  puntos_acumulados_total INTEGER DEFAULT 0
+);
+```
+
+**4. `puntos_configuracion`**
+```sql
+ALTER TABLE puntos_configuracion ADD COLUMN (
+  niveles_activos BOOLEAN DEFAULT false,
+  nivel_bronce_multiplicador DECIMAL(3,2) DEFAULT 1.0,
+  nivel_plata_multiplicador DECIMAL(3,2) DEFAULT 1.2,
+  nivel_oro_multiplicador DECIMAL(3,2) DEFAULT 1.5
+);
+```
+
+#### Tablas Nuevas (3)
+
+**1. `scanya_turnos`** - Sesiones de trabajo
+```sql
+CREATE TABLE scanya_turnos (
+  id UUID PRIMARY KEY,
+  usuario_id UUID REFERENCES usuarios(id),
+  sucursal_id UUID REFERENCES negocio_sucursales(id),
+  fecha_apertura TIMESTAMPTZ DEFAULT NOW(),
+  fecha_cierre TIMESTAMPTZ,
+  monto_inicial DECIMAL(10,2),
+  monto_final DECIMAL(10,2),
+  total_ventas INTEGER DEFAULT 0,
+  total_puntos_otorgados INTEGER DEFAULT 0,
+  estado VARCHAR(20) DEFAULT 'abierto',
+  notas TEXT
+);
+```
+
+**2. `scanya_configuracion`** - Config operación diaria
+```sql
+CREATE TABLE scanya_configuracion (
+  id SERIAL PRIMARY KEY,
+  negocio_id UUID REFERENCES negocios(id),
+  foto_ticket VARCHAR(20) DEFAULT 'opcional',
+  alerta_monto_alto DECIMAL(10,2) DEFAULT 5000,
+  requiere_numero_orden BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**3. `scanya_recordatorios`** - Ventas guardadas offline
+```sql
+CREATE TABLE scanya_recordatorios (
+  id UUID PRIMARY KEY,
+  empleado_id UUID REFERENCES empleados(id),
+  turno_id UUID REFERENCES scanya_turnos(id),
+  sucursal_id UUID REFERENCES negocio_sucursales(id),
+  telefono_o_alias VARCHAR(100),
+  monto DECIMAL(10,2),
+  metodo_pago VARCHAR(50),
+  nota TEXT,
+  estado VARCHAR(20) DEFAULT 'pendiente',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Métricas BD:**
+- 17 campos agregados
+- 8 índices nuevos
 
 ---
 
-#### 📱 Componentes Frontend
+### Archivos Backend Creados (8)
+
+| Archivo | Líneas | Descripción |
+|---------|--------|-------------|
+| `scanya.service.ts` | ~3,000 | Lógica de negocio completa (23 funciones) |
+| `scanya.controller.ts` | ~800 | Controladores de rutas (23 endpoints) |
+| `scanya.routes.ts` | ~150 | Definición de rutas REST |
+| `scanya.schema.ts` | ~400 | Validaciones Zod (23 schemas) |
+| `jwtScanYA.ts` | ~100 | Generación tokens `sy_*` |
+| `scanyaAuth.middleware.ts` | ~200 | 4 middlewares de permisos |
+| `r2.service.ts` | ~150 | Upload Cloudflare R2 |
+| `r2.ts` | ~50 | Config S3 Client |
+
+**Total Backend:** ~4,850 líneas
+
+---
+
+### Endpoints API Implementados (23)
+
+#### Auth (4)
 ```
-pages/private/scanya/
-├── PaginaScanYA.tsx              # Vista principal
-├── PaginaLoginEmpleado.tsx       # Login nick + PIN
-└── components/
-    ├── EscanerQR.tsx             # Cámara + lector QR
-    ├── InfoCliente.tsx           # Card con datos del cliente
-    ├── FormularioVenta.tsx       # Monto + descripción + método pago
-    ├── ResumenPuntos.tsx         # Cálculo de puntos a otorgar
-    ├── ConfirmacionVenta.tsx     # Pantalla de éxito
-    ├── ValidarCupon.tsx          # Validación de cupones
-    ├── ValidarCanje.tsx          # Validación de canjes
-    ├── ResumenDia.tsx            # Métricas del día
-    ├── HistorialVentas.tsx       # Lista de transacciones
-    └── AccionesRapidas.tsx       # Botones de acciones
+POST   /api/scanya/login/dueno       # Email + Password
+POST   /api/scanya/login/empleado    # Nick + PIN
+POST   /api/scanya/refresh           # Refresh token
+POST   /api/scanya/logout            # Logout
+```
 
-hooks/
-├── useScanYA.ts                  # Estado general
-├── useEscanerQR.ts               # Control de cámara
-├── useTransaccion.ts             # Registro de ventas
-└── useEmpleadoAuth.ts            # Auth de empleados
+#### Turnos (3)
+```
+POST   /api/scanya/turno/abrir       # Abrir turno
+GET    /api/scanya/turno/actual      # Obtener turno actual
+PUT    /api/scanya/turno/:id/cerrar  # Cerrar turno
+```
 
-stores/
-└── useScanYAStore.ts             # Estado global ScanYA
+#### Operaciones (6)
+```
+POST   /api/scanya/identificar-cliente  # Buscar por teléfono
+POST   /api/scanya/validar-cupon        # Validar cupón antes uso
+POST   /api/scanya/otorgar-puntos       # Registrar venta
+GET    /api/scanya/configuracion        # Config puntos + ScanYA
+GET    /api/scanya/contadores           # Dashboard counters
+POST   /api/scanya/upload-ticket        # URL presigned R2
+```
+
+#### Vouchers (2)
+```
+GET    /api/scanya/vouchers-pendientes  # Listar pendientes entrega
+POST   /api/scanya/validar-voucher      # Validar y marcar canjeado
+```
+
+#### Recordatorios (4)
+```
+POST   /api/scanya/recordatorio              # Crear recordatorio
+GET    /api/scanya/recordatorios             # Listar (filtrado rol)
+PUT    /api/scanya/recordatorio/:id/procesar # Marcar procesado
+DELETE /api/scanya/recordatorio/:id          # Eliminar
+```
+
+#### Historial (1)
+```
+GET    /api/scanya/historial  # Transacciones (filtrado rol)
+```
+
+#### Configuración (3)
+```
+GET    /api/scanya/configuracion  # Ambas configs
+GET    /api/scanya/contadores     # Contadores dashboard
+POST   /api/scanya/upload-ticket  # R2 presigned URL
 ```
 
 ---
 
-#### 🔌 Endpoints Backend
+### Fórmula Cálculo Puntos
 ```typescript
-// ===== TRANSACCIONES =====
+// 1. Aplicar descuento cupón
+montoFinal = cupon 
+  ? (cupon.esPorcentaje
+    ? monto × (1 - cupon.descuento / 100)
+    : monto - cupon.descuento)
+  : monto;
 
-// POST /api/scanya/venta
-// Body: { clienteId, monto, descripcion, metodoPago, cuponId?, fotoEvidencia? }
-// Retorna: transacción creada + puntos otorgados
+// 2. Verificar mínimo
+if (montoFinal < config.minimoCompra) return 0;
 
-// GET /api/scanya/historial
-// Query: ?fecha=2024-01-06&empleadoId=xxx&page=1&limit=20
-// Retorna: lista de transacciones
+// 3. Calcular puntos base
+puntosBase = Math.floor(montoFinal × config.puntosPorPeso);
 
-// POST /api/scanya/reembolso/:transaccionId
-// Body: { motivo }
-// Retorna: transacción actualizada
+// 4. Aplicar multiplicador nivel
+const multiplicadores = {
+  bronce: 1.0,  // Sin multiplicador
+  plata: 1.2,   // +20%
+  oro: 1.5      // +50%
+};
+const mult = multiplicadores[nivel];
 
-// ===== CUPONES =====
+// 5. Puntos finales
+puntosFinal = Math.floor(puntosBase × mult);
+```
 
-// POST /api/scanya/validar-cupon
-// Body: { codigo }
-// Retorna: info del cupón + cliente
-
-// POST /api/scanya/aplicar-cupon
-// Body: { cuponId, transaccionId }
-// Retorna: cupón marcado como usado
-
-// ===== CANJES =====
-
-// POST /api/scanya/validar-canje
-// Body: { codigo }
-// Retorna: info del canje + recompensa
-
-// POST /api/scanya/confirmar-canje
-// Body: { canjeId }
-// Retorna: canje confirmado
-
-// ===== CLIENTES =====
-
-// POST /api/scanya/identificar-cliente
-// Body: { qrPayload }
-// Retorna: info del cliente + puntos + cupones
-
-// ===== EMPLEADOS =====
-
-// POST /api/scanya/login-empleado
-// Body: { nick, pin }
-// Retorna: token de sesión + permisos
-
-// GET /api/scanya/mi-resumen
-// Retorna: métricas del día del empleado actual
+**Ejemplo:**
+```
+Cliente: Nivel Plata
+Monto: $220 MXN
+Config: 1 punto por peso
+Cálculo: 220 × 1 × 1.2 = 264 puntos ✅
 ```
 
 ---
 
-#### ✅ Checklist ScanYA
+### Middlewares de Permisos (4)
+```typescript
+// 1. verificarTokenScanYA()
+// - Valida token sy_*
+// - Extrae payload
+// - Inyecta en req.scanYA
 
-**Frontend:**
-- [ ] Pantalla principal con escáner QR
-- [ ] Login empleado (nick + PIN)
-- [ ] Formulario de registro de venta
-- [ ] Cálculo visual de puntos
-- [ ] Validación de cupones
-- [ ] Validación de canjes
-- [ ] Resumen del día
-- [ ] Historial de transacciones
-- [ ] Confirmación de venta exitosa
-- [ ] Manejo de errores (QR expirado, cliente no encontrado)
+// 2. verificarEsDueno()
+// - Solo dueños
+// - Detecta: payload.negocioId !== null
 
-**Backend:**
-- [ ] Tabla `transacciones`
-- [ ] Endpoint POST `/api/scanya/venta`
-- [ ] Endpoint POST `/api/scanya/identificar-cliente`
-- [ ] Endpoint POST `/api/scanya/validar-cupon`
-- [ ] Endpoint POST `/api/scanya/validar-canje`
-- [ ] Endpoint POST `/api/scanya/login-empleado`
-- [ ] Middleware de permisos por empleado
-- [ ] Trigger: actualizar puntos del cliente
-- [ ] Trigger: actualizar nivel si corresponde
-- [ ] Notificación push al cliente
+// 3. verificarEsDuenoOGerente()
+// - Dueños o gerentes
+// - Detecta: negocioId O sucursalAsignada
+
+// 4. verificarEsEmpleado()
+// - Cualquier autenticado ScanYA
+// - Valida token válido
+```
+
+---
+
+### Cloudflare R2 Integration
+
+**Propósito:** Almacenar fotos de tickets de venta
+
+**Configuración:**
+```
+Bucket: anunciaya-tickets
+Public URL: https://pub-e2d7b5cee341434dbe2884e04b368108.r2.dev
+CORS: localhost + producción
+```
+
+**Flujo Upload Directo:**
+```typescript
+// 1. Obtener URL pre-firmada
+POST /api/scanya/upload-ticket
+Body: { fileName: "ticket_123.webp" }
+Response: { uploadUrl, publicUrl }
+
+// 2. Upload desde frontend (directo a R2)
+fetch(uploadUrl, {
+  method: 'PUT',
+  body: webpBlob,
+  headers: { 'Content-Type': 'image/webp' }
+});
+
+// 3. Guardar publicUrl en transacción
+```
+
+**Resultado:** ~87% reducción tamaño (1.42 MB → 189 KB WebP)
+
+---
+
+### Testing Backend
+
+✅ **23/23 endpoints testeados**  
+✅ **Postman + Thunder Client**  
+✅ **100% funcional**
+
+**Documento Generado:**
+- `PROMPT_SCANYA_FRONTEND_FASES_8_14.md`
+
+---
+
+## 💻 FRONTEND SCANYA (Fases 8-13, 16)
+
+> **Estado:** ✅ Fases 8-12 100% | Fase 13 100% | Fase 16 100%  
+> **Fecha:** 21-24 Enero + 27-29 Enero  
+> **Duración:** ~24 horas
+
+---
+
+### Archivos Frontend Creados (22)
+
+#### Types y Services (3)
+
+| Archivo | Líneas | Contenido |
+|---------|--------|-----------|
+| `scanya.ts` | ~800 | 15+ interfaces TypeScript |
+| `scanyaService.ts` | ~600 | 20+ funciones API |
+| `useScanYAStore.ts` | ~400 | Zustand store con persist |
+
+#### Hooks Personalizados (3)
+
+| Hook | Propósito |
+|------|-----------|
+| `useOnlineStatus.ts` | Detecta conexión navigator.onLine |
+| `useOfflineSync.ts` | Auto-sync recordatorios al reconectar |
+| `useRedirectScanYAPWA.ts` | Redirección automática PWA |
+
+#### Componentes (18)
+
+**Fase 8 - Login:**
+1. `TecladoNumerico.tsx` - Teclado virtual para PIN
+2. `SplashScreenScanYA.tsx` - Splash 2 segundos animado
+3. `PaginaLoginScanYA.tsx` - Toggle Dueño/Gerente ↔ Empleado
+
+**Fase 10 - Dashboard:**
+4. `HeaderScanYA.tsx` - Logo + usuario + rol + logout
+5. `ResumenTurno.tsx` - Card turno actual (monto, ventas, total)
+6. `IndicadoresRapidos.tsx` - Grid 4 accesos (Venta, Historial, Vouchers, Recordatorios)
+7. `ModalCerrarTurno.tsx` - Resumen + monto final + diferencia
+
+**Fase 11 - Registrar Venta:**
+8. `ModalRegistrarVenta.tsx` (~800 líneas) - **Acordeón 5 secciones**
+
+**Fase 12 - Historial + Vouchers:**
+9. `TarjetaTransaccion.tsx` - Card adaptativa por rol
+10. `ModalHistorial.tsx` - Drawer con filtros periodo
+11. `TarjetaVoucher.tsx` - Card voucher pendiente
+12. `ModalVouchers.tsx` - Drawer lista vouchers
+13. `ModalValidarVoucher.tsx` - Validación últimos 4 dígitos
+
+**Fase 13 - Offline:**
+14. `IndicadorOffline.tsx` - Badge "⚠️ SIN CONEXIÓN"
+15. `TarjetaRecordatorio.tsx` - Card recordatorio
+16. `ModalRecordatorios.tsx` - Drawer lista con filtros
+17. `ModalProcesarRecordatorio.tsx` - Procesamiento manual
+
+**Fase 16 - PWA:**
+18. `BannerScanYAPWA.tsx` - Banner instalación (opcional)
+
+#### Páginas (3)
+
+1. `PaginaLoginScanYA.tsx` - Login dual mode
+2. `PaginaScanYA.tsx` - Dashboard principal
+3. (Componentes se montan en PaginaScanYA)
+
+**Total Frontend:** ~4,500 líneas
+
+---
+
+### Modal Registrar Venta - Arquitectura Detallada
+
+**Tipo de Modal:**
+- **Móvil (<1024px):** ModalBottom 75vh, slide-up
+- **PC (≥1024px):** Drawer lateral 450px
+```
+┌─────────────────────────────────────────┐
+│  ModalRegistrarVenta                    │
+├─────────────────────────────────────────┤
+│                                         │
+│  ▼ Sección 1: Cliente ⚠️ OBLIGATORIO    │
+│  ├─ Input teléfono +52XXXXXXXXXX        │
+│  ├─ Teclado numérico virtual            │
+│  ├─ Búsqueda auto al completar 10       │
+│  └─ Card: Nombre + Nivel 🥉🥈🥇 + Puntos │
+│                                         │
+│  ▼ Sección 2: Monto ⚠️ OBLIGATORIO      │
+│  ├─ Display grande: $XXX.XX MXN         │
+│  └─ Teclado con decimales               │
+│                                         │
+│  ▼ Sección 3: Método Pago ⚠️ OBLIGATORIO│
+│  ├─ Grid: [Efectivo] [Tarjeta] [Transf]│
+│  └─ Opción "Mixto" con desglose         │
+│                                         │
+│  ▼ Sección 4: Foto Ticket (según config)│
+│  ├─ Capturar cámara                     │
+│  ├─ Preview imagen                      │
+│  ├─ Conversión WebP (-87% tamaño)       │
+│  └─ Upload R2 directo                   │
+│                                         │
+│  ▼ Sección 5: Cupón ℹ️ Opcional         │
+│  ├─ Input código (BIENVENIDA10)         │
+│  ├─ Botón "Validar"                     │
+│  └─ Card: Tipo + Descuento + Info       │
+│                                         │
+├─────────────────────────────────────────┤
+│  Footer (siempre visible)               │
+│  ├─ "Se otorgarán XXX puntos"           │
+│  │   "(YYY base × ZZ multiplicador)"    │
+│  └─ [Confirmar Venta] (verde, grande)   │
+└─────────────────────────────────────────┘
+
+Pantalla Éxito (state condicional):
+┌─────────────────────────────────────────┐
+│               ✓ (animado)               │
+│        ¡264 puntos otorgados!           │
+│                                         │
+│         [Nueva Venta]                   │
+│         [Cerrar]                        │
+└─────────────────────────────────────────┘
+```
+
+#### Validación Progresiva
+```typescript
+function seccionCompletada(seccion: number): boolean {
+  switch(seccion) {
+    case 1: return !!clienteBuscado;
+    case 2: return monto > 0;
+    case 3: return !!metodoPago;
+    case 4: return fotoSubida || config.fotoTicket !== 'requerida';
+    case 5: return true; // Cupón siempre opcional
+  }
+}
+
+// Sección N+1 solo activa si N completa
+// Botón "Confirmar" solo activo si todas obligatorias completas
+```
+
+#### Cálculo Puntos Tiempo Real
+```typescript
+useEffect(() => {
+  if (!clienteBuscado || monto === 0) return;
+  
+  // 1. Aplicar cupón
+  let montoFinal = cuponAplicado
+    ? calcularDescuento(monto, cuponAplicado)
+    : monto;
+  
+  // 2. Verificar mínimo
+  if (montoFinal < config.minimoCompra) {
+    setPuntosCalculados(0);
+    return;
+  }
+  
+  // 3. Puntos base
+  const base = Math.floor(montoFinal * config.puntosPorPeso);
+  
+  // 4. Multiplicador nivel
+  const nivel = clienteBuscado.billetera?.nivelActual || 'bronce';
+  const mult = config.multiplicadores[nivel];
+  
+  // 5. Puntos finales
+  setPuntosCalculados(Math.floor(base * mult));
+}, [monto, cuponAplicado, clienteBuscado]);
+```
+
+#### Modo Offline (Fase 13)
+
+**Prop:** `modoOffline={true}`
+
+**Cambios cuando offline:**
+```typescript
+✅ NO busca cliente (input libre teléfono/alias)
+✅ NO requiere turno abierto
+✅ NO valida cupones contra servidor
+✅ NO sube foto a R2
+✅ Campo "nota" siempre visible
+✅ Botón cambia a: "Guardar Recordatorio"
+✅ Guarda en Zustand persist
+✅ Toast: "Se sincronizará al reconectar"
+```
+
+---
+
+## 🔄 RECORDATORIOS OFFLINE (Fase 13)
+
+> **Estado:** ✅ 100% Completado  
+> **Fecha:** 22-24 Enero 2026  
+> **Duración:** 16 horas (incluyendo 99 tests)
+
+---
+
+### Problema Resuelto
+
+**Antes:** Empleados perdían ventas sin internet  
+**Después:** Pueden guardar "recordatorios" que se sincronizan automáticamente
+
+---
+
+### Flujo Completo
+```
+1. Detección offline
+   navigator.onLine = false
+   ↓
+2. Badge naranja aparece
+   "⚠️ SIN CONEXIÓN" (animado pulse)
+   ↓
+3. Botón cambia
+   "Registrar Venta" → "Guardar Recordatorio"
+   ↓
+4. Usuario llena datos
+   - Teléfono/Alias (input libre)
+   - Monto
+   - Método pago
+   - Nota
+   ↓
+5. Click "Guardar"
+   Datos → Zustand persist
+   {
+     id: "temp_1706123456789_abc",
+     telefonoOAlias: "6441234567",
+     monto: 150.00,
+     metodoPago: "efectivo",
+     nota: "Cliente frecuente",
+     estado: "pendiente",
+     createdAt: "2026-01-22T10:30:00Z"
+   }
+   ↓
+6. Toast confirmación
+   "✅ Recordatorio guardado"
+   ↓
+7. Badge contador
+   "2 recordatorios"
+   ↓
+8. Vuelve conexión
+   navigator.onLine = true
+   ↓
+9. Auto-sync (3s delay estabilización)
+   Por cada recordatorio:
+   POST /api/scanya/recordatorio
+   ↓
+10. Si éxito
+    ├─ Elimina de Zustand persist
+    ├─ Actualiza badge
+    └─ Notificación: "✅ 2 sincronizados"
+    
+    Si falla
+    ├─ Incrementa contador intentos
+    ├─ Mantiene en persist
+    └─ Retry en próxima conexión (max 3)
+    ↓
+11. Procesamiento
+    Dueño/Gerente puede:
+    ├─ Abrir ModalRegistrarVenta
+    ├─ Datos pre-llenados
+    ├─ Modificar si necesario
+    ├─ Confirmar → Otorga puntos
+    └─ Marca como procesado
+```
+
+---
+
+### Permisos por Rol
+
+| Acción | Dueño | Gerente | Empleado |
+|--------|-------|---------|----------|
+| **Crear recordatorio** | ✅ | ✅ | ✅ |
+| **Ver TODOS recordatorios** | ✅ | ❌ | ❌ |
+| **Ver recordatorios SU sucursal** | ✅ | ✅ | ❌ |
+| **Ver solo SUYOS** | ✅ | ✅ | ✅ |
+| **Procesar cualquiera** | ✅ | ❌ | ❌ |
+| **Procesar de su sucursal** | ✅ | ✅ | ❌ |
+| **Descartar recordatorio** | ✅ | ✅ | ✅ (solo suyos) |
+
+---
+
+### Testing Exhaustivo
+
+**Metodología:** 99 casos organizados por rol
+
+#### Distribución Tests
+
+| Rol | Tests | Cobertura |
+|-----|-------|-----------|
+| **Dueño** | 61 | Estado inicial, offline, guardado, sync, ver, procesar, descartar, persistencia |
+| **Gerente** | 17 | Similar con filtros de sucursal |
+| **Empleado** | 15 | Similar con filtros solo propios |
+| **TOTAL** | **99** | **100% pasados** ✅ |
+
+---
+
+### Bugs Encontrados y Resueltos (7)
+
+| # | Severidad | Bug | Fix |
+|---|-----------|-----|-----|
+| 1 | MEDIO | Badge contador incorrecto offline | Separar contadores servidor + localStorage |
+| 2 | MEDIO | Validación teléfono no persistente | AlertCircle icon persistente |
+| 3 | MEDIO | Campos editables sin cliente válido | Deshabilitar hasta completar previa |
+| 4 | BAJO | Campo nota solo visible offline | Nota siempre visible (útil online también) |
+| 5 | **CRÍTICO** | Manager veía recordatorios del dueño | **Agregar columna `turno_id`** |
+| 6 | ALTO | Teléfonos sin +52 aceptados | Regex `/^\+52\d{10}$/` + normalización |
+| 7 | MEDIO | Badge no reactivo | Callback actualizarContador() + listener |
+
+**Bug #5 - Detalles:**
+```sql
+-- Problema: Filtrado por sucursal_id no suficiente
+-- Manager en sucursal X veía recordatorios del dueño en sucursal X
+
+-- Solución: Agregar turno_id
+ALTER TABLE scanya_recordatorios 
+ADD COLUMN turno_id UUID REFERENCES scanya_turnos(id);
+
+-- Filtrado correcto:
+WHERE turno_id IN (
+  SELECT id FROM scanya_turnos 
+  WHERE usuario_id = current_user_id
+)
+```
+
+---
+
+### Arquitectura Storage
+
+**Decisión Inicial:** localStorage manual + helpers  
+**Decisión Final:** ✅ Zustand persist
+
+**Razón del cambio:**
+- ✅ Mejor integración con store existente
+- ✅ Reactividad automática
+- ✅ Menos código boilerplate
+- ✅ TypeScript types completos
+
+---
+
+### Documentación Generada
+
+**Archivo:** `FASE_13_SISTEMA_DE_RECORDATORIOS_OFFLINE_-_ScanYA.md`  
+**Líneas:** 1,772  
+**Contenido:** Sistema completo + 99 tests documentados
+
+---
+
+## 📱 PWA SCANYA (Fase 16)
+
+> **Estado:** ✅ 100% Completado  
+> **Fecha:** 27-29 Enero 2026  
+> **Duración:** 12 horas
+
+---
+
+### Objetivos Alcanzados
+
+✅ Instalable 1-click desde navegador  
+✅ Funciona offline (Service Worker)  
+✅ Sesiones independientes de AnunciaYA  
+✅ Redirección automática al abrir  
+✅ Compatible WebView app nativa futura
+
+---
+
+### Decisión Arquitectónica: Manifest Permanente
+
+**Opciones Evaluadas:**
+
+| Opción | Descripción | Resultado |
+|--------|-------------|-----------|
+| **A. Manifest Dinámico** | Inyectar solo en /scanya/login | ❌ `beforeinstallprompt` NO se dispara |
+| **B. Subdominios** | scanya.anunciaya.com | ❌ CORS complejo, sesiones separadas |
+| **C. Manifest Permanente** | Siempre en index.html | ✅ ELEGIDA |
+
+**Trade-off Aceptado:**
+- ⚠️ Ícono instalación visible en landing pública
+- ✅ `beforeinstallprompt` funciona correctamente
+- ✅ Botón 1-click instalación funciona
+- ✅ WebView app nativa funcionará
+
+**Justificación:** Mayoría de usuarios accederán desde app nativa futura (no desde web pública).
+
+---
+
+### Implementación
+
+#### Manifest
+
+**Archivo:** `public/manifest.scanya.json`
+```json
+{
+  "name": "ScanYA",
+  "short_name": "ScanYA",
+  "start_url": "/scanya/login?source=pwa",
+  "scope": "/scanya/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0A0A0A",
+  "background_color": "#0A0A0A",
+  "icons": [
+    {
+      "src": "/icons/scanya-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/scanya-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/scanya-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
+```
+
+#### Meta Tags
+
+**Archivo:** `index.html`
+```html
+<!-- Manifest -->
+<link rel="manifest" href="/manifest.scanya.json" />
+
+<!-- PWA -->
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+<!-- Icons -->
+<link rel="apple-touch-icon" href="/icons/scanya-192.png" />
+```
+
+#### Service Worker
+
+**Archivo:** `public/sw-scanya.js`
+```javascript
+const CACHE_NAME = 'scanya-v1';
+const urlsToCache = [
+  '/scanya/login',
+  '/icons/scanya-192.png',
+  '/icons/scanya-512.png'
+];
+
+// Install
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+  );
+  self.skipWaiting();
+});
+
+// Activate
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then(names =>
+      Promise.all(
+        names
+          .filter(n => n !== CACHE_NAME)
+          .map(n => caches.delete(n))
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+// Fetch (cache-first strategy)
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
+  // Solo cachear /scanya o API
+  if (!url.pathname.startsWith('/scanya') && 
+      !url.origin.includes('anunciaya-api')) {
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        if (response) return response;
+        
+        return fetch(event.request).then(networkResponse => {
+          return caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          });
+        });
+      })
+  );
+});
+```
+
+**Registro:** `main.tsx`
+```typescript
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw-scanya.js', { scope: '/scanya/' })
+      .then(reg => console.log('[PWA] SW registrado:', reg.scope))
+      .catch(err => console.error('[PWA] Error SW:', err));
+  });
+}
+```
+
+---
+
+### Problemas Resueltos (5)
+
+#### 1. Sync localStorage entre Pestañas
+
+**Síntoma:**
+```
+1. Login AnunciaYA (modo comercial)
+2. Token guardado en localStorage
+3. ❌ Logout inmediato en AMBAS pestañas
+```
+
+**Causa:**
+```typescript
+// useAuthStore.ts
+window.addEventListener('storage', handleStorageChange);
+// Event se dispara en TODAS las pestañas
+// ScanYA detecta cambio en ay_* tokens
+// ScanYA NO tiene esos tokens → logout()
+```
+
+**Fix:**
+```typescript
+// useAuthStore.ts - 4 líneas críticas
+export function iniciarSincronizacionTokens() {
+  const handleStorageChange = (event) => {
+    // ✅ IGNORAR si estamos en ScanYA
+    if (window.location.pathname.startsWith('/scanya')) {
+      return; // 4 líneas que solucionan todo
+    }
+    // ... resto del código
+  };
+}
+```
+
+---
+
+#### 2. SW Redirección Innecesaria
+
+**Síntoma:**
+```
+1. PWA instalada
+2. Abrir desde ícono home
+3. ❌ Carga / en lugar de /scanya/login
+```
+
+**Causa:**
+```javascript
+// sw-scanya.js CÓDIGO PROBLEMÁTICO
+self.addEventListener('fetch', (event) => {
+  if (event.request.mode === 'navigate') {
+    if (!url.pathname.startsWith('/scanya')) {
+      // ❌ Redirección interfiere con start_url
+      event.respondWith(Response.redirect('/scanya/login', 302));
+    }
+  }
+});
+```
+
+**Fix:**
+```javascript
+// CORRECTO: Solo cachear, NO redirigir
+self.addEventListener('fetch', (event) => {
+  if (!url.pathname.startsWith('/scanya') && 
+      !url.origin.includes('anunciaya-api')) {
+    return; // Dejar pasar sin interceptar
+  }
+  // ... cache strategy
+});
+```
+
+---
+
+#### 3. Instalación desde Ruta Incorrecta
+
+**Síntoma:**
+```
+1. Usuario instala PWA desde /inicio
+2. Chrome ignora start_url del manifest
+3. PWA abre en /inicio ❌
+```
+
+**Causa:** Ícono Chrome nativo no controlable
+
+**Solución:** Hook redirección automática
+
+**Archivo:** `useRedirectScanYAPWA.ts`
+```typescript
+export function useRedirectScanYAPWA() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const PWA_FLAG = 'scanya_is_pwa';
+    
+    // Método 1: Query param
+    const esDesdePWA = new URLSearchParams(location.search)
+      .get('source') === 'pwa';
+    
+    // Método 2: matchMedia
+    const esStandalone = window.matchMedia(
+      '(display-mode: standalone)'
+    ).matches;
+    
+    // Método 3: iOS
+    const esIosStandalone = (navigator as any).standalone;
+    
+    // Método 4: localStorage flag
+    const flagPWA = localStorage.getItem(PWA_FLAG) === 'true';
+    
+    const esPWA = esDesdePWA || esStandalone || 
+                  esIosStandalone || flagPWA;
+
+    // Guardar flag si primera vez
+    if ((esDesdePWA || esStandalone || esIosStandalone) && !flagPWA) {
+      localStorage.setItem(PWA_FLAG, 'true');
+    }
+
+    // Redirigir si PWA y NO en /scanya
+    if (esPWA && !location.pathname.startsWith('/scanya')) {
+      navigate('/scanya/login?source=pwa', { replace: true });
+    }
+  }, [location.pathname, location.search, navigate]);
+}
+```
+
+**Uso:**
+```typescript
+// RootLayout.tsx
+export function RootLayout() {
+  useRedirectScanYAPWA(); // ✅ Redirección automática
+  return <Outlet />;
+}
+```
+
+---
+
+#### 4. Sesiones NO Independientes
+
+**Problema inicial:** Tokens compartidos causaban conflictos
+
+**Solución:** Arquitectura completa de separación
+
+| App | Prefix | Store | Keys localStorage |
+|-----|--------|-------|-------------------|
+| **AnunciaYA** | `ay_*` | useAuthStore | `ay_access_token`, `ay_refresh_token` |
+| **ScanYA** | `sy_*` | useScanYAStore | `sy_access_token`, `sy_refresh_token` |
+
+**Ventajas:**
+- ✅ Sesiones 100% independientes
+- ✅ Puede estar logueado en ambas
+- ✅ Logout en una NO afecta otra
+- ✅ Sync localStorage solo en su contexto
+
+---
+
+#### 5. beforeinstallprompt NO Dispara
+
+**Causa:** Manifest dinámico no funciona
+
+**Fix:** Manifest permanente en `<head>`
+
+---
+
+### Testing PWA
+
+| Test | Plataforma | Estado |
+|------|------------|--------|
+| Instalación 1-click | Chrome Desktop | ✅ |
+| Instalación "Add to Home" | Safari iOS | ✅ |
+| Instalación | Chrome Android | ✅ |
+| Start URL correcto | Todas | ✅ |
+| Redirección automática | Todas | ✅ |
+| Service Worker registrado | Todas | ✅ |
+| Cache offline | Todas | ✅ |
+| Manifest detectado | Todas | ✅ |
+| Icons home screen | iOS/Android | ✅ |
+| Sesiones independientes | Todas | ✅ |
+| localStorage correcto | Todas | ✅ |
+| Header color negro | Todas | ✅ |
+| Standalone mode | Todas | ✅ |
+
+**Resultado:** 13/13 tests ✅
+
+---
+
+### Preparación WebView
+
+**Documento Generado:**
+- `Sistema_PWA_ScanYA_con_Redirección_Automática.md` (2,019 líneas)
+
+**Contenido:**
+- Implementación React Native (Expo)
+- Implementación Flutter
+- Implementación iOS nativa (Swift)
+- Implementación Android nativa (Kotlin)
+- Comunicación JS ↔ Nativa
+- Pre-autenticación (inyectar tokens)
+- Deep linking configuración
+- Analytics unificado
+- Roadmap 10 días implementación
+
+---
+
+## ⏸️ FASES PENDIENTES
+
+### Fase 14: Chat + Reseñas
+
+**Estado:** ⏸️ PAUSADA  
+**Razón:** Requiere ChatYA base (Socket.io + MongoDB)  
+**Tiempo Estimado:** ~2 días (después de 5.10 ChatYA)
+
+**Funcionalidad:**
+- Empleado puede chatear con cliente después de venta
+- Cliente puede dejar reseña de atención recibida
+- Historial de conversaciones por cliente
+- Validar que cliente haya comprado antes de permitir reseña
+- Notificaciones push cuando cliente responde
+
+**Requisitos:**
+1. ✅ ChatYA base implementado (5.10)
+2. ✅ Socket.io configurado
+3. ✅ MongoDB para mensajes
+4. ✅ Sistema notificaciones
+
+---
+
+### Fase 15: BS > Puntos Config
+
+**Estado:** ⏳ PROMPT LISTO  
+**Tiempo Estimado:** ~2.5 días  
+**Prioridad:** ⚠️ CRÍTICA
+
+**Funcionalidad:**
+
+**1. Página Configuración Puntos**
+- Input: Puntos por peso gastado
+- Input: Monto mínimo para acumular
+- Toggle: Activar/desactivar niveles
+- Sliders: Multiplicadores bronce/plata/oro
+- Simulador: "Si cliente gasta $X → gana Y puntos"
+
+**2. Página Estadísticas**
+- Gráfica: Puntos otorgados últimos 30 días
+- Gráfica: Distribución clientes por nivel
+- Métrica: Promedio puntos por venta
+- Métrica: Total puntos en circulación
+
+**3. Página Transacciones**
+- Tabla: Todas las transacciones de puntos
+- Filtros: Fecha, sucursal, empleado, tipo
+- Export: CSV, Excel
+- Búsqueda: Por teléfono cliente
+
+**4. Página Alertas**
+- Configurar: Alerta si venta > $X
+- Configurar: Alerta si puntos otorgados > Y
+- Configurar: Notificar dueño en ventas grandes
+
+**5. Modal "Instalar ScanYA"**
+- QR code para empleados
+- Instrucciones instalación iOS/Android
+- Link directo: `/scanya/login`
+
+**Razón Crítica:**  
+Actualmente dueños NO pueden configurar sistema de puntos sin tocar código. Solo funciona con valores por defecto.
+
+---
+
+## 📊 MÉTRICAS SCANYA
+
+### Desarrollo
+
+| Métrica | Valor |
+|---------|-------|
+| **Días calendario** | 12 días |
+| **Horas activas** | ~74 horas |
+| **Promedio diario** | ~6 horas/día |
+| **Fases completadas** | 14/16 (87.5%) |
+
+### Código
+
+| Categoría | Líneas |
+|-----------|--------|
+| **Backend** | ~4,850 |
+| **Frontend** | ~4,500 |
+| **Hooks/Utils** | ~500 |
+| **Types** | ~800 |
+| **Total código** | **~10,650** |
+
+### Arquitectura
+
+| Elemento | Cantidad |
+|----------|----------|
+| **Endpoints API** | 23 |
+| **Componentes React** | 18 |
+| **Hooks personalizados** | 3 |
+| **Páginas** | 3 |
+| **Tablas BD nuevas** | 3 |
+| **Tablas BD modificadas** | 4 |
+| **Campos BD agregados** | 17 |
+| **Índices BD nuevos** | 8 |
+
+### Calidad
+
+| Aspecto | Resultado |
+|---------|-----------|
+| **Bugs encontrados** | 14 |
+| **Bugs resueltos** | 14 (100%) |
+| **Bugs críticos** | 5 |
+| **Tests ejecutados** | 99 |
+| **Tests pasados** | 99 (100%) |
+| **Coverage testing** | Fase 13 exhaustiva |
+
+### Documentación
+
+| Documento | Líneas |
+|-----------|--------|
+| Fase 11 Modal Venta | 850 |
+| Fase 12 Historial + Vouchers | 720 |
+| Fase 13 Recordatorios Offline | 1,772 |
+| Sistema PWA ScanYA | 2,019 |
+| Checklist ScanYA v5.7 | 2,100 |
+| Bitácora 17-29 Enero | ~15,000 |
+| **TOTAL** | **~22,460 líneas** |
+
+---
+
+## 🎯 FUNCIONALIDADES LISTAS PRODUCCIÓN
+
+| Funcionalidad | Status | Testing |
+|---------------|--------|---------|
+| **Login Dueño/Gerente** | ✅ Producción | 100% |
+| **Login Empleado** | ✅ Producción | 100% |
+| **Abrir/Cerrar Turno** | ✅ Producción | 100% |
+| **Registrar Venta** | ✅ Producción | 100% |
+| **Sistema Puntos** | ✅ Producción | 100% |
+| **Niveles (bronce/plata/oro)** | ✅ Producción | 100% |
+| **Cupones** | ✅ Producción | 100% |
+| **Vouchers** | ✅ Producción | 100% |
+| **QR Scanner** | ✅ Producción | 100% |
+| **Historial** | ✅ Producción | 100% |
+| **Recordatorios Offline** | ✅ Producción | 100% |
+| **Sincronización Auto** | ✅ Producción | 100% |
+| **PWA Instalable** | ✅ Producción | 100% |
+| **Service Worker** | ✅ Producción | 100% |
+| **Sesiones Independientes** | ✅ Producción | 100% |
+
+**Acceso Producción:**
+- Frontend: https://anunciaya-v3-app.vercel.app/scanya/login
+- Backend: https://anunciaya-api.onrender.com/api/scanya/*
+
+---
+
+## 🚀 PRÓXIMOS PASOS
+
+### Inmediato (1 semana)
+
+**1. Fase 15 - BS > Puntos Config** ⚠️ CRÍTICA
+- **Tiempo:** ~2.5 días
+- **Razón:** Dueños necesitan configurar sin tocar código
+- **Prioridad:** MÁXIMA
+
+**2. Testing Pre-producción**
+- **Tiempo:** ~2 días
+- Flujos completos por rol (dueño/gerente/empleado)
+- Stress con múltiples usuarios simultáneos
+- Offline/online transitions
+- PWA en dispositivos reales
+
+**3. Monitoreo + Analytics**
+- **Tiempo:** ~1 día
+- Sentry (error tracking)
+- Mixpanel/Amplitude (analytics)
+- Dashboards Render + Supabase
+- Alerts automáticos
+
+### Corto Plazo (2-3 semanas)
+
+**1. ChatYA Base** (prerequisito Fase 14)
+- **Tiempo:** ~3-4 días
+- MongoDB + Socket.io
+- Chat 1 a 1 tiempo real
+- Notificaciones push
+- Estado online/offline
+
+**2. Fase 14 - Chat + Reseñas ScanYA**
+- **Tiempo:** ~2 días
+- Chat empleado ↔ cliente
+- Reseñas de atención
+- Historial conversaciones
+
+**3. Optimizaciones**
+- **Tiempo:** ~2 días
+- Keep-alive Render (evitar cold starts)
+- Optimizar queries PostgreSQL
+- CDN assets estáticos
+- Lazy loading adicional
+
+---
+
+## 📚 DOCUMENTOS TÉCNICOS GENERADOS
+
+| Documento | Líneas | Propósito | Fecha |
+|-----------|--------|-----------|-------|
+| **Prompt Backend** | ~3,500 | Arquitectura + 23 endpoints | 19 Ene |
+| **Prompt Frontend** | ~4,200 | Fases 8-14 completas | 20 Ene |
+| **Fase 11 Modal Venta** | 850 | Acordeón 5 secciones | 21 Ene |
+| **Fase 12 Historial** | 720 | Historial + Vouchers | 22 Ene |
+| **Fase 13 Recordatorios** | 1,772 | Sistema offline + 99 tests | 22-24 Ene |
+| **Sistema PWA** | 2,019 | PWA + WebView roadmap | 27-29 Ene |
+| **Checklist ScanYA** | 2,100 | 14/16 fases tracking | 22 Ene |
+| **Bitácora Completa** | ~15,000 | Desarrollo 17-29 enero | 29 Ene |
+
+**Total Documentación ScanYA:** ~30,160 líneas
+
+---
+
+## ✅ CHECKLIST FINAL
+
+### Backend
+- [x] 23 endpoints implementados
+- [x] 4 middlewares permisos
+- [x] 23 schemas Zod validación
+- [x] 3 tablas nuevas
+- [x] 4 tablas modificadas
+- [x] Cloudflare R2 integrado
+- [x] Testing 23/23 endpoints
+
+### Frontend
+- [x] 18 componentes creados
+- [x] 3 hooks personalizados
+- [x] 3 páginas implementadas
+- [x] Login dual mode
+- [x] Dashboard completo
+- [x] Modal registrar venta
+- [x] Sistema offline
+- [x] PWA instalable
+
+### PWA
+- [x] Manifest configurado
+- [x] Service Worker funcional
+- [x] Cache offline
+- [x] Redirección automática
+- [x] Sesiones independientes
+- [x] Testing 13/13 plataformas
+
+### Testing
+- [x] 99 tests Fase 13
+- [x] 23 endpoints backend
+- [x] 14 bugs resueltos
+- [x] 13 tests PWA
+
 
 ---
 
@@ -6574,12 +7942,29 @@ interface LogAdmin {
 - Analytics
 - Sentry
 
-### 7.2 Infraestructura Producción
-- Vercel (Frontend)
-- Railway (Backend + PostgreSQL)
-- MongoDB Atlas
-- Upstash (Redis)
-- Stripe → **Modo LIVE**
+### 7.2 Infraestructura Producción ✅ MIGRADO
+
+**Estado:** ✅ Completado (26-27 enero 2026)  
+**Costo:** $0/mes (9 servicios en free tier)
+
+| Servicio | Proveedor | Uso | Estado |
+|----------|-----------|-----|--------|
+| Frontend | Vercel | Edge Network | ✅ Producción |
+| Backend | Render | API REST | ✅ Producción |
+| PostgreSQL | Supabase | Base datos principal | ✅ Migrado |
+| MongoDB | Atlas M0 | Chat (futuro) | ✅ Configurado |
+| Redis | Upstash | Caché/Sesiones | ✅ Activo |
+| Emails | AWS SES | Notificaciones | ✅ Sandbox |
+| Imágenes | Cloudinary | Negocio/Productos | ✅ Activo |
+| Tickets | Cloudflare R2 | Fotos ventas | ✅ Activo |
+| Pagos | Stripe | Suscripciones | ⏳ Test Mode |
+
+**URLs Producción:**
+- Frontend: https://anunciaya-v3-app.vercel.app
+- Backend: https://anunciaya-api.onrender.com
+- Health: https://anunciaya-api.onrender.com/api/health
+
+**Ver sección completa:** [☁️ Infraestructura Cloud](#%EF%B8%8F-infraestructura-cloud) (línea 8972)
 
 ### 7.3 Beta (50 negocios)
 1. Embajadores registran pilotos
@@ -6652,7 +8037,7 @@ interface LogAdmin {
 
 ---
 
-### FASE 5 - Bloque 2: Business Studio ⏳ EN PROGRESO (15%)
+### FASE 5 - Bloque 2: Business Studio ⏳ EN PROGRESO (33%)
 ```
 ├── 5.4 Business Studio - Layout y Base ✅ COMPLETADO (02/01/2026)
 │   ├── DrawerBusinessStudio.tsx ✅
@@ -6683,7 +8068,7 @@ interface LogAdmin {
 │   ├── Filtros por tipo y categoría
 │   └── Toggle activo/inactivo
 │
-└── 5.4.2 Ofertas CRUD ✅ COMPLETADO 90% (16/01/2026)
+└── 5.4.2 Ofertas CRUD ✅ COMPLETADO 100% (16/01/2026)
     ├── Lista de ofertas del negocio
     ├── Modal crear/editar oferta
     ├── Tipos: 2x1, %, $, combo, happy hour
@@ -6818,7 +8203,7 @@ interface LogAdmin {
 ```
 ├── Testing y optimización
 ├── Infraestructura producción
-├── Variables de entorno (Railway/Vercel)
+├── Variables de entorno (Render/Vercel)
 ├── Stripe modo live
 ├── Dominio personalizado + SSL
 └── Beta 50 negocios
@@ -7120,7 +8505,7 @@ Fase 6.4 (Empleados)    Fase 6.5 (Sucursales)  Fase 6.6 (Reportes)
 
 ---
 
-### Business Studio ⏳ EN PROGRESO (27%)
+### Business Studio ⏳ EN PROGRESO (33%)
 
 **Dashboard ✅ COMPLETADO (02/01/2026):**
 - [x] PaginaDashboard.tsx
@@ -7145,7 +8530,7 @@ Fase 6.4 (Empleados)    Fase 6.5 (Sucursales)  Fase 6.6 (Reportes)
 - [x] Filtros por tipo y categoría
 - [x] Toggle activo/inactivo
 
-**Ofertas ✅ COMPLETADO 90/100% (16/01/2026):**-5.4.2
+**Ofertas ✅ COMPLETADO 100% (16/01/2026):** - 5.4.2
 - [x] Lista de ofertas del negocio
 - [x] Modal crear/editar oferta
 - [x] Tipos: 2x1, %, $, combo, happy hour
@@ -7154,14 +8539,24 @@ Fase 6.4 (Empleados)    Fase 6.5 (Sucursales)  Fase 6.6 (Reportes)
 
 ---
 
-### ScanYA ⏳ PENDIENTE (5.5)
-- [ ] Escanear QR de clientes
-- [ ] Registrar ventas
-- [ ] Otorgar puntos automáticos
-- [ ] Validar cupones
-- [ ] Login empleados (nick + PIN)
-- [ ] Historial de ventas del día
-- [ ] PWA widget standalone
+### ScanYA ✅ COMPLETADO 87.5% (5.5) - 17-29/01/2026
+- [x] Escanear QR de clientes
+- [x] Registrar ventas
+- [x] Otorgar puntos automáticos
+- [x] Validar cupones
+- [x] Login empleados (nick + PIN)
+- [x] Historial de ventas del día
+- [x] PWA widget standalone
+
+**Estado:** 14/16 fases completadas
+- ✅ Backend (Fases 1-7) - 100%
+- ✅ Frontend (Fases 8-12) - 100%
+- ✅ Recordatorios Offline (Fase 13) - 100%
+- ✅ PWA Instalable (Fase 16) - 100%
+- ⏸️ Chat + Reseñas (Fase 14) - Pausada (requiere ChatYA)
+- ⏳ BS > Puntos Config (Fase 15) - Prompt listo (~2.5 días)
+
+**Ver sección completa:** [🎯 FASE 5.5 - SCANYA + PWA](#-fase-55---scanya--pwa) (línea 3902)
 
 ---
 
@@ -7592,22 +8987,477 @@ TypeScript:     camelCase (negocioId, createdAt)
 API Response:   { success, data, message }
 ```
 
+## ☁️ INFRAESTRUCTURA CLOUD
+
+> **Actualización Mayor:** Migración completa a producción (26-27 enero 2026)  
+> **Resultado:** Stack 100% gratuito ($0/mes)
+
+---
+
+### 🎯 Objetivo Alcanzado
+
+**Antes (16 Enero):**
+- Backend: Railway ($5/mes mínimo)
+- BD: PostgreSQL Local (sin backups automáticos)
+- Emails: Zoho SMTP (bloqueado desde IPs cloud)
+- **Costo:** $5-10/mes
+
+**Después (29 Enero):**
+- Backend: Render (Free tier)
+- BD: Supabase (Free tier) 
+- Emails: AWS SES (Sandbox)
+- **Costo:** $0/mes ✅
+
+**Ahorro:** ~$10-15/mes
+
+---
+
+### 🏗️ Arquitectura Completa
+```
+Usuario Final
+    ↓
+    ├─► Vercel (Frontend - Edge Network)
+    │   └─► https://anunciaya-v3-app.vercel.app
+    │
+    └─► Render (Backend API - Free Tier)
+        └─► https://anunciaya-api.onrender.com
+             │
+             ├─► Supabase (PostgreSQL + PostGIS)
+             │   └─► 65 tablas, 500 MB, puerto 6543
+             │
+             ├─► MongoDB Atlas (Chat - M0 Free)
+             │   └─► 512 MB, 500 conexiones
+             │
+             ├─► Upstash (Redis - Free)
+             │   └─► 10K commands/día
+             │
+             ├─► AWS SES (Emails - Sandbox)
+             │   └─► 200 emails/día
+             │
+             ├─► Cloudinary (Imágenes - Free)
+             │   └─► 25 GB storage/mes
+             │
+             ├─► Cloudflare R2 (Tickets - Free)
+             │   └─► 10 GB, egress ilimitado
+             │
+             └─► Stripe (Pagos - Test Mode)
+                 └─► Suscripciones comerciales
+```
+
+---
+
+### 📊 Servicios en Detalle
+
+| Servicio | Proveedor | Tier | Specs | Límites | Costo |
+|----------|-----------|------|-------|---------|-------|
+| **Backend** | Render | Free | 512 MB RAM, 0.1 CPU | Cold starts 15 min | $0 |
+| **Frontend** | Vercel | Free | Edge Network global | Bandwidth ilimitado | $0 |
+| **PostgreSQL** | Supabase | Free | 500 MB, 2 CPU shared | 50K queries/día | $0 |
+| **MongoDB** | Atlas | M0 | 512 MB shared | Sin backups auto | $0 |
+| **Redis** | Upstash | Free | 10K commands/día | 256 MB | $0 |
+| **Emails** | AWS SES | Sandbox | 200 emails/día | Sandbox mode | $0 |
+| **Imágenes** | Cloudinary | Free | 25 GB/mes | 25 créditos/mes | $0 |
+| **Tickets** | R2 | Free | 10 GB storage | Egress ilimitado | $0 |
+| **Pagos** | Stripe | Test | N/A | Test mode | $0 |
+
+**Total Infraestructura: $0/mes**
+
+---
+
+### 🔄 Proceso de Migración
+
+#### A. PostgreSQL Local → Supabase
+
+**Método:** SQL Dump vía PGAdmin  
+**Tiempo:** ~2 horas  
+**Resultado:** ✅ 100% exitoso
+
+**Pasos:**
+1. **Backup PGAdmin** (Plain format, UTF8)
+   - Archivo: `anunciaya_backup.sql` (311 KB)
+   - Pre-data + Data + Post-data
+   
+2. **Limpieza SQL**
+   - Eliminar comandos `\` incompatibles con Supabase
+   - Preservar: CREATE, INSERT, ALTER, INDEX, TRIGGER
+   
+3. **Ejecución en Supabase**
+   - SQL Editor → Pegar contenido
+   - Run (30-60 segundos)
+   - Verificar: 65 tablas, índices, triggers, constraints
+
+**Resultado:**
+- ✅ 65 tablas migradas
+- ✅ Todos los índices preservados
+- ✅ Todos los triggers funcionando
+- ✅ Constraints y FKs intactos
+- ✅ PostGIS extension activa
+
+---
+
+#### B. Railway → Render
+
+**Razón del cambio:**
+- Railway: $5/mes mínimo (sin free tier real)
+- Render: Free tier 512 MB RAM permanente
+
+**Build Render:**
+```bash
+# Build Command
+cd ../.. && npm install -g pnpm && pnpm install && cd apps/api && pnpm run build
+
+# Start Command
+node dist/index.js
+```
+
+**Build con esbuild (10x más rápido):**
+```json
+{
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --packages=external"
+  }
+}
+```
+
+**Configuración:**
+- 35 variables de entorno
+- Health check: `GET /api/health`
+- Auto-deploy desde main (GitHub)
+
+**Resultado:**
+- ✅ Backend funcional en https://anunciaya-api.onrender.com
+- ✅ Cold starts ~30s tras 15 min inactividad
+- ✅ $0/mes
+
+---
+
+#### C. Zoho SMTP → AWS SES
+
+**Problema Zoho:**
+- Bloqueado desde IPs datacenter (Render, Railway, Vercel)
+- Tasa entrega ~85%
+- Latencia ~2 segundos
+
+**Setup AWS SES:**
+
+1. **Usuario IAM**
+   - Service: IAM
+   - User: `anunciaya-ses`
+   - Permissions: `AmazonSESFullAccess`
+   - Access: Programmatic
+
+2. **Verificar Dominio**
+   - Domain: `anunciaya.com`
+   - DKIM: Configurado
+   - DNS Records:
+     - TXT `_amazonses.anunciaya.com`
+     - CNAME `xxx._domainkey.anunciaya.com`
+
+3. **Implementación Backend**
+```typescript
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+
+const sesClient = new SESClient({
+  region: 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+  }
+});
+
+export async function enviarEmail(to, subject, html) {
+  const command = new SendEmailCommand({
+    Source: 'noreply@anunciaya.com',
+    Destination: { ToAddresses: [to] },
+    Message: {
+      Subject: { Data: subject },
+      Body: { Html: { Data: html } }
+    }
+  });
+  return await sesClient.send(command);
+}
+```
+
+**Resultado:**
+- ✅ Emails desde Render funcionando
+- ✅ Latencia ~200ms (vs ~2s Zoho)
+- ✅ Deliverability ~99% (vs ~85%)
+- ⚠️ Sandbox mode: 200 emails/día (pending production request)
+
+---
+
+### ⚙️ Configuración Crítica
+
+#### 1. Supabase - Puerto 6543
+```bash
+# ❌ NO USAR: Puerto 5432 (conexión directa, límite 60)
+DATABASE_URL=postgresql://user:pass@host.supabase.co:5432/postgres
+
+# ✅ SÍ USAR: Puerto 6543 (connection pooler, sin límite práctico)
+DATABASE_URL=postgresql://user:pass@host.pooler.supabase.com:6543/postgres
+```
+
+**Razón:** Connection pooler para soportar múltiples conexiones simultáneas.
+
+---
+
+#### 2. Drizzle - PostGIS Extension
+```typescript
+// drizzle.config.ts
+export default defineConfig({
+  extensionsFilters: ['postgis'] // ⬅️ CRÍTICO
+  // Sin esto: Error "spatial_ref_sys already exists"
+});
+```
+
+**Razón:** PostGIS crea tablas internas que Drizzle intenta recrear sin este filtro.
+
+---
+
+#### 3. Render - esbuild Bundle
+```json
+{
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --packages=external"
+  }
+}
+```
+
+**Ventajas:**
+- ✅ Bundle ESM compatible
+- ✅ 10x más rápido que tsc
+- ✅ Minifica automático
+- ✅ Tree-shaking
+
+---
+
+### ⚠️ Limitaciones Conocidas
+
+| Servicio | Limitación | Impacto | Mitigación |
+|----------|-----------|---------|------------|
+| **Render** | Cold starts tras 15 min | MEDIO (~30s) | Keep-alive service o upgrade $7/mes |
+| **Supabase** | 50K queries/día | BAJO | Monitorear uso, agregar índices |
+| **MongoDB** | Sin backups automáticos | MEDIO | Backups manuales semanales |
+| **AWS SES** | Sandbox 200 emails/día | MEDIO | Solicitar production access |
+| **Cloudinary** | 25 GB/mes, 25 créditos | BAJO | Optimizar con WebP |
+| **Cloudflare R2** | 10 GB storage tickets | BAJO | ~10K tickets/fotos |
+
+---
+
+### 🔀 Sistema Híbrido Local + Cloud
+
+**Variable Entorno:**
+```bash
+DB_ENVIRONMENT=local      # PostgreSQL local (desarrollo)
+DB_ENVIRONMENT=production # Supabase (producción)
+```
+
+**Configuración Drizzle:**
+```typescript
+// drizzle.config.ts
+function getDatabaseUrl(): string {
+  const env = process.env.DB_ENVIRONMENT || 'local';
+  return env === 'production'
+    ? process.env.DATABASE_URL_PRODUCTION!
+    : process.env.DATABASE_URL_LOCAL!;
+}
+
+export default defineConfig({
+  dbCredentials: { url: getDatabaseUrl() },
+  extensionsFilters: ['postgis']
+});
+```
+
+**Workflows:**
+```bash
+# Dev local con BD local
+DB_ENVIRONMENT=local pnpm dev
+
+# Dev local con BD cloud (testing)
+DB_ENVIRONMENT=production pnpm dev
+
+# Producción (Render - automático)
+DB_ENVIRONMENT=production
+```
+
+---
+
+### 📍 URLs Producción
+
+| Servicio | URL |
+|----------|-----|
+| **Frontend** | https://anunciaya-v3-app.vercel.app |
+| **Backend API** | https://anunciaya-api.onrender.com |
+| **Health Check** | https://anunciaya-api.onrender.com/api/health |
+| **ScanYA Login** | https://anunciaya-v3-app.vercel.app/scanya/login |
+
+---
+
+### 📚 Documentación Infraestructura
+
+| Documento | Líneas | Contenido |
+|-----------|--------|-----------|
+| **Migración PostgreSQL → Supabase** | 1,054 | Proceso completo paso a paso |
+| **Inventario Credenciales** | 2,905 | 9 servicios cloud (280 páginas) |
+
+**Inventario Credenciales incluye:**
+- Credenciales acceso 9 servicios
+- URLs paneles de control
+- 35 variables de entorno
+- Configuraciones específicas por servicio
+- Límites y cuotas
+- Procedimientos backup
+- Disaster recovery
+- Troubleshooting común
+- Contactos soporte
+
+**Archivo:** `AnunciaYA_Inventario_Credenciales_CONFIDENCIAL.md`
+
+---
+
+### 📊 Métricas Migración
+
+| Métrica | Valor |
+|---------|-------|
+| **Servicios migrados** | 4 |
+| **Tablas BD migradas** | 65 |
+| **Datos preservados** | 100% |
+| **Costo anterior** | $5-10/mes |
+| **Costo nuevo** | $0/mes |
+| **Ahorro anual** | ~$120-180/año |
+| **Tiempo migración** | ~8 horas |
+| **Downtime** | 0 minutos |
+| **Estado actual** | ✅ Producción estable |
+
+---
+
+### ✅ Checklist Infraestructura
+
+#### Backend
+- [x] Render Free tier configurado
+- [x] Build esbuild funcional
+- [x] 35 variables entorno
+- [x] Health check activo
+- [x] Auto-deploy GitHub
+
+#### Base de Datos
+- [x] Supabase PostgreSQL migrado
+- [x] PostGIS extension activa
+- [x] 65 tablas verificadas
+- [x] Connection pooler (puerto 6543)
+- [x] MongoDB Atlas M0 configurado
+
+#### Storage
+- [x] Cloudinary imágenes negocio
+- [x] Cloudflare R2 tickets venta
+- [x] Conversión WebP automática
+
+#### Comunicación
+- [x] AWS SES configurado
+- [x] Dominio verificado
+- [x] DKIM records
+- [x] Emails test funcionando
+
+#### Caché & Sesiones
+- [x] Upstash Redis configurado
+- [x] 10K commands/día disponibles
+
+#### Pagos
+- [x] Stripe test mode
+- [x] Webhook configured
+- [x] Plans configured
+
+---
+
+### 🚀 Próximos Pasos Infraestructura
+
+#### Inmediato (1 semana)
+1. ⏳ AWS SES: Solicitar production access
+2. ⏳ Monitoreo: Implementar Sentry (error tracking)
+3. ⏳ Analytics: Configurar Mixpanel/Amplitude
+
+#### Corto Plazo (2-3 semanas)
+1. ⏳ Backups MongoDB: Automatizar semanales
+2. ⏳ Keep-alive: Implementar para Render
+3. ⏳ CDN: Configurar para assets estáticos
+
+#### Mediano Plazo (1-2 meses)
+1. ⏳ Dominio personalizado: anunciaya.mx
+2. ⏳ SSL wildcard: *.anunciaya.mx
+3. ⏳ Upgrade selectivo: Render $7/mes si cold starts problemáticos
+
 ---
 
 ## 📊 Resumen del Proyecto
 
-| Área | Estado |
-|------|--------|
-| Fases 1-4 | ✅ 100% Completadas |
-| Fase 5 | ⏳ ~40% (Bloque 1-2 completos) |
-| Fase 6 | ⏳ 0% Pendiente |
-| Business Studio | ⏳ 15% (2/14 módulos) |
+| Área | Estado | Cambio |
+|------|--------|--------|
+| Fases 1-4 | ✅ 100% Completadas | - |
+| Fase 5 (Frontend) | ⏳ **~55%** completado | +19% |
+| Fase 5.5 ScanYA | ✅ **87.5%** completado | **+87.5%** |
+| Fase 6 (Públicas) | ⏳ 0% Pendiente | - |
+| Fase 7 (Deploy) | ✅ **100% Migrado** | **+100%** |
+| Business Studio | ⏳ **33%** (5/15 módulos) | +18% |
+| **Proyecto Total** | **~81%** completado | **+21%** |
+
+### Progreso Visual
+```
+17 Enero: [████████████░░░░░░░░] 60%
+29 Enero: [████████████████░░░░] 81%
+          +21% en 12 días
+```
+
+### Métricas Clave (17-29 Enero)
+
+- 📅 12 días desarrollo (~74 horas activas)
+- 💻 ~16,650 líneas código
+- 🐛 14 bugs resueltos (5 críticos)
+- ✅ 99 tests pasados (100%)
+- 📚 ~27,000 líneas documentación
+- 💰 $0/mes infraestructura (vs $5-10/mes)
 
 ---
 
-*Roadmap Maestro: 16 Enero 2026*  
-*Proyecto: AnunciaYA v3.0*  
-*Versión: 5.1*  
+---
+
+*Roadmap Maestro AnunciaYA v3.0*  
+*Última Actualización: **29 Enero 2026***  
+*Versión Roadmap: **6.0***  
 *Desarrollador: Juan Manuel Valenzuela*  
-*Tiempo Fases 1-4: 4 semanas*  
-*Tiempo Total Estimado Restante: ~8-9 semanas*
+
+---
+
+**📊 Estado del Proyecto:**
+- Progreso Global: **81%** (+21% desde 16 enero)
+- Tiempo Total Desarrollo: ~2 meses
+- Período Intensivo: 17-29 enero (12 días, ~74 horas)
+- Tiempo Estimado Restante: **~5-6 semanas**
+
+**☁️ Infraestructura:**
+- Costo: **$0/mes** (9 servicios cloud)
+- Stack: Render + Supabase + Vercel + 6 más
+- Estado: ✅ Producción estable
+
+**🎯 Próximos Hitos:**
+1. ⏳ Fase 5.5.6 - BS > Puntos Config (~2.5 días) - **CRÍTICO**
+2. ⏳ Fase 5.6 - CardYA PWA (~5-7 días)
+3. ⏳ Fase 5.10 - ChatYA Base (~3-4 días)
+4. ⏳ Fase 6.x - Secciones Públicas (~3-4 semanas)
+5. ⏳ Fase 6.7 - Panel Admin (~1-2 semanas)
+
+**📚 Documentación Técnica:**
+- Bitácora Completa: 15,000 líneas
+- 8 Documentos Técnicos Principales
+- Total: ~27,000 líneas documentación
+
+---
+
+**Acceso Producción:**
+- Frontend: https://anunciaya-v3-app.vercel.app
+- Backend: https://anunciaya-api.onrender.com
+- ScanYA: https://anunciaya-v3-app.vercel.app/scanya/login
+- Health Check: https://anunciaya-api.onrender.com/api/health
+
+---
+
+**Fin del Roadmap**

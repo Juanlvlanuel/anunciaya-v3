@@ -62,7 +62,7 @@ if (!useAwsSes && env.SMTP_HOST) {
 }
 
 // Remitente configurado
-const EMAIL_FROM = env.EMAIL_FROM || 'AnunciaYA <admin@anunciaya.online>';
+const EMAIL_FROM = `AnunciaYA <${env.AWS_SES_FROM_EMAIL}>`;
 
 // =============================================================================
 // PLANTILLAS DE EMAIL
