@@ -4,23 +4,25 @@ import { z } from 'zod';
 // Cargar variables del archivo .env
 config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // ====================================
 // Esquema de validación con Zod
 // ====================================
-// Define qué variables se esperan y de qué tipo deben ser
-// Si falta alguna o tiene formato incorrecto, la app NO inicia
-
 const esquemaEnv = z.object({
   // -------- Ambiente --------
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   API_PORT: z.string().default('4000').transform(Number),
 
-  // -------- PostgreSQL Local --------
+  // -------- PostgreSQL --------
   DATABASE_URL: z.string().min(1, 'DATABASE_URL es requerida'),
   
-  // -------- Supabase (Producción) --------
-  DATABASE_URL_PRODUCTION: z.string().min(1, 'DATABASE_URL_PRODUCTION es requerida'),
-  DB_ENVIRONMENT: z.enum(['local', 'production']).default('local'),
+  // Solo requerida en desarrollo (para referencia local vs producción)
+  DATABASE_URL_PRODUCTION: isProduction 
+    ? z.string().optional() 
+    : z.string().min(1, 'DATABASE_URL_PRODUCTION es requerida'),
+  
+  DB_ENVIRONMENT: z.enum(['local', 'production']).default(isProduction ? 'production' : 'local'),
 
   // -------- MongoDB --------
   MONGODB_URI: z.string().min(1, 'MONGODB_URI es requerida'),
@@ -37,12 +39,18 @@ const esquemaEnv = z.object({
   JWT_ACCESS_EXPIRES: z.string().default('1h'),
   JWT_REFRESH_EXPIRES: z.string().default('7d'),
 
-  // -------- Email (Zoho SMTP) --------
-  SMTP_HOST: z.string().min(1, 'SMTP_HOST es requerido'),
+  // -------- Email (SMTP - DEPRECADO, ahora se usa AWS SES) --------
+  SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().default('465').transform(Number),
-  SMTP_USER: z.string().min(1, 'SMTP_USER es requerido'),
-  SMTP_PASS: z.string().min(1, 'SMTP_PASS es requerido'),
-  EMAIL_FROM: z.string().min(1, 'EMAIL_FROM es requerido'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+
+  // -------- AWS SES (sistema actual de emails) --------
+  AWS_ACCESS_KEY_ID: z.string().min(1, 'AWS_ACCESS_KEY_ID es requerido'),
+  AWS_SECRET_ACCESS_KEY: z.string().min(1, 'AWS_SECRET_ACCESS_KEY es requerido'),
+  AWS_REGION: z.string().default('us-east-2'),
+  AWS_SES_FROM_EMAIL: z.string().email('AWS_SES_FROM_EMAIL debe ser un email válido'),
 
   // -------- Google OAuth --------
   GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID es requerido'),
@@ -70,30 +78,28 @@ const esquemaEnv = z.object({
 // ====================================
 // Validar y exportar
 // ====================================
-
-// Intentar validar las variables de entorno
 const resultadoValidacion = esquemaEnv.safeParse(process.env);
 
-// Si hay errores, mostrarlos y detener la aplicación
 if (!resultadoValidacion.success) {
   console.error('❌ Error en variables de entorno:');
   console.error(resultadoValidacion.error.format());
   process.exit(1);
 }
 
-// Exportar las variables validadas y tipadas
 export const env = resultadoValidacion.data;
 
 // ====================================
 // Helper para obtener DATABASE_URL según ambiente
 // ====================================
 export const getDatabaseUrl = (): string => {
+  // En producción siempre usa DATABASE_URL
+  // En desarrollo usa DATABASE_URL_PRODUCTION si DB_ENVIRONMENT === 'production'
+  if (isProduction) {
+    return env.DATABASE_URL;
+  }
   return env.DB_ENVIRONMENT === 'production' 
-    ? env.DATABASE_URL_PRODUCTION 
+    ? (env.DATABASE_URL_PRODUCTION || env.DATABASE_URL)
     : env.DATABASE_URL;
 };
 
-// ====================================
-// Tipos exportados
-// ====================================
 export type Env = z.infer<typeof esquemaEnv>;
