@@ -365,8 +365,9 @@ export interface VoucherCompleto {
  * Filtros para obtener vouchers
  */
 export interface FiltrosVouchers {
-  estado?: 'pendiente' | 'usado' | 'vencido' | 'cancelado' | 'todos';
+  estado?: 'pendiente' | 'usado' | 'expirado' | 'cancelado' | 'todos';
   sucursalId?: string;
+  empleadoId?: string;   
   pagina?: number;
   limite?: number;
 }

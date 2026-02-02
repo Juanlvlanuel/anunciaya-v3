@@ -15,7 +15,8 @@
  * - Interacciones simplificadas
  * 
  * LAYOUT DESKTOP:
- * - Mantiene estructura original (3 KPIs, 6 secundarios, etc)
+ * - 3 KPIs principales + 4 mini stats verticales en 1 fila
+ * - Sin porcentajes ni tendencias
  */
 
 import { useEffect, useState, useMemo } from 'react';
@@ -40,7 +41,6 @@ import PanelAlertas from './componentes/PanelAlertas';
 import BannerAlertasUrgentes from './componentes/BannerAlertasUrgentes';
 import KPICompacto from './componentes/KPICompacto';
 import GraficaColapsable from './componentes/GraficaColapsable';
-import PanelMetricasSecundarias from './componentes/PanelMetricasSecundarias';
 import { ModalOferta } from '../ofertas/ModalOferta';
 import { ModalArticulo } from '../catalogo/ModalArticulo';
 
@@ -196,8 +196,8 @@ export default function PaginaDashboard() {
   };
 
   return (
-    <div className="bg-linear-to-br from-slate-50 via-blue-50/30 to-cyan-50/20 p-4 lg:p-2 2xl:p-4">
-      <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-8 lg:space-y-6 2xl:space-y-12">
+    <div className="p-3 lg:p-1.5 2xl:p-3">
+      <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-8 lg:space-y-7 2xl:space-y-14">
         {/* Header */}
         <HeaderDashboard
           onNuevaOferta={handleNuevaOferta}
@@ -237,12 +237,12 @@ export default function PaginaDashboard() {
 
             {/* Botón refresh */}
             <button
-              onClick={handleRefresh}  // ← NUEVO
-              disabled={refrescando}  // ← NUEVO
+              onClick={handleRefresh}
+              disabled={refrescando}
               className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
               title="Actualizar"
             >
-              <RefreshCw className={`w-5 h-5 ${refrescando ? 'animate-spin' : ''}`} />  {/* ← NUEVO */}
+              <RefreshCw className={`w-5 h-5 ${refrescando ? 'animate-spin' : ''}`} />
             </button>
           </div>
 
@@ -250,9 +250,6 @@ export default function PaginaDashboard() {
           <KPIPrincipal
             titulo="Ventas Totales"
             valor={kpis?.ventas.valor ?? 0}
-            valorAnterior={kpis?.ventas.valorAnterior ?? 0}
-            porcentaje={kpis?.ventas.porcentajeCambio ?? 0}
-            tendencia={kpis?.ventas.tendencia ?? 'igual'}
             miniGrafica={kpis?.ventas.miniGrafica ?? []}
             icono={DollarSign}
             colorIcono="from-emerald-500 to-teal-600"
@@ -265,8 +262,6 @@ export default function PaginaDashboard() {
             <KPICompacto
               titulo="Clientes"
               valor={kpis?.clientes.valor ?? 0}
-              porcentaje={kpis?.clientes.porcentajeCambio ?? 0}
-              tendencia={kpis?.clientes.tendencia ?? 'igual'}
               icono={Users}
               colorIcono="from-blue-500 to-indigo-600"
               subtitulo={`${kpis?.clientes.nuevos ?? 0} nuevos`}
@@ -275,8 +270,6 @@ export default function PaginaDashboard() {
             <KPICompacto
               titulo="Transacciones"
               valor={kpis?.transacciones.valor ?? 0}
-              porcentaje={kpis?.transacciones.porcentajeCambio ?? 0}
-              tendencia={kpis?.transacciones.tendencia ?? 'igual'}
               icono={CreditCard}
               colorIcono="from-violet-500 to-purple-600"
               subtitulo={`Ticket prom: $${kpis?.transacciones.ticketPromedio?.toLocaleString() ?? 0}`}
@@ -339,122 +332,87 @@ export default function PaginaDashboard() {
         </div>
 
         {/* =================================================================== */}
-        {/* LAYOUT DESKTOP - Mantiene estructura original */}
+        {/* LAYOUT DESKTOP - Nuevo diseño compacto */}
         {/* =================================================================== */}
-        <div className="hidden lg:block space-y-4 2xl:space-y-5">
-          {/* KPIs Principales - 3 cards grandes */}
-          <div className="grid grid-cols-3 gap-4 lg:gap-3 2xl:gap-6">
-            <KPIPrincipal
-              titulo="Ventas Totales"
-              valor={kpis?.ventas.valor ?? 0}
-              valorAnterior={kpis?.ventas.valorAnterior ?? 0}
-              porcentaje={kpis?.ventas.porcentajeCambio ?? 0}
-              tendencia={kpis?.ventas.tendencia ?? 'igual'}
-              miniGrafica={kpis?.ventas.miniGrafica ?? []}
-              icono={DollarSign}
-              colorIcono="from-emerald-500 to-teal-600"
-              formato="moneda"
-              cargando={cargandoKpis}
-            />
-            <KPIPrincipal
-              titulo="Clientes"
-              valor={kpis?.clientes.valor ?? 0}
-              valorAnterior={kpis?.clientes.valorAnterior ?? 0}
-              porcentaje={kpis?.clientes.porcentajeCambio ?? 0}
-              tendencia={kpis?.clientes.tendencia ?? 'igual'}
-              icono={Users}
-              colorIcono="from-blue-500 to-indigo-600"
-              subtitulo={`${kpis?.clientes.nuevos ?? 0} nuevos · ${kpis?.clientes.recurrentes ?? 0} recurrentes`}
-              cargando={cargandoKpis}
-            />
-            <KPIPrincipal
-              titulo="Transacciones"
-              valor={kpis?.transacciones.valor ?? 0}
-              valorAnterior={kpis?.transacciones.valorAnterior ?? 0}
-              porcentaje={kpis?.transacciones.porcentajeCambio ?? 0}
-              tendencia={kpis?.transacciones.tendencia ?? 'igual'}
-              icono={CreditCard}
-              colorIcono="from-violet-500 to-purple-600"
-              subtitulo={`Ticket prom: $${kpis?.transacciones.ticketPromedio?.toLocaleString() ?? 0}`}
-              cargando={cargandoKpis}
-            />
-          </div>
+        <div className="hidden lg:block space-y-3 2xl:space-y-4">
+          {/* Fila superior: KPIs + Pills + Cupones/Alertas | Gráfica derecha */}
+          <div className="flex gap-3 2xl:gap-4">
+            {/* Columna izquierda - 60% del ancho */}
+            <div className="w-[58%] lg:w-[55%] 2xl:w-[58%] shrink-0 flex flex-col gap-2 2xl:gap-3">
+              {/* 3 KPIs Principales */}
+              <div className="grid grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2">
+                <KPIPrincipal
+                  titulo="Ventas Totales"
+                  valor={kpis?.ventas.valor ?? 0}
+                  miniGrafica={kpis?.ventas.miniGrafica ?? []}
+                  icono={DollarSign}
+                  colorIcono="from-emerald-500 to-teal-600"
+                  formato="moneda"
+                  cargando={cargandoKpis}
+                />
+                <KPIPrincipal
+                  titulo="Clientes Totales"
+                  valor={kpis?.clientes.valor ?? 0}
+                  icono={Users}
+                  colorIcono="from-blue-500 to-indigo-600"
+                  subtitulo={`Nuevos: ${kpis?.clientes.nuevos ?? 0} · Recurrentes: ${kpis?.clientes.recurrentes ?? 0}`}
+                  cargando={cargandoKpis}
+                />
+                <KPIPrincipal
+                  titulo="Transacciones"
+                  valor={kpis?.transacciones.valor ?? 0}
+                  icono={CreditCard}
+                  colorIcono="from-violet-500 to-purple-600"
+                  subtitulo={`Ticket Prom: $${kpis?.transacciones.ticketPromedio?.toLocaleString() ?? 0}`}
+                  cargando={cargandoKpis}
+                />
+              </div>
 
-          {/* KPIs Secundarios - Panel agrupado */}
-          <PanelMetricasSecundarias
-            metricas={[
-              {
-                titulo: 'Cupones Canjeados',
-                valor: kpis?.cuponesCanjeados.valor ?? 0,
-                icono: Ticket,
-                color: 'text-amber-600',
-                bgColor: 'bg-amber-50',
-                mostrarEnLaptop: true,
-              },
-              {
-                titulo: 'Ofertas Activas',
-                valor: kpis?.ofertasActivas ?? 0,
-                icono: Tag,
-                color: 'text-rose-600',
-                bgColor: 'bg-rose-50',
-                mostrarEnLaptop: true,
-              },
-              {
-                titulo: 'Followers',
-                valor: kpis?.followers ?? 0,
-                icono: UserPlus,
-                color: 'text-blue-600',
-                bgColor: 'bg-blue-50',
-                mostrarEnLaptop: false, // Solo desktop
-              },
-              {
-                titulo: 'Likes',
-                valor: kpis?.likes.valor ?? 0,
-                icono: Heart,
-                color: 'text-pink-600',
-                bgColor: 'bg-pink-50',
-                mostrarEnLaptop: false, // Solo desktop
-              },
-              {
-                titulo: 'Rating Perfil',
-                valor: kpis?.rating.valor ?? 0,
-                subtitulo: `${kpis?.rating.totalResenas ?? 0} reseñas`,
-                icono: Star,
-                color: 'text-yellow-600',
-                bgColor: 'bg-yellow-50',
-                formato: 'decimal',
-                mostrarEnLaptop: true,
-              },
-              {
-                titulo: 'Vistas del Perfil',
-                valor: kpis?.vistas.valor ?? 0,
-                icono: Eye,
-                color: 'text-slate-600',
-                bgColor: 'bg-slate-100',
-                mostrarEnLaptop: true,
-              },
-            ]}
-          />
+              {/* 4 Mini Stats como Pills Horizontales */}
+              <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
+                  <UserPlus className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                  <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.followers ?? 0}</span>
+                  <span className="text-blue-500 text-sm lg:text-xs 2xl:text-base">Followers</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-pink-50 text-pink-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
+                  <Heart className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                  <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.likes.valor ?? 0}</span>
+                  <span className="text-pink-500 text-sm lg:text-xs 2xl:text-base">Likes</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
+                  <Star className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                  <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
+                  <span className="text-yellow-600 text-sm lg:text-xs 2xl:text-base">Rating</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
+                  <Eye className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                  <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.vistas.valor ?? 0}</span>
+                  <span className="text-blue-500 text-sm lg:text-xs 2xl:text-base">Vistas</span>
+                </div>
+              </div>
 
-          {/* Gráfica de Ventas + Panel Campañas */}
-          <div className="grid grid-cols-3 gap-3 2xl:gap-6">
-            <div className="col-span-2 h-full min-h-80 2xl:min-h-[400px]">
-              <GraficaVentas datos={ventas} />
+              {/* Cupones/Ofertas + Alertas (más compactos) */}
+              <div className="grid grid-cols-2 gap-2 lg:gap-1.5 2xl:gap-2 flex-1">
+                <PanelCampanas
+                  campanas={campanasOrdenadas}
+                  totalActivas={kpis?.ofertasActivas ?? 0}
+                  onEditar={handleEditarOferta}
+                />
+                <PanelAlertas alertas={alertas} />
+              </div>
             </div>
-            <div>
-              <PanelCampanas
-                campanas={campanasOrdenadas}
-                totalActivas={kpis?.ofertasActivas ?? 0}
-                onEditar={handleEditarOferta}
-              />
+
+            {/* Columna derecha: Gráfica Vertical - ocupa el resto */}
+            <div className="flex-1 min-w-0">
+              <GraficaVentas datos={ventas} vertical={true} />
             </div>
           </div>
 
-          {/* 3 Columnas: Interacciones, Opiniones, Alertas */}
-          <div className="grid grid-cols-3 gap-3 2xl:gap-6">
-            <PanelInteracciones interacciones={interacciones} />
+          {/* Fila inferior: Opiniones + Interacciones */}
+          <div className="grid grid-cols-2 gap-3 2xl:gap-4">
             <PanelOpiniones resenas={resenas} />
-            <PanelAlertas alertas={alertas} />
+            <PanelInteracciones interacciones={interacciones} />
           </div>
         </div>
       </div>

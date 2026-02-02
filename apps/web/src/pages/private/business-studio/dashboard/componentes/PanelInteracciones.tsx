@@ -67,62 +67,59 @@ function getIconoInteraccion(tipo: Interaccion['tipo']) {
 
 export default function PanelInteracciones({ interacciones, vistaMobil = false }: PanelInteraccionesProps) {
   return (
-    <div className={`bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl border-2 border-slate-300 p-4 lg:p-3.5 2xl:p-4 ${!vistaMobil && 'max-h-[400px]'} flex flex-col shadow-lg hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.03] 2xl:hover:scale-[1.03] hover:-translate-y-1 transition-all duration-200`}>
+    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-4 lg:p-3 2xl:p-4 ${!vistaMobil ? 'max-h-[270px] lg:max-h-[230px] 2xl:max-h-[340px]' : ''} flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200`}>
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-          <Users className="w-4 h-4 text-indigo-500" />
+      <div className="flex items-center gap-2 mb-3 lg:mb-2 2xl:mb-3">
+        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+          <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-indigo-600" />
         </div>
-        <div>
-          <h3 className="font-semibold text-slate-800">Interacciones</h3>
-          <p className="text-xs text-slate-500">Actividad de clientes</p>
-        </div>
+        <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800">Actividad Reciente</h3>
       </div>
 
       {/* Lista */}
-      <div className={`flex-1 space-y-3 ${!vistaMobil && 'overflow-y-auto'}`}>
+      <div className={`flex-1 space-y-2 lg:space-y-1.5 2xl:space-y-2 ${!vistaMobil && 'overflow-y-auto'}`}>
         {interacciones.length > 0 ? (
-          interacciones.map((interaccion, index) => {
+          interacciones.slice(0, 20).map((interaccion, index) => {
             const { icon: Icono, bg, color } = getIconoInteraccion(interaccion.tipo);
 
             return (
               <div
                 key={`${interaccion.tipo}-${interaccion.id}-${index}`}
-                className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg hover:bg-slate-50 transition-colors"
               >
                 {/* Avatar o Icono */}
                 {interaccion.avatar ? (
                   <img
                     src={interaccion.avatar}
                     alt={interaccion.titulo}
-                    className="w-8 h-8 rounded-full object-cover shrink-0"
+                    className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full object-cover shrink-0"
                   />
                 ) : (
-                  <div className={`w-8 h-8 rounded-full ${bg} flex items-center justify-center shrink-0`}>
+                  <div className={`w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full ${bg} flex items-center justify-center shrink-0`}>
                     {interaccion.tipo === 'compartido' ? (
-                      <Icono className={`w-4 h-4 ${color}`} />
+                      <Icono className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 ${color}`} />
                     ) : (
-                      <User className="w-4 h-4 text-slate-400" />
+                      <User className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" />
                     )}
                   </div>
                 )}
 
                 {/* Contenido */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-800 font-medium truncate">
+                  <p className="text-sm lg:text-xs 2xl:text-sm text-slate-800 font-semibold truncate">
                     {interaccion.titulo}
                   </p>
-                  <p className="text-xs text-slate-500 truncate">
+                  <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-600 truncate">
                     {interaccion.descripcion}
                   </p>
                 </div>
 
                 {/* Icono tipo + Tiempo */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className={`w-6 h-6 rounded-md ${bg} flex items-center justify-center`}>
-                    <Icono className={`w-3 h-3 ${color}`} />
+                <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 shrink-0">
+                  <div className={`w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-md ${bg} flex items-center justify-center`}>
+                    <Icono className={`w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 ${color}`} />
                   </div>
-                  <span className="text-xs text-slate-400 w-8 text-right">
+                  <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500 font-medium whitespace-nowrap">
                     {formatearTiempo(interaccion.createdAt)}
                   </span>
                 </div>
@@ -132,8 +129,8 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
         ) : (
           /* Estado vacío */
           <div className="flex-1 flex flex-col items-center justify-center py-6 text-slate-400">
-            <Users className="w-8 h-8 mb-2 opacity-50" />
-            <p className="text-sm">Sin interacciones recientes</p>
+            <Users className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 mb-2 opacity-50" />
+            <p className="text-sm lg:text-xs 2xl:text-sm">Sin Actividad Reciente</p>
           </div>
         )}
       </div>

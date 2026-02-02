@@ -121,12 +121,12 @@ export default function SelectorSucursalesInline() {
   if (esGerente) {
     return (
       <div className="flex flex-col">
-        {/* Nombre del NEGOCIO - Texto más grande */}
-        <span className="text-base font-semibold text-slate-900">
+        {/* Nombre del NEGOCIO - Responsive */}
+        <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">
           {usuario?.nombreNegocio || 'Sin asignar'}
         </span>
         {/* Etiqueta de sucursal fija */}
-        <span className="text-sm text-blue-600 font-medium">
+        <span className="text-xs lg:text-xs 2xl:text-sm text-cyan-300 font-bold">
           Sucursal Fija
         </span>
       </div>
@@ -139,12 +139,12 @@ export default function SelectorSucursalesInline() {
   if (esDueño && sucursales.length === 1) {
     return (
       <div className="flex flex-col">
-        {/* Nombre del NEGOCIO - Texto más grande */}
-        <span className="text-base font-semibold text-slate-900">
+        {/* Nombre del NEGOCIO - Responsive */}
+        <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">
           {usuario?.nombreNegocio || 'Sin nombre'}
         </span>
         {/* Etiqueta "Matriz" */}
-        <span className="text-sm text-emerald-600 font-medium">
+        <span className="text-xs lg:text-xs 2xl:text-sm text-cyan-300 font-bold">
           Matriz
         </span>
       </div>
@@ -156,38 +156,36 @@ export default function SelectorSucursalesInline() {
   // =========================================================================
   if (esDueño && sucursales.length > 1) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 lg:gap-1 2xl:gap-2">
         {/* Flecha Izquierda */}
         <button
           onClick={irAnterior}
           disabled={indiceActual === 0}
-          className={`p-1.5 rounded-lg transition-all ${
+          className={`p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-all ${
             indiceActual === 0
-              ? 'text-slate-300 cursor-not-allowed'
-              : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 active:scale-95'
+              ? 'text-white/30 cursor-not-allowed'
+              : 'text-white/70 hover:text-white hover:bg-white/10 active:scale-95 cursor-pointer'
           }`}
           title="Sucursal anterior"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
         </button>
 
         {/* Nombre del NEGOCIO + Etiqueta de Sucursal */}
-        <div className="flex flex-col min-w-[200px]">
-          {/* Primera línea: Nombre del NEGOCIO - Texto más grande */}
-          <span className="text-base font-semibold text-slate-900 truncate">
+        <div className="flex flex-col min-w-[140px] lg:min-w-[140px] 2xl:min-w-[200px]">
+          {/* Primera línea: Nombre del NEGOCIO - Responsive */}
+          <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white truncate">
             {usuario?.nombreNegocio || 'Sin nombre'}
           </span>
           
           {/* Segunda línea: "Matriz" o Nombre de Sucursal */}
-          <span className={`text-sm font-medium ${
-            sucursalActual?.esPrincipal ? 'text-emerald-600' : 'text-blue-600'
-          }`}>
+          <span className="text-xs lg:text-xs 2xl:text-sm font-bold text-cyan-300">
             {sucursalActual?.esPrincipal ? 'Matriz' : sucursalActual?.nombre}
           </span>
         </div>
 
         {/* Contador "1 de 3" antes de la flecha derecha */}
-        <span className="text-sm text-slate-500 font-medium">
+        <span className="text-xs lg:text-xs 2xl:text-sm text-blue-200 font-medium">
           {indiceActual + 1} de {sucursales.length}
         </span>
 
@@ -195,14 +193,14 @@ export default function SelectorSucursalesInline() {
         <button
           onClick={irSiguiente}
           disabled={indiceActual === sucursales.length - 1}
-          className={`p-1.5 rounded-lg transition-all ${
+          className={`p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-all ${
             indiceActual === sucursales.length - 1
-              ? 'text-slate-300 cursor-not-allowed'
-              : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 active:scale-95'
+              ? 'text-white/30 cursor-not-allowed'
+              : 'text-white/70 hover:text-white hover:bg-white/10 active:scale-95 cursor-pointer'
           }`}
           title="Siguiente sucursal"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
         </button>
       </div>
     );

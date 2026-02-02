@@ -359,6 +359,17 @@ export function usePerfil() {
               subcategoriasIds: datosInformacion.subcategoriasIds,
               participaCardYA: datosInformacion.participaCardYA,
             });
+
+            // Actualizar nombreNegocio en authStore si cambió el nombre
+            if (usuario && datosInformacion.nombre !== datosInicialesInformacion.nombre) {
+              const usuarioActual = useAuthStore.getState().usuario;
+              if (usuarioActual) {
+                useAuthStore.getState().setUsuario({
+                  ...usuarioActual,
+                  nombreNegocio: datosInformacion.nombre,
+                });
+              }
+            }
           } catch (error) {
             setDatosInformacion(datosAnteriores);
             errores.push('Datos del Negocio');

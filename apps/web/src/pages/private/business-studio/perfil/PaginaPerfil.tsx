@@ -13,10 +13,11 @@
  * - Tabs dinámicos según tipo de negocio (físico/online)
  * - Tab "Ubicación" oculto para negocios online
  * - Ancho reducido en laptop para mejor uso del espacio
+ * - Header con icono animado (estilo unificado Business Studio)
  */
 
 import React, { useState, useMemo } from 'react';
-import { Save } from 'lucide-react';
+import { Save, User } from 'lucide-react';
 import { usePerfil } from './hooks/usePerfil';
 import { Spinner } from '../../../../components/ui';
 import TabInformacion from './components/TabInformacion';
@@ -25,6 +26,21 @@ import TabContacto from './components/TabContacto';
 import TabHorarios from './components/TabHorarios';
 import TabImagenes from './components/TabImagenes';
 import TabOperacion from './components/TabOperacion';
+
+// =============================================================================
+// CSS — Animación del icono del header (estilo unificado)
+// =============================================================================
+
+const ESTILO_ICONO_HEADER = `
+  @keyframes perfil-icon-bounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    40%      { transform: translateY(-4px) rotate(-3deg); }
+    60%      { transform: translateY(-2px) rotate(2deg); }
+  }
+  .perfil-icon-bounce {
+    animation: perfil-icon-bounce 2s ease-in-out infinite;
+  }
+`;
 
 // =============================================================================
 // TIPOS
@@ -148,38 +164,88 @@ export default function PaginaPerfil() {
   // =============================================================================
 
   return (
-    <div className="bg-linear-to-br from-slate-50 via-blue-50/30 to-cyan-50/20 p-2 lg:p-2 2xl:p-4">
+    <div className="p-3 lg:p-1.5 2xl:p-3">
+      {/* Inyectar estilos de animación */}
+      <style dangerouslySetInnerHTML={{ __html: ESTILO_ICONO_HEADER }} />
+
       {/* CONTENEDOR CON ANCHO REDUCIDO EN LAPTOP */}
       <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto">
 
-        {/* CARD PRINCIPAL */}
-        <div className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+        {/* ===================================================================== */}
+        {/* HEADER CON ICONO ANIMADO Y TABS */}
+        {/* ===================================================================== */}
 
-          {/* TABS */}
-          <div className="border-b-3 border-blue-400 bg-blue-100 px-3 lg:px-4 2xl:px-6 shadow-md">
-            <div className="flex items-center gap-4 lg:gap-3 2xl:gap-4">
-              
-              {/* TABS - Scroll completo */}
-              <div className="flex gap-2 lg:gap-1.5 2xl:gap-2 overflow-x-auto flex-1">
-                {tabs.map((tab, index) => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setTabActivo(index)}
-                    className={`
-                      px-4 py-3 lg:px-3 lg:py-2 2xl:px-5 2xl:py-3.5 text-base lg:text-sm 2xl:text-base font-bold whitespace-nowrap transition-all duration-200
-                      ${tabActivo === index
-                        ? 'text-blue-600 bg-white'
-                        : 'text-slate-700 hover:text-blue-600 hover:bg-blue-50'
-                      }
-                    `}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+        <div className="flex items-center justify-between gap-6 mb-3 lg:mb-7 2xl:mb-14">
+          {/* Contenedor del título e icono */}
+          <div className="flex items-center gap-4 shrink-0">
+            {/* Contenedor del icono con gradiente */}
+            <div
+              className="flex items-center justify-center shrink-0"
+              style={{
+                width: 52, height: 52, borderRadius: 14,
+                background: 'linear-gradient(135deg, #1d4ed8, #3b82f6, #60a5fa)',
+                boxShadow: '0 6px 20px rgba(59,130,246,0.4)',
+              }}
+            >
+              {/* User animado */}
+              <div className="perfil-icon-bounce">
+                <User className="w-6 h-6 text-white" strokeWidth={2.5} />
               </div>
-
+            </div>
+            <div>
+              <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Mi Perfil
+              </h1>
+              <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
+                Información de tu negocio
+              </p>
             </div>
           </div>
+
+          {/* TABS INLINE A LA DERECHA */}
+          <div className="hidden lg:flex gap-1.5 2xl:gap-2 overflow-x-auto flex-1 justify-end">
+            {tabs.map((tab, index) => (
+              <button
+                key={tab.key}
+                onClick={() => setTabActivo(index)}
+                className={`
+                  px-2.5 py-2 2xl:px-5 2xl:py-2.5 text-xs 2xl:text-base font-bold whitespace-nowrap rounded-lg transition-all duration-200 cursor-pointer border-2 shrink-0
+                  ${tabActivo === index
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/30'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  }
+                `}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* TABS MÓVIL (debajo del header en móvil) */}
+        <div className="lg:hidden flex gap-2 overflow-x-auto mb-3">
+          {tabs.map((tab, index) => (
+            <button
+              key={tab.key}
+              onClick={() => setTabActivo(index)}
+              className={`
+                px-4 py-2 text-sm font-bold whitespace-nowrap rounded-lg transition-all duration-200 cursor-pointer border-2
+                ${tabActivo === index
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/30'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }
+              `}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ===================================================================== */}
+        {/* CARD PRINCIPAL CON CONTENIDO */}
+        {/* ===================================================================== */}
+
+        <div className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
 
           {/* CONTENIDO */}
           <div className="px-3 pt-6 pb-3 lg:p-5 2xl:p-8">
@@ -194,7 +260,7 @@ export default function PaginaPerfil() {
       <button
         onClick={handleGuardar}
         disabled={guardando}
-        className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:bottom-8 2xl:right-8 w-14 h-14 lg:w-16 lg:h-16 2xl:w-16 2xl:h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed z-50 flex items-center justify-center group"
+        className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:bottom-8 2xl:right-8 w-14 h-14 lg:w-16 lg:h-16 2xl:w-16 2xl:h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed z-50 flex items-center justify-center group cursor-pointer"
         title={guardando ? 'Guardando...' : 'Guardar Cambios'}
       >
         {guardando ? (

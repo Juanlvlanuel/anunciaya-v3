@@ -14,8 +14,7 @@
 
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
-import { Tag, Eye, MousePointer, Share2, Clock, Percent, DollarSign, Gift, Ticket, Truck } from 'lucide-react';
+import { Tag, Eye, MousePointer, Share2, Clock, Percent, DollarSign, Gift, Truck } from 'lucide-react';
 import type { Campana } from '../../../../../services/dashboardService';
 
 // =============================================================================
@@ -117,10 +116,10 @@ function MetricaConTooltip({ icono: Icono, valor, tooltip, urgente = false }: Me
         ref={ref}
         onMouseEnter={mostrar}
         onMouseLeave={() => setVisible(false)}
-        className={`flex items-center gap-1 cursor-default ${urgente ? 'text-rose-500' : 'text-slate-500'}`}
+        className={`flex items-center gap-0.5 cursor-default ${urgente ? 'text-rose-500' : 'text-slate-500'}`}
       >
-        <Icono className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-        <span className="text-sm lg:text-xs 2xl:text-sm font-medium">{valor}</span>
+        <Icono className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+        <span className="text-xs lg:text-[10px] 2xl:text-xs font-medium">{valor}</span>
       </span>
       <TooltipPortal texto={tooltip} visible={visible} posicion={posicion} />
     </>
@@ -143,21 +142,21 @@ function calcularDiasRestantes(fechaFin: string): number | null {
     // Fecha actual (solo año, mes, día - sin hora)
     const hoy = new Date();
     const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-    
+
     // Fecha fin (solo año, mes, día - sin hora)
     const fechaFinDate = new Date(fechaFin);
     const fechaFinInicio = new Date(fechaFinDate.getFullYear(), fechaFinDate.getMonth(), fechaFinDate.getDate());
-    
+
     // Calcular diferencia en días
     const diffTime = fechaFinInicio.getTime() - hoyInicio.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    
+
     // Si ya venció (negativo), retorna null
     if (diffDays < 0) return null;
-    
+
     // Si vence hoy (diffDays = 0), retorna 0
     if (diffDays === 0) return 0;
-    
+
     // Si vence en el futuro, suma 1 (día actual + días restantes)
     // Ejemplo: Si hoy es 16 y vence el 17, diffDays=1, pero quedan 2 días (hoy+mañana)
     return diffDays + 1;
@@ -181,7 +180,7 @@ function PlaceholderOferta({ tipo }: { tipo: string }) {
 
   return (
     <div className={`w-full h-full bg-linear-to-br ${config.gradient} flex items-center justify-center`}>
-      <Icono className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-white/30" />
+      <Icono className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white/30" />
     </div>
   );
 }
@@ -198,19 +197,19 @@ interface CardCampanaProps {
 
 function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps) {
   const diasRestantes = calcularDiasRestantes(campana.fechaFin);
-  
+
   // No renderizar si ya venció
   if (diasRestantes === null) return null;
-  
+
   const urgente = diasRestantes <= 3;
 
   return (
     <div
       onClick={onClick}
-      className="group flex gap-2.5 lg:gap-2 2xl:gap-2.5 p-2 lg:p-1.5 2xl:p-2 rounded-xl border-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all cursor-pointer"
+      className="group flex gap-2 lg:gap-1.5 2xl:gap-2 p-1.5 lg:p-1 2xl:p-1.5 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all cursor-pointer"
     >
-      {/* Imagen o Placeholder - MÁS GRANDE en vista móvil */}
-      <div className={`${vistaMobil ? 'w-16 h-16' : 'w-16 h-16'} lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 rounded-lg overflow-hidden shrink-0`}>
+      {/* Imagen o Placeholder */}
+      <div className={`${vistaMobil ? 'w-14 h-14' : 'w-12 h-12'} lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-md overflow-hidden shrink-0`}>
         {campana.imagen ? (
           <img
             src={campana.imagen}
@@ -223,14 +222,14 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
       </div>
 
       {/* Contenido */}
-      <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
         {/* Título */}
-        <p className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate leading-tight">
+        <p className="text-xs lg:text-[10px] 2xl:text-xs font-bold text-slate-800 truncate leading-tight">
           {campana.titulo}
         </p>
 
         {/* Métricas con Tooltips */}
-        <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
+        <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
           <MetricaConTooltip
             icono={Eye}
             valor={formatearNumero(campana.totalVistas)}
@@ -263,8 +262,7 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export default function PanelCampanas({ campanas, totalActivas, onEditar, vistaMobil = false }: PanelCampanasProps) {
-  const navigate = useNavigate();
+export default function PanelCampanas({ campanas, onEditar, vistaMobil = false }: PanelCampanasProps) {
 
   // PRIMERO: Filtrar campañas que NO estén vencidas
   const campanasNoVencidas = campanas.filter(campana => {
@@ -287,15 +285,20 @@ export default function PanelCampanas({ campanas, totalActivas, onEditar, vistaM
   };
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 h-full flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200">
-      {/* Header */}
-      <div className="mb-3 lg:mb-2 2xl:mb-3">
-        <h3 className="text-lg lg:text-base 2xl:text-lg font-bold text-slate-800">Cupones y Ofertas</h3>
-        <p className="text-sm lg:text-xs 2xl:text-sm text-slate-500">{total} activas</p>
+    <div className="bg-white rounded-xl lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 h-full flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200">
+      {/* Header - Título y contador en línea */}
+      <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg bg-rose-100 flex items-center justify-center">
+            <Tag className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5 text-rose-600" />
+          </div>
+          <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Cupones y Ofertas</h3>
+        </div>
+        <span className="text-xs lg:text-[10px] 2xl:text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">{total} activas</span>
       </div>
 
       {/* Lista de campañas */}
-      <div className="flex-1 space-y-2 lg:space-y-1.5 2xl:space-y-2">
+      <div className="flex-1 space-y-1.5 lg:space-y-1 2xl:space-y-1.5 overflow-y-auto">
         {campanasVisibles.length > 0 ? (
           campanasVisibles.map((campana) => (
             <CardCampana
@@ -307,29 +310,11 @@ export default function PanelCampanas({ campanas, totalActivas, onEditar, vistaM
           ))
         ) : (
           /* Estado vacío */
-          <div className="flex-1 flex flex-col items-center justify-center py-8 text-slate-400">
-            <Tag className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 mb-3 opacity-50" />
-            <p className="text-sm lg:text-xs 2xl:text-sm font-medium">No hay campañas activas</p>
+          <div className="flex-1 flex flex-col items-center justify-center py-6 text-slate-400">
+            <Tag className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 mb-2 opacity-50" />
+            <p className="text-xs lg:text-[10px] 2xl:text-xs font-medium">No hay campañas activas</p>
           </div>
         )}
-      </div>
-
-      {/* Footer: Botones de navegación */}
-      <div className="mt-3 lg:mt-2 2xl:mt-3 flex gap-2">
-        <button
-          onClick={() => navigate('/business-studio/cupones')}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 lg:py-1.5 2xl:py-2 text-sm lg:text-xs 2xl:text-sm text-amber-600 hover:text-amber-700 font-semibold hover:bg-amber-50 border-2 border-amber-200 hover:border-amber-300 rounded-lg transition-colors"
-        >
-          <Ticket className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-          Ver Cupones
-        </button>
-        <button
-          onClick={() => navigate('/business-studio/ofertas')}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 lg:py-1.5 2xl:py-2 text-sm lg:text-xs 2xl:text-sm text-rose-600 hover:text-rose-700 font-semibold hover:bg-rose-50 border-2 border-rose-200 hover:border-rose-300 rounded-lg transition-colors"
-        >
-          <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-          Ver Ofertas
-        </button>
       </div>
     </div>
   );

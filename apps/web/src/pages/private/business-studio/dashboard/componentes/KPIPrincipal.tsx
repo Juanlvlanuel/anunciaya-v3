@@ -1,21 +1,19 @@
 /**
  * KPIPrincipal.tsx
  * =================
- * Card de KPI principal con valor grande, comparación y mini gráfica
+ * Card de KPI principal con título arriba, icono + valor horizontal
  * 
  * UBICACIÓN: apps/web/src/pages/private/business-studio/dashboard/componentes/KPIPrincipal.tsx
  * 
- * OPTIMIZACIÓN MÓVIL:
- * - Reducido padding de p-3 a p-2.5 en móvil
- * - Icono de w-14 a w-12 en móvil
- * - Valor de text-3xl a text-2xl en móvil
- * - Badge tendencia más compacto
- * - Mini gráfica altura reducida de 32 a 24
- * - Gaps reducidos para mejor aprovechamiento vertical
+ * LAYOUT:
+ * - Título arriba (bold)
+ * - Icono izquierda + Valor grande derecha
+ * - Subtítulo abajo (opcional)
+ * - Mini gráfica abajo (opcional)
+ * - SIN porcentajes ni tendencias
  */
 
-import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import type { Tendencia } from '../../../../../services/dashboardService';
+import { LucideIcon } from 'lucide-react';
 
 // =============================================================================
 // TIPOS
@@ -24,9 +22,6 @@ import type { Tendencia } from '../../../../../services/dashboardService';
 interface KPIPrincipalProps {
   titulo: string;
   valor: number;
-  valorAnterior?: number;
-  porcentaje?: number;
-  tendencia?: Tendencia;
   miniGrafica?: number[];
   icono: LucideIcon;
   colorIcono: string;
@@ -55,7 +50,7 @@ function MiniGrafica({ datos }: { datos: number[] }) {
 
   const max = Math.max(...datos, 1);
   const width = 100;
-  const height = 24; // Reducido de 32 a 24
+  const height = 22; // Compacto
   const padding = 2;
 
   // Crear path para área
@@ -89,8 +84,6 @@ function MiniGrafica({ datos }: { datos: number[] }) {
 export default function KPIPrincipal({
   titulo,
   valor,
-  porcentaje = 0,
-  tendencia = 'igual',
   miniGrafica,
   icono: Icono,
   colorIcono,
@@ -98,54 +91,37 @@ export default function KPIPrincipal({
   subtitulo,
   cargando = false,
 }: KPIPrincipalProps) {
-  // Determinar color y icono de tendencia
-  const tendenciaConfig = {
-    subida: { color: 'text-emerald-600 bg-emerald-100', Icon: TrendingUp },
-    bajada: { color: 'text-rose-600 bg-rose-100', Icon: TrendingDown },
-    igual: { color: 'text-slate-500 bg-slate-100', Icon: Minus },
-  };
-
-  const { color: colorTendencia, Icon: IconoTendencia } = tendenciaConfig[tendencia];
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2.5 2xl:p-3 shadow-lg hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.03] hover:-translate-y-1 transition-all duration-200 h-full flex flex-col justify-center">
-      {/* Layout horizontal */}
-      <div className="flex items-center gap-2.5 lg:gap-2.5 2xl:gap-3">
+    <div className="bg-white rounded-xl lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 shadow-lg hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.03] hover:-translate-y-1 transition-all duration-200 h-full flex flex-col">
+      {/* Título arriba */}
+      <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">{titulo}</p>
+
+      {/* Icono + Valor horizontal */}
+      <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 flex-1">
         {/* Icono */}
-        <div className={`w-12 h-12 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 rounded-lg lg:rounded-lg 2xl:rounded-xl bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
-          <Icono className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-white" />
+        <div className={`w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg lg:rounded-md 2xl:rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
+          <Icono className="w-4.5 h-4.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-white" />
         </div>
 
-        {/* Contenido central - centrado verticalmente */}
-        <div className="flex-1 min-w-0 flex flex-col justify-center">
-          {/* Valor */}
-          {cargando ? (
-            <div className="h-7 lg:h-8 2xl:h-9 w-20 bg-slate-200 rounded animate-pulse" />
-          ) : (
-            <p className="text-2xl lg:text-2xl 2xl:text-3xl font-black text-slate-800 truncate leading-tight">
-              {formatearValor(valor, formato)}
-            </p>
-          )}
-          {/* Título */}
-          <p className="text-sm lg:text-sm 2xl:text-base font-semibold text-slate-500 truncate leading-tight">{titulo}</p>
-          {/* Subtítulo */}
-          {subtitulo && (
-            <p className="text-xs lg:text-xs 2xl:text-sm text-slate-400 truncate leading-tight">{subtitulo}</p>
-          )}
-        </div>
-
-        {/* Badge tendencia (derecha) */}
-        <div className={`flex items-center gap-0.5 px-2 py-1 lg:px-2 lg:py-1 2xl:px-2.5 2xl:py-1.5 rounded-full ${colorTendencia} shrink-0`}>
-          <IconoTendencia className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-          <span className="text-xs lg:text-xs 2xl:text-sm font-bold">
-            {porcentaje > 0 ? '+' : ''}{porcentaje}%
-          </span>
-        </div>
+        {/* Valor */}
+        {cargando ? (
+          <div className="h-7 lg:h-6 2xl:h-7 w-14 bg-slate-200 rounded animate-pulse" />
+        ) : (
+          <p className="text-2xl lg:text-xl 2xl:text-2xl font-black text-slate-800 leading-none">
+            {formatearValor(valor, formato)}
+          </p>
+        )}
       </div>
+
+      {/* Subtítulo abajo */}
+      {subtitulo && (
+        <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-500 mt-1 lg:mt-0.5 2xl:mt-1 leading-tight">{subtitulo}</p>
+      )}
 
       {/* Mini gráfica (si existe) */}
       {miniGrafica && miniGrafica.length > 0 && (
-        <div className="mt-1.5 lg:mt-1.5 2xl:mt-2 text-emerald-500">
+        <div className="mt-1 lg:mt-0.5 2xl:mt-1 text-emerald-500">
           <MiniGrafica datos={miniGrafica} />
         </div>
       )}

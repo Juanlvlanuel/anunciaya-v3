@@ -87,12 +87,7 @@ export function ToggleModoUsuario({ grande = false, onModoChanged }: ToggleModoU
 
         try {
             await cambiarModo(nuevoModo);
-
-            // ✅ REDIRIGIR a Business Studio cuando cambia a Comercial
-            if (nuevoModo === 'comercial') {
-                navigate('/business-studio');
-            }
-
+            
             // ✅ Cerrar modal/dropdown si existe el callback
             onModoChanged?.();
 

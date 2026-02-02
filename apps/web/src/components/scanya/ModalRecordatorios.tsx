@@ -1,8 +1,9 @@
 /**
  * ModalRecordatorios.tsx
  * =======================
- * Modal para ver la lista de recordatorios pendientes.
- * Se adapta según el tipo de usuario (dueño, gerente, empleado).
+ * Modal para ver la lista de ventas offline pendientes de sincronizar.
+ * Cuando el usuario pierde conexión, las ventas se guardan localmente
+ * y se muestran aquí para procesarlas cuando regrese la conexión.
  *
  * Comportamiento por vista:
  * - PC (lg:): Drawer lateral derecho (~450px)
@@ -15,7 +16,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     X,
     ArrowLeft,
-    ClipboardList,
+    WifiOff,
     Loader2,
     AlertCircle,
     RefreshCw,
@@ -71,29 +72,11 @@ export function ModalRecordatorios({
     // Títulos según rol
     // ---------------------------------------------------------------------------
     const getTitulo = (): string => {
-        switch (tipoUsuario) {
-            case 'dueno':
-                return 'Recordatorios';
-            case 'gerente':
-                return 'Recordatorios';
-            case 'empleado':
-                return 'Mis Recordatorios';
-            default:
-                return 'Recordatorios';
-        }
+        return 'Ventas Offline';
     };
 
     const getSubtitulo = (): string => {
-        switch (tipoUsuario) {
-            case 'dueno':
-                return 'Todas las sucursales';
-            case 'gerente':
-                return usuario?.nombreSucursal || 'Tu sucursal';
-            case 'empleado':
-                return 'Ventas pendientes de procesar';
-            default:
-                return '';
-        }
+        return 'Ventas guardadas sin conexión';
     };
 
     // ---------------------------------------------------------------------------
@@ -403,7 +386,7 @@ export function ModalRecordatorios({
                     {cargando && (
                         <div className="flex flex-col items-center justify-center h-64 gap-3 lg:gap-2 2xl:gap-3">
                             <Loader2 className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#3B82F6] animate-spin" />
-                            <p className="text-[#94A3B8]">Cargando recordatorios...</p>
+                            <p className="text-[#94A3B8]">Cargando ventas offline...</p>
                         </div>
                     )}
 
@@ -437,17 +420,20 @@ export function ModalRecordatorios({
                     {/* Estado: Sin recordatorios */}
                     {/* ------------------------------------------------------------ */}
                     {!cargando && !error && recordatorios.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-64 gap-4 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-4">
+                        <div className="flex flex-col items-center justify-center h-64 gap-4 lg:gap-3 2xl:gap-4 px-6 lg:px-4 2xl:px-6">
                             <div
                                 className="w-16 h-16 rounded-full flex items-center justify-center"
                                 style={{ background: 'rgba(16, 185, 129, 0.2)' }}
                             >
-                                <ClipboardList className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#10B981]" />
+                                <WifiOff className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#10B981]" />
                             </div>
                             <div className="text-center">
-                                <p className="text-white font-medium mb-1 lg:mb-0.5 2xl:mb-1">Sin recordatorios</p>
-                                <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">
-                                    No hay ventas pendientes de procesar
+                                <p className="text-white font-medium mb-2 lg:mb-1.5 2xl:mb-2">Sin ventas pendientes</p>
+                                <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm leading-relaxed">
+                                    Cuando pierdas conexión a internet, tus ventas se guardarán aquí automáticamente.
+                                </p>
+                                <p className="text-[#64748B] text-xs lg:text-[10px] 2xl:text-xs mt-2 lg:mt-1.5 2xl:mt-2">
+                                    Al recuperar la conexión, podrás sincronizarlas.
                                 </p>
                             </div>
                         </div>
@@ -461,11 +447,11 @@ export function ModalRecordatorios({
                             {/* Contador y descripción */}
                             <div className="mb-3 lg:mb-2 2xl:mb-1.5">
                                 <p className="text-white font-medium flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
-                                    <ClipboardList className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#10B981]" />
-                                    Ventas pendientes de procesar
+                                    <WifiOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#10B981]" />
+                                    Ventas pendientes de sincronizar
                                 </p>
                                 <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm mt-1">
-                                    {recordatorios.length} {recordatorios.length === 1 ? 'recordatorio' : 'recordatorios'}
+                                    {recordatorios.length} {recordatorios.length === 1 ? 'venta' : 'ventas'}
                                 </p>
                             </div>
 

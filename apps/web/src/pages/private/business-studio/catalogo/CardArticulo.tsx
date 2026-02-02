@@ -181,36 +181,36 @@ export function CardArticulo({
             }}
         >
             {/* ========== HEADER ========== */}
-            <div className="flex items-center justify-between px-3 py-2 bg-linear-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200">
+            <div className="flex items-center justify-between px-3 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 bg-linear-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200">
                 {/* Badge Tipo */}
                 <span
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full shadow-md ${configTipo.color}`}
+                    className={`flex items-center gap-1.5 lg:gap-1 2xl:gap-1.5 px-3 lg:px-2 2xl:px-3 py-1.5 lg:py-1 2xl:py-1.5 text-xs lg:text-[10px] 2xl:text-xs font-bold rounded-full shadow-md ${configTipo.color}`}
                 >
-                    <configTipo.Icono className="w-3.5 h-3.5" />
+                    <configTipo.Icono className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
                     {articulo.tipo === 'producto' ? 'Producto' : 'Servicio'}
                 </span>
 
                 {/* Categoría */}
                 <div className="flex items-center gap-1.5">
-                    <span className={`text-lg font-black text-slate-700`}>
+                    <span className={`text-lg lg:text-base 2xl:text-lg font-black text-slate-700`}>
                         {articulo.categoria || 'General'}
                     </span>
                 </div>
             </div>
 
             {/* ========== CONTENIDO ========== */}
-            <div className="flex gap-3 p-3">
+            <div className="flex gap-3 lg:gap-2 2xl:gap-3 p-3 lg:p-2 2xl:p-3">
                 
                 {/* Imagen */}
                 <div 
-                    className="w-20 h-20 shrink-0 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    className="w-20 h-20 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20 shrink-0 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={handleImagenClick}
                 >
                     {articulo.imagenPrincipal ? (
                         <img src={articulo.imagenPrincipal} alt={articulo.nombre} className="w-full h-full object-cover" />
                     ) : (
                         <div className="w-full h-full bg-linear-to-br from-slate-200 to-slate-300 relative overflow-hidden flex items-center justify-center">
-                            <configTipo.Icono className="w-12 h-12 text-slate-400" />
+                            <configTipo.Icono className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 text-slate-400" />
                         </div>
                     )}
                 </div>
@@ -218,30 +218,30 @@ export function CardArticulo({
                 {/* Info */}
                 <div className="flex-1 flex flex-col min-w-0">
                     {/* Nombre */}
-                    <h3 className="font-bold text-base text-slate-900 truncate mb-0.5">
+                    <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-900 truncate mb-0.5">
                         {articulo.nombre}
                     </h3>
 
                     {/* Precio */}
                     <div className="flex items-center gap-1.5 text-emerald-600 mb-1.5">
-                        <span className="text-lg font-black">
+                        <span className="text-lg lg:text-base 2xl:text-lg font-black">
                             {precioFormateado}
                         </span>
                     </div>
 
                     {/* Métricas con Iconos */}
-                    <div className="flex items-center gap-2.5 text-slate-400">
+                    <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 text-slate-400">
                         <Tooltip texto="Vistas">
                             <span className="flex items-center gap-1 cursor-default">
-                                <Eye className="w-4 h-4" />
-                                <span className="text-base font-semibold">{articulo.totalVistas || 0}</span>
+                                <Eye className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                                <span className="text-base lg:text-sm 2xl:text-base font-semibold">{articulo.totalVistas || 0}</span>
                             </span>
                         </Tooltip>
 
                         <Tooltip texto="Ventas realizadas">
                             <span className="flex items-center gap-1 cursor-default">
-                                <ShoppingCart className="w-4 h-4" />
-                                <span className="text-base font-semibold">{articulo.totalVentas || 0}</span>
+                                <ShoppingCart className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                                <span className="text-base lg:text-sm 2xl:text-base font-semibold">{articulo.totalVentas || 0}</span>
                             </span>
                         </Tooltip>
                     </div>
@@ -249,18 +249,18 @@ export function CardArticulo({
             </div>
 
             {/* ========== ACCIONES ========== */}
-            <div className="flex gap-2 px-3 pb-3">
+            <div className="flex gap-2 lg:gap-1.5 2xl:gap-2 px-3 lg:px-2 2xl:px-3 pb-3 lg:pb-2 2xl:pb-3">
                 {/* Destacar */}
                 <Tooltip texto={articulo.destacado ? 'Quitar destacado' : 'Destacar artículo'}>
                     <button
                         onClick={() => onToggle(articulo.id, 'destacado', !articulo.destacado)}
-                        className={`p-2 rounded-lg transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${
+                        className={`p-2 lg:p-1.5 2xl:p-2 rounded-lg cursor-pointer transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${
                             articulo.destacado
                                 ? 'text-white bg-linear-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700'
                                 : 'text-white bg-linear-to-r from-slate-400 to-slate-500 hover:from-slate-500 hover:to-slate-600'
                         }`}
                     >
-                        <Star className={`w-4 h-4 ${articulo.destacado ? 'fill-current' : ''}`} />
+                        <Star className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 ${articulo.destacado ? 'fill-current' : ''}`} />
                     </button>
                 </Tooltip>
 
@@ -268,16 +268,16 @@ export function CardArticulo({
                 <Tooltip texto={articulo.disponible ? 'Ocultar artículo' : 'Mostrar artículo'}>
                     <button
                         onClick={() => onToggle(articulo.id, 'disponible', !articulo.disponible)}
-                        className={`p-2 rounded-lg transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${
+                        className={`p-2 lg:p-1.5 2xl:p-2 rounded-lg cursor-pointer transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${
                             articulo.disponible
                                 ? 'text-white bg-linear-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
                                 : 'text-white bg-linear-to-r from-slate-400 to-slate-500 hover:from-slate-500 hover:to-slate-600'
                         }`}
                     >
                         {articulo.disponible ? (
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                         ) : (
-                            <EyeOff className="w-4 h-4" />
+                            <EyeOff className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                         )}
                     </button>
                 </Tooltip>
@@ -285,9 +285,9 @@ export function CardArticulo({
                 {/* Editar */}
                 <button
                     onClick={() => onEditar(articulo)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-linear-to-r from-blue-500 to-blue-600 rounded-lg hover:from-blue-600 hover:to-blue-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
+                    className="flex-1 flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 px-3 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 text-sm lg:text-xs 2xl:text-sm cursor-pointer font-semibold text-white bg-linear-to-r from-blue-500 to-blue-600 rounded-lg hover:from-blue-600 hover:to-blue-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
                 >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                     Editar
                 </button>
 
@@ -295,9 +295,9 @@ export function CardArticulo({
                 <Tooltip texto="Borrar">
                     <button
                         onClick={() => onEliminar(articulo.id)}
-                        className="p-2 text-white bg-linear-to-r from-red-500 to-red-600 rounded-lg hover:from-red-600 hover:to-red-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
+                        className="p-2 lg:p-1.5 2xl:p-2 text-white cursor-pointer bg-linear-to-r from-red-500 to-red-600 rounded-lg hover:from-red-600 hover:to-red-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
                     >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                     </button>
                 </Tooltip>
 
@@ -306,9 +306,9 @@ export function CardArticulo({
                     <Tooltip texto="Duplicar">
                         <button
                             onClick={() => onDuplicar(articulo)}
-                            className="p-2 text-white bg-linear-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
+                            className="p-2 lg:p-1.5 2xl:p-2 text-white cursor-pointer bg-linear-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
                         >
-                            <Copy className="w-4 h-4" />
+                            <Copy className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                         </button>
                     </Tooltip>
                 )}

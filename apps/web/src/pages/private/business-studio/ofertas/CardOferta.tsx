@@ -467,7 +467,7 @@ export function CardOferta({
                     <Tooltip texto={oferta.activo ? "Ocultar oferta" : "Mostrar oferta"}>
                         <button
                             onClick={() => onToggleActivo(oferta.id, !oferta.activo)}
-                            className={`p-2 lg:p-1.5 2xl:p-2 rounded-lg transition-all shadow-md hover:shadow-lg ${
+                            className={`p-2 lg:p-1.5 2xl:p-2 rounded-lg cursor-pointer transition-all shadow-md hover:shadow-lg ${
                                 oferta.activo
                                     ? 'text-white bg-linear-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
                                     : 'text-white bg-linear-to-r from-slate-400 to-slate-500 hover:from-slate-500 hover:to-slate-600'
@@ -479,7 +479,7 @@ export function CardOferta({
 
                     <button
                         onClick={() => onEditar(oferta)}
-                        className="flex-1 flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 px-3 lg:px-2.5 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 text-sm lg:text-xs 2xl:text-sm font-semibold text-white bg-linear-to-r from-blue-500 to-blue-600 rounded-lg hover:from-blue-600 hover:to-blue-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
+                        className="flex-1 flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 px-3 lg:px-2.5 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 text-sm lg:text-xs 2xl:text-sm font-semibold text-white bg-linear-to-r from-blue-500 to-blue-600 rounded-lg cursor-pointer hover:from-blue-600 hover:to-blue-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
                     >
                         <Edit className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                         Editar
@@ -488,7 +488,7 @@ export function CardOferta({
                     <Tooltip texto="Borrar">
                         <button
                             onClick={() => onEliminar(oferta.id, oferta.titulo)}
-                            className="p-2 lg:p-1.5 2xl:p-2 text-white bg-linear-to-r from-red-500 to-red-600 rounded-lg hover:from-red-600 hover:to-red-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
+                            className="p-2 lg:p-1.5 2xl:p-2 text-white bg-linear-to-r from-red-500 to-red-600 rounded-lg cursor-pointer hover:from-red-600 hover:to-red-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
                         >
                             <Trash2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                         </button>
@@ -498,7 +498,7 @@ export function CardOferta({
                     <Tooltip texto="Duplicar">
                         <button
                             onClick={handleDuplicar}
-                            className="p-2 lg:p-1.5 2xl:p-2 text-white bg-linear-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
+                            className="p-2 lg:p-1.5 2xl:p-2 text-white bg-linear-to-r from-green-500 to-green-600 rounded-lg cursor-pointer hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 transition-all shadow-md hover:shadow-lg"
                         >
                             <Copy className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                         </button>

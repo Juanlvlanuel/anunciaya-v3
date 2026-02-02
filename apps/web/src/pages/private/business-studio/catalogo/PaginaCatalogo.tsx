@@ -24,6 +24,7 @@ import {
     Plus,
     Search,
     Package,
+    ShoppingBag,
     Wrench,
     X,
     ChevronRight,
@@ -50,6 +51,21 @@ import type { Articulo, FiltrosArticulos, CrearArticuloInput } from '../../../..
 // =============================================================================
 
 const ARTICULOS_POR_PAGINA = 9; // Cargar 6 artículos a la vez
+
+// =============================================================================
+// CSS — Animación del icono del header (estilo Puntos)
+// =============================================================================
+
+const ESTILO_ICONO_HEADER = `
+  @keyframes catalogo-icon-bounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    40%      { transform: translateY(-4px) rotate(-3deg); }
+    60%      { transform: translateY(-2px) rotate(2deg); }
+  }
+  .catalogo-icon-bounce {
+    animation: catalogo-icon-bounce 2s ease-in-out infinite;
+  }
+`;
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -323,96 +339,156 @@ export function PaginaCatalogo() {
     // ===========================================================================
 
     return (
-        <div className="bg-linear-to-br from-slate-50 via-blue-50/30 to-cyan-50/20 p-3 lg:p-1.5 2xl:p-3">
+        <div className="p-3 lg:p-1 2xl:p-3">
+            {/* Inyectar estilos de animación */}
+            <style dangerouslySetInnerHTML={{ __html: ESTILO_ICONO_HEADER }} />
+
             {/* CONTENEDOR CON ANCHO REDUCIDO EN LAPTOP */}
-            <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-2 2xl:space-y-3">
+            <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-1 2xl:space-y-3">
 
                 {/* ===================================================================== */}
-                {/* KPIs CLICKEABLES */}
+                {/* HEADER + KPIs EN UNA FILA (DESKTOP) */}
                 {/* ===================================================================== */}
 
-                <div className="overflow-x-auto lg:overflow-visible">
-                    <div className="flex lg:grid lg:grid-cols-5 gap-1.5 lg:gap-2 2xl:gap-3 pb-1 lg:pb-0">
-                    {/* Total - NO clickeable */}
-                    <div className="shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border border-slate-200 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 min-w-[105px] lg:min-w-0">
-                        <div className="flex items-center justify-between gap-1.5">
-                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-blue-100 rounded-lg">
-                                    <Layers className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-                                </div>
-                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Total</span>
+                <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
+                    {/* Header con icono animado */}
+                    <div className="flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+                        {/* Contenedor del icono con gradiente */}
+                        <div
+                            className="flex items-center justify-center shrink-0"
+                            style={{
+                                width: 52, height: 52, borderRadius: 14,
+                                background: 'linear-gradient(135deg, #0891b2, #06b6d4, #22d3ee)',
+                                boxShadow: '0 6px 20px rgba(8,145,178,0.4)',
+                            }}
+                        >
+                            {/* Bolsa de compras animada */}
+                            <div className="catalogo-icon-bounce">
+                                <ShoppingBag className="w-6 h-6 text-white" strokeWidth={2.5} />
                             </div>
-                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-slate-900">{estadisticas.total}</span>
+                        </div>
+                        <div>
+                            <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
+                                Catálogo
+                            </h1>
+                            <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
+                                Productos y servicios
+                            </p>
                         </div>
                     </div>
 
-                    {/* Productos - Clickeable */}
-                    <button
-                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
-                        className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.tipo === 'producto' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-blue-300'
-                            }`}
-                    >
-                        <div className="flex items-center justify-between gap-1.5">
-                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-blue-100 rounded-lg">
-                                    <Package className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
+                    {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
+                    <div className="overflow-x-auto lg:overflow-visible lg:flex-1">
+                        <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
+                            {/* Total */}
+                            <div
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-default min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                style={{
+                                    background: 'linear-gradient(135deg, #eff6ff, #fff)',
+                                    border: '2px solid #93c5fd',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
+                                >
+                                    <Layers className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
                                 </div>
-                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Productos</span>
+                                <div>
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Total</div>
+                                </div>
                             </div>
-                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-blue-600">{estadisticas.productos}</span>
-                        </div>
-                    </button>
 
-                    {/* Servicios - Clickeable */}
-                    <button
-                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
-                        className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.tipo === 'servicio' ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-slate-200 hover:border-purple-300'
-                            }`}
-                    >
-                        <div className="flex items-center justify-between gap-1.5">
-                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-purple-100 rounded-lg">
-                                    <Wrench className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-purple-600" />
+                            {/* Productos */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.tipo === 'producto' ? 'ring-2 ring-cyan-400 ring-offset-1' : ''}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #ecfeff, #fff)',
+                                    border: '2px solid #67e8f9',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #a5f3fc, #67e8f9)', boxShadow: '0 3px 8px rgba(6,182,212,0.25)' }}
+                                >
+                                    <Package className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-cyan-700" />
                                 </div>
-                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Servicios</span>
-                            </div>
-                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-purple-600">{estadisticas.servicios}</span>
-                        </div>
-                    </button>
+                                <div className="text-left">
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-cyan-700">{estadisticas.productos}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Productos</div>
+                                </div>
+                            </button>
 
-                    {/* Disponibles - Clickeable */}
-                    <button
-                        onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === true ? 'todos' : true }))}
-                        className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.disponible === true ? 'border-green-500 ring-2 ring-green-500/20' : 'border-slate-200 hover:border-green-300'
-                            }`}
-                    >
-                        <div className="flex items-center justify-between gap-1.5">
-                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-green-100 rounded-lg">
-                                    <CheckCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-green-600" />
+                            {/* Servicios */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.tipo === 'servicio' ? 'ring-2 ring-purple-400 ring-offset-1' : ''}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #faf5ff, #fff)',
+                                    border: '2px solid #d8b4fe',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #e9d5ff, #d8b4fe)', boxShadow: '0 3px 8px rgba(147,51,234,0.25)' }}
+                                >
+                                    <Wrench className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-purple-700" />
                                 </div>
-                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Disponibles</span>
-                            </div>
-                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-green-600">{estadisticas.disponibles}</span>
-                        </div>
-                    </button>
+                                <div className="text-left">
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-purple-700">{estadisticas.servicios}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Servicios</div>
+                                </div>
+                            </button>
 
-                    {/* No disponibles - Clickeable */}
-                    <button
-                        onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === false ? 'todos' : false }))}
-                        className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.disponible === false ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-200 hover:border-red-300'
-                            }`}
-                    >
-                        <div className="flex items-center justify-between gap-1.5">
-                            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                <div className="p-1 lg:p-1 2xl:p-1.5 bg-red-100 rounded-lg">
-                                    <XCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-600" />
+                            {/* Disponibles */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === true ? 'todos' : true }))}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.disponible === true ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #f0fdf4, #fff)',
+                                    border: '2px solid #86efac',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}
+                                >
+                                    <CheckCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
                                 </div>
-                                <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Ocultos</span>
-                            </div>
-                            <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-red-600">{estadisticas.noDisponibles}</span>
+                                <div className="text-left">
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">{estadisticas.disponibles}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Disponibles</div>
+                                </div>
+                            </button>
+
+                            {/* Ocultos */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === false ? 'todos' : false }))}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.disponible === false ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #fef2f2, #fff)',
+                                    border: '2px solid #fca5a5',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
+                                >
+                                    <XCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
+                                </div>
+                                <div className="text-left">
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.noDisponibles}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Ocultos</div>
+                                </div>
+                            </button>
                         </div>
-                    </button>
                     </div>
                 </div>
 
@@ -420,7 +496,7 @@ export function PaginaCatalogo() {
                 {/* BARRA DE BÚSQUEDA + FILTROS DE CATEGORÍA */}
                 {/* ===================================================================== */}
 
-                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border border-slate-200 p-3 lg:p-2 2xl:p-3 ">
+                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border border-slate-200 p-3 lg:p-2 2xl:p-3 mt-4 lg:mt-7 2xl:mt-14">
                     <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 ">
                         {/* Búsqueda */}
                         <div className="flex-1">
@@ -442,7 +518,7 @@ export function PaginaCatalogo() {
                             variante="primario"
                             iconoIzquierda={<Plus className="w-4 h-4" />}
                             onClick={handleCrear}
-                            className="shrink-0"
+                            className="shrink-0 cursor-pointer"
                         >
                             <span className="hidden lg:inline">Nuevo Artículo</span>
                             <span className="lg:hidden">Nuevo</span>
@@ -455,7 +531,7 @@ export function PaginaCatalogo() {
                         {/* Todas las categorías */}
                         <button
                             onClick={() => setFiltros(prev => ({ ...prev, categoria: 'todas' }))}
-                            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all ${filtros.categoria === 'todas'
+                            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all cursor-pointer ${filtros.categoria === 'todas'
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                 }`}
@@ -472,7 +548,7 @@ export function PaginaCatalogo() {
                                     ...prev,
                                     categoria: prev.categoria === cat ? 'todas' : cat
                                 }))}
-                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all ${filtros.categoria === cat
+                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all cursor-pointer ${filtros.categoria === cat
                                         ? 'bg-blue-500 text-white'
                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
@@ -485,7 +561,7 @@ export function PaginaCatalogo() {
                         {hayFiltrosActivos && (
                             <button
                                 onClick={limpiarFiltros}
-                                className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all"
+                                className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all cursor-pointer"
                             >
                                 <X className="w-3.5 h-3.5" />
                                 Limpiar
@@ -516,7 +592,7 @@ export function PaginaCatalogo() {
                 ) : (
                     <>
                         {/* Grid Responsive - Móvil y Desktop */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-3 2xl:gap-7 mt-10 lg:mt-8 2xl:mt-12">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-3 2xl:gap-7 mt-4 lg:mt-3 2xl:mt-4">
                             {articulosMostrados.map((articulo) => (
                                 <CardArticulo
                                     key={articulo.id}
@@ -536,7 +612,7 @@ export function PaginaCatalogo() {
                                 }`}>
                                 <button
                                     onClick={retroceder}
-                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center"
+                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center cursor-pointer"
                                 >
                                     <ChevronRight className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 -rotate-90 group-hover:-translate-y-0.5 transition-transform" />
                                 </button>
@@ -558,7 +634,7 @@ export function PaginaCatalogo() {
                                 }`}>
                                 <button
                                     onClick={avanzar}
-                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center"
+                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center cursor-pointer"
                                 >
                                     <ChevronRight className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rotate-90 group-hover:translate-y-0.5 transition-transform" />
                                 </button>

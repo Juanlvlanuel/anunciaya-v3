@@ -47,6 +47,10 @@ import PaginaDashboard from '../pages/private/business-studio/dashboard/PaginaDa
 import PaginaPerfil from '../pages/private/business-studio/perfil/PaginaPerfil';
 import PaginaCatalogo from '../pages/private/business-studio/catalogo/PaginaCatalogo';
 import BSPaginaOfertas from '../pages/private/business-studio/ofertas/PaginaOfertas';
+import PaginaPuntos from '../pages/private/business-studio/puntos/PaginaPuntos';
+import PaginaTransacciones from '../pages/private/business-studio/transacciones/PaginaTransacciones';
+import PaginaClientes from '../pages/private/business-studio/clientes/PaginaClientes';
+
 
 // ⭐ NUEVO: ScanYA Login (Fase 8)
 import PaginaLoginScanYA from '../pages/private/scanya/PaginaLoginScanYA';
@@ -81,12 +85,9 @@ const PaginaCardYA = () => <PlaceholderPage nombre="💳 CardYA" />;
 const PaginaConfigurarNegocio = () => <PlaceholderPage nombre="🏪 Configurar Negocio" />;
 
 // Páginas de Business Studio (ordenadas según menú)
-const BSPaginaTransacciones = () => <PlaceholderPage nombre="🧾 Transacciones" />;
-const BSPaginaClientes = () => <PlaceholderPage nombre="👥 Clientes" />;
 const BSPaginaOpiniones = () => <PlaceholderPage nombre="💬 Opiniones" />;
 const BSPaginaAlertas = () => <PlaceholderPage nombre="🔔 Alertas" />;
 const BSPaginaCupones = () => <PlaceholderPage nombre="🎟️ Cupones" />;
-const BSPaginaPuntos = () => <PlaceholderPage nombre="🪙 Puntos" />;
 const BSPaginaRifas = () => <PlaceholderPage nombre="🎁 Rifas" />;
 const BSPaginaEmpleados = () => <PlaceholderPage nombre="👷 Empleados" />;
 const BSPaginaVacantes = () => <PlaceholderPage nombre="💼 Vacantes" />;
@@ -292,7 +293,7 @@ const router = createBrowserRouter([
             path: '/business-studio/transacciones',
             element: (
               <ModoGuard requiereModo="comercial">
-                <BSPaginaTransacciones />
+                <PaginaTransacciones />
               </ModoGuard>
             ),
           },
@@ -300,7 +301,7 @@ const router = createBrowserRouter([
             path: '/business-studio/clientes',
             element: (
               <ModoGuard requiereModo="comercial">
-                <BSPaginaClientes />
+                <PaginaClientes />
               </ModoGuard>
             ),
           },
@@ -348,7 +349,7 @@ const router = createBrowserRouter([
             path: '/business-studio/puntos',
             element: (
               <ModoGuard requiereModo="comercial">
-                <BSPaginaPuntos />
+                <PaginaPuntos />
               </ModoGuard>
             ),
           },

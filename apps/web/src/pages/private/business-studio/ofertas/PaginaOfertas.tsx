@@ -71,6 +71,21 @@ interface FiltrosLocales {
 const OFERTAS_POR_PAGINA = 9; // Grid 3x2
 
 // =============================================================================
+// CSS — Animación del icono del header (estilo Puntos)
+// =============================================================================
+
+const ESTILO_ICONO_HEADER = `
+  @keyframes ofertas-icon-bounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    40%      { transform: translateY(-4px) rotate(-3deg); }
+    60%      { transform: translateY(-2px) rotate(2deg); }
+  }
+  .ofertas-icon-bounce {
+    animation: ofertas-icon-bounce 2s ease-in-out infinite;
+  }
+`;
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -338,112 +353,171 @@ export function PaginaOfertas() {
         filtros.busqueda !== '' || filtros.tipo !== 'todos' || filtros.estado !== 'todos';
 
     return (
-        <div className="bg-linear-to-br from-slate-50 via-blue-50/30 to-cyan-50/20 p-3 lg:p-1.5 2xl:p-3">
+        <div className="p-3 lg:p-1.5 2xl:p-3">
+            {/* Inyectar estilos de animación */}
+            <style dangerouslySetInnerHTML={{ __html: ESTILO_ICONO_HEADER }} />
+
             {/* CONTENEDOR CON ANCHO REDUCIDO EN LAPTOP */}
             <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-2 2xl:space-y-3">
-                {/* KPIs Compactos - Scroll horizontal en móvil, grid en laptop/desktop */}
-                <div className="overflow-x-auto lg:overflow-visible">
-                    <div className="flex lg:grid lg:grid-cols-5 gap-1.5 lg:gap-2 2xl:gap-3 pb-1 lg:pb-0">
-                        {/* Total - NO clickeable */}
-                        <div className="shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border border-slate-200 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 min-w-[105px] lg:min-w-0">
-                            <div className="flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                    <div className="p-1 lg:p-1 2xl:p-1.5 bg-blue-100 rounded-lg">
-                                        <Tag className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-                                    </div>
-                                    <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Total</span>
-                                </div>
-                                <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-slate-900">{estadisticas.total}</span>
+
+                {/* ===================================================================== */}
+                {/* HEADER + KPIs EN UNA FILA (DESKTOP) */}
+                {/* ===================================================================== */}
+
+                <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
+                    {/* Header con icono animado */}
+                    <div className="flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+                        {/* Contenedor del icono con gradiente */}
+                        <div
+                            className="flex items-center justify-center shrink-0"
+                            style={{
+                                width: 52, height: 52, borderRadius: 14,
+                                background: 'linear-gradient(135deg, #f43f5e, #fb7185, #fda4af)',
+                                boxShadow: '0 6px 20px rgba(244,63,94,0.4)',
+                            }}
+                        >
+                            {/* Tag animado */}
+                            <div className="ofertas-icon-bounce">
+                                <Tag className="w-6 h-6 text-white" strokeWidth={2.5} />
                             </div>
                         </div>
+                        <div>
+                            <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
+                                Ofertas
+                            </h1>
+                            <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
+                                Promociones y descuentos
+                            </p>
+                        </div>
+                    </div>
 
-                        {/* Activas - Clickeable */}
-                        <button
-                            onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'activa' ? 'todos' : 'activa' }))}
-                            className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.estado === 'activa'
-                                ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                                : 'border-slate-200 hover:border-emerald-300'
-                                }`}
-                        >
-                            <div className="flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                    <div className="p-1 lg:p-1 2xl:p-1.5 bg-emerald-100 rounded-lg">
-                                        <TrendingUp className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-emerald-600" />
-                                    </div>
-                                    <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Activas</span>
+                    {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
+                    <div className="overflow-x-auto lg:overflow-visible lg:flex-1">
+                        <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
+                            {/* Total */}
+                            <div
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-default min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                style={{
+                                    background: 'linear-gradient(135deg, #eff6ff, #fff)',
+                                    border: '2px solid #93c5fd',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
+                                >
+                                    <Tag className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
                                 </div>
-                                <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-emerald-600">{estadisticas.activas}</span>
+                                <div>
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Total</div>
+                                </div>
                             </div>
-                        </button>
 
-                        {/* Inactivas - Clickeable */}
-                        <button
-                            onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'inactiva' ? 'todos' : 'inactiva' }))}
-                            className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.estado === 'inactiva'
-                                ? 'border-red-500 ring-2 ring-red-500/20'
-                                : 'border-slate-200 hover:border-red-300'
-                                }`}
-                        >
-                            <div className="flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                    <div className="p-1 lg:p-1 2xl:p-1.5 bg-red-100 rounded-lg">
-                                        <PauseCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-600" />
-                                    </div>
-                                    <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Inactivas</span>
+                            {/* Activas */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'activa' ? 'todos' : 'activa' }))}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'activa' ? 'ring-2 ring-emerald-400 ring-offset-1' : ''}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #f0fdf4, #fff)',
+                                    border: '2px solid #86efac',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}
+                                >
+                                    <TrendingUp className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
                                 </div>
-                                <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-red-600">{estadisticas.inactivas}</span>
-                            </div>
-                        </button>
+                                <div className="text-left">
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">{estadisticas.activas}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Activas</div>
+                                </div>
+                            </button>
 
-                        {/* Próximas - Clickeable */}
-                        <button
-                            onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'proxima' ? 'todos' : 'proxima' }))}
-                            className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.estado === 'proxima'
-                                ? 'border-amber-500 ring-2 ring-amber-500/20'
-                                : 'border-slate-200 hover:border-amber-300'
-                                }`}
-                        >
-                            <div className="flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                    <div className="p-1 lg:p-1 2xl:p-1.5 bg-amber-100 rounded-lg">
-                                        <Calendar className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-600" />
-                                    </div>
-                                    <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Próximas</span>
+                            {/* Inactivas */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'inactiva' ? 'todos' : 'inactiva' }))}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'inactiva' ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #fef2f2, #fff)',
+                                    border: '2px solid #fca5a5',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
+                                >
+                                    <PauseCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
                                 </div>
-                                <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-amber-600">{estadisticas.proximas}</span>
-                            </div>
-                        </button>
+                                <div className="text-left">
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.inactivas}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Inactivas</div>
+                                </div>
+                            </button>
 
-                        {/* Vencidas - Clickeable */}
-                        <button
-                            onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'vencida' ? 'todos' : 'vencida' }))}
-                            className={`shrink-0 lg:shrink bg-white rounded-lg lg:rounded-xl 2xl:rounded-xl shadow-md border-2 px-2 py-1.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 text-left transition-all hover:scale-[1.02] min-w-[105px] lg:min-w-0 ${filtros.estado === 'vencida'
-                                ? 'border-slate-500 ring-2 ring-slate-500/20'
-                                : 'border-slate-200 hover:border-slate-300'
-                                }`}
-                        >
-                            <div className="flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2">
-                                    <div className="p-1 lg:p-1 2xl:p-1.5 bg-slate-100 rounded-lg">
-                                        <Clock className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600" />
-                                    </div>
-                                    <span className="text-xs lg:text-sm 2xl:text-base font-semibold text-slate-600">Vencidas</span>
+                            {/* Próximas */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'proxima' ? 'todos' : 'proxima' }))}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'proxima' ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #fffbeb, #fff)',
+                                    border: '2px solid #fcd34d',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(217,119,6,0.25)' }}
+                                >
+                                    <Calendar className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
                                 </div>
-                                <span className="text-lg lg:text-2xl 2xl:text-3xl font-bold text-slate-600">{estadisticas.vencidas}</span>
-                            </div>
-                        </button>
+                                <div className="text-left">
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">{estadisticas.proximas}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Próximas</div>
+                                </div>
+                            </button>
+
+                            {/* Vencidas */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'vencida' ? 'todos' : 'vencida' }))}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'vencida' ? 'ring-2 ring-slate-400 ring-offset-1' : ''}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #f8fafc, #fff)',
+                                    border: '2px solid #cbd5e1',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)', boxShadow: '0 3px 8px rgba(100,116,139,0.25)' }}
+                                >
+                                    <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-600" />
+                                </div>
+                                <div className="text-left">
+                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-slate-600">{estadisticas.vencidas}</div>
+                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Vencidas</div>
+                                </div>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Barra de búsqueda + Filtros + Botón agregar */}
-                <div className="bg-white rounded-xl lg:rounded-2xl 2xl:rounded-2xl shadow-md border border-slate-200 p-3 lg:p-2.5 2xl:p-3">
+                {/* ===================================================================== */}
+                {/* BARRA DE BÚSQUEDA + FILTROS */}
+                {/* ===================================================================== */}
+
+                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border border-slate-200 p-3 lg:p-2 2xl:p-3 mt-4 lg:mt-7 2xl:mt-14">
                     <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
                         {/* Búsqueda */}
                         <div className="flex-1">
                             <Input
                                 id="input-busqueda-ofertas"
                                 name="input-busqueda-ofertas"
-                                icono={<Search className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" />}
+                                icono={<Search className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-slate-400" />}
                                 placeholder="Buscar por título..."
                                 value={filtros.busqueda}
                                 onChange={(e) => setFiltros(prev => ({ ...prev, busqueda: e.target.value }))}
@@ -454,9 +528,9 @@ export function PaginaOfertas() {
                         {/* Botón agregar */}
                         <Boton
                             variante="primario"
-                            iconoIzquierda={<Plus className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />}
+                            iconoIzquierda={<Plus className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />}
                             onClick={handleCrear}
-                            className="shrink-0"
+                            className="shrink-0 cursor-pointer"
                         >
                             <span className="hidden lg:inline">Nueva Oferta</span>
                             <span className="lg:hidden">Nueva</span>
@@ -480,7 +554,7 @@ export function PaginaOfertas() {
                                         ...prev,
                                         tipo: prev.tipo === value ? 'todos' : value as TipoOferta
                                     }))}
-                                    className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all ${filtros.tipo === value
+                                    className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all cursor-pointer ${filtros.tipo === value
                                         ? 'bg-blue-500 text-white'
                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
@@ -494,7 +568,7 @@ export function PaginaOfertas() {
                             {hayFiltrosActivos && (
                                 <button
                                     onClick={limpiarFiltros}
-                                    className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all"
+                                    className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all cursor-pointer"
                                 >
                                     <X className="w-3.5 h-3.5" />
                                     Limpiar
@@ -534,7 +608,7 @@ export function PaginaOfertas() {
                 ) : (
                     <>
                         {/* Grid de cards 3x3 */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-3 2xl:gap-7 mt-10 lg:mt-8 2xl:mt-12">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-3 2xl:gap-7 mt-4 lg:mt-3 2xl:mt-4">
                             {ofertasMostradas.map((oferta) => (
                                 <CardOferta
                                     key={oferta.id}
@@ -554,7 +628,7 @@ export function PaginaOfertas() {
                                 }`}>
                                 <button
                                     onClick={retroceder}
-                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center"
+                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center cursor-pointer"
                                 >
                                     <ChevronRight className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 -rotate-90 group-hover:-translate-y-0.5 transition-transform" />
                                 </button>
@@ -576,7 +650,7 @@ export function PaginaOfertas() {
                                 }`}>
                                 <button
                                     onClick={avanzar}
-                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center"
+                                    className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-200 flex items-center justify-center cursor-pointer"
                                 >
                                     <ChevronRight className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rotate-90 group-hover:translate-y-0.5 transition-transform" />
                                 </button>

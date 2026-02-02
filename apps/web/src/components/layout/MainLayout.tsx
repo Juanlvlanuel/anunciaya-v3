@@ -1,41 +1,27 @@
 /**
- * MainLayout.tsx
+ * MainLayout.tsx - VERSIÓN v2.1 COLUMNAS PEGADAS A BORDES
  * ===============
  * Layout principal para usuarios autenticados.
- *
- * ¿Qué hace?
- * - Estructura de 3 columnas en desktop (izquierda + centro + derecha)
- * - Header adaptativo (MobileHeader en móvil, Navbar en desktop)
- * - BottomNav solo en móvil
- * - Contiene modales/overlays globales
- * - IMPORTANTE: Solo el contenido tiene scroll, no el body
+ * 
+ * CAMBIOS v2.1:
+ * - Columnas pegadas a los bordes (sin margin/padding exterior)
+ * - Sin rounded en columnas (esquinas rectas)
+ * - Márgenes centrales ajustados al ancho exacto de columnas
  *
  * Estructura Desktop:
  * ┌─────────────────────────────────────────────────────────┐
- * │                        Navbar (fijo)                    │
+ * │                   Header (gradiente azul)               │
  * ├───────────┬─────────────────────────────┬───────────────┤
  * │ Columna   │                             │   Columna     │
  * │ Izquierda │         <Outlet />          │   Derecha     │
- * │  (scroll) │        (scroll)             │   (scroll)    │
- * │  (280px)  │        (flexible)           │   (320px)     │
+ * │ (pegada)  │        (contenido)          │   (pegada)    │
  * └───────────┴─────────────────────────────┴───────────────┘
- *
- * Estructura Móvil:
- * ┌─────────────────────────────────────────────────────────┐
- * │                  MobileHeader (fijo)                    │
- * ├─────────────────────────────────────────────────────────┤
- * │                                                         │
- * │                 <Outlet /> (scroll)                     │
- * │                                                         │
- * ├─────────────────────────────────────────────────────────┤
- * │                   BottomNav (fijo)                      │
- * └─────────────────────────────────────────────────────────┘
  *
  * Ubicación: apps/web/src/components/layout/MainLayout.tsx
  */
 
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
 
@@ -58,6 +44,9 @@ import { PanelPreviewNegocio } from './PanelPreviewNegocio';
 /** Breakpoint para considerar desktop (Tailwind lg) */
 const DESKTOP_BREAKPOINT = 1024;
 
+/** Espacio entre header y columnas */
+const COLUMNS_TOP = '83px'; // Header + 16px de espacio
+
 // =============================================================================
 // COMPONENTE
 // =============================================================================
@@ -69,6 +58,8 @@ export function MainLayout() {
   const [esDesktop, setEsDesktop] = useState(
     typeof window !== 'undefined' ? window.innerWidth >= DESKTOP_BREAKPOINT : false
   );
+  const [tieneScroll, setTieneScroll] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
@@ -102,6 +93,32 @@ export function MainLayout() {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Detectar si el contenido tiene scroll
+  // ---------------------------------------------------------------------------
+  const verificarScroll = useCallback(() => {
+    if (mainRef.current) {
+      const { scrollHeight, clientHeight } = mainRef.current;
+      setTieneScroll(scrollHeight > clientHeight);
+    }
+  }, []);
+
+  useEffect(() => {
+    verificarScroll();
+    
+    // Observer para detectar cambios en el contenido
+    const observer = new ResizeObserver(verificarScroll);
+    if (mainRef.current) {
+      observer.observe(mainRef.current);
+    }
+
+    window.addEventListener('resize', verificarScroll);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', verificarScroll);
+    };
+  }, [verificarScroll, location.pathname]);
+
+  // ---------------------------------------------------------------------------
   // Cerrar drawer/modales al cambiar a desktop
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -112,16 +129,13 @@ export function MainLayout() {
 
   // Redirección a onboarding solo cuando intenta acceder a business-studio
   useEffect(() => {
-    // Verificar si acabamos de finalizar onboarding
     const vieneDeOnboarding = sessionStorage.getItem('ay_onboarding_finalizado');
 
-    // Si viene del onboarding, limpiar el flag y NO redirigir
     if (vieneDeOnboarding) {
       sessionStorage.removeItem('ay_onboarding_finalizado');
       return;
     }
 
-    // Redirigir solo si NO completó onboarding
     if (
       location.pathname === '/business-studio' &&
       usuario?.modoActivo === 'comercial' &&
@@ -136,7 +150,12 @@ export function MainLayout() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div 
+      className="min-h-screen"
+      style={{
+        background: 'linear-gradient(to right, #a7c1dd 0%, #ebf4ff 26%, #ebf4ff 74%, #a7c1dd 100%)',
+      }}
+    >
       {/* ===== MODO PREVIEW: Solo contenido sin navegación ===== */}
       {esModoPreview ? (
         <main className="min-h-screen">
@@ -152,24 +171,34 @@ export function MainLayout() {
           {/* ===== CONTENIDO PRINCIPAL ===== */}
           {esDesktop ? (
             <>
-              {/* Columna Izquierda - FIXED CON EFECTOS */}
+              {/* Columna Izquierda - PEGADA AL BORDE */}
               <aside
-                className="fixed left-0 lg:w-56 2xl:w-72 w-64 bg-linear-to-br from-slate-50 via-white to-slate-50 lg:border-2 2xl:border-4 border-4 border-slate-200 shadow-2xl rounded-2xl overflow-y-auto z-10"
-                style={{ top: '90px', height: 'calc(100vh - 106px)', left: '16px' }}
+                className="fixed lg:w-56 2xl:w-72 bg-white shadow-lg overflow-y-auto z-10"
+                style={{ 
+                  top: COLUMNS_TOP, 
+                  left: '0',
+                  height: `calc(100vh - ${COLUMNS_TOP})`,
+                }}
               >
-                <div className="lg:p-3 2xl:p-4 p-4 h-full relative">
-                  <ColumnaIzquierda />
-                </div>
+                <ColumnaIzquierda />
               </aside>
 
-              {/* Columna Central */}
+              {/* Columna Central - Scroll en borde derecho de ventana */}
               <main
-                className={`lg:ml-60 2xl:ml-80 lg:pt-[90px] transition-all duration-300 ${esBusinessStudio
-                  ? previewNegocioAbierto
-                    ? 'lg:mr-[420px] 2xl:mr-[500px]'
-                    : 'lg:mr-4 2xl:mr-6'
-                  : 'lg:mr-[272px] 2xl:mr-[352px]'
-                  }`}
+                ref={mainRef}
+                className={`fixed left-0 right-0 overflow-y-auto transition-all lg:pl-56 2xl:pl-72 ${
+                  esBusinessStudio
+                    ? previewNegocioAbierto
+                      ? 'lg:pr-[400px] 2xl:pr-[480px]'
+                      : 'pr-0'
+                    : tieneScroll
+                      ? 'lg:pr-[270px] 2xl:pr-[334px]'
+                      : 'lg:pr-64 2xl:pr-80'
+                }`}
+                style={{ 
+                  top: COLUMNS_TOP,
+                  height: `calc(100vh - ${COLUMNS_TOP})`,
+                }}
               >
                 <Outlet />
               </main>
@@ -178,26 +207,34 @@ export function MainLayout() {
               {esBusinessStudio && previewNegocioAbierto && esDesktop && (
                 <aside
                   className="fixed right-0 lg:w-[400px] 2xl:w-[480px] bg-white border-l-4 border-blue-500 shadow-2xl overflow-hidden z-20"
-                  style={{ top: '90px', height: 'calc(100vh - 90px)', right: '0' }}
+                  style={{ 
+                    top: COLUMNS_TOP, 
+                    height: `calc(100vh - ${COLUMNS_TOP})`,
+                  }}
                 >
                   <PanelPreviewNegocio />
                 </aside>
               )}
 
-              {/* Columna Derecha - FIXED (oculta en Business Studio) */}
+              {/* Columna Derecha - Posición dinámica según scroll */}
               {!esBusinessStudio && (
                 <aside
-                  className="fixed right-0 lg:w-64 2xl:w-80 w-72 bg-linear-to-br from-slate-50 via-white to-slate-50 lg:border-2 2xl:border-4 border-4 border-slate-200 shadow-2xl rounded-2xl overflow-y-auto z-10"
-                  style={{ top: '90px', height: 'calc(100vh - 106px)', right: '16px' }}
+                  className="fixed lg:w-64 2xl:w-80 bg-white shadow-lg overflow-y-auto z-10 transition-all"
+                  style={{ 
+                    top: COLUMNS_TOP, 
+                    right: tieneScroll ? '14px' : '0',
+                    height: `calc(100vh - ${COLUMNS_TOP})`,
+                  }}
                 >
-                  <div className="lg:p-3 2xl:p-4 p-4">
-                    <ColumnaDerecha />
-                  </div>
+                  <ColumnaDerecha />
                 </aside>
               )}
             </>
           ) : (
-            <main className="main-content-landscape-fullscreen overflow-y-auto pb-20" style={{ height: 'calc(100vh - 140px)', WebkitOverflowScrolling: 'touch' }}>
+            <main 
+              className="main-content-landscape-fullscreen overflow-y-auto pb-20" 
+              style={{ height: 'calc(100vh - 140px)', WebkitOverflowScrolling: 'touch' }}
+            >
               <Outlet />
             </main>
           )}

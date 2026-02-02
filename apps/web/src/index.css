@@ -68,6 +68,14 @@ html {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Desktop: ocultar scroll del body (el main tiene su propio scroll) */
+@media (min-width: 1024px) {
+  html, body {
+    overflow: hidden;
+    height: 100vh;
+  }
+}
+
 body {
   min-height: 100vh;
   min-height: -webkit-fill-available;

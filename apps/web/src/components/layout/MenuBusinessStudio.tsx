@@ -1,23 +1,14 @@
 /**
- * MenuBusinessStudio.tsx
+ * MenuBusinessStudio.tsx - VERSIÓN v2.0 REDISEÑO MINIMALISTA
  * =======================
  * Menú de navegación de Business Studio para la columna izquierda (desktop).
  *
- * Se muestra cuando el usuario está en cualquier ruta de /business-studio/*
- * Contiene todas las secciones disponibles en Business Studio.
- * 
- * NAVEGACIÓN POR TECLADO:
- * - ↑/↓: Mover entre opciones
- * - Enter: Navegar a la opción seleccionada
- * - Home: Ir a la primera opción
- * - End: Ir a la última opción
- *
- * ORGANIZACIÓN DEL MENÚ:
- * 1. Operación Diaria - Dashboard, Transacciones, Clientes, Opiniones, Alertas
- * 2. Catálogo & Promociones - Catálogo, Ofertas, Cupones
- * 3. Engagement & Recompensas - Puntos, Rifas
- * 4. Recursos Humanos - Empleados, Vacantes
- * 5. Análisis & Configuración - Reportes, Sucursales, Mi Perfil
+ * CAMBIOS v2.0:
+ * - Franjas de lado a lado (sin cards flotantes)
+ * - Hover con línea lateral azul (border-l-2)
+ * - Menos curvas
+ * - Animaciones sutiles en iconos
+ * - Fondo limpio
  *
  * Ubicación: apps/web/src/components/layout/MenuBusinessStudio.tsx
  */
@@ -42,6 +33,38 @@ import {
   ChevronRight,
   MessageSquare,
 } from 'lucide-react';
+
+// =============================================================================
+// ESTILOS CSS PARA ANIMACIONES
+// =============================================================================
+const animationStyles = `
+  /* Float más pronunciado para iconos - MÁS MOVIMIENTO */
+  @keyframes floatIconBS {
+    0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
+    25% { transform: translateY(-3px) scale(1.08) rotate(-2deg); }
+    50% { transform: translateY(-2px) scale(1.05) rotate(0deg); }
+    75% { transform: translateY(-3px) scale(1.08) rotate(2deg); }
+  }
+  
+  .float-icon-bs {
+    animation: floatIconBS 3s ease-in-out infinite;
+  }
+  
+  /* Bounce para flecha activa - MOVIMIENTO SUAVE */
+  @keyframes arrowBounce {
+    0%, 100% { transform: translateX(0); opacity: 1; }
+    50% { transform: translateX(3px); opacity: 0.85; }
+  }
+  
+  .arrow-bounce {
+    animation: arrowBounce 3s ease-in-out infinite;
+  }
+  
+  /* Transición punto a flecha */
+  .dot-to-arrow {
+    transition: all 0.2s ease-out;
+  }
+`;
 
 // =============================================================================
 // OPCIONES DEL MENÚ (REORDENADAS POR LÓGICA DE USO)
@@ -87,6 +110,17 @@ export function MenuBusinessStudio() {
   const menuRef = useRef<HTMLDivElement>(null);
   const botonesRef = useRef<(HTMLButtonElement | null)[]>([]);
 
+  // Inyectar estilos de animación
+  useEffect(() => {
+    const styleId = 'menu-bs-animations';
+    if (!document.getElementById(styleId)) {
+      const styleElement = document.createElement('style');
+      styleElement.id = styleId;
+      styleElement.textContent = animationStyles;
+      document.head.appendChild(styleElement);
+    }
+  }, []);
+
   // Encontrar índice activo basado en la ruta actual
   const indiceActivo = opcionesMenu.findIndex(
     (opcion) =>
@@ -97,14 +131,12 @@ export function MenuBusinessStudio() {
   // Manejar navegación por teclado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Solo procesar si el menú tiene foco
       if (!menuRef.current?.contains(document.activeElement)) return;
 
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
           setIndiceFocused((prev) => {
-            // Si no hay foco previo, empezar desde el activo
             const actual = prev === -1 ? indiceActivo : prev;
             const nuevo = actual < opcionesMenu.length - 1 ? actual + 1 : 0;
             botonesRef.current[nuevo]?.focus();
@@ -115,7 +147,6 @@ export function MenuBusinessStudio() {
         case 'ArrowUp':
           e.preventDefault();
           setIndiceFocused((prev) => {
-            // Si no hay foco previo, empezar desde el activo
             const actual = prev === -1 ? indiceActivo : prev;
             const nuevo = actual > 0 ? actual - 1 : opcionesMenu.length - 1;
             botonesRef.current[nuevo]?.focus();
@@ -154,53 +185,68 @@ export function MenuBusinessStudio() {
   }, [location.pathname]);
 
   return (
-    <div className="h-full flex flex-col" ref={menuRef}>
-      {/* Header compacto - Solo título, mantiene animación */}
+    <div className="h-full flex flex-col bg-white" ref={menuRef}>
+      {/* Opciones del menú - Franjas */}
+      <nav className="flex-1 overflow-y-auto py-2 lg:py-1.5 2xl:py-2" role="menu">
+        {opcionesMenu.map((opcion, index) => {
+          const Icono = opcion.icono;
+          const esActivo = index === indiceActivo;
+          const esFocused = index === indiceFocused;
 
-      <div className="w-full">
-        {/* Logo*/}
-        <div className="w-full flex items-center justify-center gap-2 lg:p-2.5 2xl:p-3 p-3 bg-linear-to-br from-gray-900 to-blue-600 hover:from-black hover:to-blue-800 text-white rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]">
-          <img src="/BusinessStudio.webp" alt="Business Studio" className="lg:h-5 2xl:h-7 h-6 w-auto object-contain" />
-        </div>
-      </div>
-
-      {/* Opciones del menú con scroll */}
-      <div className="flex-1 overflow-y-auto -mx-1 px-1 py-2" role="menu">
-        <div className="space-y-1">
-          {opcionesMenu.map((opcion, index) => {
-            const Icono = opcion.icono;
-            const esActivo = index === indiceActivo;
-            const esFocused = index === indiceFocused;
-
-            return (
-              <button
-                key={opcion.id}
-                ref={(el) => { botonesRef.current[index] = el; }}
-                onClick={() => navigate(opcion.ruta)}
-                onFocus={() => setIndiceFocused(index)}
-                onMouseEnter={() => setIndiceFocused(index)}
-                role="menuitem"
-                tabIndex={esActivo || esFocused ? 0 : -1}
-                className={`w-full flex items-center gap-2 lg:px-2 2xl:px-3 px-2.5 lg:py-1.5 2xl:py-2.5 py-2 rounded-lg outline-none transition-all ${esActivo
-                  ? 'bg-blue-100 text-blue-700 border-l-4 border-blue-500'
+          return (
+            <button
+              key={opcion.id}
+              ref={(el) => { botonesRef.current[index] = el; }}
+              onClick={() => navigate(opcion.ruta)}
+              onFocus={() => setIndiceFocused(index)}
+              onMouseEnter={() => setIndiceFocused(index)}
+              role="menuitem"
+              tabIndex={esActivo || esFocused ? 0 : -1}
+              className={`
+                w-full flex items-center gap-3 lg:gap-2.5 2xl:gap-3
+                px-4 py-3 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3
+                border-l-2 transition-all duration-150
+                outline-none cursor-pointer
+                ${esActivo
+                  ? 'bg-blue-500 text-white border-blue-300'
                   : esFocused
-                    ? 'bg-gray-100 text-gray-900 ring-2 ring-blue-400'
-                    : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-              >
-                <Icono className={`lg:w-4 2xl:w-5 w-4 shrink-0 ${esActivo ? 'text-blue-500' : esFocused ? 'text-blue-400' : 'text-gray-400'
-                  }`} />
-                <span className={`lg:text-sm 2xl:text-base text-sm font-medium flex-1 text-left ${esActivo ? 'text-blue-700' : ''
-                  }`}>
-                  {opcion.label}
-                </span>
-                <ChevronRight className={`lg:w-4 2xl:w-5 w-4 ${esActivo ? 'text-blue-500' : esFocused ? 'text-blue-400' : 'text-gray-400'
-                  }`} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                    ? 'bg-slate-200 border-blue-500'
+                    : 'text-slate-600 border-transparent hover:bg-slate-200 hover:border-blue-500'
+                }
+              `}
+            >
+              <Icono 
+                className={`
+                  w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0
+                  ${esActivo ? 'text-white' : esFocused ? 'text-blue-500' : 'text-slate-400'}
+                  ${!esActivo ? 'float-icon-bs' : ''}
+                `}
+                style={{ animationDelay: `${index * 0.15}s` }}
+              />
+              <span className={`
+                text-sm lg:text-[13px] 2xl:text-base font-medium flex-1 text-left
+                ${esActivo ? 'text-white' : esFocused ? 'text-blue-600' : ''}
+              `}>
+                {opcion.label}
+              </span>
+              {/* Indicador dinámico: Punto → Flecha */}
+              <div className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 flex items-center justify-center">
+                {esActivo ? (
+                  <ChevronRight 
+                    className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white arrow-bounce"
+                  />
+                ) : esFocused ? (
+                  <ChevronRight 
+                    className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 dot-to-arrow"
+                  />
+                ) : (
+                  <span className="w-2 h-2 lg:w-1.5 lg:h-1.5 2xl:w-2 2xl:h-2 rounded-full bg-slate-300 dot-to-arrow" />
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

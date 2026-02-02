@@ -7,7 +7,6 @@
  */
 
 import { Bell, AlertTriangle, Info, CheckCircle, XCircle, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../../../../stores/useDashboardStore';
 import type { AlertasData, Alerta } from '../../../../../services/dashboardService';
 
@@ -88,29 +87,29 @@ function ItemAlerta({ alerta }: { alerta: Alerta }) {
 
   return (
     <div
-      className={`p-3 rounded-xl border transition-colors ${
+      className={`p-2 lg:p-1.5 2xl:p-2 rounded-lg border transition-colors ${
         alerta.leida
           ? 'border-slate-100 bg-slate-50/50 opacity-60'
           : `${config.border} hover:bg-slate-50`
       }`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
         {/* Icono */}
-        <div className={`w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center shrink-0`}>
-          <Icono className={`w-4 h-4 ${config.color}`} />
+        <div className={`w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-md ${config.bg} flex items-center justify-center shrink-0`}>
+          <Icono className={`w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${config.color}`} />
         </div>
 
         {/* Contenido */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className={`text-sm font-medium truncate ${alerta.leida ? 'text-slate-500' : 'text-slate-800'}`}>
+            <p className={`text-sm lg:text-xs 2xl:text-sm font-medium truncate ${alerta.leida ? 'text-slate-500' : 'text-slate-800'}`}>
               {alerta.titulo}
             </p>
-            <span className="text-xs text-slate-400 shrink-0">
+            <span className="text-xs lg:text-[10px] 2xl:text-xs text-slate-400 shrink-0">
               {formatearFecha(alerta.createdAt)}
             </span>
           </div>
-          <p className="text-xs text-slate-500 truncate mt-0.5">
+          <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-500 truncate">
             {alerta.descripcion}
           </p>
         </div>
@@ -119,10 +118,10 @@ function ItemAlerta({ alerta }: { alerta: Alerta }) {
         {!alerta.leida && (
           <button
             onClick={handleMarcarLeida}
-            className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-500 transition-colors shrink-0"
+            className="p-1 rounded-md hover:bg-emerald-50 text-slate-400 hover:text-emerald-500 transition-colors shrink-0"
             title="Marcar como leída"
           >
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
           </button>
         )}
       </div>
@@ -135,64 +134,48 @@ function ItemAlerta({ alerta }: { alerta: Alerta }) {
 // =============================================================================
 
 export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlertasProps) {
-  const navigate = useNavigate();
   const listaAlertas = alertas?.alertas ?? [];
   const noLeidas = alertas?.noLeidas ?? 0;
 
   return (
-    <div className={`bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl border-2 border-slate-300 p-4 lg:p-3.5 2xl:p-4 ${!vistaMobil && 'max-h-[400px]'} flex flex-col shadow-lg hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.03] 2xl:hover:scale-[1.03] hover:-translate-y-1 transition-all duration-200`}>
+    <div className={`bg-white rounded-xl lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 ${!vistaMobil ? 'max-h-[260px] lg:max-h-[220px] 2xl:max-h-[280px]' : ''} flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center relative">
-            <Bell className="w-4 h-4 text-rose-500" />
+      <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
+        <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
+          <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-md bg-rose-100 flex items-center justify-center relative">
+            <Bell className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-rose-500" />
             {noLeidas > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-xs flex items-center justify-center font-medium">
+              <span className="absolute -top-1 -right-1 w-4 h-4 lg:w-4.5 lg:h-4.5 2xl:w-4 2xl:h-4 rounded-full bg-rose-500 text-white text-[10px] lg:text-[9px] 2xl:text-[10px] flex items-center justify-center font-medium">
                 {noLeidas > 9 ? '9+' : noLeidas}
               </span>
             )}
           </div>
-          <div>
-            <h3 className="font-semibold text-slate-800">Alertas</h3>
-            <p className="text-xs text-slate-500">
-              {noLeidas > 0 ? `${noLeidas} sin leer` : 'Al día'}
-            </p>
-          </div>
+          <h3 className="font-semibold text-base lg:text-sm 2xl:text-base text-slate-800">Alertas</h3>
         </div>
 
         {/* Badge estado */}
         {noLeidas === 0 && (
-          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600">
-            <CheckCircle className="w-3.5 h-3.5" />
-            <span className="text-xs font-medium">Todo bien</span>
+          <div className="flex items-center gap-1 px-2 py-1 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-1 rounded-md bg-emerald-50 text-emerald-600">
+            <CheckCircle className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+            <span className="text-xs lg:text-[10px] 2xl:text-xs font-medium">Todo bien</span>
           </div>
         )}
       </div>
 
       {/* Lista */}
-      <div className={`flex-1 space-y-2 ${!vistaMobil && 'overflow-y-auto'}`}>
+      <div className={`flex-1 space-y-1.5 lg:space-y-1 2xl:space-y-1.5 ${!vistaMobil && 'overflow-y-auto'} flex flex-col`}>
         {listaAlertas.length > 0 ? (
           listaAlertas.map((alerta) => (
             <ItemAlerta key={alerta.id} alerta={alerta} />
           ))
         ) : (
-          /* Estado vacío */
-          <div className="flex-1 flex flex-col items-center justify-center py-6 text-slate-400">
-            <CheckCircle className="w-8 h-8 mb-2 text-emerald-400" />
-            <p className="text-sm text-emerald-600">Sin alertas pendientes</p>
+          /* Estado vacío - centrado */
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+            <CheckCircle className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 mb-1 text-emerald-400" />
+            <p className="text-sm lg:text-xs 2xl:text-sm text-emerald-600">Sin Alertas Pendientes</p>
           </div>
         )}
       </div>
-
-      {/* Botón Ver Todas */}
-      {listaAlertas.length > 0 && (
-        <button
-          onClick={() => navigate('/business-studio/alertas')}
-          className="mt-3 w-full py-2 text-sm text-rose-600 hover:text-rose-700 font-medium hover:bg-rose-50 rounded-lg transition-colors"
-        >
-          Ver todas las alertas →
-        </button>
-      )}
     </div>
   );
 }

@@ -18,7 +18,7 @@
  * Ubicación: apps/web/src/components/scanya/IndicadoresRapidos.tsx
  */
 
-import { Star, ClipboardList, Ticket, History } from 'lucide-react';
+import { Star, WifiOff, Ticket, History } from 'lucide-react';
 
 // =============================================================================
 // INTERFACES
@@ -76,8 +76,8 @@ const BOTONES: Boton[] = [
   },
   {
     id: 'recordatorios',
-    label: 'Recordatorios',
-    icon: ClipboardList,
+    label: 'Offline',
+    icon: WifiOff,
     ruta: '/scanya/recordatorios',
     contador: 'recordatoriosPendientes',
     color: 'text-[#10B981]',

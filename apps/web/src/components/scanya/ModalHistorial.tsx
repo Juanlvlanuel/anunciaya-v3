@@ -8,6 +8,11 @@
  * - PC (lg:): Drawer lateral derecho (~450px)
  * - Móvil: ModalBottom (85% altura), slide-up
  *
+ * Filtros:
+ * - Periodo: Hoy, Semana, Mes, 3M, Año
+ * - Sucursal: Solo visible para dueños
+ * - Empleado: Visible para dueños y gerentes (si hay empleados)
+ *
  * Ubicación: apps/web/src/components/scanya/ModalHistorial.tsx
  */
 
@@ -19,6 +24,8 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import scanyaService, { type PeriodoHistorial } from '@/services/scanyaService';
@@ -33,6 +40,19 @@ interface ModalHistorialProps {
   abierto: boolean;
   onClose: () => void;
   cambiosHistorial?: number;
+}
+
+interface SucursalLista {
+  id: string;
+  nombre: string;
+}
+
+interface OperadorLista {
+  id: string;
+  nombre: string;
+  tipo: 'empleado' | 'gerente' | 'dueno';
+  sucursalId: string | null;
+  sucursalNombre: string | null;
 }
 
 // =============================================================================
@@ -50,6 +70,175 @@ const FILTROS_PERIODO: { id: PeriodoHistorial; label: string }[] = [
 const LIMITE_POR_PAGINA = 10;
 
 // =============================================================================
+// COMPONENTE: DROPDOWN PERSONALIZADO
+// =============================================================================
+
+interface DropdownOption {
+  id: string;
+  label: string;
+}
+
+interface CustomDropdownProps {
+  options: DropdownOption[];
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+  placeholder: string;
+  disabled?: boolean;
+}
+
+function CustomDropdown({ options, value, onChange, placeholder, disabled }: CustomDropdownProps) {
+  const [abierto, setAbierto] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setAbierto(false);
+      }
+    };
+
+    if (abierto) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [abierto]);
+
+  const selectedOption = options.find(opt => opt.id === value);
+  const displayText = selectedOption ? selectedOption.label : placeholder;
+
+  return (
+    <div ref={dropdownRef} className="relative flex-1">
+      {/* Botón del dropdown */}
+      <button
+        type="button"
+        onClick={() => !disabled && setAbierto(!abierto)}
+        disabled={disabled}
+        className="
+          w-full flex items-center justify-between
+          py-2 px-3
+          rounded-lg lg:rounded-md 2xl:rounded-lg
+          text-sm lg:text-xs 2xl:text-sm
+          cursor-pointer disabled:cursor-not-allowed disabled:opacity-50
+          transition-all
+        "
+        style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: abierto 
+            ? '1px solid rgba(59, 130, 246, 0.5)' 
+            : '1px solid rgba(255, 255, 255, 0.1)',
+          color: value ? '#3B82F6' : '#94A3B8',
+        }}
+      >
+        <span className="truncate">{displayText}</span>
+        <ChevronDown 
+          className={`w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#94A3B8] shrink-0 ml-2 transition-transform ${
+            abierto ? 'rotate-180' : ''
+          }`} 
+        />
+      </button>
+
+      {/* Lista de opciones */}
+      {abierto && (
+        <div
+          className="
+            absolute z-50 w-full mt-1
+            rounded-lg lg:rounded-md 2xl:rounded-lg
+            overflow-hidden
+            shadow-xl
+          "
+          style={{
+            background: 'linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            maxHeight: '200px',
+            overflowY: 'auto',
+          }}
+        >
+          {/* Opción "Todos" */}
+          <button
+            type="button"
+            onClick={() => {
+              onChange(undefined);
+              setAbierto(false);
+            }}
+            className="
+              w-full flex items-center justify-between
+              px-3 py-2.5
+              text-sm lg:text-xs 2xl:text-sm text-left
+              cursor-pointer
+              transition-colors
+            "
+            style={{
+              background: !value ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              color: !value ? '#3B82F6' : '#94A3B8',
+            }}
+            onMouseEnter={(e) => {
+              if (value) {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.color = '#FFFFFF';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (value) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#94A3B8';
+              }
+            }}
+          >
+            <span>{placeholder}</span>
+            {!value && <Check className="w-4 h-4 text-[#3B82F6]" />}
+          </button>
+
+          {/* Separador */}
+          <div className="h-px bg-white/10" />
+
+          {/* Opciones */}
+          {options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => {
+                onChange(option.id);
+                setAbierto(false);
+              }}
+              className="
+                w-full flex items-center justify-between
+                px-3 py-2.5
+                text-sm lg:text-xs 2xl:text-sm text-left
+                cursor-pointer
+                transition-colors
+              "
+              style={{
+                background: value === option.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                color: value === option.id ? '#3B82F6' : '#94A3B8',
+              }}
+              onMouseEnter={(e) => {
+                if (value !== option.id) {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                  e.currentTarget.style.color = '#FFFFFF';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (value !== option.id) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#94A3B8';
+                }
+              }}
+            >
+              <span className="truncate">{option.label}</span>
+              {value === option.id && <Check className="w-4 h-4 text-[#3B82F6] shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -61,9 +250,22 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   const tipoUsuario = usuario?.tipo || 'empleado';
 
   // ---------------------------------------------------------------------------
-  // Estado
+  // Estado - Filtros
   // ---------------------------------------------------------------------------
   const [periodo, setPeriodo] = useState<PeriodoHistorial>('mes');
+  const [filtroSucursalId, setFiltroSucursalId] = useState<string | undefined>(undefined);
+  const [filtroEmpleadoId, setFiltroEmpleadoId] = useState<string | undefined>(undefined);
+
+  // ---------------------------------------------------------------------------
+  // Estado - Listas para dropdowns
+  // ---------------------------------------------------------------------------
+  const [sucursales, setSucursales] = useState<SucursalLista[]>([]);
+  const [operadores, setOperadores] = useState<OperadorLista[]>([]);
+  const [cargandoListas, setCargandoListas] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Estado - Transacciones
+  // ---------------------------------------------------------------------------
   const [transacciones, setTransacciones] = useState<TransaccionScanYA[]>([]);
   const [total, setTotal] = useState(0);
   const [pagina, setPagina] = useState(1);
@@ -73,11 +275,19 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   const [error, setError] = useState<string | null>(null);
   const [yaCargo, setYaCargo] = useState(false);
   const prevPeriodo = useRef(periodo);
+  const prevFiltroSucursal = useRef(filtroSucursalId);
+  const prevFiltroEmpleado = useRef(filtroEmpleadoId);
 
   // ---------------------------------------------------------------------------
   // Estado para ver foto
   // ---------------------------------------------------------------------------
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Permisos de filtros según rol
+  // ---------------------------------------------------------------------------
+  const puedeVerFiltroSucursal = tipoUsuario === 'dueno';
+  const puedeVerFiltroOperador = (tipoUsuario === 'dueno' || tipoUsuario === 'gerente') && operadores.length > 0;
 
   // ---------------------------------------------------------------------------
   // Títulos según rol
@@ -96,6 +306,12 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   };
 
   const getSubtitulo = (): string => {
+    // Si hay filtro de sucursal, mostrar el nombre
+    if (filtroSucursalId) {
+      const sucursal = sucursales.find(s => s.id === filtroSucursalId);
+      return sucursal?.nombre || 'Sucursal seleccionada';
+    }
+
     switch (tipoUsuario) {
       case 'dueno':
         return 'Todas las sucursales';
@@ -109,6 +325,34 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   };
 
   // ---------------------------------------------------------------------------
+  // Cargar listas para dropdowns
+  // ---------------------------------------------------------------------------
+  const cargarListas = useCallback(async () => {
+    if (tipoUsuario === 'empleado') return;
+
+    setCargandoListas(true);
+    try {
+      // Cargar sucursales (solo si es dueño)
+      if (tipoUsuario === 'dueno') {
+        const resSucursales = await scanyaService.obtenerSucursalesLista();
+        if (resSucursales.success && resSucursales.data) {
+          setSucursales(resSucursales.data);
+        }
+      }
+
+      // Cargar empleados (dueño y gerente)
+      const resOperadores = await scanyaService.obtenerOperadoresLista(filtroSucursalId);
+      if (resOperadores.success && resOperadores.data) {
+        setOperadores(resOperadores.data);
+      }
+    } catch (err) {
+      console.error('Error cargando listas:', err);
+    } finally {
+      setCargandoListas(false);
+    }
+  }, [tipoUsuario, filtroSucursalId]);
+
+  // ---------------------------------------------------------------------------
   // Cargar historial
   // ---------------------------------------------------------------------------
   const cargarHistorial = useCallback(async (nuevaPagina: number = 1, append: boolean = false) => {
@@ -120,7 +364,13 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     setError(null);
 
     try {
-      const respuesta = await scanyaService.obtenerHistorial(periodo, nuevaPagina, LIMITE_POR_PAGINA);
+      const respuesta = await scanyaService.obtenerHistorial(
+        periodo,
+        nuevaPagina,
+        LIMITE_POR_PAGINA,
+        filtroSucursalId,
+        filtroEmpleadoId
+      );
 
       if (respuesta.success && respuesta.data) {
         if (append) {
@@ -141,19 +391,35 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
       setCargando(false);
       setCargandoMas(false);
     }
-  }, [periodo]);
+  }, [periodo, filtroSucursalId, filtroEmpleadoId]);
 
   // ---------------------------------------------------------------------------
   // Efectos
   // ---------------------------------------------------------------------------
-  // Cargar solo la primera vez que se abre
+  // Cargar listas y datos la primera vez que se abre
   useEffect(() => {
     if (abierto && !yaCargo) {
+      cargarListas();
       setPagina(1);
       cargarHistorial(1, false);
       setYaCargo(true);
     }
   }, [abierto, yaCargo]);
+
+  // Recargar empleados cuando cambia la sucursal (solo para dueño)
+  useEffect(() => {
+    if (abierto && tipoUsuario === 'dueno' && filtroSucursalId !== prevFiltroSucursal.current) {
+      // Limpiar filtro de empleado al cambiar sucursal
+      setFiltroEmpleadoId(undefined);
+      // Recargar lista de empleados de esa sucursal
+      scanyaService.obtenerOperadoresLista(filtroSucursalId).then(res => {
+        if (res.success && res.data) {
+          setOperadores(res.data);
+        }
+      });
+    }
+    prevFiltroSucursal.current = filtroSucursalId;
+  }, [filtroSucursalId, abierto, tipoUsuario]);
 
   // Recargar cuando cambia el periodo
   useEffect(() => {
@@ -163,6 +429,19 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     }
     prevPeriodo.current = periodo;
   }, [periodo, abierto]);
+
+  // Recargar cuando cambian los filtros de sucursal o empleado
+  useEffect(() => {
+    if (abierto && yaCargo) {
+      if (filtroSucursalId !== prevFiltroSucursal.current || filtroEmpleadoId !== prevFiltroEmpleado.current) {
+        setPagina(1);
+        setTransacciones([]);
+        cargarHistorial(1, false);
+      }
+    }
+    prevFiltroSucursal.current = filtroSucursalId;
+    prevFiltroEmpleado.current = filtroEmpleadoId;
+  }, [filtroSucursalId, filtroEmpleadoId, abierto, yaCargo]);
 
   // Recargar cuando hay nuevas ventas registradas
   useEffect(() => {
@@ -336,6 +615,37 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
             ))}
           </div>
         </div>
+
+        {/* ============================================================== */}
+        {/* FILTROS ADICIONALES (Sucursal / Empleado) */}
+        {/* ============================================================== */}
+        {(puedeVerFiltroSucursal || puedeVerFiltroOperador) && (
+          <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10">
+            <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
+              {/* Dropdown Sucursal - Solo dueño */}
+              {puedeVerFiltroSucursal && (
+                <CustomDropdown
+                  options={sucursales.map(s => ({ id: s.id, label: s.nombre }))}
+                  value={filtroSucursalId}
+                  onChange={setFiltroSucursalId}
+                  placeholder="Todas las sucursales"
+                  disabled={cargandoListas}
+                />
+              )}
+
+              {/* Dropdown Operador - Dueño y gerente (si hay operadores) */}
+              {puedeVerFiltroOperador && (
+                <CustomDropdown
+                  options={operadores.map(op => ({ id: op.id, label: op.nombre }))}
+                  value={filtroEmpleadoId}
+                  onChange={setFiltroEmpleadoId}
+                  placeholder="Todos"
+                  disabled={cargandoListas}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ============================================================== */}
         {/* CONTENIDO CON SCROLL */}

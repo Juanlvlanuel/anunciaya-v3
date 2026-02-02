@@ -38,7 +38,7 @@ function RatingStars({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
-          className={`w-3.5 h-3.5 ${
+          className={`w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 ${
             star <= rating
               ? 'text-yellow-400 fill-yellow-400'
               : 'text-slate-200'
@@ -55,46 +55,43 @@ function RatingStars({ rating }: { rating: number }) {
 
 export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
   return (
-    <div className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl border-2 border-slate-300 p-4 lg:p-3.5 2xl:p-4 max-h-[400px] flex flex-col shadow-lg hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.03] 2xl:hover:scale-[1.03] hover:-translate-y-1 transition-all duration-200">
+    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 max-h-[270px] lg:max-h-[230px] 2xl:max-h-[340px] flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center">
-          <MessageSquare className="w-4 h-4 text-yellow-600" />
+      <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
+        <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
+          <MessageSquare className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5 text-yellow-600" />
         </div>
-        <div>
-          <h3 className="font-semibold text-slate-800">Opiniones</h3>
-          <p className="text-xs text-slate-500">Reseñas recientes</p>
-        </div>
+        <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800">Reseñas Recientes</h3>
       </div>
 
       {/* Lista */}
-      <div className="flex-1 space-y-3 overflow-y-auto">
+      <div className="flex-1 space-y-2 lg:space-y-1.5 2xl:space-y-2 overflow-y-auto flex flex-col">
         {resenas.length > 0 ? (
           resenas.map((resena) => (
             <div
               key={resena.id}
-              className="p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 transition-all shadow-sm hover:shadow-md"
+              className="p-2 lg:p-1.5 2xl:p-2 rounded-lg border border-slate-200 hover:border-slate-300 transition-all"
             >
               {/* Header de reseña */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
                   {/* Avatar */}
                   {resena.autor.avatar ? (
                     <img
                       src={resena.autor.avatar}
                       alt={resena.autor.nombre}
-                      className="w-7 h-7 rounded-full object-cover"
+                      className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
-                      <User className="w-4 h-4 text-slate-400" />
+                    <div className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded-full bg-slate-100 flex items-center justify-center">
+                      <User className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-slate-400" />
                     </div>
                   )}
-                  <span className="text-sm font-medium text-slate-700">
+                  <span className="text-xs lg:text-[10px] 2xl:text-xs font-medium text-slate-700">
                     {resena.autor.nombre}
                   </span>
                 </div>
-                <span className="text-xs text-slate-400">
+                <span className="text-[10px] lg:text-[9px] 2xl:text-[10px] text-slate-400">
                   {formatearFecha(resena.createdAt)}
                 </span>
               </div>
@@ -104,27 +101,20 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
 
               {/* Texto */}
               {resena.texto && (
-                <p className="text-sm text-slate-600 mt-2 line-clamp-2">
+                <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-600 mt-1 line-clamp-2">
                   {resena.texto}
                 </p>
               )}
             </div>
           ))
         ) : (
-          /* Estado vacío */
-          <div className="flex-1 flex flex-col items-center justify-center py-6 text-slate-400">
-            <MessageSquare className="w-8 h-8 mb-2 opacity-50" />
-            <p className="text-sm">Sin reseñas recientes</p>
+          /* Estado vacío - centrado */
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+            <MessageSquare className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 mb-1 opacity-50" />
+            <p className="text-sm lg:text-xs 2xl:text-sm">Sin Reseñas Recientes</p>
           </div>
         )}
       </div>
-
-      {/* Footer */}
-      {resenas.length > 0 && (
-        <button className="mt-3 w-full py-2 text-sm text-blue-600 hover:text-blue-700 font-medium hover:bg-blue-50 rounded-lg transition-colors">
-          Ver todas las reseñas
-        </button>
-      )}
     </div>
   );
 }

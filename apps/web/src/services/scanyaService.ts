@@ -187,7 +187,9 @@ export type PeriodoHistorial = 'hoy' | 'semana' | 'mes' | '3meses' | 'ano';
 export async function obtenerHistorial(
   periodo: PeriodoHistorial = 'mes',
   pagina: number = 1,
-  limite: number = 20
+  limite: number = 20,
+  sucursalId?: string,    // ← AGREGAR
+  empleadoId?: string     // ← AGREGAR
 ): Promise<RespuestaAPI<{
   transacciones: TransaccionScanYA[];
   total: number;
@@ -200,7 +202,7 @@ export async function obtenerHistorial(
     pagina: number;
     totalPaginas: number;
   }>>(`${BASE}/historial`, {
-    params: { periodo, pagina, limite },
+    params: { periodo, pagina, limite, sucursalId, empleadoId },
   });
   return response.data;
 }
@@ -389,6 +391,44 @@ export async function obtenerContadores(): Promise<RespuestaAPI<{
   return response.data;
 }
 
+/**
+ * Obtener lista de sucursales para dropdown de filtros
+ * GET /api/scanya/sucursales-lista
+ */
+export async function obtenerSucursalesLista(): Promise<RespuestaAPI<Array<{
+  id: string;
+  nombre: string;
+}>>> {
+  const response = await api.get<RespuestaAPI<Array<{
+    id: string;
+    nombre: string;
+  }>>>(`${BASE}/sucursales-lista`);
+  return response.data;
+}
+
+/**
+ * Obtener lista de operadores (empleados + gerentes + dueño) para dropdown de filtros
+ * GET /api/scanya/operadores-lista
+ */
+export async function obtenerOperadoresLista(sucursalId?: string): Promise<RespuestaAPI<Array<{
+  id: string;
+  nombre: string;
+  tipo: 'empleado' | 'gerente' | 'dueno';
+  sucursalId: string | null;
+  sucursalNombre: string | null;
+}>>> {
+  const response = await api.get<RespuestaAPI<Array<{
+    id: string;
+    nombre: string;
+    tipo: 'empleado' | 'gerente' | 'dueno';
+    sucursalId: string | null;
+    sucursalNombre: string | null;
+  }>>>(`${BASE}/operadores-lista`, {
+    params: sucursalId ? { sucursalId } : undefined,
+  });
+  return response.data;
+}
+
 // =============================================================================
 // UPLOAD TICKET (FASE 11)
 // =============================================================================
@@ -460,6 +500,10 @@ const scanyaService = {
 
   // Upload Ticket
   obtenerUrlSubidaTicket,
+
+  // Listas para filtros
+  obtenerSucursalesLista,
+  obtenerOperadoresLista,
 };
 
 export default scanyaService;
