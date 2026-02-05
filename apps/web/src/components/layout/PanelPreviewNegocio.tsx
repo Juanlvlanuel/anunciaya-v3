@@ -116,7 +116,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
 
     if (esMobile) {
       return (
-        <div className="fixed inset-0 z-50 bg-white">
+        <div className="fixed inset-0 z-30 bg-white">
           {renderHeader()}
           <div className="h-[calc(100vh-100px)]">{contenido}</div>
         </div>
@@ -142,7 +142,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
 
     if (esMobile) {
       return (
-        <div className="fixed inset-0 z-50 bg-white">
+        <div className="fixed inset-0 z-30 bg-white">
           {renderHeader()}
           <div className="h-[calc(100vh-100px)]">{contenido}</div>
         </div>
@@ -164,7 +164,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
   // Render principal
   if (esMobile) {
     return (
-      <div className="fixed inset-0 z-50 bg-white">
+      <div className="fixed inset-0 z-30 bg-white">
         {renderHeader()}
         <iframe
           key={tabActivo}

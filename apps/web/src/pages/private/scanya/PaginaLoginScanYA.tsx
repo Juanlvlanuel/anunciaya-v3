@@ -135,7 +135,7 @@ export function PaginaLoginScanYA() {
       }
       return;
     }
-    
+
     // No puede instalar - mostrar mensaje según estado
     if (estadoInstalacion === 'instalada') {
       notificar.info('ScanYA ya está instalada');
@@ -347,18 +347,18 @@ export function PaginaLoginScanYA() {
   // ---------------------------------------------------------------------------
   return (
     <div className="h-screen flex items-start justify-center p-4 lg:p-3 2xl:p-6 pt-6 lg:pt-4 2xl:pt-0 overflow-hidden relative scanya-no-refresh">
-      {/* Fondo Gradient Flow */}
+      {/* Fondo Gradient Oscuro Profesional - Inspirado en Header AnunciaYA */}
       <div
         className="absolute inset-0 overflow-hidden"
         style={{
-          background: 'linear-gradient(180deg, #000000 0%, #001d3d 50%, #000000 100%)'
+          background: 'linear-gradient(135deg, #02143D 10%, #001E70 50%, #034AE3 100%)'
         }}
       >
-        {/* Esferas de gradiente flotantes */}
+        {/* Esferas de gradiente flotantes - Ajustadas para fondo oscuro */}
         <div
-          className="absolute w-[400px] h-[400px] rounded-full opacity-60"
+          className="absolute w-[400px] h-[400px] rounded-full opacity-40"
           style={{
-            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4), transparent)',
+            background: 'radial-gradient(circle, rgba(96, 165, 250, 0.6), transparent)',
             filter: 'blur(80px)',
             top: '-100px',
             left: '-100px',
@@ -366,9 +366,9 @@ export function PaginaLoginScanYA() {
           }}
         />
         <div
-          className="absolute w-[300px] h-[300px] rounded-full opacity-60"
+          className="absolute w-[300px] h-[300px] rounded-full opacity-40"
           style={{
-            background: 'radial-gradient(circle, rgba(30, 58, 138, 0.4), transparent)',
+            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.6), transparent)',
             filter: 'blur(80px)',
             bottom: '-50px',
             right: '-50px',
@@ -376,9 +376,9 @@ export function PaginaLoginScanYA() {
           }}
         />
         <div
-          className="absolute w-[250px] h-[250px] rounded-full opacity-60"
+          className="absolute w-[250px] h-[250px] rounded-full opacity-30"
           style={{
-            background: 'radial-gradient(circle, rgba(96, 165, 250, 0.3), transparent)',
+            background: 'radial-gradient(circle, rgba(147, 197, 253, 0.5), transparent)',
             filter: 'blur(80px)',
             top: '50%',
             left: '50%',
@@ -387,16 +387,17 @@ export function PaginaLoginScanYA() {
           }}
         />
 
-        {/* Partículas flotantes */}
+        {/* Partículas flotantes - Más brillantes para fondo oscuro */}
         <div className="absolute inset-0 overflow-hidden">
           {[...Array(8)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-[7px] h-[7px] bg-[#3B82F6] rounded-full opacity-60"
+              className="absolute w-[7px] h-[7px] bg-[#60a5fa] rounded-full opacity-80"
               style={{
                 left: `${10 + i * 12}%`,
                 animation: `particle-rise 15s linear infinite`,
                 animationDelay: `${i * 2}s`,
+                boxShadow: '0 0 10px rgba(96, 165, 250, 0.5)',
               }}
             />
           ))}
@@ -407,24 +408,22 @@ export function PaginaLoginScanYA() {
       <div className={`w-full max-w-[350px] lg:max-w-[330px] 2xl:max-w-md relative z-10 my-auto ${modo === 'empleado' ? 'mt-6 lg:-mt-8 2xl:-mt-10' : 'mt-28 lg:mt-4 2xl:mt-12'}`}>
         {/* Header - Solo logo */}
         <div className={`text-center ${modo === 'empleado' ? '-mb-1 lg:-mb-8 2xl:-mb-20' : '-mb-1 lg:-mb-8 2xl:-mb-20'}`}>
-          <div className="w-60 h-30 lg:w-48 lg:h-48 2xl:w-70 2xl:h-88 mx-auto">
+          <div className="w-60 h-30 lg:w-48 lg:h-48 2xl:w-70 2xl:h-88 mx-auto pointer-events-none">
             <img
               src="/logo-scanya.webp"
               alt="ScanYA"
-              className="w-full h-full object-contain select-none transition-transform duration-300 hover:scale-110 cursor-pointer"
+              className="w-full h-full object-contain select-none"
               draggable={false}
             />
           </div>
         </div>
 
-        {/* Card principal con efecto Gradient Flow */}
+        {/* Card principal - Azul Oscuro sin sombras */}
         <div
-          className={`rounded-2xl lg:rounded-3xl border transition-all duration-300 ${modo === 'empleado' ? 'p-4 lg:p-5 2xl:p-6' : 'p-5 lg:p-5 2xl:p-8'}`}
+          className={`rounded-2xl lg:rounded-3xl border-4 transition-all duration-300 ${modo === 'empleado' ? 'p-4 lg:p-5 2xl:p-6' : 'p-5 lg:p-5 2xl:p-8'}`}
           style={{
-            background: 'rgba(8, 22, 48, 0.9)',
-            borderColor: 'rgba(59, 130, 246, 0.2)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 0 40px rgba(59, 130, 246, 0.15), inset 0 0 20px rgba(59, 130, 246, 0.05)',
+            background: '#001136',
+            borderColor: '#002D8F',
           }}
         >
           {/* Toggle con mejor integración */}
@@ -436,7 +435,7 @@ export function PaginaLoginScanYA() {
               className={`
                 flex-1 py-2.5 lg:py-1.5 2xl:py-3 px-4 lg:px-3 2xl:px-4 rounded-lg lg:rounded-xl 2xl:rounded-xl
                 font-semibold text-sm lg:text-xs 2xl:text-base
-                transition-all duration-200 flex items-center justify-center gap-2
+                transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer
                 ${modo === 'dueno'
                   ? 'bg-[#2563EB] text-white'
                   : 'text-[#A0A0A0] hover:text-white'
@@ -455,7 +454,7 @@ export function PaginaLoginScanYA() {
               className={`
                 flex-1 py-2.5 lg:py-1.5 2xl:py-3 px-4 lg:px-3 2xl:px-4 rounded-lg lg:rounded-xl 2xl:rounded-xl
                 font-semibold text-sm lg:text-xs 2xl:text-base
-                transition-all duration-200 flex items-center justify-center gap-2
+                transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer
                 ${modo === 'empleado'
                   ? 'bg-[#2563EB] text-white'
                   : 'text-[#A0A0A0] hover:text-white'
@@ -539,7 +538,7 @@ export function PaginaLoginScanYA() {
                   disabled={!formularioDuenoValido || cargando}
                   cargando={cargando}
                   className={`
-                    mt-2 lg:mt-1.5 2xl:mt-3 transition-all duration-200
+                    mt-2 lg:mt-1.5 2xl:mt-3 transition-all duration-200 cursor-pointer
                     ${formularioDuenoValido && !cargando
                       ? 'bg-[#2563EB] hover:bg-[#1D4ED8] shadow-[0_0_25px_rgba(59,130,246,0.4)] hover:shadow-[0_0_35px_rgba(59,130,246,0.6)]'
                       : 'bg-[#333333] cursor-not-allowed opacity-50'
@@ -613,11 +612,11 @@ export function PaginaLoginScanYA() {
 
         {/* Footer - Link para instalar PWA (oculto solo en modo standalone) */}
         {!esStandalone && (
-          <div className="text-center mt-6 lg:mt-4 2xl:mt-8">
+          <div className="text-center mt-6 lg:mt-4 2xl:mt-3">
             <button
               onClick={handleInstalarPWA}
               disabled={instalando}
-              className="text-sm lg:text-xs 2xl:text-sm text-[#9ca3af] hover:text-[#3B82F6] transition-colors flex items-center justify-center gap-2 mx-auto"
+              className="text-sm lg:text-xs 2xl:text-base text-[#8CB0FF] hover:text-[#01133B] transition-colors flex items-center justify-center gap-2 mx-auto cursor-pointer"
             >
               <Download className="w-4 h-4" />
               {instalando ? 'Instalando...' : 'Instalar como app'}

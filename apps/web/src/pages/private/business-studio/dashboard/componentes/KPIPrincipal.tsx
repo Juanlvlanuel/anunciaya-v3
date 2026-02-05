@@ -93,35 +93,50 @@ export default function KPIPrincipal({
 }: KPIPrincipalProps) {
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 shadow-lg hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.03] hover:-translate-y-1 transition-all duration-200 h-full flex flex-col">
-      {/* Título arriba */}
-      <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">{titulo}</p>
-
-      {/* Icono + Valor horizontal */}
-      <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 flex-1">
-        {/* Icono */}
-        <div className={`w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg lg:rounded-md 2xl:rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
-          <Icono className="w-4.5 h-4.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-white" />
+    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2 lg:p-2 2xl:p-2.5 shadow-lg hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.03] hover:-translate-y-1 transition-all duration-200 h-full flex flex-col">
+      {/* MÓVIL: Icono + Título en la misma línea */}
+      <div className="flex items-center gap-2 mb-1 lg:hidden">
+        <div className={`w-7 h-7 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
+          <Icono className="w-4 h-4 text-white" />
         </div>
+        <p className="text-sm font-bold text-slate-700 leading-tight truncate">{titulo}</p>
+      </div>
 
-        {/* Valor */}
+      {/* MÓVIL: Valor solo abajo - CENTRADO */}
+      <div className="lg:hidden flex justify-center">
         {cargando ? (
-          <div className="h-7 lg:h-6 2xl:h-7 w-14 bg-slate-200 rounded animate-pulse" />
+          <div className="h-6 w-16 bg-slate-200 rounded animate-pulse" />
         ) : (
-          <p className="text-2xl lg:text-xl 2xl:text-2xl font-black text-slate-800 leading-none">
+          <p className="text-xl font-black text-slate-800 leading-none">
             {formatearValor(valor, formato)}
           </p>
         )}
       </div>
 
-      {/* Subtítulo abajo */}
+      {/* LAPTOP/DESKTOP: Layout original */}
+      <p className="hidden lg:block text-sm 2xl:text-base font-bold text-slate-700 mb-1 2xl:mb-1.5">{titulo}</p>
+
+      <div className="hidden lg:flex items-center gap-1.5 2xl:gap-2 flex-1">
+        <div className={`w-8 h-8 2xl:w-9 2xl:h-9 rounded-md 2xl:rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
+          <Icono className="w-4 h-4 2xl:w-4.5 2xl:h-4.5 text-white" />
+        </div>
+        {cargando ? (
+          <div className="h-6 2xl:h-7 w-12 2xl:w-14 bg-slate-200 rounded animate-pulse" />
+        ) : (
+          <p className="text-xl 2xl:text-2xl font-black text-slate-800 leading-none">
+            {formatearValor(valor, formato)}
+          </p>
+        )}
+      </div>
+
+      {/* Subtítulo abajo - Solo en laptop/desktop */}
       {subtitulo && (
-        <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-500 mt-1 lg:mt-0.5 2xl:mt-1 leading-tight">{subtitulo}</p>
+        <p className="hidden lg:block text-[10px] 2xl:text-xs text-slate-500 mt-0.5 2xl:mt-1 leading-tight truncate">{subtitulo}</p>
       )}
 
-      {/* Mini gráfica (si existe) */}
+      {/* Mini gráfica (si existe) - oculta en móvil */}
       {miniGrafica && miniGrafica.length > 0 && (
-        <div className="mt-1 lg:mt-0.5 2xl:mt-1 text-emerald-500">
+        <div className="hidden lg:block mt-0.5 2xl:mt-1 text-emerald-500">
           <MiniGrafica datos={miniGrafica} />
         </div>
       )}

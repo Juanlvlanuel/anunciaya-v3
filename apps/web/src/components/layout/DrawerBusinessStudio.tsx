@@ -6,16 +6,14 @@
  * Se abre desde la barra de info del negocio en MobileHeader.
  * Contiene todas las secciones disponibles en Business Studio.
  * 
- * ACTUALIZADO: Incluye selector de sucursales en móvil
+ * ACTUALIZADO: Versión compacta sin info de negocio
  *
  * Ubicación: apps/web/src/components/layout/DrawerBusinessStudio.tsx
  */
 
-import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     X,
-    Store,
     LayoutDashboard,
     User,
     ShoppingBag,
@@ -30,12 +28,8 @@ import {
     Coins,
     Briefcase,
     Bell,
-    ChevronLeft,
-    ChevronRight,
     MessageSquare,
 } from 'lucide-react';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { obtenerSucursalesNegocio } from '../../services/negociosService';
 
 // =============================================================================
 // TIPOS
@@ -44,13 +38,6 @@ import { obtenerSucursalesNegocio } from '../../services/negociosService';
 interface DrawerBusinessStudioProps {
     abierto: boolean;
     onCerrar: () => void;
-}
-
-interface Sucursal {
-    id: string;
-    nombre: string;
-    esPrincipal: boolean;
-    activa: boolean;
 }
 
 // =============================================================================
@@ -98,67 +85,6 @@ const opcionesMenu = [
 export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudioProps) {
     const location = useLocation();
     const navigate = useNavigate();
-    const { usuario, setSucursalActiva } = useAuthStore();
-    
-    // Estado del selector de sucursales
-    const [sucursales, setSucursales] = useState<Sucursal[]>([]);
-    const [cargandoSucursales, setCargandoSucursales] = useState(true);
-
-    // Determinar tipo de usuario
-    const esDueño = usuario?.negocioId && !usuario?.sucursalAsignada;
-
-    // Cargar sucursales
-    useEffect(() => {
-        async function cargarSucursales() {
-            // Validar que hay usuario logueado Y en modo comercial
-            if (!usuario?.negocioId || usuario?.modoActivo !== 'comercial') {
-                setSucursales([]);
-                setCargandoSucursales(false);
-                return;
-            }
-
-            try {
-                setCargandoSucursales(true);
-                const respuesta = await obtenerSucursalesNegocio(usuario.negocioId);
-
-                if (respuesta.success && respuesta.data) {
-                    // Ordenar: Principal primero, luego por nombre
-                    const ordenadas = [...respuesta.data].sort((a, b) => {
-                        if (a.esPrincipal) return -1;
-                        if (b.esPrincipal) return 1;
-                        return a.nombre.localeCompare(b.nombre);
-                    });
-                    setSucursales(ordenadas);
-                }
-            } catch (error) {
-                console.error('[DRAWER] Error cargando sucursales:', error);
-                setSucursales([]);
-            } finally {
-                setCargandoSucursales(false);
-            }
-        }
-
-        if (abierto) {
-            cargarSucursales();
-        }
-    }, [usuario?.negocioId, usuario?.modoActivo, abierto]);
-
-    // Obtener índice de sucursal actual
-    const indiceActual = sucursales.findIndex(s => s.id === usuario?.sucursalActiva);
-    const sucursalActual = sucursales[indiceActual];
-
-    // Handlers: Navegar entre sucursales
-    const irAnterior = () => {
-        if (indiceActual > 0) {
-            setSucursalActiva(sucursales[indiceActual - 1].id);
-        }
-    };
-
-    const irSiguiente = () => {
-        if (indiceActual < sucursales.length - 1) {
-            setSucursalActiva(sucursales[indiceActual + 1].id);
-        }
-    };
 
     // Handler de navegación
     const handleNavegar = (ruta: string) => {
@@ -178,10 +104,10 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
             />
 
             {/* Panel */}
-            <div className="fixed top-0 left-0 bottom-0 w-[75%] max-w-[280px] bg-white z-61 shadow-2xl overflow-y-auto">
+            <div className="fixed top-0 left-0 bottom-0 w-[60%] bg-white z-61 shadow-2xl overflow-y-auto">
                 {/* Header del drawer */}
                 <div className="bg-linear-to-r from-gray-900 to-blue-600 text-white px-4 py-4">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <img src="/BusinessStudio.webp" alt="Business Studio" className="h-7 w-auto object-contain" />
                         </div>
@@ -191,85 +117,6 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                         >
                             <X className="w-5 h-5" />
                         </button>
-                    </div>
-
-                    {/* Info del negocio con selector de sucursales integrado */}
-                    <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2">
-                        {/* Logo del negocio */}
-                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden shrink-0">
-                            {usuario?.logoNegocio ? (
-                                <img
-                                    src={usuario.logoNegocio}
-                                    alt={usuario?.nombreNegocio || 'Negocio'}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <Store className="w-5 h-5 text-blue-500" />
-                            )}
-                        </div>
-
-                        {/* Flecha Izquierda (solo dueño con múltiples sucursales) */}
-                        {!cargandoSucursales && esDueño && sucursales.length > 1 && (
-                            <button
-                                onClick={irAnterior}
-                                disabled={indiceActual === 0}
-                                className={`p-1 rounded transition-all shrink-0 ${
-                                    indiceActual === 0
-                                        ? 'text-white/30 cursor-not-allowed'
-                                        : 'text-white hover:bg-white/20 active:scale-95'
-                                }`}
-                            >
-                                <ChevronLeft className="w-5 h-5" />
-                            </button>
-                        )}
-
-                        {/* Info de sucursal (dinámico) */}
-                        <div className="flex-1 min-w-0">
-                            {cargandoSucursales ? (
-                                <div className="h-3 w-20 bg-white/20 rounded animate-pulse" />
-                            ) : (
-                                <>
-                                    <p className="font-semibold text-sm truncate">
-                                        {usuario?.nombreNegocio || 'Mi Negocio'}
-                                    </p>
-                                    <div className="flex items-center gap-1.5">
-                                        {/* Badge Principal */}
-                                        {sucursalActual?.esPrincipal && (
-                                            <span className="text-xs text-emerald-300 font-medium">
-                                                Principal
-                                            </span>
-                                        )}
-                                        
-                                        {/* Contador (solo si hay múltiples) */}
-                                        {esDueño && sucursales.length > 1 && (
-                                            <>
-                                                {sucursalActual?.esPrincipal && (
-                                                    <span className="text-white/50">•</span>
-                                                )}
-                                                <span className="text-xs text-white/70">
-                                                    {indiceActual + 1}/{sucursales.length}
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Flecha Derecha (solo dueño con múltiples sucursales) */}
-                        {!cargandoSucursales && esDueño && sucursales.length > 1 && (
-                            <button
-                                onClick={irSiguiente}
-                                disabled={indiceActual === sucursales.length - 1}
-                                className={`p-1 rounded transition-all shrink-0 ${
-                                    indiceActual === sucursales.length - 1
-                                        ? 'text-white/30 cursor-not-allowed'
-                                        : 'text-white hover:bg-white/20 active:scale-95'
-                                }`}
-                            >
-                                <ChevronRight className="w-5 h-5" />
-                            </button>
-                        )}
                     </div>
                 </div>
 

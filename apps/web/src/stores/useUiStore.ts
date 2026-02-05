@@ -50,6 +50,9 @@ interface UiState {
   chatYAAbierto: boolean;
   chatYAMinimizado: boolean;
 
+  // Estado - Search Panel (móvil)
+  searchPanelAbierto: boolean;
+
   // Estado - Preview Negocio (Business Studio)
   previewNegocioAbierto: boolean;
   sucursalActivaId: string | null;
@@ -82,6 +85,11 @@ interface UiState {
   toggleChatYA: () => void;
   minimizarChatYA: () => void;
 
+  // Acciones - Search Panel
+  abrirSearchPanel: () => void;
+  cerrarSearchPanel: () => void;
+  toggleSearchPanel: () => void;
+
   // Acciones - Preview Negocio
   abrirPreviewNegocio: () => void;
   cerrarPreviewNegocio: () => void;
@@ -108,6 +116,7 @@ export const useUiStore = create<UiState>((set) => ({
   menuDrawerAbierto: false,
   chatYAAbierto: false,
   chatYAMinimizado: false,
+  searchPanelAbierto: false,
   // Preview Negocio
   previewNegocioAbierto: false,
   sucursalActivaId: null,
@@ -229,6 +238,31 @@ export const useUiStore = create<UiState>((set) => ({
   },
 
   // ---------------------------------------------------------------------------
+  // ACCIONES: Search Panel (móvil)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Abre el panel de búsqueda
+   */
+  abrirSearchPanel: () => {
+    set({ searchPanelAbierto: true });
+  },
+
+  /**
+   * Cierra el panel de búsqueda
+   */
+  cerrarSearchPanel: () => {
+    set({ searchPanelAbierto: false });
+  },
+
+  /**
+   * Alterna el panel de búsqueda
+   */
+  toggleSearchPanel: () => {
+    set((state) => ({ searchPanelAbierto: !state.searchPanelAbierto }));
+  },
+
+  // ---------------------------------------------------------------------------
   // ACCIONES: Preview Negocio (Business Studio)
   // ---------------------------------------------------------------------------
 
@@ -271,6 +305,7 @@ export const useUiStore = create<UiState>((set) => ({
       menuDrawerAbierto: false,
       chatYAAbierto: false,
       chatYAMinimizado: false,
+      searchPanelAbierto: false,
       vistaModalLogin: 'login',
       datos2FA: null,
       previewNegocioAbierto: false,

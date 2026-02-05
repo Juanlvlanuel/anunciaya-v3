@@ -15,9 +15,8 @@
  * ESTILO: Timeline vertical con indicadores visuales
  */
 
-import { useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { Calendar, X, UtensilsCrossed } from 'lucide-react';
+import { Modal } from '../ui/Modal';
 import { ModalBottom } from '../ui/ModalBottom';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 
@@ -109,7 +108,17 @@ export function calcularEstadoNegocio(horarios: Horario[], zonaHoraria?: string)
   }
 
   const { horaApertura, horaCierre, tieneHorarioComida, comidaInicio, comidaFin } = horarioHoy;
-  const horaAperturaCorta = horaApertura.substring(0, 5);
+
+  // Protección defensiva: Si no hay horarios, tratar como cerrado
+  if (!horaApertura || !horaCierre) {
+    const proximoHorario = encontrarProximaApertura(horarios, diaActual);
+    return {
+      estado: 'cerrado_hoy',
+      proximaApertura: proximoHorario?.horaApertura
+    };
+  }
+
+  const horaAperturaCorta = horaApertura.substring(0, 5);  
   const horaCierreCorta = horaCierre.substring(0, 5);
 
   if (horaActual < horaAperturaCorta) {
@@ -167,7 +176,7 @@ function TimelineHorarios({ horarios }: TimelineHorariosProps) {
     <div className="relative">
       {/* Línea vertical */}
       <div className="absolute left-[11px] lg:left-[9px] 2xl:left-[11px] top-3 bottom-3 lg:top-2 lg:bottom-2 2xl:top-3 2xl:bottom-3 w-0.5 bg-slate-200" />
-      
+
       <div className="space-y-1 lg:space-y-0.5 2xl:space-y-1">
         {horariosOrdenados.map((horario, index) => {
           const esHoy = horario.diaSemana === hoy;
@@ -312,59 +321,24 @@ interface ModalDesktopProps {
 }
 
 function ModalDesktop({ horarios, info, onClose }: ModalDesktopProps) {
-  // Escape para cerrar
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-9999 flex items-center justify-center p-4"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClose();
-      }}
+  return (
+    <Modal
+      abierto={true}
+      onCerrar={onClose}
+      titulo="Horarios"
+      iconoTitulo={<Calendar className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />}
+      ancho="sm"
+      className="max-w-sm lg:max-w-xs 2xl:max-w-sm"
+      paddingContenido="md"
     >
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" />
+      {/* Timeline */}
+      <TimelineHorarios horarios={horarios} />
 
-      {/* Modal */}
-      <div
-        className="relative bg-white rounded-2xl shadow-xl max-w-sm lg:max-w-xs 2xl:max-w-sm w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-5 py-4 lg:px-4 lg:py-3 2xl:px-5 2xl:py-4 border-b border-slate-100">
-          <div className="flex items-center justify-between">
-            <h3 className="text-slate-800 font-bold text-xl lg:text-lg 2xl:text-xl flex items-center gap-2">
-              <Calendar className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-400" />
-              Horarios
-            </h3>
-            <button
-              onClick={onClose}
-              className="p-2 lg:p-1.5 2xl:p-2 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-400" />
-            </button>
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <div className="p-4 lg:p-3 2xl:p-4">
-          <TimelineHorarios horarios={horarios} />
-        </div>
-
-        {/* Footer con estado actual */}
-        <div className="px-4 pb-4 lg:px-3 lg:pb-3 2xl:px-4 2xl:pb-4">
-          <FooterEstado info={info} />
-        </div>
+      {/* Footer con estado actual */}
+      <div className="pt-4">
+        <FooterEstado info={info} />
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
 

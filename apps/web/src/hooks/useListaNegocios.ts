@@ -37,6 +37,7 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { useFiltrosNegociosStore } from '../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../stores/useGpsStore';
+import { useNegociosCacheStore } from '../stores/useNegociosCacheStore';
 import type { NegocioResumen, RespuestaListaNegocios } from '../types/negocios';
 
 // =============================================================================
@@ -59,7 +60,7 @@ interface UseListaNegociosOptions {
    * Útil si quieres esperar a que el usuario confirme su ubicación
    */
   manual?: boolean;
-  
+
   /**
    * Si es true, NO incluye coordenadas GPS en la petición
    * Útil para modo "explorar sin ubicación"
@@ -94,20 +95,30 @@ interface UseListaNegociosOptions {
 export function useListaNegocios(options: UseListaNegociosOptions = {}): UseListaNegociosResult {
   const { manual = false, sinUbicacion = false } = options;
 
+  // ✅ Store de caché para lista de negocios
+  const { obtenerListaCache, guardarListaCache } = useNegociosCacheStore();
+
+
   // =============================================================================
   // ESTADO LOCAL
   // =============================================================================
-  
-  const [negocios, setNegocios] = useState<NegocioResumen[]>([]);
+
+  // ✅ Intentar obtener del caché al inicializar (solo si no hay filtros activos)
+  const datosIniciales = !manual ? obtenerListaCache() : null;
+  const tieneCache = datosIniciales !== null && datosIniciales.length > 0;
+
+  const [negocios, setNegocios] = useState<NegocioResumen[]>(datosIniciales || []);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Estados separados para carga inicial vs actualización
-  const [loading, setLoading] = useState(!manual); // Solo true en carga inicial
-  const [isRefetching, setIsRefetching] = useState(false); // True cuando actualiza con datos previos
-  
+  // ✅ Si hay caché, no mostrar loading inicial
+  const [loading, setLoading] = useState(!manual && !tieneCache);
+  const [isRefetching, setIsRefetching] = useState(false);
+
   // Ref para saber si ya se hizo la primera carga
-  const hasLoadedOnce = useRef(false);
-  
+  // ✅ Si hay caché, marcar como que ya cargó
+  const hasLoadedOnce = useRef(tieneCache);
+
   // ✅ NUEVO: Ref para coordenadas GPS (evita re-renders cuando cambian)
   const coordenadasRef = useRef<{ latitud: number | null; longitud: number | null }>({
     latitud: null,
@@ -117,7 +128,7 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
   // =============================================================================
   // STORES GLOBALES
   // =============================================================================
-  
+
   // Filtros seleccionados por el usuario
   const {
     categoria,
@@ -131,7 +142,7 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
 
   // Ubicación GPS del usuario
   const { latitud, longitud } = useGpsStore();
-  
+
   // ✅ NUEVO: Actualizar ref cuando cambien las coordenadas (sin causar re-fetch)
   useEffect(() => {
     coordenadasRef.current = { latitud, longitud };
@@ -140,7 +151,7 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
   // =============================================================================
   // FUNCIÓN DE FETCH
   // =============================================================================
-  
+
   /**
    * Realiza la petición al backend para obtener negocios
    * Construye query params dinámicamente según filtros activos
@@ -156,18 +167,18 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
       } else {
         setLoading(true);
       }
-      
+
       setError(null);
 
       // ===================================================================
       // CONSTRUIR QUERY PARAMS
       // ===================================================================
-      
+
       const params: Record<string, any> = {};
 
       // ✅ CAMBIO: Leer coordenadas del ref en lugar del estado
       const { latitud: lat, longitud: lng } = coordenadasRef.current;
-      
+
       // Coordenadas GPS (si no está deshabilitado)
       if (!sinUbicacion && lat && lng) {
         params.latitud = lat;
@@ -212,7 +223,7 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
       // ===================================================================
       // HACER PETICIÓN
       // ===================================================================
-      
+
 
       const response = await api.get<RespuestaListaNegocios>('/negocios', {
         params,
@@ -221,17 +232,25 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
       // ===================================================================
       // PROCESAR RESPUESTA
       // ===================================================================
-      
+
       if (response.data.success) {
         setNegocios(response.data.data);
-        hasLoadedOnce.current = true; // Marcar que ya cargó al menos una vez
+        hasLoadedOnce.current = true;
+
+        // ✅ Guardar en caché (solo si no hay filtros activos)
+        const hayFiltrosActivos = categoria || subcategorias.length > 0 ||
+          metodosPago.length > 0 || soloCardya || conEnvio || busqueda.trim();
+
+        if (!hayFiltrosActivos) {
+          guardarListaCache(response.data.data);
+        }
       } else {
         throw new Error('Respuesta inválida del servidor');
       }
 
     } catch (err: any) {
       console.error('❌ Error al obtener negocios:', err);
-      
+
       // Mensajes de error amigables
       if (err.response?.status === 401) {
         setError('Debes iniciar sesión para ver negocios');
@@ -242,13 +261,13 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
       } else {
         setError(err.message || 'Error al cargar negocios');
       }
-      
+
       // Solo limpiar negocios si es error crítico (401)
       if (err.response?.status === 401) {
         setNegocios([]);
       }
       // Si es otro error, mantener los datos previos
-      
+
     } finally {
       setLoading(false);
       setIsRefetching(false);
@@ -258,7 +277,7 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
   // =============================================================================
   // EFECTOS
   // =============================================================================
-  
+
   /**
    * Efecto que ejecuta el fetch cuando cambian los filtros
    * Solo se ejecuta si NO está en modo manual
@@ -286,7 +305,7 @@ export function useListaNegocios(options: UseListaNegociosOptions = {}): UseList
   // =============================================================================
   // RETURN
   // =============================================================================
-  
+
   return {
     negocios,
     loading,

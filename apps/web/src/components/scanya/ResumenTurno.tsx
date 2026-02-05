@@ -166,10 +166,8 @@ export default function ResumenTurno({
           
         "
                 style={{
-                    background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.9) 0%, rgba(10, 35, 70, 0.8) 100%)',
-                    border: '2px solid rgba(30, 64, 110, 0.5)',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                    background: '#001136',
+                    borderColor: '#002D8F',
                 }}
             >
                 {/* Línea superior colorida */}
@@ -303,10 +301,8 @@ export default function ResumenTurno({
         
       "
             style={{
-                background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.9) 0%, rgba(10, 35, 70, 0.8) 100%)',
-                border: '2px solid rgba(30, 64, 110, 0.5)',
-                backdropFilter: 'blur(10px)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                background: '#001136',
+                borderColor: '#002D8F',
             }}
         >
             {/* Línea superior colorida */}
@@ -321,8 +317,7 @@ export default function ResumenTurno({
             <div
                 className="p-4 lg:p-4 2xl:p-6 pb-3 lg:pb-3 2xl:pb-4"
                 style={{
-                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.1))',
-                    borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
+                    background: 'linear-gradient(0deg, #001136 0%, #072885 70%, #072885 100%)',
                 }}
             >
                 <div className="flex justify-between items-start mb-3 lg:mb-4">

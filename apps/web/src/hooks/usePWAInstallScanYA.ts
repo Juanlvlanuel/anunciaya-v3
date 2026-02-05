@@ -72,7 +72,7 @@ function setEstadoGuardado(estado: EstadoInstalacion): void {
 
 export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
   const location = useLocation();
-  
+
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [estadoInstalacion, setEstadoInstalacion] = useState<EstadoInstalacion>(getEstadoGuardado);
   const [instalando, setInstalando] = useState(false);
@@ -87,23 +87,16 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
   useEffect(() => {
     if (esRutaScanYA) {
       // Inyectar manifest si no existe
-      let manifestLink = document.getElementById(MANIFEST_ID) as HTMLLinkElement | null;
-      
-      if (!manifestLink) {
-        manifestLink = document.createElement('link');
-        manifestLink.id = MANIFEST_ID;
-        manifestLink.rel = 'manifest';
-        manifestLink.href = MANIFEST_URL;
-        document.head.appendChild(manifestLink);
-        console.log('[PWA ScanYA] Manifest inyectado');
-      }
+      // let manifestLink = document.getElementById(MANIFEST_ID) as HTMLLinkElement | null;
 
-      // Cambiar theme-color para ScanYA
-      const themeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-      if (themeColor) {
-        themeColor.setAttribute('data-original-color', themeColor.content);
-        themeColor.content = '#000000';
-      }
+      // if (!manifestLink) {
+      //   manifestLink = document.createElement('link');
+      //   manifestLink.id = MANIFEST_ID;
+      //   manifestLink.rel = 'manifest';
+      //   manifestLink.href = MANIFEST_URL;
+      //   document.head.appendChild(manifestLink);
+      //   console.log('[PWA ScanYA] Manifest inyectado');
+      // }
 
       // Deshabilitar pinch-to-zoom para que se sienta como app nativa
       const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
@@ -117,30 +110,12 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
       document.body.style.overscrollBehavior = 'none';
       document.documentElement.style.overscrollBehavior = 'none';
       console.log('[PWA ScanYA] Pull-to-refresh deshabilitado');
-
-      // Cambiar background del body al gradiente ScanYA (solo en móvil)
-      const mediaQuery = window.matchMedia('(max-width: 1023px)');
-      if (mediaQuery.matches) {
-        document.body.setAttribute('data-original-background', document.body.style.background || '');
-        document.body.style.background = 'linear-gradient(180deg, #000000 0%, #001d3d 50%, #000000 100%)';
-        document.body.style.overflow = 'hidden';
-        console.log('[PWA ScanYA] Background gradiente aplicado (móvil)');
-      }
     } else {
       // Quitar manifest si existe y no estamos en ScanYA
       const manifestLink = document.getElementById(MANIFEST_ID);
       if (manifestLink) {
         manifestLink.remove();
         console.log('[PWA ScanYA] Manifest removido');
-      }
-
-      // Restaurar theme-color original
-      const themeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-      if (themeColor) {
-        const originalColor = themeColor.getAttribute('data-original-color');
-        if (originalColor) {
-          themeColor.content = originalColor;
-        }
       }
 
       // Restaurar viewport original (habilitar pinch-to-zoom)
@@ -157,23 +132,6 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
       document.body.style.overscrollBehavior = '';
       document.documentElement.style.overscrollBehavior = '';
       console.log('[PWA ScanYA] Pull-to-refresh habilitado');
-
-      // Restaurar background original del body
-      const mediaQuery = window.matchMedia('(max-width: 1023px)');
-      if (mediaQuery.matches) {
-        // En móvil, poner blanco cuando NO estamos en ScanYA
-        document.body.style.background = '#ffffff';
-        document.body.style.overflow = '';
-        console.log('[PWA ScanYA] Background blanco aplicado (AnunciaYA móvil)');
-      } else {
-        // En desktop, restaurar original
-        const originalBackground = document.body.getAttribute('data-original-background');
-        if (originalBackground !== null) {
-          document.body.style.background = originalBackground;
-          document.body.style.overflow = '';
-          console.log('[PWA ScanYA] Background restaurado');
-        }
-      }
     }
 
     // Cleanup al desmontar
@@ -188,7 +146,7 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
   useEffect(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches;
     const iosStandalone = (navigator as NavigatorStandalone).standalone;
-    
+
     if (standalone || iosStandalone) {
       setEsStandalone(true);
       setEstadoGuardado('instalada');
@@ -206,7 +164,7 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
     const handleBeforeInstall = (e: Event) => {
       // Prevenir que Chrome muestre su mini-infobar
       e.preventDefault();
-      
+
       const promptEvent = e as BeforeInstallPromptEvent;
       setDeferredPrompt(promptEvent);
       console.log('[PWA ScanYA] ✅ beforeinstallprompt capturado');
@@ -239,7 +197,7 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
     }
 
     setInstalando(true);
-    
+
     // Guardar que el usuario intentó instalar
     setEstadoGuardado('intento');
     setEstadoInstalacion('intento');
@@ -262,14 +220,14 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
     try {
       // Mostrar el prompt nativo del navegador
       await deferredPrompt.prompt();
-      
+
       // Esperar la decisión del usuario
       const choiceResult = await deferredPrompt.userChoice;
       resuelto = true;
-      
+
       // Limpiar el prompt usado (solo se puede usar una vez)
       setDeferredPrompt(null);
-      
+
       if (choiceResult.outcome === 'accepted') {
         console.log('[PWA ScanYA] ✅ Usuario aceptó instalar');
         setEstadoGuardado('instalada');
@@ -287,7 +245,7 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
     } finally {
       // Limpiar listener
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      
+
       // Resetear estado si no se había resuelto antes
       if (!resuelto) {
         setInstalando(false);

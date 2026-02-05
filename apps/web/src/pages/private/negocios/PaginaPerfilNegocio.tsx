@@ -41,7 +41,11 @@ import {
     Truck,
     Home,
     Maximize2,
+    Plus,
+    Minus,
+    Crosshair,
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { usePerfilNegocio } from '../../../hooks/usePerfilNegocio';
 import { useVotos } from '../../../hooks/useVotos';
 import { api } from '../../../services/api';
@@ -51,6 +55,7 @@ import 'leaflet/dist/leaflet.css';
 import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../components/negocios/ModalHorarios';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { useNegociosCacheStore } from '../../../stores/useNegociosCacheStore';
 import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalEscribirResena } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
 import { DropdownCompartir, ModalAuthRequerido } from '../../../components/compartir';
@@ -229,6 +234,9 @@ interface ModalMapaProps {
 }
 
 function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
+
+    const mapRef = useRef<L.Map | null>(null);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -260,51 +268,117 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
     const centerLat = userLat && userLng ? (negocio.latitud + userLat) / 2 : negocio.latitud;
     const centerLng = userLat && userLng ? (negocio.longitud + userLng) / 2 : negocio.longitud;
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 lg:p-4 2xl:p-6"
+            className="fixed inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] flex items-center justify-center p-3 lg:p-4 2xl:p-6 z-9999"
             onClick={onClose}
         >
-            {/* Contenedor principal con marco decorativo */}
+            {/* Contenedor principal */}
             <div
-                className="relative w-full max-w-3xl lg:max-w-4xl 2xl:max-w-6xl bg-white rounded-xl lg:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-                style={{ height: '90vh' }}
+                className="relative w-full max-w-3xl lg:max-w-3xl 2xl:max-w-5xl bg-white rounded-xl lg:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                style={{ height: '75vh' }}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* HEADER: Leyenda y botón cerrar */}
-                <div className="flex items-center justify-between px-4 py-3 lg:px-5 lg:py-3 2xl:px-6 2xl:py-4 border-b border-slate-200 bg-white">
-                    {/* Espaciador izquierdo para centrar leyenda */}
-                    <div className="w-8 lg:w-9 2xl:w-10"></div>
+                {/* HEADER CON GRADIENTE SUAVE */}
+                <div className="bg-linear-to-r from-blue-50 to-slate-100 border-b border-slate-200">
+                    <div className="flex items-center justify-between px-4 py-3 lg:px-5 lg:py-3 2xl:px-6 2xl:py-4">
+                        {/* Info del negocio */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                                <MapPin className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-red-500" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="text-base lg:text-lg 2xl:text-xl font-bold text-slate-800 truncate">
+                                    {negocio.negocioNombre}
+                                </h3>
+                                <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 truncate">
+                                    {negocio.direccion}
+                                </p>
+                            </div>
+                        </div>
 
-                    {/* Leyenda centrada */}
-                    <div className="flex items-center gap-4 lg:gap-5 2xl:gap-6">
-                        <div className="flex items-center gap-1.5 lg:gap-2">
-                            <div className="w-3 h-3 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 bg-red-500 rounded-full shadow-sm"></div>
-                            <span className="text-sm lg:text-sm 2xl:text-base text-slate-700 font-semibold">Negocio</span>
+                        {/* Botones */}
+                        <div className="flex items-center gap-2 shrink-0 ml-3">
+                            <button
+                                onClick={() => {
+                                    const url = `https://www.google.com/maps/dir/?api=1&destination=${negocio.latitud},${negocio.longitud}`;
+                                    window.open(url, '_blank');
+                                }}
+                                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 2xl:px-5 2xl:py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm lg:text-sm 2xl:text-base rounded-xl shadow-md hover:shadow-lg transition-all"
+                            >
+                                <Navigation className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                <span className="hidden sm:inline">Cómo llegar</span>
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="w-9 h-9 lg:w-10 lg:h-10 2xl:w-11 2xl:h-11 flex items-center justify-center hover:bg-white/60 rounded-xl transition-colors"
+                            >
+                                <X className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-500" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* MAPA con leyenda flotante */}
+                <div className="flex-1 relative">
+                    {/* Leyenda flotante */}
+                    <div className="absolute top-3 left-3 z-1000 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-4 py-2.5 flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <MapPin className="w-5 h-5 text-red-500" />
+                            <span className="text-sm font-semibold text-slate-700">Negocio</span>
                         </div>
                         {userLat && userLng && (
-                            <div className="flex items-center gap-1.5 lg:gap-2">
-                                <div className="w-3 h-3 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 bg-blue-500 rounded-full shadow-sm"></div>
-                                <span className="text-sm lg:text-sm 2xl:text-base text-slate-700 font-semibold">Tu ubicación</span>
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-5 h-5 text-blue-500" />
+                                <span className="text-sm font-semibold text-slate-700">Tú</span>
                             </div>
                         )}
                     </div>
 
-                    {/* Botón cerrar */}
-                    <button
-                        onClick={onClose}
-                        className="shrink-0 w-8 h-8 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 flex items-center justify-center hover:bg-slate-100 rounded-lg lg:rounded-xl transition-colors"
-                    >
-                        <X className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-700" />
-                    </button>
-                </div>
+                    {/* Controles de zoom personalizados - HORIZONTAL */}
+                    <div className="absolute bottom-6 right-3 z-1000 flex flex-row gap-1.5">
+                        <button
+                            onClick={() => {
+                                if (mapRef.current) {
+                                    if (userLat && userLng) {
+                                        // Centrar entre negocio y usuario
+                                        mapRef.current.fitBounds([
+                                            [negocio.latitud, negocio.longitud],
+                                            [userLat, userLng]
+                                        ], { padding: [50, 50] });
+                                    } else {
+                                        // Centrar solo en negocio
+                                        mapRef.current.setView([negocio.latitud, negocio.longitud], 16);
+                                    }
+                                }
+                            }}
+                            className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 bg-white hover:bg-slate-50 rounded-lg shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                            title="Centrar mapa"
+                        >
+                            <Crosshair className="w-4 h-4 lg:w-4 lg:h-4 text-slate-600" />
+                        </button>
+                        <button
+                            onClick={() => mapRef.current?.setZoom((mapRef.current?.getZoom() || 14) + 1)}
+                            className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 bg-white hover:bg-slate-50 rounded-lg shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                            title="Acercar"
+                        >
+                            <Plus className="w-4 h-4 lg:w-4 lg:h-4 text-slate-600" />
+                        </button>
+                        <button
+                            onClick={() => mapRef.current?.setZoom((mapRef.current?.getZoom() || 14) - 1)}
+                            className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 bg-white hover:bg-slate-50 rounded-lg shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                            title="Alejar"
+                        >
+                            <Minus className="w-4 h-4 lg:w-4 lg:h-4 text-slate-600" />
+                        </button>
+                    </div>
 
-                {/* MAPA: Ocupa el resto del espacio */}
-                <div className="flex-1 relative">
                     <MapContainer
+                        ref={mapRef}
                         center={[centerLat, centerLng]}
                         zoom={userLat && userLng ? 14 : 16}
                         scrollWheelZoom={true}
+                        zoomControl={false}
                         className="w-full h-full"
                     >
                         <TileLayer
@@ -342,7 +416,8 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                     </MapContainer>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
@@ -354,6 +429,14 @@ export function PaginaPerfilNegocio() {
     const { sucursalId } = useParams<{ sucursalId: string }>();
     const navigate = useNavigate();
     const { usuario } = useAuthStore();
+
+    // ✅ Store de caché para ofertas y catálogo
+    const {
+        obtenerOfertasCache,
+        obtenerCatalogoCache,
+        guardarOfertasCache,
+        guardarCatalogoCache
+    } = useNegociosCacheStore();
     const location = useLocation();
 
     const [totalLikes, setTotalLikes] = useState<number | undefined>(undefined);
@@ -509,18 +592,29 @@ export function PaginaPerfilNegocio() {
         }
     }, [negocio?.latitud, negocio?.longitud, userLat, userLng]);
 
-    // Fetch del catálogo cuando se carga el negocio
+    // ✅ Fetch del catálogo - PRIMERO busca en caché
     useEffect(() => {
-        if (negocio?.negocioId && sucursalId) {
-            api.get(`/articulos/negocio/${negocio.negocioId}`)
-                .then(res => {
-                    if (res.data.success) {
-                        setCatalogo(res.data.data || []);
-                    }
-                })
-                .catch(() => setCatalogo([]));
+        if (!negocio?.negocioId || !sucursalId) return;
+
+        // Intentar leer del caché primero
+        const catalogoCacheado = obtenerCatalogoCache(sucursalId);
+        if (catalogoCacheado) {
+            setCatalogo(catalogoCacheado);
+            return;
         }
-    }, [negocio?.negocioId, sucursalId]);
+
+        // Si no hay caché, hacer fetch normal
+        api.get(`/articulos/negocio/${negocio.negocioId}`)
+            .then(res => {
+                if (res.data.success) {
+                    const data = res.data.data || [];
+                    setCatalogo(data);
+                    // Guardar en caché para futuras visitas
+                    guardarCatalogoCache(sucursalId, data);
+                }
+            })
+            .catch(() => setCatalogo([]));
+    }, [negocio?.negocioId, sucursalId, obtenerCatalogoCache, guardarCatalogoCache]);
 
 
     // Fetch de las reseñas cuando se carga el negocio
@@ -536,38 +630,46 @@ export function PaginaPerfilNegocio() {
         }
     }, [sucursalId]);
 
-    // Fetch de las ofertas cuando se carga el negocio
+    // ✅ Fetch de las ofertas - PRIMERO busca en caché
     useEffect(() => {
-        if (sucursalId) {
-            // Enviar fecha local para filtrar ofertas activas según zona horaria del usuario
-            const fechaLocal = new Date().toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
-            api.get('/ofertas/feed', { params: { sucursalId, limite: 50, fechaLocal } })
-                .then(res => {
-                    if (res.data.success && res.data.data) {
-                        // Mapear campos del backend a la interface local
-                        const ofertasMapeadas = res.data.data.map((o: {
-                            ofertaId: string;
-                            titulo: string;
-                            descripcion?: string;
-                            imagen?: string;
-                            tipo: Oferta['tipo'];
-                            valor?: string;
-                            fechaFin?: string;
-                        }) => ({
-                            id: o.ofertaId,
-                            titulo: o.titulo,
-                            descripcion: o.descripcion,
-                            imagen: o.imagen,
-                            tipo: o.tipo,
-                            valor: o.valor != null ? (isNaN(Number(o.valor)) ? o.valor : Number(o.valor)) : undefined,
-                            fechaFin: o.fechaFin,
-                        }));
-                        setOfertas(ofertasMapeadas);
-                    }
-                })
-                .catch(() => setOfertas([]));
+        if (!sucursalId) return;
+
+        // Intentar leer del caché primero
+        const ofertasCacheadas = obtenerOfertasCache(sucursalId);
+        if (ofertasCacheadas) {
+            setOfertas(ofertasCacheadas);
+            return;
         }
-    }, [sucursalId]);
+
+        // Si no hay caché, hacer fetch normal
+        const fechaLocal = new Date().toLocaleDateString('en-CA');
+        api.get('/ofertas/feed', { params: { sucursalId, limite: 50, fechaLocal } })
+            .then(res => {
+                if (res.data.success && res.data.data) {
+                    const ofertasMapeadas = res.data.data.map((o: {
+                        ofertaId: string;
+                        titulo: string;
+                        descripcion?: string;
+                        imagen?: string;
+                        tipo: Oferta['tipo'];
+                        valor?: string;
+                        fechaFin?: string;
+                    }) => ({
+                        id: o.ofertaId,
+                        titulo: o.titulo,
+                        descripcion: o.descripcion,
+                        imagen: o.imagen,
+                        tipo: o.tipo,
+                        valor: o.valor != null ? (isNaN(Number(o.valor)) ? o.valor : Number(o.valor)) : undefined,
+                        fechaFin: o.fechaFin,
+                    }));
+                    setOfertas(ofertasMapeadas);
+                    // Guardar en caché para futuras visitas
+                    guardarOfertasCache(sucursalId, ofertasMapeadas);
+                }
+            })
+            .catch(() => setOfertas([]));
+    }, [sucursalId, obtenerOfertasCache, guardarOfertasCache]);
 
     // =============================================================================
     // HANDLERS
@@ -663,7 +765,7 @@ export function PaginaPerfilNegocio() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50">
+            <div className="min-h-screen bg-transparent overflow-x-hidden lg:overflow-x-visible">
                 <div className="max-w-7xl mx-auto px-8 lg:px-12 2xl:px-16 py-6">
                     {/* Skeleton Hero */}
                     <div className="relative h-48 lg:h-56 bg-slate-200 animate-pulse rounded-b-3xl -mx-8 lg:-mx-12 2xl:-mx-16" />
@@ -722,7 +824,7 @@ export function PaginaPerfilNegocio() {
 
     if (error || !negocio) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+            <div className="min-h-screen flex items-center justify-center bg-transparent px-4">
                 <div className="text-center max-w-md">
                     <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
                         <AlertCircle className="w-8 h-8 text-red-500" />
@@ -743,7 +845,8 @@ export function PaginaPerfilNegocio() {
 
     // Contenido principal
     const contenidoPrincipal = (
-        <div className="min-h-screen bg-slate-50">
+        // ✅ overflow-x-hidden solo en móvil, visible en lg y 2xl
+        <div className="min-h-screen bg-transparent overflow-x-hidden lg:overflow-x-visible">
             {/* Wrapper removido - LayoutPublico ya maneja el ancho */}
 
             {/* MODAL HORARIOS */}
@@ -776,7 +879,7 @@ export function PaginaPerfilNegocio() {
             {/* ================================================================
                 HERO
             ================================================================ */}
-            <div className="relative h-60 lg:h-50 2xl:h-72 lg:mx-4 2xl:mx-0 bg-slate-200 overflow-hidden rounded-b-3xl lg:rounded-b-none lg:rounded-br-[3rem]">
+            <div className="relative h-60 lg:h-50 2xl:h-72 bg-slate-200 overflow-hidden rounded-b-3xl lg:rounded-b-none lg:rounded-br-[3rem] lg:-mx-3.5 2xl:-mx-7.5">
                 {negocio.portadaUrl ? (
                     <img
                         src={negocio.portadaUrl}
@@ -790,7 +893,7 @@ export function PaginaPerfilNegocio() {
                 <div className="absolute inset-0 bg-black/20 pointer-events-none rounded-b-3xl lg:rounded-b-none lg:rounded-br-[3rem]" />
 
                 {/* MÉTRICAS GLASSMORPHISM - Solo móvil */}
-                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-3 py-2.5 px-3 bg-white/60 backdrop-blur-md lg:hidden">
+                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-5 py-2.5 px-3 bg-white/60 backdrop-blur-md lg:hidden">
                     <div className="flex items-center gap-1.5">
                         <Heart className="w-6 h-6 text-red-500 fill-current" />
                         <span className="text-base font-bold text-slate-700">{totalLikes ?? 0}</span>
@@ -824,7 +927,7 @@ export function PaginaPerfilNegocio() {
                     <div className="px-12 lg:px-16 2xl:px-20 h-full relative">
                         {/* Botón Volver (oculto en modo preview) */}
                         {!esModoPreview && (
-                            <div className="pointer-events-auto absolute top-14 lg:top-4 left-4 group">
+                            <div className="pointer-events-auto absolute top-14 lg:top-4 left-5 2xl:left-7.5 group">
                                 <button onClick={handleVolver} className="cursor-pointer p-2 2xl:p-2.5 rounded-lg border-2 bg-white/90 border-white text-slate-700 hover:bg-slate-100 hover:border-slate-400 hover:text-slate-900 backdrop-blur-sm transition-all">
                                     <ArrowLeft className="w-4 h-4 2xl:w-5 2xl:h-5" />
                                 </button>
@@ -834,7 +937,7 @@ export function PaginaPerfilNegocio() {
                             </div>
                         )}
 
-                        <div className="absolute top-14 lg:top-4 right-4 flex gap-2 pointer-events-auto">
+                        <div className="absolute top-14 lg:top-4 right-5 2xl:right-7.5 flex gap-2 pointer-events-auto">
                             {/* Botón Like */}
                             <div className="relative group">
                                 <button onClick={handleLikeConAuth} className={`cursor-pointer p-2 2xl:p-2.5 rounded-lg border-2 backdrop-blur-sm transition-all ${liked ? 'bg-red-50 border-red-500 text-red-500' : 'bg-white/90 border-white text-slate-700 hover:bg-red-50 hover:border-red-500 hover:text-red-500'}`}>
@@ -874,7 +977,7 @@ export function PaginaPerfilNegocio() {
                     <div className="flex items-start gap-4 lg:hidden">
                         {/* Logo (izquierda, más grande, con margen) */}
                         <div
-                            className={`-mt-14 ml-4 shrink-0 w-28 h-28 rounded-xl overflow-hidden border-4 border-white bg-white shadow-lg ${negocio.logoUrl ? 'cursor-pointer' : ''}`}
+                            className={`-mt-8 ml-5 shrink-0 w-29 h-29 rounded-xl overflow-hidden border-4 border-white bg-white shadow-lg ${negocio.logoUrl ? 'cursor-pointer' : ''}`}
                             onClick={() => negocio.logoUrl && abrirImagenUnica(negocio.logoUrl)}
                         >
                             {negocio.logoUrl ? (
@@ -971,7 +1074,7 @@ export function PaginaPerfilNegocio() {
                                 {/* DERECHA: Métricas + Badges en columna */}
                                 <div className="flex flex-col items-end gap-2 shrink-0">
                                     {/* MÉTRICAS */}
-                                    <div className="flex items-center bg-slate-50 rounded-xl lg:px-2 lg:py-1.5 2xl:px-4 2xl:py-2 lg:mr-4 2xl:mr-0">
+                                    <div className="flex items-center bg-slate-50 rounded-xl lg:px-2 lg:py-1.5 2xl:px-4 2xl:py-2">
                                         <div className="flex items-center lg:gap-1 2xl:gap-2 lg:pr-2 2xl:pr-4">
                                             <Heart className="lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-red-500 fill-current animate-bounce" style={{ animationDuration: '2s' }} />
                                             <span className="lg:text-sm 2xl:text-lg font-semibold text-slate-700">{totalLikes ?? 0} likes</span>
@@ -1006,7 +1109,7 @@ export function PaginaPerfilNegocio() {
 
                                     {/* BADGES - Uno debajo del otro */}
                                     {(negocio.tieneEnvioDomicilio || negocio.tieneServicioDomicilio) && (
-                                        <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 lg:items-start 2xl:items-end lg:mr-4 2xl:mr-0">
+                                        <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 lg:items-start 2xl:items-end">
                                             {negocio.tieneEnvioDomicilio && (
                                                 <div className="flex items-center gap-1 lg:gap-1 2xl:gap-2 lg:px-2 lg:py-1 2xl:px-4 2xl:py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
                                                     <Truck className="lg:w-3 lg:h-3 2xl:w-5 2xl:h-5 text-emerald-600" />
@@ -1014,7 +1117,7 @@ export function PaginaPerfilNegocio() {
                                                 </div>
                                             )}
                                             {negocio.tieneServicioDomicilio && (
-                                                <div className="flex items-center gap-1 lg:gap-1 2xl:gap-2 lg:px-2 lg:py-1 2xl:px-4 2xl:py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                                                <div className="flex items-center gap-1 lg:gap-1 2xl:gap-2 lg:px-2 lg:py-1 2xl:px-4 2xl:py-2 bg-white border border-blue-200 rounded-lg">
                                                     <Home className="lg:w-3 lg:h-3 2xl:w-5 2xl:h-5 text-blue-600" />
                                                     <span className="lg:text-[10px] 2xl:text-sm font-medium text-blue-700">Servicio a domicilio</span>
                                                 </div>
@@ -1167,7 +1270,7 @@ export function PaginaPerfilNegocio() {
 
                         {/* ============ PROMOCIONES Y OFERTAS ============ */}
                         {!seccionExpandida && tieneOfertas && (
-                            <div className="px-5 lg:px-0 lg:mx-4 2xl:mx-0">
+                            <div className="px-5 lg:px-0">
                                 <SeccionOfertas
                                     ofertas={ofertas}
                                     whatsapp={negocio?.whatsapp}
@@ -1178,7 +1281,7 @@ export function PaginaPerfilNegocio() {
 
                         {/* ============ CATÁLOGO ============ */}
                         {catalogo.length > 0 && !seccionExpandida && (
-                            <div className="px-5 lg:px-0 lg:mx-4 2xl:mx-0">
+                            <div className="px-5 lg:px-0">
                                 <SeccionCatalogo
                                     catalogo={catalogo}
                                     whatsapp={negocio?.whatsapp}
@@ -1187,7 +1290,7 @@ export function PaginaPerfilNegocio() {
                         )}
                         {/* ============ GALERÍA ============ */}
                         {!seccionExpandida && galeriaImagenes.length > 0 && (
-                            <div className="px-5 lg:px-0 lg:mx-4 2xl:mx-0">
+                            <div className="px-5 lg:px-0">
                                 <div className="flex items-center justify-between mb-4 lg:mb-3 2xl:mb-4 bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 text-white px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-xl">
                                     <h2 className="flex items-center gap-2 text-lg lg:text-base 2xl:text-lg font-semibold">
                                         <ImageIcon className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
@@ -1211,7 +1314,7 @@ export function PaginaPerfilNegocio() {
                                             {paginaGaleria < totalPaginasGaleria - 1 && (
                                                 <button
                                                     onClick={siguientePaginaGaleria}
-                                                    className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-all hover:scale-110"
+                                                    className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-all hover:scale-110 cursor-pointer"
                                                 >
                                                     <ChevronRight className="w-5 h-5" />
                                                 </button>
@@ -1251,7 +1354,7 @@ export function PaginaPerfilNegocio() {
                     </div>
 
                     {/* ============ SIDEBAR CONTACTO (SIN STICKY) ============ */}
-                    <div className="px-4 lg:px-0 lg:mr-4 2xl:mr-0">
+                    <div className="px-5 lg:px-0">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:p-4 2xl:p-6">
 
                             {/* HORARIO - Solo desktop */}
@@ -1540,7 +1643,7 @@ export function PaginaPerfilNegocio() {
 
                 {/* ============ RESEÑAS - ANCHO COMPLETO ============ */}
                 {!seccionExpandida && (
-                    <div className="px-5 lg:px-4 2xl:px-0 mt-6 lg:mt-4 2xl:mt-6">
+                    <div className="px-5 lg:px-4 2xl:px-0 mt-6 lg:mt-4 2xl:mt-6 ">
                         <SeccionResenas
                             resenas={resenasData}
                             onEscribirResena={() => setModalResenaAbierto(true)}

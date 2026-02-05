@@ -325,6 +325,64 @@ export function usePerfil() {
     cargarDatos();
   }, [cargarDatos]);
 
+  /**
+ * ============================================================================
+ * FUNCIÓN DE VALIDACIÓN DE HORARIOS
+ * ============================================================================
+ * 
+ * DÓNDE AGREGAR: apps/web/src/pages/private/business-studio/perfil/hooks/usePerfil.ts
+ * UBICACIÓN: Agregar ANTES de la función guardarTodo() (aproximadamente línea 330)
+ * 
+ * PROPÓSITO:
+ * Validar que los horarios sean consistentes antes de guardar
+ * - Si está abierto, debe tener hora_apertura Y hora_cierre
+ * - hora_cierre debe ser MAYOR que hora_apertura
+ * - Si tiene horario de comida, comida_fin debe ser MAYOR que comida_inicio
+ */
+
+  function validarHorarios(horarios: HorarioDia[]): string[] {
+    const errores: string[] = [];
+    const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+    for (const horario of horarios) {
+      const nombreDia = diasNombres[horario.diaSemana];
+
+      // Si está marcado como abierto, DEBE tener horarios
+      if (horario.abierto) {
+        if (!horario.horaApertura || !horario.horaCierre) {
+          errores.push(`${nombreDia}: Falta hora de apertura o cierre`);
+          continue;
+        }
+
+        // Validar que hora_cierre > hora_apertura
+        const apertura = horario.horaApertura.substring(0, 5); // "09:00"
+        const cierre = horario.horaCierre.substring(0, 5);     // "21:00"
+
+        if (cierre <= apertura) {
+          errores.push(`${nombreDia}: La hora de cierre (${cierre}) debe ser mayor que la de apertura (${apertura})`);
+        }
+
+        // Validar horario de comida si existe
+        if (horario.tieneHorarioComida && horario.comidaInicio && horario.comidaFin) {
+          const comidaInicio = horario.comidaInicio.substring(0, 5);
+          const comidaFin = horario.comidaFin.substring(0, 5);
+
+          // Validar que comida_fin > comida_inicio
+          if (comidaFin <= comidaInicio) {
+            errores.push(`${nombreDia}: El fin de comida (${comidaFin}) debe ser mayor que el inicio (${comidaInicio})`);
+          }
+
+          // Validar que el horario de comida esté dentro del horario de operación
+          if (comidaInicio < apertura || comidaFin > cierre) {
+            errores.push(`${nombreDia}: El horario de comida debe estar dentro del horario de operación`);
+          }
+        }
+      }
+    }
+
+    return errores;
+  }
+
   // =============================================================================
   // FUNCIÓN ÚNICA DE GUARDADO
   // =============================================================================
@@ -347,11 +405,11 @@ export function usePerfil() {
       // =========================================================================
       if (!esGerente && datosInicialesInformacion) {
         const cambioInfo = JSON.stringify(datosInformacion) !== JSON.stringify(datosInicialesInformacion);
-        
+
         if (cambioInfo) {
           cambiosDetectados.push('Datos del Negocio');
           const datosAnteriores = { ...datosInformacion };
-          
+
           try {
             await api.put(`/negocios/${negocioId}/informacion`, {
               nombre: datosInformacion.nombre,
@@ -383,11 +441,11 @@ export function usePerfil() {
       // =========================================================================
       if (datosInicialesContacto) {
         const cambioContacto = JSON.stringify(datosContacto) !== JSON.stringify(datosInicialesContacto);
-        
+
         if (cambioContacto) {
           cambiosDetectados.push(esGerente ? 'Datos de Sucursal' : 'Contacto');
           const datosAnteriores = { ...datosContacto };
-          
+
           try {
             await api.put(`/negocios/${negocioId}/contacto`, {
               nombreSucursal: esGerente ? datosContacto.nombreSucursal : undefined,
@@ -410,11 +468,11 @@ export function usePerfil() {
       // =========================================================================
       if (datosInicialesUbicacion) {
         const cambioUbicacion = JSON.stringify(datosUbicacion) !== JSON.stringify(datosInicialesUbicacion);
-        
+
         if (cambioUbicacion) {
           cambiosDetectados.push('Ubicación');
           const datosAnteriores = { ...datosUbicacion };
-          
+
           try {
             await api.put(`/negocios/${negocioId}/ubicacion`, {
               direccion: datosUbicacion.direccion,
@@ -439,11 +497,18 @@ export function usePerfil() {
       // =========================================================================
       if (datosInicialesHorarios) {
         const cambioHorarios = JSON.stringify(datosHorarios) !== JSON.stringify(datosInicialesHorarios);
-        
+
         if (cambioHorarios) {
           cambiosDetectados.push('Horarios');
           const datosAnteriores = { ...datosHorarios };
-          
+
+          // Validar horarios antes de guardar
+          const erroresValidacion = validarHorarios(datosHorarios.horarios);
+          if (erroresValidacion.length > 0) {
+            notificar.error(`Horarios inválidos:\n${erroresValidacion.join('\n')}`);
+            return;
+          }
+
           try {
             await api.put(`/negocios/${negocioId}/horarios`, {
               horarios: datosHorarios.horarios,
@@ -461,11 +526,11 @@ export function usePerfil() {
       // =========================================================================
       if (datosInicialesOperacion) {
         const cambioOperacion = JSON.stringify(datosOperacion) !== JSON.stringify(datosInicialesOperacion);
-        
+
         if (cambioOperacion) {
           cambiosDetectados.push('Operación');
           const datosAnteriores = { ...datosOperacion };
-          
+
           try {
             const metodos: string[] = [];
 

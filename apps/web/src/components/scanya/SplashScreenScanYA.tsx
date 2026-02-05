@@ -114,7 +114,7 @@ export function SplashScreenScanYA({ onComplete }: SplashScreenScanYAProps) {
       <div
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, #000000 0%, #001d3d 50%, #000000 100%)'
+          background: 'linear-gradient(135deg, #02143D 10%, #001E70 50%, #034AE3 100%)'
         }}
       >
         {/* Esferas de gradiente flotantes */}

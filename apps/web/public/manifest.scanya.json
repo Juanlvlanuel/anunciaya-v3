@@ -6,8 +6,6 @@
   "scope": "/scanya",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#000000",
-  "background_color": "#000000",
   "categories": ["business", "productivity"],
   "lang": "es-MX",
   "dir": "ltr",

@@ -21,7 +21,7 @@
 import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, ImagePlus, Gift, Truck, Percent, DollarSign, ShoppingBag, Tag } from 'lucide-react';
 import { useOptimisticUpload } from '../../../../hooks/useOptimisticUpload';
-import { Boton, DatePicker, ModalImagenes } from '../../../../components/ui';
+import { Boton, DatePicker, Modal, ModalImagenes } from '../../../../components/ui';
 import { notificar } from '../../../../utils/notificaciones';
 import type { Oferta, TipoOferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../../types/ofertas';
 
@@ -210,31 +210,6 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
         }
     }, [abierto, oferta]);
 
-    // Bloquear scroll del body cuando modal está abierto (solución robusta)
-    useEffect(() => {
-        if (abierto) {
-            // Guardar posición actual del scroll
-            const scrollY = window.scrollY;
-
-            // Bloquear scroll del body y html
-            document.body.style.position = 'fixed';
-            document.body.style.top = `-${scrollY}px`;
-            document.body.style.width = '100%';
-            document.body.style.overflow = 'hidden';
-            document.documentElement.style.overflow = 'hidden';
-
-            return () => {
-                // Restaurar scroll
-                document.body.style.position = '';
-                document.body.style.top = '';
-                document.body.style.width = '';
-                document.body.style.overflow = '';
-                document.documentElement.style.overflow = '';
-                window.scrollTo(0, scrollY);
-            };
-        }
-    }, [abierto]);
-
     // ===========================================================================
     // HANDLERS
     // ===========================================================================
@@ -343,55 +318,55 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
     return (
         <>
             {/* Modal */}
-            <div
-                className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 lg:p-4"
-                onClick={onCerrar}
+            <Modal
+                abierto={abierto}
+                onCerrar={onCerrar}
+                ancho="xl"
+                paddingContenido="none"
+                mostrarHeader={false}
+                className="max-w-xs lg:max-w-xl 2xl:max-w-4xl"
             >
-                <div
-                    className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl w-full max-w-xs lg:max-w-xl 2xl:max-w-4xl flex flex-col overflow-hidden max-h-[60vh] lg:max-h-[75vh] 2xl:max-h-[90vh] shadow-2xl border-2 border-slate-300"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-3 py-2.5 lg:px-4 lg:py-2.5 2xl:px-5 2xl:py-4 border-b-2 border-slate-300 bg-slate-100 shrink-0">
-                        <h2 className="text-base lg:text-base 2xl:text-xl font-bold text-slate-800">
-                            {esEdicion ? 'Editar Oferta' : 'Nueva Oferta'}
-                        </h2>
+                {/* Header Personalizado */}
+                <div className="flex items-center justify-between px-3 py-2.5 lg:px-4 lg:py-2.5 2xl:px-5 2xl:py-4 border-b-2 border-slate-300 bg-slate-100 shrink-0">
+                    <h2 className="text-base lg:text-base 2xl:text-xl font-bold text-slate-800">
+                        {esEdicion ? 'Editar Oferta' : 'Nueva Oferta'}
+                    </h2>
 
-                        {/* Toggle Activa en el header */}
-                        <div className="flex items-center gap-3 2xl:gap-4">
-                            <div className="flex items-center gap-2 2xl:gap-3">
-                                {formulario.activo ? (
-                                    <Eye className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6 text-green-600" />
-                                ) : (
-                                    <EyeOff className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6 text-slate-400" />
-                                )}
-                                <span className="text-sm 2xl:text-lg font-medium text-slate-700">
-                                    {formulario.activo ? 'Activa' : 'Inactiva'}
-                                </span>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setFormulario((prev) => ({ ...prev, activo: !prev.activo }))}
-                                disabled={guardando}
-                                className={`relative w-11 h-6 rounded-full transition-colors ${formulario.activo ? 'bg-green-500' : 'bg-slate-300'
-                                    } disabled:opacity-50`}
-                            >
-                                <span
-                                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform ${formulario.activo ? 'translate-x-5' : 'translate-x-0'
-                                        }`}
-                                />
-                            </button>
-                            <button
-                                onClick={onCerrar}
-                                className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-colors"
-                            >
-                                <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                            </button>
+                    {/* Toggle Activa en el header */}
+                    <div className="flex items-center gap-3 2xl:gap-4">
+                        <div className="flex items-center gap-2 2xl:gap-3">
+                            {formulario.activo ? (
+                                <Eye className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6 text-green-600" />
+                            ) : (
+                                <EyeOff className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6 text-slate-400" />
+                            )}
+                            <span className="text-sm 2xl:text-lg font-medium text-slate-700">
+                                {formulario.activo ? 'Activa' : 'Inactiva'}
+                            </span>
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => setFormulario((prev) => ({ ...prev, activo: !prev.activo }))}
+                            disabled={guardando}
+                            className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${formulario.activo ? 'bg-green-500' : 'bg-slate-300'
+                                } disabled:opacity-50`}
+                        >
+                            <span
+                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform ${formulario.activo ? 'translate-x-5' : 'translate-x-0'
+                                    }`}
+                            />
+                        </button>
+                        <button
+                            onClick={onCerrar}
+                            className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                            <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                        </button>
                     </div>
+                </div>
 
-                    {/* Body - 2 columnas en laptop+ */}
-                    <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row flex-1 overflow-y-auto">
+                {/* Body - 2 columnas en laptop+ */}
+                <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row flex-1 overflow-y-auto">
                         {/* COLUMNA IZQUIERDA - IMAGEN */}
                         <div className="lg:w-2/5 p-2.5 lg:p-2 2xl:p-5 lg:border-r-2 border-slate-300 bg-slate-50">
                             {/* Zona de imagen */}
@@ -413,7 +388,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                             type="button"
                                             onClick={handleEliminarImagen}
                                             disabled={imagen.isUploading || guardando}
-                                            className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-lg flex items-center justify-center text-white transition-colors disabled:opacity-50"
+                                            className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-lg flex items-center justify-center text-white transition-colors disabled:opacity-50 cursor-pointer"
                                         >
                                             <X className="w-5 h-5" />
                                         </button>
@@ -462,7 +437,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     type="button"
                                     onClick={() => setFormulario((prev) => ({ ...prev, tipo: '2x1', valor: '' }))}
                                     disabled={guardando}
-                                    className={`flex items-center justify-center gap-2 lg:gap-1 2xl:gap-2 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all ${formulario.tipo === '2x1'
+                                    className={`flex items-center justify-center gap-2 lg:gap-1 2xl:gap-2 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer ${formulario.tipo === '2x1'
                                         ? 'bg-orange-500 text-white border-orange-500 shadow-md'
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-orange-400 hover:bg-orange-50'
                                         }`}
@@ -474,7 +449,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     type="button"
                                     onClick={() => setFormulario((prev) => ({ ...prev, tipo: '3x2', valor: '' }))}
                                     disabled={guardando}
-                                    className={`flex items-center justify-center gap-2 lg:gap-1 2xl:gap-2 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all ${formulario.tipo === '3x2'
+                                    className={`flex items-center justify-center gap-2 lg:gap-1 2xl:gap-2 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer ${formulario.tipo === '3x2'
                                         ? 'bg-orange-500 text-white border-orange-500 shadow-md'
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-orange-400 hover:bg-orange-50'
                                         }`}
@@ -486,7 +461,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     type="button"
                                     onClick={() => setFormulario((prev) => ({ ...prev, tipo: 'envio_gratis', valor: '' }))}
                                     disabled={guardando}
-                                    className={`flex items-center justify-center gap-2 lg:gap-1 2xl:gap-2 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all ${formulario.tipo === 'envio_gratis'
+                                    className={`flex items-center justify-center gap-2 lg:gap-1 2xl:gap-2 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer ${formulario.tipo === 'envio_gratis'
                                         ? 'bg-blue-500 text-white border-blue-500 shadow-md'
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-blue-400 hover:bg-blue-50'
                                         }`}
@@ -500,7 +475,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     type="button"
                                     onClick={() => setFormulario((prev) => ({ ...prev, tipo: 'porcentaje', valor: prev.tipo === 'porcentaje' ? prev.valor : '' }))}
                                     disabled={guardando}
-                                    className={`flex items-center justify-center gap-1 lg:gap-0.5 2xl:gap-1 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all ${formulario.tipo === 'porcentaje'
+                                    className={`flex items-center justify-center gap-1 lg:gap-0.5 2xl:gap-1 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer ${formulario.tipo === 'porcentaje'
                                         ? 'bg-red-500 text-white border-red-500 shadow-md'
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-red-400 hover:bg-red-50'
                                         }`}
@@ -511,7 +486,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     type="button"
                                     onClick={() => setFormulario((prev) => ({ ...prev, tipo: 'monto_fijo', valor: prev.tipo === 'monto_fijo' ? prev.valor : '' }))}
                                     disabled={guardando}
-                                    className={`flex items-center justify-center gap-1 lg:gap-0.5 2xl:gap-1 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all ${formulario.tipo === 'monto_fijo'
+                                    className={`flex items-center justify-center gap-1 lg:gap-0.5 2xl:gap-1 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer ${formulario.tipo === 'monto_fijo'
                                         ? 'bg-green-500 text-white border-green-500 shadow-md'
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-green-400 hover:bg-green-50'
                                         }`}
@@ -522,7 +497,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     type="button"
                                     onClick={() => setFormulario((prev) => ({ ...prev, tipo: 'otro', valor: prev.tipo === 'otro' ? prev.valor : '' }))}
                                     disabled={guardando}
-                                    className={`flex items-center justify-center gap-1 lg:gap-0.5 2xl:gap-1 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all ${formulario.tipo === 'otro'
+                                    className={`flex items-center justify-center gap-1 lg:gap-0.5 2xl:gap-1 px-3 whitespace-nowrap py-2 lg:px-2 lg:py-2 2xl:px-3 2xl:py-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer ${formulario.tipo === 'otro'
                                         ? 'bg-purple-500 text-white border-purple-500 shadow-md'
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-purple-400 hover:bg-purple-50'
                                         }`}
@@ -675,13 +650,13 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
 
                             {/* Botones */}
                             <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
-                                <Boton variante="outline" onClick={onCerrar} className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5" disabled={guardando}>
+                                <Boton variante="outline" onClick={onCerrar} className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer" disabled={guardando}>
                                     Cancelar
                                 </Boton>
                                 <Boton
                                     type="submit"
                                     variante="primario"
-                                    className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5"
+                                    className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer"
                                     disabled={guardando || imagen.isUploading}
                                     cargando={guardando}
                                 >
@@ -690,8 +665,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                             </div>
                         </div>
                     </form>
-                </div>
-            </div>
+                </Modal>
 
             {/* Modal Imágenes */}
             <ModalImagenes

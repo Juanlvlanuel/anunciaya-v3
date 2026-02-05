@@ -46,6 +46,7 @@ import {
 import { useListaNegocios } from '../../../hooks/useListaNegocios';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { useNegociosCacheStore } from '../../../stores/useNegociosCacheStore';
 import { useCategorias } from '../../../hooks/useCategorias';
 import { useSubcategorias } from '../../../hooks/useSubcategorias';
 import type { NegocioResumen } from '../../../types/negocios';
@@ -164,6 +165,11 @@ interface TarjetaCarruselProps {
 function TarjetaCarrusel({ negocio, seleccionado, modoPreview = false }: TarjetaCarruselProps) {
   const navigate = useNavigate();
 
+  // ✅ Pre-fetch COMPLETO (perfil + ofertas + catálogo)
+  const { prefetchCompleto } = useNegociosCacheStore();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const prefetchEjecutado = useRef(false);
+
   const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false);
   const { horarios, loading: loadingHorarios, fetchHorarios, reset: resetHorarios } = useHorariosNegocio();
   const likeButtonRef = useRef<HTMLButtonElement>(null);
@@ -181,7 +187,26 @@ function TarjetaCarrusel({ negocio, seleccionado, modoPreview = false }: Tarjeta
     return () => clearInterval(intervalo);
   }, [negocio.galeria]);
 
+  // ✅ Pre-fetch COMPLETO cuando la tarjeta es visible (para móvil)
+  useEffect(() => {
+    if (!cardRef.current || prefetchEjecutado.current) return;
 
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !prefetchEjecutado.current) {
+            prefetchEjecutado.current = true;
+            prefetchCompleto(negocio.sucursalId);
+          }
+        });
+      },
+      { threshold: 0.5 } // 50% visible
+    );
+
+    observer.observe(cardRef.current);
+
+    return () => observer.disconnect();
+  }, [negocio.sucursalId, prefetchCompleto]);
 
   const handleVerHorarios = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -201,6 +226,14 @@ function TarjetaCarrusel({ negocio, seleccionado, modoPreview = false }: Tarjeta
       ? `/negocios/${negocio.sucursalId}?preview=true`
       : `/negocios/${negocio.sucursalId}`;
     navigate(url);
+  };
+
+  // ✅ Pre-fetch COMPLETO en hover (desktop)
+  const handleMouseEnter = () => {
+    if (!prefetchEjecutado.current) {
+      prefetchEjecutado.current = true;
+      prefetchCompleto(negocio.sucursalId);
+    }
   };
 
   const handleChat = (e: React.MouseEvent) => {
@@ -254,8 +287,10 @@ function TarjetaCarrusel({ negocio, seleccionado, modoPreview = false }: Tarjeta
 
   return (
     <div
+      ref={cardRef}
+      onMouseEnter={handleMouseEnter}
       className={`
-    shrink-0 w-full h-auto lg:w-[180px] lg:h-[270px] 2xl:w-[270px] 2xl:h-[410px] bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col relative
+    shrink-0 w-auto h-auto lg:w-[180px] lg:h-[270px] 2xl:w-[270px] 2xl:h-[410px] bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col relative
   transition-all duration-200
   ${seleccionado ? 'ring-2 ring-blue-500 scale-[1.02]' : 'hover:shadow-xl'}
 `}

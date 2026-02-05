@@ -116,10 +116,10 @@ function MetricaConTooltip({ icono: Icono, valor, tooltip, urgente = false }: Me
         ref={ref}
         onMouseEnter={mostrar}
         onMouseLeave={() => setVisible(false)}
-        className={`flex items-center gap-0.5 cursor-default ${urgente ? 'text-rose-500' : 'text-slate-500'}`}
+        className={`flex items-center gap-2 2xl:gap-3 cursor-pointer ${urgente ? 'text-rose-500' : 'text-slate-500'}`}
       >
-        <Icono className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
-        <span className="text-xs lg:text-[10px] 2xl:text-xs font-medium">{valor}</span>
+        <Icono className="w-4.5 h-4.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5" />
+        <span className="text-sm lg:text-[10px] 2xl:text-sm font-medium">{valor}</span>
       </span>
       <TooltipPortal texto={tooltip} visible={visible} posicion={posicion} />
     </>
@@ -206,7 +206,7 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
   return (
     <div
       onClick={onClick}
-      className="group flex gap-2 lg:gap-1.5 2xl:gap-2 p-1.5 lg:p-1 2xl:p-1.5 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all cursor-pointer"
+      className="group flex gap-2 lg:gap-1.5 2xl:gap-2 p-1.5 lg:p-1 2xl:p-1.5 rounded-lg border-0  hover:border-blue-300 hover:bg-blue-50 transition-all cursor-pointer"
     >
       {/* Imagen o Placeholder */}
       <div className={`${vistaMobil ? 'w-14 h-14' : 'w-12 h-12'} lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-md overflow-hidden shrink-0`}>
@@ -224,7 +224,7 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
       {/* Contenido */}
       <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
         {/* Título */}
-        <p className="text-xs lg:text-[10px] 2xl:text-xs font-bold text-slate-800 truncate leading-tight">
+        <p className="text-[13px] lg:text-[10px] 2xl:text-xs font-bold text-slate-800 truncate leading-tight">
           {campana.titulo}
         </p>
 
@@ -285,16 +285,16 @@ export default function PanelCampanas({ campanas, onEditar, vistaMobil = false }
   };
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 h-full flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200">
+    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 lg:h-54 2xl:h-66 flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200">
       {/* Header - Título y contador en línea */}
       <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg bg-rose-100 flex items-center justify-center">
+          <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg bg-rose-100 flex items-center justify-center">
             <Tag className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5 text-rose-600" />
           </div>
           <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Cupones y Ofertas</h3>
         </div>
-        <span className="text-xs lg:text-[10px] 2xl:text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">{total} activas</span>
+        <span className="text-xs lg:text-[10px] 2xl:text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">{total} Activas</span>
       </div>
 
       {/* Lista de campañas */}

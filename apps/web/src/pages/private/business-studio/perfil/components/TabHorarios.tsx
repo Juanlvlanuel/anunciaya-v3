@@ -24,8 +24,8 @@ import { Clock, Coffee, Copy, Check, X } from 'lucide-react';
 import type { DatosHorarios, HorarioDia } from '../hooks/usePerfil';
 
 interface TabHorariosProps {
-  datosHorarios: DatosHorarios;
-  setDatosHorarios: (datos: DatosHorarios) => void;
+    datosHorarios: DatosHorarios;
+    setDatosHorarios: (datos: DatosHorarios) => void;
 }
 
 export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHorariosProps) {
@@ -35,6 +35,36 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
 
     const visualADiaSemana = (indiceVisual: number): number => (indiceVisual + 1) % 7;
     const formatearHora = (hora: string | null): string => hora ? hora.substring(0, 5) : '09:00';
+
+    const validarHorarioDia = (horario: HorarioDia): string | null => {
+        if (!horario.abierto) return null;
+
+        if (!horario.horaApertura || !horario.horaCierre) {
+            return 'Falta hora de apertura o cierre';
+        }
+
+        const apertura = horario.horaApertura.substring(0, 5);
+        const cierre = horario.horaCierre.substring(0, 5);
+
+        if (cierre <= apertura) {
+            return 'La hora de cierre debe ser mayor que la de apertura';
+        }
+
+        if (horario.tieneHorarioComida && horario.comidaInicio && horario.comidaFin) {
+            const comidaInicio = horario.comidaInicio.substring(0, 5);
+            const comidaFin = horario.comidaFin.substring(0, 5);
+
+            if (comidaFin <= comidaInicio) {
+                return 'El fin de comida debe ser mayor que el inicio';
+            }
+
+            if (comidaInicio < apertura || comidaFin > cierre) {
+                return 'El horario de comida debe estar dentro del horario de operación';
+            }
+        }
+
+        return null;
+    };
 
     const actualizarHorarioDia = (indiceVisual: number, cambios: Partial<HorarioDia>) => {
         const diaBD = visualADiaSemana(indiceVisual);
@@ -84,12 +114,15 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
         comidaFin: '16:00:00'
     };
 
+    const errorValidacion = validarHorarioDia(horarioDia);
+
+
     return (
         <div className="space-y-5 lg:space-y-3 2xl:space-y-5">
 
             {/* HEADER: DÍAS + BOTONES */}
             <div className="space-y-3 lg:space-y-0 lg:flex lg:items-center lg:justify-between lg:gap-3">
-                
+
                 {/* Selector de días */}
                 <div className="flex gap-2 overflow-x-auto scrollbar-hide flex-1">
                     {diasSemana.map((nombreDia, indiceVisual) => {
@@ -146,7 +179,7 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
 
             {/* FORMULARIO DEL DÍA SELECCIONADO - SIN CARD CONTENEDOR */}
             <div className="space-y-4 lg:space-y-3 2xl:space-y-4">
-                
+
                 {/* SECCIÓN 1: Estado del día - SIEMPRE VISIBLE */}
                 <div className="bg-blue-50 rounded-xl p-5">
                     <div className="flex items-center justify-between">
@@ -245,6 +278,17 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
                                 </div>
                             )}
                         </div>
+                        {errorValidacion && horarioDia.abierto && (
+                            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 flex items-start gap-3">
+                                <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shrink-0 mt-0.5">
+                                    <span className="text-white text-xs font-bold">!</span>
+                                </div>
+                                <div>
+                                    <p className="text-red-700 font-semibold text-sm">Horario inválido</p>
+                                    <p className="text-red-600 text-sm">{errorValidacion}</p>
+                                </div>
+                            </div>
+                        )}
                     </>
                 ) : (
                     <div className="py-16 text-center bg-blue-50 rounded-xl">
@@ -346,7 +390,7 @@ function TimePicker({ hora, onChange }: TimePickerProps) {
                 <NumberInput value={h} min={1} max={12} onChange={(newH) => handleChange(newH, m, p)} />
                 <span className="text-lg font-bold text-slate-400">:</span>
                 <NumberInput value={m} min={0} max={55} step={5} onChange={(newM) => handleChange(h, newM, p)} />
-                
+
                 {/* Dropdown Custom AM/PM */}
                 <div className="relative">
                     <div
@@ -363,10 +407,10 @@ function TimePicker({ hora, onChange }: TimePickerProps) {
 
                     {/* Dropdown Options - Usando Portal */}
                     {dropdownAbierto && createPortal(
-                        <div 
+                        <div
                             ref={dropdownRef}
                             className="bg-white rounded-lg shadow-xl overflow-hidden z-9999"
-                            style={{ 
+                            style={{
                                 position: 'fixed',
                                 top: `${posicion.top}px`,
                                 left: `${posicion.left}px`,
@@ -380,9 +424,8 @@ function TimePicker({ hora, onChange }: TimePickerProps) {
                                     handleChange(h, m, 'AM');
                                     setDropdownAbierto(false);
                                 }}
-                                className={`w-full px-4 py-2.5 text-center text-base lg:text-sm 2xl:text-base font-medium transition-all cursor-pointer ${
-                                    p === 'AM' ? 'bg-blue-50 text-blue-700' : 'bg-white text-slate-700 hover:bg-slate-50'
-                                }`}
+                                className={`w-full px-4 py-2.5 text-center text-base lg:text-sm 2xl:text-base font-medium transition-all cursor-pointer ${p === 'AM' ? 'bg-blue-50 text-blue-700' : 'bg-white text-slate-700 hover:bg-slate-50'
+                                    }`}
                             >
                                 AM
                             </button>
@@ -392,9 +435,8 @@ function TimePicker({ hora, onChange }: TimePickerProps) {
                                     handleChange(h, m, 'PM');
                                     setDropdownAbierto(false);
                                 }}
-                                className={`w-full px-4 py-2.5 text-center text-base lg:text-sm 2xl:text-base font-medium transition-all cursor-pointer ${
-                                    p === 'PM' ? 'bg-blue-50 text-blue-700' : 'bg-white text-slate-700 hover:bg-slate-50'
-                                }`}
+                                className={`w-full px-4 py-2.5 text-center text-base lg:text-sm 2xl:text-base font-medium transition-all cursor-pointer ${p === 'PM' ? 'bg-blue-50 text-blue-700' : 'bg-white text-slate-700 hover:bg-slate-50'
+                                    }`}
                             >
                                 PM
                             </button>

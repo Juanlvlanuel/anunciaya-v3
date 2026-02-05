@@ -87,11 +87,10 @@ function ItemAlerta({ alerta }: { alerta: Alerta }) {
 
   return (
     <div
-      className={`p-2 lg:p-1.5 2xl:p-2 rounded-lg border transition-colors ${
-        alerta.leida
+      className={`p-2 lg:p-1.5 2xl:p-2 rounded-lg border transition-colors ${alerta.leida
           ? 'border-slate-100 bg-slate-50/50 opacity-60'
           : `${config.border} hover:bg-slate-50`
-      }`}
+        }`}
     >
       <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
         {/* Icono */}
@@ -138,7 +137,7 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
   const noLeidas = alertas?.noLeidas ?? 0;
 
   return (
-    <div className={`bg-white rounded-xl lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 ${!vistaMobil ? 'max-h-[260px] lg:max-h-[220px] 2xl:max-h-[280px]' : ''} flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200`}>
+    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 lg:h-54 2xl:h-66 flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
         <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">

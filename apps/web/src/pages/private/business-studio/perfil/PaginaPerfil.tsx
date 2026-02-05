@@ -17,8 +17,10 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Save, User } from 'lucide-react';
 import { usePerfil } from './hooks/usePerfil';
+import { useUiStore } from '../../../../stores/useUiStore';
 import { Spinner } from '../../../../components/ui';
 import TabInformacion from './components/TabInformacion';
 import TabUbicacion from './components/TabUbicacion';
@@ -61,6 +63,7 @@ export default function PaginaPerfil() {
   const hookPerfil = usePerfil();
 
   const { loading, error, esGerente, guardando } = hookPerfil;
+  const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
 
   // =============================================================================
   // TABS DISPONIBLES (DINÁMICOS)
@@ -257,18 +260,27 @@ export default function PaginaPerfil() {
       </div>
 
       {/* FAB - FLOATING ACTION BUTTON */}
-      <button
-        onClick={handleGuardar}
-        disabled={guardando}
-        className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:bottom-8 2xl:right-8 w-14 h-14 lg:w-16 lg:h-16 2xl:w-16 2xl:h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed z-50 flex items-center justify-center group cursor-pointer"
-        title={guardando ? 'Guardando...' : 'Guardar Cambios'}
-      >
-        {guardando ? (
-          <div className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
-        ) : (
-          <Save className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 group-hover:scale-110 transition-transform" />
-        )}
-      </button>
+      {createPortal(
+        <div className={`fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-transform duration-75 ${
+          previewNegocioAbierto 
+            ? 'lg:right-[375px] 2xl:translate-x-[510px]' 
+            : 'lg:right-[45px] 2xl:translate-x-[895px]'
+        }`}>
+          <button
+            onClick={handleGuardar}
+            disabled={guardando}
+            className="w-14 h-14 lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed flex items-center justify-center group cursor-pointer"
+            title={guardando ? 'Guardando...' : 'Guardar Cambios'}
+          >
+            {guardando ? (
+              <div className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Save className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 group-hover:scale-110 transition-transform" />
+            )}
+          </button>
+        </div>,
+        document.body
+      )}
 
     </div>
   );

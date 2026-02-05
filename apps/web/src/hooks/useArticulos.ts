@@ -12,8 +12,9 @@
  * CREADO: Fase 5.4.1 - Catálogo CRUD Frontend
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useArticulosStore } from '../stores/useArticulosStore';
 import {
   obtenerArticulos,
   crearArticulo,
@@ -51,14 +52,59 @@ interface UseArticulosReturn {
 export function useArticulos(): UseArticulosReturn {
   const { usuario, hidratado } = useAuthStore();
   const [articulos, setArticulos] = useState<Articulo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // ✅ false para evitar spinner inicial
   const [error, setError] = useState<string | null>(null);
 
+  // Store de caché
+  const {
+    getArticulos,
+    setArticulos: setArticulosCache,
+    invalidarCache,
+  } = useArticulosStore();
+
+  // Obtener sucursalId para caché
+  const sucursalId = usuario?.sucursalActiva || usuario?.sucursalAsignada || '';
+
+  // ✅ Cargar caché ANTES del primer paint (elimina flash)
+  useLayoutEffect(() => {
+    if (!sucursalId) return;
+    
+    try {
+      const cache = getArticulos(sucursalId);
+      if (cache && cache.length > 0) {
+        console.log('✅ [useArticulos] Inicializando con caché (pre-paint)');
+        setArticulos(cache);
+      }
+    } catch (err) {
+      // Si falla, continuar sin caché
+      console.warn('[useArticulos] Error al leer caché:', err);
+    }
+  }, [sucursalId, getArticulos]);
+
   // ===========================================================================
-  // CARGAR ARTÍCULOS
+  // CARGAR ARTÍCULOS (CON CACHÉ)
   // ===========================================================================
 
-  const cargarArticulos = useCallback(async () => {
+  const cargarArticulos = useCallback(async (forzarRecarga = false) => {
+    if (!sucursalId) {
+      console.warn('[useArticulos] No hay sucursalId disponible para caché');
+      return;
+    }
+
+    // ✅ PASO 1: Verificar caché primero (si no se forzó recarga)
+    if (!forzarRecarga) {
+      const articulosCache = getArticulos(sucursalId);
+      
+      if (articulosCache) {
+        console.log('✅ [useArticulos] Usando caché - Datos instantáneos');
+        setArticulos(articulosCache);
+        setLoading(false);
+        return; // ← SALIR SIN HACER FETCH
+      }
+    }
+
+    // ✅ PASO 2: No hay caché válida → Fetch desde backend
+    console.log('🔄 [useArticulos] Cargando desde backend...');
     try {
       setLoading(true);
       setError(null);
@@ -66,7 +112,13 @@ export function useArticulos(): UseArticulosReturn {
       const respuesta = await obtenerArticulos();
 
       if (respuesta.success && respuesta.data) {
+        // Guardar en caché
+        setArticulosCache(sucursalId, respuesta.data);
+        
+        // Actualizar estado local
         setArticulos(respuesta.data);
+        
+        console.log('✅ [useArticulos] Datos cargados y guardados en caché');
       } else {
         throw new Error(respuesta.message || 'Error al cargar artículos');
       }
@@ -77,7 +129,7 @@ export function useArticulos(): UseArticulosReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sucursalId, getArticulos, setArticulosCache]);
 
   // Cargar al montar SOLO si está hidratado y tiene sucursalActiva
   useEffect(() => {
@@ -127,8 +179,9 @@ export function useArticulos(): UseArticulosReturn {
       const respuesta = await crearArticulo(datos);
 
       if (respuesta.success && respuesta.data) {
-        // 4. Recargar artículos desde el servidor para obtener datos completos
-        await cargarArticulos();
+        // 4. Invalidar caché y recargar artículos desde el servidor
+        invalidarCache(sucursalId);
+        await cargarArticulos(true);
 
         notificar.exito('Artículo creado correctamente');
         return true;
@@ -143,7 +196,7 @@ export function useArticulos(): UseArticulosReturn {
       notificar.error(mensaje);
       return false;
     }
-  }, [cargarArticulos]);
+  }, [cargarArticulos, sucursalId, invalidarCache]);
 
   // ===========================================================================
   // ACTUALIZAR ARTÍCULO (OPTIMISTA)
@@ -183,6 +236,9 @@ export function useArticulos(): UseArticulosReturn {
           throw new Error(respuesta.message || 'Error al actualizar artículo');
         }
 
+        // Invalidar caché para reflejar actualización
+        invalidarCache(sucursalId);
+
         return true;
       } catch (err) {
         // Revertir cambio optimista
@@ -197,7 +253,7 @@ export function useArticulos(): UseArticulosReturn {
         return false;
       }
     },
-    [articulos]
+    [articulos, sucursalId, invalidarCache]
   );
 
   // ===========================================================================
@@ -221,6 +277,9 @@ export function useArticulos(): UseArticulosReturn {
         const respuesta = await eliminarArticulo(id);
 
         if (respuesta.success) {
+          // Invalidar caché para reflejar eliminación
+          invalidarCache(sucursalId);
+          
           notificar.exito('Artículo eliminado correctamente');
           return true;
         } else {
@@ -235,7 +294,7 @@ export function useArticulos(): UseArticulosReturn {
         return false;
       }
     },
-    [articulos, cargarArticulos]
+    [articulos, cargarArticulos, sucursalId, invalidarCache]
   );
 
   // ===========================================================================
@@ -276,6 +335,10 @@ export function useArticulos(): UseArticulosReturn {
                 : art
             )
           );
+          
+          // Invalidar caché de sucursal actual
+          invalidarCache(sucursalId);
+          
           return true;
         }
         else {
@@ -290,7 +353,7 @@ export function useArticulos(): UseArticulosReturn {
         return false;
       }
     },
-    [articulos]
+    [articulos, sucursalId, invalidarCache]
   );
 
   // ===========================================================================

@@ -21,9 +21,9 @@
 
 import { X, MessageCircle, Bookmark, BookmarkCheck, Truck, Flame, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useLockScroll } from '@/hooks/useLockScroll';
 import { useGuardados } from '@/hooks/useGuardados';
 import { DropdownCompartir } from '../compartir';
+import { Modal } from '../ui/Modal';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { notificar } from '@/utils/notificaciones';
 
@@ -220,12 +220,7 @@ const CONFIG_TIPO: Record<Oferta['tipo'], ConfigTipo> = {
 // =============================================================================
 
 export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, openedFromModal = false }: ModalOfertaDetalleProps) {
-    const [cerrando, setCerrando] = useState(false);
     const { usuario } = useAuthStore();
-    
-    // Solo bloquear scroll si NO se abrió desde otro modal
-    // Si openedFromModal=true, el modal padre ya maneja el scroll
-    useLockScroll(!!oferta && !openedFromModal);
 
     // Hook de guardados
     const { guardado, toggleGuardado } = useGuardados({
@@ -233,25 +228,6 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
         entityId: oferta ? getId(oferta) : '',
         initialGuardado: false, // TODO: Pasar desde el padre si viene del backend
     });
-
-    // Función para cerrar con animación
-    const handleCerrar = () => {
-        if (cerrando) return;
-        setCerrando(true);
-        setTimeout(() => {
-            setCerrando(false);
-            onClose();
-        }, 200);
-    };
-
-    // Cerrar con ESC
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') handleCerrar();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
 
     if (!oferta) return null;
 
@@ -297,12 +273,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
     };
 
     return (
-        <div
-            className={`fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 ${
-                cerrando ? 'animate-out fade-out' : 'animate-in fade-in'
-            } duration-200`}
-            onClick={handleCerrar}
-        >
+        <>
             {/* Estilos para animaciones - IGUALES a OfertaCard */}
             <style>{`
                 /* animate-float - Badges flotantes */
@@ -333,9 +304,14 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
                 }
             `}</style>
 
-            {/* Wrapper con padding para el badge */}
-            <div className="relative w-full min-w-[280px] max-w-[80vw] lg:min-w-[306px] lg:max-w-[408px] 2xl:min-w-[357px] 2xl:max-w-[476px] p-2 lg:p-3">
-                
+            <Modal
+                abierto={!!oferta}
+                onCerrar={onClose}
+                mostrarHeader={false}
+                paddingContenido="none"
+                ancho="sm"
+                className="min-w-[330px] max-w-[80vw] lg:min-w-[306px] lg:max-w-[408px] 2xl:min-w-[357px] 2xl:max-w-[476px] p-2 lg:p-3"
+            >
                 {/* Badge principal - FUERA del contenedor blanco */}
                 <div className="absolute top-6 left-6 lg:top-7 lg:left-7 z-100 animate-float">
                     <div className="relative">
@@ -362,9 +338,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
                 </div>
                 
                 <div
-                    className={`relative bg-white rounded-2xl w-full max-h-[90vh] lg:max-h-[90vh] overflow-visible shadow-2xl ${
-                        cerrando ? 'animate-out fade-out zoom-out-95' : 'animate-in fade-in zoom-in-95'
-                    } duration-200`}
+                    className="relative bg-white rounded-2xl w-full max-h-[90vh] lg:max-h-[90vh] overflow-visible shadow-2xl"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Contenedor con scroll solo vertical, sin overflow-x */}
@@ -382,7 +356,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
                             />
                             <button
                                 onClick={handleGuardar}
-                                className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white hover:border-blue-500 transition-all duration-200 group"
+                                className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white hover:border-blue-500 transition-all duration-200 group cursor-pointer"
                             >
                                 {guardado ? (
                                     <BookmarkCheck className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600 transition-colors" />
@@ -391,8 +365,8 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
                                 )}
                             </button>
                             <button
-                                onClick={handleCerrar}
-                                className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white hover:border-red-500 transition-all duration-200 group"
+                                onClick={onClose}
+                                className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white hover:border-red-500 transition-all duration-200 group cursor-pointer"
                             >
                                 <X className="w-4 h-4 lg:w-5 lg:h-5 text-slate-700 group-hover:text-red-500 transition-colors" />
                             </button>
@@ -497,7 +471,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
                             <div className="flex gap-2 pl-2.5 pr-2.5">
                                 <button
                                     onClick={handleChatYA}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2 lg:py-2.5 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-200"
+                                    className="flex-1 flex items-center justify-center gap-2 py-2 lg:py-2.5 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-200 cursor-pointer"
                                 >
                                     <img src="/ChatYA.webp" alt="ChatYA" className="h-6 lg:h-7 w-auto" />
                                 </button>
@@ -505,7 +479,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
                                 {/* Mostrar WhatsApp siempre - TODO: Condicionar con whatsapp real */}
                                 <button
                                     onClick={handleWhatsApp}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2 lg:py-2.5 rounded-xl bg-linear-to-r from-green-500 to-green-600 text-white font-semibold shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105 transition-all duration-200"
+                                    className="flex-1 flex items-center justify-center gap-2 py-2 lg:py-2.5 rounded-xl bg-linear-to-r from-green-500 to-green-600 text-white font-semibold shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105 transition-all duration-200 cursor-pointer"
                                 >
                                     <svg className="w-5 h-5 lg:w-6 lg:h-6" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
@@ -517,8 +491,8 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </Modal>
+        </>
     );
 }
 

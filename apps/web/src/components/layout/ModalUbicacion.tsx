@@ -67,6 +67,11 @@ export function ModalUbicacion({ onClose }: ModalUbicacionProps) {
     const obtenerUbicacion = useGpsStore((state) => state.obtenerUbicacion);
 
     // ---------------------------------------------------------------------------
+    // Hook para detectar dispositivo
+    // ---------------------------------------------------------------------------
+    const { esMobile } = useBreakpoint();
+
+    // ---------------------------------------------------------------------------
     // Efectos
     // ---------------------------------------------------------------------------
 
@@ -76,10 +81,12 @@ export function ModalUbicacion({ onClose }: ModalUbicacionProps) {
         setCiudadesPopulares(populares);
     }, []);
 
-    // Focus en el input al abrir
+    // Focus en el input al abrir (solo desktop - evita teclado en móvil)
     useEffect(() => {
-        inputRef.current?.focus();
-    }, []);
+        if (!esMobile) {
+            inputRef.current?.focus();
+        }
+    }, [esMobile]);
 
     // ---------------------------------------------------------------------------
     // Handlers
@@ -149,9 +156,6 @@ export function ModalUbicacion({ onClose }: ModalUbicacionProps) {
     // Render
     // ---------------------------------------------------------------------------
 
-    // Hook para detectar dispositivo
-    const { esMobile } = useBreakpoint();
-
     // Lista a mostrar: resultados de búsqueda o ciudades populares
     const ciudadesAMostrar = busqueda.length >= 2 ? resultados : ciudadesPopulares;
     const tituloLista = busqueda.length >= 2 ? 'Resultados' : 'Ciudades populares';
@@ -212,7 +216,7 @@ export function ModalUbicacion({ onClose }: ModalUbicacionProps) {
                     {tituloLista}
                 </p>
 
-                <div className="max-h-64 lg:max-h-48 2xl:max-h-64 overflow-y-auto">
+                <div className="lg:max-h-48 2xl:max-h-64 overflow-y-auto">
                     {ciudadesAMostrar.length > 0 ? (
                         <ul className="space-y-1">
                             {ciudadesAMostrar.map((c) => (
@@ -244,7 +248,7 @@ export function ModalUbicacion({ onClose }: ModalUbicacionProps) {
 
     // Título e ícono compartidos
     const titulo = 'Seleccionar ubicación';
-    const iconoTitulo = <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />;
+    const iconoTitulo = <MapPin className="w-6 h-6 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6 text-blue-600!" />;
 
     return (
         <>

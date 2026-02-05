@@ -6,6 +6,7 @@
  * UBICACIÓN: apps/web/src/pages/private/business-studio/dashboard/componentes/GraficaVentas.tsx
  */
 
+import { useState, useEffect } from 'react';
 import {
   AreaChart,
   Area,
@@ -25,6 +26,20 @@ import type { VentasData } from '../../../../../services/dashboardService';
 interface GraficaVentasProps {
   datos: VentasData | null;
   vertical?: boolean;
+  embedded?: boolean; // Si está dentro de otro contenedor (sin borde/shadow)
+}
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      fecha: string;
+      diaSemana: string;
+      total: number;
+      transacciones: number;
+    };
+  }>;
+  label?: string;
 }
 
 // =============================================================================
@@ -52,10 +67,11 @@ function formatearDiaSemana(fecha: Date): string {
 // TOOLTIP PERSONALIZADO
 // =============================================================================
 
-function TooltipPersonalizado({ active, payload, label }: any) {
+function TooltipPersonalizado({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null;
 
-  const data = payload[0].payload;
+  const data = payload[0]?.payload;
+  if (!data) return null;
 
   return (
     <div className="bg-white rounded-lg shadow-lg border-2 border-slate-200 p-2.5 min-w-[120px]">
@@ -70,35 +86,59 @@ function TooltipPersonalizado({ active, payload, label }: any) {
   );
 }
 
+function useBreakpoint() {
+  const [breakpoint, setBreakpoint] = useState<'mobile' | 'laptop' | 'desktop'>('mobile');
+
+  useEffect(() => {
+    const updateBreakpoint = () => {
+      const width = window.innerWidth;
+      if (width >= 1536) setBreakpoint('desktop');
+      else if (width >= 1024) setBreakpoint('laptop');
+      else setBreakpoint('mobile');
+    };
+
+    updateBreakpoint();
+    window.addEventListener('resize', updateBreakpoint);
+    return () => window.removeEventListener('resize', updateBreakpoint);
+  }, []);
+
+  return breakpoint;
+}
+
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export default function GraficaVentas({ datos, vertical = false }: GraficaVentasProps) {
+export default function GraficaVentas({ datos, vertical = false, embedded = false }: GraficaVentasProps) {
   const ventas = datos?.ventas ?? [];
   const estadisticas = datos?.estadisticas;
 
-  // Formatear datos para Recharts
   const datosGrafica = ventas.map((v) => {
-    const fechaObj = new Date(v.fecha);
-    const fechaFormateada = fechaObj.toLocaleDateString('es-MX', { 
-      day: '2-digit', 
-      month: 'short',
-      timeZone: 'UTC'
-    });
-    
+    // Parsear fecha sin conversión de zona horaria
+    const [anio, mes, dia] = v.fecha.split('-').map(Number);
+    const fechaFormateada = `${dia} ${['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][mes - 1]}`;
+
+
     return {
       ...v,
-      fecha: capitalizarMes(fechaFormateada), // "24 Ene"
-      diaSemana: formatearDiaSemana(fechaObj) // "Sáb"
+      fecha: fechaFormateada,
+      diaSemana: v.diaSemana  // Ya viene del backend
     };
   });
 
+  const breakpoint = useBreakpoint();
+
+  const altura = {
+    mobile: 240,
+    laptop: 240,
+    desktop: 300,
+  }[breakpoint];
+
   const crecimientoPositivo = (estadisticas?.crecimiento ?? 0) >= 0;
-  
+
   // Formatear "Mejor día" en español si viene del backend
-  const mejorDiaFormateado = estadisticas?.diaPico 
-    ? capitalizarMes(estadisticas.diaPico) 
+  const mejorDiaFormateado = estadisticas?.diaPico
+    ? capitalizarMes(estadisticas.diaPico)
     : '';
 
   // =========================================================================
@@ -106,7 +146,10 @@ export default function GraficaVentas({ datos, vertical = false }: GraficaVentas
   // =========================================================================
   if (vertical) {
     return (
-      <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 h-full shadow-lg hover:shadow-2xl transition-all duration-200 flex flex-col">
+      <div className={`bg-white lg:h-89 2xl:h-110 flex flex-col ${embedded
+        ? 'p-3'
+        : 'rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 shadow-lg hover:shadow-2xl transition-all duration-200'
+        }`}>
         {/* Header con icono */}
         <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
           <div className="flex items-center gap-2">
@@ -133,9 +176,8 @@ export default function GraficaVentas({ datos, vertical = false }: GraficaVentas
                 {mejorDiaFormateado}
               </p>
             </div>
-            <div className={`flex items-center gap-0.5 px-2 py-1 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-1 rounded-full ${
-              crecimientoPositivo ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
-            }`}>
+            <div className={`flex items-center gap-0.5 px-2 py-1 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-1 rounded-full ${crecimientoPositivo ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+              }`}>
               {crecimientoPositivo ? (
                 <TrendingUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
               ) : (
@@ -150,8 +192,8 @@ export default function GraficaVentas({ datos, vertical = false }: GraficaVentas
 
         {/* Gráfica vertical (más alta) */}
         {datosGrafica.length > 0 ? (
-          <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="flex-1" style={{ minHeight: 280 }}>
+            <ResponsiveContainer width="100%" height={altura}>
               <AreaChart
                 data={datosGrafica}
                 margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
@@ -175,7 +217,12 @@ export default function GraficaVentas({ datos, vertical = false }: GraficaVentas
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
+                    }
+                    return `$${value}`;
+                  }}
                   width={45}
                 />
                 <Tooltip content={<TooltipPersonalizado />} />
@@ -207,7 +254,10 @@ export default function GraficaVentas({ datos, vertical = false }: GraficaVentas
   // =========================================================================
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 h-full shadow-lg hover:shadow-2xl transition-all duration-200">
+    <div className={`bg-white h-full ${embedded
+      ? 'p-3'
+      : 'rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 shadow-lg hover:shadow-2xl transition-all duration-200'
+      }`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3 lg:mb-2 2xl:mb-3">
         <div>
@@ -230,9 +280,8 @@ export default function GraficaVentas({ datos, vertical = false }: GraficaVentas
                 {mejorDiaFormateado}
               </p>
             </div>
-            <div className={`flex items-center gap-1 px-2.5 py-1.5 lg:px-2 lg:py-1 2xl:px-2.5 2xl:py-1.5 rounded-full ${
-              crecimientoPositivo ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
-            }`}>
+            <div className={`flex items-center gap-1 px-2.5 py-1.5 lg:px-2 lg:py-1 2xl:px-2.5 2xl:py-1.5 rounded-full ${crecimientoPositivo ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+              }`}>
               {crecimientoPositivo ? (
                 <TrendingUp className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
               ) : (
@@ -272,7 +321,12 @@ export default function GraficaVentas({ datos, vertical = false }: GraficaVentas
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#94a3b8', fontSize: 11 }}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => {
+                  if (value >= 1000) {
+                    return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
+                  }
+                  return `$${value}`;
+                }}
                 dx={-10}
               />
               <Tooltip content={<TooltipPersonalizado />} />

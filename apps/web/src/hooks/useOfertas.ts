@@ -12,8 +12,9 @@
  * CREADO: Fase 5.4.2 - Sistema Completo de Ofertas
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useOfertasStore } from '../stores/useOfertasStore';
 import {
   obtenerOfertas,
   crearOferta,
@@ -51,14 +52,59 @@ interface UseOfertasReturn {
 export function useOfertas(): UseOfertasReturn {
   const { usuario, hidratado } = useAuthStore();
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // ✅ false para evitar spinner inicial
   const [error, setError] = useState<string | null>(null);
 
+  // Store de caché
+  const {
+    getOfertas,
+    setOfertas: setOfertasCache,
+    invalidarCache,
+  } = useOfertasStore();
+
+  // Obtener sucursalId para caché
+  const sucursalId = usuario?.sucursalActiva || usuario?.sucursalAsignada || '';
+
+  // ✅ Cargar caché ANTES del primer paint (elimina flash)
+  useLayoutEffect(() => {
+    if (!sucursalId) return;
+    
+    try {
+      const cache = getOfertas(sucursalId);
+      if (cache && cache.length > 0) {
+        console.log('✅ [useOfertas] Inicializando con caché (pre-paint)');
+        setOfertas(cache);
+      }
+    } catch (err) {
+      // Si falla, continuar sin caché
+      console.warn('[useOfertas] Error al leer caché:', err);
+    }
+  }, [sucursalId, getOfertas]);
+
   // ===========================================================================
-  // CARGAR OFERTAS
+  // CARGAR OFERTAS (CON CACHÉ)
   // ===========================================================================
 
-  const cargarOfertas = useCallback(async () => {
+  const cargarOfertas = useCallback(async (forzarRecarga = false) => {
+    if (!sucursalId) {
+      console.warn('[useOfertas] No hay sucursalId disponible para caché');
+      return;
+    }
+
+    // ✅ PASO 1: Verificar caché primero (si no se forzó recarga)
+    if (!forzarRecarga) {
+      const ofertasCache = getOfertas(sucursalId);
+      
+      if (ofertasCache) {
+        console.log('✅ [useOfertas] Usando caché - Datos instantáneos');
+        setOfertas(ofertasCache);
+        setLoading(false);
+        return; // ← SALIR SIN HACER FETCH
+      }
+    }
+
+    // ✅ PASO 2: No hay caché válida → Fetch desde backend
+    console.log('🔄 [useOfertas] Cargando desde backend...');
     try {
       setLoading(true);
       setError(null);
@@ -66,7 +112,13 @@ export function useOfertas(): UseOfertasReturn {
       const respuesta = await obtenerOfertas();
 
       if (respuesta.success && respuesta.data) {
+        // Guardar en caché
+        setOfertasCache(sucursalId, respuesta.data);
+        
+        // Actualizar estado local
         setOfertas(respuesta.data);
+        
+        console.log('✅ [useOfertas] Datos cargados y guardados en caché');
       } else {
         throw new Error(respuesta.message || 'Error al cargar ofertas');
       }
@@ -77,7 +129,7 @@ export function useOfertas(): UseOfertasReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sucursalId, getOfertas, setOfertasCache]);
 
   // Cargar al montar SOLO si está hidratado y tiene sucursalActiva
   useEffect(() => {
@@ -132,8 +184,9 @@ export function useOfertas(): UseOfertasReturn {
       const respuesta = await crearOferta(datos);
 
       if (respuesta.success && respuesta.data) {
-        // 4. Recargar ofertas desde el servidor para obtener datos completos
-        await cargarOfertas();
+        // 4. Invalidar caché y recargar ofertas desde el servidor
+        invalidarCache(sucursalId);
+        await cargarOfertas(true);
 
         notificar.exito('Oferta creada correctamente');
         return true;
@@ -148,7 +201,7 @@ export function useOfertas(): UseOfertasReturn {
       notificar.error(mensaje);
       return false;
     }
-  }, [cargarOfertas]);
+  }, [cargarOfertas, sucursalId, invalidarCache]);
 
   // ===========================================================================
   // ACTUALIZAR OFERTA (OPTIMISTA)
@@ -191,6 +244,9 @@ export function useOfertas(): UseOfertasReturn {
           throw new Error(respuesta.message || 'Error al actualizar oferta');
         }
 
+        // Invalidar caché para reflejar actualización
+        invalidarCache(sucursalId);
+
         return true;
       } catch (err) {
         // Revertir cambio optimista
@@ -205,7 +261,7 @@ export function useOfertas(): UseOfertasReturn {
         return false;
       }
     },
-    [ofertas]
+    [ofertas, sucursalId, invalidarCache]
   );
 
   // ===========================================================================
@@ -229,6 +285,9 @@ export function useOfertas(): UseOfertasReturn {
         const respuesta = await eliminarOferta(id);
 
         if (respuesta.success) {
+          // Invalidar caché para reflejar eliminación
+          invalidarCache(sucursalId);
+          
           notificar.exito('Oferta eliminada correctamente');
           return true;
         } else {
@@ -243,7 +302,7 @@ export function useOfertas(): UseOfertasReturn {
         return false;
       }
     },
-    [ofertas, cargarOfertas]
+    [ofertas, cargarOfertas, sucursalId, invalidarCache]
   );
 
   // ===========================================================================
@@ -287,6 +346,9 @@ export function useOfertas(): UseOfertasReturn {
             )
           );
           
+          // Invalidar caché de sucursal actual
+          invalidarCache(sucursalId);
+          
           notificar.exito(`Oferta duplicada a ${respuesta.data.length} sucursal(es)`);
           return true;
         } else {
@@ -301,7 +363,7 @@ export function useOfertas(): UseOfertasReturn {
         return false;
       }
     },
-    [ofertas]
+    [ofertas, sucursalId, invalidarCache]
   );
 
   // ===========================================================================

@@ -57,11 +57,11 @@ const BOTONES: Boton[] = [
     id: 'chat',
     label: '',
     isLogo: true,
-    logoSrc: '/logo-scanya-blanco.webp',
+    logoSrc: '/logo-ChatYA-blanco.webp',
     ruta: '/scanya/chat',
     contador: 'mensajesSinLeer',
     color: 'text-[#3B82F6]',
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: '#3B82F6',
     bgHover: 'rgba(59, 130, 246, 0.15)',
   },
   {
@@ -71,7 +71,7 @@ const BOTONES: Boton[] = [
     ruta: '/scanya/resenas',
     contador: 'resenasPendientes',
     color: 'text-[#F59E0B]',
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: '#3B82F6',
     bgHover: 'rgba(245, 158, 11, 0.15)',
   },
   {
@@ -81,7 +81,7 @@ const BOTONES: Boton[] = [
     ruta: '/scanya/recordatorios',
     contador: 'recordatoriosPendientes',
     color: 'text-[#10B981]',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: '#3B82F6',
     bgHover: 'rgba(16, 185, 129, 0.15)',
   },
   {
@@ -90,7 +90,7 @@ const BOTONES: Boton[] = [
     icon: Ticket,
     ruta: '/scanya/vouchers',
     color: 'text-[#8B5CF6]',
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: '#3B82F6',
     bgHover: 'rgba(139, 92, 246, 0.15)',
   },
   {
@@ -99,7 +99,7 @@ const BOTONES: Boton[] = [
     icon: History,
     ruta: '/scanya/historial',
     color: 'text-[#94A3B8]',
-    borderColor: 'rgba(148, 163, 184, 0.3)',
+    borderColor: '#3B82F6',
     bgHover: 'rgba(148, 163, 184, 0.15)',
   },
 ];
@@ -142,8 +142,8 @@ export default function IndicadoresRapidos({
                 group
               "
               style={{
-                background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)',
-                border: `1px solid ${boton.borderColor}`,
+                background: '#011545',
+                border: `3px solid ${boton.borderColor}`,
                 backdropFilter: 'blur(10px)',
                 boxShadow: `0 0 15px ${boton.borderColor.replace('0.3', '0.1')}`,
               }}

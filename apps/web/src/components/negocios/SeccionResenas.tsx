@@ -110,7 +110,7 @@ export function SeccionResenas({
                   e.stopPropagation();
                   onEscribirResena();
                 }}
-                className="flex items-center gap-1 px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 bg-white hover:bg-amber-50 text-amber-500 rounded-lg text-xs lg:text-xs 2xl:text-xs font-medium transition-all"
+                className="flex items-center gap-1 px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 bg-white hover:bg-amber-50 text-amber-500 rounded-lg text-xs lg:text-xs 2xl:text-xs font-medium transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
                 <span className="hidden lg:inline">Escribir</span>

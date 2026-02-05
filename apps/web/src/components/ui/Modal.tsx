@@ -23,6 +23,7 @@
  */
 
 import { ReactNode, useEffect, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 // =============================================================================
@@ -144,7 +145,7 @@ export function Modal({
     if (abierto) {
       // Guardar posición actual del scroll
       const scrollY = window.scrollY;
-      
+
       // Bloquear scroll de forma robusta (funciona en iOS Safari también)
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
@@ -160,10 +161,10 @@ export function Modal({
         document.body.style.top = '';
         document.body.style.width = '';
         document.body.style.overflow = '';
-        
+
         // Restaurar posición del scroll
         window.scrollTo(0, scrollY);
-        
+
         document.removeEventListener('keydown', handleEscape);
       };
     }
@@ -179,7 +180,7 @@ export function Modal({
   // ¿Mostrar header?
   const deberiasMostrarHeader = mostrarHeader && (titulo || mostrarBotonCerrar);
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 lg:p-6 2xl:p-8"
       role="dialog"
@@ -187,9 +188,8 @@ export function Modal({
     >
       {/* Overlay oscuro con animación */}
       <div
-        className={`absolute inset-0 bg-black/50 duration-200 ${
-          cerrando ? 'animate-out fade-out' : 'animate-in fade-in'
-        }`}
+        className={`absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] duration-200 ${cerrando ? 'animate-out fade-out' : 'animate-in fade-in'
+          }`}
         onClick={handleClickOverlay}
       />
 
@@ -211,11 +211,7 @@ export function Modal({
             {/* Título con icono opcional */}
             {titulo && (
               <div className="flex items-center gap-2 lg:gap-2.5 2xl:gap-3">
-                {iconoTitulo && (
-                  <div className="w-8 h-8 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 bg-blue-500 rounded-lg lg:rounded-xl flex items-center justify-center">
-                    {iconoTitulo}
-                  </div>
-                )}
+                {iconoTitulo}
                 <h2 className="text-sm lg:text-base 2xl:text-lg font-bold text-slate-900">{titulo}</h2>
               </div>
             )}
@@ -227,7 +223,7 @@ export function Modal({
             {mostrarBotonCerrar && (
               <button
                 onClick={handleCerrar}
-                className="p-1 lg:p-1.5 2xl:p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                className="p-1 lg:p-1.5 2xl:p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                 aria-label="Cerrar"
               >
                 <X className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-5 2xl:h-5" />
@@ -239,7 +235,8 @@ export function Modal({
         {/* Contenido con scroll */}
         <div className={`${paddings[paddingContenido]} flex-1 min-h-0 overflow-y-auto`}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -41,6 +41,7 @@ import Tooltip from '../ui/Tooltip';
 import { useUiStore } from '../../stores/useUiStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
+import { useNegociosCacheStore } from '../../stores/useNegociosCacheStore';
 import { ToggleModoUsuario } from '../ui/ToggleModoUsuario';
 import SelectorSucursalesInline from './SelectorSucursalesInline';
 
@@ -55,27 +56,29 @@ const animationStyles = `
   
   /* Línea brillante que recorre horizontalmente */
   @keyframes shineLineMove {
-    0% { left: -50%; opacity: 0; }
+    0% { transform: translateX(-100%); opacity: 0; }
     20% { opacity: 1; }
     80% { opacity: 1; }
-    100% { left: 150%; opacity: 0; }
+    100% { transform: translateX(300%); opacity: 0; }
   }
   
   .header-shine-line {
     position: relative;
     height: 5px;
     background: linear-gradient(90deg, #1e3a8a, #3b82f6, #60a5fa, #3b82f6, #1e3a8a);
+    overflow: hidden;
   }
   
   .header-shine-line::after {
     content: '';
     position: absolute;
     top: 0;
-    left: -50%;
+    left: 0;
     width: 40%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
     animation: shineLineMove 2.5s ease-in-out infinite;
+    will-change: transform;
   }
   
   /* Pulso suave para badges */
@@ -99,16 +102,16 @@ const animationStyles = `
   }
 
   /* Fade + slide para texto del buscador */
-@keyframes fadeSlideIn {
-  0% { 
-    opacity: 0; 
-    transform: translateX(-10px);
+  @keyframes fadeSlideIn {
+    0% { 
+      opacity: 0; 
+      transform: translateX(-10px);
+    }
+    100% { 
+      opacity: 1; 
+      transform: translateX(0);
+    }
   }
-  100% { 
-    opacity: 1; 
-    transform: translateX(0);
-  }
-}
 `;
 
 // =============================================================================
@@ -410,6 +413,8 @@ export const Navbar = () => {
     : [NAV_ITEMS_BASE[0], NAV_ITEM_MARKET, ...NAV_ITEMS_BASE.slice(1)];
 
   const mensajesCount = 2;
+  const { prefetchListaNegocios } = useNegociosCacheStore();
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   // HANDLERS
@@ -442,7 +447,7 @@ export const Navbar = () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative z-100">
+    <div className="relative">
       {/* Header con gradiente azul animado */}
       <header className="header-gradient-animated shadow-lg">
         <div
@@ -463,7 +468,7 @@ export const Navbar = () => {
               />
 
               {/* Tooltip personalizado */}
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-40">
                 Ir a Inicio
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-slate-900"></div>
               </div>
@@ -610,6 +615,7 @@ export const Navbar = () => {
 
                         <Link
                           to={item.path}
+                          onMouseEnter={item.id === 'negocios' ? prefetchListaNegocios : undefined}
                           className={`
                             flex items-center gap-1 lg:gap-1.5 2xl:gap-2
                             px-2 lg:px-3 2xl:px-4
@@ -856,7 +862,7 @@ export const Navbar = () => {
 
                 {/* Dropdown Menu */}
                 {dropdownAbierto && (
-                  <div className="absolute right-0 top-full mt-2 lg:w-56 2xl:w-72 w-72 bg-white rounded-xl shadow-xl border border-gray-300 overflow-hidden z-99999">
+                  <div className="absolute right-0 top-full mt-2 lg:w-56 2xl:w-72 w-72 bg-white rounded-xl shadow-xl border border-gray-300 overflow-hidden z-40">
 
                     {/* ===== HEADER CON GRADIENTE ===== */}
                     <div className="bg-linear-to-r from-slate-100 via-slate-200 to-slate-100 border-b border-gray-300 lg:p-2 2xl:p-4 p-4">

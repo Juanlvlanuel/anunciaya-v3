@@ -18,6 +18,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 // =============================================================================
@@ -90,6 +91,7 @@ export function DatePicker({
     const [mesActual, setMesActual] = useState<number>(new Date().getMonth());
     const [añoActual, setAñoActual] = useState<number>(new Date().getFullYear());
     const contenedorRef = useRef<HTMLDivElement>(null);
+    const calendarRef = useRef<HTMLDivElement>(null);
 
     // Sincronizar con valor seleccionado
     useEffect(() => {
@@ -105,7 +107,11 @@ export function DatePicker({
     // Cerrar al hacer click fuera
     useEffect(() => {
         const handleClickFuera = (e: MouseEvent) => {
-            if (contenedorRef.current && !contenedorRef.current.contains(e.target as Node)) {
+            const target = e.target as Node;
+            const dentroDelInput = contenedorRef.current && contenedorRef.current.contains(target);
+            const dentroDelCalendario = calendarRef.current && calendarRef.current.contains(target);
+            
+            if (!dentroDelInput && !dentroDelCalendario) {
                 setAbierto(false);
             }
         };
@@ -156,7 +162,7 @@ export function DatePicker({
 
     const handleSeleccionarDia = (dia: number) => {
         const fechaSeleccionada = formatearFecha(añoActual, mesActual, dia);
-        
+
         if (minDate && fechaSeleccionada < minDate) return;
         if (maxDate && fechaSeleccionada > maxDate) return;
 
@@ -167,7 +173,7 @@ export function DatePicker({
     const handleHoy = () => {
         const hoy = new Date();
         const fechaHoy = formatearFecha(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-        
+
         if (minDate && fechaHoy < minDate) return;
         if (maxDate && fechaHoy > maxDate) return;
 
@@ -222,15 +228,14 @@ export function DatePicker({
                 type="button"
                 onClick={() => !disabled && setAbierto(!abierto)}
                 disabled={disabled}
-                className={`w-full flex items-center justify-between px-3 py-2 lg:py-1.5 2xl:py-2 border-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-medium transition-colors ${
-                    disabled
+                className={`w-full flex items-center justify-between px-3 py-2 lg:py-1.5 2xl:py-2 border-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-medium transition-colors ${disabled
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'
                         : error
-                        ? 'border-red-300 hover:border-red-400'
-                        : abierto
-                        ? 'border-blue-500 ring-2 ring-blue-200'
-                        : 'border-slate-300 hover:border-slate-400'
-                }`}
+                            ? 'border-red-300 hover:border-red-400 cursor-pointer'
+                            : abierto
+                                ? 'border-blue-500 ring-2 ring-blue-200 cursor-pointer'
+                                : 'border-slate-300 hover:border-slate-400 cursor-pointer'
+                    }`}
             >
                 <span className={value ? 'text-slate-700' : 'text-slate-400'}>
                     {value ? formatearParaMostrar(value) : placeholder}
@@ -239,31 +244,32 @@ export function DatePicker({
             </button>
 
             {/* Calendario desplegable - Escalado proporcional */}
-            {abierto && (
-                <div 
+            {abierto && createPortal(
+                <div
+                    ref={calendarRef}
                     className="fixed bg-white rounded-lg shadow-2xl border-2 border-slate-200"
                     style={{
                         zIndex: 9999,
-                        top: contenedorRef.current 
-                            ? contenedorRef.current.getBoundingClientRect().bottom + 4 
+                        top: contenedorRef.current
+                            ? contenedorRef.current.getBoundingClientRect().bottom + 4
                             : 0,
-                        left: contenedorRef.current 
-                            ? contenedorRef.current.getBoundingClientRect().left 
+                        left: contenedorRef.current
+                            ? contenedorRef.current.getBoundingClientRect().left
                             : 0,
-                        width: contenedorRef.current 
-                            ? contenedorRef.current.getBoundingClientRect().width 
+                        width: contenedorRef.current
+                            ? contenedorRef.current.getBoundingClientRect().width
                             : 'auto',
                         // Padding proporcional al ancho (2-3%)
-                        padding: contenedorRef.current 
+                        padding: contenedorRef.current
                             ? `${Math.max(8, contenedorRef.current.getBoundingClientRect().width * 0.025)}px`
                             : '8px'
                     }}
                 >
                     {/* Header - Navegación mes/año */}
-                    <div 
+                    <div
                         className="flex items-center justify-between"
                         style={{
-                            marginBottom: contenedorRef.current 
+                            marginBottom: contenedorRef.current
                                 ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
                                 : '6px'
                         }}
@@ -271,29 +277,29 @@ export function DatePicker({
                         <button
                             type="button"
                             onClick={handleMesAnterior}
-                            className="hover:bg-slate-200 rounded transition-colors"
+                            className="hover:bg-slate-200 rounded transition-colors cursor-pointer"
                             style={{
-                                padding: contenedorRef.current 
+                                padding: contenedorRef.current
                                     ? `${Math.max(2, contenedorRef.current.getBoundingClientRect().width * 0.01)}px`
                                     : '2px'
                             }}
                         >
-                            <ChevronLeft 
+                            <ChevronLeft
                                 style={{
-                                    width: contenedorRef.current 
+                                    width: contenedorRef.current
                                         ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.08)}px`
                                         : '12px',
-                                    height: contenedorRef.current 
+                                    height: contenedorRef.current
                                         ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.08)}px`
                                         : '12px'
                                 }}
-                                className="text-slate-600" 
+                                className="text-slate-600"
                             />
                         </button>
-                        <div 
+                        <div
                             className="font-bold text-slate-800"
                             style={{
-                                fontSize: contenedorRef.current 
+                                fontSize: contenedorRef.current
                                     ? `${Math.max(10, contenedorRef.current.getBoundingClientRect().width * 0.065)}px`
                                     : '10px'
                             }}
@@ -303,48 +309,48 @@ export function DatePicker({
                         <button
                             type="button"
                             onClick={handleMesSiguiente}
-                            className="hover:bg-slate-200 rounded transition-colors"
+                            className="hover:bg-slate-200 rounded transition-colors cursor-pointer"
                             style={{
-                                padding: contenedorRef.current 
+                                padding: contenedorRef.current
                                     ? `${Math.max(2, contenedorRef.current.getBoundingClientRect().width * 0.01)}px`
                                     : '2px'
                             }}
                         >
-                            <ChevronRight 
+                            <ChevronRight
                                 style={{
-                                    width: contenedorRef.current 
+                                    width: contenedorRef.current
                                         ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.08)}px`
                                         : '12px',
-                                    height: contenedorRef.current 
+                                    height: contenedorRef.current
                                         ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.08)}px`
                                         : '12px'
                                 }}
-                                className="text-slate-600" 
+                                className="text-slate-600"
                             />
                         </button>
                     </div>
 
                     {/* Días de la semana */}
-                    <div 
+                    <div
                         className="grid grid-cols-7"
                         style={{
-                            gap: contenedorRef.current 
+                            gap: contenedorRef.current
                                 ? `${Math.max(1, contenedorRef.current.getBoundingClientRect().width * 0.005)}px`
                                 : '1px',
-                            marginBottom: contenedorRef.current 
+                            marginBottom: contenedorRef.current
                                 ? `${Math.max(4, contenedorRef.current.getBoundingClientRect().width * 0.015)}px`
                                 : '4px'
                         }}
                     >
                         {DIAS_SEMANA.map((dia) => (
-                            <div 
-                                key={dia} 
+                            <div
+                                key={dia}
                                 className="text-center font-bold text-slate-500"
                                 style={{
-                                    fontSize: contenedorRef.current 
+                                    fontSize: contenedorRef.current
                                         ? `${Math.max(8, contenedorRef.current.getBoundingClientRect().width * 0.055)}px`
                                         : '8px',
-                                    padding: contenedorRef.current 
+                                    padding: contenedorRef.current
                                         ? `${Math.max(2, contenedorRef.current.getBoundingClientRect().width * 0.008)}px`
                                         : '2px'
                                 }}
@@ -355,10 +361,10 @@ export function DatePicker({
                     </div>
 
                     {/* Días del mes */}
-                    <div 
+                    <div
                         className="grid grid-cols-7"
                         style={{
-                            gap: contenedorRef.current 
+                            gap: contenedorRef.current
                                 ? `${Math.max(1, contenedorRef.current.getBoundingClientRect().width * 0.005)}px`
                                 : '1px'
                         }}
@@ -383,14 +389,14 @@ export function DatePicker({
                                         ${deshabilitado
                                             ? 'text-slate-300 cursor-not-allowed'
                                             : seleccionado
-                                            ? 'bg-blue-500 text-white font-bold shadow-md'
-                                            : hoy
-                                            ? 'bg-blue-50 text-blue-600 font-bold ring-2 ring-blue-500'
-                                            : 'text-slate-700 hover:bg-slate-200'
+                                                ? 'bg-blue-500 text-white font-bold shadow-md cursor-pointer'
+                                                : hoy
+                                                    ? 'bg-blue-50 text-blue-600 font-bold ring-2 ring-blue-500 cursor-pointer'
+                                                    : 'text-slate-700 hover:bg-slate-200 cursor-pointer'
                                         }
                                     `}
                                     style={{
-                                        fontSize: contenedorRef.current 
+                                        fontSize: contenedorRef.current
                                             ? `${Math.max(10, contenedorRef.current.getBoundingClientRect().width * 0.065)}px`
                                             : '10px'
                                     }}
@@ -402,16 +408,16 @@ export function DatePicker({
                     </div>
 
                     {/* Footer - Botones rápidos */}
-                    <div 
+                    <div
                         className="flex border-t border-slate-200"
                         style={{
-                            gap: contenedorRef.current 
+                            gap: contenedorRef.current
                                 ? `${Math.max(4, contenedorRef.current.getBoundingClientRect().width * 0.01)}px`
                                 : '4px',
-                            marginTop: contenedorRef.current 
+                            marginTop: contenedorRef.current
                                 ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
                                 : '6px',
-                            paddingTop: contenedorRef.current 
+                            paddingTop: contenedorRef.current
                                 ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
                                 : '6px'
                         }}
@@ -419,12 +425,12 @@ export function DatePicker({
                         <button
                             type="button"
                             onClick={handleLimpiar}
-                            className="flex-1 font-semibold text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                            className="flex-1 font-semibold text-slate-600 hover:bg-slate-200 rounded transition-colors cursor-pointer"
                             style={{
-                                fontSize: contenedorRef.current 
+                                fontSize: contenedorRef.current
                                     ? `${Math.max(9, contenedorRef.current.getBoundingClientRect().width * 0.055)}px`
                                     : '9px',
-                                padding: contenedorRef.current 
+                                padding: contenedorRef.current
                                     ? `${Math.max(4, contenedorRef.current.getBoundingClientRect().width * 0.015)}px`
                                     : '4px'
                             }}
@@ -434,12 +440,12 @@ export function DatePicker({
                         <button
                             type="button"
                             onClick={handleHoy}
-                            className="flex-1 font-semibold text-blue-600 bg-blue-50 hover:bg-blue-200 rounded transition-colors"
+                            className="flex-1 font-semibold text-blue-600 bg-blue-50 hover:bg-blue-200 rounded transition-colors cursor-pointer"
                             style={{
-                                fontSize: contenedorRef.current 
+                                fontSize: contenedorRef.current
                                     ? `${Math.max(9, contenedorRef.current.getBoundingClientRect().width * 0.055)}px`
                                     : '9px',
-                                padding: contenedorRef.current 
+                                padding: contenedorRef.current
                                     ? `${Math.max(4, contenedorRef.current.getBoundingClientRect().width * 0.015)}px`
                                     : '4px'
                             }}
@@ -448,6 +454,8 @@ export function DatePicker({
                         </button>
                     </div>
                 </div>
+                ,
+                document.body
             )}
         </div>
     );

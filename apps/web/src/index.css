@@ -317,24 +317,24 @@ body {
 @keyframes zoom-in-95 {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scaleX(0.5) scaleY(1);
   }
 
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scaleX(1) scaleY(1);
   }
 }
 
 @keyframes zoom-out-95 {
   from {
     opacity: 1;
-    transform: scale(1);
+    transform: scaleX(1) scaleY(1);
   }
 
   to {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scaleX(0.5) scaleY(1);
   }
 }
 
@@ -542,4 +542,14 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
 /* Handle visual de modales (la barrita de arrastre) - Bloquear drag */
 .modal-handle-no-drag {
   touch-action: none;
+}
+
+/* Ocultar controles de zoom por defecto de Leaflet */
+.leaflet-control-zoom {
+    display: none !important;
+}
+
+/* Mostrar solo los que queremos (bottomright) */
+.leaflet-bottom.leaflet-right .leaflet-control-zoom {
+    display: flex !important;
 }

@@ -43,17 +43,17 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
         className="w-full p-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
             {crecimientoPositivo ? (
               <TrendingUp className="w-4 h-4 text-blue-500" />
             ) : (
               <TrendingDown className="w-4 h-4 text-rose-500" />
             )}
           </div>
-          <div className="text-left">
-            <h3 className="text-sm font-bold text-slate-800">Ventas del Periodo</h3>
+          <div className="text-left mb-2">
+            <h3 className="text-base lg:text-sm font-bold text-slate-800">Ventas del Periodo</h3>
             {estadisticas && (
-              <p className="text-xs text-slate-500">
+              <p className="text-sm text-slate-500">
                 Promedio: ${estadisticas.promedioDiario.toLocaleString('es-MX')}/día
                 {' '}·{' '}
                 <span className={crecimientoPositivo ? 'text-emerald-600' : 'text-rose-600'}>
@@ -80,25 +80,25 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
       {/* Contenido Expandible - Gráfica */}
       {expandida && (
         <div className="border-t-2 border-slate-200 animate-in slide-in-from-top duration-300">
-          <GraficaVentas datos={datos} />
+          <GraficaVentas datos={datos} embedded />
         </div>
       )}
 
       {/* Preview de Estadísticas cuando está colapsada */}
       {!expandida && estadisticas && (
         <div className="px-3 pb-3 grid grid-cols-3 gap-2 text-center">
-          <div className="bg-slate-50 rounded-lg p-2">
+          <div className="bg-slate-100 rounded-lg p-2">
             <p className="text-xs text-slate-500">Mejor día</p>
             <p className="text-sm font-bold text-slate-800">{estadisticas.diaPico}</p>
           </div>
-          <div className="bg-slate-50 rounded-lg p-2">
+          <div className="bg-slate-100 rounded-lg p-2">
             <p className="text-xs text-slate-500">Promedio</p>
             <p className="text-sm font-bold text-slate-800">
               ${(estadisticas.promedioDiario / 1000).toFixed(1)}k
             </p>
           </div>
           <div className={`rounded-lg p-2 ${
-            crecimientoPositivo ? 'bg-emerald-50' : 'bg-rose-50'
+            crecimientoPositivo ? 'bg-emerald-100' : 'bg-rose-100'
           }`}>
             <p className="text-xs text-slate-500">Tendencia</p>
             <p className={`text-sm font-bold ${

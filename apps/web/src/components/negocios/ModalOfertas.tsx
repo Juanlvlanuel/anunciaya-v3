@@ -106,7 +106,7 @@ export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, negoc
 
     // Título compartido
     const titulo = `Todas las Ofertas (${ofertas.length})`;
-    const iconoTitulo = <Tag className="h-5 w-5 lg:h-4 lg:w-4 2xl:h-5 2xl:w-5 fill-white" />;
+    const iconoTitulo = <Tag className="h-5 w-5 lg:h-4 lg:w-4 2xl:h-5 2xl:w-5 text-white" />;
 
     return (
         <>
@@ -114,28 +114,30 @@ export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, negoc
             <style>{OfertaCardStyles}</style>
 
             {/* MÓVIL: Bottom Sheet */}
+            {/* MÓVIL: Bottom Sheet con icono azul SIN fondo */}
             {esMobile ? (
                 <ModalBottom
                     abierto={isOpen}
                     onCerrar={onClose}
                     titulo={titulo}
-                    iconoTitulo={iconoTitulo}
+                    iconoTitulo={<Tag className="w-5 h-5 text-blue-600" />}  
                 >
                     <ContenidoOfertas ofertas={ofertas} onClickOferta={handleClickOferta} />
                 </ModalBottom>
-            ) : (
-                /* ESCRITORIO: Modal Centrado */
-                <Modal
-                    abierto={isOpen}
-                    onCerrar={onClose}
-                    titulo={titulo}
-                    iconoTitulo={iconoTitulo}
-                    ancho="md"
-                    className="lg:scale-[0.75] lg:max-h-[70vh] 2xl:scale-[0.95] 2xl:max-h-[75vh]"
-                >
-                    <ContenidoOfertas ofertas={ofertas} onClickOferta={handleClickOferta} />
-                </Modal>
-            )}
+            )
+                : (
+                    /* ESCRITORIO: Modal Centrado */
+                    <Modal
+                        abierto={isOpen}
+                        onCerrar={onClose}
+                        titulo={titulo}
+                        iconoTitulo={iconoTitulo}
+                        ancho="md"
+                        className="lg:scale-[0.75] lg:max-h-[70vh] 2xl:scale-[0.95] 2xl:max-h-[75vh]"
+                    >
+                        <ContenidoOfertas ofertas={ofertas} onClickOferta={handleClickOferta} />
+                    </Modal>
+                )}
 
             {/* Modal de Detalle de Oferta */}
             {ofertaSeleccionada && (

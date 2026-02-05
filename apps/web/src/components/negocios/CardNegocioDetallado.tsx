@@ -39,6 +39,8 @@ import {
 import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
 import { useVotos } from '../../hooks/useVotos';
 import { ModalHorarios } from './ModalHorarios';
+import { useNegociosCacheStore } from '../../stores/useNegociosCacheStore';
+
 
 // =============================================================================
 // TIPOS
@@ -81,6 +83,11 @@ export function CardNegocioDetallado({
     bookmarkSelected = false,
     className = '',
 }: CardNegocioDetalladoProps) {
+    // ✅ Pre-fetch COMPLETO (perfil + ofertas + catálogo)
+    const { prefetchCompleto } = useNegociosCacheStore();
+    const cardRef = useRef<HTMLDivElement>(null);
+    const prefetchEjecutado = useRef(false);
+
     const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false);
     const { horarios, loading: loadingHorarios, fetchHorarios, reset: resetHorarios } = useHorariosNegocio();
 
@@ -99,6 +106,27 @@ export function CardNegocioDetallado({
 
         return () => clearInterval(intervalo);
     }, [negocio.galeria]);
+
+    // ✅ Pre-fetch COMPLETO cuando la tarjeta es visible (para móvil)
+    useEffect(() => {
+        if (!cardRef.current || prefetchEjecutado.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting && !prefetchEjecutado.current) {
+                        prefetchEjecutado.current = true;
+                        prefetchCompleto(negocio.sucursalId);
+                    }
+                });
+            },
+            { threshold: 0.5 } // 50% visible
+        );
+
+        observer.observe(cardRef.current);
+
+        return () => observer.disconnect();
+    }, [negocio.sucursalId, prefetchCompleto]);
 
     const handleVerHorarios = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -125,6 +153,14 @@ export function CardNegocioDetallado({
     });
 
     const [likeAnimation, setLikeAnimation] = useState<'like' | 'unlike' | null>(null);
+
+    // ✅ Pre-fetch COMPLETO en hover (desktop)
+    const handleMouseEnter = () => {
+        if (!prefetchEjecutado.current) {
+            prefetchEjecutado.current = true;
+            prefetchCompleto(negocio.sucursalId);
+        }
+    };
 
     const handleLikeClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -171,7 +207,9 @@ export function CardNegocioDetallado({
 
     return (
         <div
+            ref={cardRef}
             onClick={onClick}
+            onMouseEnter={handleMouseEnter}
             className={`
         w-full max-w-[270px] h-[360px] bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col relative
         transition-all duration-200 cursor-pointer hover:shadow-xl
@@ -189,8 +227,8 @@ export function CardNegocioDetallado({
                         <button
                             onClick={onClickBookmark}
                             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${bookmarkSelected
-                                    ? 'bg-amber-500 border-2 border-amber-500'
-                                    : 'bg-white/90 backdrop-blur border-2 border-white hover:bg-amber-50'
+                                ? 'bg-amber-500 border-2 border-amber-500'
+                                : 'bg-white/90 backdrop-blur border-2 border-white hover:bg-amber-50'
                                 }`}
                         >
                             {bookmarkSelected ? (
@@ -240,8 +278,8 @@ export function CardNegocioDetallado({
                                                 setImagenActual(index);
                                             }}
                                             className={`w-2 h-2 rounded-full cursor-pointer transition-all ${index === imagenActual
-                                                    ? 'bg-white w-4'
-                                                    : 'bg-white/50 hover:bg-white/75'
+                                                ? 'bg-white w-4'
+                                                : 'bg-white/50 hover:bg-white/75'
                                                 }`}
                                         />
                                     ))}

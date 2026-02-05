@@ -29,11 +29,13 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Star, Ticket, Clock, Users, Settings, Lock, Save,
   Gift, Plus,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useUiStore } from '../../../../stores/useUiStore';
 import { usePuntosStore } from '../../../../stores/usePuntosStore';
 import { Spinner } from '../../../../components/ui';
 import { notificar } from '../../../../utils/notificaciones';
@@ -151,6 +153,7 @@ export default function PaginaPuntos() {
   const usuario        = useAuthStore((s) => s.usuario);
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
   const esGerente      = !usuario?.negocioId && !!usuario?.sucursalAsignada;
+  const previewNegocioAbierto = useUiStore((s) => s.previewNegocioAbierto);
 
   // ─── Estado: Configuración ────────────────────────────────────────────
   const [puntosPorPeso, setPuntosPorPeso]                     = useState<number>(10);
@@ -576,22 +579,26 @@ export default function PaginaPuntos() {
       {/* ═══════════════════════════════════════════════════════════════════
           FAB GUARDAR — solo dueños, posición fija inferior derecho
       ═══════════════════════════════════════════════════════════════════ */}
-      {!esGerente && (
-        <button
-          onClick={handleGuardarConfig}
-          disabled={guardando}
-          className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:bottom-8 2xl:right-8 w-14 h-14 lg:w-16 lg:h-16 text-white rounded-full flex items-center justify-center z-50 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',
-            boxShadow: '0 6px 20px rgba(29,78,216,0.45)',
-          }}
-        >
-          {guardando ? (
-            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Save className="w-6 h-6 lg:w-7 lg:h-7" />
-          )}
-        </button>
+      {!esGerente && createPortal(
+        <div className={`fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-49 transition-transform duration-75 ${
+          previewNegocioAbierto 
+            ? 'lg:right-[375px] 2xl:translate-x-[510px]' 
+            : 'lg:right-[45px] 2xl:translate-x-[895px]'
+        }`}>
+          <button
+            onClick={handleGuardarConfig}
+            disabled={guardando}
+            className="w-14 h-14 lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed flex items-center justify-center group cursor-pointer"
+            title={guardando ? 'Guardando...' : 'Guardar Cambios'}
+          >
+            {guardando ? (
+              <div className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Save className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 group-hover:scale-110 transition-transform" />
+            )}
+          </button>
+        </div>,
+        document.body
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════

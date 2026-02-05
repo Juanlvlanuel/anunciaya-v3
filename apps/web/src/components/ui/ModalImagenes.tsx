@@ -102,7 +102,7 @@ export const ModalImagenes = ({
       {/* Overlay (50% opacidad) - Click fuera cierra */}
       <div
         onClick={onClose}
-        className="absolute inset-0 bg-black/50 animate-[fadeIn_0.2s_ease-in]"
+        className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] animate-[fadeIn_0.2s_ease-in]"
       />
 
       {/* Contenedor centrado */}

@@ -32,14 +32,12 @@ import type { Periodo } from '../../../../services/dashboardService';
 // Componentes
 import HeaderDashboard from './componentes/HeaderDashboard';
 import KPIPrincipal from './componentes/KPIPrincipal';
-import KPISecundario from './componentes/KPISecundario';
 import GraficaVentas from './componentes/GraficaVentas';
 import PanelCampanas from './componentes/PanelCampanas';
 import PanelInteracciones from './componentes/PanelInteracciones';
 import PanelOpiniones from './componentes/PanelOpiniones';
 import PanelAlertas from './componentes/PanelAlertas';
 import BannerAlertasUrgentes from './componentes/BannerAlertasUrgentes';
-import KPICompacto from './componentes/KPICompacto';
 import GraficaColapsable from './componentes/GraficaColapsable';
 import { ModalOferta } from '../ofertas/ModalOferta';
 import { ModalArticulo } from '../catalogo/ModalArticulo';
@@ -49,8 +47,6 @@ import {
   DollarSign,
   Users,
   CreditCard,
-  Ticket,
-  Tag,
   Heart,
   Star,
   Eye,
@@ -83,10 +79,14 @@ export default function PaginaDashboard() {
   // Estado para animación del botón refresh
   const [refrescando, setRefrescando] = useState(false);
 
-  // Cargar datos al montar Y cuando cambie la sucursal
   useEffect(() => {
-    // Si es modo comercial, esperar a que haya sucursalActiva
-    if (usuario?.modoActivo === 'comercial' && !sucursalActiva) {
+    // Solo cargar en modo comercial
+    if (usuario?.modoActivo !== 'comercial') {
+      return;
+    }
+
+    // Esperar a que haya sucursalActiva
+    if (!sucursalActiva) {
       return;
     }
 
@@ -246,20 +246,17 @@ export default function PaginaDashboard() {
             </button>
           </div>
 
-          {/* 1 KPI Principal Grande - VENTAS */}
-          <KPIPrincipal
-            titulo="Ventas Totales"
-            valor={kpis?.ventas.valor ?? 0}
-            miniGrafica={kpis?.ventas.miniGrafica ?? []}
-            icono={DollarSign}
-            colorIcono="from-emerald-500 to-teal-600"
-            formato="moneda"
-            cargando={cargandoKpis}
-          />
-
-          {/* 2 KPIs Compactos Horizontales - CLIENTES + TRANSACCIONES */}
-          <div className="grid grid-cols-2 gap-3">
-            <KPICompacto
+          {/* 3 KPIs Principales en una fila */}
+          <div className="grid grid-cols-3 gap-2">
+            <KPIPrincipal
+              titulo="Ventas"
+              valor={kpis?.ventas.valor ?? 0}
+              icono={DollarSign}
+              colorIcono="from-emerald-500 to-teal-600"
+              formato="moneda"
+              cargando={cargandoKpis}
+            />
+            <KPIPrincipal
               titulo="Clientes"
               valor={kpis?.clientes.valor ?? 0}
               icono={Users}
@@ -267,48 +264,39 @@ export default function PaginaDashboard() {
               subtitulo={`${kpis?.clientes.nuevos ?? 0} nuevos`}
               cargando={cargandoKpis}
             />
-            <KPICompacto
+            <KPIPrincipal
               titulo="Transacciones"
               valor={kpis?.transacciones.valor ?? 0}
               icono={CreditCard}
               colorIcono="from-violet-500 to-purple-600"
-              subtitulo={`Ticket prom: $${kpis?.transacciones.ticketPromedio?.toLocaleString() ?? 0}`}
               cargando={cargandoKpis}
             />
           </div>
 
-          {/* 4 KPIs Secundarios Prioritarios (2x2) */}
-          <div className="grid grid-cols-2 gap-3">
-            <KPISecundario
-              titulo="Cupones Canjeados"
-              valor={kpis?.cuponesCanjeados.valor ?? 0}
-              icono={Ticket}
-              color="text-amber-600"
-              bgColor="bg-amber-50"
-            />
-            <KPISecundario
-              titulo="Ofertas Activas"
-              valor={kpis?.ofertasActivas ?? 0}
-              icono={Tag}
-              color="text-rose-600"
-              bgColor="bg-rose-50"
-            />
-            <KPISecundario
-              titulo="Rating Perfil"
-              valor={kpis?.rating.valor ?? 0}
-              subtitulo={`${kpis?.rating.totalResenas ?? 0} reseñas`}
-              icono={Star}
-              color="text-yellow-600"
-              bgColor="bg-yellow-50"
-              formato="decimal"
-            />
-            <KPISecundario
-              titulo="Vistas del Perfil"
-              valor={kpis?.vistas.valor ?? 0}
-              icono={Eye}
-              color="text-slate-600"
-              bgColor="bg-slate-100"
-            />
+          {/* 4 Pills Secundarios en Carrusel Horizontal */}
+          <div className="overflow-x-auto pb-1">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-2 rounded-full shrink-0">
+                <UserPlus className="w-4 h-4" />
+                <span className="font-bold text-sm">{kpis?.followers ?? 0}</span>
+                <span className="text-blue-500 text-sm">Followers</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-pink-50 text-pink-700 px-3 py-2 rounded-full shrink-0">
+                <Heart className="w-4 h-4" />
+                <span className="font-bold text-sm">{kpis?.likes.valor ?? 0}</span>
+                <span className="text-pink-500 text-sm">Likes</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-2 rounded-full shrink-0">
+                <Star className="w-4 h-4" />
+                <span className="font-bold text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
+                <span className="text-yellow-600 text-sm">Rating</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 px-3 py-2 rounded-full shrink-0">
+                <Eye className="w-4 h-4" />
+                <span className="font-bold text-sm">{kpis?.vistas.valor ?? 0}</span>
+                <span className="text-slate-500 text-sm">Vistas</span>
+              </div>
+            </div>
           </div>
 
           {/* Panel Campañas - Solo 2, más grandes */}

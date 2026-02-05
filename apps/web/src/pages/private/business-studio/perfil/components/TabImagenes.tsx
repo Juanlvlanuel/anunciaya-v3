@@ -449,7 +449,7 @@ export default function TabImagenes({
         </div>
 
         {/* Portada */}
-        <div className="col-span-2 lg:col-span-1 shrink-0">
+        <div className="lg:col-span-1 shrink-0">
           <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-800 mb-2 lg:mb-1.5 2xl:mb-2">
             <Image className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
             Imagen de Portada

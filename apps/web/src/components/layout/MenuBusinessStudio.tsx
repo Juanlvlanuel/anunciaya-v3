@@ -185,7 +185,7 @@ export function MenuBusinessStudio() {
   }, [location.pathname]);
 
   return (
-    <div className="h-full flex flex-col bg-white" ref={menuRef}>
+    <div className="h-full flex flex-col bg-white z-0" ref={menuRef}>
       {/* Opciones del menú - Franjas */}
       <nav className="flex-1 overflow-y-auto py-2 lg:py-1.5 2xl:py-2" role="menu">
         {opcionesMenu.map((opcion, index) => {

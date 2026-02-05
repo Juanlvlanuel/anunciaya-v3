@@ -24,7 +24,8 @@
  * ACTUALIZADO: Enero 2026 - Sistema de Duplicación Universal
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Plus,
     Search,
@@ -42,6 +43,7 @@ import {
     PauseCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useUiStore } from '../../../../stores/useUiStore';
 import { useOfertas } from '../../../../hooks/useOfertas';
 import { useZonaHoraria } from '../../../../hooks/useZonaHoraria';
 import { Boton } from '../../../../components/ui/Boton';
@@ -86,11 +88,42 @@ const ESTILO_ICONO_HEADER = `
 `;
 
 // =============================================================================
+// HOOK - DETECTAR MOBILE
+// =============================================================================
+
+/**
+ * Hook para detectar si estamos en mobile (< 1024px)
+ * Actualiza automáticamente si cambia el tamaño de ventana
+ */
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        // Función para verificar tamaño
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 1024);
+        };
+
+        // Verificar al montar
+        checkMobile();
+
+        // Escuchar cambios de tamaño
+        window.addEventListener('resize', checkMobile);
+
+        // Limpiar listener al desmontar
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    return isMobile;
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
 export function PaginaOfertas() {
     const { usuario } = useAuthStore();
+    const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
     const { ofertas, loading, crear, actualizar, eliminar, duplicar } = useOfertas();
     const { compararConHoy } = useZonaHoraria();
 
@@ -100,8 +133,14 @@ export function PaginaOfertas() {
     const [ofertaEditando, setOfertaEditando] = useState<Oferta | null>(null);
     const [ofertaDuplicando, setOfertaDuplicando] = useState<Oferta | null>(null);
     const [totalSucursales, setTotalSucursales] = useState(0);
-    const [paginaActual, setPaginaActual] = useState(0); // Bloque actual (0, 1, 2...)
-    const [previewAbierto, setPreviewAbierto] = useState(false); // Detectar preview
+    const [paginaActual, setPaginaActual] = useState(0); // Bloque actual (0, 1, 2...) - Solo para laptop/desktop
+    const [ofertasCargadas, setOfertasCargadas] = useState(OFERTAS_POR_PAGINA); // Para mobile infinite scroll
+
+    // Detectar si estamos en mobile
+    const isMobile = useIsMobile();
+
+    // Ref para Intersection Observer (sentinel del infinite scroll)
+    const observerRef = useRef<HTMLDivElement>(null);
 
     // Filtros
     const [filtros, setFiltros] = useState<FiltrosLocales>({
@@ -205,7 +244,7 @@ export function PaginaOfertas() {
 
             // 3. Las demás (activa, proxima, agotada) se ordenan por fecha de vencimiento
             // Las más cercanas a vencer primero
-            if (estadoA !== 'inactiva' && estadoA !== 'vencida' && 
+            if (estadoA !== 'inactiva' && estadoA !== 'vencida' &&
                 estadoB !== 'inactiva' && estadoB !== 'vencida') {
                 return new Date(a.fechaFin).getTime() - new Date(b.fechaFin).getTime();
             }
@@ -215,20 +254,30 @@ export function PaginaOfertas() {
     }, [ofertasFiltradas]);
 
     // ===========================================================================
-    // SISTEMA PAGINACIÓN POR BLOQUES
+    // SISTEMA HÍBRIDO: INFINITE SCROLL (MOBILE) + PAGINACIÓN (DESKTOP)
     // ===========================================================================
 
+    // Ofertas mostradas según dispositivo
     const ofertasMostradas = useMemo(() => {
-        const inicio = paginaActual * OFERTAS_POR_PAGINA;
-        const fin = inicio + OFERTAS_POR_PAGINA;
-        return ofertasOrdenadas.slice(inicio, fin);
-    }, [ofertasOrdenadas, paginaActual]);
+        if (isMobile) {
+            // MOBILE: Mostrar progresivamente según ofertasCargadas
+            return ofertasOrdenadas.slice(0, ofertasCargadas);
+        } else {
+            // DESKTOP/LAPTOP: Paginación por bloques
+            const inicio = paginaActual * OFERTAS_POR_PAGINA;
+            const fin = inicio + OFERTAS_POR_PAGINA;
+            return ofertasOrdenadas.slice(inicio, fin);
+        }
+    }, [ofertasOrdenadas, paginaActual, ofertasCargadas, isMobile]);
 
-    const hayMas = paginaActual * OFERTAS_POR_PAGINA + OFERTAS_POR_PAGINA < ofertasOrdenadas.length;
-    const hayAnterior = paginaActual > 0;
+    // Control para laptop/desktop (paginación)
+    const hayMas = isMobile 
+        ? ofertasCargadas < ofertasOrdenadas.length  // Mobile: hay más ofertas sin cargar
+        : paginaActual * OFERTAS_POR_PAGINA + OFERTAS_POR_PAGINA < ofertasOrdenadas.length; // Desktop: hay más páginas
+    const hayAnterior = !isMobile && paginaActual > 0;   // Solo en desktop
 
     const avanzar = () => {
-        if (hayMas) {
+        if (hayMas && !isMobile) {
             setPaginaActual(prev => prev + 1);
         }
     };
@@ -239,53 +288,57 @@ export function PaginaOfertas() {
         }
     };
 
-    // Resetear página al cambiar filtros
+    // Resetear al cambiar filtros
     useEffect(() => {
         setPaginaActual(0);
+        setOfertasCargadas(OFERTAS_POR_PAGINA);
     }, [filtros]);
+
+    // Resetear ofertasCargadas cuando cambie a mobile/desktop
+    useEffect(() => {
+        setOfertasCargadas(OFERTAS_POR_PAGINA);
+    }, [isMobile]);
+
+    // ===========================================================================
+    // INTERSECTION OBSERVER - INFINITE SCROLL (SOLO MOBILE)
+    // ===========================================================================
+
+    // Cargar más ofertas automáticamente en mobile cuando lleguemos al final
+    const cargarMas = useCallback(() => {
+        if (isMobile && ofertasCargadas < ofertasOrdenadas.length) {
+            setOfertasCargadas(prev => 
+                Math.min(prev + OFERTAS_POR_PAGINA, ofertasOrdenadas.length)
+            );
+        }
+    }, [isMobile, ofertasCargadas, ofertasOrdenadas.length]);
+
+    // Observer que detecta cuando el "sentinel" es visible
+    useEffect(() => {
+        if (!isMobile || !observerRef.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                // Si el sentinel es visible y hay más ofertas, cargar
+                if (entries[0].isIntersecting && hayMas) {
+                    cargarMas();
+                }
+            },
+            {
+                root: null,           // Viewport como root
+                rootMargin: '100px',  // Activar 100px antes de llegar al final
+                threshold: 0.1        // 10% visible
+            }
+        );
+
+        observer.observe(observerRef.current);
+
+        return () => observer.disconnect();
+    }, [isMobile, hayMas, cargarMas]);
 
     // ===========================================================================
     // DETECTAR PREVIEW ABIERTO (ultra responsivo)
     // ===========================================================================
 
-    useEffect(() => {
-        const checkPreview = () => {
-            // Método 1: Buscar texto "Previa:"
-            const textoPrevia = document.body.innerText.includes('Previa:');
-
-            // Método 2: Buscar clase 2xl:w-[700px] (la clase del panel preview)
-            const clasePreview = document.querySelector('.\\32xl\\:w-\\[700px\\]');
-
-            // Método 3: Detectar si el contenedor principal está reducido
-            const main = document.querySelector('main');
-            const anchoReducido = main && main.offsetWidth < window.innerWidth * 0.75;
-
-            const estaAbierto = !!(textoPrevia || clasePreview || anchoReducido);
-
-            setPreviewAbierto(estaAbierto);
-        };
-
-        // Verificar inmediatamente
-        checkPreview();
-
-        // Observer para cambios en el DOM
-        const observer = new MutationObserver(checkPreview);
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class', 'style']
-        });
-
-        // Verificación ultrarrápida para respuesta instantánea
-        const interval = setInterval(checkPreview, 25); // 25ms = instantáneo
-
-        return () => {
-            observer.disconnect();
-            clearInterval(interval);
-        };
-    }, []);
 
     // ===========================================================================
     // ESTADÍSTICAS RÁPIDAS
@@ -329,15 +382,21 @@ export function PaginaOfertas() {
     };
 
     const handleDuplicar = async (oferta: Oferta) => {
-        // Si es dueño → Abrir modal (sin importar cantidad de sucursales)
-        if (esDueno) {
+        // Si hay más de 1 sucursal, mostrar modal para seleccionar
+        if (totalSucursales >= 1) {
             setOfertaDuplicando(oferta);
             setModalDuplicarAbierto(true);
-        } else {
-            // Si es gerente → Duplicar directo en su sucursal
-            await duplicar(oferta.id, {
-                sucursalesIds: [oferta.sucursalId]
+            return;
+        }
+
+        // Si hay 1 sola sucursal, duplicar directo en la misma
+        if (usuario?.sucursalActiva) {
+            const exito = await duplicar(oferta.id, {
+                sucursalesIds: [usuario.sucursalActiva],
             });
+            if (exito) {
+                notificar.exito('Oferta duplicada correctamente');
+            }
         }
     };
 
@@ -394,9 +453,10 @@ export function PaginaOfertas() {
                     {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
                     <div className="overflow-x-auto lg:overflow-visible lg:flex-1">
                         <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
-                            {/* Total */}
-                            <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-default min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                            {/* Total - Resetear filtros */}
+                            <button
+                                onClick={limpiarFiltros}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${!hayFiltrosActivos ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
                                 style={{
                                     background: 'linear-gradient(135deg, #eff6ff, #fff)',
                                     border: '2px solid #93c5fd',
@@ -410,19 +470,23 @@ export function PaginaOfertas() {
                                     <Tag className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
                                 </div>
                                 <div>
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Total</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Total</div>
                                 </div>
-                            </div>
+                            </button>
 
                             {/* Activas */}
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'activa' ? 'todos' : 'activa' }))}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'activa' ? 'ring-2 ring-emerald-400 ring-offset-1' : ''}`}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'activa' ? 'ring-3 ring-emerald-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: 'linear-gradient(135deg, #f0fdf4, #fff)',
-                                    border: '2px solid #86efac',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: filtros.estado === 'activa' 
+                                        ? 'linear-gradient(135deg, #86efac, #4ade80)' 
+                                        : 'linear-gradient(135deg, #f0fdf4, #fff)',
+                                    border: filtros.estado === 'activa' ? '3px solid #22c55e' : '2px solid #86efac',
+                                    boxShadow: filtros.estado === 'activa' 
+                                        ? '0 4px 12px rgba(34,197,94,0.4)' 
+                                        : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -432,19 +496,23 @@ export function PaginaOfertas() {
                                     <TrendingUp className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">{estadisticas.activas}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Activas</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">{estadisticas.activas}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Activas</div>
                                 </div>
                             </button>
 
                             {/* Inactivas */}
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'inactiva' ? 'todos' : 'inactiva' }))}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'inactiva' ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'inactiva' ? 'ring-3 ring-red-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: 'linear-gradient(135deg, #fef2f2, #fff)',
-                                    border: '2px solid #fca5a5',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: filtros.estado === 'inactiva' 
+                                        ? 'linear-gradient(135deg, #fca5a5, #f87171)' 
+                                        : 'linear-gradient(135deg, #fef2f2, #fff)',
+                                    border: filtros.estado === 'inactiva' ? '3px solid #ef4444' : '2px solid #fca5a5',
+                                    boxShadow: filtros.estado === 'inactiva' 
+                                        ? '0 4px 12px rgba(239,68,68,0.4)' 
+                                        : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -454,19 +522,23 @@ export function PaginaOfertas() {
                                     <PauseCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.inactivas}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Inactivas</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.inactivas}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Inactivas</div>
                                 </div>
                             </button>
 
                             {/* Próximas */}
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'proxima' ? 'todos' : 'proxima' }))}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'proxima' ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'proxima' ? 'ring-3 ring-amber-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: 'linear-gradient(135deg, #fffbeb, #fff)',
-                                    border: '2px solid #fcd34d',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: filtros.estado === 'proxima' 
+                                        ? 'linear-gradient(135deg, #fcd34d, #fbbf24)' 
+                                        : 'linear-gradient(135deg, #fffbeb, #fff)',
+                                    border: filtros.estado === 'proxima' ? '3px solid #f59e0b' : '2px solid #fcd34d',
+                                    boxShadow: filtros.estado === 'proxima' 
+                                        ? '0 4px 12px rgba(245,158,11,0.4)' 
+                                        : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -476,19 +548,23 @@ export function PaginaOfertas() {
                                     <Calendar className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">{estadisticas.proximas}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Próximas</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">{estadisticas.proximas}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Próximas</div>
                                 </div>
                             </button>
 
                             {/* Vencidas */}
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, estado: prev.estado === 'vencida' ? 'todos' : 'vencida' }))}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'vencida' ? 'ring-2 ring-slate-400 ring-offset-1' : ''}`}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.estado === 'vencida' ? 'ring-3 ring-slate-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: 'linear-gradient(135deg, #f8fafc, #fff)',
-                                    border: '2px solid #cbd5e1',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: filtros.estado === 'vencida' 
+                                        ? 'linear-gradient(135deg, #cbd5e1, #94a3b8)' 
+                                        : 'linear-gradient(135deg, #f8fafc, #fff)',
+                                    border: filtros.estado === 'vencida' ? '3px solid #64748b' : '2px solid #cbd5e1',
+                                    boxShadow: filtros.estado === 'vencida' 
+                                        ? '0 4px 12px rgba(100,116,139,0.4)' 
+                                        : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -498,8 +574,8 @@ export function PaginaOfertas() {
                                     <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-600" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-slate-600">{estadisticas.vencidas}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Vencidas</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-slate-600">{estadisticas.vencidas}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Vencidas</div>
                                 </div>
                             </button>
                         </div>
@@ -555,7 +631,7 @@ export function PaginaOfertas() {
                                         tipo: prev.tipo === value ? 'todos' : value as TipoOferta
                                     }))}
                                     className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all cursor-pointer ${filtros.tipo === value
-                                        ? 'bg-blue-500 text-white'
+                                        ? 'bg-blue-500 text-white lg:scale-105 shadow-lg'
                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                 >
@@ -622,9 +698,20 @@ export function PaginaOfertas() {
                             ))}
                         </div>
 
-                        {/* FAB Superior - Volver (encima del de abajo) */}
-                        {hayAnterior && (
-                            <div className={`fixed right-6 2xl:right-1/2 bottom-24 z-40 transition-transform duration-75 group ${previewAbierto ? 'lg:right-[375px] 2xl:translate-x-[500px]' : '2xl:translate-x-[900px]'
+                        {/* Sentinel para Infinite Scroll (solo mobile) */}
+                        {isMobile && hayMas && (
+                            <div 
+                                ref={observerRef} 
+                                className="w-full h-20 flex items-center justify-center"
+                            >
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            </div>
+                        )}
+
+                        {/* FAB Superior - Volver (SOLO LAPTOP/DESKTOP) */}
+                        {!isMobile && hayAnterior && createPortal(
+                            <div className={`fixed right-6 2xl:right-1/2 bottom-24 z-50 transition-transform duration-75 group 
+                                ${previewNegocioAbierto ? 'lg:right-[375px] 2xl:translate-x-[510px]' : 'lg:right-[47px] 2xl:translate-x-[890px]'
                                 }`}>
                                 <button
                                     onClick={retroceder}
@@ -642,11 +729,14 @@ export function PaginaOfertas() {
                                     </div>
                                 </div>
                             </div>
+                            ,
+                            document.body
                         )}
 
-                        {/* FAB Inferior - Ver más */}
-                        {hayMas && (
-                            <div className={`fixed right-6 2xl:right-1/2 bottom-6 z-40 transition-transform duration-75 group ${previewAbierto ? 'lg:right-[375px] 2xl:translate-x-[500px]' : '2xl:translate-x-[900px]'
+                        {/* FAB Inferior - Ver más (SOLO LAPTOP/DESKTOP) */}
+                        {!isMobile && hayMas && createPortal(
+                            <div className={`fixed right-6 2xl:right-1/2 bottom-6 z-50 transition-transform duration-75 group 
+                                ${previewNegocioAbierto ? 'lg:right-[375px] 2xl:translate-x-[510px]' : 'lg:right-[47px] 2xl:translate-x-[890px]'
                                 }`}>
                                 <button
                                     onClick={avanzar}
@@ -664,6 +754,8 @@ export function PaginaOfertas() {
                                     </div>
                                 </div>
                             </div>
+                            ,
+                            document.body
                         )}
                     </>
                 )}

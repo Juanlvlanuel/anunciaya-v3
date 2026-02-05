@@ -21,6 +21,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Package,
@@ -36,7 +37,7 @@ import {
 } from 'lucide-react';
 import { useOptimisticUpload } from '../../../../hooks/useOptimisticUpload';
 import { Boton } from '../../../../components/ui/Boton';
-import { ModalImagenes } from '../../../../components/ui';
+import { Modal, ModalImagenes } from '../../../../components/ui';
 import { notificar } from '../../../../utils/notificaciones';
 import type { Articulo, CrearArticuloInput, ActualizarArticuloInput } from '../../../../types/articulos';
 
@@ -257,29 +258,16 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
   return (
     <>
       {/* Modal Principal */}
-      <div
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 lg:p-4"
-        onClick={onCerrar}
+      <Modal
+        abierto={true}
+        onCerrar={onCerrar}
+        titulo={esEdicion ? 'Editar Artículo' : 'Nuevo Artículo'}
+        ancho="xl"
+        paddingContenido="none"
+        className="max-w-xs lg:max-w-2xl 2xl:max-w-4xl"
       >
-        <div
-          className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl w-full max-w-xs lg:max-w-2xl 2xl:max-w-4xl overflow-hidden max-h-[92vh] lg:max-h-[75vh] 2xl:max-h-[90vh] shadow-2xl border-2 border-slate-300"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2.5 lg:px-4 lg:py-3 2xl:px-5 2xl:py-4 border-b-2 border-slate-300 bg-slate-100">
-            <h2 className="text-base lg:text-base 2xl:text-xl font-bold text-slate-800">
-              {esEdicion ? 'Editar Artículo' : 'Nuevo Artículo'}
-            </h2>
-            <button
-              onClick={onCerrar}
-              className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-            </button>
-          </div>
-
-          {/* Body - 2 columnas en PC */}
-          <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row">
+        {/* Body - 2 columnas en PC */}
+        <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row">
             {/* Columna Izquierda - Imagen */}
             <div className="lg:w-2/5 p-2.5 lg:p-2 2xl:p-5 lg:border-r-2 border-slate-300 bg-slate-50">
               {/* Tipo (solo al crear) */}
@@ -288,7 +276,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                   <button
                     type="button"
                     onClick={() => setTipo('producto')}
-                    className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg border text-xs 2xl:text-base font-medium flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-2 transition-all ${tipo === 'producto'
+                    className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg border text-xs 2xl:text-base font-medium flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-2 transition-all cursor-pointer ${tipo === 'producto'
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 hover:border-slate-300 text-slate-600'
                       }`}
@@ -299,7 +287,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                   <button
                     type="button"
                     onClick={() => setTipo('servicio')}
-                    className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg border text-xs 2xl:text-base font-medium flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-2 transition-all ${tipo === 'servicio'
+                    className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg border text-xs 2xl:text-base font-medium flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-2 transition-all cursor-pointer ${tipo === 'servicio'
                         ? 'border-purple-500 bg-purple-50 text-purple-700'
                         : 'border-slate-200 hover:border-slate-300 text-slate-600'
                       }`}
@@ -328,7 +316,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                     <button
                       type="button"
                       onClick={() => imagen.reset()}
-                      className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 2xl:top-2 2xl:right-2 bg-red-500 text-white p-1 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-red-600 transition-colors"
+                      className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 2xl:top-2 2xl:right-2 bg-red-500 text-white p-1 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-red-600 transition-colors cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
                     </button>
@@ -355,7 +343,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                 <button
                   type="button"
                   onClick={() => setDisponible(!disponible)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-2 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 text-xs 2xl:text-base font-medium transition-all ${disponible
+                  className={`flex-1 flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-2 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 text-xs 2xl:text-base font-medium transition-all cursor-pointer ${disponible
                       ? 'border-green-400 bg-green-50 text-green-700'
                       : 'border-slate-300 bg-white text-slate-600'
                     }`}
@@ -366,7 +354,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                 <button
                   type="button"
                   onClick={() => setDestacado(!destacado)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-2 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 text-xs 2xl:text-base font-medium transition-all ${destacado
+                  className={`flex-1 flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-2 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 text-xs 2xl:text-base font-medium transition-all cursor-pointer ${destacado
                       ? 'border-amber-400 bg-amber-50 text-amber-700'
                       : 'border-slate-300 bg-white text-slate-600'
                     }`}
@@ -434,7 +422,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                       }
                       setMostrarDropdown(!mostrarDropdown);
                     }}
-                    className="w-full flex items-center justify-between px-3 py-1.5 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm bg-white"
+                    className="w-full flex items-center justify-between px-3 py-1.5 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm bg-white cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
                       <Tag className="w-4 h-4 text-slate-400" />
@@ -446,13 +434,14 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                   </button>
 
                   {/* Dropdown menu */}
-                  {mostrarDropdown && (
+                  {mostrarDropdown && createPortal(
                     <div
-                      className="fixed z-9999 bg-white border-2 border-slate-300 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                      className="fixed z-9999 bg-white border-2 border-slate-300 rounded-lg shadow-xl max-h-60 overflow-y-auto overscroll-contain dropdown-categoria"
                       style={{
                         top: `${dropdownPosition.top}px`,
                         left: `${dropdownPosition.left}px`,
-                        width: `${dropdownPosition.width}px`
+                        width: `${dropdownPosition.width}px`,
+                        touchAction: 'pan-y'
                       }}
                     >
                       {/* Input para nueva categoría */}
@@ -490,7 +479,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                                   setMostrarDropdown(false);
                                 }
                               }}
-                              className="flex-1 px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
+                              className="flex-1 px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 cursor-pointer"
                             >
                               Agregar
                             </button>
@@ -500,7 +489,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                                 setCategoriaNueva('');
                                 setMostrarInputNueva(false);
                               }}
-                              className="flex-1 px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium hover:bg-slate-200"
+                              className="flex-1 px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium hover:bg-slate-200 cursor-pointer"
                             >
                               Cancelar
                             </button>
@@ -519,7 +508,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                                     setCategoria(cat);
                                     setMostrarDropdown(false);
                                   }}
-                                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-100 text-left text-sm lg:text-xs 2xl:text-sm"
+                                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-100 text-left text-sm lg:text-xs 2xl:text-sm cursor-pointer"
                                 >
                                   <span className="text-slate-700">{cat}</span>
                                   {categoria === cat && (
@@ -539,14 +528,15 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                           <button
                             type="button"
                             onClick={() => setMostrarInputNueva(true)}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-100 text-left text-sm lg:text-xs 2xl:text-sm text-blue-600 font-medium"
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-100 text-left text-sm lg:text-xs 2xl:text-sm text-blue-600 font-medium cursor-pointer"
                           >
                             <Plus className="w-4 h-4" />
                             Nueva categoría
                           </button>
                         </>
                       )}
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
 
@@ -589,13 +579,13 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
 
               {/* Botones */}
               <div className="flex gap-2 lg:gap-2 2xl:gap-3 pt-1 lg:pt-1 2xl:pt-2">
-                <Boton variante="outline" onClick={onCerrar} className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5" disabled={guardando}>
+                <Boton variante="outline" onClick={onCerrar} className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer" disabled={guardando}>
                   Cancelar
                 </Boton>
                 <Boton
                   variante="primario"
                   onClick={handleSubmit}
-                  className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5"
+                  className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer"
                   disabled={guardando || imagen.isUploading}
                   cargando={guardando}
                 >
@@ -604,8 +594,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
               </div>
             </div>
           </form>
-        </div>
-      </div>
+        </Modal>
 
 
       {/* ✅ Modal Universal de Imágenes */}

@@ -24,7 +24,7 @@ function hayCiudadGuardada(): boolean {
   try {
     const stored = localStorage.getItem('ay_ubicacion');
     if (!stored) return false;
-    
+
     const parsed = JSON.parse(stored);
     return parsed?.state?.ciudad !== null && parsed?.state?.ciudad !== undefined;
   } catch {
@@ -35,7 +35,7 @@ function hayCiudadGuardada(): boolean {
 export function RootLayout() {
   const hidratarAuth = useAuthStore((state) => state.hidratarAuth);
   const hidratarAuthScanYA = useScanYAStore((state) => state.hidratarAuth);
-  
+
   // GPS Store
   const obtenerUbicacion = useGpsStore((state) => state.obtenerUbicacion);
   const setCiudad = useGpsStore((state) => state.setCiudad);
@@ -72,7 +72,7 @@ export function RootLayout() {
 
       try {
         const coordenadas = await obtenerUbicacion();
-        
+
         if (coordenadas) {
           const ciudadCercana = buscarCiudadCercana(
             coordenadas.latitud,

@@ -69,9 +69,9 @@ const DURACION_ANIMACION = 300;
 
 /** Mapa de alturas máximas */
 const ALTURAS_MAXIMAS = {
-  sm: 'max-h-[50vh]',
-  md: 'max-h-[60vh]',
-  lg: 'max-h-[65vh]',
+  sm: 'max-h-[65vh]',
+  md: 'max-h-[75vh]',
+  lg: 'max-h-[80vh]',
 } as const;
 
 // =============================================================================
@@ -98,7 +98,7 @@ export function ModalBottom({
   const [cerrando, setCerrando] = useState(false);
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  
+
   // Referencias
   const modalRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
@@ -146,7 +146,7 @@ export function ModalBottom({
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (!isDragging) return;
-      
+
       const deltaY = e.clientY - startYRef.current;
       // Solo permitir arrastrar hacia abajo (valores positivos)
       if (deltaY > 0) {
@@ -158,9 +158,9 @@ export function ModalBottom({
 
   const handleMouseUp = useCallback(() => {
     if (!isDragging) return;
-    
+
     setIsDragging(false);
-    
+
     // Si superó el umbral, cerrar
     if (dragY > UMBRAL_CIERRE) {
       handleCerrar();
@@ -182,7 +182,7 @@ export function ModalBottom({
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
       if (!isDragging) return;
-      
+
       const deltaY = e.touches[0].clientY - startYRef.current;
       if (deltaY > 0) {
         setDragY(deltaY);
@@ -193,9 +193,9 @@ export function ModalBottom({
 
   const handleTouchEnd = useCallback(() => {
     if (!isDragging) return;
-    
+
     setIsDragging(false);
-    
+
     if (dragY > UMBRAL_CIERRE) {
       handleCerrar();
     } else {
@@ -212,7 +212,7 @@ export function ModalBottom({
     if (abierto) {
       // Guardar posición del scroll
       scrollYRef.current = window.scrollY;
-      
+
       // Bloquear scroll
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollYRef.current}px`;
@@ -233,7 +233,7 @@ export function ModalBottom({
         document.body.style.width = '';
         document.body.style.overflow = '';
         window.scrollTo(0, scrollYRef.current);
-        
+
         // Remover listeners
         document.removeEventListener('keydown', handleEscape);
         document.removeEventListener('mousemove', handleMouseMove);
@@ -253,7 +253,7 @@ export function ModalBottom({
   const deberiasMostrarHeader = mostrarHeader && (titulo || mostrarBotonCerrar);
 
   // Calcular opacidad del overlay basada en el drag
-  const opacidadOverlay = Math.max(0.5 - (dragY / 400), 0.1);
+  const opacidadOverlay = Math.max(0.1 - (dragY / 400), 0.1);
 
   return (
     <div
@@ -263,11 +263,10 @@ export function ModalBottom({
     >
       {/* Overlay */}
       <div
-        className={`absolute inset-0 transition-opacity ${
-          cerrando ? 'duration-300' : 'duration-200'
-        }`}
-        style={{ 
-          backgroundColor: `rgba(0, 0, 0, ${cerrando ? 0 : opacidadOverlay})` 
+        className={`absolute inset-0 backdrop-blur-sm transition-opacity ${cerrando ? 'duration-300' : 'duration-200'
+          }`}
+        style={{
+          backgroundColor: `rgba(0, 0, 0, ${cerrando ? 0 : opacidadOverlay})`
         }}
         onClick={handleClickOverlay}
       />
@@ -285,8 +284,8 @@ export function ModalBottom({
           ${className}
         `}
         style={{
-          transform: cerrando 
-            ? 'translateY(100%)' 
+          transform: cerrando
+            ? 'translateY(100%)'
             : `translateY(${dragY}px)`,
           animation: !cerrando && dragY === 0 && !isDragging
             ? 'slideUpBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
@@ -308,13 +307,9 @@ export function ModalBottom({
           <div className="flex items-center justify-between px-4 lg:px-3 2xl:px-4 pb-3 lg:pb-2 2xl:pb-3 border-b border-slate-100">
             {/* Título con icono */}
             {titulo && (
-              <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5">
-                {iconoTitulo && (
-                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
-                    {iconoTitulo}
-                  </div>
-                )}
-                <h2 className="text-lg lg:text-base 2xl:text-lg font-semibold text-slate-800">
+              <div className="flex items-center gap-2 lg:gap-2 2xl:gap-2.5">
+                {iconoTitulo}
+                <h2 className="text-lg lg:text-base 2xl:text-lg font-bold text-slate-800">
                   {titulo}
                 </h2>
               </div>
@@ -326,7 +321,7 @@ export function ModalBottom({
             {mostrarBotonCerrar && (
               <button
                 onClick={handleCerrar}
-                className="p-1.5 lg:p-1 2xl:p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+                className="p-1.5 lg:p-1 2xl:p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
                 aria-label="Cerrar"
               >
                 <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
@@ -336,11 +331,11 @@ export function ModalBottom({
         )}
 
         {/* Contenido con scroll (opcional) */}
-        <div 
+        <div
           className={`
             flex-1 min-h-0
-            ${sinScrollInterno 
-              ? 'overflow-hidden flex flex-col' 
+            ${sinScrollInterno
+              ? 'overflow-hidden flex flex-col'
               : 'overflow-y-auto p-4 lg:p-3 2xl:p-4'
             }
           `}

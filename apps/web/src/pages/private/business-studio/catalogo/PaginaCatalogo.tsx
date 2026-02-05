@@ -19,7 +19,8 @@
  * CREADO: Fase 5.4.1 - Catálogo CRUD Frontend
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Plus,
     Search,
@@ -68,6 +69,36 @@ const ESTILO_ICONO_HEADER = `
 `;
 
 // =============================================================================
+// HOOK - DETECTAR MOBILE
+// =============================================================================
+
+/**
+ * Hook para detectar si estamos en mobile (< 1024px)
+ * Actualiza automáticamente si cambia el tamaño de ventana
+ */
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        // Función para verificar tamaño
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 1024);
+        };
+
+        // Verificar al montar
+        checkMobile();
+
+        // Escuchar cambios de tamaño
+        window.addEventListener('resize', checkMobile);
+
+        // Limpiar listener al desmontar
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    return isMobile;
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -81,9 +112,16 @@ export function PaginaCatalogo() {
     const [articuloEditando, setArticuloEditando] = useState<Articulo | null>(null);
     const [articuloDuplicando, setArticuloDuplicando] = useState<Articulo | null>(null);
     const [totalSucursales, setTotalSucursales] = useState(0);
-    const [paginaActual, setPaginaActual] = useState(0); // Bloque actual (0, 1, 2...)
+    const [paginaActual, setPaginaActual] = useState(0); // Bloque actual (0, 1, 2...) - Solo para laptop/desktop
+    const [articulosCargados, setArticulosCargados] = useState(ARTICULOS_POR_PAGINA); // Para mobile infinite scroll
     const [previewAbierto, setPreviewAbierto] = useState(false); // Detectar preview
     const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number; }>({ isOpen: false, images: [], initialIndex: 0 });
+
+    // Detectar si estamos en mobile
+    const isMobile = useIsMobile();
+
+    // Ref para Intersection Observer (sentinel del infinite scroll)
+    const observerRef = useRef<HTMLDivElement>(null);
 
     // Filtros
     const [filtros, setFiltros] = useState<FiltrosArticulos>({
@@ -196,31 +234,47 @@ export function PaginaCatalogo() {
     }, [articulos, filtros]);
 
     // ===========================================================================
-    // SISTEMA PAGINACIÓN POR BLOQUES
+    // SISTEMA HÍBRIDO: INFINITE SCROLL (MOBILE) + PAGINACIÓN (DESKTOP)
     // ===========================================================================
 
+    // Artículos mostrados según dispositivo
     const articulosMostrados = useMemo(() => {
-        const inicio = paginaActual * ARTICULOS_POR_PAGINA;
-        const fin = inicio + ARTICULOS_POR_PAGINA;
-        return articulosFiltrados.slice(inicio, fin);
-    }, [articulosFiltrados, paginaActual]);
+        if (isMobile) {
+            // MOBILE: Mostrar progresivamente según articulosCargados
+            return articulosFiltrados.slice(0, articulosCargados);
+        } else {
+            // DESKTOP/LAPTOP: Paginación por bloques
+            const inicio = paginaActual * ARTICULOS_POR_PAGINA;
+            const fin = inicio + ARTICULOS_POR_PAGINA;
+            return articulosFiltrados.slice(inicio, fin);
+        }
+    }, [articulosFiltrados, paginaActual, articulosCargados, isMobile]);
 
+    // Control para laptop/desktop (paginación)
     const totalPaginas = Math.ceil(articulosFiltrados.length / ARTICULOS_POR_PAGINA);
-    const hayMas = paginaActual < totalPaginas - 1;
-    const hayAnterior = paginaActual > 0;
+    const hayMas = isMobile 
+        ? articulosCargados < articulosFiltrados.length  // Mobile: hay más artículos sin cargar
+        : paginaActual < totalPaginas - 1;               // Desktop: hay más páginas
+    const hayAnterior = !isMobile && paginaActual > 0;   // Solo en desktop
 
     const avanzar = () => {
-        if (hayMas) setPaginaActual(prev => prev + 1);
+        if (hayMas && !isMobile) setPaginaActual(prev => prev + 1);
     };
 
     const retroceder = () => {
         if (hayAnterior) setPaginaActual(prev => prev - 1);
     };
 
-    // Resetear página cuando cambien filtros
+    // Resetear al cambiar filtros
     useEffect(() => {
         setPaginaActual(0);
+        setArticulosCargados(ARTICULOS_POR_PAGINA);
     }, [filtros]);
+
+    // Resetear articulosCargados cuando cambie a mobile/desktop
+    useEffect(() => {
+        setArticulosCargados(ARTICULOS_POR_PAGINA);
+    }, [isMobile]);
 
     // Detectar si el preview está abierto
     useEffect(() => {
@@ -265,6 +319,42 @@ export function PaginaCatalogo() {
             clearInterval(interval);
         };
     }, []);
+
+    // ===========================================================================
+    // INTERSECTION OBSERVER - INFINITE SCROLL (SOLO MOBILE)
+    // ===========================================================================
+
+    // Cargar más artículos automáticamente en mobile cuando lleguemos al final
+    const cargarMas = useCallback(() => {
+        if (isMobile && articulosCargados < articulosFiltrados.length) {
+            setArticulosCargados(prev => 
+                Math.min(prev + ARTICULOS_POR_PAGINA, articulosFiltrados.length)
+            );
+        }
+    }, [isMobile, articulosCargados, articulosFiltrados.length]);
+
+    // Observer que detecta cuando el "sentinel" es visible
+    useEffect(() => {
+        if (!isMobile || !observerRef.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                // Si el sentinel es visible y hay más artículos, cargar
+                if (entries[0].isIntersecting && hayMas) {
+                    cargarMas();
+                }
+            },
+            {
+                root: null,           // Viewport como root
+                rootMargin: '100px',  // Activar 100px antes de llegar al final
+                threshold: 0.1        // 10% visible
+            }
+        );
+
+        observer.observe(observerRef.current);
+
+        return () => observer.disconnect();
+    }, [isMobile, hayMas, cargarMas]);
 
     // ===========================================================================
     // HANDLERS
@@ -380,9 +470,10 @@ export function PaginaCatalogo() {
                     {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
                     <div className="overflow-x-auto lg:overflow-visible lg:flex-1">
                         <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
-                            {/* Total */}
-                            <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-default min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                            {/* Total - Resetear filtros */}
+                            <button
+                                onClick={limpiarFiltros}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${!hayFiltrosActivos ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
                                 style={{
                                     background: 'linear-gradient(135deg, #eff6ff, #fff)',
                                     border: '2px solid #93c5fd',
@@ -396,19 +487,23 @@ export function PaginaCatalogo() {
                                     <Layers className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
                                 </div>
                                 <div>
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Total</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Total</div>
                                 </div>
-                            </div>
+                            </button>
 
                             {/* Productos */}
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.tipo === 'producto' ? 'ring-2 ring-cyan-400 ring-offset-1' : ''}`}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.tipo === 'producto' ? 'ring-3 ring-cyan-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: 'linear-gradient(135deg, #ecfeff, #fff)',
-                                    border: '2px solid #67e8f9',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: filtros.tipo === 'producto' 
+                                        ? 'linear-gradient(135deg, #67e8f9, #22d3ee)' 
+                                        : 'linear-gradient(135deg, #ecfeff, #fff)',
+                                    border: filtros.tipo === 'producto' ? '3px solid #06b6d4' : '2px solid #67e8f9',
+                                    boxShadow: filtros.tipo === 'producto' 
+                                        ? '0 4px 12px rgba(6,182,212,0.4)' 
+                                        : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -418,19 +513,23 @@ export function PaginaCatalogo() {
                                     <Package className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-cyan-700" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-cyan-700">{estadisticas.productos}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Productos</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-cyan-700">{estadisticas.productos}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Productos</div>
                                 </div>
                             </button>
 
                             {/* Servicios */}
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.tipo === 'servicio' ? 'ring-2 ring-purple-400 ring-offset-1' : ''}`}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.tipo === 'servicio' ? 'ring-3 ring-purple-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: 'linear-gradient(135deg, #faf5ff, #fff)',
-                                    border: '2px solid #d8b4fe',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: filtros.tipo === 'servicio' 
+                                        ? 'linear-gradient(135deg, #d8b4fe, #c084fc)' 
+                                        : 'linear-gradient(135deg, #faf5ff, #fff)',
+                                    border: filtros.tipo === 'servicio' ? '3px solid #9333ea' : '2px solid #d8b4fe',
+                                    boxShadow: filtros.tipo === 'servicio' 
+                                        ? '0 4px 12px rgba(147,51,234,0.4)' 
+                                        : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -440,19 +539,23 @@ export function PaginaCatalogo() {
                                     <Wrench className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-purple-700" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-purple-700">{estadisticas.servicios}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Servicios</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-purple-700">{estadisticas.servicios}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Servicios</div>
                                 </div>
                             </button>
 
                             {/* Disponibles */}
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === true ? 'todos' : true }))}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.disponible === true ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.disponible === true ? 'ring-3 ring-green-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: 'linear-gradient(135deg, #f0fdf4, #fff)',
-                                    border: '2px solid #86efac',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: filtros.disponible === true 
+                                        ? 'linear-gradient(135deg, #86efac, #4ade80)' 
+                                        : 'linear-gradient(135deg, #f0fdf4, #fff)',
+                                    border: filtros.disponible === true ? '3px solid #22c55e' : '2px solid #86efac',
+                                    boxShadow: filtros.disponible === true 
+                                        ? '0 4px 12px rgba(34,197,94,0.4)' 
+                                        : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -462,19 +565,23 @@ export function PaginaCatalogo() {
                                     <CheckCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">{estadisticas.disponibles}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Disponibles</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">{estadisticas.disponibles}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Disponibles</div>
                                 </div>
                             </button>
 
                             {/* Ocultos */}
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === false ? 'todos' : false }))}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.disponible === false ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
+                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.disponible === false ? 'ring-3 ring-red-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: 'linear-gradient(135deg, #fef2f2, #fff)',
-                                    border: '2px solid #fca5a5',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: filtros.disponible === false 
+                                        ? 'linear-gradient(135deg, #fca5a5, #f87171)' 
+                                        : 'linear-gradient(135deg, #fef2f2, #fff)',
+                                    border: filtros.disponible === false ? '3px solid #ef4444' : '2px solid #fca5a5',
+                                    boxShadow: filtros.disponible === false 
+                                        ? '0 4px 12px rgba(239,68,68,0.4)' 
+                                        : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -484,8 +591,8 @@ export function PaginaCatalogo() {
                                     <XCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-sm lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.noDisponibles}</div>
-                                    <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-slate-500 font-semibold mt-0.5">Ocultos</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.noDisponibles}</div>
+                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Ocultos</div>
                                 </div>
                             </button>
                         </div>
@@ -532,7 +639,7 @@ export function PaginaCatalogo() {
                         <button
                             onClick={() => setFiltros(prev => ({ ...prev, categoria: 'todas' }))}
                             className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all cursor-pointer ${filtros.categoria === 'todas'
-                                    ? 'bg-blue-500 text-white'
+                                    ? 'bg-blue-500 text-white lg:scale-105 shadow-lg'
                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                 }`}
                         >
@@ -549,7 +656,7 @@ export function PaginaCatalogo() {
                                     categoria: prev.categoria === cat ? 'todas' : cat
                                 }))}
                                 className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all cursor-pointer ${filtros.categoria === cat
-                                        ? 'bg-blue-500 text-white'
+                                        ? 'bg-blue-500 text-white lg:scale-105 shadow-lg'
                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
                             >
@@ -606,9 +713,20 @@ export function PaginaCatalogo() {
                             ))}
                         </div>
 
-                        {/* FAB Superior - Volver (encima del de abajo) */}
-                        {hayAnterior && (
-                            <div className={`fixed right-6 2xl:right-1/2 bottom-24 z-40 transition-transform duration-75 group ${previewAbierto ? 'lg:right-[375px] 2xl:translate-x-[500px]' : '2xl:translate-x-[900px]'
+                        {/* Sentinel para Infinite Scroll (solo mobile) */}
+                        {isMobile && hayMas && (
+                            <div 
+                                ref={observerRef} 
+                                className="w-full h-20 flex items-center justify-center"
+                            >
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            </div>
+                        )}
+
+                        {/* FAB Superior - Volver (SOLO LAPTOP/DESKTOP) */}
+                        {!isMobile && hayAnterior && createPortal(
+                            <div className={`fixed right-16 2xl:right-1/2 bottom-24 z-50 transition-transform duration-75 group 
+                                ${previewAbierto ? 'lg:right-[375px] 2xl:translate-x-[510px]' : 'lg:right-[47px] 2xl:translate-x-[890px]'
                                 }`}>
                                 <button
                                     onClick={retroceder}
@@ -626,11 +744,14 @@ export function PaginaCatalogo() {
                                     </div>
                                 </div>
                             </div>
+                        ,
+                            document.body
                         )}
 
-                        {/* FAB Inferior - Ver más */}
-                        {hayMas && (
-                            <div className={`fixed right-6 2xl:right-1/2 bottom-6 z-40 transition-transform duration-75 group ${previewAbierto ? 'lg:right-[375px] 2xl:translate-x-[500px]' : '2xl:translate-x-[900px]'
+                        {/* FAB Inferior - Ver más (SOLO LAPTOP/DESKTOP) */}
+                        {!isMobile && hayMas && createPortal(
+                            <div className={`fixed right-16 2xl:right-1/2 bottom-6 z-50 transition-transform duration-75 group 
+                                ${previewAbierto ? 'lg:right-[375px] 2xl:translate-x-[510px]' : 'lg:right-[47px] 2xl:translate-x-[890px]'
                                 }`}>
                                 <button
                                     onClick={avanzar}
@@ -648,6 +769,8 @@ export function PaginaCatalogo() {
                                     </div>
                                 </div>
                             </div>
+                        ,
+                            document.body
                         )}
                     </>
                 )}

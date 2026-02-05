@@ -32,8 +32,8 @@ import {
 import { useAuthStore } from '../../stores/useAuthStore';
 import { WidgetCardYA } from './WidgetCardYA';
 import { MenuBusinessStudio } from './MenuBusinessStudio';
-import { useDashboardStore } from '../../stores/useDashboardStore';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import { obtenerKPIs } from '../../services/dashboardService';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -177,7 +177,7 @@ export function ColumnaIzquierda() {
               <Store className="w-6 h-6 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6 text-white" />
             </div>
           )}
-          
+
           {/* Nombre y link */}
           <div className="flex-1 min-w-0 text-left">
             <p className="font-bold text-black text-sm lg:text-xs 2xl:text-base truncate">{nombreNegocio}</p>
@@ -188,7 +188,7 @@ export function ColumnaIzquierda() {
               Ver mi negocio <Eye className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 inline-block ml-0.5" />
             </button>
           </div>
-          
+
           {/* Flecha - Clickeable para ir al negocio */}
           <button
             onClick={() => navigate(`/negocios/${usuario?.sucursalActiva}`)}
@@ -333,7 +333,7 @@ function ContenidoPersonal() {
               <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600">Crea tu perfil y llega a más clientes</p>
             </div>
           </div>
-          
+
           {/* Stats del CTA */}
           <div className="flex items-center justify-between text-sm lg:text-xs 2xl:text-sm text-slate-600 mb-3 px-1">
             <span className="flex flex-col items-center">
@@ -349,7 +349,7 @@ function ContenidoPersonal() {
               <span className="text-xs text-slate-400">negocios</span>
             </span>
           </div>
-          
+
           {/* Botón del CTA - ÚNICO ELEMENTO CLICKEABLE */}
           <button
             onClick={() => navigate('/registro', { state: { tipoCuenta: 'Comercial' } })}
@@ -380,18 +380,41 @@ const TIPS_DIARIOS = [
 
 function ContenidoComercial() {
   const navigate = useNavigate();
-  const { kpis, cargarKPIs } = useDashboardStore();
+  const usuario = useAuthStore((state) => state.usuario);
+  const sucursalActiva = usuario?.sucursalActiva;
+
+  // Estado local para KPIs del día (independiente del Dashboard)
+  const [kpisHoy, setKpisHoy] = useState<{
+    ventas: number;
+    clientes: number;
+    transacciones: number;
+  }>({ ventas: 0, clientes: 0, transacciones: 0 });
 
   React.useEffect(() => {
-    if (!kpis) {
-      cargarKPIs();
-    }
-  }, [kpis, cargarKPIs]);
+    if (!sucursalActiva) return;
+
+    const cargarKPIsHoy = async () => {
+      try {
+        const response = await obtenerKPIs('hoy');
+        if (response.success && response.data) {
+          setKpisHoy({
+            ventas: response.data.ventas?.valor ?? 0,
+            clientes: response.data.clientes?.valor ?? 0,
+            transacciones: response.data.transacciones?.valor ?? 0,
+          });
+        }
+      } catch (error) {
+        console.error('Error cargando KPIs del día:', error);
+      }
+    };
+
+    cargarKPIsHoy();
+  }, [sucursalActiva]);
 
   const tipDelDia = TIPS_DIARIOS[new Date().getDay()];
-  const ventasTotales = kpis?.ventas?.valor ?? 0;
-  const clientes = kpis?.clientes?.valor ?? 0;
-  const transacciones = kpis?.transacciones?.valor ?? 0;
+  const ventasTotales = kpisHoy.ventas;
+  const clientes = kpisHoy.clientes;
+  const transacciones = kpisHoy.transacciones;
 
   return (
     <>
@@ -431,7 +454,7 @@ function ContenidoComercial() {
 
       {/* ===== CLIENTES Y TRANSACCIONES con iconos ===== */}
       <div className="grid grid-cols-2 border-b-2 border-slate-200">
-        <button 
+        <button
           onClick={() => navigate('/business-studio/clientes')}
           className="px-3 lg:px-2 2xl:px-3 py-4 lg:py-2.5 2xl:py-4 text-center border-r-2 border-slate-200 hover:bg-blue-50 transition-colors cursor-pointer"
         >
@@ -441,7 +464,7 @@ function ContenidoComercial() {
           </div>
           <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-700 font-semibold">Clientes</p>
         </button>
-        <button 
+        <button
           onClick={() => navigate('/business-studio/transacciones')}
           className="px-3 lg:px-2 2xl:px-3 py-4 lg:py-2.5 2xl:py-4 text-center hover:bg-blue-50 transition-colors cursor-pointer"
         >
@@ -455,7 +478,7 @@ function ContenidoComercial() {
 
       {/* Espacio flexible - empuja acciones y tip hacia abajo */}
       <div className="flex-1" />
-      
+
       {/* Divisor sutil */}
       <div className="mx-4 border-t border-slate-200" />
 
@@ -466,7 +489,7 @@ function ContenidoComercial() {
           <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-700 font-semibold uppercase tracking-wide">Acciones rápidas</p>
         </div>
         <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
-          <button 
+          <button
             onClick={() => navigate('/business-studio/catalogo')}
             className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-1.5 2xl:p-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors text-left cursor-pointer"
           >
@@ -479,7 +502,7 @@ function ContenidoComercial() {
             </div>
             <ChevronRight className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-slate-400" />
           </button>
-          <button 
+          <button
             onClick={() => navigate('/business-studio/ofertas')}
             className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-1.5 2xl:p-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors text-left cursor-pointer"
           >

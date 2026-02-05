@@ -14,8 +14,8 @@ import {
     Wrench,
 } from 'lucide-react';
 import { DropdownCompartir } from '../compartir';
-import { useEffect, useState } from 'react';
-import { useLockScroll } from '../../hooks/useLockScroll';
+import { useEffect } from 'react';
+import { Modal } from '../ui/Modal';
 import api from '../../services/api';
 
 // =============================================================================
@@ -49,23 +49,6 @@ interface ModalDetalleItemProps {
 // =============================================================================
 
 export function ModalDetalleItem({ item, whatsapp, onClose, openedFromModal = false }: ModalDetalleItemProps) {
-    // Estado para animación de cierre
-    const [cerrando, setCerrando] = useState(false);
-    
-    // Solo bloquear scroll si NO se abrió desde otro modal
-    // Si openedFromModal=true, el modal padre ya maneja el scroll
-    useLockScroll(!!item && !openedFromModal);
-
-    // Función para cerrar con animación
-    const handleCerrar = () => {
-        if (cerrando) return;
-        setCerrando(true);
-        setTimeout(() => {
-            setCerrando(false);
-            onClose();
-        }, 200);
-    };
-
     // Registrar vista del artículo (con filtro de cooldown)
     useEffect(() => {
         if (!item) return;
@@ -121,20 +104,16 @@ export function ModalDetalleItem({ item, whatsapp, onClose, openedFromModal = fa
     };
 
     return (
-        <div
-            className={`fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 ${
-                cerrando ? 'animate-out fade-out' : 'animate-in fade-in'
-            } duration-200`}
-            onClick={handleCerrar}
+        <Modal
+            abierto={!!item}
+            onCerrar={onClose}
+            mostrarHeader={false}
+            paddingContenido="none"
+            ancho="sm"
+            className="min-w-[330px] max-w-[80vw] lg:max-w-xs 2xl:max-w-sm"
         >
-            <div
-                className={`relative bg-white rounded-2xl w-full min-w-[280px] max-w-[80vw] lg:max-w-xs 2xl:max-w-sm max-h-[90vh] lg:max-h-[90vh] 2xl:max-h-[85vh] overflow-hidden shadow-2xl ${
-                    cerrando ? 'animate-out fade-out zoom-out-95' : 'animate-in fade-in zoom-in-95'
-                } duration-200`}
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Imagen Hero con overlay */}
-                <div className="relative h-52 lg:h-44 2xl:h-56 bg-slate-100">
+            {/* Imagen Hero con overlay */}
+            <div className="relative h-52 lg:h-44 2xl:h-56 bg-slate-100">
                     {item.imagenPrincipal ? (
                         <img
                             src={item.imagenPrincipal}
@@ -163,7 +142,7 @@ export function ModalDetalleItem({ item, whatsapp, onClose, openedFromModal = fa
                             variante="glass"
                         />
                         <button
-                            onClick={handleCerrar}
+                            onClick={onClose}
                             className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white hover:border-red-500 transition-all duration-200 group cursor-pointer"
                         >
                             <X className="w-4 h-4 lg:w-5 lg:h-5 text-slate-700 group-hover:text-red-500 transition-colors" />
@@ -240,8 +219,7 @@ export function ModalDetalleItem({ item, whatsapp, onClose, openedFromModal = fa
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </Modal>
     );
 }
 

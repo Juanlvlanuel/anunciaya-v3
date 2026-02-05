@@ -1,21 +1,27 @@
 /**
  * ============================================================================
- * HOOK: usePerfilNegocio
+ * HOOK: usePerfilNegocio (v2 - CON CACHÉ)
  * ============================================================================
  * 
  * UBICACIÓN: apps/web/src/hooks/usePerfilNegocio.ts
  * 
  * PROPÓSITO:
  * Hook para obtener el PERFIL COMPLETO de una sucursal específica
- * Incluye todos los datos para mostrar en la página de detalle
+ * Ahora con soporte para caché - carga instantánea si hay pre-fetch
  * 
  * CARACTERÍSTICAS:
- * - Fetch automático al montar (si se proporciona ID)
- * - Obtiene perfil completo con todas las relaciones
- * - Maneja loading, error, data
- * - Función refetch manual
- * - TypeScript completo
- * - Detección automática de cambios en liked/saved
+ * - ✅ Busca en caché primero (instantáneo si existe)
+ * - ✅ Fetch automático al montar (si se proporciona ID)
+ * - ✅ Guarda resultado en caché para futuras visitas
+ * - ✅ Obtiene perfil completo con todas las relaciones
+ * - ✅ Maneja loading, error, data
+ * - ✅ Función refetch manual
+ * - ✅ TypeScript completo
+ * 
+ * FLUJO:
+ * 1. ¿Existe en caché? → Mostrar inmediato (loading=false)
+ * 2. ¿No existe? → Mostrar loading, hacer fetch
+ * 3. Al recibir datos → Guardar en caché
  * 
  * USO:
  * ```tsx
@@ -23,6 +29,7 @@
  *   const { sucursalId } = useParams();
  *   const { negocio, loading, error, refetch } = usePerfilNegocio(sucursalId);
  *   
+ *   // Si hubo pre-fetch, loading será false desde el inicio
  *   if (loading) return <Spinner />;
  *   if (error) return <Error mensaje={error} />;
  *   if (!negocio) return <NotFound />;
@@ -32,8 +39,9 @@
  * ```
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
+import { useNegociosCacheStore } from '../stores/useNegociosCacheStore';
 import type { NegocioCompleto, RespuestaPerfilNegocio } from '../types/negocios';
 
 // =============================================================================
@@ -45,6 +53,8 @@ interface UsePerfilNegocioResult {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  /** Indica si los datos vinieron del caché (para debug) */
+  fromCache: boolean;
 }
 
 interface UsePerfilNegocioOptions {
@@ -64,6 +74,13 @@ interface UsePerfilNegocioOptions {
    * Callback que se ejecuta cuando hay un error
    */
   onError?: (error: string) => void;
+  
+  /**
+   * Si es true, siempre hace fetch aunque exista en caché
+   * Útil para forzar datos frescos
+   * Default: false
+   */
+  skipCache?: boolean;
 }
 
 // =============================================================================
@@ -76,43 +93,35 @@ interface UsePerfilNegocioOptions {
  * @param sucursalId - UUID de la sucursal a obtener
  * @param options - Configuración del hook
  * @returns Estado y funciones para manejar el perfil
- * 
- * @example
- * // Uso básico con react-router
- * const { sucursalId } = useParams();
- * const { negocio, loading, error } = usePerfilNegocio(sucursalId);
- * 
- * @example
- * // Con callback para registrar vista
- * const { negocio } = usePerfilNegocio(sucursalId, {
- *   onSuccess: (negocio) => {
- *     // Registrar vista en métricas
- *     api.post('/metricas/view', {
- *       entityType: 'sucursal',
- *       entityId: negocio.sucursalId
- *     });
- *   }
- * });
- * 
- * @example
- * // Fetch manual
- * const { negocio, refetch } = usePerfilNegocio(sucursalId, { manual: true });
- * // Después...
- * await refetch();
  */
 export function usePerfilNegocio(
   sucursalId: string | undefined,
   options: UsePerfilNegocioOptions = {}
 ): UsePerfilNegocioResult {
-  const { manual = false, onSuccess, onError } = options;
+  const { manual = false, onSuccess, onError, skipCache = false } = options;
+
+  // Store de caché
+  const { obtenerPerfilCache, guardarPerfilCache } = useNegociosCacheStore();
+
+  // =============================================================================
+  // VERIFICAR CACHÉ INICIAL
+  // =============================================================================
+  
+  // Intentar obtener del caché al inicializar
+  const datosIniciales = !skipCache && sucursalId ? obtenerPerfilCache(sucursalId) : null;
+  const tieneCache = datosIniciales !== null;
 
   // =============================================================================
   // ESTADO LOCAL
   // =============================================================================
   
-  const [negocio, setNegocio] = useState<NegocioCompleto | null>(null);
-  const [loading, setLoading] = useState(!manual && !!sucursalId);
+  const [negocio, setNegocio] = useState<NegocioCompleto | null>(datosIniciales);
+  const [loading, setLoading] = useState(!manual && !!sucursalId && !tieneCache);
   const [error, setError] = useState<string | null>(null);
+  const [fromCache, setFromCache] = useState(tieneCache);
+  
+  // Ref para evitar callbacks duplicados
+  const callbackEjecutado = useRef(false);
 
   // =============================================================================
   // FUNCIÓN DE FETCH
@@ -121,7 +130,7 @@ export function usePerfilNegocio(
   /**
    * Realiza la petición al backend para obtener el perfil completo
    */
-  const fetchNegocio = async () => {
+  const fetchNegocio = async (forzar = false) => {
     // Validar que existe el ID
     if (!sucursalId) {
       const errorMsg = 'ID de sucursal no proporcionado';
@@ -131,10 +140,22 @@ export function usePerfilNegocio(
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
+    // Si no forzamos y ya tenemos datos del caché, no hacer fetch
+    if (!forzar && negocio && fromCache) {
+      // Solo ejecutar callback si no se ha ejecutado
+      if (!callbackEjecutado.current) {
+        callbackEjecutado.current = true;
+        onSuccess?.(negocio);
+      }
+      return;
+    }
 
+    try {
+      // Solo mostrar loading si no tenemos datos del caché
+      if (!negocio) {
+        setLoading(true);
+      }
+      setError(null);
 
       // ===================================================================
       // HACER PETICIÓN
@@ -150,11 +171,18 @@ export function usePerfilNegocio(
       
       if (response.data.success && response.data.data) {
         const negocioData = response.data.data;
-        setNegocio(negocioData);
         
+        setNegocio(negocioData);
+        setFromCache(false);
+        
+        // Guardar en caché para futuras visitas
+        guardarPerfilCache(sucursalId, negocioData);
         
         // Ejecutar callback de éxito
-        onSuccess?.(negocioData);
+        if (!callbackEjecutado.current) {
+          callbackEjecutado.current = true;
+          onSuccess?.(negocioData);
+        }
       } else {
         throw new Error('Respuesta inválida del servidor');
       }
@@ -165,8 +193,6 @@ export function usePerfilNegocio(
       // Mensajes de error amigables
       let errorMsg: string;
       
-      // NOTA: Ya no manejamos 401 porque el endpoint /sucursal/:id
-      // funciona con auth opcional (verificarTokenOpcional)
       if (err.response?.status === 404) {
         errorMsg = 'Negocio no encontrado';
       } else if (err.response?.status === 403) {
@@ -177,8 +203,11 @@ export function usePerfilNegocio(
         errorMsg = err.response?.data?.message || err.message || 'Error al cargar negocio';
       }
       
-      setError(errorMsg);
-      setNegocio(null);
+      // Solo mostrar error si no tenemos datos del caché
+      if (!negocio) {
+        setError(errorMsg);
+        setNegocio(null);
+      }
       
       // Ejecutar callback de error
       onError?.(errorMsg);
@@ -194,13 +223,35 @@ export function usePerfilNegocio(
   
   /**
    * Efecto que ejecuta el fetch cuando cambia el ID
-   * Solo se ejecuta si NO está en modo manual Y el ID existe
+   * Si hay datos en caché, los usa inmediatamente
    */
   useEffect(() => {
+    // Reset del ref cuando cambia el ID
+    callbackEjecutado.current = false;
+    
     if (!manual && sucursalId) {
-      fetchNegocio();
+      // Verificar caché nuevamente (por si cambió el ID)
+      const cacheado = !skipCache ? obtenerPerfilCache(sucursalId) : null;
+      
+      if (cacheado) {
+        // Tenemos datos en caché - mostrar inmediato
+        setNegocio(cacheado);
+        setLoading(false);
+        setFromCache(true);
+        setError(null);
+        
+        // Ejecutar callback
+        if (!callbackEjecutado.current) {
+          callbackEjecutado.current = true;
+          onSuccess?.(cacheado);
+        }
+      } else {
+        // No hay caché - hacer fetch normal
+        setFromCache(false);
+        fetchNegocio();
+      }
     }
-  }, [sucursalId, manual]);
+  }, [sucursalId, manual, skipCache]);
 
   // =============================================================================
   // RETURN
@@ -210,7 +261,8 @@ export function usePerfilNegocio(
     negocio,
     loading,
     error,
-    refetch: fetchNegocio,
+    refetch: () => fetchNegocio(true), // Forzar fetch ignorando caché
+    fromCache,
   };
 }
 

@@ -474,7 +474,7 @@ export default function PaginaScanYA() {
       <div
         className="absolute inset-0 overflow-hidden"
         style={{
-          background: 'linear-gradient(180deg, #000000 0%, #001d3d 50%, #000000 100%)'
+          background: 'linear-gradient(180deg, #02143D 20%, #001E70 80%, #034AE3 100%)'
         }}
       >        {/* Esferas de gradiente flotantes */}
         <div
@@ -484,7 +484,7 @@ export default function PaginaScanYA() {
             filter: 'blur(80px)',
             top: '-100px',
             left: '-100px',
-            animation: 'float-orb-1 20s ease-in-out infinite',
+            animation: 'float-orb-1 20s ease-in-out infinite', 
           }}
         />
         <div

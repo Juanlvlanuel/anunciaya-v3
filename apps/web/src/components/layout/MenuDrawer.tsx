@@ -1,34 +1,25 @@
 /**
- * MenuDrawer.tsx - VERSIÓN MEJORADA v2.5
- * =======================================
+ * MenuDrawer.tsx - VERSIÓN v3.0 REDISEÑADA
+ * =========================================
  * Menú lateral que se abre desde el header en móvil.
  *
- * ✨ MEJORAS v2.5:
- * - Reorganización para comercial: MI NEGOCIO primero, luego opciones generales
- * - Orden comercial: ScanYA → Business Studio → Mi Perfil → Configuración → Guardados
+ * ✨ MEJORAS v3.0:
+ * - 📍 Ubicación y 💼 Empleos UNIVERSALES (siempre visibles)
+ * - Ubicación como 1era opción destacada
+ * - Empleos como 2da opción destacada con subtítulo adaptativo
+ * - Mejor organización visual con secciones claras
  *
- * ✨ MEJORAS v2.4:
- * - Mis Publicaciones solo para personal (comercial gestiona desde Business Studio)
- * - Guardados disponible para todos
- *
- * ✨ MEJORAS v2.1:
- * - Ancho responsive: 65% de la pantalla
- * - Diseño de 3 niveles en sección "MI CUENTA":
- *   • Avatar grande a la izquierda
- *   • Nombre + Correo a la derecha del avatar
- *   • Badge debajo del avatar
- * - Botones más compactos (menos padding, iconos más pequeños)
- *
- * Contenido:
- * - Info del usuario (avatar, badge cuenta, nombre, correo)
- * - CardYA (solo personal)
- * - Mis Cupones (solo personal, con badge)
- * - Guardados (todos)
- * - Mis Publicaciones (solo personal)
- * - Mi Perfil (todos)
- * - Configuración (todos)
- * - ScanYA + Business Studio (solo comercial)
- * - Cerrar sesión
+ * ✨ ESTRUCTURA v3.0:
+ * 1. Header (Avatar + Toggle Modo)
+ * 2. OPCIONES UNIVERSALES:
+ *    - 📍 Ubicación (todos)
+ *    - 💼 Empleos (todos, texto adaptativo)
+ * 3. OPCIONES POR MODO:
+ *    - Comercial: ScanYA, Business Studio
+ *    - Personal: CardYA, Cupones, Publicaciones
+ * 4. OPCIONES COMUNES:
+ *    - Perfil, Configuración, Guardados
+ * 5. Footer (Cerrar Sesión)
  *
  * Ubicación: apps/web/src/components/layout/MenuDrawer.tsx
  */
@@ -45,8 +36,12 @@ import {
   Gift,
   Heart,
   FileText,
+  MapPin,
+  Briefcase,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useGpsStore } from '../../stores/useGpsStore';
+import { useUiStore } from '../../stores/useUiStore';
 import { ToggleModoUsuario } from '../ui/ToggleModoUsuario';
 
 // =============================================================================
@@ -67,6 +62,10 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // ---------------------------------------------------------------------------
   const usuario = useAuthStore((state) => state.usuario);
   const logout = useAuthStore((state) => state.logout);
+  
+  const ciudadData = useGpsStore((state) => state.ciudad);
+  
+  const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
 
   // ---------------------------------------------------------------------------
   // Hooks
@@ -119,6 +118,11 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
     logout();
   };
 
+  const handleAbrirUbicacion = () => {
+    abrirModalUbicacion();
+    onClose();
+  };
+
   // ---------------------------------------------------------------------------
   // Computed
   // ---------------------------------------------------------------------------
@@ -163,10 +167,11 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             {/* Avatar */}
             <div className="relative mb-3">
               <div
-                className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ${esComercial
-                  ? 'bg-linear-to-br from-orange-400 to-orange-600 ring-orange-100'
-                  : 'bg-linear-to-br from-blue-400 to-blue-600 ring-blue-100'
-                  } overflow-hidden`}
+                className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ${
+                  esComercial
+                    ? 'bg-linear-to-br from-orange-400 to-orange-600 ring-orange-100'
+                    : 'bg-linear-to-br from-blue-400 to-blue-600 ring-blue-100'
+                } overflow-hidden`}
               >
                 {esComercial ? (
                   usuario?.fotoPerfilNegocio ? (
@@ -209,7 +214,40 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
         {/* === OPCIONES DE NAVEGACIÓN === */}
         <div className="flex-1 overflow-auto py-2">
-          {/* === SECCIÓN COMERCIAL (PRIMERO) === */}
+          {/* === SECCIÓN UNIVERSAL (SIEMPRE VISIBLE) === */}
+          
+          {/* Ubicación - PRIMERA OPCIÓN */}
+          <MenuDrawerItemDestacado
+            icon={MapPin}
+            label="Tu Ubicación"
+            sublabel={ciudadData?.nombreCompleto || 'Seleccionar ubicación'}
+            bgColor="bg-linear-to-br from-blue-500 to-blue-600"
+            iconColor="text-white"
+            hoverGradient="hover:from-blue-50"
+            borderColor="border-blue-200"
+            onClick={handleAbrirUbicacion}
+          />
+
+          {/* Empleos - SEGUNDA OPCIÓN */}
+          <MenuDrawerItemDestacado
+            icon={Briefcase}
+            label="Bolsa de Trabajo"
+            sublabel={
+              esComercial
+                ? 'Publica vacantes y contrata'
+                : 'Busca empleo u ofrece servicios'
+            }
+            bgColor="bg-linear-to-br from-purple-500 to-purple-600"
+            iconColor="text-white"
+            hoverGradient="hover:from-purple-50"
+            borderColor="border-purple-200"
+            onClick={() => handleNavegar('/empleos')}
+          />
+
+          {/* Divisor después de opciones universales */}
+          <div className="my-2.5 mx-4 h-[1.5px] bg-linear-to-r from-transparent via-gray-400 to-transparent"></div>
+
+          {/* === SECCIÓN COMERCIAL (SI APLICA) === */}
           {esComercial && (
             <>
               {/* ScanYA */}
@@ -251,48 +289,47 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             </>
           )}
 
-          {/* CardYA (solo personal) */}
+          {/* === SECCIÓN PERSONAL (SI APLICA) === */}
           {!esComercial && (
-            <MenuDrawerItem
-              icon={CreditCard}
-              label="CardYA"
-              bgColor="bg-blue-100"
-              iconColor="text-blue-600"
-              hoverGradient="hover:from-blue-50"
-              onClick={() => handleNavegar('/cardya')}
-            />
+            <>
+              {/* CardYA */}
+              <MenuDrawerItem
+                icon={CreditCard}
+                label="CardYA"
+                bgColor="bg-blue-100"
+                iconColor="text-blue-600"
+                hoverGradient="hover:from-blue-50"
+                onClick={() => handleNavegar('/cardya')}
+              />
+
+              {/* Mis Cupones */}
+              <MenuDrawerItem
+                icon={Gift}
+                label="Mis Cupones"
+                badge={cuponesActivos}
+                bgColor="bg-emerald-100"
+                iconColor="text-emerald-600"
+                hoverGradient="hover:from-emerald-50"
+                onClick={() => handleNavegar('/cupones')}
+              />
+
+              {/* Mis Publicaciones */}
+              <MenuDrawerItem
+                icon={FileText}
+                label="Mis Publicaciones"
+                bgColor="bg-purple-100"
+                iconColor="text-purple-600"
+                hoverGradient="hover:from-purple-50"
+                onClick={() => handleNavegar('/mis-publicaciones')}
+              />
+
+              {/* Divisor después de opciones personales */}
+              <div className="my-2.5 mx-4 h-[1.5px] bg-linear-to-r from-transparent via-gray-400 to-transparent"></div>
+            </>
           )}
 
-          {/* Mis Cupones (solo personal) */}
-          {!esComercial && (
-            <MenuDrawerItem
-              icon={Gift}
-              label="Mis Cupones"
-              badge={cuponesActivos}
-              bgColor="bg-emerald-100"
-              iconColor="text-emerald-600"
-              hoverGradient="hover:from-emerald-50"
-              onClick={() => handleNavegar('/cupones')}
-            />
-          )}
-
-          {/* Mis Publicaciones (solo personal) */}
-          {!esComercial && (
-            <MenuDrawerItem
-              icon={FileText}
-              label="Mis Publicaciones"
-              bgColor="bg-purple-100"
-              iconColor="text-purple-600"
-              hoverGradient="hover:from-purple-50"
-              onClick={() => handleNavegar('/mis-publicaciones')}
-            />
-          )}
-
-          {/* Divisor antes de opciones comunes (solo personal) */}
-          {!esComercial && (
-            <div className="my-2.5 mx-4 h-[1.5px] bg-linear-to-r from-transparent via-gray-400 to-transparent"></div>
-          )}
-
+          {/* === OPCIONES COMUNES (TODOS) === */}
+          
           {/* Mi Perfil */}
           <MenuDrawerItem
             icon={User}
@@ -340,6 +377,59 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 }
 
 // =============================================================================
+// SUBCOMPONENTE: MenuDrawerItemDestacado (VERSIÓN DESTACADA)
+// =============================================================================
+
+interface MenuDrawerItemDestacadoProps {
+  icon: React.ElementType;
+  label: string;
+  sublabel: string;
+  bgColor: string;
+  iconColor: string;
+  hoverGradient: string;
+  borderColor: string;
+  onClick: () => void;
+}
+
+function MenuDrawerItemDestacado({
+  icon: Icon,
+  label,
+  sublabel,
+  bgColor,
+  iconColor,
+  hoverGradient,
+  borderColor,
+  onClick,
+}: MenuDrawerItemDestacadoProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full mx-2 mb-2 flex items-center gap-3 p-3 bg-white hover:bg-linear-to-r ${hoverGradient} hover:to-transparent rounded-xl border-2 ${borderColor} group transition-all duration-200 hover:shadow-md active:scale-98`}
+    >
+      {/* Icono grande con gradiente */}
+      <div
+        className={`w-12 h-12 ${bgColor} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-md`}
+      >
+        <Icon className={`w-6 h-6 ${iconColor}`} />
+      </div>
+
+      {/* Texto */}
+      <div className="flex-1 text-left">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+          {label}
+        </p>
+        <p className="text-sm font-semibold text-gray-900 mt-0.5">
+          {sublabel}
+        </p>
+      </div>
+
+      {/* Chevron */}
+      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200" />
+    </button>
+  );
+}
+
+// =============================================================================
 // SUBCOMPONENTE: MenuDrawerItem (VERSIÓN COMPACTA)
 // =============================================================================
 
@@ -373,15 +463,25 @@ function MenuDrawerItem({
       className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-linear-to-r ${hoverGradient} hover:to-transparent group transition-all duration-150 hover:translate-x-1`}
     >
       {/* Icono con o sin background */}
-      <div className={`${iconoImagen ? 'w-auto h-8' : 'w-8 h-8'} ${iconoImagen ? '' : bgColor} ${iconoImagen ? '' : 'rounded-lg'} flex items-center justify-center group-hover:scale-110 transition-transform duration-150 ${iconoImagen ? '' : 'shadow-sm'} shrink-0`}>
+      <div
+        className={`${iconoImagen ? 'w-auto h-8' : 'w-8 h-8'} ${
+          iconoImagen ? '' : bgColor
+        } ${iconoImagen ? '' : 'rounded-lg'} flex items-center justify-center group-hover:scale-110 transition-transform duration-150 ${
+          iconoImagen ? '' : 'shadow-sm'
+        } shrink-0`}
+      >
         {iconoImagen ? (
-          <img src={iconoImagen} alt={typeof label === 'string' ? label : 'Icono'} className="w-full h-full object-contain" />
+          <img
+            src={iconoImagen}
+            alt={typeof label === 'string' ? label : 'Icono'}
+            className="w-full h-full object-contain"
+          />
         ) : Icon ? (
           <Icon className={`w-4 h-4 ${iconColor}`} />
         ) : null}
       </div>
 
-      {/* Label - TEXTO MÁS PEQUEÑO */}
+      {/* Label */}
       <span className="font-semibold text-gray-900 text-md">{label}</span>
 
       {/* Badge o Chevron */}

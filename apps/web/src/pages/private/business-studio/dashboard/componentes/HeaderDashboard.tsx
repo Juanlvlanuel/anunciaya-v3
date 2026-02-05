@@ -104,7 +104,7 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
                 Dashboard
               </h1>
               <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
-                Métricas y actividad reciente
+                Métricas<span className="hidden lg:inline"> y actividad reciente</span>
               </p>
             </div>
           </div>

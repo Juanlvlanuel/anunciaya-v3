@@ -1,33 +1,56 @@
 /**
- * BottomNav.tsx
- * ==============
- * Navegación inferior para la vista móvil - VERSIÓN FINAL
+ * BottomNav.tsx - VERSIÓN v3.4 PEGADO AL BOTTOM
+ * ===============================================
+ * Navegación inferior compacta con iconos pegados al borde inferior.
  *
- * Características:
- * - ✨ Fondo metálico (igual al MobileHeader)
- * - 🎯 Indicador activo: barra horizontal azul
- * - ⚡ Animaciones smooth en todos los elementos
- * - 👆 Active:scale feedback al tocar
- * - 🔵 ChatYA: círculo compacto (w-14), icono grande (w-7)
- * - 🎨 Iconos oscuros (gray-600, igual al header)
- * - 📝 Letras legibles (text-xs / 12px)
- * - 📏 Barra compacta con iconos bien separados
+ * ✨ CARACTERÍSTICAS v3.4:
+ * - 🖤 Gradiente negro elegante
+ * - 📏 Compacto: Iconos 20px
+ * - 🚫 Sin línea indicadora
+ * - 📍 Iconos PEGADOS al bottom (pb-0)
+ * - 📱 Respeta safe-area en iOS
+ * - 💬 ChatYA ajustado para no cortarse
+ * - ✨ Preparado para auto-hide
  *
- * Estructura:
- * ┌─────────────────────────────────────────────────────────┐
- * │  Negocios │ Market │  💬 ChatYA  │ Ofertas │ Dinámicas │
- * │    🏪     │   🛒   │  (elevado)  │   🏷️   │    🎁     │
- * │  ══════                                                 │
- * │ ░▒▓ FONDO METÁLICO PLATEADO ▓▒░                       │
- * └─────────────────────────────────────────────────────────┘
+ * NUEVO v3.4:
+ * - Padding inferior eliminado (solo safe-area)
+ * - ChatYA elevación reducida (-mt-7 en vez de -mt-9)
+ * - Iconos lo más abajo posible
+ * - Compatible con controles de navegación negros
  *
  * Ubicación: apps/web/src/components/layout/BottomNav.tsx
  */
 
 import { NavLink } from 'react-router-dom';
-import { Store, ShoppingCart, Tag, Gift, MessageCircle, BarChart3 } from 'lucide-react';
+import { Store, ShoppingCart, Tag, Gift, BarChart3 } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+
+// =============================================================================
+// ESTILOS CSS PARA ANIMACIONES
+// =============================================================================
+const animationStyles = `
+
+  /* Glow effect para ChatYA */
+  @keyframes chatGlow {
+    0%, 100% { box-shadow: 0 8px 30px rgba(59, 130, 246, 0.5); }
+    50% { box-shadow: 0 12px 40px rgba(59, 130, 246, 0.7); }
+  }
+
+  .chat-glow {
+    animation: chatGlow 2s ease-in-out infinite;
+  }
+
+  /* Pulso para badge */
+  @keyframes pulseBadge {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+
+  .pulse-badge {
+    animation: pulseBadge 2s ease-in-out infinite;
+  }
+`;
 
 // =============================================================================
 // TIPOS
@@ -68,75 +91,82 @@ export function BottomNav() {
   // ---------------------------------------------------------------------------
   const chatYAAbierto = useUiStore((state) => state.chatYAAbierto);
   const toggleChatYA = useUiStore((state) => state.toggleChatYA);
+
   // Auth Store
   const usuario = useAuthStore((state) => state.usuario);
   const esComercial = usuario?.modoActivo === 'comercial';
 
   // ---------------------------------------------------------------------------
-  // Datos de ejemplo
+  // Datos de ejemplo (TODO: traer del store real)
   // ---------------------------------------------------------------------------
-  const mensajesCount = 2;
+  const mensajesCount = 3;
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40">
-      {/* Fondo con gradiente metálico (igual al MobileHeader) */}
-      <div className="absolute inset-0 bg-linear-to-r from-slate-100 via-slate-200 to-slate-100 border-t border-gray-300 shadow-lg"></div>
+    <>
+      {/* Inyectar estilos de animación */}
+      <style>{animationStyles}</style>
 
-      {/* Contenido: barra más compacta */}
-      <div className="relative px-2 pt-2 pb-4">
-        <div className="flex justify-around items-center">
-          {/* Items izquierda */}
-          {(esComercial ? NAV_ITEMS_LEFT_COMERCIAL : NAV_ITEMS_LEFT_PERSONAL).map((item) => (
-            <NavButton key={item.to} item={item} />
-          ))}
+      <nav className="fixed bottom-0 left-0 right-0 z-40">
 
-          {/* Botón central: ChatYA (elevado por encima del fondo) */}
-          <div className="relative -mt-9">
-            <button
-              onClick={toggleChatYA}
-              className={`relative flex flex-col items-center transition-transform duration-200 ${chatYAAbierto ? 'scale-95' : 'active:scale-90'
-                }`}
-            >
-              {/* Círculo elevado con shadow mejorado - más pequeño */}
-              <div
-                className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${chatYAAbierto
-                  ? 'bg-blue-600 shadow-blue-500/50'
-                  : 'bg-linear-to-br from-blue-500 to-blue-600 hover:shadow-xl hover:shadow-blue-500/40'
-                  }`}
-              >
-                <MessageCircle
-                  className={`w-7 h-7 text-white transition-transform duration-200 ${chatYAAbierto ? 'scale-110' : ''
+
+        {/* Fondo con gradiente negro y padding para safe-area */}
+        <div
+          className="bg-black shadow-lg"
+          style={{
+            paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
+          }}
+        >
+          {/* Contenido: iconos pegados al bottom - padding inferior mínimo */}
+          <div className="relative px-1 pt-0 -mb-1">
+            <div className="flex justify-around items-center">
+              {/* Items izquierda */}
+              {(esComercial ? NAV_ITEMS_LEFT_COMERCIAL : NAV_ITEMS_LEFT_PERSONAL).map((item) => (
+                <NavButton key={item.to} item={item} />
+              ))}
+
+              {/* Botón central: ChatYA (menos elevado para no cortarse) */}
+              <div className="relative -mt-8">
+                <button
+                  onClick={toggleChatYA}
+                  className={`relative flex flex-col items-center transition-all duration-300 ${chatYAAbierto ? 'scale-95' : 'active:scale-90'
                     }`}
-                />
+                >
+                  {/* Contenedor sin fondo para logo ChatYA */}
+                  <div
+                    className={`w-15 h-15 flex items-center justify-center transition-all duration-300 ${chatYAAbierto
+                        ? 'scale-105'
+                        : 'hover:scale-110'
+                      }`}
+                  >
+                    <img
+                      src="/IconoChatYA.webp"
+                      alt="ChatYA"
+                      className={`w-auto h-15 object-contain transition-transform duration-300 ${chatYAAbierto ? 'scale-110 rotate-12' : ''
+                        }`}
+                    />
+                  </div>
+
+                  {/* Badge de mensajes con animación pulse ajustado */}
+                  {mensajesCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-lg pulse-badge px-1 ring-2 ring-white">
+                      {mensajesCount > 9 ? '9+' : mensajesCount}
+                    </span>
+                  )}
+                </button>
               </div>
 
-              {/* Badge de mensajes con animación pulse */}
-              {mensajesCount > 0 && (
-                <span className="absolute top-0 right-0 w-6 h-6 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse">
-                  {mensajesCount > 9 ? '9+' : mensajesCount}
-                </span>
-              )}
-
-              {/* Label con mejor tipografía */}
-              <span
-                className={`text-xs font-semibold mt-1.5 transition-colors duration-200 ${chatYAAbierto ? 'text-blue-600' : 'text-blue-500'
-                  }`}
-              >
-                ChatYA
-              </span>
-            </button>
+              {/* Items derecha */}
+              {NAV_ITEMS_RIGHT.map((item) => (
+                <NavButton key={item.to} item={item} />
+              ))}
+            </div>
           </div>
-
-          {/* Items derecha */}
-          {NAV_ITEMS_RIGHT.map((item) => (
-            <NavButton key={item.to} item={item} />
-          ))}
         </div>
-      </div>
-    </nav>
+      </nav>
+    </>
   );
 }
 
@@ -153,24 +183,25 @@ function NavButton({ item }: NavButtonProps) {
     <NavLink
       to={item.to}
       className={({ isActive }) =>
-        `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-all duration-200 active:scale-90 ${isActive
-          ? 'text-blue-500'
-          : 'text-gray-600 hover:text-gray-700 hover:bg-gray-50'
+        `relative flex flex-col items-center gap-0 px-3 py-1.5 rounded-lg transition-all duration-200 active:scale-90 ${isActive
+          ? 'text-white'
+          : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
         }`
       }
     >
       {({ isActive }: { isActive: boolean }) => (
         <>
-          {/* Icono con tamaño mejorado */}
-          <item.icon className="w-6 h-6" />
+          {/* Icono más compacto: 20px (antes 24px) */}
+          <item.icon
+            className={`w-6 h-6 transition-all duration-200 ${isActive ? 'scale-110' : ''
+              }`}
+            strokeWidth={isActive ? 2.5 : 2}
+          />
 
-          {/* Label con texto más grande */}
-          <span className="text-xs font-medium">{item.label}</span>
-
-          {/* Indicador activo: barra horizontal azul debajo */}
-          {isActive && (
-            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-500 rounded-full"></div>
-          )}
+          {/* Label con texto más legible */}
+          <span className={`text-xs font-semibold ${isActive ? 'font-bold' : 'font-medium'}`}>
+            {item.label}
+          </span>
         </>
       )}
     </NavLink>

@@ -149,7 +149,7 @@ export function TecladoNumerico({
       transition-all duration-200
       active:scale-95
       select-none
-      border
+      border cursor-pointer
     `;
 
     if (valor === 'borrar') {
@@ -162,7 +162,7 @@ export function TecladoNumerico({
     if (valor === 'confirmar') {
       const habilitado = digitos.length === longitud && !disabled;
       return habilitado
-        ? `${base} bg-[#2563EB] text-white hover:bg-[#1D4ED8] border-[#3B82F6] shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)]`
+        ? `${base} bg-[#2563EB] text-white hover:bg-[#1D4ED8] border-[#3B82F6] shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] `
         : `${base} bg-transparent text-[#606060] cursor-not-allowed border-[#333333]`;
     }
 
