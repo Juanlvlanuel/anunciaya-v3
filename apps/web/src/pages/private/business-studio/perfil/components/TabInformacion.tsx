@@ -48,7 +48,7 @@ export default function TabInformacion({
   };
 
   return (
-    <div className="space-y-5 lg:space-y-3 2xl:space-y-6">
+    <div className="space-y-5 lg:space-y-3 2xl:space-y-4">
 
       {/* LAYOUT PRINCIPAL */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-6 2xl:gap-8">
