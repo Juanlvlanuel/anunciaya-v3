@@ -1,9 +1,9 @@
 /**
  * SistemaNiveles.tsx
  * ===================
- * Card completa del Sistema de Niveles con tiers metálicos animados.
+ * Card completa del Sistema de Niveles con cards verticales limpias.
  *
- * UBICACIÓN: apps/web/src/pages/private/business-studio/puntos/SistemaNiveles.tsx
+ * UBICACIÓN: apps/web/src/pages/private/business-studio/puntos/componentes/SistemaNiveles.tsx
  *
  * Exports:
  *   - NivelLocal (interface)    → usada por PaginaPuntos para tipear el estado de niveles
@@ -16,13 +16,18 @@
  *   onCambioNivel     → callback cuando el usuario edita un campo de un tier
  *   esGerente         → deshabilita edición y switch
  *
- * ANIMACIONES (CSS keyframes internos, prefijo pp-):
- *   pp-metallic-shine   → rayo de luz que cruza la cabeza metálica
- *   pp-shimmer-bronce   → oscilación gradiente bronce (3.5s)
- *   pp-shimmer-plata    → oscilación gradiente plata  (3.5s)
- *   pp-shimmer-oro      → oscilación gradiente oro    (2.8s)
+ * DISEÑO:
+ *   3 cards verticales lado a lado (Bronce | Plata | Oro)
+ *   Badge con color tenue en el header de cada card
+ *   Sin gradientes animados ni efectos metálicos — limpio y profesional
+ *
+ * RESPONSIVE (3 breakpoints):
+ *   Mobile (default) → 3 cards en fila compactas
+ *   Laptop (lg:)     → 3 cards en fila, sin textos justificativos
+ *   Desktop (2xl:)   → 3 cards + textos justificativos visibles
  */
 
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Star, Award, Gift } from 'lucide-react';
 
@@ -37,53 +42,32 @@ export interface NivelLocal {
 }
 
 // =============================================================================
-// CSS KEYFRAMES — solo los estilos del sistema de niveles
-// Separados del icono del header (que vive en PaginaPuntos)
+// ESTILOS DE CADA NIVEL
 // =============================================================================
 
-const ESTILOS_NIVELES = `
-  @keyframes pp-metallic-shine {
-    0%   { left: -100%; }
-    100% { left: 200%; }
-  }
-  @keyframes pp-shimmer-bronce {
-    0%, 100% { background: linear-gradient(160deg, #d4956a 0%, #a0522d 35%, #cd853f 55%, #8B4513 80%, #a0522d 100%); }
-    50%      { background: linear-gradient(160deg, #e8a87c 0%, #cd853f 35%, #deb887 55%, #a0522d 80%, #cd853f 100%); }
-  }
-  @keyframes pp-shimmer-plata {
-    0%, 100% { background: linear-gradient(160deg, #d1d5db 0%, #9ca3af 30%, #e5e7eb 50%, #9ca3af 70%, #d1d5db 100%); }
-    50%      { background: linear-gradient(160deg, #e5e7eb 0%, #d1d5db 30%, #f3f4f6 50%, #d1d5db 70%, #e5e7eb 100%); }
-  }
-  @keyframes pp-shimmer-oro {
-    0%, 100% { background: linear-gradient(160deg, #fcd34d 0%, #f59e0b 25%, #fbbf24 45%, #d97706 65%, #fbbf24 85%, #fcd34d 100%); }
-    50%      { background: linear-gradient(160deg, #fde68a 0%, #fbbf24 25%, #fcd34d 45%, #f59e0b 65%, #fcd34d 85%, #fde68a 100%); }
-  }
-
-  /* Rayo de luz que cruza la cabeza metálica de cada tier */
-  .pp-shine-head { position: relative; overflow: hidden; }
-  .pp-shine-head::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 60%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3) 50%, transparent);
-    animation: pp-metallic-shine 3.5s ease-in-out infinite;
-    pointer-events: none;
-  }
-
-  /* Oscilación de gradiente por tier */
-  .pp-shimmer-bronce { animation: pp-shimmer-bronce 3.5s ease-in-out infinite; }
-  .pp-shimmer-plata  { animation: pp-shimmer-plata  3.5s ease-in-out infinite; }
-  .pp-shimmer-oro    { animation: pp-shimmer-oro    2.8s ease-in-out infinite; }
-`;
+const NIVEL_ESTILOS = {
+  bronce: {
+    borderColor: '#d4a574',
+    headerBg: 'linear-gradient(135deg, #f5e6d3, #e8cdb5, #d4a574)',
+    headerColor: '#78350f',
+  },
+  plata: {
+    borderColor: '#b0b8c4',
+    headerBg: 'linear-gradient(135deg, #e8ecf1, #d1d8e0, #b0b8c4)',
+    headerColor: '#1e293b',
+  },
+  oro: {
+    borderColor: '#f0c040',
+    headerBg: 'linear-gradient(135deg, #fef3c7, #fde68a, #fbbf24)',
+    headerColor: '#78350f',
+  },
+} as const;
 
 // =============================================================================
 // COMPONENTES INTERNOS
 // =============================================================================
 
-/** Texto justificativo — íconos + explicaciones a la izquierda de los tiers (solo lg:+) */
+/** Texto justificativo — íconos + explicaciones (solo 2xl:+) */
 function TextoJustificativo({
   icono,
   iconoBg,
@@ -104,8 +88,8 @@ function TextoJustificativo({
         {icono}
       </div>
       <div>
-        <h4 className="text-[12.5px] font-bold text-slate-800">{titulo}</h4>
-        <p className="text-[10.5px] text-slate-500 mt-0.5 leading-relaxed" style={{ maxWidth: 160 }}>
+        <h4 className="text-[13.5px] font-bold text-slate-800">{titulo}</h4>
+        <p className="text-[12.5px] font-medium text-slate-600 mt-0.5 leading-relaxed" style={{ maxWidth: 190 }}>
           {desc}
         </p>
       </div>
@@ -113,82 +97,91 @@ function TextoJustificativo({
   );
 }
 
-// =============================================================================
-
-const TIER_STYLES = {
-  bronce: {
-    borderColor: '#92400e',
-    headClass: 'pp-shimmer-bronce pp-shine-head',
-    bodyBg: 'linear-gradient(135deg, #fef3c7, #fde68a, #fef3c7)',
-    valorColor: '#92400e',
-    shadow: '0 3px 14px rgba(139,69,19,0.25)',
-    textColor: '#fff',
-    textShadow: '0 1px 3px rgba(0,0,0,0.4)',
-  },
-  plata: {
-    borderColor: '#4b5563',
-    headClass: 'pp-shimmer-plata pp-shine-head',
-    bodyBg: 'linear-gradient(135deg, #f3f4f6, #e5e7eb, #f3f4f6)',
-    valorColor: '#374151',
-    shadow: '0 3px 14px rgba(75,85,99,0.2)',
-    textColor: '#1f2937',
-    textShadow: '0 1px 2px rgba(255,255,255,0.5)',
-  },
-  oro: {
-    borderColor: '#b45309',
-    headClass: 'pp-shimmer-oro pp-shine-head',
-    bodyBg: 'linear-gradient(135deg, #fef9c3, #fde047, #fef9c3)',
-    valorColor: '#92400e',
-    shadow: '0 4px 18px rgba(234,179,8,0.35)',
-    textColor: '#fff',
-    textShadow: '0 1px 3px rgba(0,0,0,0.4)',
-  },
-} as const;
-
-/** Campo numérico individual dentro de un tier (Mín / Máx / Mult) */
-function CampoTier({
+/** Campo numérico individual dentro de una card de nivel */
+function CampoNivel({
   inputId,
   label,
   sufijo,
   valor,
   onCambio,
-  valorColor,
   disabled,
   step = 1,
+  prefijo = false,
 }: {
   inputId: string;
   label: string;
   sufijo: string;
   valor: number;
   onCambio: (v: number) => void;
-  valorColor: string;
   disabled: boolean;
   step?: number;
+  prefijo?: boolean;
 }) {
+  // Permitir campo vacío temporalmente para poder borrar con backspace
+  const [textoLocal, setTextoLocal] = useState<string>(String(valor));
+
+  // Sincronizar cuando el valor externo cambia (ej: reset)
+  useEffect(() => {
+    setTextoLocal(String(valor));
+  }, [valor]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setTextoLocal(raw);
+    if (raw !== '' && !isNaN(Number(raw))) {
+      onCambio(Number(raw));
+    }
+  };
+
+  const handleBlur = () => {
+    // Al perder foco, si está vacío, restaurar a 0
+    if (textoLocal === '' || isNaN(Number(textoLocal))) {
+      setTextoLocal('0');
+      onCambio(0);
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      <label htmlFor={inputId} className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wider">{label}</label>
-      <div className="flex items-center gap-0.5">
+    <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 min-w-0 flex-1 lg:flex-none">
+      <label
+        htmlFor={inputId}
+        className="text-[11.5px] lg:text-[11px] 2xl:text-xs font-bold text-slate-500 tracking-wide"
+      >
+        {label}
+      </label>
+      <div
+        className="flex items-center h-9 lg:h-8 2xl:h-9 bg-slate-50 rounded-lg px-2.5 lg:px-2.5 2xl:px-3"
+        style={{ border: '2px solid #e2e8f0' }}
+      >
+        {prefijo && (
+          <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-slate-400 mr-1.5">
+            {sufijo}
+          </span>
+        )}
         <input
           id={inputId}
           name={inputId}
           type="number"
           min={0}
           step={step}
-          value={valor}
-          onChange={(e) => onCambio(Number(e.target.value))}
+          value={textoLocal}
+          onChange={handleChange}
+          onBlur={handleBlur}
           disabled={disabled}
-          className="w-14 text-center text-sm font-extrabold bg-white/60 border border-white/40 rounded-md outline-none focus:border-white disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
-          style={{ color: valorColor }}
+          className="flex-1 bg-transparent outline-none text-[15px] lg:text-sm 2xl:text-[15px] font-extrabold text-slate-800 w-10 disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
         />
-        <span className="text-[9.5px] font-bold text-slate-500">{sufijo}</span>
+        {!prefijo && (
+          <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-slate-400 ml-1 shrink-0">
+            {sufijo}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-/** Fila horizontal de un tier: cabeza metálica animada + body con campos editables */
-function TierMetalico({
+/** Card vertical individual de un nivel (Bronce / Plata / Oro) */
+function CardNivel({
   nombre,
   medal,
   tipo,
@@ -199,68 +192,94 @@ function TierMetalico({
 }: {
   nombre: string;
   medal: string;
-  tipo: keyof typeof TIER_STYLES;
+  tipo: keyof typeof NIVEL_ESTILOS;
   valores: NivelLocal;
   mostrarMax: boolean;
   onCambio: (campo: 'min' | 'max' | 'multiplicador', valor: number) => void;
   disabled: boolean;
 }) {
-  const s = TIER_STYLES[tipo];
+  const s = NIVEL_ESTILOS[tipo];
 
   return (
     <div
-      className="flex rounded-xl overflow-hidden"
-      style={{ border: `3px solid ${s.borderColor}`, boxShadow: s.shadow }}
+      className={`bg-white rounded-xl overflow-hidden flex flex-row lg:flex-col card-nivel-${tipo}`}
+      style={{ border: `2px solid ${s.borderColor}`, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
     >
-      {/* Cabeza metálica con shimmer + rayo de luz */}
+      {/* Header con gradiente — lateral fijo en mobile, arriba en desktop */}
       <div
-        className={`${s.headClass} flex items-center justify-center gap-1.5 px-3 shrink-0`}
+        className="flex flex-col lg:flex-row items-center justify-center gap-0.5 lg:gap-1.5 w-16 lg:w-auto py-2.5 lg:py-1.5 2xl:py-2 shrink-0"
         style={{
-          minWidth: 100,
-          color: s.textColor,
-          textShadow: s.textShadow,
-          fontSize: '12.5px',
-          fontWeight: 800,
+          background: s.headerBg,
+          borderRight: `2px solid ${s.borderColor}`,
+          borderBottom: 'none',
         }}
       >
-        {medal} {nombre}
+        <span
+          className="text-2xl lg:text-xs leading-none"
+        >
+          {medal}
+        </span>
+        <span
+          className="text-[13px] lg:text-[13.5px] 2xl:text-[15px] font-extrabold whitespace-nowrap"
+          style={{ color: s.headerColor }}
+        >
+          {nombre}
+        </span>
       </div>
+      {/* En lg+ el header usa borderBottom en vez de borderRight */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (min-width: 1024px) {
+          .card-nivel-${tipo} > div:first-child {
+            border-right: none !important;
+            border-bottom: 2px solid ${s.borderColor} !important;
+            width: auto !important;
+          }
+        }
+      `}} />
 
-      {/* Body: campos editables */}
-      <div
-        className="flex-1 flex items-center justify-around px-3 py-2.5"
-        style={{ background: s.bodyBg }}
-      >
-        <CampoTier
+      {/* Campos editables — fila en mobile, columna en desktop */}
+      <div className="p-2.5 lg:p-2 2xl:p-3 flex flex-row lg:flex-col gap-2 lg:gap-1.5 2xl:gap-2 flex-1 items-center lg:items-stretch justify-evenly lg:justify-center">
+        <CampoNivel
           inputId={`pp-nivel-${tipo}-min`}
-          label="Mín." sufijo="pts"
+          label="Mínimo"
+          sufijo="pts"
           valor={valores.min}
           onCambio={(v) => onCambio('min', v)}
-          valorColor={s.valorColor} disabled={disabled}
+          disabled={disabled}
         />
 
         {mostrarMax ? (
-          <CampoTier
+          <CampoNivel
             inputId={`pp-nivel-${tipo}-max`}
-            label="Máx." sufijo="pts"
+            label="Máximo"
+            sufijo="pts"
             valor={valores.max ?? 0}
             onCambio={(v) => onCambio('max', v)}
-            valorColor={s.valorColor} disabled={disabled}
+            disabled={disabled}
           />
         ) : (
-          /* Oro: máximo es infinito, no editable */
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wider">Máx.</span>
-            <span className="text-sm font-extrabold" style={{ color: s.valorColor }}>∞</span>
+          <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 min-w-0 flex-1 lg:flex-none">
+            <span className="text-[11.5px] lg:text-[11px] 2xl:text-xs font-bold text-slate-500 tracking-wide">
+              Máximo
+            </span>
+            <div
+              className="flex items-center justify-center h-9 lg:h-8 2xl:h-9 rounded-lg"
+              style={{ background: 'transparent' }}
+            >
+              <span className="text-lg lg:text-base 2xl:text-lg font-extrabold text-slate-400">∞</span>
+            </div>
           </div>
         )}
 
-        <CampoTier
+        <CampoNivel
           inputId={`pp-nivel-${tipo}-mult`}
-          label="Mult." sufijo="x"
+          label="Multiplicador"
+          sufijo="x"
           valor={valores.multiplicador}
           onCambio={(v) => onCambio('multiplicador', v)}
-          valorColor={s.valorColor} disabled={disabled} step={0.1}
+          disabled={disabled}
+          step={0.1}
+          prefijo
         />
       </div>
     </div>
@@ -289,27 +308,24 @@ export default function SistemaNiveles({
       className="bg-white rounded-2xl overflow-hidden flex flex-col"
       style={{ border: '2.5px solid #dde4ef', boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}
     >
-      {/* Keyframes metálicos — scoped a este componente */}
-      <style dangerouslySetInnerHTML={{ __html: ESTILOS_NIVELES }} />
-
       {/* Header con switch activo/inactivo */}
       <div
-        className="flex items-center justify-between px-5 py-3.5"
+        className="flex items-center justify-between px-3 lg:px-4 2xl:px-5 py-2 lg:py-2 2xl:py-2.5"
         style={{ background: 'linear-gradient(135deg, #f8fafd, #f0f4f8)', borderBottom: '2.5px solid #e4e9f2' }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 lg:gap-3">
           <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center"
+            className="w-9 h-9 lg:w-9 lg:h-9 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg, #fde68a, #fbbf24)', boxShadow: '0 3px 8px rgba(0,0,0,0.1)' }}
           >
-            <Award className="w-4.5 h-4.5 text-amber-800" />
+            <Award className="w-4.5 h-4.5 lg:w-4.5 lg:h-4.5 text-amber-800" />
           </div>
-          <h2 className="text-base font-extrabold text-slate-900">Sistema de Niveles</h2>
+          <h2 className="text-base lg:text-sm 2xl:text-base font-extrabold text-slate-900">Sistema de Niveles</h2>
         </div>
 
         <div className="flex items-center gap-2">
           <span
-            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+            className={`text-[12px] lg:text-[10.5px] 2xl:text-[11px] font-bold px-2.5 lg:px-2.5 py-0.5 rounded-full border ${
               nivelesActivos
                 ? 'bg-green-50 text-green-600 border-green-200'
                 : 'bg-slate-100 text-slate-400 border-slate-200'
@@ -321,13 +337,13 @@ export default function SistemaNiveles({
             type="button"
             onClick={onToggleNiveles}
             disabled={esGerente}
-            className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-45 ${
+            className={`relative w-10 h-5.5 lg:w-11 lg:h-6 2xl:w-11 2xl:h-6 rounded-full transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
               nivelesActivos ? 'bg-blue-500' : 'bg-slate-300'
             }`}
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                nivelesActivos ? 'translate-x-5' : ''
+              className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-5 2xl:h-5 bg-white rounded-full shadow transition-transform ${
+                nivelesActivos ? 'translate-x-4 lg:translate-x-5' : ''
               }`}
             />
           </button>
@@ -336,11 +352,11 @@ export default function SistemaNiveles({
 
       {/* Contenido de niveles */}
       {nivelesActivos ? (
-        <div className="p-5 flex-1">
-          <div className="flex gap-5">
+        <div className="p-2.5 lg:p-3 2xl:p-4 flex-1">
+          <div className="flex gap-3 2xl:gap-4">
 
-            {/* Texto justificativo — oculto en mobile, visible en lg:+ */}
-            <div className="hidden lg:flex lg:w-[34%] flex-col justify-evenly gap-4 shrink-0">
+            {/* Texto justificativo — oculto hasta desktop (2xl:+) */}
+            <div className="hidden 2xl:flex 2xl:w-[26%] flex-col justify-evenly gap-3 shrink-0">
               <TextoJustificativo
                 icono={<Star className="w-4 h-4 text-indigo-700" />}
                 iconoBg="linear-gradient(135deg, #c7d2fe, #a5b4fc)"
@@ -350,7 +366,7 @@ export default function SistemaNiveles({
               <TextoJustificativo
                 icono={<Award className="w-4 h-4 text-emerald-700" />}
                 iconoBg="linear-gradient(135deg, #bbf7d0, #6ee7b7)"
-                titulo="Multipladores de puntos"
+                titulo="Multiplicadores de puntos"
                 desc="Cada nivel otorga más puntos por compra, incentivando el gasto."
               />
               <TextoJustificativo
@@ -361,23 +377,23 @@ export default function SistemaNiveles({
               />
             </div>
 
-            {/* Tiers metálicos: Bronce → Plata → Oro */}
-            <div className="flex-1 flex flex-col gap-2.5">
-              <TierMetalico
+            {/* 3 Cards: 1 columna mobile, 3 columnas desktop */}
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-2.5 lg:gap-2.5 2xl:gap-3">
+              <CardNivel
                 nombre="Bronce" medal="🥉" tipo="bronce"
                 valores={niveles.bronce}
-                mostrarMax={true}
+                mostrarMax
                 onCambio={(campo, valor) => onCambioNivel('bronce', campo, valor)}
                 disabled={esGerente}
               />
-              <TierMetalico
+              <CardNivel
                 nombre="Plata" medal="🥈" tipo="plata"
                 valores={niveles.plata}
-                mostrarMax={true}
+                mostrarMax
                 onCambio={(campo, valor) => onCambioNivel('plata', campo, valor)}
                 disabled={esGerente}
               />
-              <TierMetalico
+              <CardNivel
                 nombre="Oro" medal="🥇" tipo="oro"
                 valores={niveles.oro}
                 mostrarMax={false}
@@ -389,9 +405,9 @@ export default function SistemaNiveles({
         </div>
       ) : (
         /* Estado vacío: niveles desactivados */
-        <div className="py-12 flex flex-col items-center text-center">
-          <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3.5">
-            <Award className="w-7 h-7 text-slate-300" strokeWidth={1.5} />
+        <div className="py-10 lg:py-10 2xl:py-12 flex flex-col items-center text-center">
+          <div className="w-12 h-12 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+            <Award className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-slate-300" strokeWidth={1.5} />
           </div>
           <p className="text-sm font-semibold text-slate-500">Sistema de niveles desactivado</p>
           <p className="text-xs text-slate-400 mt-1">
