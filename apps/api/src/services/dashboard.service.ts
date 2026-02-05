@@ -167,13 +167,67 @@ interface AlertaRow {
 }
 
 // =============================================================================
-// HELPERS - Cálculo de rangos de fechas
+// HELPERS - Zona horaria
 // =============================================================================
 
-function calcularRangoFechas(periodo: Periodo): RangoFechas {
-    const ahora = new Date();
-    const fin = new Date(ahora);
-    fin.setHours(23, 59, 59, 999);
+/**
+ * Obtiene la zona horaria del negocio desde la sucursal principal
+ */
+async function obtenerZonaHorariaNegocio(negocioId: string, sucursalId?: string | null): Promise<string> {
+    try {
+        const sucursalIdParam = sucursalId ?? null;
+        const resultado = await db.execute(sql`
+            SELECT zona_horaria 
+            FROM negocio_sucursales 
+            WHERE negocio_id = ${negocioId}
+            AND (
+                (${sucursalIdParam}::uuid IS NOT NULL AND id = ${sucursalIdParam}::uuid)
+                OR (${sucursalIdParam}::uuid IS NULL AND es_principal = true)
+            )
+            LIMIT 1
+        `);
+
+        const row = resultado.rows[0] as { zona_horaria: string } | undefined;
+        return row?.zona_horaria ?? 'America/Mexico_City';
+    } catch (error) {
+        console.error('Error obteniendo zona horaria:', error);
+        return 'America/Mexico_City';
+    }
+}
+
+/**
+ * Obtiene el offset en horas de una zona horaria respecto a UTC
+ */
+function obtenerOffsetZonaHoraria(zonaHoraria: string): number {
+    const offsets: Record<string, number> = {
+        'America/Mexico_City': -6,
+        'America/Hermosillo': -7,
+        'America/Tijuana': -8,
+        'America/Cancun': -5,
+        'America/Mazatlan': -7,
+    };
+    return offsets[zonaHoraria] ?? -6;
+}
+
+// =============================================================================
+// HELPERS - Cálculo de rangos de fechas con zona horaria
+// =============================================================================
+
+/**
+ * Calcula rangos de fechas ajustados a la zona horaria del negocio.
+ * Los rangos se devuelven en UTC para las queries de PostgreSQL.
+ */
+function calcularRangoFechas(periodo: Periodo, zonaHoraria: string = 'America/Mexico_City'): RangoFechas {
+    const offsetHoras = obtenerOffsetZonaHoraria(zonaHoraria);
+
+    const ahoraUTC = new Date();
+    const ahoraLocal = new Date(ahoraUTC.getTime() + (offsetHoras * 60 * 60 * 1000));
+
+    const anio = ahoraLocal.getUTCFullYear();
+    const mes = ahoraLocal.getUTCMonth();
+    const dia = ahoraLocal.getUTCDate();
+
+    const fin = new Date(Date.UTC(anio, mes, dia, 23 - offsetHoras, 59, 59, 999));
 
     let inicio: Date;
     let inicioAnterior: Date;
@@ -181,67 +235,39 @@ function calcularRangoFechas(periodo: Periodo): RangoFechas {
 
     switch (periodo) {
         case 'hoy':
-            inicio = new Date(ahora);
-            inicio.setHours(0, 0, 0, 0);
-            finAnterior = new Date(inicio);
-            finAnterior.setMilliseconds(-1);
-            inicioAnterior = new Date(finAnterior);
-            inicioAnterior.setHours(0, 0, 0, 0);
+            inicio = new Date(Date.UTC(anio, mes, dia, -offsetHoras, 0, 0, 0));
+            finAnterior = new Date(inicio.getTime() - 1);
+            inicioAnterior = new Date(Date.UTC(anio, mes, dia - 1, -offsetHoras, 0, 0, 0));
             break;
 
         case 'semana':
-            inicio = new Date(ahora);
-            inicio.setDate(ahora.getDate() - 6);
-            inicio.setHours(0, 0, 0, 0);
-            finAnterior = new Date(inicio);
-            finAnterior.setMilliseconds(-1);
-            inicioAnterior = new Date(finAnterior);
-            inicioAnterior.setDate(finAnterior.getDate() - 6);
-            inicioAnterior.setHours(0, 0, 0, 0);
+            inicio = new Date(Date.UTC(anio, mes, dia - 6, -offsetHoras, 0, 0, 0));
+            finAnterior = new Date(inicio.getTime() - 1);
+            inicioAnterior = new Date(Date.UTC(anio, mes, dia - 13, -offsetHoras, 0, 0, 0));
             break;
 
         case 'mes':
-            inicio = new Date(ahora);
-            inicio.setDate(ahora.getDate() - 29);
-            inicio.setHours(0, 0, 0, 0);
-            finAnterior = new Date(inicio);
-            finAnterior.setMilliseconds(-1);
-            inicioAnterior = new Date(finAnterior);
-            inicioAnterior.setDate(finAnterior.getDate() - 29);
-            inicioAnterior.setHours(0, 0, 0, 0);
+            inicio = new Date(Date.UTC(anio, mes, dia - 29, -offsetHoras, 0, 0, 0));
+            finAnterior = new Date(inicio.getTime() - 1);
+            inicioAnterior = new Date(Date.UTC(anio, mes, dia - 59, -offsetHoras, 0, 0, 0));
             break;
 
         case 'trimestre':
-            inicio = new Date(ahora);
-            inicio.setDate(ahora.getDate() - 89);
-            inicio.setHours(0, 0, 0, 0);
-            finAnterior = new Date(inicio);
-            finAnterior.setMilliseconds(-1);
-            inicioAnterior = new Date(finAnterior);
-            inicioAnterior.setDate(finAnterior.getDate() - 89);
-            inicioAnterior.setHours(0, 0, 0, 0);
+            inicio = new Date(Date.UTC(anio, mes, dia - 89, -offsetHoras, 0, 0, 0));
+            finAnterior = new Date(inicio.getTime() - 1);
+            inicioAnterior = new Date(Date.UTC(anio, mes, dia - 179, -offsetHoras, 0, 0, 0));
             break;
 
         case 'anio':
-            inicio = new Date(ahora);
-            inicio.setDate(ahora.getDate() - 364);
-            inicio.setHours(0, 0, 0, 0);
-            finAnterior = new Date(inicio);
-            finAnterior.setMilliseconds(-1);
-            inicioAnterior = new Date(finAnterior);
-            inicioAnterior.setDate(finAnterior.getDate() - 364);
-            inicioAnterior.setHours(0, 0, 0, 0);
+            inicio = new Date(Date.UTC(anio, mes, dia - 364, -offsetHoras, 0, 0, 0));
+            finAnterior = new Date(inicio.getTime() - 1);
+            inicioAnterior = new Date(Date.UTC(anio, mes, dia - 729, -offsetHoras, 0, 0, 0));
             break;
 
         default:
-            inicio = new Date(ahora);
-            inicio.setDate(ahora.getDate() - 6);
-            inicio.setHours(0, 0, 0, 0);
-            finAnterior = new Date(inicio);
-            finAnterior.setMilliseconds(-1);
-            inicioAnterior = new Date(finAnterior);
-            inicioAnterior.setDate(finAnterior.getDate() - 6);
-            inicioAnterior.setHours(0, 0, 0, 0);
+            inicio = new Date(Date.UTC(anio, mes, dia - 6, -offsetHoras, 0, 0, 0));
+            finAnterior = new Date(inicio.getTime() - 1);
+            inicioAnterior = new Date(Date.UTC(anio, mes, dia - 13, -offsetHoras, 0, 0, 0));
     }
 
     return { inicio, fin, inicioAnterior, finAnterior };
@@ -262,20 +288,43 @@ function determinarTendencia(actual: number, anterior: number): 'subida' | 'baja
 
 function obtenerNombreDia(fecha: Date): string {
     const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    return dias[fecha.getDay()];
+    return dias[fecha.getUTCDay()];
 }
 
-function generarFechasCompletas(inicio: Date, fin: Date): Array<{ fecha: string; diaSemana: string }> {
+/**
+ * Genera fechas completas ajustadas a zona horaria
+ */
+function generarFechasCompletas(
+    inicio: Date,
+    fin: Date,
+    zonaHoraria: string = 'America/Mexico_City'
+): Array<{ fecha: string; diaSemana: string }> {
+    const offsetHoras = obtenerOffsetZonaHoraria(zonaHoraria);
     const fechas: Array<{ fecha: string; diaSemana: string }> = [];
-    const fechaActual = new Date(inicio);
-    
-    while (fechaActual <= fin) {
-        const fechaStr = fechaActual.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Convertir inicio/fin a fecha local
+    const inicioLocal = new Date(inicio.getTime() + (offsetHoras * 60 * 60 * 1000));
+    const finLocal = new Date(fin.getTime() + (offsetHoras * 60 * 60 * 1000));
+
+    const fechaActual = new Date(Date.UTC(
+        inicioLocal.getUTCFullYear(),
+        inicioLocal.getUTCMonth(),
+        inicioLocal.getUTCDate()
+    ));
+
+    const fechaFin = new Date(Date.UTC(
+        finLocal.getUTCFullYear(),
+        finLocal.getUTCMonth(),
+        finLocal.getUTCDate()
+    ));
+
+    while (fechaActual <= fechaFin) {
+        const fechaStr = fechaActual.toISOString().split('T')[0];
         const diaSemana = obtenerNombreDia(fechaActual);
         fechas.push({ fecha: fechaStr, diaSemana });
-        fechaActual.setDate(fechaActual.getDate() + 1);
+        fechaActual.setUTCDate(fechaActual.getUTCDate() + 1);
     }
-    
+
     return fechas;
 }
 
@@ -289,7 +338,8 @@ export async function obtenerKPIs(
     sucursalId?: string
 ): Promise<{ success: boolean; data: KPIsResponse }> {
     try {
-        const { inicio, fin, inicioAnterior, finAnterior } = calcularRangoFechas(periodo);
+        const zonaHoraria = await obtenerZonaHorariaNegocio(negocioId, sucursalId);
+        const { inicio, fin, inicioAnterior, finAnterior } = calcularRangoFechas(periodo, zonaHoraria);
         const ahora = new Date().toISOString();
 
         // Query para ventas, clientes y transacciones
@@ -447,17 +497,19 @@ export async function obtenerKPIs(
         `;
 
         // Query para mini gráfica de ventas
+        const sucursalIdParam = sucursalId ?? null;
+
         const miniGraficaQuery = sql`
             SELECT 
-                DATE(created_at) as fecha,
-                COALESCE(SUM(monto_compra), 0)::numeric as total
-            FROM puntos_transacciones
-            WHERE negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR sucursal_id = ${sucursalId}::uuid)
-              AND estado = 'confirmado'
-              AND created_at >= ${inicio.toISOString()}
-              AND created_at <= ${fin.toISOString()}
-            GROUP BY DATE(created_at)
+                DATE(pt.created_at AT TIME ZONE ${zonaHoraria}) as fecha,
+                COALESCE(SUM(pt.monto_compra), 0)::numeric as total
+            FROM puntos_transacciones pt
+            WHERE pt.negocio_id = ${negocioId}
+            AND (${sucursalIdParam}::uuid IS NULL OR pt.sucursal_id = ${sucursalIdParam}::uuid)
+            AND pt.estado = 'confirmado'
+            AND pt.created_at >= ${inicio.toISOString()}
+            AND pt.created_at <= ${fin.toISOString()}
+            GROUP BY 1
             ORDER BY fecha ASC
             LIMIT 7
         `;
@@ -579,12 +631,15 @@ export async function obtenerVentasDiarias(
     sucursalId?: string
 ) {
     try {
-        const { inicio, fin } = calcularRangoFechas(periodo);
+        const zonaHoraria = await obtenerZonaHorariaNegocio(negocioId, sucursalId);
+        const { inicio, fin } = calcularRangoFechas(periodo, zonaHoraria);
 
-        const query = sql`
-            SELECT 
-                DATE(created_at) as fecha,
-                CASE EXTRACT(DOW FROM DATE(created_at))
+        const sucursalIdParam = sucursalId ?? null;
+
+            const query = sql`
+                SELECT 
+                    DATE(pt.created_at AT TIME ZONE ${zonaHoraria}) as fecha,
+                    CASE EXTRACT(DOW FROM DATE(pt.created_at AT TIME ZONE ${zonaHoraria}))
                     WHEN 0 THEN 'Dom'
                     WHEN 1 THEN 'Lun'
                     WHEN 2 THEN 'Mar'
@@ -593,20 +648,21 @@ export async function obtenerVentasDiarias(
                     WHEN 5 THEN 'Vie'
                     WHEN 6 THEN 'Sáb'
                 END as dia_semana,
-                COALESCE(SUM(monto_compra), 0)::numeric as total,
+                COALESCE(SUM(pt.monto_compra), 0)::numeric as total,
                 COUNT(*)::int as transacciones
-            FROM puntos_transacciones
-            WHERE negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR sucursal_id = ${sucursalId}::uuid)
-              AND estado = 'confirmado'
-              AND created_at >= ${inicio.toISOString()}
-              AND created_at <= ${fin.toISOString()}
-            GROUP BY DATE(created_at)
+            FROM puntos_transacciones pt
+            JOIN negocio_sucursales s ON s.id = pt.sucursal_id
+            WHERE pt.negocio_id = ${negocioId}
+              AND (${sucursalIdParam}::uuid IS NULL OR pt.sucursal_id = ${sucursalIdParam}::uuid)
+              AND pt.estado = 'confirmado'
+              AND pt.created_at >= ${inicio.toISOString()}
+              AND pt.created_at <= ${fin.toISOString()}
+            GROUP BY 1, 2
             ORDER BY fecha ASC
         `;
 
         const resultado = await db.execute(query);
-
+        
         const data = (resultado.rows as unknown as VentaDiariaRow[]).map((row) => ({
             fecha: row.fecha,
             diaSemana: row.dia_semana,
@@ -615,13 +671,13 @@ export async function obtenerVentasDiarias(
         }));
 
         // Generar todas las fechas del período
-        const todasLasFechas = generarFechasCompletas(inicio, fin);
-        
+        const todasLasFechas = generarFechasCompletas(inicio, fin, zonaHoraria);
+
         // Crear un mapa de los datos reales para búsqueda rápida
         const ventasPorFecha = new Map(
             data.map(d => [d.fecha, d])
         );
-        
+
         // Completar con todas las fechas (incluyendo días sin ventas)
         const dataCompleta = todasLasFechas.map(({ fecha, diaSemana }) => {
             const ventaExistente = ventasPorFecha.get(fecha);
