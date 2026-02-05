@@ -149,40 +149,40 @@ export async function actualizarConfigPuntos(
       .where(eq(puntosConfiguracion.negocioId, negocioId))
       .limit(1);
 
-    // Preparar datos para inserción/actualización (snake_case)
+    // Preparar datos para inserción/actualización (camelCase — Drizzle convierte a snake_case)
     const datosDB: Partial<{
-      puntos_por_peso: string;
-      dias_expiracion_puntos: number | null;
-      dias_expiracion_voucher: number;
+      puntosPorPeso: string;
+      diasExpiracionPuntos: number | null;
+      diasExpiracionVoucher: number;
       activo: boolean;
-      niveles_activos: boolean;
-      nivel_bronce_min: number;
-      nivel_bronce_max: number;
-      nivel_bronce_multiplicador: string;
-      nivel_plata_min: number;
-      nivel_plata_max: number;
-      nivel_plata_multiplicador: string;
-      nivel_oro_min: number;
-      nivel_oro_multiplicador: string;
+      nivelesActivos: boolean;
+      nivelBronceMin: number;
+      nivelBronceMax: number;
+      nivelBronceMultiplicador: string;
+      nivelPlataMin: number;
+      nivelPlataMax: number;
+      nivelPlataMultiplicador: string;
+      nivelOroMin: number;
+      nivelOroMultiplicador: string;
     }> = {};
     
-    if (datos.puntosPorPeso !== undefined) datosDB.puntos_por_peso = datos.puntosPorPeso.toString();
-    if (datos.diasExpiracionPuntos !== undefined) datosDB.dias_expiracion_puntos = datos.diasExpiracionPuntos;
-    if (datos.diasExpiracionVoucher !== undefined) datosDB.dias_expiracion_voucher = datos.diasExpiracionVoucher;
+    if (datos.puntosPorPeso !== undefined) datosDB.puntosPorPeso = datos.puntosPorPeso.toString();
+    if (datos.diasExpiracionPuntos !== undefined) datosDB.diasExpiracionPuntos = datos.diasExpiracionPuntos;
+    if (datos.diasExpiracionVoucher !== undefined) datosDB.diasExpiracionVoucher = datos.diasExpiracionVoucher;
     if (datos.activo !== undefined) datosDB.activo = datos.activo;
-    if (datos.nivelesActivos !== undefined) datosDB.niveles_activos = datos.nivelesActivos;
+    if (datos.nivelesActivos !== undefined) datosDB.nivelesActivos = datos.nivelesActivos;
     
     // Niveles
-    if (datos.nivelBronceMin !== undefined) datosDB.nivel_bronce_min = datos.nivelBronceMin;
-    if (datos.nivelBronceMax !== undefined) datosDB.nivel_bronce_max = datos.nivelBronceMax;
-    if (datos.nivelBronceMultiplicador !== undefined) datosDB.nivel_bronce_multiplicador = datos.nivelBronceMultiplicador.toString();
+    if (datos.nivelBronceMin !== undefined) datosDB.nivelBronceMin = datos.nivelBronceMin;
+    if (datos.nivelBronceMax !== undefined) datosDB.nivelBronceMax = datos.nivelBronceMax;
+    if (datos.nivelBronceMultiplicador !== undefined) datosDB.nivelBronceMultiplicador = datos.nivelBronceMultiplicador.toString();
     
-    if (datos.nivelPlataMin !== undefined) datosDB.nivel_plata_min = datos.nivelPlataMin;
-    if (datos.nivelPlataMax !== undefined) datosDB.nivel_plata_max = datos.nivelPlataMax;
-    if (datos.nivelPlataMultiplicador !== undefined) datosDB.nivel_plata_multiplicador = datos.nivelPlataMultiplicador.toString();
+    if (datos.nivelPlataMin !== undefined) datosDB.nivelPlataMin = datos.nivelPlataMin;
+    if (datos.nivelPlataMax !== undefined) datosDB.nivelPlataMax = datos.nivelPlataMax;
+    if (datos.nivelPlataMultiplicador !== undefined) datosDB.nivelPlataMultiplicador = datos.nivelPlataMultiplicador.toString();
     
-    if (datos.nivelOroMin !== undefined) datosDB.nivel_oro_min = datos.nivelOroMin;
-    if (datos.nivelOroMultiplicador !== undefined) datosDB.nivel_oro_multiplicador = datos.nivelOroMultiplicador.toString();
+    if (datos.nivelOroMin !== undefined) datosDB.nivelOroMin = datos.nivelOroMin;
+    if (datos.nivelOroMultiplicador !== undefined) datosDB.nivelOroMultiplicador = datos.nivelOroMultiplicador.toString();
 
     if (configExistente) {
       // Actualizar existente
@@ -441,10 +441,10 @@ export async function actualizarRecompensa(
     const datosActualizar: Partial<{
       nombre: string;
       descripcion: string | null;
-      puntos_requeridos: number;
-      imagen_url: string | null;
+      puntosRequeridos: number;
+      imagenUrl: string | null;
       stock: number | null; // NULL = ilimitado
-      requiere_aprobacion: boolean;
+      requiereAprobacion: boolean;
       activa: boolean;
       orden: number;
     }> = {};
@@ -452,9 +452,9 @@ export async function actualizarRecompensa(
     // Actualizar campos básicos
     if (datos.nombre !== undefined) datosActualizar.nombre = datos.nombre;
     if (datos.descripcion !== undefined) datosActualizar.descripcion = datos.descripcion;
-    if (datos.puntosRequeridos !== undefined) datosActualizar.puntos_requeridos = datos.puntosRequeridos;
+    if (datos.puntosRequeridos !== undefined) datosActualizar.puntosRequeridos = datos.puntosRequeridos;
     if (datos.stock !== undefined) datosActualizar.stock = datos.stock;
-    if (datos.requiereAprobacion !== undefined) datosActualizar.requiere_aprobacion = datos.requiereAprobacion;
+    if (datos.requiereAprobacion !== undefined) datosActualizar.requiereAprobacion = datos.requiereAprobacion;
     if (datos.activa !== undefined) datosActualizar.activa = datos.activa;
     if (datos.orden !== undefined) datosActualizar.orden = datos.orden;
 
@@ -462,10 +462,10 @@ export async function actualizarRecompensa(
     if (datos.eliminarImagen && recompensaActual.imagenUrl) {
       // Eliminar imagen actual de Cloudinary
       await eliminarImagen(recompensaActual.imagenUrl);
-      datosActualizar.imagen_url = null;
+      datosActualizar.imagenUrl = null;
     } else if (datos.imagenUrl && datos.imagenUrl !== recompensaActual.imagenUrl) {
       // Nueva imagen (ya subida por frontend)
-      datosActualizar.imagen_url = datos.imagenUrl;
+      datosActualizar.imagenUrl = datos.imagenUrl;
 
       // Eliminar imagen anterior de Cloudinary
       if (recompensaActual.imagenUrl) {
