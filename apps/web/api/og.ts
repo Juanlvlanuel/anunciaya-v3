@@ -31,8 +31,8 @@ interface EntityConfig {
 
 const ENTITY_CONFIG: Record<EntityType, EntityConfig> = {
   negocio: {
-    endpoint: '/negocios/publico',
-    titleField: 'nombreComercial',
+    endpoint: '/negocios/sucursal',
+    titleField: 'negocioNombre',
     descriptionField: 'descripcion',
     imageField: 'logo',
     fallbackTitle: 'Negocio en AnunciaYA',
@@ -48,9 +48,9 @@ const ENTITY_CONFIG: Record<EntityType, EntityConfig> = {
   },
   articulo: {
     endpoint: '/articulos/publico',
-    titleField: 'nombre',
-    descriptionField: 'descripcion',
-    imageField: 'imagenes[0]',
+    titleField: 'articulo.nombre',
+    descriptionField: 'articulo.descripcion',
+    imageField: 'articulo.imagenes[0]',
     fallbackTitle: 'Producto en AnunciaYA',
     fallbackDescription: 'Descubre este producto',
   },
@@ -142,7 +142,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const imagen = getNestedField(data, config.imageField || '') 
       || 'https://anunciaya-v3-app.vercel.app/logo-share.png';
 
-    const nombreNegocio = data.negocioNombre || data.nombreComercial;
+    const nombreNegocio = data.negocioNombre || data.nombreComercial || data.negocio?.nombre;
     const tituloCompleto = nombreNegocio && entityType !== 'negocio'
       ? `${titulo} - ${nombreNegocio}`
       : titulo;
