@@ -158,7 +158,6 @@ export function VistaLogin({
               placeholder={t('login.correoPlaceholder')}
               className={getInputClasses(email, emailValido)}
               autoComplete="email"
-              autoFocus
             />
           </div>
         </div>

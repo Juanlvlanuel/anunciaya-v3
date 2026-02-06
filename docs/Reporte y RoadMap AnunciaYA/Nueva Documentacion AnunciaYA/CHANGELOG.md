@@ -7,6 +7,62 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [29 Enero - 5 Febrero 2026] - Sprint Config Puntos + Expiración
+
+### ✨ Agregado
+
+**Business Studio - Configuración de Puntos (Fase 15 ScanYA)**
+- Página `PaginaPuntos.tsx` en Business Studio con layout de 3 secciones
+- Métricas en header: Clientes, Otorgados, Canjeados, Disponibles
+- **Configuración Base:**
+  - Acumulación de puntos: "Por cada $X MXN gana Y pts"
+  - Expiración de puntos: X días (con checkbox "No expiran")
+  - Expiración de vouchers: X días
+  - Textos aclaratorios sobre comportamiento de expiración
+- **Sistema de Niveles:**
+  - Toggle activo/inactivo
+  - 3 niveles: Bronce (cafe), Plata (plata), Oro (amarillo)
+  - Cada nivel con: Mínimo, Máximo, Multiplicador
+  - Máximo de Oro = ∞ (infinito, fijo)
+  - Validaciones: rangos ascendentes, multiplicadores ascendentes, sin decimales
+  - Recálculo automático de niveles de todos los clientes al cambiar rangos
+  - Beneficios explicados: Mayor retención, Multiplicadores de puntos, Compromiso emocional
+- **Recompensas (CRUD):**
+  - Crear/editar recompensa con: imagen, nombre, descripción, puntos requeridos
+  - Stock disponible con checkbox "Ilimitado" (valor -1)
+  - Toggle "Requiere aprobación" (canje necesita confirmación manual)
+  - Toggle activo/inactivo por recompensa
+  - Eliminar recompensa
+  - Cards visuales con iconos de editar/eliminar
+
+**Sistema de Expiración en Tiempo Real**
+- Validación reactiva (sin cron jobs ni servicios externos)
+- Expiración de puntos por inactividad al final del día local del negocio (23:59:59)
+- Expiración de vouchers vencidos con auto-reembolso de puntos a billetera
+- Función `expirarVouchersVencidos(negocioId)` masiva, reutilizable desde cualquier endpoint
+- Función `expirarPuntosPorInactividad(usuarioId, negocioId)` individual por cliente
+- Función `verificarExpiraciones()` combinada para endpoints de cliente específico
+- Manejo correcto de zona horaria del negocio (`negocio_sucursales.zona_horaria`)
+
+### 🐛 Corregido
+
+**Bug: Paso 0 en obtenerVouchers no devolvía puntos**
+- `obtenerVouchers` (ScanYA) marcaba vouchers como expirados pero NO devolvía puntos
+- Reemplazado SQL inline por `expirarVouchersVencidos()` que incluye auto-reembolso
+- Aplicado también en `obtenerVouchersPendientes`
+
+**Bug: Desfase de zona horaria en expiración de puntos**
+- Servidor en UTC causaba que puntos expiraran horas antes de lo esperado
+- Implementada función `calcularFinDiaExpiracion()` que convierte a hora local del negocio
+- Puntos ahora expiran al final del día local (23:59:59 zona horaria del negocio)
+
+### 📝 Documentación
+- Nueva sección #12 "Sistema de Expiración" en `ARQUITECTURA ScanYA.md`
+- Fase 15 actualizada a completada en progreso del proyecto
+- CHANGELOG y ROADMAP actualizados
+
+---
+
 ## [17-29 Enero 2026] - Sprint ScanYA + Migración Cloud
 
 ### ✨ Agregado
@@ -32,10 +88,10 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 | 12 | Historial + Validar vouchers | ✅ 100% | 22 Ene |
 | 13 | Recordatorios offline | ✅ 100% | 22-24 Ene |
 | 14 | Chat + Reseñas | ⏸️ Pausada | Requiere ChatYA |
-| 15 | BS > Puntos Config | ⏳ Prompt listo | ~2.5 días |
+| 15 | BS > Puntos Config + Expiración | ✅ 100% | 29 Ene - 5 Feb |
 | 16 | PWA Testing e instalación | ✅ 100% | 27-29 Ene |
 
-**Estado final:** 14/16 fases = 87.5% completado
+**Estado final:** 15/16 fases = 93.75% completado
 
 **Sistema ScanYA PWA (87.5% completado)**
 - Autenticación dual: Email+Password (dueños/gerentes) / Nick+PIN (empleados)
@@ -570,4 +626,4 @@ Durante este sprint se generaron **8 documentos técnicos** con ~27,420 líneas 
 
 ---
 
-**Última actualización:** 30 Enero 2026
+**Última actualización:** 5 Febrero 2026

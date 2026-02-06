@@ -27,18 +27,19 @@
  * - date-fns: Instalar con "pnpm add date-fns" en apps/api
  */
 
-import { eq, and, inArray, notInArray, gte, lte, gt, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, inArray, notInArray, gte, lte, lt, gt, desc, asc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { 
-  puntosConfiguracion, 
+import {
+  puntosConfiguracion,
   recompensas,
   puntosTransacciones,
   puntosBilletera,
   usuarios,
   empleados,
-  negocioSucursales
+  negocioSucursales,
+  vouchersCanje
 } from '../db/schemas/schema.js';
-import type { 
+import type {
   ActualizarConfigPuntosInput,
   CrearRecompensaInput,
   ActualizarRecompensaInput
@@ -97,10 +98,12 @@ export async function obtenerConfigPuntos(
     // Transformar a camelCase
     const configFormateada: ConfigPuntosCompleta = {
       puntosPorPeso: Number(config.puntosPorPeso),
+      pesosOriginales: config.pesosOriginales ?? undefined,
+      puntosOriginales: config.puntosOriginales ?? undefined,
       diasExpiracionPuntos: config.diasExpiracionPuntos,
       diasExpiracionVoucher: config.diasExpiracionVoucher || 30,
       activo: config.activo,
-      nivelesActivos: config.nivelesActivos || true,
+      nivelesActivos: config.nivelesActivos ?? true,
       nivelBronce: {
         min: config.nivelBronceMin || 0,
         max: config.nivelBronceMax || 999,
@@ -152,6 +155,8 @@ export async function actualizarConfigPuntos(
     // Preparar datos para inserción/actualización (camelCase — Drizzle convierte a snake_case)
     const datosDB: Partial<{
       puntosPorPeso: string;
+      pesosOriginales: number;
+      puntosOriginales: number;
       diasExpiracionPuntos: number | null;
       diasExpiracionVoucher: number;
       activo: boolean;
@@ -165,22 +170,29 @@ export async function actualizarConfigPuntos(
       nivelOroMin: number;
       nivelOroMultiplicador: string;
     }> = {};
+
+    // NUEVO: Calcular puntosPorPeso a partir de pesosPor y puntosGanados
+    if (datos.pesosPor !== undefined && datos.puntosGanados !== undefined) {
+      const ratio = datos.puntosGanados / datos.pesosPor;
+      datosDB.puntosPorPeso = ratio.toString();
+      datosDB.pesosOriginales = datos.pesosPor;
+      datosDB.puntosOriginales = datos.puntosGanados;
+    }
     
-    if (datos.puntosPorPeso !== undefined) datosDB.puntosPorPeso = datos.puntosPorPeso.toString();
     if (datos.diasExpiracionPuntos !== undefined) datosDB.diasExpiracionPuntos = datos.diasExpiracionPuntos;
     if (datos.diasExpiracionVoucher !== undefined) datosDB.diasExpiracionVoucher = datos.diasExpiracionVoucher;
     if (datos.activo !== undefined) datosDB.activo = datos.activo;
     if (datos.nivelesActivos !== undefined) datosDB.nivelesActivos = datos.nivelesActivos;
-    
+
     // Niveles
     if (datos.nivelBronceMin !== undefined) datosDB.nivelBronceMin = datos.nivelBronceMin;
     if (datos.nivelBronceMax !== undefined) datosDB.nivelBronceMax = datos.nivelBronceMax;
     if (datos.nivelBronceMultiplicador !== undefined) datosDB.nivelBronceMultiplicador = datos.nivelBronceMultiplicador.toString();
-    
+
     if (datos.nivelPlataMin !== undefined) datosDB.nivelPlataMin = datos.nivelPlataMin;
     if (datos.nivelPlataMax !== undefined) datosDB.nivelPlataMax = datos.nivelPlataMax;
     if (datos.nivelPlataMultiplicador !== undefined) datosDB.nivelPlataMultiplicador = datos.nivelPlataMultiplicador.toString();
-    
+
     if (datos.nivelOroMin !== undefined) datosDB.nivelOroMin = datos.nivelOroMin;
     if (datos.nivelOroMultiplicador !== undefined) datosDB.nivelOroMultiplicador = datos.nivelOroMultiplicador.toString();
 
@@ -198,6 +210,29 @@ export async function actualizarConfigPuntos(
           negocioId,
           ...datosDB,
         });
+    }
+
+    // ── Recalcular nivel_actual de TODAS las billeteras del negocio ──────
+    // Si se cambiaron los rangos de niveles, los clientes existentes deben
+    // reclasificarse según los nuevos rangos.
+    const tieneRangos = datos.nivelBronceMax !== undefined
+      && datos.nivelPlataMax !== undefined
+      && datos.nivelOroMin !== undefined;
+
+    if (tieneRangos) {
+      const bronceMax = datos.nivelBronceMax!;
+      const plataMax = datos.nivelPlataMax!;
+      const oroMin = datos.nivelOroMin!;
+
+      await db.execute(sql`
+        UPDATE puntos_billetera
+        SET nivel_actual = CASE
+          WHEN puntos_acumulados_total >= ${oroMin} THEN 'oro'
+          WHEN puntos_acumulados_total > ${bronceMax} AND puntos_acumulados_total <= ${plataMax} THEN 'plata'
+          ELSE 'bronce'
+        END
+        WHERE negocio_id = ${negocioId}
+      `);
     }
 
     // Retornar configuración actualizada
@@ -222,7 +257,7 @@ export async function obtenerRecompensas(
 ): Promise<RespuestaServicio<Recompensa[]>> {
   try {
     const condiciones = [eq(recompensas.negocioId, negocioId)];
-    
+
     if (soloActivas) {
       condiciones.push(eq(recompensas.activa, true));
     }
@@ -956,4 +991,243 @@ export async function revocarTransaccion(
       code: 500,
     };
   }
+}
+
+
+
+// =============================================================================
+// 11. SISTEMA DE EXPIRACIONES
+// =============================================================================
+
+/**
+ * Obtiene el fin del dia (23:59:59) en la zona horaria del negocio.
+ * Convierte ultima_actividad UTC a fecha local, suma dias, retorna fin del dia en UTC.
+ *
+ * Ejemplo: ultima_actividad = "2026-01-27 21:38:53 UTC", zona = "America/Hermosillo" (UTC-7)
+ *   -> Fecha local: 2026-01-27 14:38 (2:38 PM)
+ *   -> + 9 dias = 2026-02-05
+ *   -> Fin del dia local: 2026-02-05 23:59:59 Hermosillo = 2026-02-06 06:59:59 UTC
+ */
+function calcularFinDiaExpiracion(
+  fechaUTC: string,
+  diasExpiracion: number,
+  zonaHoraria: string
+): Date {
+  const fechaLocal = new Intl.DateTimeFormat('en-CA', {
+    timeZone: zonaHoraria,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(fechaUTC));
+
+  const [anio, mes, dia] = fechaLocal.split('-').map(Number);
+  const fechaExp = new Date(Date.UTC(anio, mes - 1, dia + diasExpiracion));
+  const anioExp = fechaExp.getUTCFullYear();
+  const mesExp = String(fechaExp.getUTCMonth() + 1).padStart(2, '0');
+  const diaExp = String(fechaExp.getUTCDate()).padStart(2, '0');
+
+  const refDate = new Date(`${anioExp}-${mesExp}-${diaExp}T12:00:00Z`);
+  const utcStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).format(refDate);
+  const localStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: zonaHoraria,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).format(refDate);
+
+  const parseMMDDYYYY = (s: string) => {
+    const [datePart, timePart] = s.split(', ');
+    const [m, d, y] = datePart.split('/').map(Number);
+    const [h, min, sec] = timePart.split(':').map(Number);
+    return new Date(Date.UTC(y, m - 1, d, h, min, sec));
+  };
+
+  const utcParsed = parseMMDDYYYY(utcStr);
+  const localParsed = parseMMDDYYYY(localStr);
+  const offsetMs = localParsed.getTime() - utcParsed.getTime();
+
+  const finDiaLocal = new Date(Date.UTC(
+    Number(anioExp), Number(mesExp) - 1, Number(diaExp), 23, 59, 59, 999
+  ));
+  const finDiaUTC = new Date(finDiaLocal.getTime() - offsetMs);
+
+  return finDiaUTC;
+}
+
+/**
+ * Obtiene la zona horaria de la sucursal principal de un negocio.
+ */
+async function obtenerZonaHorariaNegocio(negocioId: string): Promise<string> {
+  const [sucursal] = await db
+    .select({ zonaHoraria: negocioSucursales.zonaHoraria })
+    .from(negocioSucursales)
+    .where(
+      and(
+        eq(negocioSucursales.negocioId, negocioId),
+        eq(negocioSucursales.esPrincipal, true)
+      )
+    )
+    .limit(1);
+
+  return sucursal?.zonaHoraria || 'America/Mexico_City';
+}
+
+// -----------------------------------------------------------------------------
+// 11a. EXPIRAR VOUCHERS VENCIDOS (masivo por negocio)
+// -----------------------------------------------------------------------------
+
+/**
+ * Expira TODOS los vouchers vencidos de un negocio y devuelve puntos.
+ * Reutilizable desde cualquier endpoint que toque vouchers:
+ * - ScanYA: al abrir seccion de vouchers, al buscar cliente
+ * - CardYA: al consultar vouchers del cliente (futuro)
+ * - Business Studio: al ver reporte de vouchers (futuro)
+ *
+ * @param negocioId - ID del negocio
+ * @returns Cantidad de vouchers expirados y puntos devueltos
+ */
+export async function expirarVouchersVencidos(
+  negocioId: string
+): Promise<{ vouchersExpirados: number; puntosDevueltos: number }> {
+  let vouchersExpirados = 0;
+  let puntosDevueltos = 0;
+
+  try {
+    const ahora = new Date();
+
+    const vouchersVencidos = await db
+      .select({
+        id: vouchersCanje.id,
+        puntosUsados: vouchersCanje.puntosUsados,
+        billeteraId: vouchersCanje.billeteraId,
+        usuarioId: vouchersCanje.usuarioId,
+      })
+      .from(vouchersCanje)
+      .where(
+        and(
+          eq(vouchersCanje.negocioId, negocioId),
+          eq(vouchersCanje.estado, 'pendiente'),
+          lt(vouchersCanje.expiraAt, ahora.toISOString())
+        )
+      );
+
+    for (const voucher of vouchersVencidos) {
+      await db
+        .update(vouchersCanje)
+        .set({ estado: 'expirado' })
+        .where(eq(vouchersCanje.id, voucher.id));
+
+      await db
+        .update(puntosBilletera)
+        .set({
+          puntosDisponibles: sql`puntos_disponibles + ${voucher.puntosUsados}`,
+        })
+        .where(eq(puntosBilletera.id, voucher.billeteraId));
+
+      vouchersExpirados++;
+      puntosDevueltos += voucher.puntosUsados;
+
+      console.log(`[Expiracion] Voucher ${voucher.id} expirado. Devueltos ${voucher.puntosUsados} pts al usuario ${voucher.usuarioId}`);
+    }
+
+  } catch (error) {
+    console.error('[Expiracion] Error al expirar vouchers del negocio:', error);
+  }
+
+  return { vouchersExpirados, puntosDevueltos };
+}
+
+// -----------------------------------------------------------------------------
+// 11b. EXPIRAR PUNTOS POR INACTIVIDAD (por usuario individual)
+// -----------------------------------------------------------------------------
+
+/**
+ * Verifica si los puntos de un cliente expiraron por inactividad.
+ * Expiran al final del dia local del negocio (23:59:59 zona del negocio)
+ * tras X dias sin actividad (compras ni canjes).
+ *
+ * @param usuarioId - ID del cliente
+ * @param negocioId - ID del negocio
+ */
+export async function expirarPuntosPorInactividad(
+  usuarioId: string,
+  negocioId: string
+): Promise<void> {
+  try {
+    const [config] = await db
+      .select({
+        diasExpiracionPuntos: puntosConfiguracion.diasExpiracionPuntos,
+      })
+      .from(puntosConfiguracion)
+      .where(eq(puntosConfiguracion.negocioId, negocioId))
+      .limit(1);
+
+    if (!config || config.diasExpiracionPuntos === null) return;
+
+    const [billetera] = await db
+      .select({
+        id: puntosBilletera.id,
+        puntosDisponibles: puntosBilletera.puntosDisponibles,
+        puntosExpiradosTotal: puntosBilletera.puntosExpiradosTotal,
+        ultimaActividad: puntosBilletera.ultimaActividad,
+      })
+      .from(puntosBilletera)
+      .where(
+        and(
+          eq(puntosBilletera.usuarioId, usuarioId),
+          eq(puntosBilletera.negocioId, negocioId)
+        )
+      )
+      .limit(1);
+
+    if (!billetera || billetera.puntosDisponibles <= 0 || !billetera.ultimaActividad) return;
+
+    const zonaHoraria = await obtenerZonaHorariaNegocio(negocioId);
+
+    const finDiaExpiracion = calcularFinDiaExpiracion(
+      billetera.ultimaActividad,
+      config.diasExpiracionPuntos,
+      zonaHoraria
+    );
+
+    if (new Date() > finDiaExpiracion) {
+      await db
+        .update(puntosBilletera)
+        .set({
+          puntosDisponibles: 0,
+          puntosExpiradosTotal: (billetera.puntosExpiradosTotal || 0) + billetera.puntosDisponibles,
+        })
+        .where(eq(puntosBilletera.id, billetera.id));
+
+      console.log(`[Expiracion] Puntos expirados: ${billetera.puntosDisponibles} pts del usuario ${usuarioId} en negocio ${negocioId} (zona: ${zonaHoraria})`);
+    }
+
+  } catch (error) {
+    console.error('[Expiracion] Error al verificar puntos por inactividad:', error);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 11c. VERIFICAR EXPIRACIONES (combina ambas - para endpoints de cliente)
+// -----------------------------------------------------------------------------
+
+/**
+ * Ejecuta ambas verificaciones para un cliente especifico.
+ * Usar en endpoints que consultan datos de un cliente individual:
+ * - identificarCliente (ScanYA)
+ * - buscarClienteConVouchers (ScanYA)
+ * - consultarBilletera (CardYA futuro)
+ *
+ * @param usuarioId - ID del cliente
+ * @param negocioId - ID del negocio
+ */
+export async function verificarExpiraciones(
+  usuarioId: string,
+  negocioId: string
+): Promise<void> {
+  await expirarVouchersVencidos(negocioId);
+  await expirarPuntosPorInactividad(usuarioId, negocioId);
 }

@@ -73,6 +73,8 @@ export interface RespuestaEstadisticas extends RespuestaConDatos<EstadisticasPun
  */
 export interface ConfigPuntosCompleta {
   puntosPorPeso: number;
+  pesosOriginales?: number;      // Valor exacto que escribió el usuario (ej: 250)
+  puntosOriginales?: number;     // Valor exacto que escribió el usuario (ej: 35)
   diasExpiracionPuntos: number | null; // null = no expiran
   diasExpiracionVoucher: number;
   activo: boolean;
@@ -99,7 +101,8 @@ export interface ConfigPuntosCompleta {
  * El backend mapea nivelBronceMin → nivel_bronce_min en BD.
  */
 export interface ActualizarConfigPuntosInput {
-  puntosPorPeso?: number;
+  pesosPor?: number;              // Valor original que escribió el usuario (ej: 250)
+  puntosGanados?: number;         // Valor original que escribió el usuario (ej: 35)
   diasExpiracionPuntos?: number | null;
   diasExpiracionVoucher?: number;
   activo?: boolean;

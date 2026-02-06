@@ -1,6 +1,17 @@
 {
   "rewrites": [
     {
+      "source": "/p/:tipo/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Pinterest|WhatsApp|TelegramBot).*"
+        }
+      ],
+      "destination": "/api/og?tipo=:tipo&id=:id"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

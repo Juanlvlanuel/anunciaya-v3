@@ -21,7 +21,8 @@
 import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, ImagePlus, Gift, Truck, Percent, DollarSign, ShoppingBag, Tag } from 'lucide-react';
 import { useOptimisticUpload } from '../../../../hooks/useOptimisticUpload';
-import { Boton, DatePicker, Modal, ModalImagenes } from '../../../../components/ui';
+import { Boton, DatePicker, ModalImagenes } from '../../../../components/ui';
+import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { notificar } from '../../../../utils/notificaciones';
 import type { Oferta, TipoOferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../../types/ofertas';
 
@@ -222,6 +223,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
         setModalImagenes({ isOpen: false, images: [], initialIndex: 0 });
     };
 
+
     const handleImagenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) imagen.uploadImage(file);
@@ -318,59 +320,24 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
     return (
         <>
             {/* Modal */}
-            <Modal
+            <ModalAdaptativo
                 abierto={abierto}
                 onCerrar={onCerrar}
                 ancho="xl"
                 paddingContenido="none"
-                mostrarHeader={false}
+                mostrarHeader={true}
+                titulo={esEdicion ? 'Editar Oferta' : 'Nueva Oferta'}
+                iconoTitulo={<Tag className="w-5 h-5 text-blue-600" />}
                 className="max-w-xs lg:max-w-xl 2xl:max-w-4xl"
             >
-                {/* Header Personalizado */}
-                <div className="flex items-center justify-between px-3 py-2.5 lg:px-4 lg:py-2.5 2xl:px-5 2xl:py-4 border-b-2 border-slate-300 bg-slate-100 shrink-0">
-                    <h2 className="text-base lg:text-base 2xl:text-xl font-bold text-slate-800">
-                        {esEdicion ? 'Editar Oferta' : 'Nueva Oferta'}
-                    </h2>
 
-                    {/* Toggle Activa en el header */}
-                    <div className="flex items-center gap-3 2xl:gap-4">
-                        <div className="flex items-center gap-2 2xl:gap-3">
-                            {formulario.activo ? (
-                                <Eye className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6 text-green-600" />
-                            ) : (
-                                <EyeOff className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6 text-slate-400" />
-                            )}
-                            <span className="text-sm 2xl:text-lg font-medium text-slate-700">
-                                {formulario.activo ? 'Activa' : 'Inactiva'}
-                            </span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setFormulario((prev) => ({ ...prev, activo: !prev.activo }))}
-                            disabled={guardando}
-                            className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${formulario.activo ? 'bg-green-500' : 'bg-slate-300'
-                                } disabled:opacity-50`}
-                        >
-                            <span
-                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform ${formulario.activo ? 'translate-x-5' : 'translate-x-0'
-                                    }`}
-                            />
-                        </button>
-                        <button
-                            onClick={onCerrar}
-                            className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-colors cursor-pointer"
-                        >
-                            <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                        </button>
-                    </div>
-                </div>
 
                 {/* Body - 2 columnas en laptop+ */}
                 <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row flex-1 overflow-y-auto">
                         {/* COLUMNA IZQUIERDA - IMAGEN */}
                         <div className="lg:w-2/5 p-2.5 lg:p-2 2xl:p-5 lg:border-r-2 border-slate-300 bg-slate-50">
                             {/* Zona de imagen */}
-                            <div className="relative aspect-3/2 lg:aspect-4/3 2xl:aspect-4/3 bg-slate-100 rounded-lg overflow-hidden border-2 border-dashed border-slate-300 hover:border-blue-400 transition-colors mb-2 lg:mb-2">
+                            <div className="relative h-32 lg:h-auto lg:aspect-4/3 2xl:aspect-4/3 bg-slate-100 rounded-lg overflow-hidden border-2 border-dashed border-slate-300 hover:border-blue-400 transition-colors mb-2 lg:mb-2">
                                 {imagen.imageUrl ? (
                                     <>
                                         <img
@@ -384,11 +351,25 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                                 <div className="text-white text-sm font-medium">Subiendo...</div>
                                             </div>
                                         )}
+                                        {/* Toggle Activa/Inactiva - Overlay dentro de la imagen - SOLO MÓVIL */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormulario((prev) => ({ ...prev, activo: !prev.activo }))}
+                                            disabled={guardando}
+                                            className={`lg:hidden absolute bottom-1.5 left-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-lg ${formulario.activo
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-slate-700 text-white'
+                                            }`}
+                                        >
+                                            {formulario.activo ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
+                                            {formulario.activo ? 'Activa' : 'Inactiva'}
+                                        </button>
+                                        {/* Botón borrar */}
                                         <button
                                             type="button"
                                             onClick={handleEliminarImagen}
                                             disabled={imagen.isUploading || guardando}
-                                            className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-lg flex items-center justify-center text-white transition-colors disabled:opacity-50 cursor-pointer"
+                                            className="absolute top-2 right-2 w-8 h-8 lg:w-8 lg:h-8 2xl:w-8 2xl:h-8 bg-red-500 hover:bg-red-600 rounded-lg flex items-center justify-center text-white transition-colors disabled:opacity-50 cursor-pointer shadow-lg"
                                         >
                                             <X className="w-5 h-5" />
                                         </button>
@@ -425,7 +406,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
 
                             {/* Título de sección */}
                             <div className="mb-2">
-                                <span className="block text-xs 2xl:text-base font-bold text-slate-700">
+                                <span className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700">
                                     Tipo de oferta <span className="text-red-500">*</span>
                                 </span>
                             </div>
@@ -442,7 +423,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-orange-400 hover:bg-orange-50'
                                         }`}
                                 >
-                                    <Gift className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                                    <Gift className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                                     2x1
                                 </button>
                                 <button
@@ -454,7 +435,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-orange-400 hover:bg-orange-50'
                                         }`}
                                 >
-                                    <Gift className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                                    <Gift className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                                     3x2
                                 </button>
                                 <button
@@ -466,7 +447,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-blue-400 hover:bg-blue-50'
                                         }`}
                                 >
-                                    <Truck className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                                    <Truck className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                                     Envío
                                 </button>
 
@@ -508,13 +489,13 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
 
                             {/* Input de Valor/Concepto (SIEMPRE visible) */}
                             <div className="mt-2 lg:mt-2">
-                                <label htmlFor="input-valor-oferta" className={`block text-xs 2xl:text-base font-bold mb-1.5 ${mostrarValor ? 'text-slate-700' : 'text-slate-400'
+                                <label htmlFor="input-valor-oferta" className={`block text-sm lg:text-xs 2xl:text-base font-bold mb-1.5 ${mostrarValor ? 'text-slate-700' : 'text-slate-400'
                                     }`}>
                                     {formulario.tipo === 'otro' ? 'Concepto' : 'Valor'} {mostrarValor && <span className="text-red-500">*</span>}
                                 </label>
                                 <div className="relative">
                                     {formulario.tipo !== 'otro' && mostrarValor && (
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xl lg:text-sm 2xl:text-sm font-semibold">
                                             {formulario.tipo === 'porcentaje' ? '%' : '$'}
                                         </span>
                                     )}
@@ -538,7 +519,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                         step={formulario.tipo === 'porcentaje' ? '1' : formulario.tipo === 'monto_fijo' ? '0.01' : undefined}
                                         maxLength={formulario.tipo === 'otro' ? 50 : undefined}
                                         disabled={!mostrarValor || guardando}
-                                        className={`w-full ${formulario.tipo !== 'otro' && mostrarValor ? 'pl-7' : 'pl-3'} pr-3 py-1.5 lg:py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium transition-colors ${!mostrarValor
+                                        className={`w-full ${formulario.tipo !== 'otro' && mostrarValor ? 'pl-7' : 'pl-3'} pr-3 py-2 lg:py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium transition-colors ${!mostrarValor
                                             ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'
                                             : errores.valor
                                                 ? 'border-red-300 hover:border-slate-400'
@@ -552,49 +533,35 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
 
                         {/* COLUMNA DERECHA - FORMULARIO */}
                         <div className="flex-1 p-2.5 lg:p-2 2xl:p-5 space-y-2 lg:space-y-2 2xl:space-y-2.5 flex flex-col justify-center">
-                            {/* Título */}
-                            <div>
-                                <label htmlFor="input-titulo-oferta" className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1">
-                                    Título <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    id="input-titulo-oferta"
-                                    name="input-titulo-oferta"
-                                    type="text"
-                                    value={formulario.titulo}
-                                    onChange={(e) => setFormulario((prev) => ({ ...prev, titulo: e.target.value }))}
-                                    placeholder="Ej: 50% de descuento en pizzas"
-                                    maxLength={150}
+                            {/* Toggle Activa/Inactiva - solo escritorio */}
+                            <div className="hidden lg:flex items-center justify-between py-2 px-3 rounded-lg border-2 border-slate-200 bg-white">
+                                <div className="flex items-center gap-2">
+                                    {formulario.activo ? (
+                                        <Eye className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-green-600" />
+                                    ) : (
+                                        <EyeOff className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" />
+                                    )}
+                                    <span className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-700">
+                                        {formulario.activo ? 'Activa' : 'Inactiva'}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormulario((prev) => ({ ...prev, activo: !prev.activo }))}
                                     disabled={guardando}
-                                    className={`w-full px-3 py-1.5 lg:py-2 2xl:py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm ${errores.titulo ? 'border-red-300' : 'border-slate-300'
-                                        }`}
-                                />
-                                {errores.titulo && <p className="text-xs text-red-500 mt-1">{errores.titulo}</p>}
+                                    className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${formulario.activo ? 'bg-green-500' : 'bg-slate-300'} disabled:opacity-50`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform ${formulario.activo ? 'translate-x-5' : 'translate-x-0'}`}
+                                    />
+                                </button>
                             </div>
 
-                            {/* Descripción */}
-                            <div>
-                                <label htmlFor="textarea-descripcion-oferta" className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1">
-                                    Descripción (opcional)
-                                </label>
-                                <textarea
-                                    id="textarea-descripcion-oferta"
-                                    name="textarea-descripcion-oferta"
-                                    value={formulario.descripcion}
-                                    onChange={(e) => setFormulario((prev) => ({ ...prev, descripcion: e.target.value }))}
-                                    placeholder="Términos y condiciones..."
-                                    rows={2}
-                                    maxLength={500}
-                                    disabled={guardando}
-                                    className="w-full px-3 py-1.5 lg:py-2 2xl:py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm resize-none"
-                                />
-                            </div>
-
-                            {/* Grid 2x2: Fechas y Compra mínima */}
-                            <div className="grid grid-cols-2 gap-2 lg:gap-2 2xl:gap-3 mt-2 lg:mt-2 2xl:mt-4">
-                                {/* Fila 1 - Columna 1: Fecha inicio */}
+                            {/* Grid 2 columnas: Fechas inicio y fin (MOVIDAS ARRIBA) */}
+                            <div className="grid grid-cols-2 gap-2 lg:gap-2 2xl:gap-3">
+                                {/* Fecha inicio */}
                                 <div>
-                                    <span className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1">
+                                    <span className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1">
                                         Fecha inicio <span className="text-red-500">*</span>
                                     </span>
                                     <DatePicker
@@ -607,9 +574,9 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     {errores.fechaInicio && <p className="text-xs text-red-500 mt-1">{errores.fechaInicio}</p>}
                                 </div>
 
-                                {/* Fila 1 - Columna 2: Fecha fin */}
+                                {/* Fecha fin */}
                                 <div>
-                                    <span className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1">
+                                    <span className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1">
                                         Fecha fin <span className="text-red-500">*</span>
                                     </span>
                                     <DatePicker
@@ -621,35 +588,70 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     />
                                     {errores.fechaFin && <p className="text-xs text-red-500 mt-1">{errores.fechaFin}</p>}
                                 </div>
+                            </div>
 
-                                {/* Fila 2 - Columna 1: Compra mínima */}
-                                <div className="col-span-2 lg:col-span-1">
-                                    <label htmlFor="input-compra-minima" className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1">
-                                        Compra mínima (opcional)
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
-                                        <input
-                                            id="input-compra-minima"
-                                            name="input-compra-minima"
-                                            type="number"
-                                            value={formulario.compraMinima}
-                                            onChange={(e) => setFormulario((prev) => ({ ...prev, compraMinima: e.target.value }))}
-                                            placeholder="0.00"
-                                            min="0"
-                                            step="0.01"
-                                            disabled={guardando}
-                                            className="w-full pl-6 pr-2 py-1.5 lg:py-2 2xl:py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
-                                        />
-                                    </div>
+                            {/* Título */}
+                            <div>
+                                <label htmlFor="input-titulo-oferta" className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1">
+                                    Título <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    id="input-titulo-oferta"
+                                    name="input-titulo-oferta"
+                                    type="text"
+                                    value={formulario.titulo}
+                                    onChange={(e) => setFormulario((prev) => ({ ...prev, titulo: e.target.value }))}
+                                    placeholder="Ej: 50% de descuento en pizzas"
+                                    maxLength={150}
+                                    disabled={guardando}
+                                    className={`w-full px-3 py-2 lg:py-2 2xl:py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm ${errores.titulo ? 'border-red-300' : 'border-slate-300'
+                                        }`}
+                                />
+                                {errores.titulo && <p className="text-xs text-red-500 mt-1">{errores.titulo}</p>}
+                            </div>
+
+                            {/* Descripción */}
+                            <div>
+                                <label htmlFor="textarea-descripcion-oferta" className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1">
+                                    Descripción (opcional)
+                                </label>
+                                <textarea
+                                    id="textarea-descripcion-oferta"
+                                    name="textarea-descripcion-oferta"
+                                    value={formulario.descripcion}
+                                    onChange={(e) => setFormulario((prev) => ({ ...prev, descripcion: e.target.value }))}
+                                    placeholder="Términos y condiciones..."
+                                    rows={2}
+                                    maxLength={500}
+                                    disabled={guardando}
+                                    className="w-full px-3 py-2 lg:py-2 2xl:py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm resize-none"
+                                />
+                            </div>
+
+                            {/* Compra mínima (ahora en fila completa) */}
+                            <div>
+                                <label htmlFor="input-compra-minima" className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1">
+                                    Compra mínima (opcional)
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xl lg:text-sm 2xl:text-sm">$</span>
+                                    <input
+                                        id="input-compra-minima"
+                                        name="input-compra-minima"
+                                        type="number"
+                                        value={formulario.compraMinima}
+                                        onChange={(e) => setFormulario((prev) => ({ ...prev, compraMinima: e.target.value }))}
+                                        placeholder="0.00"
+                                        min="0"
+                                        step="0.01"
+                                        disabled={guardando}
+                                        className="w-full pl-6 pr-2 py-2 lg:py-2 2xl:py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
+                                    />
                                 </div>
-
-                                {/* Fila 2 - Columna 2: Vacío en laptop+ */}
-                                <div className="hidden lg:block"></div>
                             </div>
 
                             {/* Botones */}
-                            <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
+                            <div className="flex gap-2 lg:gap-1.5 2xl:gap-2 pt-3 lg:pt-0 2xl:pt-0">
                                 <Boton variante="outline" onClick={onCerrar} className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer" disabled={guardando}>
                                     Cancelar
                                 </Boton>
@@ -665,7 +667,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                             </div>
                         </div>
                     </form>
-                </Modal>
+                </ModalAdaptativo>
 
             {/* Modal Imágenes */}
             <ModalImagenes

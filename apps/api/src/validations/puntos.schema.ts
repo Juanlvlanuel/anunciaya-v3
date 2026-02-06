@@ -24,10 +24,15 @@ import { z } from 'zod';
  * Actualizar Configuración de Puntos del Negocio
  */
 export const actualizarConfigPuntosSchema = z.object({
-  // Configuración básica
-  puntosPorPeso: z
+  // Configuración básica (NUEVO: se envían valores originales en vez de ratio)
+  pesosPor: z
     .number()
-    .positive('Los puntos por peso deben ser mayores a 0')
+    .positive('Los pesos deben ser mayores a 0')
+    .optional(),
+  
+  puntosGanados: z
+    .number()
+    .positive('Los puntos ganados deben ser mayores a 0')
     .optional(),
   
   // IMPORTANTE: Ahora permite NULL para "nunca expiran"
@@ -56,52 +61,105 @@ export const actualizarConfigPuntosSchema = z.object({
     .boolean()
     .optional(),
   
-  // Nivel Bronce (rangos configurables, nombre fijo "Bronce" en frontend)
+  // Nivel Bronce — min siempre 0, max editable
   nivelBronceMin: z
     .number()
-    .int()
+    .int('Bronce mínimo debe ser entero')
     .min(0)
     .optional(),
   nivelBronceMax: z
     .number()
-    .int()
-    .min(0)
+    .int('Bronce máximo debe ser entero')
+    .min(1, 'Bronce máximo debe ser al menos 1')
     .optional(),
   nivelBronceMultiplicador: z
     .number()
-    .min(0.1, 'El multiplicador mínimo es 0.1')
+    .min(1.0, 'El multiplicador mínimo es 1.0')
     .max(10, 'El multiplicador máximo es 10')
     .optional(),
   
-  // Nivel Plata (rangos configurables, nombre fijo "Plata" en frontend)
+  // Nivel Plata — min auto-calculado (bronce max + 1), max editable
   nivelPlataMin: z
     .number()
-    .int()
-    .min(0)
+    .int('Plata mínimo debe ser entero')
+    .min(1)
     .optional(),
   nivelPlataMax: z
     .number()
-    .int()
-    .min(0)
+    .int('Plata máximo debe ser entero')
+    .min(2, 'Plata máximo debe ser al menos 2')
     .optional(),
   nivelPlataMultiplicador: z
     .number()
-    .min(0.1, 'El multiplicador mínimo es 0.1')
+    .min(1.0, 'El multiplicador mínimo es 1.0')
     .max(10, 'El multiplicador máximo es 10')
     .optional(),
   
-  // Nivel Oro (rangos configurables, nombre fijo "Oro" en frontend)
+  // Nivel Oro — min auto-calculado (plata max + 1), sin máximo (∞)
   nivelOroMin: z
     .number()
-    .int()
-    .min(0)
+    .int('Oro mínimo debe ser entero')
+    .min(2)
     .optional(),
   nivelOroMultiplicador: z
     .number()
-    .min(0.1, 'El multiplicador mínimo es 0.1')
+    .min(1.0, 'El multiplicador mínimo es 1.0')
     .max(10, 'El multiplicador máximo es 10')
     .optional(),
-});
+})
+// =============================================================================
+// VALIDACIONES CRUZADAS — solo aplican cuando vienen todos los campos de niveles
+// (el FAB siempre envía la config completa)
+// =============================================================================
+.refine((d) => {
+  // Bronce min siempre debe ser 0
+  if (d.nivelBronceMin === undefined) return true;
+  return d.nivelBronceMin === 0;
+}, { message: 'Bronce mínimo debe ser 0', path: ['nivelBronceMin'] })
+
+.refine((d) => {
+  if (d.nivelBronceMax === undefined || d.nivelPlataMin === undefined) return true;
+  // Plata min debe ser exactamente Bronce max + 1 (sin huecos ni solapamientos)
+  return d.nivelPlataMin === d.nivelBronceMax + 1;
+}, { message: 'Plata mínimo debe ser Bronce máximo + 1', path: ['nivelPlataMin'] })
+
+.refine((d) => {
+  if (d.nivelPlataMax === undefined || d.nivelOroMin === undefined) return true;
+  // Oro min debe ser exactamente Plata max + 1 (sin huecos ni solapamientos)
+  return d.nivelOroMin === d.nivelPlataMax + 1;
+}, { message: 'Oro mínimo debe ser Plata máximo + 1', path: ['nivelOroMin'] })
+
+.refine((d) => {
+  if (d.nivelPlataMin === undefined || d.nivelPlataMax === undefined) return true;
+  // Plata max debe ser mayor que Plata min (rango válido)
+  return d.nivelPlataMax > d.nivelPlataMin;
+}, { message: 'Plata máximo debe ser mayor que Plata mínimo', path: ['nivelPlataMax'] })
+
+.refine((d) => {
+  if (d.nivelBronceMax === undefined || d.nivelPlataMax === undefined) return true;
+  // Plata max debe ser mayor que Bronce max (progresión lógica)
+  return d.nivelPlataMax > d.nivelBronceMax;
+}, { message: 'Plata máximo debe ser mayor que Bronce máximo', path: ['nivelPlataMax'] })
+
+.refine((d) => {
+  // Multiplicadores en orden ascendente: Bronce ≤ Plata ≤ Oro
+  const mb = d.nivelBronceMultiplicador;
+  const mp = d.nivelPlataMultiplicador;
+  const mo = d.nivelOroMultiplicador;
+  if (mb === undefined || mp === undefined || mo === undefined) return true;
+  return mb < mp && mp < mo;
+}, { message: 'Los multiplicadores deben ser ascendentes: Bronce < Plata < Oro', path: ['nivelOroMultiplicador'] })
+
+.refine((d) => {
+  // Multiplicadores con máximo 2 decimales
+  const tieneMax2Decimales = (n: number | undefined) => {
+    if (n === undefined) return true;
+    return Math.abs(Math.round(n * 100) - n * 100) < 0.001;
+  };
+  return tieneMax2Decimales(d.nivelBronceMultiplicador)
+    && tieneMax2Decimales(d.nivelPlataMultiplicador)
+    && tieneMax2Decimales(d.nivelOroMultiplicador);
+}, { message: 'Los multiplicadores permiten máximo 2 decimales', path: ['nivelBronceMultiplicador'] });
 
 // =============================================================================
 // SCHEMA: CREAR RECOMPENSA

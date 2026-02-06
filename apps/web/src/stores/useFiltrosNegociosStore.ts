@@ -9,10 +9,37 @@
  * - Calcula cuántos filtros están activos
  * - Proporciona funciones para modificar filtros
  *
+ * ✅FIX: Agregada comparación de igualdad para evitar re-renders infinitos
+ *
  * Ubicación: apps/web/src/stores/useFiltrosNegociosStore.ts
  */
 
 import { create } from 'zustand';
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Compara dos arrays para ver si tienen los mismos elementos
+ * (sin importar el orden)
+ */
+function arraysIguales(arr1: number[], arr2: number[]): boolean {
+  if (arr1.length !== arr2.length) return false;
+  const sorted1 = [...arr1].sort((a, b) => a - b);
+  const sorted2 = [...arr2].sort((a, b) => a - b);
+  return sorted1.every((val, idx) => val === sorted2[idx]);
+}
+
+/**
+ * Compara dos arrays de strings para ver si tienen los mismos elementos
+ */
+function arraysStringsIguales(arr1: string[], arr2: string[]): boolean {
+  if (arr1.length !== arr2.length) return false;
+  const sorted1 = [...arr1].sort();
+  const sorted2 = [...arr2].sort();
+  return sorted1.every((val, idx) => val === sorted2[idx]);
+}
 
 // =============================================================================
 // TIPOS
@@ -126,8 +153,15 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
   /**
    * Cambia la categoría seleccionada
    * Al cambiar categoría, limpia las subcategorías
+   * 
+   * ✅ OPTIMIZACIÓN: Solo actualiza si realmente cambió
    */
   setCategoria: (id) => {
+    const state = get();
+    
+    // ✅ Verificar si realmente cambió
+    if (state.categoria === id) return;
+    
     set({
       categoria: id,
       subcategorias: [], // Limpiar subcategorías al cambiar categoría
@@ -143,16 +177,32 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
     const { subcategorias } = get();
 
     if (subcategorias.includes(id)) {
-      set({ subcategorias: subcategorias.filter((sub) => sub !== id) });
+      // Quitar subcategoría
+      const nuevas = subcategorias.filter((sub) => sub !== id);
+      
+      // ✅ Solo actualizar si el array cambió
+      if (!arraysIguales(subcategorias, nuevas)) {
+        set({ subcategorias: nuevas });
+      }
     } else {
+      // Agregar subcategoría
       set({ subcategorias: [...subcategorias, id] });
     }
   },
 
   /**
    * Reemplaza todas las subcategorías seleccionadas
+   * 
+   * ✅ FIX CRÍTICO: Solo actualiza si el contenido realmente cambió
    */
   setSubcategorias: (ids) => {
+    const state = get();
+    
+    // ✅ Verificar si los arrays son iguales
+    if (arraysIguales(state.subcategorias, ids)) {
+      return; // No hacer nada si son iguales
+    }
+    
     set({ subcategorias: ids });
   },
 
@@ -162,8 +212,15 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
 
   /**
    * Cambia el radio de búsqueda en kilómetros
+   * 
+   * ✅ OPTIMIZACIÓN: Solo actualiza si realmente cambió
    */
   setDistancia: (km) => {
+    const state = get();
+    
+    // ✅ Verificar si realmente cambió
+    if (state.distancia === km) return;
+    
     set({ distancia: km });
   },
 
@@ -181,7 +238,12 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
 
     if (metodosPago.includes(metodo)) {
       // Ya existe → quitarlo
-      set({ metodosPago: metodosPago.filter((m) => m !== metodo) });
+      const nuevos = metodosPago.filter((m) => m !== metodo);
+      
+      // ✅ Solo actualizar si el array cambió
+      if (!arraysStringsIguales(metodosPago, nuevos)) {
+        set({ metodosPago: nuevos });
+      }
     } else {
       // No existe → agregarlo
       set({ metodosPago: [...metodosPago, metodo] });
@@ -190,8 +252,15 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
 
   /**
    * Activa/desactiva el filtro de solo negocios CardYA
+   * 
+   * ✅ OPTIMIZACIÓN: Solo actualiza si realmente cambió
    */
   setSoloCardya: (valor) => {
+    const state = get();
+    
+    // ✅ Verificar si realmente cambió
+    if (state.soloCardya === valor) return;
+    
     set({ soloCardya: valor });
   },
 
@@ -204,8 +273,15 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
 
   /**
    * Activa/desactiva el filtro de solo negocios con envío
+   * 
+   * ✅ OPTIMIZACIÓN: Solo actualiza si realmente cambió
    */
   setConEnvio: (valor) => {
+    const state = get();
+    
+    // ✅ Verificar si realmente cambió
+    if (state.conEnvio === valor) return;
+    
     set({ conEnvio: valor });
   },
 
@@ -222,8 +298,15 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
 
   /**
    * Actualiza el texto de búsqueda
+   * 
+   * ✅ OPTIMIZACIÓN: Solo actualiza si realmente cambió
    */
   setBusqueda: (texto) => {
+    const state = get();
+    
+    // ✅ Verificar si realmente cambió
+    if (state.busqueda === texto) return;
+    
     set({ busqueda: texto });
   },
 
@@ -233,8 +316,15 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
 
   /**
    * Cambia entre vista de lista y vista de mapa
+   * 
+   * ✅ OPTIMIZACIÓN: Solo actualiza si realmente cambió
    */
   setVistaActiva: (vista) => {
+    const state = get();
+    
+    // ✅ Verificar si realmente cambió
+    if (state.vistaActiva === vista) return;
+    
     set({ vistaActiva: vista });
   },
 

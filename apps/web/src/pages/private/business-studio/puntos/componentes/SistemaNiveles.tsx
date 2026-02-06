@@ -107,6 +107,7 @@ function CampoNivel({
   disabled,
   step = 1,
   prefijo = false,
+  error,
 }: {
   inputId: string;
   label: string;
@@ -116,6 +117,7 @@ function CampoNivel({
   disabled: boolean;
   step?: number;
   prefijo?: boolean;
+  error?: string;
 }) {
   // Permitir campo vacío temporalmente para poder borrar con backspace
   const [textoLocal, setTextoLocal] = useState<string>(String(valor));
@@ -127,9 +129,38 @@ function CampoNivel({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
+    // Limitar a 2 decimales en campos decimales (multiplicador)
+    if (step !== 1 && raw.includes('.')) {
+      const decimal = raw.split('.')[1];
+      if (decimal && decimal.length > 2) return; // No permitir más de 2 decimales
+    }
     setTextoLocal(raw);
     if (raw !== '' && !isNaN(Number(raw))) {
       onCambio(Number(raw));
+    }
+  };
+
+  // Bloquear punto y coma en campos enteros (step=1)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (step === 1 && (e.key === '.' || e.key === ',')) {
+      e.preventDefault();
+    }
+  };
+
+  // Bloquear pegado inválido
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pegado = e.clipboardData.getData('text');
+    if (step === 1) {
+      // Campos enteros: no permitir punto ni coma
+      if (pegado.includes('.') || pegado.includes(',')) {
+        e.preventDefault();
+      }
+    } else {
+      // Campos decimales: no permitir más de 2 decimales
+      if (pegado.includes('.')) {
+        const decimal = pegado.split('.')[1];
+        if (decimal && decimal.length > 2) e.preventDefault();
+      }
     }
   };
 
@@ -151,7 +182,7 @@ function CampoNivel({
       </label>
       <div
         className="flex items-center h-9 lg:h-8 2xl:h-9 bg-slate-50 rounded-lg px-2.5 lg:px-2.5 2xl:px-3"
-        style={{ border: '2px solid #e2e8f0' }}
+        style={{ border: error ? '2px solid #ef4444' : '2px solid #e2e8f0' }}
       >
         {prefijo && (
           <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-slate-400 mr-1.5">
@@ -167,10 +198,49 @@ function CampoNivel({
           value={textoLocal}
           onChange={handleChange}
           onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           disabled={disabled}
           className="flex-1 bg-transparent outline-none text-[15px] lg:text-sm 2xl:text-[15px] font-extrabold text-slate-800 w-10 disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
         />
         {!prefijo && (
+          <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-slate-400 ml-1 shrink-0">
+            {sufijo}
+          </span>
+        )}
+      </div>
+      {error && (
+        <span className="text-[10px] lg:text-[9.5px] 2xl:text-[10px] font-semibold text-red-500 mt-0.5">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Campo fijo (no editable) — muestra valor o símbolo como texto gris */
+function CampoFijo({
+  label,
+  texto,
+  sufijo,
+}: {
+  label: string;
+  texto: string;
+  sufijo?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 min-w-0 flex-1 lg:flex-none">
+      <span className="text-[11.5px] lg:text-[11px] 2xl:text-xs font-bold text-slate-500 tracking-wide">
+        {label}
+      </span>
+      <div
+        className="flex items-center h-9 lg:h-8 2xl:h-9 rounded-lg px-2.5 lg:px-2.5 2xl:px-3"
+        style={{ background: '#f8fafc', border: '2px solid #e2e8f0' }}
+      >
+        <span className="text-[15px] lg:text-sm 2xl:text-[15px] font-extrabold text-slate-400">
+          {texto}
+        </span>
+        {sufijo && (
           <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-slate-400 ml-1 shrink-0">
             {sufijo}
           </span>
@@ -189,6 +259,7 @@ function CardNivel({
   mostrarMax,
   onCambio,
   disabled,
+  errores = {},
 }: {
   nombre: string;
   medal: string;
@@ -197,6 +268,7 @@ function CardNivel({
   mostrarMax: boolean;
   onCambio: (campo: 'min' | 'max' | 'multiplicador', valor: number) => void;
   disabled: boolean;
+  errores?: { max?: string; mult?: string };
 }) {
   const s = NIVEL_ESTILOS[tipo];
 
@@ -237,17 +309,16 @@ function CardNivel({
         }
       `}} />
 
-      {/* Campos editables — fila en mobile, columna en desktop */}
+      {/* Campos — fila en mobile, columna en desktop */}
       <div className="p-2.5 lg:p-2 2xl:p-3 flex flex-row lg:flex-col gap-2 lg:gap-1.5 2xl:gap-2 flex-1 items-center lg:items-stretch justify-evenly lg:justify-center">
-        <CampoNivel
-          inputId={`pp-nivel-${tipo}-min`}
+        {/* Mínimo — siempre fijo, auto-calculado */}
+        <CampoFijo
           label="Mínimo"
+          texto={String(valores.min)}
           sufijo="pts"
-          valor={valores.min}
-          onCambio={(v) => onCambio('min', v)}
-          disabled={disabled}
         />
 
+        {/* Máximo — editable en Bronce/Plata, ∞ fijo en Oro */}
         {mostrarMax ? (
           <CampoNivel
             inputId={`pp-nivel-${tipo}-max`}
@@ -256,19 +327,10 @@ function CardNivel({
             valor={valores.max ?? 0}
             onCambio={(v) => onCambio('max', v)}
             disabled={disabled}
+            error={errores.max}
           />
         ) : (
-          <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 min-w-0 flex-1 lg:flex-none">
-            <span className="text-[11.5px] lg:text-[11px] 2xl:text-xs font-bold text-slate-500 tracking-wide">
-              Máximo
-            </span>
-            <div
-              className="flex items-center justify-center h-9 lg:h-8 2xl:h-9 rounded-lg"
-              style={{ background: 'transparent' }}
-            >
-              <span className="text-lg lg:text-base 2xl:text-lg font-extrabold text-slate-400">∞</span>
-            </div>
-          </div>
+          <CampoFijo label="Máximo" texto="∞" />
         )}
 
         <CampoNivel
@@ -280,6 +342,7 @@ function CardNivel({
           disabled={disabled}
           step={0.1}
           prefijo
+          error={errores.mult}
         />
       </div>
     </div>
@@ -295,12 +358,14 @@ export default function SistemaNiveles({
   nivelesActivos,
   onToggleNiveles,
   onCambioNivel,
+  errores = {},
   esGerente,
 }: {
   niveles: { bronce: NivelLocal; plata: NivelLocal; oro: NivelLocal };
   nivelesActivos: boolean;
   onToggleNiveles: () => void;
   onCambioNivel: (nivel: 'bronce' | 'plata' | 'oro', campo: 'min' | 'max' | 'multiplicador', valor: number) => void;
+  errores?: Record<string, string>;
   esGerente: boolean;
 }) {
   return (
@@ -385,6 +450,7 @@ export default function SistemaNiveles({
                 mostrarMax
                 onCambio={(campo, valor) => onCambioNivel('bronce', campo, valor)}
                 disabled={esGerente}
+                errores={{ max: errores.bronceMax, mult: errores.bronceMult }}
               />
               <CardNivel
                 nombre="Plata" medal="🥈" tipo="plata"
@@ -392,6 +458,7 @@ export default function SistemaNiveles({
                 mostrarMax
                 onCambio={(campo, valor) => onCambioNivel('plata', campo, valor)}
                 disabled={esGerente}
+                errores={{ max: errores.plataMax, mult: errores.plataMult }}
               />
               <CardNivel
                 nombre="Oro" medal="🥇" tipo="oro"
@@ -399,6 +466,7 @@ export default function SistemaNiveles({
                 mostrarMax={false}
                 onCambio={(campo, valor) => onCambioNivel('oro', campo, valor)}
                 disabled={esGerente}
+                errores={{ mult: errores.oroMult }}
               />
             </div>
           </div>

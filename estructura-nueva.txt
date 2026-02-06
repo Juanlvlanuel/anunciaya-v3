@@ -152,11 +152,13 @@ apps
       facebook.webp
       favicon.png
       IconoBS.webp
+      IconoChatYA.webp
       IconoScanYA.webp
       instagram.webp
+      logo-anunciaya-azul.webp
       logo-anunciaya-blanco.webp
       logo-anunciaya.webp
-      logo-scanya-blanco.webp
+      logo-ChatYA-blanco.webp
       logo-scanya.webp
       manifest.scanya.json
       og-image.webp
@@ -202,6 +204,7 @@ apps
           Navbar.tsx
           PanelNotificaciones.tsx
           PanelPreviewNegocio.tsx
+          SearchPanel.tsx
           SelectorSucursalesInline.tsx
           WidgetCardYA.tsx
         negocios
@@ -271,6 +274,7 @@ apps
         useOptimisticUpload.ts
         usePerfilNegocio.ts
         usePWAInstallScanYA.ts
+        useScrollDirection.ts
         useSubcategorias.ts
         useTituloDinamico.ts
         useTituloPagina.ts
@@ -323,9 +327,7 @@ apps
                 GraficaVentas.tsx
                 HeaderDashboard.tsx
                 index.ts
-                KPICompacto.tsx
                 KPIPrincipal.tsx
-                KPISecundario.tsx
                 PanelAlertas.tsx
                 PanelCampanas.tsx
                 PanelInteracciones.tsx
@@ -352,6 +354,10 @@ apps
                 usePerfil.ts
               PaginaPerfil.tsx
             puntos
+              componentes
+                CardRecompensa.tsx
+                ModalRecompensa.tsx
+                SistemaNiveles.tsx
               PaginaPuntos.tsx
             transacciones
               PaginaTransacciones.tsx
@@ -396,12 +402,15 @@ apps
         scanyaService.ts
         transaccionesService.ts
       stores
+        useArticulosStore.ts
         useAuthStore.ts
         useClientesStore.ts
         useDashboardStore.ts
         useFiltrosNegociosStore.ts
         useGpsStore.ts
+        useNegociosCacheStore.ts
         useNotificacionesStore.ts
+        useOfertasStore.ts
         useOnboardingStore.ts
         usePuntosStore.ts
         useScanYAStore.ts
@@ -428,6 +437,7 @@ apps
     postcss.config.js
     tailwind.config.js
     tsconfig.json
+    tsconfig.tsbuildinfo
     vercel.json
     vite.config.ts
 docs

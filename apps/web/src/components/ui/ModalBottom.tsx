@@ -321,7 +321,7 @@ export function ModalBottom({
             {mostrarBotonCerrar && (
               <button
                 onClick={handleCerrar}
-                className="p-1.5 lg:p-1 2xl:p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1.5 lg:p-1 2xl:p-1.5 text-slate-400 hover:text-slate-600 rounded-full bg-slate-200 hover:bg-slate-300 lg:bg-transparent lg:hover:bg-slate-100 transition-colors cursor-pointer mr-2 lg:mr-0"
                 aria-label="Cerrar"
               >
                 <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />

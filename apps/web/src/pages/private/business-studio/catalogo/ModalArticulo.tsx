@@ -37,7 +37,8 @@ import {
 } from 'lucide-react';
 import { useOptimisticUpload } from '../../../../hooks/useOptimisticUpload';
 import { Boton } from '../../../../components/ui/Boton';
-import { Modal, ModalImagenes } from '../../../../components/ui';
+import { ModalImagenes } from '../../../../components/ui';
+import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { notificar } from '../../../../utils/notificaciones';
 import type { Articulo, CrearArticuloInput, ActualizarArticuloInput } from '../../../../types/articulos';
 
@@ -70,7 +71,13 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
   const [categoriaNueva, setCategoriaNueva] = useState('');
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const [mostrarInputNueva, setMostrarInputNueva] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({ 
+    top: 0, 
+    left: 0, 
+    width: 0, 
+    maxHeight: 0, 
+    openUpwards: false 
+  });
   const botonRef = useRef<HTMLButtonElement>(null);
   const [precioBase, setPrecioBase] = useState(
     articulo?.precioBase ? Number(articulo.precioBase) : 0
@@ -138,10 +145,31 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
     const updatePosition = () => {
       if (mostrarDropdown && botonRef.current) {
         const rect = botonRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        
+        // Calcular espacio disponible abajo y arriba
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        
+        // Altura mínima deseada para el dropdown (150px ~ 3 items)
+        const minDesiredHeight = 150;
+        
+        // Decidir si abrir hacia arriba o abajo
+        const shouldOpenUpwards = spaceBelow < minDesiredHeight && spaceAbove > spaceBelow;
+        
+        // Calcular altura máxima disponible (dejando 20px de margen)
+        const maxHeight = shouldOpenUpwards 
+          ? Math.min(spaceAbove - 20, 300) // Máximo 300px hacia arriba
+          : Math.min(spaceBelow - 20, 300); // Máximo 300px hacia abajo
+        
         setDropdownPosition({
-          top: rect.bottom + window.scrollY + 4,
+          top: shouldOpenUpwards 
+            ? rect.top + window.scrollY - maxHeight - 4 // Abrir hacia arriba
+            : rect.bottom + window.scrollY + 4, // Abrir hacia abajo (default)
           left: rect.left + window.scrollX,
-          width: rect.width
+          width: rect.width,
+          maxHeight,
+          openUpwards: shouldOpenUpwards
         });
       }
     };
@@ -258,10 +286,11 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
   return (
     <>
       {/* Modal Principal */}
-      <Modal
+      <ModalAdaptativo
         abierto={true}
         onCerrar={onCerrar}
         titulo={esEdicion ? 'Editar Artículo' : 'Nuevo Artículo'}
+        iconoTitulo={<Package className="w-5 h-5 text-blue-600" />}
         ancho="xl"
         paddingContenido="none"
         className="max-w-xs lg:max-w-2xl 2xl:max-w-4xl"
@@ -281,7 +310,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                         : 'border-slate-200 hover:border-slate-300 text-slate-600'
                       }`}
                   >
-                    <Package className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6" />
+                    <Package className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6" />
                     Producto
                   </button>
                   <button
@@ -292,7 +321,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                         : 'border-slate-200 hover:border-slate-300 text-slate-600'
                       }`}
                   >
-                    <Wrench className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6" />
+                    <Wrench className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6" />
                     Servicio
                   </button>
                 </div>
@@ -318,7 +347,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                       onClick={() => imagen.reset()}
                       className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 2xl:top-2 2xl:right-2 bg-red-500 text-white p-1 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-red-600 transition-colors cursor-pointer"
                     >
-                      <X className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
+                      <X className="w-5 h-5 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
                     </button>
                   </>
                 ) : (
@@ -348,7 +377,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                       : 'border-slate-300 bg-white text-slate-600'
                     }`}
                 >
-                  {disponible ? <Eye className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6" /> : <EyeOff className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6" />}
+                  {disponible ? <Eye className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6" /> : <EyeOff className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6" />}
                   {disponible ? 'Visible' : 'Oculto'}
                 </button>
                 <button
@@ -359,7 +388,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                       : 'border-slate-300 bg-white text-slate-600'
                     }`}
                 >
-                  <Star className={`w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6 ${destacado ? 'fill-current' : ''}`} />
+                  <Star className={`w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-6 2xl:h-6 ${destacado ? 'fill-current' : ''}`} />
                   Destacado
                 </button>
               </div>
@@ -367,43 +396,11 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
 
             {/* Columna Derecha - Formulario */}
             <div className="lg:w-3/5 p-2.5 lg:p-2 2xl:p-5 space-y-2 lg:space-y-2.5 2xl:space-y-4">
-              {/* Nombre */}
-              <div>
-                <label htmlFor="input-nombre-articulo" className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1 lg:mb-1 2xl:mb-1.5">
-                  Nombre <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="input-nombre-articulo"
-                  name="input-nombre-articulo"
-                  type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder={`Nombre del ${tipo}`}
-                  maxLength={100}
-                  className="w-full px-2.5 lg:px-2.5 2xl:px-3 py-1.5 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
-                />
-              </div>
-
-              {/* Descripción */}
-              <div>
-                <label htmlFor="textarea-descripcion-articulo" className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1 lg:mb-1 2xl:mb-1.5">Descripción (opcional) </label>
-                <textarea
-                  id="textarea-descripcion-articulo"
-                  name="textarea-descripcion-articulo"
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                  placeholder="Descripción breve..."
-                  rows={2}
-                  maxLength={500}
-                  className="w-full px-2.5 lg:px-2.5 2xl:px-3 py-1.5 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm lg:text-xs 2xl:text-sm"
-                />
-              </div>
-
               {/* Fila: Categoría + Precio */}
               <div className="grid grid-cols-2 gap-2 lg:gap-2 2xl:gap-3">
                 {/* Categoría */}
                 <div className="relative dropdown-categoria">
-                  <span className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+                  <span className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                     Categoría
                   </span>
 
@@ -414,33 +411,49 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                     onClick={() => {
                       if (!mostrarDropdown && botonRef.current) {
                         const rect = botonRef.current.getBoundingClientRect();
+                        const viewportHeight = window.innerHeight;
+                        
+                        const spaceBelow = viewportHeight - rect.bottom;
+                        const spaceAbove = rect.top;
+                        const minDesiredHeight = 150;
+                        
+                        const shouldOpenUpwards = spaceBelow < minDesiredHeight && spaceAbove > spaceBelow;
+                        const maxHeight = shouldOpenUpwards 
+                          ? Math.min(spaceAbove - 20, 300)
+                          : Math.min(spaceBelow - 20, 300);
+                        
                         setDropdownPosition({
-                          top: rect.bottom + window.scrollY + 4,
+                          top: shouldOpenUpwards 
+                            ? rect.top + window.scrollY - maxHeight - 4
+                            : rect.bottom + window.scrollY + 4,
                           left: rect.left + window.scrollX,
-                          width: rect.width
+                          width: rect.width,
+                          maxHeight,
+                          openUpwards: shouldOpenUpwards
                         });
                       }
                       setMostrarDropdown(!mostrarDropdown);
                     }}
-                    className="w-full flex items-center justify-between px-3 py-1.5 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm bg-white cursor-pointer"
+                    className="w-full flex items-center justify-between px-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm bg-white cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
-                      <Tag className="w-4 h-4 text-slate-400" />
+                      <Tag className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-slate-400" />
                       <span className={categoria ? 'text-slate-700' : 'text-slate-400'}>
                         {categoria || 'Selecciona una categoría'}
                       </span>
                     </div>
-                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${mostrarDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-slate-400 transition-transform ${mostrarDropdown ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Dropdown menu */}
                   {mostrarDropdown && createPortal(
                     <div
-                      className="fixed z-9999 bg-white border-2 border-slate-300 rounded-lg shadow-xl max-h-60 overflow-y-auto overscroll-contain dropdown-categoria"
+                      className="fixed z-9999 bg-white border-2 border-slate-300 rounded-lg shadow-xl overflow-hidden dropdown-categoria flex flex-col"
                       style={{
                         top: `${dropdownPosition.top}px`,
                         left: `${dropdownPosition.left}px`,
                         width: `${dropdownPosition.width}px`,
+                        maxHeight: `${dropdownPosition.maxHeight}px`,
                         touchAction: 'pan-y'
                       }}
                     >
@@ -497,42 +510,41 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                         </div>
                       ) : (
                         <>
-                          {/* Categorías existentes */}
-                          {categoriasExistentes.length > 0 && (
-                            <div className="py-1">
-                              {categoriasExistentes.map((cat) => (
-                                <button
-                                  key={cat}
-                                  type="button"
-                                  onClick={() => {
-                                    setCategoria(cat);
-                                    setMostrarDropdown(false);
-                                  }}
-                                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-100 text-left text-sm lg:text-xs 2xl:text-sm cursor-pointer"
-                                >
-                                  <span className="text-slate-700">{cat}</span>
-                                  {categoria === cat && (
-                                    <Check className="w-4 h-4 text-blue-600" />
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                          {/* Área con scroll - Categorías existentes */}
+                          <div className="flex-1 overflow-y-auto overscroll-contain">
+                            {categoriasExistentes.length > 0 && (
+                              <div className="py-1">
+                                {categoriasExistentes.map((cat) => (
+                                  <button
+                                    key={cat}
+                                    type="button"
+                                    onClick={() => {
+                                      setCategoria(cat);
+                                      setMostrarDropdown(false);
+                                    }}
+                                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-100 text-left text-sm lg:text-xs 2xl:text-sm cursor-pointer"
+                                  >
+                                    <span className="text-slate-700">{cat}</span>
+                                    {categoria === cat && (
+                                      <Check className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-blue-600" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
-                          {/* Separador si hay categorías */}
-                          {categoriasExistentes.length > 0 && (
-                            <div className="border-t border-slate-200" />
-                          )}
-
-                          {/* Opción nueva categoría */}
-                          <button
-                            type="button"
-                            onClick={() => setMostrarInputNueva(true)}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-100 text-left text-sm lg:text-xs 2xl:text-sm text-blue-600 font-medium cursor-pointer"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Nueva categoría
-                          </button>
+                          {/* Botón Nueva Categoría - SIEMPRE VISIBLE (sticky al final) */}
+                          <div className="border-t border-slate-200 bg-white">
+                            <button
+                              type="button"
+                              onClick={() => setMostrarInputNueva(true)}
+                              className="w-full flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-left text-sm lg:text-xs 2xl:text-sm text-blue-600 font-semibold cursor-pointer transition-colors whitespace-nowrap"
+                            >
+                              <Plus className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 shrink-0" />
+                              Agregar nueva
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>,
@@ -542,11 +554,11 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
 
                 {/* Precio */}
                 <div>
-                  <label htmlFor="input-precio-articulo" className="block text-xs 2xl:text-base font-bold text-slate-700 mb-1 lg:mb-1 2xl:mb-1.5">
+                  <label htmlFor="input-precio-articulo" className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">
                     Precio <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 lg:left-2 2xl:left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm lg:text-xs 2xl:text-sm">$</span>
+                    <span className="absolute left-2.5 lg:left-2 2xl:left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl lg:text-xs 2xl:text-sm">$</span>
                     <input
                       id="input-precio-articulo"
                       name="input-precio-articulo"
@@ -556,10 +568,42 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                       placeholder="0.00"
                       min="0"
                       step="0.01"
-                      className="w-full pl-6 lg:pl-5 2xl:pl-7 pr-2 lg:pr-2 2xl:pr-3 py-1.5 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
+                      className="w-full pl-6 lg:pl-5 2xl:pl-7 pr-2 lg:pr-2 2xl:pr-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Nombre */}
+              <div>
+                <label htmlFor="input-nombre-articulo" className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1 lg:mb-1 2xl:mb-1.5">
+                  Nombre <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="input-nombre-articulo"
+                  name="input-nombre-articulo"
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder={`Nombre del ${tipo}`}
+                  maxLength={100}
+                  className="w-full px-2.5 lg:px-2.5 2xl:px-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
+                />
+              </div>
+
+              {/* Descripción */}
+              <div>
+                <label htmlFor="textarea-descripcion-articulo" className="block text-sm lg:text-xs 2xl:text-base font-bold text-slate-700 mb-1 lg:mb-1 2xl:mb-1.5">Descripción (opcional) </label>
+                <textarea
+                  id="textarea-descripcion-articulo"
+                  name="textarea-descripcion-articulo"
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                  placeholder="Descripción breve..."
+                  rows={2}
+                  maxLength={500}
+                  className="w-full px-2.5 lg:px-2.5 2xl:px-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm lg:text-xs 2xl:text-sm"
+                />
               </div>
 
               {/* Precio desde */}
@@ -578,7 +622,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
               </label>
 
               {/* Botones */}
-              <div className="flex gap-2 lg:gap-2 2xl:gap-3 pt-1 lg:pt-1 2xl:pt-2">
+              <div className="flex gap-2 lg:gap-2 2xl:gap-3 pt-3 lg:pt-1 2xl:pt-2">
                 <Boton variante="outline" onClick={onCerrar} className="flex-1 lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer" disabled={guardando}>
                   Cancelar
                 </Boton>
@@ -594,7 +638,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
               </div>
             </div>
           </form>
-        </Modal>
+        </ModalAdaptativo>
 
 
       {/* ✅ Modal Universal de Imágenes */}

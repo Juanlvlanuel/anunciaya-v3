@@ -18,9 +18,10 @@
  * ACTUALIZADO: Enero 2026 - Grid 1 columna en móvil para layout horizontal
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Tag, ChevronRight } from 'lucide-react';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { api } from '@/services/api';
 import OfertaCard, { OfertaCardStyles } from './OfertaCard';
 import ModalOfertas from './ModalOfertas';
 import ModalOfertaDetalle from './ModalOfertaDetalle';
@@ -88,7 +89,70 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, class
     const ofertasRestantes = ofertasOrdenadas.length - ofertasVisiblesCount;
     const tienemasOfertas = ofertasRestantes > 0;
 
+    // ✅ Registrar vistas SOLO de ofertas visibles en el grid
+    useEffect(() => {
+        if (ofertasVisibles.length === 0) return;
+
+        // Registrar vista para cada oferta visible (solo 1 vez por sesión)
+        ofertasVisibles.forEach((oferta) => {
+            const ofertaId = getId(oferta);
+            const claveVista = `vista_oferta_${ofertaId}`;
+            const claveEnProgreso = `vista_oferta_${ofertaId}_registrando`;
+            
+            // Si ya se registró O está en proceso, skip
+            if (sessionStorage.getItem(claveVista) || sessionStorage.getItem(claveEnProgreso)) {
+                return;
+            }
+
+            // Marcar como "en progreso" para evitar duplicados en Strict Mode
+            sessionStorage.setItem(claveEnProgreso, 'true');
+            
+            api.post('/metricas/view', {
+                entityType: 'oferta',
+                entityId: ofertaId
+            })
+            .then(() => {
+                // Marcar como completado y remover flag "en progreso"
+                sessionStorage.setItem(claveVista, new Date().toISOString());
+                sessionStorage.removeItem(claveEnProgreso);
+            })
+            .catch(() => {
+                // Remover flag "en progreso" para permitir reintento
+                sessionStorage.removeItem(claveEnProgreso);
+            });
+        });
+    }, [ofertasVisibles]);
+
     const handleClickOferta = (oferta: Oferta) => {
+        const ofertaId = getId(oferta);
+        const claveClick = `click_oferta_${ofertaId}`;
+        
+        console.log('🖱️ Click en oferta:', oferta.titulo);
+        console.log('🔑 Clave click:', claveClick);
+        console.log('📦 Ya registrado?:', sessionStorage.getItem(claveClick));
+        
+        // Registrar click (solo 1 vez por oferta por sesión)
+        if (!sessionStorage.getItem(claveClick)) {
+            console.log('📤 Registrando click...');
+            
+            api.post('/metricas/click', {
+                entityType: 'oferta',
+                entityId: ofertaId
+            })
+            .then((response) => {
+                console.log('✅ Click registrado exitosamente');
+                console.log('📊 Respuesta:', response.data);
+                sessionStorage.setItem(claveClick, new Date().toISOString());
+            })
+            .catch((error) => {
+                console.error('❌ Error registrando click:', error);
+                console.error('❌ Response:', error.response);
+            });
+        } else {
+            console.log('⏭️ Click ya registrado en esta sesión');
+        }
+
+        // Abrir modal de detalle
         setOfertaSeleccionada(oferta);
     };
 

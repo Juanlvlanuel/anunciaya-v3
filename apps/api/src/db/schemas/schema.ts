@@ -1479,6 +1479,8 @@ export const puntosConfiguracion = pgTable("puntos_configuracion", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	negocioId: uuid("negocio_id").notNull(),
 	puntosPorPeso: numeric("puntos_por_peso", { precision: 10, scale: 4 }).default('1.0').notNull(),
+	pesosOriginales: integer("pesos_originales"),
+	puntosOriginales: integer("puntos_originales"),
 	minimoCompra: numeric("minimo_compra", { precision: 10, scale: 2 }).default('0').notNull(),
 	diasExpiracionPuntos: integer("dias_expiracion_puntos").default(90),
 	diasExpiracionVoucher: integer("dias_expiracion_voucher").default(30).notNull(),

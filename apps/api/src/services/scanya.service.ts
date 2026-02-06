@@ -46,6 +46,7 @@ import {
     obtenerSucursalesNegocio,
     listarOperadoresNegocio
 } from './negocios.service.js';
+import { verificarExpiraciones, expirarVouchersVencidos } from './puntos.service.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -1209,6 +1210,33 @@ export async function identificarCliente(
                 )
             )
             .limit(1);
+
+        // -------------------------------------------------------------------------
+        // Paso 2b: Verificar expiraciones (puntos por inactividad + vouchers)
+        // -------------------------------------------------------------------------
+        if (billetera) {
+            await verificarExpiraciones(cliente.id, payload.negocioId);
+
+            // Re-consultar billetera después de posibles expiraciones
+            const [billeteraActualizada] = await db
+                .select({
+                    puntosDisponibles: puntosBilletera.puntosDisponibles,
+                    puntosAcumuladosTotal: puntosBilletera.puntosAcumuladosTotal,
+                    nivelActual: puntosBilletera.nivelActual,
+                })
+                .from(puntosBilletera)
+                .where(
+                    and(
+                        eq(puntosBilletera.usuarioId, cliente.id),
+                        eq(puntosBilletera.negocioId, payload.negocioId)
+                    )
+                )
+                .limit(1);
+
+            if (billeteraActualizada) {
+                Object.assign(billetera, billeteraActualizada);
+            }
+        }
 
         // -------------------------------------------------------------------------
         // Paso 3: Retornar datos
@@ -2525,6 +2553,9 @@ export async function obtenerVouchersPendientes(
     total: number;
 }>> {
     try {
+        // Expirar vouchers vencidos + auto-reembolso antes de listar
+        await expirarVouchersVencidos(payload.negocioId);
+
         const vouchers = await db
             .select({
                 id: vouchersCanje.id,
@@ -2617,18 +2648,9 @@ export async function obtenerVouchers(
 }>> {
     try {
         // -------------------------------------------------------------------------
-        // Paso 0: Auto-actualizar vouchers vencidos por fecha
+        // Paso 0: Expirar vouchers vencidos + auto-reembolso de puntos
         // -------------------------------------------------------------------------
-        await db
-            .update(vouchersCanje)
-            .set({ estado: 'expirado' })
-            .where(
-                and(
-                    eq(vouchersCanje.negocioId, payload.negocioId),
-                    eq(vouchersCanje.estado, 'pendiente'),
-                    sql`${vouchersCanje.expiraAt} < NOW()`
-                )
-            );
+        await expirarVouchersVencidos(payload.negocioId);
         // -------------------------------------------------------------------------
         // Paso 1: Construir condiciones base según rol
         // -------------------------------------------------------------------------
@@ -2889,6 +2911,30 @@ export async function buscarClienteConVouchers(
                 message: 'El cliente aún no tiene puntos en este negocio',
                 code: 200,
             };
+        }
+
+        // -------------------------------------------------------------------------
+        // Paso 2b: Verificar expiraciones (puntos + vouchers vencidos)
+        // -------------------------------------------------------------------------
+        await verificarExpiraciones(usuario.id, payload.negocioId);
+
+        // Re-consultar billetera después de posibles expiraciones
+        const [billeteraActualizada] = await db
+            .select({
+                puntosDisponibles: puntosBilletera.puntosDisponibles,
+                nivelActual: puntosBilletera.nivelActual,
+            })
+            .from(puntosBilletera)
+            .where(
+                and(
+                    eq(puntosBilletera.usuarioId, usuario.id),
+                    eq(puntosBilletera.negocioId, payload.negocioId)
+                )
+            )
+            .limit(1);
+
+        if (billeteraActualizada) {
+            Object.assign(billetera, billeteraActualizada);
         }
 
         // -------------------------------------------------------------------------

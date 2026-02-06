@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 30 Enero 2026  
-> **Progreso global:** 81% completado  
-> **Fase actual:** 5.5 ScanYA (87.5%)
+> **Última actualización:** 5 Febrero 2026  
+> **Progreso global:** 84% completado  
+> **Fase actual:** 5.7 CardYA (siguiente)
 
 ---
 
@@ -12,9 +12,9 @@
 |--------|----------|-----------------|
 | **Fundamentos** (Fases 1-4) | ✅ 100% | - |
 | **Backend + Negocios** (5.0-5.3) | ✅ 100% | - |
-| **Business Studio** (5.4) | ⏳ 27% (4/15 módulos) | ~24 días |
-| **ScanYA + PWA** (5.5) | ✅ 87.5% | Config pendiente |
-| **Sistema Lealtad** (5.6-5.11) | ⏳ 0% | ~2-3 semanas |
+| **Business Studio** (5.4) | ⏳ 33% (5/15 módulos) | ~24 días |
+| **ScanYA + PWA** (5.5) | ✅ 93.75% | Fase 14 pausada (ChatYA) |
+| **Sistema Lealtad** (5.6-5.11) | ⏳ 30% (Config Puntos ✅) | ~2 semanas |
 | **Secciones Públicas + BS** (6.x) | ⏳ 0% | ~3-4 semanas |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | ~1-2 semanas |
 
@@ -25,7 +25,7 @@
 **Q1 (Enero-Marzo):**
 - [x] Sistema ScanYA completo
 - [x] Migración cloud $0/mes
-- [x] Business Studio Base (4/15 módulos)
+- [x] Business Studio Base (5/15 módulos)
 - [ ] Business Studio 80% completo (12/15 módulos)
 - [ ] Sistema CardYA completo
 - [ ] ChatYA base operativo
@@ -42,24 +42,24 @@
 
 ## 🚀 Próximos Sprints
 
-### Sprint 1: BS > 5.6.- Puntos Config (~3 días) ⚠️ CRÍTICO
+### Sprint 1: BS > 5.6.- Puntos Config ✅ COMPLETADO (5 Feb 2026)
 
 **Objetivo:** Permitir a dueños configurar sistema de puntos sin tocar código
 
-**Features Core:**
-- Configurar valor del punto (1 punto = $X pesos)
-- Activar/desactivar niveles CardYA
-- Configurar multiplicadores (Bronce/Plata/Oro)
-- Simulador acumulación puntos
-- Dashboard estadísticas puntos otorgados
-- Modal QR instalación ScanYA para empleados
+**Implementado:**
+- [x] Configurar valor del punto (1 punto = $X pesos)
+- [x] Activar/desactivar niveles CardYA
+- [x] Configurar multiplicadores (Bronce/Plata/Oro)
+- [x] Configurar expiración de puntos y vouchers
+- [x] CRUD completo de recompensas
+- [x] Sistema de expiración en tiempo real (sin cron jobs)
+- [x] Auto-reembolso de puntos en vouchers vencidos
+- [x] Manejo correcto de zona horaria del negocio
 
-**Criterios de Éxito:**
-- [ ] Configuración funciona sin código
-- [ ] Simulador calcula correctamente
-- [ ] Estadísticas visibles en tiempo real
-
-**Razón Crítica:** Actualmente dueños NO pueden configurar sin tocar código
+**Pendiente para futuro sprint:**
+- [ ] Simulador acumulación puntos
+- [ ] Dashboard estadísticas puntos otorgados
+- [ ] Modal QR instalación ScanYA para empleados
 
 ---
 
@@ -168,15 +168,16 @@
 
 ## 📅 Backlog Priorizado
 
-### Business Studio - Módulos Pendientes (11/15)
+### Business Studio - Módulos Pendientes (10/15)
 
-**Completados (4/15):**
+**Completados (5/15):**
 - ✅ Dashboard
 - ✅ Mi Perfil  
 - ✅ Catálogo
 - ✅ Ofertas
+- ✅ Puntos (Config + Expiración + Recompensas)
 
-**Pendientes (11/15):**
+**Pendientes (10/15):**
 
 | # | Módulo | Tiempo Estimado | Depende de | Descripción |
 |---|--------|-----------------|------------|-------------|
@@ -185,7 +186,7 @@
 | 4 | **Opiniones** | ~3 días | Transacciones + Clientes | Ver y responder reseñas desde BS y ScanYA |
 | 5 | **Alertas** | ~1 día | - | Notificaciones configurables (ventas, cupones) |
 | 8 | **Cupones** | ~3 días | ScanYA ✅ | CRUD cupones, validación, cuponera usuario |
-| 9 | **Puntos** | ~3 días | CardYA | Configuración valores, simulador, estadísticas |
+| 9 | **Puntos** | ✅ Completado | - | Config base + expiración + recompensas (5 Feb 2026) |
 | 10 | **Rifas** | ~2 días | Dinámicas | Gestión rifas del negocio |
 | 11 | **Empleados** | ~2 días | ScanYA ✅ | Gestión empleados, Nick+PIN, permisos |
 | 12 | **Vacantes** | ~2 días | Empleos | Publicar/gestionar ofertas de empleo |
@@ -309,7 +310,7 @@
 |------|-----------------|
 | Sprint 1-6 (Sistema Lealtad + Chat) | ~20-25 días |
 | Secciones Públicas (6.0-6.3) | ~10-13 días |
-| BS Módulos Pendientes (11/15) | ~24 días |
+| BS Módulos Pendientes (10/15) | ~24 días |
 | Pre-lanzamiento (7.1) | ~5 días |
 | Beta (7.2) | ~21 días |
 | **TOTAL OPTIMISTA** | **~12-14 semanas** |

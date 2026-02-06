@@ -208,7 +208,6 @@ export function VistaRecuperar({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('recuperar.correoPlaceholder')}
                 className={getInputClasses(email, emailValido)}
-                autoFocus
               />
             </div>
           </div>
@@ -261,7 +260,6 @@ export function VistaRecuperar({
                 placeholder={t('recuperar.codigoPlaceholder')}
                 maxLength={6}
                 className={getInputClasses(codigo, codigoValido)}
-                autoFocus
               />
             </div>
           </div>
@@ -292,7 +290,7 @@ export function VistaRecuperar({
 
             {/* Requisitos simplificados - texto más grande */}
             <div className={`flex items-center gap-2 mt-2 text-base ${passwordValida ? 'text-green-600' : 'text-gray-500'}`}>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${passwordValida ? 'bg-green-500 border-green-500' : 'border-gray-300'
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${passwordValida ? 'bg-green-500 border-green-500' : 'border-gray-300'
                 }`}>
                 {passwordValida && <Check size={12} className="text-white" />}
               </div>

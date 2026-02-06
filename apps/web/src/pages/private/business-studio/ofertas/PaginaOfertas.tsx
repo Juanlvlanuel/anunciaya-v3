@@ -469,7 +469,7 @@ export function PaginaOfertas() {
                                 >
                                     <Tag className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
                                 </div>
-                                <div>
+                                <div className="text-left">
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
                                     <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Total</div>
                                 </div>
@@ -630,12 +630,12 @@ export function PaginaOfertas() {
                                         ...prev,
                                         tipo: prev.tipo === value ? 'todos' : value as TipoOferta
                                     }))}
-                                    className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium transition-all cursor-pointer ${filtros.tipo === value
+                                    className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-sm lg:text-sm font-medium transition-all cursor-pointer ${filtros.tipo === value
                                         ? 'bg-blue-500 text-white lg:scale-105 shadow-lg'
                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                 >
-                                    <Icon className="w-3.5 h-3.5" />
+                                    <Icon className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                                     {label}
                                 </button>
                             ))}
@@ -644,9 +644,9 @@ export function PaginaOfertas() {
                             {hayFiltrosActivos && (
                                 <button
                                     onClick={limpiarFiltros}
-                                    className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-xs lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all cursor-pointer"
+                                    className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-sm lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all cursor-pointer"
                                 >
-                                    <X className="w-3.5 h-3.5" />
+                                    <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                                     Limpiar
                                 </button>
                             )}

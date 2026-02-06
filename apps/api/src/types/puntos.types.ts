@@ -23,6 +23,8 @@ export interface RespuestaServicio<T = unknown> {
 
 export interface ConfigPuntosCompleta {
   puntosPorPeso: number;
+  pesosOriginales?: number;      // Valor exacto que escribió el usuario (ej: 250)
+  puntosOriginales?: number;     // Valor exacto que escribió el usuario (ej: 35)
   diasExpiracionPuntos: number | null;
   diasExpiracionVoucher: number;
   activo: boolean;

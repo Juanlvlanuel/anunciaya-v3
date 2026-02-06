@@ -43,6 +43,9 @@ interface DropdownCompartirProps {
 
     /** Clase adicional para el botón trigger */
     className?: string;
+
+    /** Callback que se ejecuta cuando el usuario comparte (para métricas) */
+    onShare?: () => void;
 }
 
 interface DropdownPosition {
@@ -59,6 +62,7 @@ export function DropdownCompartir({
     texto,
     variante = 'hero',
     className = '',
+    onShare,
 }: DropdownCompartirProps) {
     // Estados
     const [abierto, setAbierto] = useState(false);
@@ -105,16 +109,39 @@ export function DropdownCompartir({
     const compartirWhatsApp = () => {
         const mensaje = `${texto}\n\n${url}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+        
+        // Ejecutar callback de métricas
+        if (onShare) {
+            onShare();
+        }
+        
         cerrar();
     };
 
     const compartirFacebook = () => {
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+        console.log('🔵 compartirFacebook ejecutado');
+        console.log('📍 URL:', url);
+        
+        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+        console.log('📍 Facebook URL:', fbUrl);
+        
+        window.open(fbUrl, '_blank');
+        
+        if (onShare) {
+            onShare();
+        }
+        
         cerrar();
     };
 
     const compartirTwitter = () => {
         window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(texto)}&url=${encodeURIComponent(url)}`, '_blank');
+        
+        // Ejecutar callback de métricas
+        if (onShare) {
+            onShare();
+        }
+        
         cerrar();
     };
 
@@ -122,6 +149,11 @@ export function DropdownCompartir({
         try {
             await navigator.clipboard.writeText(url);
             notificar.exito('¡Enlace copiado!');
+            
+            // Ejecutar callback de métricas
+            if (onShare) {
+                onShare();
+            }
         } catch {
             notificar.error('No se pudo copiar el enlace');
         }

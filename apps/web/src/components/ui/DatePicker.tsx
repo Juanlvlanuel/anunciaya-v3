@@ -250,19 +250,62 @@ export function DatePicker({
                     className="fixed bg-white rounded-lg shadow-2xl border-2 border-slate-200"
                     style={{
                         zIndex: 9999,
-                        top: contenedorRef.current
-                            ? contenedorRef.current.getBoundingClientRect().bottom + 4
-                            : 0,
-                        left: contenedorRef.current
-                            ? contenedorRef.current.getBoundingClientRect().left
-                            : 0,
-                        width: contenedorRef.current
-                            ? contenedorRef.current.getBoundingClientRect().width
-                            : 'auto',
-                        // Padding proporcional al ancho (2-3%)
-                        padding: contenedorRef.current
-                            ? `${Math.max(8, contenedorRef.current.getBoundingClientRect().width * 0.025)}px`
-                            : '8px'
+                        ...(() => {
+                            if (!contenedorRef.current) return { top: 0, left: 0 };
+                            const rect = contenedorRef.current.getBoundingClientRect();
+                            const isMobile = window.innerWidth < 1024;
+                            
+                            // Dimensiones del calendario
+                            const anchoCalendario = isMobile ? 240 : rect.width;
+                            const alturaEstimada = 280;
+                            
+                            // Detectar espacio disponible en todas direcciones
+                            const espacioAbajo = window.innerHeight - rect.bottom;
+                            const espacioArriba = rect.top;
+                            const espacioDerecha = window.innerWidth - rect.left;
+                            
+                            // Decidir si abre arriba o abajo
+                            const abreArriba = espacioAbajo < alturaEstimada && espacioArriba > espacioAbajo;
+                            
+                            // Decidir posición horizontal (solo móvil)
+                            let leftPosition = rect.left;
+                            if (isMobile) {
+                                // Si no cabe a la derecha, alinear el borde DERECHO del calendario con el borde DERECHO del input
+                                if (espacioDerecha < anchoCalendario) {
+                                    leftPosition = rect.right - anchoCalendario;
+                                }
+                                // Asegurar que no se salga por la izquierda del viewport
+                                if (leftPosition < 8) {
+                                    leftPosition = 8;
+                                }
+                                // Asegurar que no se salga por la derecha del viewport
+                                if (leftPosition + anchoCalendario > window.innerWidth - 8) {
+                                    leftPosition = window.innerWidth - anchoCalendario - 8;
+                                }
+                            }
+                            
+                            return {
+                                top: abreArriba ? undefined : rect.bottom + 4,
+                                bottom: abreArriba ? (window.innerHeight - rect.top + 4) : undefined,
+                                left: leftPosition,
+                            };
+                        })(),
+                        width: (() => {
+                            if (!contenedorRef.current) return 'auto';
+                            const isMobile = window.innerWidth < 1024;
+                            // Móvil: 240px fijo | Laptop+: ancho del input
+                            return isMobile 
+                                ? '240px' 
+                                : `${contenedorRef.current.getBoundingClientRect().width}px`;
+                        })(),
+                        // Padding: más grande en móvil
+                        padding: (() => {
+                            if (!contenedorRef.current) return '8px';
+                            const isMobile = window.innerWidth < 1024;
+                            return isMobile 
+                                ? '8px' 
+                                : `${Math.max(8, contenedorRef.current.getBoundingClientRect().width * 0.025)}px`;
+                        })()
                     }}
                 >
                     {/* Header - Navegación mes/año */}
@@ -287,11 +330,11 @@ export function DatePicker({
                             <ChevronLeft
                                 style={{
                                     width: contenedorRef.current
-                                        ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.08)}px`
-                                        : '12px',
+                                        ? `${Math.max(16, contenedorRef.current.getBoundingClientRect().width * 0.085)}px`
+                                        : '16px',
                                     height: contenedorRef.current
-                                        ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.08)}px`
-                                        : '12px'
+                                        ? `${Math.max(16, contenedorRef.current.getBoundingClientRect().width * 0.085)}px`
+                                        : '16px'
                                 }}
                                 className="text-slate-600"
                             />
@@ -300,8 +343,8 @@ export function DatePicker({
                             className="font-bold text-slate-800"
                             style={{
                                 fontSize: contenedorRef.current
-                                    ? `${Math.max(10, contenedorRef.current.getBoundingClientRect().width * 0.065)}px`
-                                    : '10px'
+                                    ? `${Math.max(13, contenedorRef.current.getBoundingClientRect().width * 0.07)}px`
+                                    : '13px'
                             }}
                         >
                             {MESES[mesActual]} {añoActual}
@@ -319,10 +362,10 @@ export function DatePicker({
                             <ChevronRight
                                 style={{
                                     width: contenedorRef.current
-                                        ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.08)}px`
+                                        ? `${Math.max(16, contenedorRef.current.getBoundingClientRect().width * 0.085)}px`
                                         : '12px',
                                     height: contenedorRef.current
-                                        ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.08)}px`
+                                        ? `${Math.max(16, contenedorRef.current.getBoundingClientRect().width * 0.085)}px`
                                         : '12px'
                                 }}
                                 className="text-slate-600"
@@ -348,8 +391,8 @@ export function DatePicker({
                                 className="text-center font-bold text-slate-500"
                                 style={{
                                     fontSize: contenedorRef.current
-                                        ? `${Math.max(8, contenedorRef.current.getBoundingClientRect().width * 0.055)}px`
-                                        : '8px',
+                                        ? `${Math.max(10, contenedorRef.current.getBoundingClientRect().width * 0.055)}px`
+                                        : '10px',
                                     padding: contenedorRef.current
                                         ? `${Math.max(2, contenedorRef.current.getBoundingClientRect().width * 0.008)}px`
                                         : '2px'
@@ -397,8 +440,8 @@ export function DatePicker({
                                     `}
                                     style={{
                                         fontSize: contenedorRef.current
-                                            ? `${Math.max(10, contenedorRef.current.getBoundingClientRect().width * 0.065)}px`
-                                            : '10px'
+                                            ? `${Math.max(13, contenedorRef.current.getBoundingClientRect().width * 0.065)}px`
+                                            : '13px'
                                     }}
                                 >
                                     {dia}
@@ -428,11 +471,11 @@ export function DatePicker({
                             className="flex-1 font-semibold text-slate-600 hover:bg-slate-200 rounded transition-colors cursor-pointer"
                             style={{
                                 fontSize: contenedorRef.current
-                                    ? `${Math.max(9, contenedorRef.current.getBoundingClientRect().width * 0.055)}px`
-                                    : '9px',
+                                    ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.06)}px`
+                                    : '12px',
                                 padding: contenedorRef.current
-                                    ? `${Math.max(4, contenedorRef.current.getBoundingClientRect().width * 0.015)}px`
-                                    : '4px'
+                                    ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
+                                    : '6px'
                             }}
                         >
                             Limpiar
@@ -443,11 +486,11 @@ export function DatePicker({
                             className="flex-1 font-semibold text-blue-600 bg-blue-50 hover:bg-blue-200 rounded transition-colors cursor-pointer"
                             style={{
                                 fontSize: contenedorRef.current
-                                    ? `${Math.max(9, contenedorRef.current.getBoundingClientRect().width * 0.055)}px`
-                                    : '9px',
+                                    ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.06)}px`
+                                    : '12px',
                                 padding: contenedorRef.current
-                                    ? `${Math.max(4, contenedorRef.current.getBoundingClientRect().width * 0.015)}px`
-                                    : '4px'
+                                    ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
+                                    : '6px'
                             }}
                         >
                             Hoy

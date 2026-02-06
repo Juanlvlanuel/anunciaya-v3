@@ -2,7 +2,7 @@
 
 **Última actualización:** 30 Enero 2026  
 **Versión:** 1.0 (Completamente Verificado)  
-**Estado:** ✅ 87.5% Operativo (14/16 fases)
+**Estado:** ✅ 93.75% Operativo (15/16 fases)
 
 ---
 
@@ -43,8 +43,9 @@ Este documento describe la **arquitectura conceptual** del sistema ScanYA:
 9. [Fórmula de Puntos](#fórmula-de-puntos)
 10. [Ubicación de Archivos](#ubicación-de-archivos)
 11. [Decisiones Arquitectónicas](#decisiones-arquitectónicas)
-12. [Progreso del Proyecto](#progreso-del-proyecto)
-13. [Referencias](#referencias)
+12. [Sistema de Expiración](#sistema-de-expiración)
+13. [Progreso del Proyecto](#progreso-del-proyecto)
+14. [Referencias](#referencias)
 
 ---
 
@@ -1481,11 +1482,143 @@ handleDescartar: () => {
 
 ---
 
+
+## ⏰ Sistema de Expiración
+
+**Fecha implementación:** 5 Febrero 2026  
+**Estado:** ✅ Completado y probado
+
+### Decisión Arquitectónica: Validación en Tiempo Real
+
+Se evaluaron 3 opciones para manejar la expiración de puntos y vouchers:
+
+| Opción | Descripción | Veredicto |
+|--------|-------------|-----------|
+| **Cron job** | Tarea programada que corre 1 vez al día | ❌ Depende de servicio externo, en Render free tier el server duerme |
+| **pg_cron (Supabase)** | Job SQL directo en PostgreSQL | ❌ Lógica en SQL puro, difícil de mantener, sin logs en backend |
+| **Validación en tiempo real** | Se verifica al consultar datos del cliente | ✅ **Elegida** — sin dependencias externas, datos siempre correctos |
+
+**Justificación:** La expiración se verifica justo cuando importa (cuando alguien consulta los datos). No depende de servicios externos, funciona igual en desarrollo y producción, y si el dueño cambia la configuración, el efecto es inmediato.
+
+---
+
+### Arquitectura: 3 Funciones en `puntos.service.ts`
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              SISTEMA DE EXPIRACIÓN                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  expirarVouchersVencidos(negocioId)     ← MASIVA            │
+│  ├─ Busca TODOS los vouchers pendientes vencidos            │
+│  ├─ Marca estado = 'expirado'                               │
+│  └─ Devuelve puntos a billetera (auto-reembolso)            │
+│                                                             │
+│  expirarPuntosPorInactividad(usuarioId, negocioId)          │
+│  ├─ Obtiene config (dias_expiracion_puntos)                 │
+│  ├─ Calcula fin del día local (zona horaria del negocio)    │
+│  └─ Si ultima_actividad + días < fin del día → expira       │
+│                                                             │
+│  verificarExpiraciones(usuarioId, negocioId) ← COMBINADA    │
+│  ├─ Llama expirarVouchersVencidos()                         │
+│  └─ Llama expirarPuntosPorInactividad()                     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Expiración de Puntos: Por Inactividad
+
+Los puntos expiran si el cliente **no realiza compras ni canjes** en el periodo configurado por el dueño.
+
+**Regla:** `ultima_actividad + dias_expiracion = fecha de expiración`  
+**Momento exacto:** Al final del día local del negocio (23:59:59 zona horaria)
+
+**Ejemplo:**
+```
+ultima_actividad: 2026-01-27 14:38 (hora Hermosillo, UTC-7)
+dias_expiracion: 9
+Fecha expiración: 2026-02-05
+Fin del día local: 2026-02-05 23:59:59 Hermosillo = 2026-02-06 06:59:59 UTC
+```
+
+Si `dias_expiracion_puntos = NULL` (checkbox "No expiran"), el sistema ignora ese negocio.
+
+**Al expirar:**
+- `puntos_disponibles` → 0
+- `puntos_expirados_total` += puntos expirados
+
+---
+
+### Expiración de Vouchers: Por Fecha + Auto-Reembolso
+
+Los vouchers tienen `expira_at` (timestamp exacto). Al vencer:
+
+1. Estado cambia de `'pendiente'` → `'expirado'`
+2. Los `puntos_usados` se devuelven a `puntos_disponibles` de la billetera
+
+**Flujo de auto-reembolso:**
+```
+Voucher pendiente + expira_at < ahora
+         ↓
+vouchers_canje.estado = 'expirado'
+         ↓
+puntos_billetera.puntos_disponibles += voucher.puntos_usados
+         ↓
+Log: "[Expiracion] Voucher X expirado. Devueltos Y pts"
+```
+
+---
+
+### Zona Horaria: Función `calcularFinDiaExpiracion`
+
+El servidor (Render) opera en UTC. Los negocios operan en zonas horarias de México. Sin conversión, un negocio en Sonora (UTC-7) vería puntos expirar 7 horas antes de lo esperado.
+
+**Solución:** La función `calcularFinDiaExpiracion()`:
+1. Convierte `ultima_actividad` UTC → fecha local del negocio (usando `Intl.DateTimeFormat`)
+2. Suma los días de expiración
+3. Calcula el fin del día (23:59:59) en la zona local
+4. Convierte de vuelta a UTC para comparar con `new Date()`
+
+**Zona horaria se obtiene de:** `negocio_sucursales.zona_horaria` (sucursal principal)  
+**Fallback:** `'America/Mexico_City'`
+
+---
+
+### Puntos de Integración
+
+| Endpoint / Función | Qué ejecuta | Cuándo se activa |
+|---------------------|-------------|------------------|
+| `identificarCliente` | `verificarExpiraciones()` (ambas) | Registrar Venta en ScanYA |
+| `buscarClienteConVouchers` | `verificarExpiraciones()` (ambas) | Buscar cliente para validar voucher |
+| `obtenerVouchers` | `expirarVouchersVencidos()` | Al abrir sección Vouchers en ScanYA |
+| `obtenerVouchersPendientes` | `expirarVouchersVencidos()` | Al listar vouchers pendientes |
+| CardYA (futuro) | `verificarExpiraciones()` | Al consultar billetera/vouchers del cliente |
+
+**Principio:** Cualquier endpoint que retorne datos de billetera o vouchers debe ejecutar la verificación ANTES de retornar.
+
+---
+
+### Archivos Involucrados
+
+| Archivo | Funciones |
+|---------|-----------|
+| `apps/api/src/services/puntos.service.ts` | `calcularFinDiaExpiracion()`, `obtenerZonaHorariaNegocio()`, `expirarVouchersVencidos()`, `expirarPuntosPorInactividad()`, `verificarExpiraciones()` |
+| `apps/api/src/services/scanya.service.ts` | Integración en `identificarCliente`, `buscarClienteConVouchers`, `obtenerVouchers`, `obtenerVouchersPendientes` |
+
+### UI: Textos Aclaratorios en Configuración (Business Studio)
+
+- **Expiración de puntos:** "Los puntos expiran si el cliente no realiza compras ni canjes en este periodo."
+- **Expiración de vouchers:** "Tiempo límite para que el cliente recoja su recompensa en el negocio."
+
+---
+
 ## 📊 Progreso del Proyecto
 
-### Estado Actual: 87.5% Completado
+### Estado Actual: 93.75% Completado
 
-**Fases completadas:** 14/16
+**Fases completadas:** 15/16
 
 | Fase | Nombre | Estado | Fecha |
 |------|--------|--------|-------|
@@ -1503,13 +1636,13 @@ handleDescartar: () => {
 | 12 | Frontend - Historial + Vouchers | ✅ 100% | 22 Ene 2026 |
 | 13 | Frontend - Recordatorios Offline | ✅ 100% | 23 Ene 2026 |
 | 14 | Frontend - Chat + Reseñas | ⏸️ PAUSADA | - |
-| 15 | Business Studio - Config Puntos | ⏳ Pendiente | - |
+| 15 | Business Studio - Config Puntos + Expiración | ✅ 100% | 5 Feb 2026 |
 | 16 | Sistema PWA | ✅ 100% | 27-28 Ene 2026 |
 
-**Progreso:** 14/16 = 87.5%
+**Progreso:** 15/16 = 93.75%
 
 ```
-[██████████████░░] 87.5%
+[███████████████░] 93.75%
 ```
 
 ---
@@ -1536,19 +1669,26 @@ handleDescartar: () => {
 
 ---
 
-#### Fase 15: Business Studio - Config Puntos ⏳
+#### Fase 15: Business Studio - Config Puntos + Expiración ✅
 
-**Estado:** PENDIENTE  
-**Prioridad:** ⚠️ CRÍTICA  
-**Tiempo estimado:** ~2.5 días
+**Estado:** COMPLETADA  
+**Fecha:** 29 Ene - 5 Feb 2026
 
-**Problema actual:** Dueños NO pueden configurar sistema de puntos sin tocar código.
+**Implementado:**
+- ✅ Configuración base de puntos (valor por peso, monto mínimo)
+- ✅ Sistema de niveles (Bronce/Plata/Oro) con multiplicadores configurables
+- ✅ Validaciones Zod: decimales bloqueados, rangos ascendentes obligatorios
+- ✅ Recálculo automático de niveles al cambiar rangos
+- ✅ Recompensas CRUD (crear, editar, eliminar, toggle activo/inactivo)
+- ✅ Expiración de puntos por inactividad (fin del día, zona horaria del negocio)
+- ✅ Expiración de vouchers con auto-reembolso de puntos
+- ✅ Validación en tiempo real (sin cron jobs)
+- ✅ Textos aclaratorios en UI sobre comportamiento de expiración
 
-**Funcionalidad pendiente:**
-- Página configuración puntos en Business Studio
-- Simulador: "Si cliente gasta $X → gana Y puntos"
-- Dashboard estadísticas puntos otorgados
-- Modal QR instalación ScanYA para empleados
+**Archivos clave:**
+- `puntos.service.ts` — Toda la lógica de puntos, niveles, recompensas y expiración
+- `PaginaPuntos.tsx` — UI de configuración en Business Studio
+- `scanya.service.ts` — Integración de verificación en puntos de consulta
 
 ---
 
@@ -1704,9 +1844,9 @@ handleDescartar: () => {
 
 ---
 
-**Última actualización:** 30 Enero 2026  
+**Última actualización:** 5 Febrero 2026  
 **Autor:** Equipo AnunciaYA  
-**Versión:** 1.0 (100% Verificada contra código real)
+**Versión:** 1.1 (Incluye Sistema de Expiración)
 
 **Progreso:** 14/16 fases completadas (87.5%)  
-**Próximo hito:** Fase 15 - Business Studio Config Puntos
+**Próximo hito:** Fase 14 - Chat + Reseñas (requiere ChatYA base)

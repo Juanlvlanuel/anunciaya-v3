@@ -20,8 +20,8 @@
  */
 
 import { X, MessageCircle, Bookmark, BookmarkCheck, Truck, Flame, Clock } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import { useGuardados } from '@/hooks/useGuardados';
+import { api } from '@/services/api';
 import { DropdownCompartir } from '../compartir';
 import { Modal } from '../ui/Modal';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -255,6 +255,18 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
         toggleGuardado();
     };
 
+    const handleShare = () => {
+        // Registrar share (sin throttling - cada share cuenta)
+        const ofertaId = getId(oferta);
+        
+        api.post('/metricas/share', {
+            entityType: 'oferta',
+            entityId: ofertaId
+        }).catch(() => {
+            // Silenciar errores - las métricas no deben afectar la UX
+        });
+    };
+
     const handleWhatsApp = () => {
         if (!whatsapp) return;
         const numeroLimpio = whatsapp.replace(/\D/g, '');
@@ -353,6 +365,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
                                 texto={`¡Mira esta oferta en AnunciaYA!\n\n${oferta.titulo}`}
                                 titulo={oferta.titulo}
                                 variante="glass"
+                                onShare={handleShare}
                             />
                             <button
                                 onClick={handleGuardar}

@@ -33,9 +33,8 @@ export default function CardRecompensa({
 
   return (
     <div
-      className={`bg-white rounded-xl overflow-hidden flex flex-col transition-all hover:-translate-y-0.5 ${
-        !recompensa.activa ? 'opacity-50' : ''
-      }`}
+      className={`bg-white rounded-xl overflow-hidden flex flex-col transition-all hover:-translate-y-0.5 ${!recompensa.activa ? 'opacity-50' : ''
+        }`}
       style={{ border: '2.5px solid #dde4ef', boxShadow: '0 3px 10px rgba(0,0,0,0.07)' }}
     >
       {/* Imagen con acciones superpuestas */}
@@ -55,15 +54,13 @@ export default function CardRecompensa({
             {/* Toggle arriba-derecha */}
             <button
               onClick={() => onToggleActiva(recompensa)}
-              className={`absolute top-2 right-2 lg:top-2 lg:right-2 w-10 h-5.5 lg:w-9 lg:h-5 2xl:w-10 2xl:h-5.5 rounded-full cursor-pointer transition-colors ${
-                recompensa.activa ? 'bg-indigo-600' : 'bg-slate-300'
-              }`}
+              className={`absolute top-2 right-2 lg:top-2 lg:right-2 w-10 h-5.5 lg:w-9 lg:h-5 2xl:w-10 2xl:h-5.5 rounded-full cursor-pointer transition-colors border-2 border-white ${recompensa.activa ? 'bg-green-500' : 'bg-slate-300'
+                }`}
               style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
             >
               <div
-                className={`absolute top-0.5 w-4.5 h-4.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 rounded-full bg-white shadow transition-transform ${
-                  recompensa.activa ? 'translate-x-4.5 lg:translate-x-4 2xl:translate-x-4.5' : 'translate-x-0.5'
-                }`}
+                className={`absolute top-0.5 w-4.5 h-4.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 rounded-full bg-white shadow transition-transform ${recompensa.activa ? 'translate-x-4.5 lg:translate-x-4 2xl:translate-x-4.5' : 'translate-x-0.5'
+                  }`}
               />
             </button>
 
@@ -71,8 +68,7 @@ export default function CardRecompensa({
             <div className="absolute bottom-2 right-2 lg:bottom-2 lg:right-2 flex items-center gap-2 lg:gap-1.5">
               <button
                 onClick={() => onEditar(recompensa)}
-                className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-white/90 flex items-center justify-center text-slate-600 hover:text-indigo-600 cursor-pointer transition-colors"
-                style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+                className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-white/90 flex items-center justify-center text-slate-600 hover:text-blue-600 cursor-pointer transition-colors" style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
               >
                 <Edit2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
               </button>

@@ -27,7 +27,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from 'lucide-react';
-import { Modal } from '../../../../components/ui/Modal';
+import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { Boton } from '../../../../components/ui/Boton';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { notificar } from '../../../../utils/notificaciones';
@@ -145,12 +145,12 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
 
   if (cargando) {
     return (
-      <Modal abierto={true} onCerrar={onCerrar} ancho="sm" paddingContenido="lg">
+      <ModalAdaptativo abierto={true} onCerrar={onCerrar} ancho="sm" paddingContenido="lg">
         <div className="text-center py-6">
           <Spinner tamanio="md" />
           <p className="text-slate-600 text-sm mt-3">Cargando sucursales...</p>
         </div>
-      </Modal>
+      </ModalAdaptativo>
     );
   }
 
@@ -160,7 +160,7 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
 
   if (sucursales.length === 0) {
     return (
-      <Modal abierto={true} onCerrar={onCerrar} ancho="sm" paddingContenido="lg">
+      <ModalAdaptativo abierto={true} onCerrar={onCerrar} ancho="sm" paddingContenido="lg">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
           <h3 className="text-lg font-bold text-slate-800 mb-2">
@@ -173,7 +173,7 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
             Entendido
           </Boton>
         </div>
-      </Modal>
+      </ModalAdaptativo>
     );
   }
 
@@ -182,126 +182,132 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
   // ===========================================================================
 
   return (
-    <Modal
+    <ModalAdaptativo
       abierto={true}
       onCerrar={onCerrar}
       titulo="Duplicar Artículo"
-      iconoTitulo={<Copy className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />}
+      iconoTitulo={<Copy className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />}
       ancho="lg"
-      paddingContenido="md"
+      paddingContenido="none"
+      sinScrollInterno={true}
     >
-      <div className="space-y-4 lg:space-y-3 2xl:space-y-4">
-        {/* Preview del artículo */}
-        <div className="bg-slate-50 rounded-lg p-3 lg:p-2 2xl:p-3 border border-slate-200">
-          <p className="text-xs text-slate-500 mb-2 lg:mb-1.5 2xl:mb-2">Artículo a duplicar:</p>
-          <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
-            {articulo.imagenPrincipal ? (
-              <img
-                src={articulo.imagenPrincipal}
-                alt={articulo.nombre}
-                className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-14 2xl:h-14 rounded-lg object-cover"
-              />
-            ) : (
-              <div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-14 2xl:h-14 bg-slate-200 rounded-lg flex items-center justify-center">
-                {articulo.tipo === 'producto' ? (
-                  <Package className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-400" />
-                ) : (
-                  <Wrench className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-400" />
-                )}
-              </div>
-            )}
+      <div className="flex flex-col h-full">
+        {/* Contenido con scroll */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-3 2xl:p-4 space-y-4 lg:space-y-3 2xl:space-y-4">
+          {/* Preview del artículo */}
+          <div className="bg-slate-50 rounded-lg p-3 lg:p-2 2xl:p-3 border border-slate-200">
+            <p className="text-sm lg:text-sm 2xl:text-sm text-slate-500 mb-2 lg:mb-1.5 2xl:mb-2 font-medium">Artículo a duplicar:</p>
+            <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
+              {articulo.imagenPrincipal ? (
+                <img
+                  src={articulo.imagenPrincipal}
+                  alt={articulo.nombre}
+                  className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-14 2xl:h-14 rounded-lg object-cover"
+                />
+              ) : (
+                <div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-14 2xl:h-14 bg-slate-200 rounded-lg flex items-center justify-center">
+                  {articulo.tipo === 'producto' ? (
+                    <Package className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-400" />
+                  ) : (
+                    <Wrench className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-400" />
+                  )}
+                </div>
+              )}
 
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-slate-800 text-sm lg:text-xs 2xl:text-sm truncate">
-                {articulo.nombre}
-              </h3>
-              <p className="text-slate-500 text-xs">
-                ${Number(articulo.precioBase).toFixed(2)} • <span className="capitalize">{articulo.tipo}</span>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-slate-800 text-base lg:text-sm 2xl:text-base truncate">
+                  {articulo.nombre}
+                </h3>
+                <p className="text-slate-500 text-sm lg:text-xs 2xl:text-sm">
+                  ${Number(articulo.precioBase).toFixed(2)} • <span className="capitalize">{articulo.tipo}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sucursales */}
+          <div>
+            <div className="flex items-center justify-between mb-3 lg:mb-2 2xl:mb-3">
+              <p className="text-sm lg:text-sm 2xl:text-sm font-medium text-slate-700">
+                Duplicar a ({sucursalesSeleccionadas.size}/{sucursales.length})
               </p>
+              <button
+                onClick={toggleTodas}
+                className="text-sm lg:text-xs 2xl:text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
+              >
+                {sucursalesSeleccionadas.size === sucursales.length ? 'Deseleccionar todas' : 'Seleccionar todas'}
+              </button>
+            </div>
+
+            <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2 max-h-[40vh] lg:max-h-[50vh] overflow-y-auto">
+              {sucursales.map((sucursal) => {
+                const seleccionada = sucursalesSeleccionadas.has(sucursal.id);
+
+                return (
+                  <button
+                    key={sucursal.id}
+                    onClick={() => toggleSucursal(sucursal.id)}
+                    className={`w-full p-3 lg:p-2 2xl:p-3 rounded-lg border-2 transition-all text-left cursor-pointer ${
+                      seleccionada
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
+                      {/* Checkbox */}
+                      <div
+                        className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                          seleccionada ? 'bg-blue-500 border-blue-500' : 'border-slate-300'
+                        }`}
+                      >
+                        {seleccionada && <CheckCircle className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-white" />}
+                      </div>
+
+                      {/* Icono */}
+                      <Building2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400 shrink-0" />
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-800 text-base lg:text-sm 2xl:text-base truncate">
+                          {sucursal.nombre}
+                        </p>
+                        <div className="flex items-center gap-1 text-slate-500 text-sm lg:text-xs 2xl:text-sm">
+                          <MapPin className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{sucursal.direccion}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* Sucursales */}
-        <div>
-          <div className="flex items-center justify-between mb-3 lg:mb-2 2xl:mb-3">
-            <p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-700">
-              Duplicar a ({sucursalesSeleccionadas.size}/{sucursales.length})
-            </p>
-            <button
-              onClick={toggleTodas}
-              className="text-xs lg:text-[11px] 2xl:text-xs text-blue-600 hover:text-blue-700 font-medium"
+        {/* Footer con botones - FUERA del scroll */}
+        <div className="border-t border-slate-200 p-4 lg:p-3 2xl:p-4 bg-white">
+          <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
+            <Boton
+              variante="secundario"
+              onClick={onCerrar}
+              className="flex-1 cursor-pointer"
+              disabled={duplicando}
             >
-              {sucursalesSeleccionadas.size === sucursales.length ? 'Deseleccionar todas' : 'Seleccionar todas'}
-            </button>
+              Cancelar
+            </Boton>
+            <Boton
+              variante="primario"
+              onClick={handleSubmit}
+              className="flex-1 cursor-pointer"
+              cargando={duplicando}
+              disabled={sucursalesSeleccionadas.size === 0}
+            >
+              Duplicar ({sucursalesSeleccionadas.size})
+            </Boton>
           </div>
-
-          <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2 max-h-[40vh] overflow-y-auto">
-            {sucursales.map((sucursal) => {
-              const seleccionada = sucursalesSeleccionadas.has(sucursal.id);
-
-              return (
-                <button
-                  key={sucursal.id}
-                  onClick={() => toggleSucursal(sucursal.id)}
-                  className={`w-full p-3 lg:p-2 2xl:p-3 rounded-lg border-2 transition-all text-left ${
-                    seleccionada
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
-                    {/* Checkbox */}
-                    <div
-                      className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                        seleccionada ? 'bg-blue-500 border-blue-500' : 'border-slate-300'
-                      }`}
-                    >
-                      {seleccionada && <CheckCircle className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-white" />}
-                    </div>
-
-                    {/* Icono */}
-                    <Building2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400 shrink-0" />
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-800 text-sm lg:text-xs 2xl:text-sm truncate">
-                        {sucursal.nombre}
-                      </p>
-                      <div className="flex items-center gap-1 text-slate-500 text-xs lg:text-[11px] 2xl:text-xs">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{sucursal.direccion}</span>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footer con botones */}
-        <div className="flex gap-2 lg:gap-1.5 2xl:gap-2 pt-2">
-          <Boton
-            variante="secundario"
-            onClick={onCerrar}
-            className="flex-1"
-            disabled={duplicando}
-          >
-            Cancelar
-          </Boton>
-          <Boton
-            variante="primario"
-            onClick={handleSubmit}
-            className="flex-1"
-            cargando={duplicando}
-            disabled={sucursalesSeleccionadas.size === 0}
-          >
-            Duplicar ({sucursalesSeleccionadas.size})
-          </Boton>
         </div>
       </div>
-    </Modal>
+    </ModalAdaptativo>
   );
 }
 
