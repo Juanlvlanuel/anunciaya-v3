@@ -101,6 +101,7 @@ export interface ConfigPuntosCompleta {
  * El backend mapea nivelBronceMin → nivel_bronce_min en BD.
  */
 export interface ActualizarConfigPuntosInput {
+  puntosPorPeso?: number;         // Propiedad calculada (puntosGanados / pesosPor)
   pesosPor?: number;              // Valor original que escribió el usuario (ej: 250)
   puntosGanados?: number;         // Valor original que escribió el usuario (ej: 35)
   diasExpiracionPuntos?: number | null;
