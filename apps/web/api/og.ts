@@ -116,8 +116,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const entityType = tipo as EntityType;
     const config = ENTITY_CONFIG[entityType];
 
-    const apiUrl = process.env.VITE_API_URL || 'https://anunciaya-backend.railway.app';
-    const endpointUrl = `${apiUrl}/api${config.endpoint}/${id}`;
+    // VITE_API_URL ya incluye /api, no duplicar
+    const apiUrl = process.env.VITE_API_URL || 'https://anunciaya-api.onrender.com/api';
+    const endpointUrl = `${apiUrl}${config.endpoint}/${id}`;
 
     const response = await fetch(endpointUrl);
     
