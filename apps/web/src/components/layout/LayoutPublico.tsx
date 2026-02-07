@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * COMPONENTE: LayoutPublico
+ * COMPONENTE: LayoutPublico (v2.0 - FIX SCROLL)
  * ============================================================================
  * 
  * UBICACIÓN: apps/web/src/components/layout/LayoutPublico.tsx
@@ -8,6 +8,11 @@
  * PROPÓSITO:
  * Layout wrapper para páginas públicas accesibles SIN autenticación.
  * Usado para links compartidos de negocios, productos, ofertas, etc.
+ * 
+ * CAMBIOS v2.0:
+ * - ✅ Main con altura fija (calc(100vh - 67px)) para scroll independiente
+ * - ✅ Scroll funciona incluso si useLockScroll bloquea el body
+ * - ✅ Consistente con estrategia de MainLayout
  * 
  * DIFERENCIAS CON MainLayout:
  * - ❌ NO tiene sidebars (ColumnaIzquierda/ColumnaDerecha)
@@ -26,7 +31,7 @@
  * └─────────────────────────────────────────────────────────────────────────────┘
  * 
  * CREADO: Fase 5.3.1 - Sistema Universal de Compartir
- * ACTUALIZADO: Enero 2026 - Nuevo diseño header/footer
+ * ACTUALIZADO: Febrero 2026 - Fix scroll en rutas públicas
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -113,9 +118,15 @@ export function LayoutPublico({
       </header>
 
       {/* ================================================================
-          CONTENIDO PRINCIPAL
+          CONTENIDO PRINCIPAL - CON ALTURA FIJA PARA SCROLL INDEPENDIENTE
           ================================================================ */}
-      <main className="flex-1 overflow-y-auto">
+      <main 
+        className="overflow-y-auto"
+        style={{
+          height: 'calc(100vh - 67px)', // Header (67px) + Footer se ajusta automático
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 lg:px-6 2xl:px-8 py-4 lg:py-6 2xl:py-8">
           {children}
         </div>
