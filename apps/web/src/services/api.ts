@@ -132,9 +132,12 @@ api.interceptors.request.use(
     }
 
     // 1. Si hay token, agregarlo al header
-    // EXCEPCIÓN: En rutas públicas (/p/*), NO agregar token si no hay usuario
+    // EXCEPCIÓN: En rutas públicas, NO agregar token si no hay usuario
     // Esto evita errores 401 con tokens expirados en URLs públicas compartidas
-    const esRutaPublica = config.url?.startsWith('/p/');
+    const esRutaPublica = config.url?.startsWith('/p/') ||
+                         config.url?.includes('/articulos/negocio/') ||
+                         config.url?.includes('/resenas/sucursal/') ||
+                         config.url?.includes('/ofertas/feed');
     
     if (accessToken && config.headers) {
       // En rutas públicas, solo agregar token si hay usuario activo
