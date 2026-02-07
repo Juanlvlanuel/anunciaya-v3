@@ -137,7 +137,8 @@ api.interceptors.request.use(
     const esRutaPublica = config.url?.startsWith('/p/') ||
                          config.url?.includes('/articulos/negocio/') ||
                          config.url?.includes('/resenas/sucursal/') ||
-                         config.url?.includes('/ofertas/feed');
+                         config.url?.includes('/ofertas/feed') ||
+                         config.url?.includes('/metricas/');
     
     if (accessToken && config.headers) {
       // En rutas públicas, solo agregar token si hay usuario activo
