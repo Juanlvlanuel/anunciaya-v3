@@ -27,6 +27,7 @@ import {
     registrarPublicViewController,
 } from '../controllers/metricas.controller';
 import { verificarToken } from '../middleware/auth';
+import { verificarTokenOpcional } from '../middleware/authOpcional.middleware';
 
 const router: Router = Router();
 
@@ -52,16 +53,13 @@ const router: Router = Router();
  */
 router.post('/public-view', registrarPublicViewController);
 
-// =============================================================================
-// RUTAS PROTEGIDAS (Requieren autenticación)
-// =============================================================================
-
-// Aplicar middleware de autenticación a todas las rutas siguientes
-router.use(verificarToken);
-
 /**
  * POST /api/metricas/view
- * Registra una vista de una entidad
+ * Registra una vista de una entidad (auth opcional)
+ * 
+ * Middleware: verificarTokenOpcional
+ * - Si hay usuario logueado → registra quién vio
+ * - Si NO hay usuario → registra vista anónima
  * 
  * Body:
  * {
@@ -75,7 +73,14 @@ router.use(verificarToken);
  *   "message": "Vista registrada"
  * }
  */
-router.post('/view', registrarViewController);
+router.post('/view', verificarTokenOpcional, registrarViewController);
+
+// =============================================================================
+// RUTAS PROTEGIDAS (Requieren autenticación)
+// =============================================================================
+
+// Aplicar middleware de autenticación a todas las rutas siguientes
+router.use(verificarToken);
 
 /**
  * POST /api/metricas/share
