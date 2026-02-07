@@ -115,7 +115,7 @@ export function LayoutPublico({
       {/* ================================================================
           CONTENIDO PRINCIPAL
           ================================================================ */}
-      <main className="flex-1">
+      <main className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 2xl:px-8 py-4 lg:py-6 2xl:py-8">
           {children}
         </div>
