@@ -42,6 +42,7 @@ export interface Usuario {
   correoNegocio: string | null;
   logoNegocio: string | null;
   fotoPerfilNegocio: string | null;
+  createdAt: string;
 }
 /**
  * Respuesta de login exitoso

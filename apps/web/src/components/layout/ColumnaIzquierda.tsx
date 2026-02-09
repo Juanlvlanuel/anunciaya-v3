@@ -1,15 +1,17 @@
 /**
- * ColumnaIzquierda.tsx - VERSIÓN v6.0 REDISEÑO COMPLETO
+ * ColumnaIzquierda.tsx - VERSIÓN v7.0 SISTEMA DE TEMAS
  * ======================================================================
- * Columna lateral izquierda con diseño premium:
- * - Header negocio con icono de ojo y mejor contraste
- * - ScanYA/BS con descripciones y hover temáticos
- * - Resumen de Hoy con icono colorido en cuadro azul
- * - Ventas con indicador de tendencia (↑)
- * - Clientes/Transacciones con mini iconos y hover
- * - Sección "Acciones rápidas" en lugar de espacio vacío
- * - Tip del día con icono Sparkles y diseño horizontal
- * - Botones con iconos descriptivos (Package, Tag)
+ * Columna lateral izquierda con temas dinámicos por ruta.
+ * 
+ * ARQUITECTURA DE TEMAS:
+ * - TEMAS_COLUMNA: objeto de configuración con todos los tokens de color
+ * - detectarTema(): mapea pathname → tema
+ * - ContenidoPersonal recibe el tema y lo aplica a todos los elementos
+ * 
+ * PARA AGREGAR UN NUEVO TEMA:
+ * 1. Crear entrada en TEMAS_COLUMNA (copiar 'default' como base)
+ * 2. Agregar condición en detectarTema()
+ * 3. Listo — todos los componentes se adaptan automáticamente
  *
  * Ubicación: apps/web/src/components/layout/ColumnaIzquierda.tsx
  */
@@ -34,6 +36,130 @@ import { WidgetCardYA } from './WidgetCardYA';
 import { MenuBusinessStudio } from './MenuBusinessStudio';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import { obtenerKPIs } from '../../services/dashboardService';
+
+// =============================================================================
+// SISTEMA DE TEMAS — Configuración centralizada por ruta/módulo
+// =============================================================================
+// Para agregar un nuevo tema:
+// 1. Añadir entrada en TEMAS_COLUMNA con la key de la ruta
+// 2. Usar `tema.xxx` en los componentes que necesiten adaptarse
+// 3. El tema 'default' se usa cuando ninguna ruta coincide
+
+interface TemaColumna {
+  /** Fondo del contenedor principal (CSS background) */
+  background: string;
+  /** Borde entre secciones */
+  borderColor: string;
+  /** Wrapper del widget CardYA */
+  widgetWrapperBg: string;
+  /** Texto primario (títulos, nombres) */
+  textPrimary: string;
+  /** Texto secundario (subtítulos, labels) */
+  textSecondary: string;
+  /** Texto muted (labels pequeños) */
+  textMuted: string;
+  /** Chevron/flechas */
+  chevronColor: string;
+  /** Hover de botones de lista */
+  listHoverBg: string;
+  /** Border-left hover de botones de lista */
+  listHoverBorder: string;
+  /** Ícono cupones - fondo */
+  cuponesIconBg: string;
+  /** Ícono cupones - color */
+  cuponesIconColor: string;
+  /** Texto accent cupones */
+  cuponesAccent: string;
+  /** Ícono vencer - fondo */
+  vencerIconBg: string;
+  /** Ícono vencer - color */
+  vencerIconColor: string;
+  /** Texto accent vencer */
+  vencerAccent: string;
+  /** CTA fondo */
+  ctaBg: string;
+  /** CTA borde superior */
+  ctaBorder: string;
+  /** CTA ícono store - fondo */
+  ctaIconBg: string;
+  /** CTA texto precio */
+  ctaPriceColor: string;
+  /** CTA texto "7 días" */
+  ctaHighlight: string;
+  /** CTA botón clase */
+  ctaButtonClass: string;
+  /** Widget CardYA dark mode */
+  widgetDark: boolean;
+}
+
+const TEMAS_COLUMNA: Record<string, TemaColumna> = {
+  // ── Tema por defecto: Claro con gradiente gris → blanco ──
+  default: {
+    background: 'linear-gradient(to bottom, #ffffff 25%, #cbd5e1 55%, #94a3b8 100%)',
+    borderColor: 'border-slate-200',
+    widgetWrapperBg: '',
+    textPrimary: 'text-black',
+    textSecondary: 'text-slate-800',
+    textMuted: 'text-slate-800',
+    chevronColor: 'text-slate-600',
+    listHoverBg: 'hover:bg-blue-50',
+    listHoverBorder: 'hover:border-l-blue-500',
+    cuponesIconBg: 'bg-blue-100',
+    cuponesIconColor: 'text-blue-600',
+    cuponesAccent: 'text-blue-600',
+    vencerIconBg: 'bg-orange-100',
+    vencerIconColor: 'text-orange-600',
+    vencerAccent: 'text-orange-600',
+    ctaBg: '',
+    ctaBorder: 'border-slate-200',
+    ctaIconBg: 'bg-gradient-to-br from-blue-500 to-blue-600',
+    ctaPriceColor: 'text-black',
+    ctaHighlight: 'text-emerald-600',
+    ctaButtonClass: 'bg-blue-500 text-white',
+    widgetDark: false,
+  },
+
+  // ── Tema CardYA: Dark con acentos amber ──
+  cardya: {
+    background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)',
+    borderColor: 'border-white/5',
+    widgetWrapperBg: 'bg-slate-100',
+    textPrimary: 'text-white',
+    textSecondary: 'text-white/50',
+    textMuted: 'text-white/50',
+    chevronColor: 'text-white',
+    listHoverBg: 'hover:bg-white/5',
+    listHoverBorder: 'hover:border-l-amber-500',
+    cuponesIconBg: 'bg-amber-400/10',
+    cuponesIconColor: 'text-amber-400',
+    cuponesAccent: 'text-amber-400/70',
+    vencerIconBg: 'bg-orange-400/10',
+    vencerIconColor: 'text-orange-400',
+    vencerAccent: 'text-orange-400/70',
+    ctaBg: '',
+    ctaBorder: 'border-white/5',
+    ctaIconBg: 'bg-gradient-to-br from-amber-500 to-amber-600',
+    ctaPriceColor: 'text-white',
+    ctaHighlight: 'text-amber-400',
+    ctaButtonClass: 'bg-gradient-to-r from-amber-500 to-amber-600 text-black',
+    widgetDark: true,
+  },
+
+  // ── Agregar nuevos temas aquí ──
+  // market: { ... },
+  // ofertas: { ... },
+};
+
+/**
+ * Detecta el tema de la columna según la ruta actual.
+ * Agrega nuevas rutas aquí para activar temas específicos.
+ */
+function detectarTema(pathname: string): TemaColumna {
+  if (pathname.startsWith('/cardya')) return TEMAS_COLUMNA.cardya;
+  // if (pathname.startsWith('/market')) return TEMAS_COLUMNA.market;
+  // if (pathname.startsWith('/ofertas')) return TEMAS_COLUMNA.ofertas;
+  return TEMAS_COLUMNA.default;
+}
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -130,6 +256,9 @@ export function ColumnaIzquierda() {
   const navigate = useNavigate();
   const esComercial = usuario?.modoActivo === 'comercial';
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
+
+  // ── Tema dinámico según ruta ──
+  const tema = detectarTema(location.pathname);
 
   // Inyectar estilos de animación
   useEffect(() => {
@@ -255,8 +384,11 @@ export function ColumnaIzquierda() {
       </div>
     </div>
   ) : (
-    <div className="absolute inset-0 bg-white overflow-y-auto flex flex-col">
-      <ContenidoPersonal />
+    <div 
+      className="absolute inset-0 overflow-y-auto flex flex-col transition-all duration-300"
+      style={{ background: tema.background }}
+    >
+      <ContenidoPersonal tema={tema} />
     </div>
   );
 }
@@ -265,95 +397,68 @@ export function ColumnaIzquierda() {
 // CONTENIDO PERSONAL
 // =============================================================================
 
-function ContenidoPersonal() {
+function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
   const navigate = useNavigate();
-
-  const puntosDisponibles = 1250;
-  const puntosLifetime = 12500;
-  const cuponesActivos = 3;
-  const cuponesPorVencer = 2;
 
   return (
     <>
       {/* Widget CardYA */}
-      <div className="p-4 lg:p-3 2xl:p-4 border-b-2 border-slate-200 bg-slate-50/50">
-        <WidgetCardYA
-          puntosDisponibles={puntosDisponibles}
-          puntosLifetime={puntosLifetime}
-        />
+      <div className={`p-4 lg:p-3 2xl:p-4  `}>
+        <WidgetCardYA dark={tema.widgetDark} />
       </div>
 
-      {/* MIS CUPONES - Franja mejorada */}
+      {/* Mis Cupones */}
       <button
         onClick={() => navigate('/cupones')}
-        className="w-full flex items-center gap-3 px-4 py-4 lg:py-3 2xl:py-4 cursor-pointer
-                 border-b-2 border-b-slate-100 hover:bg-emerald-50 transition-all
-                 border-l-4 border-l-transparent hover:border-l-emerald-500"
+        className={`w-full flex items-center gap-3 px-4 py-3 lg:py-2.5 2xl:py-3 cursor-pointer
+                 transition-all border-l-4 border-l-transparent ${tema.listHoverBg} ${tema.listHoverBorder}`}
       >
-        <div className="w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-          <Gift className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-emerald-600" />
+        <div className={`w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 ${tema.cuponesIconBg} rounded-lg flex items-center justify-center`}>
+          <Gift className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 ${tema.cuponesIconColor}`} />
         </div>
         <div className="flex-1 text-left">
-          <p className="font-semibold text-black text-sm lg:text-sm 2xl:text-base">Mis Cupones</p>
-          <p className="text-xs lg:text-xs 2xl:text-sm text-emerald-600 font-medium">{cuponesActivos} disponibles</p>
+          <p className={`font-semibold text-sm lg:text-sm 2xl:text-base ${tema.textPrimary}`}>Mis Cupones</p>
         </div>
-        <ChevronRight className="w-5 h-5 text-slate-400" />
-      </button>
-
-      {/* CUPONES POR VENCER - Franja mejorada */}
-      <button
-        onClick={() => navigate('/cupones?filter=por-vencer')}
-        className="w-full flex items-center gap-3 px-4 py-4 lg:py-3 2xl:py-4 cursor-pointer
-                 border-b-2 border-b-slate-100 hover:bg-orange-50 transition-all
-                 border-l-4 border-l-transparent hover:border-l-orange-500"
-      >
-        <div className="w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-          <Gift className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-orange-600" />
-        </div>
-        <div className="flex-1 text-left">
-          <p className="font-semibold text-black text-sm lg:text-sm 2xl:text-base">Por Vencer</p>
-          <p className="text-xs lg:text-xs 2xl:text-sm text-orange-600 font-medium">{cuponesPorVencer} cupones</p>
-        </div>
-        <ChevronRight className="w-5 h-5 text-slate-400" />
+        <ChevronRight className={`w-5 h-5 ${tema.chevronColor}`} />
       </button>
 
       {/* Espacio flexible */}
       <div className="flex-1" />
 
-      {/* CTA PARA NEGOCIOS - Más alto y visible */}
-      <div className="border-t-2 border-slate-200 bg-linear-to-b from-slate-100 to-white">
+      {/* CTA PARA NEGOCIOS */}
+      <div className={`${tema.ctaBg}`}>
         <div className="w-full px-4 py-5 lg:py-4 2xl:py-5 text-left">
           {/* Header del CTA */}
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-11 h-11 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-linear-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className={`w-11 h-11 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 ${tema.ctaIconBg} rounded-xl flex items-center justify-center shadow-lg`}>
               <Store className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
             </div>
             <div>
-              <p className="font-bold text-black text-base lg:text-sm 2xl:text-base">¿Tienes un negocio?</p>
-              <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600">Crea tu perfil y llega a más clientes</p>
+              <p className={`font-bold text-base lg:text-sm 2xl:text-base ${tema.textPrimary}`}>¿Tienes un negocio?</p>
+              <p className={`text-sm lg:text-xs 2xl:text-sm ${tema.textSecondary}`}>Crea tu perfil y llega a más clientes</p>
             </div>
           </div>
 
           {/* Stats del CTA */}
-          <div className="flex items-center justify-between text-sm lg:text-xs 2xl:text-sm text-slate-600 mb-3 px-1">
+          <div className={`flex items-center justify-between text-sm lg:text-xs 2xl:text-sm mb-3 px-1 ${tema.textSecondary}`}>
             <span className="flex flex-col items-center">
-              <strong className="text-black text-base lg:text-sm 2xl:text-base">$449</strong>
-              <span className="text-xs text-slate-400">/mes</span>
+              <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>$449</strong>
+              <span className={`text-xs ${tema.textMuted}`}>/mes</span>
             </span>
             <span className="flex flex-col items-center">
-              <strong className="text-emerald-600 text-base lg:text-sm 2xl:text-base">7 días</strong>
-              <span className="text-xs text-slate-400">gratis</span>
+              <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaHighlight}`}>7 días</strong>
+              <span className={`text-xs ${tema.textMuted}`}>gratis</span>
             </span>
             <span className="flex flex-col items-center">
-              <strong className="text-black text-base lg:text-sm 2xl:text-base">2.5k+</strong>
-              <span className="text-xs text-slate-400">negocios</span>
+              <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>2.5k+</strong>
+              <span className={`text-xs ${tema.textMuted}`}>negocios</span>
             </span>
           </div>
 
-          {/* Botón del CTA - ÚNICO ELEMENTO CLICKEABLE */}
+          {/* Botón del CTA */}
           <button
             onClick={() => navigate('/registro', { state: { tipoCuenta: 'Comercial' } })}
-            className="w-full flex items-center justify-center gap-2 py-3 lg:py-2.5 2xl:py-3 bg-blue-500 text-white rounded-xl text-base lg:text-sm 2xl:text-base font-semibold active:scale-[0.98] transition-all shadow-lg cursor-pointer btn-shine"
+            className={`w-full flex items-center justify-center gap-2 py-3 lg:py-2.5 2xl:py-3 2xl:rounded-xl lg:rounded-lg text-base lg:text-sm 2xl:text-base font-semibold active:scale-[0.98] transition-all shadow-lg cursor-pointer btn-shine ${tema.ctaButtonClass}`}
           >
             <span>Empezar ahora</span>
             <ArrowRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />

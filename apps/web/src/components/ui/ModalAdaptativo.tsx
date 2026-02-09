@@ -1,9 +1,14 @@
 /**
- * ModalAdaptativo.tsx
- * ====================
+ * ModalAdaptativo.tsx (v2.0 - FIX TIPOS REACT)
+ * ============================================
  * Wrapper que renderiza automáticamente el modal correcto según dispositivo:
  *   - Móvil (< 1024px)  → ModalBottom (bottom sheet, drag para cerrar)
  *   - Escritorio (≥ 1024px) → Modal (centrado, fade+scale)
+ *
+ * CAMBIOS v2.0:
+ * - ✅ titulo cambiado de string a ReactNode (acepta JSX)
+ * - ✅ Ahora permite títulos complejos con elementos React
+ * - ✅ Corrige warning: "El tipo 'Element' no se puede asignar al tipo 'string'"
  *
  * ¿Por qué existe?
  *   Modal.tsx y ModalBottom.tsx siguen existiendo por separado para casos
@@ -17,6 +22,15 @@
  *
  * Uso:
  *   <ModalAdaptativo abierto={...} onCerrar={...} titulo="Editar" ancho="lg">
+ *     <form>...</form>
+ *   </ModalAdaptativo>
+ *
+ *   // Con título JSX:
+ *   <ModalAdaptativo 
+ *     abierto={...} 
+ *     onCerrar={...} 
+ *     titulo={<div className="flex gap-2"><span>Editar</span><Badge>Nuevo</Badge></div>}
+ *   >
  *     <form>...</form>
  *   </ModalAdaptativo>
  *
@@ -42,9 +56,9 @@ interface ModalAdaptativoProps {
   abierto: boolean;
   /** Función para cerrar el modal */
   onCerrar: () => void;
-  /** Título del modal (opcional) */
-  titulo?: string;
-  /** Icono junto al título (opcional) */
+  /** Título del modal (opcional) - Acepta string o JSX */
+  titulo?: ReactNode;
+  /** Icono junto al título (opcional) - Acepta cualquier elemento React */
   iconoTitulo?: ReactNode;
   /** Contenido del modal */
   children: ReactNode;

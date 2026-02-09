@@ -35,6 +35,7 @@ import {
     CheckCircle,
     UserPlus,
     AlertCircle,
+    ShoppingBag,
 } from 'lucide-react';
 import { notificar } from '@/utils/notificaciones';
 import scanyaService from '@/services/scanyaService';
@@ -45,7 +46,7 @@ import type { ConfiguracionScanYA } from '@/types/scanya';
 // TIPOS
 // =============================================================================
 
-type Seccion = 'cliente' | 'monto' | 'metodoPago' | 'foto' | 'cupon' | 'nota';
+type Seccion = 'cliente' | 'monto' | 'metodoPago' | 'foto' | 'cupon' | 'nota' | 'concepto';
 type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto';
 
 interface ModalRegistrarVentaProps {
@@ -154,6 +155,7 @@ export function ModalRegistrarVenta({
     const [cupon, setCupon] = useState<CuponAplicado | null>(null);
     const [validandoCupon, setValidandoCupon] = useState(false);
     const [nota, setNota] = useState('');
+    const [concepto, setConcepto] = useState('');
     const [recordatorioId, setRecordatorioId] = useState<string | null>(null);
 
     // ---------------------------------------------------------------------------
@@ -291,6 +293,7 @@ export function ModalRegistrarVenta({
         setCodigoCupon('');
         setCupon(null);
         setNota('');
+        setConcepto('');
         setRecordatorioId(null);
         setExito(false);
         setResultadoPuntos(0);
@@ -578,6 +581,7 @@ export function ModalRegistrarVenta({
                 montoTransferencia: metodoPago === 'transferencia' ? parseFloat(monto) :
                     metodoPago === 'mixto' ? desglose.transferencia : 0,
                 nota: nota.trim() || undefined,
+                concepto: concepto.trim() || undefined,
             };
 
             // Guardar en localStorage (no en servidor)
@@ -615,6 +619,7 @@ export function ModalRegistrarVenta({
                 cuponId: cupon?.id || undefined,
                 fotoTicketUrl: fotoUrl || undefined,
                 nota: nota.trim() || undefined,
+                concepto: concepto.trim() || undefined,
                 recordatorioId: recordatorioId || undefined,
             });
 
@@ -667,6 +672,8 @@ export function ModalRegistrarVenta({
                 return !!cupon;
             case 'nota':
                 return nota.trim().length > 0;
+            case 'concepto':
+                return concepto.trim().length > 0;
             default:
                 return false;
         }
@@ -1033,6 +1040,67 @@ export function ModalRegistrarVenta({
                                             )}
                                         </>
                                     )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ========================================= */}
+                        {/* SECCIÓN: CONCEPTO */}
+                        {/* ========================================= */}
+                        <div
+                            className="rounded-xl lg:rounded-md 2xl:rounded-xl overflow-hidden"
+                            style={{
+                                background: 'rgba(0, 0, 0, 0.3)',
+                                border: `1px solid ${concepto.trim() ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
+                            }}
+                        >
+                            <button
+                                onClick={() => seccionCompletada('cliente') && setSeccionActiva('concepto')}
+                                disabled={!seccionCompletada('cliente')}
+                                className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                            >
+                                <div
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
+                                    style={{
+                                        background: concepto.trim() ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                    }}
+                                >
+                                    {concepto.trim() ? (
+                                        <Check className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#10B981]" />
+                                    ) : (
+                                        <ShoppingBag className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#3B82F6]" />
+                                    )}
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <p className="text-white font-medium text-base lg:text-sm 2xl:text-base">
+                                        Concepto <span className="text-[#606060] text-xs">(opcional)</span>
+                                    </p>
+                                    {concepto.trim() && (
+                                        <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm truncate">
+                                            {concepto}
+                                        </p>
+                                    )}
+                                </div>
+                                {seccionActiva === 'concepto' ? (
+                                    <ChevronDown className="w-5 h-5 text-[#94A3B8]" />
+                                ) : (
+                                    <ChevronRight className="w-5 h-5 text-[#94A3B8]" />
+                                )}
+                            </button>
+
+                            {seccionActiva === 'concepto' && seccionCompletada('cliente') && (
+                                <div className="px-4 pb-4">
+                                    <input
+                                        type="text"
+                                        value={concepto}
+                                        onChange={(e) => setConcepto(e.target.value)}
+                                        placeholder="Ej: 3 tacos al pastor, Corte de cabello..."
+                                        maxLength={200}
+                                        className="w-full py-2 px-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[#1A1A1A] border border-[#333] text-white"
+                                    />
+                                    <p className="text-[#94A3B8] text-xs mt-1">
+                                        {concepto.length}/200 caracteres
+                                    </p>
                                 </div>
                             )}
                         </div>

@@ -25,6 +25,7 @@ import { NavLink } from 'react-router-dom';
 import { Store, ShoppingCart, Tag, Gift, BarChart3 } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useHideOnScroll } from '../../hooks/useHideOnScroll';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -96,6 +97,9 @@ export function BottomNav() {
   const usuario = useAuthStore((state) => state.usuario);
   const esComercial = usuario?.modoActivo === 'comercial';
 
+  // Auto-hide al hacer scroll down (solo móvil)
+  const { hideStyle } = useHideOnScroll({ direction: 'down' });
+
   // ---------------------------------------------------------------------------
   // Datos de ejemplo (TODO: traer del store real)
   // ---------------------------------------------------------------------------
@@ -109,7 +113,7 @@ export function BottomNav() {
       {/* Inyectar estilos de animación */}
       <style>{animationStyles}</style>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40">
+      <nav className="fixed bottom-0 left-0 right-0 z-40" style={hideStyle}>
 
 
         {/* Fondo con gradiente negro y padding para safe-area */}

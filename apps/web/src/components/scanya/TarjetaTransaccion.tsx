@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Users,
   MessageCircle,
+  ShoppingBag,
 } from 'lucide-react';
 import type { TransaccionScanYA } from '@/types/scanya';
 import Tooltip from '@/components/ui/Tooltip';
@@ -299,14 +300,18 @@ export function TarjetaTransaccion({
       <div className="border-t border-white/10 my-3 lg:my-2 2xl:my-3" />
 
       {/* ================================================================== */}
-      {/* FILA 2: Monto + Puntos */}
+      {/* FILA 2: Monto + Método Pago + Puntos (una sola línea) */}
       {/* ================================================================== */}
-      <div className="flex items-center justify-between mb-2 lg:mb-1 2xl:mb-1.5">
-        <div className="flex items-center gap-2 lg:gap-0.5 2xl:gap-1.5">
+      <div className="flex items-center justify-between mb-1 lg:mb-0.5 2xl:mb-1">
+        <div className="flex items-center gap-2 lg:gap-1 2xl:gap-2">
           <Coins className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#F59E0B]" />
           <span className="text-white text-lg lg:text-[15px] 2xl:text-lg font-bold">
             {formatearMoneda(transaccion.montoTotal)}
           </span>
+          <div className="flex items-center gap-1 lg:gap-0.5 2xl:gap-1 text-[#94A3B8] text-sm lg:text-[11px] 2xl:text-sm">
+            <IconoMetodoPago transaccion={transaccion} />
+            <span>{metodoPago.texto}</span>
+          </div>
         </div>
         <div className="flex items-center gap-1 lg:gap-0.5 2xl:gap-1">
           <span className="text-[#10B981] font-bold text-base lg:text-sm 2xl:text-base">
@@ -328,12 +333,14 @@ export function TarjetaTransaccion({
       </div>
 
       {/* ================================================================== */}
-      {/* FILA 3: Método de pago */}
+      {/* FILA 2.5: Concepto (si existe) */}
       {/* ================================================================== */}
-      <div className="flex items-center gap-2 lg:gap-0.5 2xl:gap-1.5 text-[#94A3B8] text-sm lg:text-[11px] 2xl:text-sm mb-3 lg:mb-2 2xl:mb-1.5">
-        <IconoMetodoPago transaccion={transaccion} />
-        <span>{metodoPago.texto}</span>
-      </div>
+      {transaccion.concepto && (
+        <div className="flex items-center gap-2 lg:gap-1 2xl:gap-1.5 mb-2 lg:mb-1.5 2xl:mb-2 ml-7 lg:ml-5 2xl:ml-7">
+          <ShoppingBag className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-[#60A5FA] shrink-0" />
+          <span className="text-[#94A3B8] text-sm lg:text-[11px] 2xl:text-sm truncate">{transaccion.concepto}</span>
+        </div>
+      )}
 
       {/* ================================================================== */}
       {/* FILA 4: Cupón (si existe) */}

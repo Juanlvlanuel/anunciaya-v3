@@ -31,7 +31,7 @@ import {
   User,
   Settings,
   LogOut,
-  CreditCard,
+  Wallet,
   ChevronRight,
   Gift,
   Heart,
@@ -62,9 +62,9 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // ---------------------------------------------------------------------------
   const usuario = useAuthStore((state) => state.usuario);
   const logout = useAuthStore((state) => state.logout);
-  
+
   const ciudadData = useGpsStore((state) => state.ciudad);
-  
+
   const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
 
   // ---------------------------------------------------------------------------
@@ -167,11 +167,10 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             {/* Avatar */}
             <div className="relative mb-3">
               <div
-                className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ${
-                  esComercial
-                    ? 'bg-linear-to-br from-orange-400 to-orange-600 ring-orange-100'
-                    : 'bg-linear-to-br from-blue-400 to-blue-600 ring-blue-100'
-                } overflow-hidden`}
+                className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ${esComercial
+                  ? 'bg-linear-to-br from-orange-400 to-orange-600 ring-orange-100'
+                  : 'bg-linear-to-br from-blue-400 to-blue-600 ring-blue-100'
+                  } overflow-hidden`}
               >
                 {esComercial ? (
                   usuario?.fotoPerfilNegocio ? (
@@ -215,35 +214,21 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         {/* === OPCIONES DE NAVEGACIÓN === */}
         <div className="flex-1 overflow-auto py-2">
           {/* === SECCIÓN UNIVERSAL (SIEMPRE VISIBLE) === */}
-          
+
           {/* Ubicación - PRIMERA OPCIÓN */}
-          <MenuDrawerItemDestacado
+          <MenuDrawerItem
             icon={MapPin}
-            label="Tu Ubicación"
-            sublabel={ciudadData?.nombreCompleto || 'Seleccionar ubicación'}
-            bgColor="bg-linear-to-br from-blue-500 to-blue-600"
+            label={
+              <span className="flex flex-col leading-tight">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Tu Ubicación</span>
+                <span className="text-sm font-semibold text-gray-900 truncate max-w-[150px] block">{ciudadData?.nombreCompleto || 'Seleccionar ubicación'}</span>
+              </span>
+            }
+            bgColor="bg-gradient-to-br from-blue-500 to-blue-600"
             iconColor="text-white"
             hoverGradient="hover:from-blue-50"
-            borderColor="border-blue-200"
             onClick={handleAbrirUbicacion}
           />
-
-          {/* Empleos - SEGUNDA OPCIÓN */}
-          <MenuDrawerItemDestacado
-            icon={Briefcase}
-            label="Bolsa de Trabajo"
-            sublabel={
-              esComercial
-                ? 'Publica vacantes y contrata'
-                : 'Busca empleo u ofrece servicios'
-            }
-            bgColor="bg-linear-to-br from-purple-500 to-purple-600"
-            iconColor="text-white"
-            hoverGradient="hover:from-purple-50"
-            borderColor="border-purple-200"
-            onClick={() => handleNavegar('/empleos')}
-          />
-
           {/* Divisor después de opciones universales */}
           <div className="my-2.5 mx-4 h-[1.5px] bg-linear-to-r from-transparent via-gray-400 to-transparent"></div>
 
@@ -255,8 +240,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 iconoImagen="/IconoScanYA.webp"
                 label={
                   <span>
-                    <span className="text-blue-700">Scan</span>
-                    <span className="text-red-600">YA</span>
+                    <span className="text-blue-700 font-bold">Scan</span>
+                    <span className="text-red-600 font-bold">YA</span>
                   </span>
                 }
                 bgColor="bg-linear-to-br from-orange-500 to-orange-600"
@@ -272,8 +257,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 iconoImagen="/IconoBS.webp"
                 label={
                   <span>
-                    <span className=" text-blue-700">Business</span>
-                    <span className=" text-blue-700"> Studio</span>
+                    <span className="text-blue-700 font-bold">Business</span>
+                    <span className="text-blue-700 font-bold"> Studio</span>
                   </span>
                 }
                 bgColor="bg-linear-to-br from-blue-500 to-blue-600"
@@ -282,6 +267,16 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 arrowColor="text-orange-400 group-hover:text-orange-600"
                 comercial
                 onClick={() => handleNavegar('/business-studio')}
+              />
+
+              {/* Bolsa de Trabajo */}
+              <MenuDrawerItem
+                icon={Briefcase}
+                label="Publica Vacantes"
+                bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
+                iconColor="text-white"
+                hoverGradient="hover:from-amber-50"
+                onClick={() => handleNavegar('/empleos')}
               />
 
               {/* Divisor después de sección comercial */}
@@ -294,11 +289,16 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             <>
               {/* CardYA */}
               <MenuDrawerItem
-                icon={CreditCard}
-                label="CardYA"
-                bgColor="bg-blue-100"
-                iconColor="text-blue-600"
-                hoverGradient="hover:from-blue-50"
+                icon={Wallet}
+                label={
+                  <span>
+                    <span className="text-gray-900">Card</span>
+                    <span className="text-amber-500 font-extrabold">YA</span>
+                  </span>
+                }
+                bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
+                iconColor="text-white"
+                hoverGradient="hover:from-amber-50"
                 onClick={() => handleNavegar('/cardya')}
               />
 
@@ -307,8 +307,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 icon={Gift}
                 label="Mis Cupones"
                 badge={cuponesActivos}
-                bgColor="bg-emerald-100"
-                iconColor="text-emerald-600"
+                bgColor="bg-gradient-to-br from-emerald-400 to-emerald-600"
+                iconColor="text-white"
                 hoverGradient="hover:from-emerald-50"
                 onClick={() => handleNavegar('/cupones')}
               />
@@ -317,10 +317,20 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
               <MenuDrawerItem
                 icon={FileText}
                 label="Mis Publicaciones"
-                bgColor="bg-purple-100"
-                iconColor="text-purple-600"
+                bgColor="bg-gradient-to-br from-purple-400 to-purple-600"
+                iconColor="text-white"
                 hoverGradient="hover:from-purple-50"
                 onClick={() => handleNavegar('/mis-publicaciones')}
+              />
+
+              {/* Bolsa de Trabajo */}
+              <MenuDrawerItem
+                icon={Briefcase}
+                label="Bolsa de Trabajo"
+                bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
+                iconColor="text-white"
+                hoverGradient="hover:from-amber-50"
+                onClick={() => handleNavegar('/empleos')}
               />
 
               {/* Divisor después de opciones personales */}
@@ -329,13 +339,13 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           )}
 
           {/* === OPCIONES COMUNES (TODOS) === */}
-          
+
           {/* Mi Perfil */}
           <MenuDrawerItem
             icon={User}
             label="Mi Perfil"
-            bgColor="bg-blue-100"
-            iconColor="text-blue-600"
+            bgColor="bg-gradient-to-br from-blue-400 to-blue-600"
+            iconColor="text-white"
             hoverGradient="hover:from-blue-50"
             onClick={() => handleNavegar('/perfil')}
           />
@@ -344,9 +354,9 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           <MenuDrawerItem
             icon={Settings}
             label="Configuración"
-            bgColor="bg-gray-100"
-            iconColor="text-gray-600"
-            hoverGradient="hover:from-gray-50"
+            bgColor="bg-gradient-to-br from-slate-400 to-slate-600"
+            iconColor="text-white"
+            hoverGradient="hover:from-slate-50"
             onClick={() => handleNavegar('/configuracion')}
           />
 
@@ -354,8 +364,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           <MenuDrawerItem
             icon={Heart}
             label="Mis Guardados"
-            bgColor="bg-pink-100"
-            iconColor="text-pink-600"
+            bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
+            iconColor="text-white"
             hoverGradient="hover:from-pink-50"
             onClick={() => handleNavegar('/guardados')}
           />
@@ -373,59 +383,6 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         </div>
       </div>
     </div>
-  );
-}
-
-// =============================================================================
-// SUBCOMPONENTE: MenuDrawerItemDestacado (VERSIÓN DESTACADA)
-// =============================================================================
-
-interface MenuDrawerItemDestacadoProps {
-  icon: React.ElementType;
-  label: string;
-  sublabel: string;
-  bgColor: string;
-  iconColor: string;
-  hoverGradient: string;
-  borderColor: string;
-  onClick: () => void;
-}
-
-function MenuDrawerItemDestacado({
-  icon: Icon,
-  label,
-  sublabel,
-  bgColor,
-  iconColor,
-  hoverGradient,
-  borderColor,
-  onClick,
-}: MenuDrawerItemDestacadoProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full mx-2 mb-2 flex items-center gap-3 p-3 bg-white hover:bg-linear-to-r ${hoverGradient} hover:to-transparent rounded-xl border-2 ${borderColor} group transition-all duration-200 hover:shadow-md active:scale-98`}
-    >
-      {/* Icono grande con gradiente */}
-      <div
-        className={`w-12 h-12 ${bgColor} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-md`}
-      >
-        <Icon className={`w-6 h-6 ${iconColor}`} />
-      </div>
-
-      {/* Texto */}
-      <div className="flex-1 text-left">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-          {label}
-        </p>
-        <p className="text-sm font-semibold text-gray-900 mt-0.5">
-          {sublabel}
-        </p>
-      </div>
-
-      {/* Chevron */}
-      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200" />
-    </button>
   );
 }
 
@@ -464,11 +421,9 @@ function MenuDrawerItem({
     >
       {/* Icono con o sin background */}
       <div
-        className={`${iconoImagen ? 'w-auto h-8' : 'w-8 h-8'} ${
-          iconoImagen ? '' : bgColor
-        } ${iconoImagen ? '' : 'rounded-lg'} flex items-center justify-center group-hover:scale-110 transition-transform duration-150 ${
-          iconoImagen ? '' : 'shadow-sm'
-        } shrink-0`}
+        className={`${iconoImagen ? 'w-auto h-8' : 'w-8 h-8'} ${iconoImagen ? '' : bgColor
+          } ${iconoImagen ? '' : 'rounded-lg'} flex items-center justify-center group-hover:scale-110 transition-transform duration-150 ${iconoImagen ? '' : 'shadow-sm'
+          } shrink-0`}
       >
         {iconoImagen ? (
           <img

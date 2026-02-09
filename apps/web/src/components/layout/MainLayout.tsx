@@ -24,6 +24,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
+import { useMainScrollStore } from '../../stores/useMainScrollStore';
 
 // Componentes de layout
 import { MobileHeader } from './MobileHeader';
@@ -61,6 +62,7 @@ export function MainLayout() {
   );
   const [tieneScroll, setTieneScroll] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
+  const mobileMainRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
@@ -78,9 +80,20 @@ export function MainLayout() {
   const modalUbicacionAbierto = useUiStore((state) => state.modalUbicacionAbierto);
   const cerrarModalUbicacion = useUiStore((state) => state.cerrarModalUbicacion);
 
+  // Scroll store — registrar ref del main para hooks de scroll
+  const setMainScrollRef = useMainScrollStore((s) => s.setMainScrollRef);
+
   // Detectar modo preview (para iframe de Business Studio)
   const previewParam = new URLSearchParams(location.search).get('preview');
   const esModoPreview = previewParam === 'true' || previewParam === 'card';
+
+  // ---------------------------------------------------------------------------
+  // Registrar ref de scroll en el store global
+  // (para que useScrollDirection, useHideOnScroll, etc. funcionen)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    setMainScrollRef(esDesktop ? mainRef : mobileMainRef);
+  }, [esDesktop, setMainScrollRef]);
 
   // ---------------------------------------------------------------------------
   // Detectar cambio de tamaño de pantalla
@@ -176,9 +189,9 @@ export function MainLayout() {
           {/* ===== CONTENIDO PRINCIPAL ===== */}
           {esDesktop ? (
             <>
-              {/* Columna Izquierda - PEGADA AL BORDE */}
+              {/* Columna Izquierda - PEGADA AL BORDE (fondo controlado por ColumnaIzquierda) */}
               <aside
-                className="fixed lg:w-56 2xl:w-72 bg-white shadow-lg overflow-y-auto z-30"
+                className="fixed lg:w-56 2xl:w-72 shadow-lg overflow-hidden z-30"
                 style={{
                   top: COLUMNS_TOP,
                   left: '0',
@@ -241,8 +254,9 @@ export function MainLayout() {
             </>
           ) : (
             <main
+              ref={mobileMainRef}
               className="main-content-landscape-fullscreen overflow-y-auto pb-20"
-              style={{ height: 'calc(100vh - 140px)', WebkitOverflowScrolling: 'touch' }}
+              style={{ height: 'calc(100vh - 80px)', WebkitOverflowScrolling: 'touch' }}
             >
               <Outlet />
             </main>

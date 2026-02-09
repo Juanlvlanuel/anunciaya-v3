@@ -1,21 +1,42 @@
 /**
- * useScrollDirection.ts
- * =====================
- * Hook personalizado para detectar la dirección del scroll.
+ * useScrollDirection.ts — v2.0
+ * ============================
+ * Hook para detectar dirección de scroll.
  *
- * Uso:
+ * CAMBIO CLAVE v2.0:
+ * - Acepta `scrollRef` opcional para escuchar scroll de un contenedor
+ *   con overflow-y-auto (ej: <main> en móvil) en lugar de `window`.
+ * - Usa `useRef` internos en vez de `useState` para lastScrollY,
+ *   evitando el loop de re-renders que causaba el bug de v1.
+ * - API cambia de positional arg a options object (breaking change).
+ *
+ * USO:
+ *   // Window (desktop o sin ref)
  *   const { scrollDirection, isAtTop } = useScrollDirection();
  *
- * Retorna:
- *   - scrollDirection: 'up' | 'down' | 'idle'
- *   - isAtTop: boolean (true si está en top de la página)
+ *   // Contenedor específico (mobile)
+ *   const mainRef = useRef<HTMLElement>(null);
+ *   const { scrollDirection } = useScrollDirection({ scrollRef: mainRef });
  *
- * Ubicación: apps/web/src/hooks/useScrollDirection.ts
+ * UBICACIÓN: apps/web/src/hooks/useScrollDirection.ts
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type RefObject } from 'react';
+
+// =============================================================================
+// TIPOS
+// =============================================================================
 
 export type ScrollDirection = 'up' | 'down' | 'idle';
+
+interface UseScrollDirectionOptions {
+  /** Ref al contenedor que hace scroll. Si no se pasa, usa window. */
+  scrollRef?: RefObject<HTMLElement | null>;
+  /** Píxeles mínimos para considerar cambio de dirección (default: 10) */
+  threshold?: number;
+  /** Píxeles desde top para considerar "en el top" (default: 10) */
+  topOffset?: number;
+}
 
 interface UseScrollDirectionReturn {
   scrollDirection: ScrollDirection;
@@ -23,70 +44,87 @@ interface UseScrollDirectionReturn {
   scrollY: number;
 }
 
-/**
- * Hook que detecta la dirección del scroll y la posición
- * 
- * @param threshold - Píxeles mínimos de scroll para cambiar dirección (default: 10)
- */
-export function useScrollDirection(threshold: number = 10): UseScrollDirectionReturn {
+// =============================================================================
+// HOOK
+// =============================================================================
+
+export function useScrollDirection({
+  scrollRef,
+  threshold = 10,
+  topOffset = 10,
+}: UseScrollDirectionOptions = {}): UseScrollDirectionReturn {
   const [scrollDirection, setScrollDirection] = useState<ScrollDirection>('idle');
   const [scrollY, setScrollY] = useState(0);
-  const [lastScrollY, setLastScrollY] = useState(0);
+
+  // Refs internos para evitar re-renders (fix del bug v1)
+  const lastScrollYRef = useRef(0);
+  const lastDirectionRef = useRef<ScrollDirection>('idle');
+  const tickingRef = useRef(false);
 
   useEffect(() => {
-    let ticking = false;
+    const getScrollTop = (): number => {
+      if (scrollRef?.current) {
+        return scrollRef.current.scrollTop;
+      }
+      return window.scrollY;
+    };
 
     const updateScrollDirection = () => {
-      const currentScrollY = window.scrollY;
+      const currentScrollY = getScrollTop();
+
       setScrollY(currentScrollY);
 
-      // Si está en el top, siempre idle
-      if (currentScrollY < 10) {
-        setScrollDirection('idle');
-        setLastScrollY(currentScrollY);
-        ticking = false;
+      // Si está en el top → idle
+      if (currentScrollY < topOffset) {
+        if (lastDirectionRef.current !== 'idle') {
+          lastDirectionRef.current = 'idle';
+          setScrollDirection('idle');
+        }
+        lastScrollYRef.current = currentScrollY;
+        tickingRef.current = false;
         return;
       }
 
       // Calcular diferencia
-      const diff = currentScrollY - lastScrollY;
+      const diff = currentScrollY - lastScrollYRef.current;
 
-      // Solo actualizar si supera el threshold
+      // Solo cambiar si supera threshold
       if (Math.abs(diff) < threshold) {
-        ticking = false;
+        tickingRef.current = false;
         return;
       }
 
-      // Determinar dirección
-      if (diff > 0) {
-        // Scrolleando hacia abajo
-        setScrollDirection('down');
-      } else {
-        // Scrolleando hacia arriba
-        setScrollDirection('up');
+      const newDirection: ScrollDirection = diff > 0 ? 'down' : 'up';
+
+      // Solo actualizar estado si realmente cambió
+      if (newDirection !== lastDirectionRef.current) {
+        lastDirectionRef.current = newDirection;
+        setScrollDirection(newDirection);
       }
 
-      setLastScrollY(currentScrollY);
-      ticking = false;
+      lastScrollYRef.current = currentScrollY;
+      tickingRef.current = false;
     };
 
     const onScroll = () => {
-      if (!ticking) {
+      if (!tickingRef.current) {
         window.requestAnimationFrame(updateScrollDirection);
-        ticking = true;
+        tickingRef.current = true;
       }
     };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
+    // Escuchar el contenedor correcto
+    const target = scrollRef?.current ?? window;
+    target.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      target.removeEventListener('scroll', onScroll);
     };
-  }, [lastScrollY, threshold]);
+  }, [scrollRef, threshold, topOffset]);
 
   return {
     scrollDirection,
-    isAtTop: scrollY < 10,
+    isAtTop: scrollY < topOffset,
     scrollY,
   };
 }

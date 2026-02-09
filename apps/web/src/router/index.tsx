@@ -38,6 +38,8 @@ import PaginaMisCupones from '../pages/private/cupones/PaginaMisCupones';
 import PaginaGuardados from '../pages/private/guardados/PaginaGuardados';
 import PaginaMisPublicaciones from '../pages/private/publicaciones/PaginaMisPublicaciones';
 import { PaginaNegocios, PaginaPerfilNegocio } from '../pages/private/negocios';
+// ⭐ NUEVO: CardYA (Fase X)
+import PaginaCardYA from '../pages/private/cardya/PaginaCardYA';
 
 // ⭐ NUEVO: Onboarding de negocio (Fase 5)
 import PaginaOnboarding from '../pages/private/business/onboarding/PaginaOnboarding';
@@ -77,9 +79,6 @@ const PaginaEmpleos = () => <PlaceholderPage nombre="💼 Bolsa de Trabajo" />;
 
 // Páginas de usuario
 const PaginaConfiguracion = () => <PlaceholderPage nombre="⚙️ Configuración" />;
-
-// Páginas de cuenta personal
-const PaginaCardYA = () => <PlaceholderPage nombre="💳 CardYA" />;
 
 // Páginas de cuenta comercial
 const PaginaConfigurarNegocio = () => <PlaceholderPage nombre="🏪 Configurar Negocio" />;
@@ -266,6 +265,14 @@ const router = createBrowserRouter([
             element: (
               <ModoGuard requiereModo="personal">
                 <PaginaMisPublicaciones />
+              </ModoGuard>
+            ),
+          },
+          {
+            path: '/cardya',
+            element: (
+              <ModoGuard requiereModo="personal">
+                <PaginaCardYA />
               </ModoGuard>
             ),
           },

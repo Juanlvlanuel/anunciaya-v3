@@ -129,6 +129,7 @@ export interface OtorgarPuntosInput {
   fotoTicketUrl?: string;
   numeroOrden?: string;
   nota?: string;
+  concepto?: string;
   recordatorioId?: string;
 }
 
@@ -142,6 +143,7 @@ export interface CrearRecordatorioInput {
   montoTarjeta?: number;
   montoTransferencia?: number;
   nota?: string;
+  concepto?: string;
 }
 
 /**
@@ -317,6 +319,7 @@ export interface TransaccionScanYA {
   // Negocio
   negocioNombre: string;
   // Extras
+  concepto: string | null;
   fotoTicketUrl: string | null;
   numeroOrden: string | null;
   nota: string | null;
@@ -367,7 +370,7 @@ export interface VoucherCompleto {
 export interface FiltrosVouchers {
   estado?: 'pendiente' | 'usado' | 'expirado' | 'cancelado' | 'todos';
   sucursalId?: string;
-  empleadoId?: string;   
+  empleadoId?: string;
   pagina?: number;
   limite?: number;
 }

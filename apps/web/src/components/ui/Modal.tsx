@@ -35,8 +35,8 @@ interface ModalProps {
   abierto: boolean;
   /** Función para cerrar el modal */
   onCerrar: () => void;
-  /** Título del modal (opcional) */
-  titulo?: string;
+  /** Título del modal (opcional) - Acepta string o JSX */
+  titulo?: ReactNode; // Acepta string o JSX
   /** Icono junto al título (opcional) */
   iconoTitulo?: ReactNode;
   /** Contenido del modal */

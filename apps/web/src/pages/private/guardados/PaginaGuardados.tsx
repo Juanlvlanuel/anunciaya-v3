@@ -347,7 +347,7 @@ export function PaginaGuardados() {
     return (
         <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-50">
             {/* Header Sticky - Nivel superior */}
-            <div className="sticky top-0 lg:top-[90px] bg-white/95 backdrop-blur-sm z-40 border-b border-slate-200 shadow-sm will-change-transform" style={{ transform: 'translateZ(0)' }}>
+            <div className="sticky top-0 bg-white/95 backdrop-blur-sm z-40 border-b border-slate-200 shadow-sm will-change-transform" style={{ transform: 'translateZ(0)' }}>
                 <div className="max-w-7xl mx-auto px-4 lg:px-2.5 2xl:px-6">
                     {/* Título y botones de ordenamiento */}
                     <div className="pt-4 pb-4 lg:pt-2.5 lg:pb-2.5 2xl:pt-4 2xl:pb-4">

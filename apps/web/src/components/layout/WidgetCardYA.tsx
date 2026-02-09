@@ -1,243 +1,348 @@
 /**
- * WidgetCardYA.tsx
- * =================
- * Widget de CardYA con sistema de niveles para la columna izquierda.
- *
- * SISTEMA DE NIVELES:
- * 🥉 BRONCE: 0 - 4,999 puntos (1x multiplicador)
- * 🥈 PLATA:  5,000 - 14,999 puntos (1.25x multiplicador)
- * 🥇 ORO:    15,000+ puntos (1.5x multiplicador)
- *
+ * WidgetCardYA.tsx - Widget de CardYA para ColumnaIzquierda
+ * ================================================================
+ * Widget premium tipo tarjeta de crédito con dos modos:
+ * - Light (default): estilo platinum claro, integrado con columna blanca
+ * - Dark (en /cardya): fondo negro con amber, inmersivo
+ * 
+ * Props: dark?: boolean — activa el modo oscuro
+ * 
  * Ubicación: apps/web/src/components/layout/WidgetCardYA.tsx
  */
 
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Star, Award } from 'lucide-react';
+import { Wallet } from 'lucide-react';
+import { useCardyaStore } from '../../stores/useCardyaStore';
 
 // =============================================================================
-// TIPOS Y CONFIGURACIÓN DE NIVELES
+// ESTILOS CSS CON ANIMACIONES
 // =============================================================================
 
-type NivelCardYA = 'bronce' | 'plata' | 'oro';
-
-interface ConfigNivel {
-  nombre: string;
-  minPuntos: number;
-  maxPuntos: number | null;
-  multiplicador: number;
-  gradiente: {
-    from: string;
-    via: string;
-    to: string;
-  };
-  accentColor: string;
-  iconColor: string;
-  badgeGradient: string;
-  emoji: string;
-}
-
-const NIVELES_CONFIG: Record<NivelCardYA, ConfigNivel> = {
-  bronce: {
-    nombre: 'Bronce',
-    minPuntos: 0,
-    maxPuntos: 4999,
-    multiplicador: 1.0,
-    gradiente: {
-      from: 'from-amber-700',
-      via: 'via-amber-800',
-      to: 'to-amber-900',
-    },
-    accentColor: 'text-amber-400',
-    iconColor: 'text-amber-900',
-    badgeGradient: 'from-amber-500 to-amber-700',
-    emoji: '🥉',
-  },
-  plata: {
-    nombre: 'Plata',
-    minPuntos: 5000,
-    maxPuntos: 14999,
-    multiplicador: 1.25,
-    gradiente: {
-      from: 'from-gray-300',
-      via: 'via-gray-400',
-      to: 'to-gray-500',
-    },
-    accentColor: 'text-gray-100',
-    iconColor: 'text-gray-700',
-    badgeGradient: 'from-gray-300 to-gray-500',
-    emoji: '🥈',
-  },
-  oro: {
-    nombre: 'Oro',
-    minPuntos: 15000,
-    maxPuntos: null,
-    multiplicador: 1.5,
-    gradiente: {
-      from: 'from-yellow-400',
-      via: 'via-yellow-500',
-      to: 'to-yellow-600',
-    },
-    accentColor: 'text-yellow-100',
-    iconColor: 'text-yellow-900',
-    badgeGradient: 'from-yellow-400 to-yellow-600',
-    emoji: '🥇',
-  },
-};
-
-// =============================================================================
-// FUNCIONES DE CÁLCULO
-// =============================================================================
-
-function calcularNivel(puntosLifetime: number): NivelCardYA {
-  if (puntosLifetime >= 15000) return 'oro';
-  if (puntosLifetime >= 5000) return 'plata';
-  return 'bronce';
-}
-
-function calcularProgresoNivel(puntosLifetime: number): {
-  nivelActual: NivelCardYA;
-  configActual: ConfigNivel;
-  siguienteNivel: NivelCardYA | null;
-  puntosParaSiguiente: number;
-  progresoPorcentaje: number;
-} {
-  const nivelActual = calcularNivel(puntosLifetime);
-  const configActual = NIVELES_CONFIG[nivelActual];
-
-  let siguienteNivel: NivelCardYA | null = null;
-  let puntosParaSiguiente = 0;
-  let progresoPorcentaje = 0;
-
-  if (nivelActual === 'bronce') {
-    siguienteNivel = 'plata';
-    puntosParaSiguiente = 5000;
-    progresoPorcentaje = (puntosLifetime / 5000) * 100;
-  } else if (nivelActual === 'plata') {
-    siguienteNivel = 'oro';
-    puntosParaSiguiente = 15000;
-    const puntosEnNivel = puntosLifetime - 5000;
-    progresoPorcentaje = (puntosEnNivel / 10000) * 100;
-  } else {
-    siguienteNivel = null;
-    puntosParaSiguiente = 0;
-    progresoPorcentaje = 100;
+const widgetStyles = `
+  /* Burbujas flotantes */
+  @keyframes bubble-float {
+    0% {
+      transform: translateY(0) translateX(0) scale(1);
+      opacity: 0.5;
+    }
+    30% { opacity: 0.7; }
+    70% {
+      transform: translateY(-80px) translateX(30px) scale(0.8);
+      opacity: 0.5;
+    }
+    100% {
+      transform: translateY(-120px) translateX(-20px) scale(0.5);
+      opacity: 0;
+    }
   }
 
-  return {
-    nivelActual,
-    configActual,
-    siguienteNivel,
-    puntosParaSiguiente,
-    progresoPorcentaje: Math.min(progresoPorcentaje, 100),
-  };
-}
+  /* Burbujas — dark */
+  .cardya-bubble-dark {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(251, 191, 36, 0.6), rgba(251, 191, 36, 0.15));
+    pointer-events: none;
+    animation: bubble-float ease-in-out infinite;
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
+  }
+
+  /* Burbujas — light (silver) */
+  .cardya-bubble-light {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(148, 163, 184, 0.35), rgba(148, 163, 184, 0.08));
+    pointer-events: none;
+    animation: bubble-float ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(148, 163, 184, 0.2);
+  }
+
+  .cardya-bubble-dark:nth-child(1),
+  .cardya-bubble-light:nth-child(1) { 
+    width: 18px; height: 18px; bottom: 10%; left: 10%; 
+    animation-delay: 0s; animation-duration: 9s;
+  }
+  .cardya-bubble-dark:nth-child(2),
+  .cardya-bubble-light:nth-child(2) { 
+    width: 15px; height: 15px; bottom: 5%; left: 30%; 
+    animation-delay: 2s; animation-duration: 10s;
+  }
+  .cardya-bubble-dark:nth-child(3),
+  .cardya-bubble-light:nth-child(3) { 
+    width: 20px; height: 20px; bottom: 8%; right: 25%; 
+    animation-delay: 4s; animation-duration: 11s;
+  }
+  .cardya-bubble-dark:nth-child(4),
+  .cardya-bubble-light:nth-child(4) { 
+    width: 16px; height: 16px; bottom: 15%; right: 8%; 
+    animation-delay: 6s; animation-duration: 9.5s;
+  }
+  .cardya-bubble-dark:nth-child(5),
+  .cardya-bubble-light:nth-child(5) { 
+    width: 17px; height: 17px; bottom: 12%; left: 50%; 
+    animation-delay: 8s; animation-duration: 10.5s;
+  }
+
+  /* Brillo del chip */
+  @keyframes chip-shine {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Vibración tipo ring */
+  @keyframes card-ring {
+    0% { transform: rotate(0deg); }
+    2% { transform: rotate(-3deg); }
+    4% { transform: rotate(3deg); }
+    6% { transform: rotate(-3deg); }
+    8% { transform: rotate(3deg); }
+    10% { transform: rotate(-3deg); }
+    12% { transform: rotate(3deg); }
+    14% { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  /* Pulso botón (dark only) */
+  @keyframes pulse-button {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+    50% { box-shadow: 0 0 20px 5px rgba(251, 191, 36, 0.2); }
+  }
+
+  @keyframes button-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  /* Chip plateado — dark */
+  .cardya-chip-dark {
+    width: 34px; height: 26px;
+    background: linear-gradient(135deg,
+      #f0f0f0 0%, #d4d4d4 10%, #ffffff 20%, #c0c0c0 30%,
+      #e8e8e8 40%, #b8b8b8 50%, #e8e8e8 60%, #c0c0c0 70%,
+      #ffffff 80%, #d4d4d4 90%, #f0f0f0 100%
+    );
+    background-size: 200% 200%;
+    animation: chip-shine 4s ease-in-out infinite;
+    border-radius: 6px;
+    box-shadow: 
+      0 2px 8px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+    position: relative;
+  }
+
+  /* Chip plateado — light */
+  .cardya-chip-light {
+    width: 34px; height: 26px;
+    background: linear-gradient(135deg,
+      #e2e8f0 0%, #cbd5e1 10%, #f1f5f9 20%, #94a3b8 30%,
+      #cbd5e1 40%, #64748b 50%, #cbd5e1 60%, #94a3b8 70%,
+      #f1f5f9 80%, #cbd5e1 90%, #e2e8f0 100%
+    );
+    background-size: 200% 200%;
+    animation: chip-shine 4s ease-in-out infinite;
+    border-radius: 6px;
+    box-shadow: 
+      0 2px 8px rgba(100, 116, 139, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      inset 0 -1px 0 rgba(100, 116, 139, 0.3);
+    position: relative;
+  }
+
+  .cardya-chip-dark::before,
+  .cardya-chip-light::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(192, 192, 192, 0.5) 50%,
+      rgba(255, 255, 255, 0.3) 100%
+    );
+    border-radius: 3px;
+  }
+
+  .cardya-chip-dark::after,
+  .cardya-chip-light::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70%; height: 70%;
+    background: 
+      repeating-linear-gradient(0deg,
+        rgba(0, 0, 0, 0.1) 0px, transparent 1px, transparent 3px, rgba(0, 0, 0, 0.1) 4px
+      ),
+      repeating-linear-gradient(90deg,
+        rgba(0, 0, 0, 0.1) 0px, transparent 1px, transparent 3px, rgba(0, 0, 0, 0.1) 4px
+      );
+  }
+`;
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
 interface WidgetCardYAProps {
-  puntosDisponibles?: number;
-  puntosLifetime?: number;
+  dark?: boolean;
 }
 
-export function WidgetCardYA({
-  puntosDisponibles = 1250,
-  puntosLifetime = 12500,
-}: WidgetCardYAProps) {
+export function WidgetCardYA({ dark = false }: WidgetCardYAProps) {
   const navigate = useNavigate();
 
-  const { configActual, siguienteNivel, puntosParaSiguiente, progresoPorcentaje } =
-    calcularProgresoNivel(puntosLifetime);
+  const negociosActivos = useCardyaStore((s) => s.billeteras.length);
+  const billeteras = useCardyaStore((s) => s.billeteras);
+  const cargarTodo = useCardyaStore((s) => s.cargarTodo);
+
+  // Cargar billeteras si aún no están cargadas
+  useEffect(() => {
+    if (billeteras.length === 0) {
+      cargarTodo();
+    }
+  }, []);
+
+  // Formatear "miembro desde" usando createdAt del localStorage
+  const miembroDesde = (() => {
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    try {
+      const raw = localStorage.getItem('ay_usuario');
+      if (raw) {
+        const usuario = JSON.parse(raw);
+        if (usuario.createdAt) {
+          const fecha = new Date(usuario.createdAt);
+          return `${meses[fecha.getMonth()]} ${fecha.getFullYear()}`;
+        }
+      }
+    } catch { /* fallback */ }
+    const ahora = new Date();
+    return `${meses[ahora.getMonth()]} ${ahora.getFullYear()}`;
+  })();
+
+  useEffect(() => {
+    const styleId = 'cardya-widget-animations';
+    if (!document.getElementById(styleId)) {
+      const styleElement = document.createElement('style');
+      styleElement.id = styleId;
+      styleElement.textContent = widgetStyles;
+      document.head.appendChild(styleElement);
+    }
+  }, []);
+
+  const handleVerBilleteras = () => {
+    navigate('/cardya');
+  };
+
+  const bubbleClass = dark ? 'cardya-bubble-dark' : 'cardya-bubble-light';
 
   return (
-    <div
-      onClick={() => navigate('/cardya')}
-      className={`bg-linear-to-br ${configActual.gradiente.from} ${configActual.gradiente.via} ${configActual.gradiente.to} rounded-xl lg:p-2.5 2xl:p-4 p-3 text-white shadow-2xl relative overflow-hidden cursor-pointer hover:shadow-3xl hover:scale-[1.02] transition-all duration-200 group`}
-    >
-      {/* Patrón de fondo sutil */}
-      <div className="absolute inset-0 opacity-10">
+    <div className="w-full text-transparent">
+      {/* ── Tarjeta Principal ── */}
+      <div
+        className="relative overflow-hidden 2xl:rounded-2xl lg:rounded-lg p-3"
+        style={{
+          background: dark
+            ? '#000000'
+            : 'linear-gradient(150deg, #8797AD, #262C38)',
+          aspectRatio: '1.586/1',
+
+          boxShadow: dark
+            ? 'none'
+            : '0 10px 40px rgba(0, 0, 0, 0.2), 0 2px 2px rgba(0, 0, 0, 0.10)',
+          animation: 'card-ring 10s ease-in-out infinite',
+        }}
+      >
+        {/* Glow amber sutil */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`,
-            backgroundSize: '12px 12px',
+            background: dark
+              ? 'radial-gradient(ellipse at 85% 20%, rgba(245,158,11,0.07) 0%, transparent 50%)'
+              : 'radial-gradient(ellipse at 85% 20%, rgba(148,163,184,0.15) 0%, transparent 50%)',
           }}
-        ></div>
-      </div>
-
-      {/* Header con icono y badge */}
-      <div className="relative flex items-center justify-between lg:mb-2 2xl:mb-3 mb-2.5">
-        <div className="flex items-center lg:gap-2 2xl:gap-3 gap-2.5">
-          <div className="lg:w-7 2xl:w-10 w-9 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-lg">
-            <CreditCard className="lg:w-3.5 2xl:w-5 w-4.5" />
-          </div>
-          <span className="font-bold lg:text-sm 2xl:text-xl text-base">CardYA</span>
-        </div>
-
-        {/* Badge de nivel */}
+        />
+        {/* Grid pattern sutil — ambos modos */}
         <div
-          className={`px-2 lg:px-2 2xl:px-3 lg:py-0.5 2xl:py-1 py-1 bg-linear-to-r ${configActual.badgeGradient} rounded-full text-white lg:text-[10px] 2xl:text-sm text-xs font-bold shadow-lg flex items-center lg:gap-1 2xl:gap-1.5 gap-1.5`}
-        >
-          <span>{configActual.emoji}</span>
-          <span>{configActual.nombre}</span>
-        </div>
-      </div>
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            opacity: 0.08,
+            backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 30px),
+                   repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 30px)`,
+          }}
+        />
 
-      {/* Puntos disponibles */}
-      <div className="relative lg:mb-2 2xl:mb-3 mb-2.5">
-        <div className={`${configActual.accentColor} lg:text-4xl 2xl:text-6xl text-5xl font-extrabold tracking-tighter`}>
-          {puntosDisponibles.toLocaleString()}
-        </div>
-        <div className="flex items-center gap-1.5 lg:mt-0.5 2xl:mt-1 mt-1">
-          <span className="text-white/80 lg:text-[10px] 2xl:text-sm text-xs font-medium">
-            puntos disponibles
-          </span>
-        </div>
-      </div>
+        {/* Burbujas */}
+        <div className={bubbleClass} />
+        <div className={bubbleClass} />
+        <div className={bubbleClass} />
+        <div className={bubbleClass} />
+        <div className={bubbleClass} />
 
-      {/* Multiplicador info */}
-      <div className="relative flex items-center justify-between lg:py-1.5 2xl:py-2 py-2 lg:px-2 2xl:px-3 px-2.5 bg-white/10 backdrop-blur-sm rounded-lg lg:mb-2 2xl:mb-3 mb-2.5">
-        <div className="flex items-center lg:gap-1.5 2xl:gap-2 gap-2">
-          <Star className="lg:w-3.5 2xl:w-5 w-4 text-yellow-300" />
-          <span className="lg:text-[10px] 2xl:text-sm text-xs font-semibold">
-            Ganas {configActual.multiplicador}x puntos
-          </span>
-        </div>
-        <span className="text-white/80 lg:text-[9px] 2xl:text-xs text-[10px]">
-          {puntosLifetime.toLocaleString()} pts lifetime
-        </span>
-      </div>
+        {/* Contenido */}
+        <div className="relative z-10 h-full flex flex-col">
 
-      {/* Progreso al siguiente nivel */}
-      {siguienteNivel && (
-        <div className="relative">
-          <div className="flex items-center justify-between lg:mb-1 2xl:mb-1.5 mb-1">
-            <span className="lg:text-[9px] 2xl:text-xs text-[10px] text-white/90">
-              Siguiente: {NIVELES_CONFIG[siguienteNivel].emoji} {NIVELES_CONFIG[siguienteNivel].nombre}
-            </span>
-            <span className="lg:text-[9px] 2xl:text-xs text-[10px] text-white/90">
-              {puntosParaSiguiente.toLocaleString()} pts
-            </span>
-          </div>
-          <div className="w-full bg-white/20 rounded-full lg:h-1.5 2xl:h-2 h-1.5 overflow-hidden backdrop-blur-sm">
+          {/* Header: Logo */}
+          <div className="flex items-center gap-2 mb-4">
             <div
-              className={`bg-linear-to-r ${NIVELES_CONFIG[siguienteNivel].badgeGradient} lg:h-1.5 2xl:h-2 h-1.5 rounded-full transition-all duration-300`}
-              style={{ width: `${progresoPorcentaje}%` }}
-            ></div>
+              className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+              style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+            >
+              <Wallet className="w-3.5 h-3.5 text-black" strokeWidth={2.5} />
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-lg font-extrabold tracking-tight text-white">
+                Card
+              </span>
+              <span className="text-xl font-extrabold tracking-tight text-amber-400">
+                YA
+              </span>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Nivel máximo alcanzado */}
-      {!siguienteNivel && (
-        <div className="relative flex items-center justify-center lg:py-1.5 2xl:py-2 py-2 bg-linear-to-r from-yellow-400/20 to-yellow-600/20 backdrop-blur-sm rounded-lg">
-          <Award className="lg:w-4 2xl:w-5 w-4.5 mr-2" />
-          <span className="lg:text-[10px] 2xl:text-sm text-xs font-bold">
-            ¡Nivel Máximo Alcanzado!
-          </span>
+          {/* Chip */}
+          <div className="2xl:mb-auto lg:mb-3  2xl:mt-2 lg:-mt-1 ">
+            <div className={dark ? 'cardya-chip-dark' : 'cardya-chip-light'} />
+          </div>
+
+          {/* Footer: Info */}
+          <div className="flex items-end justify-between text-xs">
+            <div>
+              <div className={`2xl:text-[10px] lg:text-[9px] uppercase tracking-wide mb-0 font-semibold ${dark ? 'text-slate-300' : 'text-slate-300'}`}>
+                Miembro desde
+              </div>
+              <div className={`2xl:text-[14px] lg:text-[13px] font-bold ${dark ? 'text-amber-400' : 'text-slate-100'}`}>
+                {miembroDesde}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={`2xl:text-[10px] lg:text-[9px] uppercase tracking-wide mb-0 font-semibold ${dark ? 'text-slate-300' : 'text-slate-300'}`}>
+                Negocios
+              </div>
+              <div className={`2xl:text-[14px] lg:text-[13px] font-bold ${dark ? 'text-amber-400' : 'text-slate-100'}`}>
+                {negociosActivos} activos
+              </div>
+            </div>
+          </div>
+
         </div>
-      )}
+      </div>
+
+      {/* ── Botón Principal ── */}
+      <button
+        onClick={handleVerBilleteras}
+        className={`w-full mt-4 font-bold py-2.5 px-4 2xl:rounded-xl lg:rounded-lg transition-all duration-300 flex items-center justify-center gap-2 active:scale-95 cursor-pointer hover:scale-[1.02] ${dark
+          ? 'bg-black border border-white/10 hover:border-amber-500/40'
+          : 'bg-linear-to-r from-slate-400 to-slate-500 hover:from-slate-500 hover:to-slate-800'
+          }`}
+        style={undefined}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={dark ? 'text-amber-400' : 'text-white'}>
+          <path d="M5 12h14" />
+          <path d="m12 5 7 7-7 7" />
+        </svg>
+        <span className={`text-sm ${dark ? 'text-amber-400' : 'text-white'}`}>Ver mis billeteras</span>
+      </button>
+
     </div>
   );
 }

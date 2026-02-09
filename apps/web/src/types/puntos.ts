@@ -211,6 +211,7 @@ export interface TransaccionPuntos {
   puntosOtorgados: number;
   multiplicadorAplicado: number;
   estado: 'confirmado' | 'pendiente' | 'cancelado';
+  concepto: string | null;
   createdAt: string | null;
   sucursalId: string | null;
   sucursalNombre: string | null;
