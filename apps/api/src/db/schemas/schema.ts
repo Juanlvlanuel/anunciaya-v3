@@ -1658,6 +1658,7 @@ export const scanyaRecordatorios = pgTable("scanya_recordatorios", {
 	montoTarjeta: numeric("monto_tarjeta", { precision: 10, scale: 2 }).default('0'),
 	montoTransferencia: numeric("monto_transferencia", { precision: 10, scale: 2 }).default('0'),
 	nota: text(),
+	concepto: varchar("concepto", { length: 200 }),
 	estado: varchar({ length: 20 }).default('pendiente'),
 	procesadoAt: timestamp("procesado_at", { withTimezone: true, mode: 'string' }),
 	procesadoPor: uuid("procesado_por"),
@@ -1719,6 +1720,7 @@ export const puntosTransacciones = pgTable("puntos_transacciones", {
 	multiplicadorAplicado: numeric("multiplicador_aplicado", { precision: 3, scale: 2 }).default('1.0'),
 	cuponUsoId: bigint("cupon_uso_id", { mode: 'number' }),
 	nota: text("nota"),
+	concepto: varchar("concepto", { length: 200 }),
 }, (table) => [
 	index("idx_puntos_transacciones_billetera").using("btree", table.billeteraId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	index("idx_puntos_transacciones_cliente").using("btree", table.clienteId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
@@ -1797,7 +1799,7 @@ export const vouchersCanje = pgTable("vouchers_canje", {
 	usadoAt: timestamp("usado_at", { withTimezone: true, mode: 'string' }),
 	usadoPorEmpleadoId: uuid("usado_por_empleado_id"),
 	usadoPorUsuarioId: uuid("usado_por_usuario_id"),
-	sucursalId: uuid('sucursal_id').notNull(),
+	sucursalId: uuid('sucursal_id'),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_vouchers_canje_codigo").using("btree", table.codigo.asc().nullsLast()),

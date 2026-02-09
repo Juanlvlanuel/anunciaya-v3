@@ -178,7 +178,7 @@ export async function actualizarConfigPuntos(
       datosDB.pesosOriginales = datos.pesosPor;
       datosDB.puntosOriginales = datos.puntosGanados;
     }
-    
+
     if (datos.diasExpiracionPuntos !== undefined) datosDB.diasExpiracionPuntos = datos.diasExpiracionPuntos;
     if (datos.diasExpiracionVoucher !== undefined) datosDB.diasExpiracionVoucher = datos.diasExpiracionVoucher;
     if (datos.activo !== undefined) datosDB.activo = datos.activo;
@@ -834,6 +834,7 @@ export async function obtenerHistorialTransacciones(
         puntosOtorgados: puntosTransacciones.puntosOtorgados,
         multiplicadorAplicado: puntosTransacciones.multiplicadorAplicado,
         estado: puntosTransacciones.estado,
+        concepto: puntosTransacciones.concepto,
         createdAt: puntosTransacciones.createdAt,
         sucursalId: puntosTransacciones.sucursalId,
         sucursalNombre: negocioSucursales.nombre,
@@ -874,6 +875,7 @@ export async function obtenerHistorialTransacciones(
       puntosOtorgados: t.puntosOtorgados,
       multiplicadorAplicado: Number(t.multiplicadorAplicado),
       estado: t.estado,
+      concepto: t.concepto || null,
       createdAt: t.createdAt,
       sucursalId: t.sucursalId,
       sucursalNombre: t.sucursalNombre,

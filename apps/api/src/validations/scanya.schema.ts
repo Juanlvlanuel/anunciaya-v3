@@ -130,6 +130,10 @@ export const otorgarPuntosSchema = z.object({
     .string()
     .max(500, 'La nota no puede tener más de 500 caracteres')
     .optional(),
+  concepto: z
+    .string()
+    .max(200, 'El concepto no puede tener más de 200 caracteres')
+    .optional(),
   recordatorioId: z.string().uuid().optional(),
 });
 
@@ -252,6 +256,10 @@ export const crearRecordatorioSchema = z.object({
   nota: z
     .string()
     .max(500, 'La nota no puede tener más de 500 caracteres')
+    .optional(),
+  concepto: z
+    .string()
+    .max(200, 'El concepto no puede tener más de 200 caracteres')
     .optional(),
 });
 

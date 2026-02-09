@@ -104,6 +104,7 @@ interface UsuarioPublico {
   correoNegocio: string | null;
   logoNegocio: string | null;
   fotoPerfilNegocio: string | null;
+  createdAt: string;
 }
 
 // =============================================================================
@@ -158,6 +159,7 @@ function usuarioAPublico(
     correoNegocio: datosNegocio?.correo ?? null,
     logoNegocio: datosNegocio?.logo ?? null,
     fotoPerfilNegocio: datosNegocio?.fotoPerfil ?? null,
+    createdAt: usuario.createdAt ?? new Date().toISOString(),    
   };
 }
 

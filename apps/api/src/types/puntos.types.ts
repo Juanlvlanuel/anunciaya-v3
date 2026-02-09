@@ -96,6 +96,7 @@ export interface TransaccionPuntos {
   puntosOtorgados: number;
   multiplicadorAplicado: number;
   estado: string;
+  concepto: string | null;
   createdAt: string | null;
   sucursalId: string | null;
   sucursalNombre: string | null;

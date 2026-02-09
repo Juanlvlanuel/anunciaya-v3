@@ -1752,6 +1752,7 @@ export async function otorgarPuntos(
                 fotoTicketUrl: datos.fotoTicketUrl || null,
                 numeroOrden: datos.numeroOrden || null,
                 nota: datos.nota || null,
+                concepto: datos.concepto || null,
                 tipo: 'presencial',
                 estado: 'confirmado',
                 cuponUsoId: cuponUsadoInfo?.usoId || null,
@@ -1921,6 +1922,7 @@ export async function obtenerHistorial(
         // Sucursal
         sucursalNombre: string;
         // Extras
+        concepto: string | null;
         fotoTicketUrl: string | null;
         numeroOrden: string | null;
         // Cupón
@@ -2080,6 +2082,7 @@ export async function obtenerHistorial(
                 turnoId: puntosTransacciones.turnoId,
                 createdAt: puntosTransacciones.createdAt,
                 cuponUsoId: puntosTransacciones.cuponUsoId,
+                concepto: puntosTransacciones.concepto,
                 // Cliente
                 clienteNombre: sql<string>`concat(${usuarios.nombre}, ' ', coalesce(${usuarios.apellidos}, ''))`,
                 clienteTelefono: usuarios.telefono,
@@ -2230,6 +2233,7 @@ export async function obtenerHistorial(
                 // Negocio
                 negocioNombre: t.negocioNombre,
                 // Extras
+                concepto: t.concepto || null,
                 fotoTicketUrl: t.fotoTicketUrl,
                 numeroOrden: t.numeroOrden,
                 // Cupón
@@ -3049,6 +3053,7 @@ export async function crearRecordatorio(
                 montoTarjeta: datos.montoTarjeta.toString(),
                 montoTransferencia: datos.montoTransferencia.toString(),
                 nota: datos.nota || null,
+                concepto: datos.concepto || null,
                 estado: 'pendiente',
             })
             .returning({
