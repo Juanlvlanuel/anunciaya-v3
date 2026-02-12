@@ -93,6 +93,16 @@ interface UsuarioPublico {
   perfil: string;
   membresia: number;
   correoVerificado: boolean;
+  telefono: string | null;
+  avatarUrl: string | null;
+  alias: string | null;
+  dobleFactorHabilitado: boolean;
+  autenticadoPorGoogle: boolean;
+  fechaNacimiento: string | null;
+  genero: string | null;
+  ciudad: string | null;
+  calificacionPromedio: string;
+  totalCalificaciones: number;
   modoActivo: string;
   tieneModoComercial: boolean;
   negocioId: string | null;
@@ -149,6 +159,16 @@ function usuarioAPublico(
     membresia: usuario.membresia,
     modoActivo: usuario.modoActivo || 'personal',
     correoVerificado: usuario.correoVerificado ?? false,
+    telefono: usuario.telefono ?? null,
+    avatarUrl: usuario.avatarUrl ?? null,
+    alias: usuario.alias ?? null,
+    dobleFactorHabilitado: usuario.dobleFactorHabilitado ?? false,
+    autenticadoPorGoogle: usuario.autenticadoPorGoogle ?? false,
+    fechaNacimiento: usuario.fechaNacimiento ?? null,
+    genero: usuario.genero ?? null,
+    ciudad: usuario.ciudad ?? null,
+    calificacionPromedio: usuario.calificacionPromedio ?? '0',
+    totalCalificaciones: usuario.totalCalificaciones ?? 0,
     tieneModoComercial: usuario.tieneModoComercial ?? false,
     negocioId: usuario.negocioId ?? null,
     sucursalActiva: sucursalActivaCalculada ?? null,

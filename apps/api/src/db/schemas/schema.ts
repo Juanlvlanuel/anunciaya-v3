@@ -1883,3 +1883,43 @@ export const alertasSeguridad = pgTable("alertas_seguridad", {
 	check("alertas_seguridad_severidad_check", sql`(severidad)::text = ANY ((ARRAY['baja'::character varying, 'media'::character varying, 'alta'::character varying])::text[])`),
 	check("alertas_seguridad_tipo_check", sql`(tipo)::text = ANY ((ARRAY['monto_inusual'::character varying, 'cliente_frecuente'::character varying, 'fuera_horario'::character varying, 'montos_redondos'::character varying, 'empleado_destacado'::character varying, 'cliente_reporte'::character varying])::text[])`),
 ]);
+
+export const notificaciones = pgTable("notificaciones", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	modo: varchar({ length: 15 }).notNull(),
+	tipo: varchar({ length: 30 }).notNull(),
+	titulo: varchar({ length: 200 }).notNull(),
+	mensaje: varchar({ length: 500 }).notNull(),
+	negocioId: uuid("negocio_id"),
+	sucursalId: uuid("sucursal_id"),
+	referenciaId: varchar("referencia_id", { length: 100 }),
+	referenciaTipo: varchar("referencia_tipo", { length: 30 }),
+	icono: varchar({ length: 20 }),
+	leida: boolean().default(false).notNull(),
+	leidaAt: timestamp("leida_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_notificaciones_usuario_no_leidas").using("btree", table.usuarioId.asc().nullsLast(), table.leida.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`(leida = false)`),
+	index("idx_notificaciones_usuario_historial").using("btree", table.usuarioId.asc().nullsLast(), table.modo.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_notificaciones_negocio").using("btree", table.negocioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`(negocio_id IS NOT NULL)`),
+	index("idx_notificaciones_sucursal").using("btree", table.sucursalId.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`(sucursal_id IS NOT NULL)`),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_notificaciones_usuario"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.negocioId],
+		foreignColumns: [negocios.id],
+		name: "fk_notificaciones_negocio"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.sucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_notificaciones_sucursal"
+	}).onDelete("cascade"),
+	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'nuevo_cupon'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nueva_dinamica'::character varying, 'nuevo_empleo'::character varying])::text[])`),
+	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'dinamica'::character varying, 'empleo'::character varying])::text[]))`),
+]);

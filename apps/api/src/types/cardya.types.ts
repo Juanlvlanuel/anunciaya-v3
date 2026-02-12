@@ -119,6 +119,7 @@ export interface Voucher {
   negocioId: string;
   negocioNombre: string;
   negocioLogo: string | null;
+  canjeadoPorNombre: string | null;
   puntosUsados: number;
   estado: 'pendiente' | 'usado' | 'expirado' | 'cancelado';
   expiraAt: string;
@@ -143,6 +144,7 @@ export interface HistorialCompra {
   montoCompra: number;
   puntosOtorgados: number;
   multiplicadorAplicado: number;
+  concepto: string | null;
   empleadoNombre: string | null;
   createdAt: string;
 }
@@ -159,6 +161,7 @@ export interface HistorialCanje {
   negocioNombre: string;
   negocioLogo: string | null;
   puntosUsados: number;
+  canjeadoPorNombre: string | null;
   estado: 'usado' | 'cancelado';
   createdAt: string;
   usadoAt: string | null;

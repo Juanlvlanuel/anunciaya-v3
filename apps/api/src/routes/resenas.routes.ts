@@ -1,44 +1,40 @@
 /**
- * ============================================================================
- * RESEÑAS ROUTES - Rutas de Reseñas
- * ============================================================================
- * 
- * UBICACIÓN: apps/api/src/routes/resenas.routes.ts
- * 
+ * resenas.routes.ts
+ * ===================
+ * Rutas de reseñas.
+ *
  * ENDPOINTS:
- * - GET /api/resenas/sucursal/:sucursalId → Reseñas de una sucursal
- * - GET /api/resenas/sucursal/:sucursalId/promedio → Promedio de calificación
- * 
- * CREADO: Fase 5.3 - Sistema de Reseñas
+ * - GET  /api/resenas/sucursal/:sucursalId          → Reseñas de una sucursal (público)
+ * - GET  /api/resenas/sucursal/:sucursalId/promedio  → Promedio de calificación (público)
+ * - GET  /api/resenas/puede-resenar/:sucursalId      → ¿Puede reseñar? (auth)
+ * - POST /api/resenas                                → Crear reseña (auth)
+ *
+ * UBICACIÓN: apps/api/src/routes/resenas.routes.ts
  */
 
 import { Router } from 'express';
-import { getResenasSucursal, getPromedioResenas } from '../controllers/resenas.controller.js';
+import { verificarToken } from '../middleware/auth.js';
+import {
+    getResenasSucursal,
+    getPromedioResenas,
+    getPuedeResenar,
+    postCrearResena,
+} from '../controllers/resenas.controller.js';
 
 const router: Router = Router();
 
 // =============================================================================
-// RUTAS PÚBLICAS (no requieren autenticación)
+// RUTAS PÚBLICAS
 // =============================================================================
 
-/**
- * GET /api/resenas/sucursal/:sucursalId
- * 
- * Obtiene las reseñas de una sucursal
- * Incluye datos del autor (nombre, foto)
- * Ordenadas por fecha (más recientes primero)
- */
 router.get('/sucursal/:sucursalId', getResenasSucursal);
-
-/**
- * GET /api/resenas/sucursal/:sucursalId/promedio
- * 
- * Obtiene el promedio de calificación y total de reseñas
- */
 router.get('/sucursal/:sucursalId/promedio', getPromedioResenas);
 
 // =============================================================================
-// EXPORTS
+// RUTAS PROTEGIDAS (requieren autenticación)
 // =============================================================================
+
+router.get('/puede-resenar/:sucursalId', verificarToken, getPuedeResenar);
+router.post('/', verificarToken, postCrearResena);
 
 export default router;

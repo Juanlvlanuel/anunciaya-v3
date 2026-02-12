@@ -25,6 +25,8 @@ import type {
   DuplicarOfertaInput,
   FiltrosFeedOfertas,
 } from '../types/ofertas.types';
+import { negocios, puntosBilletera } from '../db/schemas/schema';
+import { crearNotificacion } from './notificaciones.service.js';
 
 // =============================================================================
 // FEED DE OFERTAS (VISTA PÚBLICA - AMBOS MODOS)
@@ -47,7 +49,7 @@ export async function obtenerFeedOfertas(
   filtros: FiltrosFeedOfertas
 ) {
   try {
-const {
+    const {
       sucursalId,
       latitud,
       longitud,
@@ -391,6 +393,35 @@ export async function crearOferta(
         })
         .returning();
 
+      // Notificar a clientes con billetera en este negocio
+      if (nuevaOferta.activo) {
+        const clientesConBilletera = await tx
+          .select({ usuarioId: puntosBilletera.usuarioId })
+          .from(puntosBilletera)
+          .where(eq(puntosBilletera.negocioId, negocioId));
+
+        const [negocioInfo] = await tx
+          .select({ nombre: negocios.nombre })
+          .from(negocios)
+          .where(eq(negocios.id, negocioId))
+          .limit(1);
+
+        for (const cliente of clientesConBilletera) {
+          crearNotificacion({
+            usuarioId: cliente.usuarioId,
+            modo: 'personal',
+            tipo: 'nueva_oferta',
+            titulo: '¡Nueva oferta!',
+            mensaje: `${nuevaOferta.titulo} en ${negocioInfo?.nombre ?? 'un negocio'}`,
+            negocioId,
+            sucursalId,
+            referenciaId: nuevaOferta.id,
+            referenciaTipo: 'oferta',
+            icono: '🏷️',
+          }).catch((err) => console.error('Error notificación nueva oferta:', err));
+        }
+      }
+
       // ✅ Retornar directo - el middleware transforma automáticamente
       return {
         success: true,
@@ -593,6 +624,35 @@ export async function actualizarOferta(
         .set(datosActualizacion)
         .where(eq(ofertas.id, ofertaId))
         .returning();
+
+      // 4. Notificar si se activó una oferta que estaba oculta
+      if (datos.activo === true && !ofertaExistente.activo) {
+        const clientesConBilletera = await tx
+          .select({ usuarioId: puntosBilletera.usuarioId })
+          .from(puntosBilletera)
+          .where(eq(puntosBilletera.negocioId, negocioId));
+
+        const [negocioInfo] = await tx
+          .select({ nombre: negocios.nombre })
+          .from(negocios)
+          .where(eq(negocios.id, negocioId))
+          .limit(1);
+
+        for (const cliente of clientesConBilletera) {
+          crearNotificacion({
+            usuarioId: cliente.usuarioId,
+            modo: 'personal',
+            tipo: 'nueva_oferta',
+            titulo: '¡Nueva oferta!',
+            mensaje: `${ofertaActualizada.titulo} en ${negocioInfo?.nombre ?? 'un negocio'}`,
+            negocioId,
+            sucursalId,
+            referenciaId: ofertaId,
+            referenciaTipo: 'oferta',
+            icono: '🏷️',
+          }).catch((err) => console.error('Error notificación oferta activada:', err));
+        }
+      }
 
       // ✅ Retornar directo - el middleware transforma automáticamente
       return {

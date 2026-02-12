@@ -6,9 +6,11 @@ dotenv.config();
 // App y conexiones
 import app from './app';
 import { connectMongo } from './db/mongo';
+import { createServer } from 'http';
+import { inicializarSocket } from './socket';
 
 const PORT = process.env.API_PORT || 4000;
-const HOST = process.env.API_HOST || '0.0.0.0'; // Escuchar en todas las interfaces
+const HOST = process.env.API_HOST || '0.0.0.0';
 
 // Iniciar servidor
 const iniciarServidor = async () => {
@@ -16,8 +18,12 @@ const iniciarServidor = async () => {
     // Conectar a MongoDB
     await connectMongo();
 
+    // Crear servidor HTTP y montar Socket.io
+    const server = createServer(app);
+    inicializarSocket(server);
+
     // Iniciar servidor en todas las interfaces de red
-    app.listen(Number(PORT), HOST, () => {
+    server.listen(Number(PORT), HOST, () => {
       console.log('');
       console.log('🚀 AnunciaYA API v3.0.0');
       console.log(`📡 Servidor corriendo en http://localhost:${PORT}`);

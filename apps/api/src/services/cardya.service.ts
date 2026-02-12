@@ -5,9 +5,9 @@
  * 
  * Ubicación: apps/api/src/services/cardya.service.ts
  */
-
+import { emitirEvento } from '../socket.js';
 import { db } from '../db/index.js';
-import { 
+import {
   puntosBilletera,
   puntosConfiguracion,
   puntosTransacciones,
@@ -16,8 +16,10 @@ import {
   negocios,
   negocioSucursales,
   empleados,
+  scanyaTurnos,
+  usuarios,
 } from '../db/schemas/schema.js';
-import { eq, and, sql, desc, or } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import type {
   RespuestaServicio,
   BilleteraNegocio,
@@ -33,6 +35,7 @@ import type {
   FiltrosRecompensas,
   FiltrosVouchers,
 } from '../types/cardya.types.js';
+import { crearNotificacion, obtenerSucursalPrincipal, notificarNegocioCompleto } from './notificaciones.service.js';
 
 // =============================================================================
 // BILLETERAS Y PUNTOS
@@ -69,7 +72,7 @@ export async function obtenerBilleterasPorUsuario(
 
     const billeterasFormateadas: BilleteraNegocio[] = billeteras.map((b) => {
       const progreso = calcularProgresoNivel(
-        b.puntosDisponibles,
+        b.puntosAcumuladosTotal,
         b.nivelActual ?? 'bronce',
         {
           bronce: {
@@ -183,7 +186,8 @@ export async function obtenerDetalleNegocioBilletera(
       .innerJoin(recompensas, eq(vouchersCanje.recompensaId, recompensas.id))
       .where(and(
         eq(vouchersCanje.usuarioId, usuarioId),
-        eq(vouchersCanje.negocioId, negocioId)
+        eq(vouchersCanje.negocioId, negocioId),
+        eq(vouchersCanje.estado, 'usado')
       ))
       .orderBy(desc(vouchersCanje.createdAt))
       .limit(5);
@@ -222,7 +226,7 @@ export async function obtenerDetalleNegocioBilletera(
       .limit(1);
 
     const progreso = calcularProgresoNivel(
-      billetera.puntosDisponibles,
+      billetera.puntosAcumuladosTotal,
       billetera.nivelActual ?? 'bronce',
       {
         bronce: {
@@ -394,10 +398,10 @@ export async function generarVoucher(
     const bill = billetera[0];
 
     if (bill.puntosDisponibles < recomp.puntosRequeridos) {
-      return { 
-        success: false, 
-        message: `Te faltan ${recomp.puntosRequeridos - bill.puntosDisponibles} puntos`, 
-        code: 400 
+      return {
+        success: false,
+        message: `Te faltan ${recomp.puntosRequeridos - bill.puntosDisponibles} puntos`,
+        code: 400
       };
     }
 
@@ -463,6 +467,7 @@ export async function generarVoucher(
       negocioId: recomp.negocioId,
       negocioNombre: negocio[0]?.nombre ?? '',
       negocioLogo: negocio[0]?.logo ?? null,
+      canjeadoPorNombre: null,
       puntosUsados: resultado.puntosUsados,
       estado: resultado.estado as 'pendiente',
       expiraAt: resultado.expiraAt,
@@ -470,10 +475,117 @@ export async function generarVoucher(
       createdAt: resultado.createdAt ?? new Date().toISOString(),
     };
 
-    return { 
-      success: true, 
-      message: '¡Recompensa canjeada! Muestra el código en el negocio', 
-      data: voucherCompleto 
+    // Emitir stock actualizado a todos los clientes conectados
+    if (recomp.stock !== null) {
+      emitirEvento('recompensa:stock-actualizado', {
+        recompensaId,
+        nuevoStock: recomp.stock - 1,
+      });
+    }
+
+    // Obtener sucursal principal para notificaciones
+    const sucursalPrincipalId = await obtenerSucursalPrincipal(recomp.negocioId);
+
+    // Notificar al dueño si el stock está bajo (menos de 5)
+    if (recomp.stock !== null && recomp.stock - 1 <= 5 && recomp.stock - 1 > 0) {
+      const [negocioDuenoStock] = await db
+        .select({ usuarioId: negocios.usuarioId })
+        .from(negocios)
+        .where(eq(negocios.id, recomp.negocioId))
+        .limit(1);
+
+      if (negocioDuenoStock) {
+        crearNotificacion({
+          usuarioId: negocioDuenoStock.usuarioId,
+          modo: 'comercial',
+          tipo: 'stock_bajo',
+          titulo: `¡Stock bajo! Quedan ${recomp.stock - 1}`,
+          mensaje: `La recompensa "${recomp.nombre}" se está agotando`,
+          negocioId: recomp.negocioId,
+          sucursalId: sucursalPrincipalId ?? undefined,
+          referenciaId: recompensaId,
+          referenciaTipo: 'recompensa',
+          icono: '⚠️',
+        }).catch((err) => console.error('Error notificación stock bajo:', err));
+      }
+    }
+
+    // Notificar si se agotó
+    if (recomp.stock !== null && recomp.stock - 1 === 0) {
+      const [negocioDuenoAgotado] = await db
+        .select({ usuarioId: negocios.usuarioId })
+        .from(negocios)
+        .where(eq(negocios.id, recomp.negocioId))
+        .limit(1);
+
+      if (negocioDuenoAgotado) {
+        crearNotificacion({
+          usuarioId: negocioDuenoAgotado.usuarioId,
+          modo: 'comercial',
+          tipo: 'stock_bajo',
+          titulo: '¡Recompensa agotada!',
+          mensaje: `"${recomp.nombre}" ya no tiene stock disponible`,
+          negocioId: recomp.negocioId,
+          sucursalId: sucursalPrincipalId ?? undefined,
+          referenciaId: recompensaId,
+          referenciaTipo: 'recompensa',
+          icono: '🚫',
+        }).catch((err) => console.error('Error notificación agotada:', err));
+      }
+    }
+
+    // Notificar al cliente (voucher generado)
+    crearNotificacion({
+      usuarioId,
+      modo: 'personal',
+      tipo: 'voucher_generado',
+      titulo: '¡Recompensa canjeada!',
+      mensaje: `Canjeaste: ${recomp.nombre} en ${negocio[0]?.nombre ?? 'un negocio'}`,
+      negocioId: recomp.negocioId,
+      sucursalId: sucursalPrincipalId ?? undefined,
+      referenciaId: resultado.id,
+      referenciaTipo: 'voucher',
+      icono: '🎟️',
+    }).catch((err) => console.error('Error notificación voucher generado:', err));
+
+    // Notificar al dueño (voucher pendiente de entregar)
+    const [negocioDueno] = await db
+      .select({ usuarioId: negocios.usuarioId })
+      .from(negocios)
+      .where(eq(negocios.id, recomp.negocioId))
+      .limit(1);
+
+    if (negocioDueno) {
+      crearNotificacion({
+        usuarioId: negocioDueno.usuarioId,
+        modo: 'comercial',
+        tipo: 'voucher_pendiente',
+        titulo: 'Nuevo voucher por entregar',
+        mensaje: `Un cliente canjeó: ${recomp.nombre}`,
+        negocioId: recomp.negocioId,
+        sucursalId: sucursalPrincipalId ?? undefined,
+        referenciaId: resultado.id,
+        referenciaTipo: 'voucher',
+        icono: '🎟️',
+      }).catch((err) => console.error('Error notificación dueño voucher:', err));
+
+      // Notificar a empleados de TODAS las sucursales (cualquiera puede entregar)
+      notificarNegocioCompleto(recomp.negocioId, {
+        modo: 'comercial',
+        tipo: 'voucher_pendiente',
+        titulo: 'Nuevo voucher por entregar',
+        mensaje: `Un cliente canjeó: ${recomp.nombre}`,
+        negocioId: recomp.negocioId,
+        referenciaId: resultado.id,
+        referenciaTipo: 'voucher',
+        icono: '🎟️',
+      }).catch((err) => console.error('Error notificación empleados voucher:', err));
+    }
+
+    return {
+      success: true,
+      message: '¡Recompensa canjeada! Muestra el código en el negocio',
+      data: voucherCompleto
     };
   } catch (error) {
     console.error('Error en generarVoucher:', error);
@@ -499,6 +611,8 @@ export async function obtenerVouchersPorUsuario(
         recompensaId: recompensas.id,
         recompensaNombre: recompensas.nombre,
         recompensaImagen: recompensas.imagenUrl,
+        usadoPorEmpleadoId: vouchersCanje.usadoPorEmpleadoId,
+        usadoPorUsuarioId: vouchersCanje.usadoPorUsuarioId,
         negocioId: negocios.id,
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
@@ -515,22 +629,48 @@ export async function obtenerVouchersPorUsuario(
 
     const resultados = await query.orderBy(desc(vouchersCanje.createdAt));
 
-    const vouchersFormateados: Voucher[] = resultados.map((v) => ({
-      id: v.id,
-      codigo: v.codigo,
-      qrData: v.qrData,
-      recompensaId: v.recompensaId,
-      recompensaNombre: v.recompensaNombre,
-      recompensaImagen: v.recompensaImagen,
-      negocioId: v.negocioId,
-      negocioNombre: v.negocioNombre,
-      negocioLogo: v.negocioLogo,
-      puntosUsados: v.puntosUsados,
-      estado: v.estado as 'pendiente' | 'usado' | 'expirado' | 'cancelado',
-      expiraAt: v.expiraAt,
-      usadoAt: v.usadoAt,
-      createdAt: v.createdAt ?? new Date().toISOString(),
-    }));
+    const vouchersFormateados: Voucher[] = await Promise.all(
+      resultados.map(async (v) => {
+        let canjeadoPorNombre: string | null = null;
+
+        if (v.usadoPorEmpleadoId) {
+          const [emp] = await db
+            .select({ nombre: empleados.nombre })
+            .from(empleados)
+            .where(eq(empleados.id, v.usadoPorEmpleadoId))
+            .limit(1);
+          canjeadoPorNombre = emp?.nombre || null;
+        } else if (v.usadoPorUsuarioId) {
+          const [usr] = await db
+            .select({ nombre: usuarios.nombre, apellidos: usuarios.apellidos })
+            .from(usuarios)
+            .where(eq(usuarios.id, v.usadoPorUsuarioId))
+            .limit(1);
+          if (usr) {
+            const primerApellido = usr.apellidos?.split(/\s+/)[0] || '';
+            canjeadoPorNombre = `${usr.nombre} ${primerApellido}`.trim();
+          }
+        }
+
+        return {
+          id: v.id,
+          codigo: v.codigo,
+          qrData: v.qrData,
+          recompensaId: v.recompensaId,
+          recompensaNombre: v.recompensaNombre,
+          recompensaImagen: v.recompensaImagen,
+          negocioId: v.negocioId,
+          negocioNombre: v.negocioNombre,
+          negocioLogo: v.negocioLogo,
+          puntosUsados: v.puntosUsados,
+          estado: v.estado as 'pendiente' | 'usado' | 'expirado' | 'cancelado',
+          expiraAt: v.expiraAt,
+          usadoAt: v.usadoAt,
+          createdAt: v.createdAt ?? new Date().toISOString(),
+          canjeadoPorNombre,
+        };
+      })
+    );
 
     return { success: true, message: 'Vouchers obtenidos correctamente', data: vouchersFormateados };
   } catch (error) {
@@ -588,7 +728,7 @@ export async function cancelarVoucher(
 
       await tx
         .update(vouchersCanje)
-        .set({ estado: 'cancelado' })
+        .set({ estado: 'cancelado', usadoAt: new Date().toISOString() })
         .where(eq(vouchersCanje.id, voucherId));
     });
 
@@ -608,7 +748,7 @@ export async function obtenerHistorialCompras(
   filtros?: FiltrosHistorialCompras
 ): Promise<RespuestaServicio<HistorialCompra[]>> {
   try {
-    const limit = filtros?.limit ?? 20;
+    const limit = filtros?.limit ?? 1000;
     const offset = filtros?.offset ?? 0;
 
     let query = db
@@ -623,18 +763,26 @@ export async function obtenerHistorialCompras(
         negocioLogo: negocios.logoUrl,
         sucursalId: negocioSucursales.id,
         sucursalNombre: negocioSucursales.nombre,
+        concepto: puntosTransacciones.concepto,
         empleadoNombre: sql<string>`
-          CASE
-            WHEN ${puntosTransacciones.empleadoId} IS NOT NULL THEN
-              ${empleados.nombre}
-            ELSE NULL
-          END
-        `,
+        CASE
+          WHEN ${puntosTransacciones.empleadoId} IS NOT NULL THEN
+            ${empleados.nombre}
+          WHEN ${puntosTransacciones.turnoId} IS NOT NULL THEN
+            concat(turno_usuario.nombre, ' ', split_part(COALESCE(turno_usuario.apellidos, ''), ' ', 1))
+          ELSE NULL
+        END
+      `,
       })
       .from(puntosTransacciones)
       .innerJoin(negocios, eq(puntosTransacciones.negocioId, negocios.id))
       .leftJoin(negocioSucursales, eq(puntosTransacciones.sucursalId, negocioSucursales.id))
       .leftJoin(empleados, eq(puntosTransacciones.empleadoId, empleados.id))
+      .leftJoin(scanyaTurnos, eq(puntosTransacciones.turnoId, scanyaTurnos.id))
+      .leftJoin(
+        sql`usuarios AS turno_usuario`,
+        sql`${scanyaTurnos.usuarioId} = turno_usuario.id`
+      )
       .where(and(
         eq(puntosTransacciones.clienteId, usuarioId),
         eq(puntosTransacciones.estado, 'confirmado')
@@ -650,16 +798,36 @@ export async function obtenerHistorialCompras(
       .limit(limit)
       .offset(offset);
 
+    // Contar sucursales por negocio para ocultar cuando solo hay 1
+    const negocioIds = [...new Set(resultados.map((h) => h.negocioId))];
+
+    // Guard: si no hay resultados, no ejecutar la query (IN() vacío es SQL inválido)
+    const sucursalesPorNegocio = new Map<string, number>();
+
+    if (negocioIds.length > 0) {
+      const conteoSucursales = await db
+        .select({
+          negocioId: negocioSucursales.negocioId,
+          total: sql<number>`count(*)::int`,
+        })
+        .from(negocioSucursales)
+        .where(sql`${negocioSucursales.negocioId} IN (${sql.join(negocioIds.map(id => sql`${id}`), sql`, `)})`)
+        .groupBy(negocioSucursales.negocioId);
+
+      conteoSucursales.forEach((c) => sucursalesPorNegocio.set(c.negocioId, c.total));
+    }
+
     const historialFormateado: HistorialCompra[] = resultados.map((h) => ({
       id: h.id,
       negocioId: h.negocioId,
       negocioNombre: h.negocioNombre,
       negocioLogo: h.negocioLogo,
       sucursalId: h.sucursalId,
-      sucursalNombre: h.sucursalNombre,
+      sucursalNombre: (sucursalesPorNegocio.get(h.negocioId) ?? 1) > 1 ? h.sucursalNombre : null,
       montoCompra: parseFloat(h.montoCompra),
       puntosOtorgados: h.puntosOtorgados,
       multiplicadorAplicado: parseFloat(h.multiplicadorAplicado ?? '1.0'),
+      concepto: h.concepto ?? null,
       empleadoNombre: h.empleadoNombre,
       createdAt: h.createdAt ?? new Date().toISOString(),
     }));
@@ -676,7 +844,7 @@ export async function obtenerHistorialCanjes(
   filtros?: FiltrosHistorialCanjes
 ): Promise<RespuestaServicio<HistorialCanje[]>> {
   try {
-    const limit = filtros?.limit ?? 20;
+    const limit = filtros?.limit ?? 1000;
     const offset = filtros?.offset ?? 0;
 
     let query = db
@@ -692,16 +860,15 @@ export async function obtenerHistorialCanjes(
         negocioId: negocios.id,
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
+        usadoPorEmpleadoId: vouchersCanje.usadoPorEmpleadoId,
+        usadoPorUsuarioId: vouchersCanje.usadoPorUsuarioId,
       })
       .from(vouchersCanje)
       .innerJoin(recompensas, eq(vouchersCanje.recompensaId, recompensas.id))
       .innerJoin(negocios, eq(vouchersCanje.negocioId, negocios.id))
       .where(and(
         eq(vouchersCanje.usuarioId, usuarioId),
-        or(
-          eq(vouchersCanje.estado, 'usado'),
-          eq(vouchersCanje.estado, 'cancelado')
-        )
+        eq(vouchersCanje.estado, 'usado')
       ))
       .$dynamic();
 
@@ -718,19 +885,45 @@ export async function obtenerHistorialCanjes(
       .limit(limit)
       .offset(offset);
 
-    const historialFormateado: HistorialCanje[] = resultados.map((h) => ({
-      id: h.id,
-      recompensaId: h.recompensaId,
-      recompensaNombre: h.recompensaNombre,
-      recompensaImagen: h.recompensaImagen,
-      negocioId: h.negocioId,
-      negocioNombre: h.negocioNombre,
-      negocioLogo: h.negocioLogo,
-      puntosUsados: h.puntosUsados,
-      estado: h.estado as 'usado' | 'cancelado',
-      createdAt: h.createdAt ?? new Date().toISOString(),
-      usadoAt: h.usadoAt,
-    }));
+    const historialFormateado = await Promise.all(
+      resultados.map(async (h) => {
+        let canjeadoPorNombre: string | null = null;
+
+        if (h.usadoPorEmpleadoId) {
+          const [emp] = await db
+            .select({ nombre: empleados.nombre })
+            .from(empleados)
+            .where(eq(empleados.id, h.usadoPorEmpleadoId))
+            .limit(1);
+          canjeadoPorNombre = emp?.nombre || null;
+        } else if (h.usadoPorUsuarioId) {
+          const [usr] = await db
+            .select({ nombre: usuarios.nombre, apellidos: usuarios.apellidos })
+            .from(usuarios)
+            .where(eq(usuarios.id, h.usadoPorUsuarioId))
+            .limit(1);
+          if (usr) {
+            const primerApellido = usr.apellidos?.split(/\s+/)[0] || '';
+            canjeadoPorNombre = `${usr.nombre} ${primerApellido}`.trim();
+          }
+        }
+
+        return {
+          id: h.id,
+          recompensaId: h.recompensaId,
+          recompensaNombre: h.recompensaNombre,
+          recompensaImagen: h.recompensaImagen,
+          negocioId: h.negocioId,
+          negocioNombre: h.negocioNombre,
+          negocioLogo: h.negocioLogo,
+          puntosUsados: h.puntosUsados,
+          estado: h.estado as 'usado' | 'cancelado',
+          createdAt: h.createdAt ?? new Date().toISOString(),
+          usadoAt: h.usadoAt,
+          canjeadoPorNombre,
+        };
+      })
+    );
 
     return { success: true, message: 'Historial obtenido correctamente', data: historialFormateado };
   } catch (error) {

@@ -34,6 +34,7 @@ import puntosRoutes from './puntos.routes';
 import transaccionesRoutes from './transacciones.routes';
 import clientesRoutes from './clientes.routes';
 import cardyaRoutes from './cardya.routes';
+import notificacionesRoutes from './notificaciones.routes';
 
 const router: Router = Router();
 
@@ -95,12 +96,16 @@ router.use('/scanya', scanyaRoutes);
 router.use('/puntos', puntosRoutes);
 
 // Rutas de transacciones de puntos (Business Studio)
-router.use('/transacciones', transaccionesRoutes);   
+router.use('/transacciones', transaccionesRoutes);
 
 // Rutas de clientes con puntos (Business Studio)
-router.use('/clientes', clientesRoutes);           
+router.use('/clientes', clientesRoutes);
+
 // Rutas de CardYA (Sistema de lealtad - Cliente)
 router.use('/cardya', cardyaRoutes);
+
+// Rutas de Notificaciones (tiempo real)
+router.use('/notificaciones', notificacionesRoutes);
 
 // Aquí se agregarán más rutas:
 // router.use('/marketplace', marketplaceRoutes);

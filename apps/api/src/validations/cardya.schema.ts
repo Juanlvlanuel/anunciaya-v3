@@ -16,7 +16,7 @@ export const canjearRecompensaSchema = z.object({
   recompensaId: z
     .string()
     .uuid('El ID de la recompensa debe ser un UUID válido'),
-  
+
   sucursalId: z
     .string()
     .uuid('El ID de la sucursal debe ser un UUID válido')
@@ -38,14 +38,13 @@ export const filtrosHistorialComprasSchema = z.object({
     .string()
     .uuid('El ID del negocio debe ser un UUID válido')
     .optional(),
-  
+
   limit: z
     .string()
     .optional()
-    .default('20')
-    .transform(Number)
-    .pipe(z.number().int().min(1).max(100)),
-  
+    .transform((val) => val ? Number(val) : undefined)
+    .pipe(z.number().int().min(1).optional()),
+
   offset: z
     .string()
     .optional()
@@ -63,20 +62,19 @@ export const filtrosHistorialCanjesSchema = z.object({
     .string()
     .uuid('El ID del negocio debe ser un UUID válido')
     .optional(),
-  
+
   estado: z
     .enum(['usado', 'cancelado'], {
       message: 'El estado debe ser "usado" o "cancelado"',
     })
     .optional(),
-  
+
   limit: z
     .string()
     .optional()
-    .default('20')
-    .transform(Number)
-    .pipe(z.number().int().min(1).max(100)),
-  
+    .transform((val) => val ? Number(val) : undefined)
+    .pipe(z.number().int().min(1).optional()),
+
   offset: z
     .string()
     .optional()
@@ -94,7 +92,7 @@ export const filtrosRecompensasSchema = z.object({
     .string()
     .uuid('El ID del negocio debe ser un UUID válido')
     .optional(),
-  
+
   soloDisponibles: z
     .string()
     .optional()

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, regiones, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, cupones, ofertas, cuponGaleria, cuponUsos, cuponUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, dinamicas, dinamicaPremios, dinamicaParticipaciones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad } from "./schema";
+import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, regiones, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, cupones, ofertas, cuponGaleria, cuponUsos, cuponUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, dinamicas, dinamicaPremios, dinamicaParticipaciones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, notificaciones } from "./schema";
 
 export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	embajadore: one(embajadores, {
@@ -39,6 +39,7 @@ export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	puntosBilleteras: many(puntosBilletera),
 	puntosTransacciones: many(puntosTransacciones),
 	vouchersCanjes: many(vouchersCanje),
+	notificaciones: many(notificaciones),
 }));
 
 export const embajadoresRelations = relations(embajadores, ({ one, many }) => ({
@@ -102,6 +103,7 @@ export const negociosRelations = relations(negocios, ({ one, many }) => ({
 	vouchersCanjes: many(vouchersCanje),
 	alertasSeguridads: many(alertasSeguridad),
 	asignacionSubcategorias: many(asignacionSubcategorias),
+	notificaciones: many(notificaciones),
 }));
 
 export const negocioSucursalesRelations = relations(negocioSucursales, ({ one, many }) => ({
@@ -688,5 +690,16 @@ export const asignacionSubcategoriasRelations = relations(asignacionSubcategoria
 	subcategoria: one(subcategoriasNegocio, {
 		fields: [asignacionSubcategorias.subcategoriaId],
 		references: [subcategoriasNegocio.id]
+	}),
+}));
+
+export const notificacionesRelations = relations(notificaciones, ({ one }) => ({
+	usuario: one(usuarios, {
+		fields: [notificaciones.usuarioId],
+		references: [usuarios.id],
+	}),
+	negocio: one(negocios, {
+		fields: [notificaciones.negocioId],
+		references: [negocios.id],
 	}),
 }));

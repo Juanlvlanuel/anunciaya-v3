@@ -37,7 +37,8 @@ import {
   usuarios,
   empleados,
   negocioSucursales,
-  vouchersCanje
+  vouchersCanje,
+  negocios
 } from '../db/schemas/schema.js';
 import type {
   ActualizarConfigPuntosInput,
@@ -55,6 +56,7 @@ import type {
 } from '../types/puntos.types.js';
 import { eliminarImagen } from './cloudinary.service.js';
 import { startOfDay, startOfWeek, startOfMonth, startOfYear, subMonths } from 'date-fns';
+import { crearNotificacion, obtenerSucursalPrincipal } from './notificaciones.service.js';
 
 // =============================================================================
 // VALORES POR DEFECTO
@@ -413,6 +415,37 @@ export async function crearRecompensa(
       createdAt: recompensa.createdAt,
       updatedAt: recompensa.updatedAt,
     };
+
+    // Notificar a todos los clientes con billetera en este negocio
+    if (recompensa.activa) {
+      const clientesConBilletera = await db
+        .select({ usuarioId: puntosBilletera.usuarioId })
+        .from(puntosBilletera)
+        .where(eq(puntosBilletera.negocioId, negocioId));
+
+      const [negocioInfo] = await db
+        .select({ nombre: negocios.nombre })
+        .from(negocios)
+        .where(eq(negocios.id, negocioId))
+        .limit(1);
+
+      const sucursalPrincipalId = await obtenerSucursalPrincipal(negocioId);
+
+      for (const cliente of clientesConBilletera) {
+        crearNotificacion({
+          usuarioId: cliente.usuarioId,
+          modo: 'personal',
+          tipo: 'nueva_recompensa',
+          titulo: '¡Nueva recompensa disponible!',
+          mensaje: `${recompensa.nombre} en ${negocioInfo?.nombre ?? 'un negocio'} (${recompensa.puntosRequeridos} pts)`,
+          negocioId,
+          sucursalId: sucursalPrincipalId ?? undefined,
+          referenciaId: recompensa.id,
+          referenciaTipo: 'recompensa',
+          icono: '🎁',
+        }).catch((err) => console.error('Error notificación nueva recompensa:', err));
+      }
+    }
 
     return {
       success: true,

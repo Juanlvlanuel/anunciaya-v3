@@ -1,61 +1,62 @@
 /**
- * ============================================================================
- * RESEÑAS CONTROLLER - Manejo de Peticiones HTTP
- * ============================================================================
- * 
+ * resenas.controller.ts
+ * =======================
+ * Controlador para endpoints de reseñas.
+ *
  * UBICACIÓN: apps/api/src/controllers/resenas.controller.ts
- * 
- * PROPÓSITO:
- * Controlador para endpoints relacionados con reseñas
- * 
- * CREADO: Fase 5.3 - Sistema de Reseñas
  */
 
 import { Request, Response } from 'express';
-import { obtenerResenasSucursal, obtenerPromedioResenas } from '../services/resenas.service.js';
+import {
+    obtenerResenasSucursal,
+    obtenerPromedioResenas,
+    verificarPuedeResenar,
+    crearResena,
+} from '../services/resenas.service.js';
+import { crearResenaSchema } from '../validations/resenas.schema.js';
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function formatearErroresZod(error: unknown): Record<string, string> {
+    const errores: Record<string, string> = {};
+    const zodError = error as { issues?: { path: (string | number)[]; message: string }[] };
+    if (zodError.issues) {
+        for (const issue of zodError.issues) {
+            errores[issue.path.join('.') || '_root'] = issue.message;
+        }
+    }
+    return errores;
+}
 
 // =============================================================================
 // GET /api/resenas/sucursal/:sucursalId
 // =============================================================================
 
 /**
- * Obtiene las reseñas de una sucursal
- * 
- * @route GET /api/resenas/sucursal/:sucursalId
- * @param sucursalId - UUID de la sucursal
- * @returns Lista de reseñas con datos del autor
+ * Obtiene las reseñas de una sucursal (público)
  */
-export async function getResenasSucursal(req: Request, res: Response) {
+export async function getResenasSucursal(req: Request, res: Response): Promise<void> {
     try {
         const { sucursalId } = req.params;
 
-        // Validar que se envió el sucursalId
-        if (!sucursalId) {
-            return res.status(400).json({
-                success: false,
-                message: 'El ID de la sucursal es requerido',
-            });
-        }
-
-        // Validar formato UUID básico
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(sucursalId)) {
-            return res.status(400).json({
+        if (!sucursalId || !UUID_REGEX.test(sucursalId)) {
+            res.status(400).json({
                 success: false,
                 message: 'El ID de la sucursal no es válido',
             });
+            return;
         }
 
         const resultado = await obtenerResenasSucursal(sucursalId);
 
-        return res.json(resultado);
-
+        res.status(resultado.code ?? 200).json(resultado);
     } catch (error) {
         console.error('Error en getResenasSucursal:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error al obtener las reseñas',
-        });
+        res.status(500).json({ success: false, message: 'Error al obtener reseñas' });
     }
 }
 
@@ -64,51 +65,93 @@ export async function getResenasSucursal(req: Request, res: Response) {
 // =============================================================================
 
 /**
- * Obtiene el promedio de calificación de una sucursal
- * 
- * @route GET /api/resenas/sucursal/:sucursalId/promedio
- * @param sucursalId - UUID de la sucursal
- * @returns Promedio y total de reseñas
+ * Obtiene el promedio de calificación de una sucursal (público)
  */
-export async function getPromedioResenas(req: Request, res: Response) {
+export async function getPromedioResenas(req: Request, res: Response): Promise<void> {
     try {
         const { sucursalId } = req.params;
 
-        // Validar que se envió el sucursalId
-        if (!sucursalId) {
-            return res.status(400).json({
-                success: false,
-                message: 'El ID de la sucursal es requerido',
-            });
-        }
-
-        // Validar formato UUID básico
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(sucursalId)) {
-            return res.status(400).json({
+        if (!sucursalId || !UUID_REGEX.test(sucursalId)) {
+            res.status(400).json({
                 success: false,
                 message: 'El ID de la sucursal no es válido',
             });
+            return;
         }
 
         const resultado = await obtenerPromedioResenas(sucursalId);
 
-        return res.json(resultado);
-
+        res.status(resultado.code ?? 200).json(resultado);
     } catch (error) {
         console.error('Error en getPromedioResenas:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error al obtener el promedio de reseñas',
-        });
+        res.status(500).json({ success: false, message: 'Error al obtener promedio' });
     }
 }
 
 // =============================================================================
-// EXPORTS
+// GET /api/resenas/puede-resenar/:sucursalId
 // =============================================================================
 
-export default {
-    getResenasSucursal,
-    getPromedioResenas,
-};
+/**
+ * Verifica si el usuario autenticado puede dejar reseña (requiere auth)
+ */
+export async function getPuedeResenar(req: Request, res: Response): Promise<void> {
+    try {
+        const { sucursalId } = req.params;
+
+        if (!sucursalId || !UUID_REGEX.test(sucursalId)) {
+            res.status(400).json({
+                success: false,
+                message: 'El ID de la sucursal no es válido',
+            });
+            return;
+        }
+
+        if (!req.usuario?.usuarioId) {
+            res.status(401).json({ success: false, message: 'No autenticado' });
+            return;
+        }
+
+        const resultado = await verificarPuedeResenar(req.usuario.usuarioId, sucursalId);
+
+        res.status(resultado.code ?? 200).json(resultado);
+    } catch (error) {
+        console.error('Error en getPuedeResenar:', error);
+        res.status(500).json({ success: false, message: 'Error al verificar' });
+    }
+}
+
+// =============================================================================
+// POST /api/resenas
+// =============================================================================
+
+/**
+ * Crea una nueva reseña (requiere auth + compra verificada)
+ */
+export async function postCrearResena(req: Request, res: Response): Promise<void> {
+    try {
+        if (!req.usuario?.usuarioId) {
+            res.status(401).json({ success: false, message: 'No autenticado' });
+            return;
+        }
+
+        // Validar con Zod
+        const validacion = crearResenaSchema.safeParse(req.body);
+
+        if (!validacion.success) {
+            res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errors: formatearErroresZod(validacion.error),
+            });
+            return;
+        }
+
+        const resultado = await crearResena(req.usuario.usuarioId, validacion.data);
+
+        res.status(resultado.code ?? (resultado.success ? 201 : 400)).json(resultado);
+    } catch (error) {
+        console.error('Error en postCrearResena:', error);
+        res.status(500).json({ success: false, message: 'Error al crear reseña' });
+    }
+}

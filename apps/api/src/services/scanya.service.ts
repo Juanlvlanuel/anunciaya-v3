@@ -47,6 +47,7 @@ import {
     listarOperadoresNegocio
 } from './negocios.service.js';
 import { verificarExpiraciones, expirarVouchersVencidos } from './puntos.service.js';
+import { crearNotificacion } from './notificaciones.service.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -76,7 +77,7 @@ interface DatosLoginScanYA {
 }
 
 // =============================================================================
-// FUNCIÃ“N 1: LOGIN DUEÃ‘O
+// FUNCIÓN 1: LOGIN DUEÃ‘O
 // =============================================================================
 
 /**
@@ -418,7 +419,7 @@ export async function loginDueno(
 }
 
 // =============================================================================
-// FUNCIÃ“N 2: LOGIN EMPLEADO
+// FUNCIÓN 2: LOGIN EMPLEADO
 // =============================================================================
 
 /**
@@ -617,7 +618,7 @@ export async function loginEmpleado(
 }
 
 // =============================================================================
-// FUNCIÃ“N 3: REFRESH TOKEN SCANYA
+// FUNCIÓN 3: REFRESH TOKEN SCANYA
 // =============================================================================
 
 /**
@@ -729,7 +730,7 @@ export async function refrescarTokenScanYA(
 }
 
 // =============================================================================
-// FUNCIÃ“N 4: OBTENER USUARIO ACTUAL
+// FUNCIÓN 4: OBTENER USUARIO ACTUAL
 // =============================================================================
 
 /**
@@ -776,7 +777,7 @@ export async function obtenerUsuarioScanYA(
 }
 
 // =============================================================================
-// FUNCIÃ“N 5: ABRIR TURNO
+// FUNCIÓN 5: ABRIR TURNO
 // =============================================================================
 
 /**
@@ -886,7 +887,7 @@ export async function abrirTurno(
 }
 
 // =============================================================================
-// FUNCIÃ“N 6: OBTENER TURNO ACTUAL
+// FUNCIÓN 6: OBTENER TURNO ACTUAL
 // =============================================================================
 
 /**
@@ -985,7 +986,7 @@ export async function obtenerTurnoActual(
 }
 
 // =============================================================================
-// FUNCIÃ“N 7: CERRAR TURNO
+// FUNCIÓN 7: CERRAR TURNO
 // =============================================================================
 
 /**
@@ -1132,7 +1133,7 @@ export async function cerrarTurno(
 }
 
 // =============================================================================
-// FUNCIÃ“N 8: IDENTIFICAR CLIENTE (Fase 5)
+// FUNCIÓN 8: IDENTIFICAR CLIENTE (Fase 5)
 // =============================================================================
 
 /**
@@ -1273,7 +1274,7 @@ export async function identificarCliente(
 }
 
 // =============================================================================
-// FUNCIÃ“N 9: VALIDAR CUPÃ“N (Fase 5)
+// FUNCIÓN 9: VALIDAR CUPÓN (Fase 5)
 // =============================================================================
 
 /**
@@ -1482,7 +1483,7 @@ export async function validarCupon(
 }
 
 // =============================================================================
-// FUNCIÃ“N 10: OTORGAR PUNTOS (Fase 5)
+// FUNCIÓN 10: OTORGAR PUNTOS (Fase 5)
 // =============================================================================
 
 /**
@@ -1830,6 +1831,50 @@ export async function otorgarPuntos(
             await db
                 .delete(scanyaRecordatorios)
                 .where(eq(scanyaRecordatorios.id, datos.recordatorioId));
+        }
+
+        // -------------------------------------------------------------------------
+        // Paso 13.6: Notificar al cliente (puntos ganados)
+        // -------------------------------------------------------------------------
+        const [negocioInfo] = await db
+            .select({ nombre: negocios.nombre })
+            .from(negocios)
+            .where(eq(negocios.id, payload.negocioId))
+            .limit(1);
+
+        crearNotificacion({
+            usuarioId: datos.clienteId,
+            modo: 'personal',
+            tipo: 'puntos_ganados',
+            titulo: `+${puntosFinales} puntos`,
+            mensaje: `Compraste en ${negocioInfo?.nombre ?? 'un negocio'}`,
+            negocioId: payload.negocioId,
+            sucursalId: payload.sucursalId,
+            referenciaId: transaccion.id,
+            referenciaTipo: 'transaccion',
+            icono: '🎯',
+        }).catch((err) => console.error('Error notificación puntos:', err));
+
+        // Notificar al dueño del negocio (nueva venta)
+        const [negocioDueno] = await db
+            .select({ usuarioId: negocios.usuarioId })
+            .from(negocios)
+            .where(eq(negocios.id, payload.negocioId))
+            .limit(1);
+
+        if (negocioDueno) {
+            crearNotificacion({
+                usuarioId: negocioDueno.usuarioId,
+                modo: 'comercial',
+                tipo: 'puntos_ganados',
+                titulo: `Venta: $${montoFinal.toFixed(2)}`,
+                mensaje: `${cliente.nombre} ${cliente.apellidos || ''} ganó ${puntosFinales} puntos`.trim(),
+                negocioId: payload.negocioId,
+                sucursalId: payload.sucursalId,
+                referenciaId: transaccion.id,
+                referenciaTipo: 'transaccion',
+                icono: '🎯',
+            }).catch((err) => console.error('Error notificación dueño:', err));
         }
 
         // -------------------------------------------------------------------------
@@ -2491,6 +2536,44 @@ export async function validarVoucher(
             .where(eq(vouchersCanje.id, voucher.id));
 
         // -------------------------------------------------------------------------
+        // Paso 5.5: Notificar al cliente (voucher cobrado)
+        // -------------------------------------------------------------------------
+        crearNotificacion({
+            usuarioId: voucher.usuarioId,
+            modo: 'personal',
+            tipo: 'voucher_cobrado',
+            titulo: '¡Recompensa entregada!',
+            mensaje: `Recibiste: ${recompensa.nombre}`,
+            negocioId: voucher.negocioId,
+            sucursalId: payload.sucursalId,
+            referenciaId: voucher.id,
+            referenciaTipo: 'voucher',
+            icono: '🎟️',
+        }).catch((err) => console.error('Error notificación voucher:', err));
+
+        // Notificar al dueño (voucher entregado)
+        const [negocioDueno] = await db
+            .select({ usuarioId: negocios.usuarioId })
+            .from(negocios)
+            .where(eq(negocios.id, voucher.negocioId))
+            .limit(1);
+
+        if (negocioDueno) {
+            crearNotificacion({
+                usuarioId: negocioDueno.usuarioId,
+                modo: 'comercial',
+                tipo: 'voucher_cobrado',
+                titulo: 'Voucher entregado',
+                mensaje: `Se entregó: ${recompensa.nombre} a ${cliente?.nombre ?? 'un cliente'}`,
+                negocioId: voucher.negocioId,
+                sucursalId: payload.sucursalId,
+                referenciaId: voucher.id,
+                referenciaTipo: 'voucher',
+                icono: '✅',
+            }).catch((err) => console.error('Error notificación dueño voucher entregado:', err));
+        }
+
+        // -------------------------------------------------------------------------
         // Paso 6: Retornar información
         // -------------------------------------------------------------------------
         return {
@@ -2663,12 +2746,20 @@ export async function obtenerVouchers(
         if (payload.tipo === 'empleado') {
             // Empleado: Solo su sucursal, solo pendientes
             condiciones.push(
-                eq(vouchersCanje.sucursalId, payload.sucursalId),
+                or(
+                    eq(vouchersCanje.sucursalId, payload.sucursalId),
+                    isNull(vouchersCanje.sucursalId)
+                )!,
                 eq(vouchersCanje.estado, 'pendiente')
             );
         } else if (payload.tipo === 'gerente') {
             // Gerente: Solo su sucursal, todos los estados
-            condiciones.push(eq(vouchersCanje.sucursalId, payload.sucursalId));
+            condiciones.push(
+                or(
+                    eq(vouchersCanje.sucursalId, payload.sucursalId),
+                    isNull(vouchersCanje.sucursalId)
+                )!
+            );
         }
         // Dueño: Ve todas las sucursales, todos los estados
 
@@ -2744,7 +2835,7 @@ export async function obtenerVouchers(
             .from(vouchersCanje)
             .innerJoin(usuarios, eq(vouchersCanje.usuarioId, usuarios.id))
             .innerJoin(recompensas, eq(vouchersCanje.recompensaId, recompensas.id))
-            .innerJoin(negocioSucursales, eq(vouchersCanje.sucursalId, negocioSucursales.id))
+            .leftJoin(negocioSucursales, eq(vouchersCanje.sucursalId, negocioSucursales.id))
             .where(and(...condiciones))
             .orderBy(desc(vouchersCanje.createdAt))
             .limit(filtros.limite)
@@ -2791,7 +2882,8 @@ export async function obtenerVouchers(
                     expiraAt: v.expiraAt,
                     usadoAt: v.usadoAt,
                     usadoPorEmpleadoNombre,
-                    sucursalNombre: v.sucursalNombre,
+                    sucursalNombre: v.sucursalNombre || 'Sin asignar',
+
                 };
             })
         );
@@ -3002,7 +3094,7 @@ export async function buscarClienteConVouchers(
 }
 
 // =============================================================================
-// FUNCIÃ“N 14: CREAR RECORDATORIO (Fase 6)
+// FUNCIÓN 14: CREAR RECORDATORIO (Fase 6)
 // =============================================================================
 
 /**
@@ -3086,7 +3178,7 @@ export async function crearRecordatorio(
 }
 
 // =============================================================================
-// FUNCIÃ“N 15: OBTENER RECORDATORIOS (Fase 6)
+// FUNCIÓN 15: OBTENER RECORDATORIOS (Fase 6)
 // =============================================================================
 
 /**
@@ -3212,7 +3304,7 @@ export async function obtenerRecordatorios(
 
 
 // =============================================================================
-// FUNCIÃ“N 17: DESCARTAR RECORDATORIO (Fase 6)
+// FUNCIÓN 17: DESCARTAR RECORDATORIO (Fase 6)
 // =============================================================================
 
 /**
@@ -3339,7 +3431,7 @@ export async function descartarRecordatorio(
 }
 
 // =============================================================================
-// FUNCIÃ“N 18: OBTENER CONFIGURACIÃ“N SCANYA (Fase 7)
+// FUNCIÓN 18: OBTENER CONFIGURACIÓN SCANYA (Fase 7)
 // =============================================================================
 
 /**
@@ -3433,7 +3525,7 @@ export async function obtenerConfigScanYA(
 }
 
 // =============================================================================
-// FUNCIÃ“N 19: ACTUALIZAR CONFIGURACIÃ“N SCANYA (Fase 7)
+// FUNCIÓN 19: ACTUALIZAR CONFIGURACIÓN SCANYA (Fase 7)
 // =============================================================================
 
 /**
@@ -3554,7 +3646,7 @@ export async function actualizarConfigScanYA(
 
 
 // =============================================================================
-// FUNCIÃ“N 20: GENERAR PRESIGNED URL PARA TICKET (Fase 9)
+// FUNCIÓN 20: GENERAR PRESIGNED URL PARA TICKET (Fase 9)
 // =============================================================================
 
 import { generarPresignedUrl } from './r2.service.js';
@@ -3619,7 +3711,7 @@ export async function generarUrlUploadTicket(
 }
 
 // =============================================================================
-// FUNCIÃ“N 21: OBTENER CONTADORES PARA DASHBOARD (Fase 9)
+// FUNCIÓN 21: OBTENER CONTADORES PARA DASHBOARD (Fase 9)
 // =============================================================================
 
 /**
@@ -3635,6 +3727,7 @@ export async function obtenerContadores(
     mensajesSinLeer: number;
     resenasPendientes: number;
     recordatoriosPendientes: number;
+    vouchersPendientes: number;
 }>> {
     try {
         // -------------------------------------------------------------------------
@@ -3681,6 +3774,19 @@ export async function obtenerContadores(
         const recordatoriosPendientes = recordatoriosCount?.count || 0;
 
         // -------------------------------------------------------------------------
+        // 2. Contar vouchers pendientes de entregar
+        // -------------------------------------------------------------------------
+        const [vouchersCount] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(vouchersCanje)
+            .where(and(
+                eq(vouchersCanje.negocioId, payload.negocioId),
+                eq(vouchersCanje.estado, 'pendiente')
+            ));
+
+        const vouchersPendientes = vouchersCount?.count || 0;
+
+        // -------------------------------------------------------------------------
         // 2. Contar reseñas pendientes de respuesta
         // -------------------------------------------------------------------------
         // TODO: Implementar en Fase 14 (Chat + Reseñas en ScanYA)
@@ -3708,6 +3814,7 @@ export async function obtenerContadores(
                 mensajesSinLeer,
                 resenasPendientes,
                 recordatoriosPendientes,
+                vouchersPendientes,
             },
             code: 200,
         };
