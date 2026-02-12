@@ -16,7 +16,6 @@ import {
   MapPin,
   Clock,
   User,
-  Shield,
   Receipt,
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
@@ -28,7 +27,7 @@ import type { Transaccion } from '../../../../types/cardya';
 
 const formatearFechaCompleta = (fechaISO: string) => {
   const fecha = new Date(fechaISO);
-  return fecha.toLocaleDateString('es-MX', {
+  const texto = fecha.toLocaleDateString('es-MX', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -36,12 +35,13 @@ const formatearFechaCompleta = (fechaISO: string) => {
     hour: '2-digit',
     minute: '2-digit',
   });
-};
-
-const VOUCHER_ESTADO_CONFIG = {
-  pendiente: { label: 'Pendiente', bg: '#fffbeb', color: '#92400e', border: '#fde68a' },
-  usado: { label: 'Usado', bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
-  cancelado: { label: 'Cancelado', bg: '#fef2f2', color: '#991b1b', border: '#fecaca' },
+  return texto
+    .replace(/ [a-z]/g, (c) => c.toUpperCase())
+    .replace(/^[a-z]/, (c) => c.toUpperCase())
+    .replace(/ De /g, ' de ')
+    .replace(/ de (\d{4})/, ' $1')
+    .replace(/a\.m\./gi, 'A.M.')
+    .replace(/p\.m\./gi, 'P.M.');
 };
 
 // =============================================================================
@@ -122,7 +122,7 @@ export default function ModalDetalleTransaccion({
                   <span className="text-[10px] lg:text-[9px] 2xl:text-[10px] font-bold opacity-60 ml-0.5">pts</span>
                 </span>
               </div>
-              <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-white/40 font-medium truncate">
+              <p className="text-[13px] lg:text-[10px] 2xl:text-[13px] text-amber-400/80 font-bold truncate">
                 {tx.negocioNombre}
               </p>
             </div>
@@ -130,9 +130,9 @@ export default function ModalDetalleTransaccion({
           {/* Botón cerrar */}
           <button
             onClick={onCerrar}
-            className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
+            className="w-10 h-10 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
           >
-            <X className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
+            <X className="w-6 h-6 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
           </button>
         </div>
       </div>
@@ -161,45 +161,9 @@ export default function ModalDetalleTransaccion({
                 <FilaDetalle
                   icono={<TrendingUp className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2} />}
                   label="Multiplicador"
-                  valor={`×${tx.multiplicador}`}
-                  valorColor="#d97706"
-                />
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── Datos de canje ── */}
-        {!esGanado && (
-          <div className="mb-3 lg:mb-1.5 2xl:mb-3">
-            <SectionLabel label="Detalle del canje" />
-            <div
-              className="rounded-xl lg:rounded-lg 2xl:rounded-xl overflow-hidden"
-              style={{ border: '1px solid #e2e8f0' }}
-            >
-              {tx.recompensaNombre && (
-                <FilaDetalle
-                  icono={<Gift className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2} />}
-                  label="Recompensa"
-                  valor={tx.recompensaNombre}
-                  valorBold
-                  borderBottom
-                />
-              )}
-              {tx.voucherEstado && (
-                <FilaDetalle
-                  icono={<Shield className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2} />}
-                  label="Estado"
                   valorCustom={
-                    <span
-                      className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold px-2.5 py-1 rounded-lg"
-                      style={{
-                        background: VOUCHER_ESTADO_CONFIG[tx.voucherEstado].bg,
-                        color: VOUCHER_ESTADO_CONFIG[tx.voucherEstado].color,
-                        border: `1px solid ${VOUCHER_ESTADO_CONFIG[tx.voucherEstado].border}`,
-                      }}
-                    >
-                      {VOUCHER_ESTADO_CONFIG[tx.voucherEstado].label}
+                    <span className="text-lg lg:text-sm 2xl:text-lg font-black text-amber-600">
+                      ×{tx.multiplicador}
                     </span>
                   }
                 />
@@ -233,6 +197,7 @@ export default function ModalDetalleTransaccion({
               icono={<Clock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2} />}
               label="Fecha y hora"
               valor={formatearFechaCompleta(tx.fecha)}
+              multilinea
               borderBottom
             />
             {tx.empleadoNombre && (
@@ -277,7 +242,7 @@ function SectionLabel({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 mb-2 lg:mb-1 2xl:mb-2">
       <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, #e2e8f0, transparent)' }} />
-      <span className="text-[10px] lg:text-[9px] 2xl:text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+      <span className="text-xs lg:text-[9px] 2xl:text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">
         {label}
       </span>
       <div className="h-px flex-1" style={{ background: 'linear-gradient(to left, #e2e8f0, transparent)' }} />
@@ -294,6 +259,7 @@ function FilaDetalle({
   valorColor,
   valorCustom,
   borderBottom,
+  multilinea,
 }: {
   icono: React.ReactNode;
   label: string;
@@ -302,6 +268,7 @@ function FilaDetalle({
   valorColor?: string;
   valorCustom?: React.ReactNode;
   borderBottom?: boolean;
+  multilinea?: boolean;
 }) {
   return (
     <div
@@ -310,13 +277,12 @@ function FilaDetalle({
     >
       <div className="flex items-center gap-2.5 lg:gap-1.5 2xl:gap-2.5 text-slate-400 shrink-0">
         {icono}
-        <span className="text-xs lg:text-[10px] 2xl:text-xs font-semibold text-slate-500">{label}</span>
+        <span className="text-[13px] lg:text-[10px] 2xl:text-[13px] font-semibold text-slate-500">{label}</span>
       </div>
       {valorCustom || (
         <span
-          className={`text-sm lg:text-xs 2xl:text-sm text-right max-w-[55%] truncate ${
-            valorBold ? 'font-bold text-slate-900' : 'font-medium text-slate-700'
-          }`}
+          className={`text-[14px] lg:text-xs 2xl:text-[14px] text-right max-w-[55%] ${multilinea ? 'leading-snug' : 'truncate'} ${valorBold ? 'font-bold text-slate-900' : 'font-medium text-slate-700'
+            }`}
           style={valorColor ? { color: valorColor } : undefined}
         >
           {valor}

@@ -388,7 +388,7 @@ export function ModalVouchers({
     // Reset al abrir/cerrar
     // ---------------------------------------------------------------------------
     useEffect(() => {
-        if (abierto && !yaCargo) {
+        if (abierto) {
             setBuscadorAbierto(false);
             setLada('+52');
             setTelefono('');
@@ -396,11 +396,13 @@ export function ModalVouchers({
             setErrorBusqueda(null);
             setTabActiva('pendiente');
             setPaginaActual(1);
-            cargarListas();
+            if (!yaCargo) {
+                cargarListas();
+            }
             cargarVouchers('pendiente', 1);
             setYaCargo(true);
         }
-    }, [abierto, yaCargo]);
+    }, [abierto]);
 
     // Recargar operadores cuando cambia la sucursal (solo para dueño)
     useEffect(() => {
@@ -444,7 +446,8 @@ export function ModalVouchers({
     const cargarVouchers = async (estado: EstadoVoucher, pagina: number = 1) => {
         if (!usuario) return;
 
-        setCargando(true);
+        // Solo mostrar loading si no hay datos previos (evita parpadeo al reabrir)
+        if (vouchers.length === 0) setCargando(true);
         setError(null);
 
         try {

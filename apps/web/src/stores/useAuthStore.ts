@@ -16,6 +16,7 @@
 import { create } from 'zustand';
 import { esTokenExpirado } from '../utils/tokenUtils'; // ← AGREGAR ESTA LÍNEA
 import api from '../services/api';
+import { conectarSocket, desconectarSocket } from '../services/socketService';
 
 // =============================================================================
 // CONSTANTES
@@ -50,8 +51,15 @@ export interface Usuario {
   membresia: number;
   correoVerificado: boolean;
   telefono?: string | null;
-  avatar?: string | null;
+  avatarUrl?: string | null;
+  alias?: string | null;
   dobleFactorHabilitado?: boolean;
+  autenticadoPorGoogle?: boolean;
+  fechaNacimiento?: string | null;
+  genero?: string | null;
+  ciudad?: string | null;
+  calificacionPromedio?: string;
+  totalCalificaciones?: number;
   tieneModoComercial: boolean;
   modoActivo: 'personal' | 'comercial';
   negocioId: string | null;
@@ -270,6 +278,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     get()._iniciarTimerInactividad();
 
+    // Conectar Socket.io
+    conectarSocket();
+
+    // Cargar notificaciones
+    const { cargarNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
+    cargarNotificaciones(usuario.modoActivo);
+
+    const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
+    registrarListenerNotificaciones();
+
     // ========================================================================
     // CARGAR SUCURSAL PRINCIPAL EN BACKGROUND (solo dueños)
     // ========================================================================
@@ -320,6 +338,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       usuario: { ...usuario, modoActivo: nuevoModo },
     });
+
+    // Recargar notificaciones del nuevo modo
+    const { cambiarModo: cambiarModoNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
+    cambiarModoNotificaciones(nuevoModo);
 
     try {
       // Llamar al backend
@@ -453,6 +475,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // TODO: Llamar al endpoint /api/auth/logout para invalidar en el servidor
     // Esto se hará desde el componente que llame a logout()
+
+    // Desconectar Socket.io
+    desconectarSocket();
   },
 
   // ---------------------------------------------------------------------------
@@ -527,6 +552,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Iniciar timer de inactividad
       get()._iniciarTimerInactividad();
+
+      // Conectar Socket.io
+      conectarSocket();
+
+      // Cargar notificaciones
+      const usuarioHidratado = get().usuario;
+      if (usuarioHidratado) {
+        const { cargarNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
+        cargarNotificaciones(usuarioHidratado.modoActivo);
+        const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
+        registrarListenerNotificaciones();
+      }
 
       set({ cargando: false, hidratado: true });
     } catch (error) {

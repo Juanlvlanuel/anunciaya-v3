@@ -37,6 +37,7 @@ import type {
   FiltrosHistorialCanjes,
   TabCardYA,
 } from '../types/cardya';
+import { escucharEvento } from '../services/socketService';
 
 // =============================================================================
 // TIPOS
@@ -115,8 +116,8 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
   historialCanjes: [],
   filtrosRecompensas: {},
   filtrosVouchers: {},
-  filtrosHistorialCompras: { limit: 20, offset: 0 },
-  filtrosHistorialCanjes: { limit: 20, offset: 0 },
+  filtrosHistorialCompras: {},
+  filtrosHistorialCanjes: {},
   cargandoBilleteras: false,
   cargandoDetalleNegocio: false,
   cargandoRecompensas: false,
@@ -265,7 +266,7 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
       if (respuesta.success && respuesta.data) {
         // Notificar éxito
         notificar.exito('¡Recompensa canjeada exitosamente!');
-        
+
         // Recargar vouchers para mostrar el nuevo
         get().cargarVouchers();
         return respuesta.data;
@@ -353,9 +354,9 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
       return b;
     });
 
-    set({ 
+    set({
       vouchers: vouchersOptimistas,
-      billeteras: billeterasOptimistas 
+      billeteras: billeterasOptimistas
     });
 
     try {
@@ -363,16 +364,16 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
       if (respuesta.success) {
         // Notificar éxito
         notificar.exito('Voucher cancelado. Tus puntos han sido devueltos');
-        
+
         // Recargar recompensas para actualizar disponibilidad
         get().cargarRecompensas();
         return true;
       } else {
         // Rollback
         notificar.error(respuesta.message || 'No se pudo cancelar el voucher');
-        set({ 
+        set({
           vouchers: vouchersAnterior,
-          billeteras: billeterasAnterior 
+          billeteras: billeterasAnterior
         });
         return false;
       }
@@ -380,9 +381,9 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
       console.error('Error cancelando voucher:', error);
       notificar.error('Ocurrió un error al cancelar el voucher');
       // Rollback
-      set({ 
+      set({
         vouchers: vouchersAnterior,
-        billeteras: billeterasAnterior 
+        billeteras: billeterasAnterior
       });
       return false;
     }
@@ -473,8 +474,8 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
       historialCanjes: [],
       filtrosRecompensas: {},
       filtrosVouchers: {},
-      filtrosHistorialCompras: { limit: 20, offset: 0 },
-      filtrosHistorialCanjes: { limit: 20, offset: 0 },
+      filtrosHistorialCompras: {},
+      filtrosHistorialCanjes: {},
       cargandoBilleteras: false,
       cargandoDetalleNegocio: false,
       cargandoRecompensas: false,
@@ -503,3 +504,22 @@ export const selectCargandoCardYA = (state: CardyaState) =>
   state.cargandoVouchers ||
   state.cargandoHistorialCompras ||
   state.cargandoHistorialCanjes;
+
+  // =============================================================================
+// LISTENER: Stock en tiempo real vía Socket.io
+// =============================================================================
+
+escucharEvento<{ recompensaId: string; nuevoStock: number }>(
+  'recompensa:stock-actualizado',
+  ({ recompensaId, nuevoStock }) => {
+    const { recompensas } = useCardyaStore.getState();
+    const existe = recompensas.find((r) => r.id === recompensaId);
+    if (!existe) return;
+
+    useCardyaStore.setState({
+      recompensas: recompensas.map((r) =>
+        r.id === recompensaId ? { ...r, stock: nuevoStock } : r
+      ),
+    });
+  }
+);

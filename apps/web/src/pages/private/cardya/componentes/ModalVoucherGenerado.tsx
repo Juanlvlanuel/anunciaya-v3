@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { X, Gift, Calendar, Store, CheckCircle, Copy, Check, Info } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import type { Voucher } from '../../../../types/cardya';
 
@@ -85,15 +86,15 @@ export default function ModalVoucherGenerado({
               <CheckCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" strokeWidth={2.5} />
             </div>
             <div>
-              <h2 className="text-base lg:text-sm 2xl:text-base font-bold text-white">¡Canje Exitoso!</h2>
-              <p className="text-xs lg:text-[10px] 2xl:text-xs text-white/40 font-medium">Tu voucher está listo</p>
+              <h2 className="text-lg lg:text-base 2xl:text-lg font-bold text-white">¡Canje Exitoso!</h2>
+              <p className="text-sm lg:text-xs 2xl:text-sm text-amber-400/80 font-bold">Tu voucher está listo</p>
             </div>
           </div>
           <button
             onClick={onCerrar}
-            className="w-9 h-9 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors cursor-pointer shrink-0"
+            className="w-10 h-10 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
+            <X className="w-6 h-6 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
           </button>
         </div>
       </div>
@@ -102,13 +103,20 @@ export default function ModalVoucherGenerado({
       <div className="p-4 lg:p-2.5 2xl:p-4 max-h-[75vh] overflow-y-auto">
 
         {/* QR + Código */}
-        <div className="text-center mb-4 lg:mb-2 2xl:mb-4">
+        <div className="text-center mb-2 lg:mb-2 2xl:mb-4">
           <div
             className="w-32 h-32 lg:w-20 lg:h-20 2xl:w-32 2xl:h-32 mx-auto mb-3 lg:mb-1.5 2xl:mb-3 rounded-xl overflow-hidden bg-white flex items-center justify-center"
             style={{ border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
           >
             {voucher.qrData ? (
-              <img src={voucher.qrData} alt="Código QR" className="w-full h-full object-contain p-1.5" />
+              <QRCodeSVG
+                value={voucher.qrData}
+                size={112}
+                level="M"
+                bgColor="#ffffff"
+                fgColor="#0f172a"
+                className="p-1.5"
+              />
             ) : (
               <div className="text-slate-300 text-center p-3">
                 <Gift className="w-10 h-10 mx-auto mb-1" />
@@ -122,7 +130,7 @@ export default function ModalVoucherGenerado({
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg"
             style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
           >
-            <span className="text-base lg:text-xs 2xl:text-base font-black text-slate-800 tracking-[0.15em] font-mono">{voucher.codigo}</span>
+            <span className="text-lg lg:text-sm 2xl:text-lg font-black text-slate-800 tracking-[0.15em] font-mono">{voucher.codigo}</span>
             <button
               onClick={copiarCodigo}
               className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer"
@@ -134,12 +142,12 @@ export default function ModalVoucherGenerado({
               )}
             </button>
           </div>
-          <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-400 font-medium mt-2 lg:mt-1.5 2xl:mt-2">Muestra este código en el negocio</p>
+          <p className="text-[13px] lg:text-[11px] 2xl:text-[13px] text-slate-500 font-semibold mt-2 lg:mt-1.5 2xl:mt-2">Muestra este código en el negocio</p>
         </div>
 
         {/* Recompensa */}
         <div
-          className="rounded-lg p-3 lg:p-2 2xl:p-3 mb-3 lg:mb-1.5 2xl:mb-3"
+          className="rounded-lg p-2 lg:p-2 2xl:p-3 mb-3 lg:mb-1.5 2xl:mb-3"
           style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '1px solid #fde68a' }}
         >
           <div className="flex items-center gap-2.5">
@@ -150,7 +158,7 @@ export default function ModalVoucherGenerado({
               <Gift className="w-4 h-4 text-white" strokeWidth={2.5} />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm lg:text-xs 2xl:text-sm font-bold text-amber-900 truncate">{voucher.recompensaNombre}</h3>
+              <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-amber-900 truncate">{voucher.recompensaNombre}</h3>
             </div>
           </div>
         </div>
@@ -158,25 +166,25 @@ export default function ModalVoucherGenerado({
         {/* Info: Negocio + Expiración */}
         <div className="grid grid-cols-2 gap-2.5 lg:gap-1.5 2xl:gap-2.5 mb-3 lg:mb-1.5 2xl:mb-3">
           <div
-            className="rounded-lg p-3 lg:p-2 2xl:p-3"
+            className="rounded-lg p-2 lg:p-2 2xl:p-3"
             style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
           >
-            <div className="flex items-center gap-1.5 mb-1">
+            <div className="flex items-center gap-1.5 mb-0.5">
               <Store className="w-3 h-3 text-slate-400" strokeWidth={2.5} />
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Válido en</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Válido en</span>
             </div>
-            <p className="text-[13px] lg:text-[12px] 2xl:text-[13px] font-bold text-slate-800 truncate">{voucher.negocioNombre}</p>
+            <p className="text-[14px] lg:text-[13px] 2xl:text-[14px] font-bold text-slate-800 truncate">{voucher.negocioNombre}</p>
           </div>
 
           <div
-            className="rounded-lg p-3 lg:p-2 2xl:p-3"
+            className="rounded-lg p-2 lg:p-2 2xl:p-3"
             style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
           >
-            <div className="flex items-center gap-1.5 mb-1">
+            <div className="flex items-center gap-1.5 mb-0.5">
               <Calendar className="w-3 h-3 text-slate-400" strokeWidth={2.5} />
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Expira</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Expira</span>
             </div>
-            <p className="text-[13px] lg:text-[12px] 2xl:text-[13px] font-bold text-slate-800">{formatearFecha(voucher.expiraAt)}</p>
+            <p className="text-[14px] lg:text-[13px] 2xl:text-[14px] font-bold text-slate-800">{formatearFecha(voucher.expiraAt)}</p>
           </div>
         </div>
 
@@ -187,9 +195,9 @@ export default function ModalVoucherGenerado({
         >
           <div className="flex items-center gap-1.5 mb-2">
             <Info className="w-3.5 h-3.5 text-slate-400" strokeWidth={2.5} />
-            <h4 className="text-[12px] font-bold text-slate-600">Instrucciones</h4>
+            <h4 className="text-[13px] font-bold text-slate-600">Instrucciones</h4>
           </div>
-          <ol className="space-y-1.5 lg:space-y-0.5 2xl:space-y-1.5 text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-500 leading-relaxed">
+          <ol className="space-y-1.5 lg:space-y-0.5 2xl:space-y-1.5 text-[13px] lg:text-[11px] 2xl:text-[13px] text-slate-600 leading-relaxed">
             <li className="flex gap-2">
               <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0">1</span>
               <span>Muestra el código QR o alfanumérico al personal</span>
@@ -208,7 +216,7 @@ export default function ModalVoucherGenerado({
         {/* Botón cerrar */}
         <button
           onClick={onCerrar}
-          className="w-full py-2.5 lg:py-1.5 2xl:py-2.5 rounded-lg font-bold text-[13px] lg:text-[12px] 2xl:text-[13px] transition-all duration-200 cursor-pointer hover:shadow-lg active:scale-[0.98]"
+          className="w-full py-2.5 lg:py-1.5 2xl:py-2.5 rounded-lg font-bold text-[14px] lg:text-[13px] 2xl:text-[14px] transition-all duration-200 cursor-pointer hover:shadow-lg active:scale-[0.98]"
           style={{
             background: 'linear-gradient(135deg, #0f172a, #1e293b)',
             color: '#f8fafc',

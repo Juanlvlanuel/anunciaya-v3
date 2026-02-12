@@ -5,6 +5,8 @@
  * Móvil: filtros chips sticky + lista agrupada por mes
  * Desktop: card con filtros fijos + tabla con scroll interno
  *
+ * COLUMNAS DESKTOP: TIPO | NEGOCIO (logo) | CONCEPTO | MONTO | PUNTOS ↕ | FECHA ↕
+ *
  * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/TablaHistorialCompras.tsx
  */
 
@@ -43,7 +45,8 @@ const formatearFechaCorta = (fechaISO: string) => {
 
 const formatearFechaTabla = (fechaISO: string) => {
   const fecha = new Date(fechaISO);
-  return fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  const texto = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  return texto.replace(/ [a-z]/g, (c) => c.toUpperCase());
 };
 
 const obtenerMesAnio = (fechaISO: string) => {
@@ -147,8 +150,10 @@ export default function TablaHistorialCompras({
           return (
             <button
               key={chip.id}
-              onClick={() => setFiltroActivo(chip.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer outline-none focus:outline-none"
+              onClick={() => {
+                setFiltroActivo(chip.id);
+                if (chip.id === 'todos') setOrden(null);
+              }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer outline-none focus:outline-none"
               style={{
                 background: activo ? chip.bg : '#f8fafc',
                 color: activo ? chip.color : '#64748b',
@@ -247,59 +252,64 @@ export default function TablaHistorialCompras({
 
                 {/* Transacciones del mes */}
                 <div className="divide-y divide-slate-100">
-                {txs.map((tx) => {
-                  const esGanado = tx.tipo === 'compra';
-                  return (
-                    <div
-                      key={tx.id}
-                      className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-slate-50"
-                      onClick={() => onClickTransaccion?.(tx)}
-                    >
-                      {/* Ícono tipo */}
+                  {txs.map((tx) => {
+                    const esGanado = tx.tipo === 'compra';
+                    return (
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{
-                          background: esGanado
-                            ? 'linear-gradient(135deg, #d1fae5, #a7f3d0)'
-                            : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
-                        }}
+                        key={tx.id}
+                        className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-slate-50"
+                        onClick={() => onClickTransaccion?.(tx)}
                       >
-                        {esGanado ? (
-                          <TrendingUp className="w-[18px] h-[18px] text-emerald-700" strokeWidth={2.5} />
-                        ) : (
-                          <Gift className="w-[18px] h-[18px] text-rose-600" strokeWidth={2.5} />
-                        )}
-                      </div>
-
-                      {/* Info central */}
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[15px] font-bold text-slate-800 truncate block">
-                          {tx.negocioNombre}
-                        </span>
-                        <span className="text-xs text-slate-400 truncate block">
-                          {tx.descripcion}
-                        </span>
-                        {tx.montoCompra !== undefined && (
-                          <span className="text-xs text-amber-700 font-bold block mt-0.5">
-                            {"$"}{tx.montoCompra.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Puntos + Balance + Fecha */}
-                      <div className="shrink-0 text-right pl-2">
-                        <span
-                          className={`text-base font-black block leading-tight ${esGanado ? 'text-emerald-600' : 'text-rose-500'}`}
+                        {/* Ícono tipo */}
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                          style={{
+                            background: esGanado
+                              ? 'linear-gradient(135deg, #d1fae5, #a7f3d0)'
+                              : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
+                          }}
                         >
-                          {esGanado ? '+' : ''}{tx.puntos.toLocaleString()} pts
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          {formatearFechaCorta(tx.fecha)}
-                        </span>
+                          {esGanado ? (
+                            <TrendingUp className="w-[18px] h-[18px] text-emerald-700" strokeWidth={2.5} />
+                          ) : (
+                            <Gift className="w-[18px] h-[18px] text-rose-600" strokeWidth={2.5} />
+                          )}
+                        </div>
+
+                        {/* Info central */}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[15px] font-bold text-slate-800 truncate block">
+                            {tx.negocioNombre}
+                          </span>
+                          <span className="text-xs text-slate-400 truncate block">
+                            {tx.descripcion.includes('||') ? (
+                              <>
+                                <strong className="text-slate-600">{tx.descripcion.split('||')[1]}</strong>
+                                {tx.descripcion.split('||')[2]}
+                              </>
+                            ) : tx.descripcion}
+                          </span>
+                          {tx.montoCompra !== undefined && (
+                            <span className="text-xs text-amber-700 font-bold block mt-0.5">
+                              {"$"}{tx.montoCompra.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Puntos + Fecha */}
+                        <div className="shrink-0 text-right pl-2">
+                          <span
+                            className={`text-base font-black block leading-tight ${esGanado ? 'text-emerald-600' : 'text-rose-500'}`}
+                          >
+                            {esGanado ? '+' : ''}{tx.puntos.toLocaleString()} pts
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            {formatearFechaCorta(tx.fecha)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -348,7 +358,7 @@ export default function TablaHistorialCompras({
                     )}
                   </div>
 
-                  {/* Puntos + Balance + Fecha */}
+                  {/* Puntos + Fecha */}
                   <div className="shrink-0 text-right pl-2">
                     <span
                       className={`text-base font-black block leading-tight ${esGanado ? 'text-emerald-600' : 'text-rose-500'}`}
@@ -368,6 +378,7 @@ export default function TablaHistorialCompras({
 
       {/* ═══════════════════════════════════════════════════════════════════
           DESKTOP: Card con filtros fijos + tabla con scroll (>= lg)
+          COLUMNAS: TIPO | NEGOCIO (logo) | CONCEPTO | MONTO | PUNTOS ↕ | FECHA ↕
       ═══════════════════════════════════════════════════════════════════ */}
       <div
         className="hidden lg:flex lg:flex-col rounded-2xl overflow-hidden"
@@ -391,121 +402,195 @@ export default function TablaHistorialCompras({
             <p className="text-xs font-semibold text-slate-400">Sin transacciones en este filtro</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto">
-            <table className="w-full">
-              <thead className="sticky top-0 z-1">
-                <tr style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-                  <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
-                    Tipo
-                  </th>
-                  <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
-                    Negocio
-                  </th>
-                  <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
-                    Descripción
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
-                    <button
-                      onClick={() => alternarOrden('puntos')}
-                      className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors outline-none focus:outline-none uppercase"
-                    >
-                      <span>Puntos</span>
-                      {orden?.columna === 'puntos' ? (
-                        orden.direccion === 'desc' ? (
-                          <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+          <>
+            {/* Header fijo (no hace scroll) */}
+            <div className="shrink-0" style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+              <table className="w-full" style={{ tableLayout: 'fixed', marginRight: '15px', width: 'calc(100% - 15px)' }}>
+                <colgroup>
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                </colgroup>
+                <thead>
+                  <tr style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                    <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                      Tipo
+                    </th>
+                    <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                      Negocio
+                    </th>
+                    <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                      Concepto
+                    </th>
+                    <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                      Monto
+                    </th>
+                    <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                      <button
+                        onClick={() => alternarOrden('puntos')}
+                        className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors outline-none focus:outline-none uppercase"
+                      >
+                        <span>Puntos</span>
+                        {orden?.columna === 'puntos' ? (
+                          orden.direccion === 'desc' ? (
+                            <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                          ) : (
+                            <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                          )
                         ) : (
-                          <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
-                        )
-                      ) : (
-                        <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
-                      )}
-                    </button>
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
-                    Balance
-                  </th>
-                  <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
-                    <button
-                      onClick={() => alternarOrden('fecha')}
-                      className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors ml-auto outline-none focus:outline-none uppercase"
-                    >
-                      <span>Fecha</span>
-                      {orden?.columna === 'fecha' ? (
-                        orden.direccion === 'desc' ? (
-                          <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                          <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                      <button
+                        onClick={() => alternarOrden('fecha')}
+                        className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors ml-auto outline-none focus:outline-none uppercase"
+                      >
+                        <span>Fecha</span>
+                        {orden?.columna === 'fecha' ? (
+                          orden.direccion === 'desc' ? (
+                            <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                          ) : (
+                            <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                          )
                         ) : (
-                          <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
-                        )
-                      ) : (
-                        <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
-                      )}
-                    </button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y-2 divide-slate-200">
-                {txOrdenadas.map((tx) => {
-                  const esGanado = tx.tipo === 'compra';
-                  return (
-                    <tr
-                      key={tx.id}
-                      className="hover:bg-slate-50/70 cursor-pointer"
-                      onClick={() => onClickTransaccion?.(tx)}
-                    >
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                            style={{
-                              background: esGanado
-                                ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
-                                : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
-                            }}
-                          >
-                            {esGanado ? (
-                              <TrendingUp className="w-4 h-4 text-emerald-700" strokeWidth={2.5} />
-                            ) : (
-                              <TrendingDown className="w-4 h-4 text-rose-600" strokeWidth={2.5} />
-                            )}
-                          </div>
-                          <span className={`text-[13px] font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}>
-                            {esGanado ? 'Ganados' : 'Canjeados'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <Store className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="text-[13px] font-semibold text-slate-700 truncate">
-                            {tx.negocioNombre}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div>
-                          <span className="text-[13px] text-slate-500 block">{tx.descripcion}</span>
-                          {tx.montoCompra !== undefined && (
-                            <span className="text-[11px] text-slate-400 font-medium">{"$"}{tx.montoCompra.toFixed(2)} MXN</span>
+                          <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
+                        )}
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+            {/* Body con scroll */}
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                </colgroup>
+                <tbody>
+                  {(() => {
+                    let mesAnterior = '';
+                    return txOrdenadas.map((tx) => {
+                      const esGanado = tx.tipo === 'compra';
+                      const mesActual = obtenerMesAnio(tx.fecha);
+                      const mostrarSeparador = mostrarAgrupado && mesActual !== mesAnterior;
+                      mesAnterior = mesActual;
+                      return (
+                        <>
+                          {mostrarSeparador && (
+                            <tr key={`sep-${mesActual}`}>
+                              <td colSpan={6} className="px-0 py-0">
+                                <div
+                                  className="flex items-center justify-end gap-2.5 px-5 py-2"
+                                  style={{ background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)' }}
+                                >
+                                  <Calendar className="w-3.5 h-3.5 text-slate-500" strokeWidth={2.5} />
+                                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                    {mesActual.charAt(0).toUpperCase() + mesActual.slice(1)}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <span
-                          className={`text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}
-                        >
-                          {esGanado ? '+' : '-'}
-                          {Math.abs(tx.puntos).toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <span className="text-[12px] text-slate-400 font-medium">{formatearFechaTabla(tx.fecha)}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          <tr
+                            key={tx.id}
+                            className="hover:bg-slate-50/70 cursor-pointer border-b border-slate-200"
+                            onClick={() => onClickTransaccion?.(tx)}
+                          >
+                            {/* ── TIPO ── */}
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                  style={{
+                                    background: esGanado
+                                      ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
+                                      : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
+                                  }}
+                                >
+                                  {esGanado ? (
+                                    <TrendingUp className="w-4 h-4 text-emerald-700" strokeWidth={2.5} />
+                                  ) : (
+                                    <TrendingDown className="w-4 h-4 text-rose-600" strokeWidth={2.5} />
+                                  )}
+                                </div>
+                                <span className={`text-[13px] font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                  {esGanado ? 'Ganados' : 'Canjeados'}
+                                </span>
+                              </div>
+                            </td>
+                            {/* ── NEGOCIO (con logo) ── */}
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-2">
+                                {tx.negocioLogo ? (
+                                  <img
+                                    src={tx.negocioLogo}
+                                    alt={tx.negocioNombre}
+                                    className="w-6 h-6 rounded-full object-cover shrink-0"
+                                  />
+                                ) : (
+                                  <Store className="w-4 h-4 text-slate-400 shrink-0" />
+                                )}
+                                <span className="text-[13px] font-semibold text-slate-700 truncate">
+                                  {tx.negocioNombre}
+                                </span>
+                              </div>
+                            </td>
+                            {/* ── CONCEPTO ── */}
+                            <td className="px-5 py-3">
+                              <span className="text-[13px] text-slate-500 block truncate">
+                                {tx.descripcion.includes('||') ? (
+                                  <>
+                                    <strong className="text-slate-700">{tx.descripcion.split('||')[1]}</strong>
+                                    {tx.descripcion.split('||')[2]}
+                                  </>
+                                ) : tx.descripcion}
+                              </span>
+                            </td>
+                            {/* ── MONTO ── */}
+                            <td className="px-5 py-3 text-right">
+                              {tx.montoCompra !== undefined ? (
+                                <span className="text-[13px] font-semibold text-slate-700">
+                                  {"$"}{tx.montoCompra.toFixed(2)}
+                                </span>
+                              ) : (
+                                <span className="text-[12px] text-slate-300">—</span>
+                              )}
+                            </td>
+                            {/* ── PUNTOS ── */}
+                            <td className="px-5 py-3 text-right">
+                              <span
+                                className={`text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}
+                              >
+                                {esGanado ? '+' : '-'}
+                                {Math.abs(tx.puntos).toLocaleString()}
+                              </span>
+                            </td>
+                            {/* ── FECHA ── */}
+                            <td className="px-5 py-3 text-right">
+                              <span className="text-[12px] text-slate-400 font-medium">
+                                {formatearFechaTabla(tx.fecha)}
+                              </span>
+                            </td>
+                          </tr>
+                        </>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </>

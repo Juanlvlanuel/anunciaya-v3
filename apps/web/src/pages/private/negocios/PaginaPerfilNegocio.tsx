@@ -56,7 +56,7 @@ import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../co
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useNegociosCacheStore } from '../../../stores/useNegociosCacheStore';
-import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalEscribirResena } from '../../../components/negocios';
+import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalEscribirResena, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
 import { DropdownCompartir, ModalAuthRequerido } from '../../../components/compartir';
 import { LayoutPublico } from '../../../components/layout';
@@ -114,71 +114,6 @@ interface Oferta {
 interface MetodoPago {
     tipo: string;
 }
-
-// =============================================================================
-// DATOS DE EJEMPLO
-// =============================================================================
-
-
-
-// TODO: Eliminar cuando haya reseñas reales en la DB
-const RESENAS_EJEMPLO: Resena[] = [
-    {
-        id: '1',
-        rating: 5,
-        texto: 'Excelente servicio, muy recomendado. La comida llegó caliente y en tiempo récord. Definitivamente volveré a pedir.',
-        createdAt: '2025-01-10T14:30:00Z',
-        autor: {
-            id: 'u1',
-            nombre: 'María García',
-            avatarUrl: null,
-        },
-    },
-    {
-        id: '2',
-        rating: 4,
-        texto: 'Muy buenos tacos, el sabor es auténtico. Solo tardaron un poco más de lo esperado.',
-        createdAt: '2025-01-08T18:45:00Z',
-        autor: {
-            id: 'u2',
-            nombre: 'Juan Pérez',
-            avatarUrl: null,
-        },
-    },
-    {
-        id: '3',
-        rating: 5,
-        texto: 'Los mejores tacos de la zona, sin duda. La salsa verde es increíble.',
-        createdAt: '2025-01-05T12:00:00Z',
-        autor: {
-            id: 'u3',
-            nombre: 'Ana Rodríguez',
-            avatarUrl: null,
-        },
-    },
-    {
-        id: '4',
-        rating: 4,
-        texto: 'Buen precio y buena calidad. Recomiendo los tacos de asada.',
-        createdAt: '2024-12-28T20:15:00Z',
-        autor: {
-            id: 'u4',
-            nombre: 'Carlos López',
-            avatarUrl: null,
-        },
-    },
-    {
-        id: '5',
-        rating: 5,
-        texto: 'Increíble atención al cliente. Pedí una orden extra y me la dieron sin costo.',
-        createdAt: '2024-12-20T16:30:00Z',
-        autor: {
-            id: 'u5',
-            nombre: 'Laura Martínez',
-            avatarUrl: null,
-        },
-    },
-];
 
 // =============================================================================
 // HELPERS
@@ -488,9 +423,13 @@ export function PaginaPerfilNegocio() {
 
     // Estado de las reseñas (fetch desde backend)
     const [resenas, setResenas] = useState<Resena[]>([]);
+    const [puedeResenar, setPuedeResenar] = useState(false);
 
     // Estado de las ofertas (fetch desde backend)
     const [ofertas, setOfertas] = useState<Oferta[]>([]);
+
+    // Estado para oferta abierta desde deep link (notificación)
+    const [ofertaDeepLink, setOfertaDeepLink] = useState<Oferta | null>(null);
 
     // Bloquear scroll cuando cualquier modal está abierto
     useLockScroll(
@@ -671,6 +610,27 @@ export function PaginaPerfilNegocio() {
             .catch(() => setOfertas([]));
     }, [sucursalId, obtenerOfertasCache, guardarOfertasCache]);
 
+    // =========================================================================
+    // DEEP LINK: Abrir modal de oferta desde notificación (?ofertaId=xxx)
+    // =========================================================================
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const ofertaId = params.get('ofertaId');
+
+        if (!ofertaId || ofertas.length === 0) return;
+
+        const encontrada = ofertas.find((o) => o.id === ofertaId);
+        if (encontrada) {
+            setOfertaDeepLink(encontrada);
+            // Limpiar el param de la URL sin recargar
+            params.delete('ofertaId');
+            const nuevaUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
+            window.history.replaceState({}, '', nuevaUrl);
+        }
+    }, [ofertas, window.location.search]);
+
     // =============================================================================
     // HANDLERS
     // =============================================================================
@@ -750,9 +710,7 @@ export function PaginaPerfilNegocio() {
     // HELPERS
     // =============================================================================
 
-    // TODO: Eliminar RESENAS_EJEMPLO cuando haya datos reales
-    const resenasData = resenas.length > 0 ? resenas : RESENAS_EJEMPLO;
-
+    const resenasData = resenas;
     const promedioResenas = resenasData.length > 0
         ? resenasData.reduce((acc, r) => acc + (r.rating || 0), 0) / resenasData.length
         : 0;
@@ -869,10 +827,23 @@ export function PaginaPerfilNegocio() {
             <ModalEscribirResena
                 abierto={modalResenaAbierto}
                 onCerrar={() => setModalResenaAbierto(false)}
-                tieneCompraVerificada={false} // TODO: Conectar con backend
-                onEnviar={(rating, texto) => {
-                    console.log('Reseña enviada:', { rating, texto });
-                    // TODO: Enviar al backend
+                tieneCompraVerificada={puedeResenar}
+                onEnviar={async (rating, texto) => {
+                    try {
+                        const res = await api.post('/resenas', {
+                            sucursalId,
+                            rating,
+                            texto: texto || undefined,
+                        });
+                        if (res.data.success) {
+                            // Agregar reseña nueva al inicio de la lista
+                            setResenas(prev => [res.data.data, ...prev]);
+                            setModalResenaAbierto(false);
+                        }
+                    } catch (error: unknown) {
+                        const axiosError = error as { response?: { data?: { message?: string } } };
+                        console.error('Error al enviar reseña:', axiosError.response?.data?.message);
+                    }
                 }}
             />
 
@@ -1086,8 +1057,16 @@ export function PaginaPerfilNegocio() {
                                         </div>
                                         <div className="lg:h-5 2xl:h-7 w-0.5 bg-slate-300 rounded-full" />
                                         <button
-                                            onClick={() => setModalResenaAbierto(true)}
-                                            className="flex items-center lg:gap-1 2xl:gap-2 lg:px-2 2xl:px-4 cursor-pointer hover:opacity-80"
+                                            onClick={async () => {
+                                                if (!sucursalId) return;
+                                                try {
+                                                    const res = await api.get(`/resenas/puede-resenar/${sucursalId}`);
+                                                    setPuedeResenar(res.data.data?.puedeResenar || false);
+                                                } catch {
+                                                    setPuedeResenar(false);
+                                                }
+                                                setModalResenaAbierto(true);
+                                            }} className="flex items-center lg:gap-1 2xl:gap-2 lg:px-2 2xl:px-4 cursor-pointer hover:opacity-80"
                                         >
                                             <Star className={`lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 animate-bounce ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} style={{ animationDuration: '3s' }} />
                                             <span className="lg:text-sm 2xl:text-lg font-semibold text-slate-700">
@@ -1646,7 +1625,17 @@ export function PaginaPerfilNegocio() {
                     <div className="px-5 lg:px-4 2xl:px-0 mt-6 lg:mt-4 2xl:mt-6 ">
                         <SeccionResenas
                             resenas={resenasData}
-                            onEscribirResena={() => setModalResenaAbierto(true)}
+                            promedioRating={promedioResenas}
+                            onEscribirResena={async () => {
+                                if (!sucursalId) return;
+                                try {
+                                    const res = await api.get(`/resenas/puede-resenar/${sucursalId}`);
+                                    setPuedeResenar(res.data.data?.puedeResenar || false);
+                                } catch {
+                                    setPuedeResenar(false);
+                                }
+                                setModalResenaAbierto(true);
+                            }}
                         />
                     </div>
                 )}
@@ -1674,6 +1663,16 @@ export function PaginaPerfilNegocio() {
                 accion={accionAuthRequerida}
                 urlRetorno={`/negocios/${sucursalId}`}
             />
+
+            {/* MODAL OFERTA - Abierta desde notificación (deep link) */}
+            {ofertaDeepLink && (
+                <ModalOfertaDetalle
+                    oferta={ofertaDeepLink}
+                    whatsapp={negocio?.whatsapp}
+                    negocioNombre={negocio?.negocioNombre}
+                    onClose={() => setOfertaDeepLink(null)}
+                />
+            )}
         </div>
     );
 

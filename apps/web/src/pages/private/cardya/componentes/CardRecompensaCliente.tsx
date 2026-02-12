@@ -18,9 +18,11 @@ import type { RecompensaDisponible } from '../../../../types/cardya';
 export default function CardRecompensaCliente({
   recompensa,
   onCanjear,
+  destacada = false,
 }: {
   recompensa: RecompensaDisponible;
   onCanjear: (recompensa: RecompensaDisponible) => void;
+  destacada?: boolean;
 }) {
   const puedesCanjear = recompensa.tienesPuntosSuficientes;
   const stockAgotado = recompensa.estaAgotada;
@@ -38,9 +40,8 @@ export default function CardRecompensaCliente({
     <img
       src={recompensa.imagenUrl}
       alt={recompensa.nombre}
-      className={`w-full h-full object-cover transition-transform duration-500 ${
-        puedesCanjear && !stockAgotado ? 'group-hover:scale-105' : ''
-      }`}
+      className={`w-full h-full object-cover transition-transform duration-500 ${puedesCanjear && !stockAgotado ? 'group-hover:scale-105' : ''
+        }`}
     />
   ) : (
     <div
@@ -107,10 +108,10 @@ export default function CardRecompensaCliente({
           MOBILE: Layout horizontal compacto (< lg)
       ═══════════════════════════════════════════════════════════════════ */}
       <div
-        className={`lg:hidden group bg-white rounded-2xl overflow-hidden flex flex-row transition-all duration-300 ${opacityClass}`}
+        className={`lg:hidden group bg-white rounded-2xl overflow-hidden flex flex-row transition-all duration-300 ${opacityClass} ${destacada ? 'animate-[glow_1.5s_ease-in-out_2]' : ''}`}
         style={{
-          border: '1px solid #e2e8f0', height: '185px',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+          border: destacada ? '2px solid #f59e0b' : '1px solid #e2e8f0', height: '185px',
+          boxShadow: destacada ? '0 0 20px rgba(245,158,11,0.4), 0 0 40px rgba(245,158,11,0.15)' : '0 4px 16px rgba(0,0,0,0.06)',
         }}
       >
         {/* Imagen izquierda */}
@@ -150,12 +151,32 @@ export default function CardRecompensaCliente({
           </div>
 
           {/* Middle: Puntos + Stock */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between">
             {badgePuntos}
             {recompensa.stock !== null && !stockAgotado && (
-              <span className="text-[11px] font-semibold text-slate-400">
-                {recompensa.stock} disp.
-              </span>
+              <div className="flex flex-col items-end gap-1 min-w-0">
+                <span
+                  className="text-[13px] font-bold leading-none"
+                  style={{
+                    color: recompensa.stock <= 5 ? '#dc2626' : recompensa.stock <= 20 ? '#d97706' : '#94a3b8',
+                  }}
+                >
+                  {recompensa.stock <= 5 ? `¡Últimos ${recompensa.stock}!` : `${recompensa.stock} disp.`}
+                </span>
+                {recompensa.stock <= 20 && (
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" style={{ width: '50px' }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: recompensa.stock <= 5 ? '15%' : '45%',
+                        background: recompensa.stock <= 5
+                          ? 'linear-gradient(90deg, #ef4444, #f87171)'
+                          : 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -206,10 +227,10 @@ export default function CardRecompensaCliente({
           DESKTOP: Layout vertical clásico (>= lg)
       ═══════════════════════════════════════════════════════════════════ */}
       <div
-        className={`hidden lg:flex group bg-white rounded-2xl overflow-hidden flex-col transition-all duration-300 hover:shadow-xl ${opacityClass}`}
+        className={`hidden lg:flex group bg-white rounded-2xl overflow-hidden flex-col transition-all duration-300 hover:shadow-xl ${opacityClass} ${destacada ? 'animate-[glow_1.5s_ease-in-out_2]' : ''}`}
         style={{
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+          border: destacada ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+          boxShadow: destacada ? '0 0 20px rgba(245,158,11,0.4), 0 0 40px rgba(245,158,11,0.15)' : '0 4px 16px rgba(0,0,0,0.06)',
         }}
       >
         {/* Header: Imagen */}
@@ -255,12 +276,32 @@ export default function CardRecompensaCliente({
             </p>
           )}
 
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center justify-between mt-3">
             {badgePuntos}
             {recompensa.stock !== null && !stockAgotado && (
-              <span className="text-[10px] 2xl:text-[11px] font-semibold text-slate-400">
-                {recompensa.stock} disponibles
-              </span>
+              <div className="flex flex-col items-end gap-1 min-w-0">
+                <span
+                  className="text-xs 2xl:text-[13px] font-bold leading-none"
+                  style={{
+                    color: recompensa.stock <= 5 ? '#dc2626' : recompensa.stock <= 20 ? '#d97706' : '#94a3b8',
+                  }}
+                >
+                  {recompensa.stock <= 5 ? `¡Últimos ${recompensa.stock}!` : `${recompensa.stock} disp.`}
+                </span>
+                {recompensa.stock <= 20 && (
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" style={{ width: '60px' }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: recompensa.stock <= 5 ? '15%' : '45%',
+                        background: recompensa.stock <= 5
+                          ? 'linear-gradient(90deg, #ef4444, #f87171)'
+                          : 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

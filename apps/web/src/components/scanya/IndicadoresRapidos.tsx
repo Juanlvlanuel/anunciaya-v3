@@ -28,6 +28,7 @@ interface Contadores {
   recordatoriosPendientes: number;
   mensajesSinLeer: number;
   resenasPendientes: number;
+  vouchersPendientes: number;
 }
 
 interface IndicadoresRapidosProps {
@@ -89,6 +90,7 @@ const BOTONES: Boton[] = [
     label: 'Vouchers',
     icon: Ticket,
     ruta: '/scanya/vouchers',
+    contador: 'vouchersPendientes',
     color: 'text-[#8B5CF6]',
     borderColor: '#3B82F6',
     bgHover: 'rgba(139, 92, 246, 0.15)',

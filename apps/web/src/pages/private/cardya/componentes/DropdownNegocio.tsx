@@ -15,9 +15,10 @@ interface DropdownNegocioProps {
   negocios: string[];
   valor: string;
   onChange: (negocio: string) => void;
+  compacto?: boolean;
 }
 
-export default function DropdownNegocio({ negocios, valor, onChange }: DropdownNegocioProps) {
+export default function DropdownNegocio({ negocios, valor, onChange, compacto = false }: DropdownNegocioProps) {
   const [abierto, setAbierto] = useState(false);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -84,17 +85,23 @@ export default function DropdownNegocio({ negocios, valor, onChange }: DropdownN
       <button
         ref={btnRef}
         onClick={toggleDropdown}
-        className="flex items-center gap-2 lg:gap-2.5 px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-[13px] font-bold transition-all duration-200 cursor-pointer"
+        className={`flex items-center ${compacto ? 'justify-center w-10 h-10' : 'gap-1.5 lg:gap-2.5 px-2 lg:px-4 py-2 lg:py-2'} rounded-lg ${compacto ? '' : 'text-xs lg:text-[13px]'} font-bold transition-all duration-200 cursor-pointer relative`}
         style={{
-          background: seleccionado ? '#fffbeb' : '#ffffff',
+          background: compacto
+            ? (seleccionado ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.08)')
+            : (seleccionado ? '#fffbeb' : '#ffffff'),
           color: seleccionado ? '#92400e' : '#475569',
-          border: `1.5px solid ${seleccionado ? '#f59e0b' : '#cbd5e1'}`,
-          boxShadow: abierto
-            ? '0 0 0 3px rgba(245,158,11,0.15)'
-            : '0 1px 3px rgba(0,0,0,0.06)',
+          border: compacto ? 'none' : `1.5px solid ${seleccionado ? '#f59e0b' : '#cbd5e1'}`,
+          boxShadow: compacto
+            ? 'none'
+            : abierto
+              ? '0 0 0 3px rgba(245,158,11,0.15)'
+              : '0 1px 3px rgba(0,0,0,0.06)',
         }}
         onMouseEnter={(e) => {
-          if (!seleccionado) {
+          if (compacto) {
+            e.currentTarget.style.background = seleccionado ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.15)';
+          } else if (!seleccionado) {
             e.currentTarget.style.borderColor = '#94a3b8';
             e.currentTarget.style.background = '#f8fafc';
           } else {
@@ -103,20 +110,38 @@ export default function DropdownNegocio({ negocios, valor, onChange }: DropdownN
           }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = seleccionado ? '#f59e0b' : '#cbd5e1';
-          e.currentTarget.style.background = seleccionado ? '#fffbeb' : '#ffffff';
+          if (compacto) {
+            e.currentTarget.style.background = seleccionado ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.08)';
+          } else {
+            e.currentTarget.style.borderColor = seleccionado ? '#f59e0b' : '#cbd5e1';
+            e.currentTarget.style.background = seleccionado ? '#fffbeb' : '#ffffff';
+          }
         }}
       >
-        <Store className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" strokeWidth={2.5} style={{ color: seleccionado ? '#d97706' : '#94a3b8' }} />
-        <span className="truncate max-w-[120px] lg:max-w-[180px]">{labelActual}</span>
-        <ChevronDown
-          className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0 transition-transform duration-200"
+        <Store
+          className={compacto ? 'w-6 h-6' : 'w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0'}
           strokeWidth={2.5}
-          style={{
-            color: seleccionado ? '#d97706' : '#94a3b8',
-            transform: abierto ? 'rotate(180deg)' : 'rotate(0deg)',
-          }}
+          style={{ color: compacto ? (seleccionado ? '#f59e0b' : 'rgba(255,255,255,0.5)') : (seleccionado ? '#d97706' : '#94a3b8') }}
         />
+        {!compacto && (
+          <>
+            <span className="truncate max-w-[100px] lg:max-w-[180px]">{labelActual}</span>
+            <ChevronDown
+              className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0 transition-transform duration-200"
+              strokeWidth={2.5}
+              style={{
+                color: seleccionado ? '#d97706' : '#94a3b8',
+                transform: abierto ? 'rotate(180deg)' : 'rotate(0deg)',
+              }}
+            />
+          </>
+        )}
+        {compacto && seleccionado && (
+          <div
+            className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
+            style={{ background: '#f59e0b', border: '2px solid #000' }}
+          />
+        )}
       </button>
 
       {/* Lista desplegable — renderizada en portal para evitar overflow:hidden */}

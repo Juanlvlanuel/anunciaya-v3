@@ -6,7 +6,6 @@
  * UBICACIÓN: apps/web/src/components/negocios/index.ts
  */
 
-export { PanelFiltros } from './PanelFiltros';
 export { SeccionCatalogo } from './SeccionCatalogo';
 export { ModalCatalogo } from './ModalCatalogo';
 export { ModalHorarios } from './ModalHorarios';

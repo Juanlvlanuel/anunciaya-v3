@@ -7,8 +7,9 @@
  * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/ModalDetalleBilletera.tsx
  */
 
-import { X, Store, TrendingUp, TrendingDown, Award, Clock, ChevronRight } from 'lucide-react';
+import { X, Store, TrendingUp, TrendingDown, Award, Clock, ChevronRight, Zap } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
+import Tooltip from '../../../../components/ui/Tooltip';
 import type { DetalleNegocioBilletera } from '../../../../types/cardya';
 
 // Configuración de niveles
@@ -46,10 +47,12 @@ export default function ModalDetalleBilletera({
   abierto,
   onCerrar,
   billetera,
+  onVerHistorial,
 }: {
   abierto: boolean;
   onCerrar: () => void;
   billetera: DetalleNegocioBilletera | null;
+  onVerHistorial?: (negocioNombre: string) => void;
 }) {
   if (!abierto || !billetera) return null;
 
@@ -76,7 +79,7 @@ export default function ModalDetalleBilletera({
     >
       {/* ── Header dark con logo ── */}
       <div
-        className="relative overflow-hidden px-5 lg:px-4 2xl:px-5 py-5 lg:py-4 2xl:py-5"
+        className="relative overflow-hidden px-5 lg:px-4 2xl:px-5 py-3 lg:py-4 2xl:py-5"
         style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}
       >
         {/* Grid sutil */}
@@ -89,90 +92,189 @@ export default function ModalDetalleBilletera({
           }}
         />
 
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-3.5 lg:gap-2.5 2xl:gap-3.5">
-            {billetera.negocioLogo ? (
-              <div className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-xl overflow-hidden ring-2 ring-white/10 shrink-0">
-                <img src={billetera.negocioLogo} alt={billetera.negocioNombre} className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div
-                className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: nivel.bg }}
-              >
-                <Store className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" strokeWidth={2.5} />
-              </div>
-            )}
-            <div>
-              <h2 className="text-lg lg:text-sm 2xl:text-lg font-bold text-white">{billetera.negocioNombre}</h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-sm lg:text-xs 2xl:text-sm">{nivel.icono}</span>
-                <span className="text-xs lg:text-[10px] 2xl:text-xs font-semibold text-white/50">Nivel {nivel.label}</span>
+        <div className="relative z-10">
+          {/* ── MÓVIL: Fila1: Logo+Nombre+X | Fila2: Nivel+Iconos ── */}
+          <div className="lg:hidden">
+            <div className="flex items-center gap-3">
+              {billetera.negocioLogo ? (
+                <div className="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-white/10 shrink-0">
+                  <img src={billetera.negocioLogo} alt={billetera.negocioNombre} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: nivel.bg }}
+                >
+                  <Store className="w-6 h-6 text-white" strokeWidth={2.5} />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                {/* Fila 1: Nombre + X */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-extrabold text-white truncate">{billetera.negocioNombre}</h2>
+                  <button
+                    onClick={onCerrar}
+                    className="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
+                  >
+                    <X className="w-6 h-6" strokeWidth={2.5} />
+                  </button>
+                </div>
+                {/* Fila 2: Nivel + Iconos contacto */}
+                <div className="flex items-center justify-between -mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{nivel.icono}</span>
+                    <span className="text-sm font-bold text-white/70">Nivel {nivel.label}</span>
+                    {billetera.whatsappContacto && (
+                      <a
+                        href={`https://wa.me/${billetera.whatsappContacto.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-9 h-9 flex items-center justify-center cursor-pointer shrink-0 active:scale-95 transition-transform ml-1"
+                      >
+                        <img src="/whatsapp.webp" alt="WhatsApp" className="w-8 h-8 object-contain" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => {
+                        // TODO: Abrir ChatYA con este negocio
+                      }}
+                      className="w-9 h-9 flex items-center justify-center cursor-pointer shrink-0 active:scale-95 transition-transform"
+                    >
+                      <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-8 h-8 object-contain" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <button
-            onClick={onCerrar}
-            className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors cursor-pointer shrink-0"
-          >
-            <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
-          </button>
+
+          {/* ── PC: Todo en una línea con logo más grande ── */}
+          <div className="hidden lg:flex items-center justify-between">
+            <div className="flex items-center gap-3 2xl:gap-3.5 flex-1 min-w-0">
+              {billetera.negocioLogo ? (
+                <div className="w-12 h-12 2xl:w-14 2xl:h-14 rounded-xl overflow-hidden ring-2 ring-white/10 shrink-0">
+                  <img src={billetera.negocioLogo} alt={billetera.negocioNombre} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div
+                  className="w-12 h-12 2xl:w-14 2xl:h-14 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: nivel.bg }}
+                >
+                  <Store className="w-6 h-6 2xl:w-7 2xl:h-7 text-white" strokeWidth={2.5} />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm 2xl:text-lg font-bold text-white truncate">{billetera.negocioNombre}</h2>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs 2xl:text-sm">{nivel.icono}</span>
+                  <span className="text-[10px] 2xl:text-xs font-semibold text-white/50">Nivel {nivel.label}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+              {billetera.whatsappContacto && (
+                <Tooltip text="WhatsApp" position="bottom">
+                  <a
+                    href={`https://wa.me/${billetera.whatsappContacto.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center cursor-pointer shrink-0 hover:scale-110 transition-transform"
+                  >
+                    <img src="/whatsapp.webp" alt="WhatsApp" className="w-6 h-6 2xl:w-7 2xl:h-7 object-contain" />
+                  </a>
+                </Tooltip>
+              )}
+              <Tooltip text="ChatYA" position="bottom">
+                <button
+                  onClick={() => {
+                    // TODO: Abrir ChatYA con este negocio
+                  }}
+                  className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center cursor-pointer shrink-0 hover:scale-110 transition-transform"
+                >
+                  <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-6 h-6 2xl:w-7 2xl:h-7 object-contain" />
+                </button>
+              </Tooltip>
+              <button
+                onClick={onCerrar}
+                className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ── Contenido ── */}
-      <div className="p-5 lg:p-4 2xl:p-5">
+      <div className="p-3 lg:p-4 2xl:p-5">
 
         {/* Puntos + Nivel en grid */}
-        <div className="grid grid-cols-2 gap-3 lg:gap-2.5 2xl:gap-3 mb-5 lg:mb-3.5 2xl:mb-5">
+        <div className="grid grid-cols-2 gap-2 lg:gap-2.5 2xl:gap-3 mb-3 lg:mb-3.5 2xl:mb-5">
           {/* Puntos disponibles */}
           <div
-            className="rounded-xl lg:rounded-lg 2xl:rounded-xl p-4 lg:p-3 2xl:p-4"
+            className="rounded-lg lg:rounded-lg 2xl:rounded-xl p-2 lg:p-3 2xl:p-4"
             style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
           >
-            <div className="flex items-center gap-1.5 mb-2 lg:mb-1.5 2xl:mb-2">
-              <TrendingUp className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" strokeWidth={2.5} />
-              <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Disponibles</span>
+            <div className="flex items-center gap-1 mb-0.5 lg:mb-1.5 2xl:mb-2">
+              <TrendingUp className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" strokeWidth={2.5} />
+              <span className="text-xs lg:text-[10px] 2xl:text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Disponibles</span>
             </div>
-            <div className="text-3xl lg:text-xl 2xl:text-3xl font-black text-slate-800 leading-none">
+            <div className="text-3xl lg:text-xl 2xl:text-3xl font-black text-slate-900 leading-none">
               {billetera.puntosDisponibles.toLocaleString()}
             </div>
-            <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-400 mt-1.5 lg:mt-1 2xl:mt-1.5">
+            <p className="text-xs lg:text-[10px] 2xl:text-[11px] text-slate-500 mt-0.5 lg:mt-1 2xl:mt-1.5">
               {billetera.puntosAcumuladosTotal.toLocaleString()} pts en total
             </p>
           </div>
 
           {/* Progreso nivel */}
           <div
-            className="rounded-xl lg:rounded-lg 2xl:rounded-xl p-4 lg:p-3 2xl:p-4"
+            className="rounded-lg lg:rounded-lg 2xl:rounded-xl p-2 lg:p-3 2xl:p-4"
             style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
           >
-            <div className="flex items-center gap-1.5 mb-2 lg:mb-1.5 2xl:mb-2">
-              <Award className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" strokeWidth={2.5} />
-              <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Progreso</span>
+            <div className="flex items-center gap-1 mb-0.5 lg:mb-1.5 2xl:mb-2">
+              <Award className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" strokeWidth={2.5} />
+              <span className="text-xs lg:text-[10px] 2xl:text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Progreso</span>
             </div>
             {billetera.progreso.puntosFaltantes !== null ? (
               <>
-                <div className="text-3xl lg:text-xl 2xl:text-3xl font-black text-slate-800 leading-none">
+                <div className="text-3xl lg:text-xl 2xl:text-3xl font-black text-slate-900 leading-none">
                   {billetera.progreso.porcentaje}%
                 </div>
-                <div className="w-full h-2 lg:h-1.5 2xl:h-2 bg-slate-200 rounded-full overflow-hidden mt-2.5 lg:mt-2 2xl:mt-2.5">
+                <div className="w-full h-1.5 lg:h-1.5 2xl:h-2 bg-slate-200 rounded-full overflow-hidden mt-1.5 lg:mt-2 2xl:mt-2.5">
                   <div
                     className="h-full rounded-full transition-all duration-700"
                     style={{ width: `${billetera.progreso.porcentaje}%`, background: nivel.barBg }}
                   />
                 </div>
-                <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-400 mt-1.5 lg:mt-1 2xl:mt-1.5">
-                  Faltan <strong className="text-slate-500">{billetera.progreso.puntosFaltantes.toLocaleString()}</strong> pts
+                <p className="text-xs lg:text-[10px] 2xl:text-[11px] text-slate-500 mt-0.5 lg:mt-1 2xl:mt-1.5">
+                  Faltan <strong className="text-slate-600">{billetera.progreso.puntosFaltantes.toLocaleString()}</strong> pts
                 </p>
               </>
             ) : (
-              <div className="text-3xl lg:text-xl 2xl:text-3xl font-black text-slate-800 leading-none">
+              <div className="text-3xl lg:text-xl 2xl:text-3xl font-black text-slate-900 leading-none">
                 MAX
               </div>
             )}
           </div>
         </div>
+
+        {/* Beneficios del nivel */}
+        {(billetera.multiplicador > 1.0 || billetera.beneficios.length > 0) && (
+          <div
+            className="flex items-center gap-2 lg:gap-2.5 2xl:gap-2.5 p-2 lg:p-2 2xl:p-3 rounded-lg lg:rounded-lg 2xl:rounded-xl mb-2.5 lg:mb-3 2xl:mb-4"
+            style={{ background: nivel.badgeBg, border: `1px solid ${nivel.color}30` }}
+          >
+            <Zap
+              className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0"
+              strokeWidth={2.5}
+              style={{ color: nivel.color }}
+            />
+            <p className="text-sm lg:text-[11px] 2xl:text-[13px] font-bold whitespace-nowrap" style={{ color: nivel.color }}>
+              {nivel.label} &nbsp;&nbsp;&nbsp; x{billetera.multiplicador.toFixed(1)} puntos por compra
+            </p>
+          </div>
+        )}
 
         {/* Últimas transacciones */}
         <div
@@ -180,16 +282,16 @@ export default function ModalDetalleBilletera({
           style={{ border: '1px solid #e2e8f0' }}
         >
           <div
-            className="px-4 lg:px-3.5 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 flex items-center gap-2"
+            className="px-3 lg:px-3.5 2xl:px-4 py-2 lg:py-2.5 2xl:py-3 flex items-center gap-2"
             style={{ background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)', borderBottom: '1px solid #e2e8f0' }}
           >
-            <Clock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" strokeWidth={2.5} />
-            <h3 className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700">Últimas Transacciones</h3>
+            <Clock className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" strokeWidth={2.5} />
+            <h3 className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800">Últimas Transacciones</h3>
           </div>
 
           {billetera.ultimasTransacciones.length === 0 ? (
-            <div className="p-8 lg:p-6 2xl:p-8 text-center">
-              <p className="text-sm lg:text-xs 2xl:text-sm text-slate-400">Sin transacciones recientes</p>
+            <div className="p-5 lg:p-6 2xl:p-8 text-center">
+              <p className="text-sm lg:text-xs 2xl:text-sm text-slate-500">Sin transacciones recientes</p>
             </div>
           ) : (
             <div>
@@ -198,12 +300,12 @@ export default function ModalDetalleBilletera({
                 return (
                   <div
                     key={tx.id}
-                    className="px-4 lg:px-3.5 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 flex items-center justify-between hover:bg-slate-50/70 transition-colors"
+                    className="px-3 lg:px-3.5 2xl:px-4 py-2 lg:py-2.5 2xl:py-3 flex items-center justify-between hover:bg-slate-50/70 transition-colors"
                     style={{ borderBottom: i < billetera.ultimasTransacciones.length - 1 ? '1px solid #f1f5f9' : 'none' }}
                   >
-                    <div className="flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
+                    <div className="flex items-center gap-2.5 lg:gap-2.5 2xl:gap-3">
                       <div
-                        className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center shrink-0"
+                        className="w-7 h-7 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center shrink-0"
                         style={{
                           background: esGanado
                             ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
@@ -217,12 +319,14 @@ export default function ModalDetalleBilletera({
                         )}
                       </div>
                       <div>
-                        <p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-700">{tx.descripcion}</p>
-                        <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-400">{formatearFecha(tx.createdAt)}</p>
+                        <p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800">
+                          {esGanado ? `Compra $${tx.monto.toLocaleString()}` : tx.descripcion}
+                        </p>
+                        <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-500">{formatearFecha(tx.createdAt)}</p>
                       </div>
                     </div>
                     <span className={`text-sm lg:text-xs 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}>
-                      {esGanado ? '+' : '-'}{tx.puntos.toLocaleString()}
+                      {esGanado ? '+' : ''}{tx.puntos.toLocaleString()}
                     </span>
                   </div>
                 );
@@ -234,9 +338,10 @@ export default function ModalDetalleBilletera({
         {/* Botón historial completo */}
         <button
           onClick={() => {
-            // TODO: Cambiar a tab historial con filtro del negocio
+            onCerrar();
+            onVerHistorial?.(billetera.negocioNombre);
           }}
-          className="w-full mt-4 lg:mt-3 2xl:mt-4 py-3 lg:py-2 2xl:py-3 rounded-xl lg:rounded-lg 2xl:rounded-xl font-bold text-sm lg:text-xs 2xl:text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg active:scale-[0.98]"
+          className="w-full mt-2.5 lg:mt-3 2xl:mt-4 py-2.5 lg:py-2 2xl:py-3 rounded-lg lg:rounded-lg 2xl:rounded-xl font-bold text-sm lg:text-xs 2xl:text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg active:scale-[0.98]"
           style={{
             background: 'linear-gradient(135deg, #0f172a, #1e293b)',
             color: '#f8fafc',

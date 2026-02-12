@@ -351,7 +351,7 @@ export const Navbar = () => {
   const setCiudad = useGpsStore((state) => state.setCiudad);
 
   // Notificaciones Store
-  const cantidadNoLeidas = useNotificacionesStore((state) => state.cantidadNoLeidas);
+  const cantidadNoLeidas = useNotificacionesStore((state) => state.totalNoLeidas);
   const togglePanel = useNotificacionesStore((state) => state.togglePanel);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -400,7 +400,7 @@ export const Navbar = () => {
 
   const avatarUrl = esComercial
     ? usuario?.fotoPerfilNegocio || null
-    : usuario?.avatar || null;
+    : usuario?.avatarUrl || null;
 
   const usuarioInicial = esComercial
     ? usuario?.nombreNegocio?.charAt(0).toUpperCase() || 'N'

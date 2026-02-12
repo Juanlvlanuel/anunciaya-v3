@@ -35,6 +35,7 @@ import {
 import type { RecordatorioScanYA } from '@/types/scanya';
 import type { TurnoScanYA, RespuestaTurnoActual } from '@/types/scanya';
 
+
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
@@ -57,6 +58,7 @@ export default function PaginaScanYA() {
     recordatoriosPendientes: 0,
     mensajesSinLeer: 0,
     resenasPendientes: 0,
+    vouchersPendientes: 0,
   });
 
   const [cargandoDatos, setCargandoDatos] = useState(true);
@@ -135,7 +137,7 @@ export default function PaginaScanYA() {
   useEffect(() => {
     // Solo bloquear scroll en pantallas grandes (lg: 1024px+)
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
-    
+
     const aplicarOverflow = () => {
       if (mediaQuery.matches) {
         document.documentElement.style.overflow = 'hidden';
@@ -154,6 +156,25 @@ export default function PaginaScanYA() {
       document.documentElement.style.overflow = '';
       mediaQuery.removeEventListener('change', aplicarOverflow);
     };
+  }, []);
+
+  // Polling: actualizar contadores cada 30 segundos
+  useEffect(() => {
+    const intervalo = setInterval(async () => {
+      try {
+        const resp = await scanyaService.obtenerContadores();
+        if (resp.success && resp.data) {
+          setContadores(prev => ({
+            ...prev,
+            vouchersPendientes: resp.data!.vouchersPendientes,
+          }));
+        }
+      } catch {
+        // Silenciar errores de polling
+      }
+    }, 30000);
+
+    return () => clearInterval(intervalo);
   }, []);
 
   /**
@@ -188,6 +209,7 @@ export default function PaginaScanYA() {
           // ONLINE: Solo mostrar los del servidor (ya incluyen los sincronizados)
           // NO sumar localStorage porque duplicaría el conteo
           recordatoriosPendientes: respuestaContadores.data.recordatoriosPendientes,
+          vouchersPendientes: respuestaContadores.data.vouchersPendientes ?? 0,
         });
       }
     } catch (error) {
@@ -484,7 +506,7 @@ export default function PaginaScanYA() {
             filter: 'blur(80px)',
             top: '-100px',
             left: '-100px',
-            animation: 'float-orb-1 20s ease-in-out infinite', 
+            animation: 'float-orb-1 20s ease-in-out infinite',
           }}
         />
         <div

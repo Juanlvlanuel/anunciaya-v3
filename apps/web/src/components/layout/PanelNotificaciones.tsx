@@ -17,12 +17,13 @@
  * Ubicación: apps/web/src/components/layout/PanelNotificaciones.tsx
  */
 
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Bell, Check, Sparkles } from 'lucide-react';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { ModalBottom } from '../ui/ModalBottom';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import type { Notificacion } from '../../stores/useNotificacionesStore';
+import type { Notificacion } from '../../types/notificaciones';
 
 // =============================================================================
 // HELPERS (fuera del componente para evitar re-creación)
@@ -31,9 +32,9 @@ import type { Notificacion } from '../../stores/useNotificacionesStore';
 /**
  * Formatea una fecha a texto relativo (ej: "Hace 5 min")
  */
-const formatearFechaRelativa = (fecha: Date): string => {
+const formatearFechaRelativa = (fecha: string): string => {
   const ahora = new Date();
-  const diferencia = ahora.getTime() - fecha.getTime();
+  const diferencia = ahora.getTime() - new Date(fecha).getTime();
 
   const minutos = Math.floor(diferencia / 60000);
   const horas = Math.floor(diferencia / 3600000);
@@ -53,32 +54,127 @@ const formatearFechaRelativa = (fecha: Date): string => {
  */
 const getConfigPorTipo = (tipo: Notificacion['tipo']) => {
   switch (tipo) {
-    case 'punto':
+    case 'puntos_ganados':
       return {
         emoji: '🎯',
         bgColor: 'bg-linear-to-br from-blue-100 to-blue-50',
       };
-    case 'cupon':
+    case 'voucher_generado':
+    case 'voucher_cobrado':
+    case 'voucher_pendiente':
       return {
         emoji: '🎟️',
         bgColor: 'bg-linear-to-br from-emerald-100 to-emerald-50',
       };
-    case 'mensaje':
+    case 'nueva_oferta':
+    case 'nuevo_cupon':
       return {
-        emoji: '💬',
-        bgColor: 'bg-linear-to-br from-purple-100 to-purple-50',
+        emoji: '🏷️',
+        bgColor: 'bg-linear-to-br from-orange-100 to-orange-50',
+      };
+    case 'nueva_recompensa':
+      return {
+        emoji: '🎁',
+        bgColor: 'bg-linear-to-br from-pink-100 to-pink-50',
+      };
+    case 'nuevo_cliente':
+      return {
+        emoji: '👤',
+        bgColor: 'bg-linear-to-br from-cyan-100 to-cyan-50',
+      };
+    case 'stock_bajo':
+      return {
+        emoji: '⚠️',
+        bgColor: 'bg-linear-to-br from-amber-100 to-amber-50',
+      };
+    case 'nueva_resena':
+      return {
+        emoji: '⭐',
+        bgColor: 'bg-linear-to-br from-yellow-100 to-yellow-50',
+      };
+    case 'nuevo_marketplace':
+    case 'nueva_dinamica':
+    case 'nuevo_empleo':
+      return {
+        emoji: '📢',
+        bgColor: 'bg-linear-to-br from-indigo-100 to-indigo-50',
       };
     case 'sistema':
+    default:
       return {
         emoji: '⚙️',
         bgColor: 'bg-linear-to-br from-gray-100 to-gray-50',
       };
-    default:
-      return {
-        emoji: '📢',
-        bgColor: 'bg-linear-to-br from-orange-100 to-orange-50',
-      };
   }
+};
+
+// =============================================================================
+// HELPER: Obtener ruta de destino según notificación
+// =============================================================================
+
+/**
+ * Determina a qué ruta navegar cuando el usuario hace click en una notificación.
+ * Retorna null si la notificación no tiene destino (solo se marca como leída).
+ */
+const obtenerRutaDestino = (notificacion: Notificacion): string | null => {
+  const { modo, referenciaTipo, referenciaId, tipo } = notificacion;
+
+  // Sin referenciaTipo → no hay destino
+  if (!referenciaTipo) return null;
+
+  // ── MODO PERSONAL ──
+  if (modo === 'personal') {
+    switch (referenciaTipo) {
+      case 'transaccion':
+        return referenciaId
+          ? `/cardya?tab=historial&id=${referenciaId}`
+          : '/cardya?tab=historial';
+
+      case 'voucher':
+        return referenciaId
+          ? `/cardya?tab=vouchers&id=${referenciaId}`
+          : '/cardya?tab=vouchers';
+
+      case 'oferta':
+        // Navegar al perfil del negocio (sucursal) y abrir modal de la oferta
+        return notificacion.sucursalId && referenciaId
+          ? `/negocios/${notificacion.sucursalId}?ofertaId=${referenciaId}`
+          : null;
+
+      case 'recompensa':
+        return referenciaId ? `/cardya?tab=recompensas&id=${referenciaId}` : '/cardya?tab=recompensas';
+
+      default:
+        return null;
+    }
+  }
+
+  // ── MODO COMERCIAL ──
+  if (modo === 'comercial') {
+    switch (referenciaTipo) {
+      case 'transaccion':
+      case 'voucher':
+        return '/business-studio/transacciones';
+
+      case 'resena':
+        return '/business-studio/opiniones';
+
+      default:
+        break;
+    }
+
+    // Fallback por tipo de notificación (comercial)
+    switch (tipo) {
+      case 'stock_bajo':
+        return '/business-studio/puntos';
+      case 'nuevo_cliente':
+        return '/business-studio/clientes';
+      default:
+        return null;
+    }
+  }
+
+  return null;
 };
 
 // =============================================================================
@@ -158,7 +254,7 @@ function ContenidoNotificaciones({
                     {notificacion.mensaje}
                   </p>
                   <p className="text-xs lg:text-[10px] 2xl:text-xs text-gray-400 font-medium">
-                    {formatearFechaRelativa(notificacion.fecha)}
+                    {formatearFechaRelativa(notificacion.createdAt)}
                   </p>
                 </div>
 
@@ -329,7 +425,7 @@ export function PanelNotificaciones() {
   const panelAbierto = useNotificacionesStore((state) => state.panelAbierto);
   const notificaciones = useNotificacionesStore((state) => state.notificaciones);
   const cerrarPanel = useNotificacionesStore((state) => state.cerrarPanel);
-  const marcarLeidas = useNotificacionesStore((state) => state.marcarLeidas);
+  const marcarLeidas = useNotificacionesStore((state) => state.marcarTodasLeidas);
   const marcarLeidaPorId = useNotificacionesStore((state) => state.marcarLeidaPorId);
 
   // ---------------------------------------------------------------------------
@@ -338,19 +434,51 @@ export function PanelNotificaciones() {
   const { esMobile } = useBreakpoint();
 
   // ---------------------------------------------------------------------------
+  // Navegación
+  // ---------------------------------------------------------------------------
+  const navigate = useNavigate();
+
+  // ---------------------------------------------------------------------------
   // Datos derivados
   // ---------------------------------------------------------------------------
-  const cantidadNoLeidas = useMemo(
-    () => notificaciones.filter((n) => !n.leida).length,
-    [notificaciones]
-  );
+  const cantidadNoLeidas = useNotificacionesStore((state) => state.totalNoLeidas);
+
 
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Determina la ruta de destino según referenciaTipo y modo de la notificación.
+   *
+   * MODO PERSONAL:
+   * - transaccion → /cardya?tab=historial&id=xxx (abre modal detalle)
+   * - voucher     → /cardya?tab=vouchers&id=xxx  (abre modal detalle)
+   * - oferta      → /negocios/{negocioId}?ofertaId=xxx (abre modal en perfil)
+   * - recompensa  → /cardya?tab=recompensas
+   *
+   * MODO COMERCIAL:
+   * - transaccion → /business-studio/transacciones
+   * - voucher     → /business-studio/transacciones
+   * - oferta      → (no aplica, el dueño creó la oferta)
+   * - recompensa  → (no aplica, el dueño creó la recompensa)
+   * - resena      → /business-studio/opiniones
+   * - stock_bajo  → /business-studio/puntos
+   * - nuevo_cliente → /business-studio/clientes
+   */
   const handleClickNotificacion = (notificacion: Notificacion) => {
+    // 1. Marcar como leída
     if (!notificacion.leida) {
       marcarLeidaPorId(notificacion.id);
+    }
+
+    // 2. Determinar ruta de destino
+    const ruta = obtenerRutaDestino(notificacion);
+
+    // 3. Cerrar panel y navegar (si hay ruta)
+    if (ruta) {
+      cerrarPanel();
+      navigate(ruta);
     }
   };
 

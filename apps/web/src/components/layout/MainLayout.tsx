@@ -28,7 +28,6 @@ import { useMainScrollStore } from '../../stores/useMainScrollStore';
 
 // Componentes de layout
 import { MobileHeader } from './MobileHeader';
-import { SearchPanel } from './SearchPanel';
 import { Navbar } from './Navbar';
 import { BottomNav } from './BottomNav';
 import { MenuDrawer } from './MenuDrawer';
@@ -67,6 +66,7 @@ export function MainLayout() {
   const location = useLocation();
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
   const esPerfilNegocio = location.pathname.startsWith('/negocios/');
+  const esCardYA = location.pathname.startsWith('/cardya');
 
   // ---------------------------------------------------------------------------
   // Stores
@@ -180,11 +180,8 @@ export function MainLayout() {
         <>
           {/* ===== HEADER ===== */}
           <div className="sticky top-0 z-40 lg:fixed lg:left-0 lg:right-0">
-            {esDesktop ? <Navbar /> : <div className="mobile-header-landscape-hide"><MobileHeader /></div>}
+            {esDesktop ? <Navbar /> : !esCardYA && <div className="mobile-header-landscape-hide"><MobileHeader /></div>}
           </div>
-
-          {/* ===== SEARCH PANEL (Solo móvil) ===== */}
-          {!esDesktop && <SearchPanel />}
 
           {/* ===== CONTENIDO PRINCIPAL ===== */}
           {esDesktop ? (
@@ -256,7 +253,7 @@ export function MainLayout() {
             <main
               ref={mobileMainRef}
               className="main-content-landscape-fullscreen overflow-y-auto pb-20"
-              style={{ height: 'calc(100vh - 80px)', WebkitOverflowScrolling: 'touch' }}
+              style={{ height: esCardYA ? 'calc(100vh - 0px)' : 'calc(100vh - 80px)', WebkitOverflowScrolling: 'touch' }}
             >
               <Outlet />
             </main>

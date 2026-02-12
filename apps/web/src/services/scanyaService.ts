@@ -382,11 +382,13 @@ export async function obtenerContadores(): Promise<RespuestaAPI<{
   mensajesSinLeer: number;
   resenasPendientes: number;
   recordatoriosPendientes: number;
+  vouchersPendientes: number;
 }>> {
   const response = await api.get<RespuestaAPI<{
     mensajesSinLeer: number;
     resenasPendientes: number;
     recordatoriosPendientes: number;
+    vouchersPendientes: number;
   }>>(`${BASE}/contadores`);
   return response.data;
 }

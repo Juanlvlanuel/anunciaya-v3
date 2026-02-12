@@ -132,6 +132,7 @@ export interface Voucher {
   negocioId: string;
   negocioNombre: string;
   negocioLogo: string | null;
+  canjeadoPorNombre: string | null;
   puntosUsados: number;
   estado: EstadoVoucher;
   expiraAt: string;
@@ -161,6 +162,7 @@ export interface HistorialCompra {
   montoCompra: number;
   puntosOtorgados: number;
   multiplicadorAplicado: number;
+  concepto: string | null;
   empleadoNombre: string | null;
   createdAt: string;
 }
@@ -181,6 +183,7 @@ export interface HistorialCanje {
   estado: 'usado' | 'cancelado';
   createdAt: string;
   usadoAt: string | null;
+  canjeadoPorNombre: string | null;
 }
 
 export interface FiltrosHistorialCompras {
@@ -226,10 +229,6 @@ export interface Transaccion {
   sucursalNombre?: string | null;
   multiplicador?: number;
   empleadoNombre?: string | null;
-  // ── Campos de canje (solo cuando tipo === 'canje') ──
-  recompensaNombre?: string;
-  recompensaImagen?: string | null;
-  voucherEstado?: 'usado' | 'cancelado';
 }
 
 // =============================================================================

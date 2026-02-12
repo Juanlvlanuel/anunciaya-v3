@@ -183,7 +183,15 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                     usuario?.nombreNegocio?.charAt(0).toUpperCase() || 'N'
                   )
                 ) : (
-                  inicialUsuario
+                  usuario?.avatarUrl ? (
+                    <img
+                      src={usuario.avatarUrl}
+                      alt={usuario?.nombre || 'Usuario'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    inicialUsuario
+                  )
                 )}
               </div>
               {/* Indicador online */}

@@ -38,6 +38,7 @@ export default function ModalConfirmarCanje({
       await onConfirmar();
     } catch (error) {
       console.error('Error al canjear:', error);
+    } finally {
       setCanjeando(false);
     }
   };
@@ -76,15 +77,15 @@ export default function ModalConfirmarCanje({
             </div>
             <div>
               <h2 className="text-base lg:text-sm 2xl:text-base font-bold text-white">Confirmar Canje</h2>
-              <p className="text-xs lg:text-[10px] 2xl:text-xs text-white/40 font-medium">Revisa los detalles</p>
+              <p className="text-xs lg:text-[10px] 2xl:text-xs text-amber-400/80 font-bold tracking-wide">Revisa los detalles</p>
             </div>
           </div>
           <button
             onClick={onCerrar}
             disabled={canjeando}
-            className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
+            <X className="w-6 h-6 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
           </button>
         </div>
       </div>
@@ -116,9 +117,9 @@ export default function ModalConfirmarCanje({
           <div className="flex-1 min-w-0">
             <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 truncate">{recompensa.nombre}</h3>
             {recompensa.descripcion && (
-              <p className="text-[12px] lg:text-[11px] 2xl:text-[12px] text-slate-500 line-clamp-1">{recompensa.descripcion}</p>
+              <p className="text-[13px] lg:text-[12px] 2xl:text-[13px] text-slate-600 line-clamp-1">{recompensa.descripcion}</p>
             )}
-            <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-400 font-medium mt-0.5">{recompensa.negocioNombre}</p>
+            <p className="text-[12px] lg:text-[11px] 2xl:text-[12px] text-slate-500 font-semibold mt-0.5">{recompensa.negocioNombre}</p>
           </div>
         </div>
 
@@ -129,12 +130,12 @@ export default function ModalConfirmarCanje({
         >
           <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-[13px] lg:text-[12px] 2xl:text-[13px] text-slate-500 font-medium">Puntos actuales</span>
-              <span className="text-[13px] lg:text-[12px] 2xl:text-[13px] font-bold text-slate-800">{puntosActuales.toLocaleString()}</span>
+              <span className="text-[14px] lg:text-[13px] 2xl:text-[14px] text-slate-600 font-semibold">Puntos actuales</span>
+              <span className="text-[14px] lg:text-[13px] 2xl:text-[14px] font-bold text-slate-800">{puntosActuales.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[13px] lg:text-[12px] 2xl:text-[13px] text-slate-500 font-medium">Costo de recompensa</span>
-              <span className="text-[13px] lg:text-[12px] 2xl:text-[13px] font-bold text-rose-600">
+              <span className="text-[14px] lg:text-[13px] 2xl:text-[14px] text-slate-600 font-semibold">Costo de recompensa</span>
+              <span className="text-[14px] lg:text-[13px] 2xl:text-[14px] font-bold text-rose-600">
                 -{recompensa.puntosRequeridos.toLocaleString()}
               </span>
             </div>
@@ -142,8 +143,8 @@ export default function ModalConfirmarCanje({
               className="pt-2 lg:pt-1.5 2xl:pt-2 flex justify-between items-center"
               style={{ borderTop: '1px solid #e2e8f0' }}
             >
-              <span className="text-sm lg:text-[13px] 2xl:text-sm text-slate-700 font-bold">Puntos restantes</span>
-              <span className="text-lg lg:text-base 2xl:text-lg font-black text-slate-800">
+              <span className="text-[15px] lg:text-[14px] 2xl:text-[15px] text-slate-700 font-bold">Puntos restantes</span>
+              <span className="text-xl lg:text-lg 2xl:text-xl font-black text-slate-800">
                 {puntosRestantes.toLocaleString()}
               </span>
             </div>
@@ -156,8 +157,8 @@ export default function ModalConfirmarCanje({
           style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '1px solid #fde68a' }}
         >
           <AlertCircle className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-amber-600 shrink-0 mt-0.5" strokeWidth={2.5} />
-          <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-amber-700 font-medium leading-relaxed">
-            Una vez canjeado, recibirás un voucher digital. Los puntos no son reembolsables.
+          <p className="text-[12px] lg:text-[11px] 2xl:text-[12px] text-amber-800 font-semibold leading-relaxed">
+            Puedes cancelar el voucher después y recuperar tus puntos.
           </p>
         </div>
 

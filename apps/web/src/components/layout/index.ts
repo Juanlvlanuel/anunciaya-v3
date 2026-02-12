@@ -21,5 +21,5 @@ export { WidgetCardYA } from './WidgetCardYA';
 export { MenuBusinessStudio } from './MenuBusinessStudio';
 export { DrawerBusinessStudio } from './DrawerBusinessStudio';
 export { PanelPreviewNegocio } from './PanelPreviewNegocio';
-export { SearchPanel } from './SearchPanel';
+
 

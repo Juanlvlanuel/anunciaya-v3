@@ -8,9 +8,11 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Wallet, Gift, Clock, Ticket } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Wallet, Gift, Clock, Ticket, ChevronLeft, Menu } from 'lucide-react';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { useCardyaStore } from '../../../stores/useCardyaStore';
+import { useUiStore } from '../../../stores/useUiStore';
 
 // Componentes
 import CardBilletera from './componentes/CardBilletera';
@@ -66,6 +68,9 @@ const TABS_CONFIG: { id: TabCardYA; label: string; Icono: typeof Wallet }[] = [
 // =============================================================================
 
 export function PaginaCardYA() {
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const [tabActiva, setTabActivaInterno] = useState<TabCardYA>('billeteras');
     const headerRef = useRef<HTMLDivElement>(null);
     const [headerHeight, setHeaderHeight] = useState(0);
@@ -100,6 +105,7 @@ export function PaginaCardYA() {
     const [voucherGenerado, setVoucherGenerado] = useState<Voucher | null>(null);
     const [transaccionSeleccionada, setTransaccionSeleccionada] = useState<Transaccion | null>(null);
     const [voucherSeleccionado, setVoucherSeleccionado] = useState<Voucher | null>(null);
+    const [recompensaDestacadaId, setRecompensaDestacadaId] = useState<string | null>(null);
 
     // Datos del store
     const {
@@ -112,6 +118,10 @@ export function PaginaCardYA() {
         cargarVouchers,
         canjearRecompensa,
         cancelarVoucher,
+        cargandoHistorialCompras,
+        historialCanjes,
+        cargarHistorialCanjes,
+        cargandoHistorialCanjes,
     } = useCardyaStore();
 
     // KPIs calculados desde datos reales
@@ -127,12 +137,26 @@ export function PaginaCardYA() {
         negocioNombre: c.negocioNombre,
         negocioLogo: c.negocioLogo ?? null,
         puntos: c.puntosOtorgados,
-        descripcion: `Compra por $${c.montoCompra.toFixed(2)}`,
+        descripcion: c.concepto || 'Compra',
         montoCompra: c.montoCompra,
         sucursalNombre: c.sucursalNombre ?? undefined,
         multiplicador: c.multiplicadorAplicado ?? undefined,
         empleadoNombre: c.empleadoNombre ?? undefined,
     }));
+
+    const transaccionesCanjes: Transaccion[] = historialCanjes.map((c) => ({
+        id: c.id,
+        tipo: 'canje' as const,
+        fecha: c.createdAt,
+        negocioId: c.negocioId,
+        negocioNombre: c.negocioNombre,
+        negocioLogo: c.negocioLogo ?? null,
+        puntos: -c.puntosUsados,
+        descripcion: `||Canje Voucher:|| ${c.recompensaNombre}`,
+        empleadoNombre: c.canjeadoPorNombre ?? undefined,
+    }));
+
+    const transaccionesUnificadas: Transaccion[] = [...transacciones, ...transaccionesCanjes];
 
     // Inyectar CSS para carousel
     useEffect(() => {
@@ -142,20 +166,113 @@ export function PaginaCardYA() {
         return () => { document.head.removeChild(style); };
     }, []);
 
-    // Carga inicial
+    // Carga inicial + precarga diferida del historial
     useEffect(() => {
         cargarTodo();
+        // Precargar historial y vouchers en background después de 2s
+        const timer = setTimeout(() => {
+            cargarHistorialCompras();
+            cargarHistorialCanjes();
+            cargarVouchers();
+        }, 2000);
+        return () => clearTimeout(timer);
     }, []);
 
     // Lazy loading: cargar datos al cambiar de tab
     useEffect(() => {
         if (tabActiva === 'historial' && historialCompras.length === 0) {
             cargarHistorialCompras();
+            cargarHistorialCanjes();
         }
         if (tabActiva === 'vouchers' && vouchersHistorial.length === 0) {
             cargarVouchers();
         }
     }, [tabActiva]);
+
+    // Precarga en hover/touch: empieza a cargar antes del clic
+    const precargarTab = (id: TabCardYA) => {
+        if (id === 'historial' && historialCompras.length === 0) {
+            cargarHistorialCompras();
+            cargarHistorialCanjes();
+        }
+        if (id === 'vouchers' && vouchersHistorial.length === 0) {
+            cargarVouchers();
+        }
+    };
+
+    // =========================================================================
+    // DEEP LINK: Leer query params desde notificaciones
+    // =========================================================================
+    // Cuando el usuario llega desde una notificación con ?tab=xxx&id=xxx,
+    // se activa el tab correcto y se abre el modal del recurso específico.
+    // Después se limpian los params para no repetir al re-renderizar.
+    // =========================================================================
+
+    useEffect(() => {
+        const tab = searchParams.get('tab') as TabCardYA | null;
+        const id = searchParams.get('id');
+
+        if (!tab) return;
+
+        // Validar que sea un tab válido
+        const tabsValidos: TabCardYA[] = ['billeteras', 'recompensas', 'vouchers', 'historial'];
+        if (!tabsValidos.includes(tab)) return;
+
+        // Activar el tab
+        setTabActivaInterno(tab);
+
+        // Limpiar params de la URL (evita re-trigger)
+        setSearchParams({}, { replace: true });
+
+        // Si no hay ID, solo cambia de tab
+        if (!id) return;
+
+        if (tab === 'recompensas' && id) {
+            setRecompensaDestacadaId(id);
+            setTimeout(() => setRecompensaDestacadaId(null), 3000);
+            return;
+        }
+
+        // Abrir modal del recurso según el tab
+        if (tab === 'historial') {
+            // Asegurar que los datos estén cargados antes de buscar
+            const buscarTransaccion = () => {
+                const todas = [...transaccionesUnificadas];
+                const encontrada = todas.find((t) => t.id === id);
+                if (encontrada) {
+                    setTransaccionSeleccionada(encontrada);
+                }
+            };
+
+            // Si ya hay datos, buscar inmediato
+            if (transaccionesUnificadas.length > 0) {
+                buscarTransaccion();
+            } else {
+                // Si no, cargar y esperar un momento
+                cargarHistorialCompras();
+                cargarHistorialCanjes();
+                const timer = setTimeout(buscarTransaccion, 1500);
+                return () => clearTimeout(timer);
+            }
+        }
+
+        if (tab === 'vouchers') {
+            const buscarVoucher = () => {
+                const encontrado = vouchersHistorial.find((v) => v.id === id);
+                if (encontrado) {
+                    setVoucherSeleccionado(encontrado);
+                }
+            };
+
+            if (vouchersHistorial.length > 0) {
+                buscarVoucher();
+            } else {
+                cargarVouchers();
+                const timer = setTimeout(buscarVoucher, 1500);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [searchParams]);
 
     // =============================================================================
     // HANDLERS
@@ -233,6 +350,7 @@ export function PaginaCardYA() {
                             <CardRecompensaCliente
                                 key={recompensa.id}
                                 recompensa={recompensa}
+                                destacada={recompensa.id === recompensaDestacadaId}
                                 onCanjear={handleCanjearRecompensa}
                             />
                         ))}
@@ -243,12 +361,29 @@ export function PaginaCardYA() {
 
     const seccionHistorial = (
         <div>
-            <TablaHistorialCompras
-                transacciones={transacciones}
-                onClickTransaccion={setTransaccionSeleccionada}
-                stickyTop={headerHeight}
-                negocioFiltro={negocioFiltro}
-            />
+            {(cargandoHistorialCompras || cargandoHistorialCanjes) && historialCompras.length === 0 && historialCanjes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                    <div className="w-8 h-8 border-3 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
+                    <p className="text-xs text-slate-400 mt-3 font-medium">Cargando historial...</p>
+                </div>
+            ) : (
+                <TablaHistorialCompras
+                    transacciones={transaccionesUnificadas}
+                    onClickTransaccion={(tx) => {
+                        if (tx.tipo === 'canje') {
+                            // Buscar el voucher correspondiente por ID
+                            const voucher = vouchersHistorial.find((v) => v.id === tx.id);
+                            if (voucher) {
+                                setVoucherSeleccionado(voucher);
+                            }
+                        } else {
+                            setTransaccionSeleccionada(tx);
+                        }
+                    }}
+                    stickyTop={headerHeight}
+                    negocioFiltro={negocioFiltro}
+                />
+            )}
         </div>
     );
 
@@ -295,8 +430,14 @@ export function PaginaCardYA() {
                             MOBILE HEADER (< lg) — Fijo, sin colapso
                         ═══════════════════════════════════════════════════ */}
                             <div className="lg:hidden">
-                                <div className="flex items-center justify-between px-4 py-2.5">
-                                    <div className="flex items-center gap-2.5 shrink-0">
+                                <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <button
+                                            onClick={() => navigate(-1)}
+                                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                                        </button>
                                         <div
                                             className="w-9 h-9 rounded-lg flex items-center justify-center"
                                             style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
@@ -307,13 +448,34 @@ export function PaginaCardYA() {
                                             Card<span className="text-amber-400">YA</span>
                                         </span>
                                     </div>
-                                    <div className="shrink-0">
+                                    <div className="flex items-center gap-1 shrink-0">
                                         <DropdownNegocio
                                             negocios={billeteras.map((b) => b.negocioNombre).sort()}
                                             valor={negocioFiltro}
                                             onChange={setNegocioFiltro}
+                                            compacto
                                         />
+                                        <button
+                                            onClick={abrirMenuDrawer}
+                                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                                        >
+                                            <Menu className="w-6 h-6" strokeWidth={2.5} />
+                                        </button>
                                     </div>
+                                </div>
+                                {/* Subtítulo móvil */}
+                                <div className="flex items-center justify-center gap-2.5 pb-2">
+                                    <div
+                                        className="h-0.5 w-14 rounded-full"
+                                        style={{ background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.7))' }}
+                                    />
+                                    <span className="text-base font-light text-white/70 tracking-wide">
+                                        Tus <span className="font-bold text-white">recompensas</span> y beneficios
+                                    </span>
+                                    <div
+                                        className="h-0.5 w-14 rounded-full"
+                                        style={{ background: 'linear-gradient(90deg, rgba(245,158,11,0.7), transparent)' }}
+                                    />
                                 </div>
                             </div>
 
@@ -395,8 +557,8 @@ export function PaginaCardYA() {
                                             key={id}
                                             onClick={() => setTabActiva(id)}
                                             className="
-                                        flex items-center gap-1 lg:gap-2.5 px-2.5 lg:px-7 2xl:px-9 py-2.5 lg:py-3.5
-                                        text-[13px] lg:text-base 2xl:text-[17px] cursor-pointer
+                                        flex items-center gap-1.5 lg:gap-2.5 px-2 lg:px-7 2xl:px-9 py-2.5 lg:py-3.5
+                                        text-sm lg:text-base 2xl:text-[17px] cursor-pointer
                                         transition-all duration-200 relative whitespace-nowrap shrink-0
                                     "
                                             style={{
@@ -407,6 +569,12 @@ export function PaginaCardYA() {
                                             onMouseEnter={(e) => {
                                                 if (tabActiva !== id) {
                                                     e.currentTarget.style.color = 'rgba(245,158,11,0.7)';
+                                                    precargarTab(id);
+                                                }
+                                            }}
+                                            onTouchStart={() => {
+                                                if (tabActiva !== id) {
+                                                    precargarTab(id);
                                                 }
                                             }}
                                             onMouseLeave={(e) => {
@@ -415,7 +583,7 @@ export function PaginaCardYA() {
                                                 }
                                             }}
                                         >
-                                            <Icono className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" strokeWidth={2} />
+                                            <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" strokeWidth={2} />
                                             <span>{label}</span>
                                             {tabActiva === id && (
                                                 <div
@@ -465,6 +633,10 @@ export function PaginaCardYA() {
                 abierto={!!billeteraSeleccionada}
                 onCerrar={() => setBilleteraSeleccionada(null)}
                 billetera={billeteraSeleccionada}
+                onVerHistorial={(negocioNombre) => {
+                    setNegocioFiltro(negocioNombre);
+                    setTabActiva('historial');
+                }}
             />
 
             {/* Modal: Confirmar canje */}

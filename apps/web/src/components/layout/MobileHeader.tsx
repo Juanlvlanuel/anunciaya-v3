@@ -6,7 +6,7 @@
  * ✨ CARACTERÍSTICAS v3.0:
  * - 🎨 Gradiente azul animado (igual al desktop)
  * - ✨ Línea brillante inferior (shine effect)
- * - 🔍 Ícono de búsqueda que abre SearchPanel
+ * - 🔍 Buscador inline expandible por sección
  * - 📱 Ultra limpio: solo 4 iconos
  * - 🎯 Altura compacta: 52px + 4px shine = 56px total
  *
@@ -19,13 +19,14 @@
  * Ubicación: apps/web/src/components/layout/MobileHeader.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Bell, Menu, Search, Eye, X, Store, ChevronRight, ChevronDown, ChevronLeft } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
+import { useSearchStore, detectarSeccion, placeholderSeccion } from '../../stores/useSearchStore';
 import { DrawerBusinessStudio } from './DrawerBusinessStudio';
 
 // =============================================================================
@@ -94,8 +95,10 @@ export function MobileHeader() {
   // Stores
   // ---------------------------------------------------------------------------
   const abrirMenuDrawer = useUiStore((state) => state.abrirMenuDrawer);
-  const searchPanelAbierto = useUiStore((state) => state.searchPanelAbierto);
-  const toggleSearchPanel = useUiStore((state) => state.toggleSearchPanel);
+
+  // Search Store — buscador inline
+  const { query, buscadorAbierto, setQuery, abrirBuscador, cerrarBuscador } = useSearchStore();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // GPS Store
   const ciudad = useGpsStore((state) => state.ciudad);
@@ -103,7 +106,7 @@ export function MobileHeader() {
   const setCiudad = useGpsStore((state) => state.setCiudad);
 
   // Notificaciones Store
-  const cantidadNoLeidas = useNotificacionesStore((state) => state.cantidadNoLeidas);
+  const cantidadNoLeidas = useNotificacionesStore((state) => state.totalNoLeidas);
   const togglePanel = useNotificacionesStore((state) => state.togglePanel);
 
   // Auth Store
@@ -117,6 +120,13 @@ export function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
+  const seccionActiva = detectarSeccion(location.pathname);
+
+  // Handler: abrir buscador inline y enfocar
+  const handleAbrirBuscador = () => {
+    abrirBuscador();
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
 
   // Estado del drawer BS
   const [drawerBsAbierto, setDrawerBsAbierto] = useState(false);
@@ -226,32 +236,62 @@ export function MobileHeader() {
       <div className="sticky top-0 z-40">
         {/* Header principal con gradiente azul */}
         <header className="mobile-header-gradient px-4 py-4 flex items-center justify-between shadow-sm">
-          {/* === Lado Izquierdo: Logo === */}
-          <div className="flex items-center">
-            <Link to="/inicio" className="flex items-center shrink-0">
-              <img
-                src="/logo-anunciaya-azul.webp"
-                alt="AnunciaYA"
-                className="h-11 w-auto object-contain"
-              />
-            </Link>
-          </div>
 
-          {/* === Lado Derecho: Acciones === */}
-          <div className="flex items-center gap-1">
-            {/* Botón Buscar */}
-            {!esBusinessStudio && (
-              <button
-                onClick={toggleSearchPanel}
-                className={`p-2 rounded-full transition-all duration-200 ${searchPanelAbierto
-                    ? 'bg-white/30 text-white'
-                    : 'text-white/90 hover:bg-white/20 hover:text-white'
-                  }`}
-                title="Buscar"
+          {/* ===== MODO BUSCADOR: Input se expande con animación ===== */}
+          {buscadorAbierto && !esBusinessStudio ? (
+            <div className="flex items-center gap-0.5 w-full">
+              <Search className="w-7 h-7 text-white/60 shrink-0" />
+              <div
+                className="flex-1 overflow-hidden transition-[width] duration-300 ease-out ml-1"
+                style={{ width: '100%' }}
               >
-                <Search className="w-6 h-6" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onBlur={() => {
+                    if (!query.trim()) {
+                      cerrarBuscador();
+                    }
+                  }}
+                  placeholder={placeholderSeccion(seccionActiva)}
+                  className="w-full bg-white/15 text-white text-base placeholder-white/40 outline-none rounded-full px-4 py-1.5"
+                />
+              </div>
+              <button
+                onClick={cerrarBuscador}
+                className="p-0.5 rounded-full text-white/80 hover:bg-white/20 cursor-pointer shrink-0"
+              >
+                <X className="w-7 h-7" />
               </button>
-            )}
+            </div>
+          ) : (
+            <>
+              {/* ===== MODO NORMAL: Logo + Iconos ===== */}
+              {/* === Lado Izquierdo: Logo === */}
+              <div className="flex items-center">
+                <Link to="/inicio" className="flex items-center shrink-0">
+                  <img
+                    src="/logo-anunciaya-azul.webp"
+                    alt="AnunciaYA"
+                    className="h-11 w-auto object-contain"
+                  />
+                </Link>
+              </div>
+
+              {/* === Lado Derecho: Acciones === */}
+              <div className="flex items-center gap-1">
+                {/* Botón Buscar */}
+                {!esBusinessStudio && (
+                  <button
+                    onClick={handleAbrirBuscador}
+                    className="p-2 rounded-full text-white/90 hover:bg-white/20 hover:text-white transition-all"
+                    title="Buscar"
+                  >
+                    <Search className="w-6 h-6" />
+                  </button>
+                )}
 
             {/* Botón Preview (solo en Business Studio) */}
             {esBusinessStudio && (
@@ -294,6 +334,8 @@ export function MobileHeader() {
               <Menu className="w-6 h-6" />
             </button>
           </div>
+            </>
+          )}
         </header>
 
         {/* Línea brillante inferior */}

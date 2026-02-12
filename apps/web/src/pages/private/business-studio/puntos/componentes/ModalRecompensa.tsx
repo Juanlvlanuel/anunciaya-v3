@@ -78,7 +78,8 @@ export default function ModalRecompensa({
   if (!abierto) return null;
 
   const esEdicion = !!recompensa;
-  const valido = nombre.trim().length > 0 && puntos.length > 0 && Number(puntos) > 0;
+  const stockValido = stockIlimitado || (stock.length > 0 && Number(stock) > 0);
+  const valido = nombre.trim().length > 0 && puntos.length > 0 && Number(puntos) > 0 && stockValido;
 
   const handleEliminarImagen = () => {
     imagen.setImageUrl(null);
@@ -97,16 +98,22 @@ export default function ModalRecompensa({
   const handleGuardar = async () => {
     if (!valido || guardando || imagen.isUploading) return;
     setGuardando(true);
-    await onGuardar({
-      nombre: nombre.trim(),
-      descripcion: descripcion.trim() || null,
-      puntosRequeridos: Number(puntos),
-      stock: stockIlimitado ? null : Number(stock),
-      requiereAprobacion: false,
-      imagenUrl: imagen.cloudinaryUrl,
-      ...(imagenEliminada && { eliminarImagen: true }),
-      activa,
-    });
+    try {
+      await onGuardar({
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim() || null,
+        puntosRequeridos: Number(puntos),
+        stock: stockIlimitado ? null : Number(stock),
+        requiereAprobacion: false,
+        imagenUrl: imagen.cloudinaryUrl,
+        ...(imagenEliminada && { eliminarImagen: true }),
+        activa,
+      });
+    } catch (error) {
+      console.error('Error al guardar recompensa:', error);
+    } finally {
+      setGuardando(false);
+    }
   };
 
   // -----------------------------------------------------------------------
@@ -313,12 +320,26 @@ export default function ModalRecompensa({
                 onChange={(e) => setStock(e.target.value)}
                 disabled={stockIlimitado} 
                 placeholder="50"
-                className="w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 pr-14 lg:pr-12 2xl:pr-12 rounded-lg lg:rounded-md 2xl:rounded-lg border border-slate-200 bg-white text-sm lg:text-[11px] 2xl:text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                className={`w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 pr-14 lg:pr-12 2xl:pr-12 rounded-lg lg:rounded-md 2xl:rounded-lg border bg-white text-sm lg:text-[11px] 2xl:text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden ${
+                  !stockIlimitado && ((stock.length > 0 && Number(stock) <= 0) || stock.length === 0)
+                    ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10'
+                    : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/10'
+                }`}
               />
               <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1 lg:py-0.5 2xl:px-1.5 2xl:py-0.5 bg-slate-200 text-slate-600 text-xs lg:text-[9px] 2xl:text-[10px] font-bold rounded-md pointer-events-none">
                 {stockIlimitado ? '∞' : 'unid'}
               </span>
             </div>
+            {!stockIlimitado && stock.length > 0 && Number(stock) <= 0 && (
+              <p className="text-[11px] lg:text-[9px] 2xl:text-[11px] text-red-500 font-semibold mt-1">
+                El stock debe ser mayor a 0
+              </p>
+            )}
+            {!stockIlimitado && stock.length === 0 && (
+              <p className="text-[11px] lg:text-[9px] 2xl:text-[11px] text-red-500 font-semibold mt-1">
+                Ingresa el stock o marca "Ilimitado"
+              </p>
+            )}
           </div>
 
         </div>
