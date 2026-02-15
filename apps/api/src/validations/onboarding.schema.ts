@@ -30,6 +30,10 @@ export const ubicacionSchema = z.object({
     .string()
     .min(2, 'La ciudad debe tener al menos 2 caracteres')
     .max(120, 'La ciudad no puede tener más de 120 caracteres'),
+  estado: z
+    .string()
+    .min(2, 'El estado debe tener al menos 2 caracteres')
+    .max(100, 'El estado no puede tener más de 100 caracteres'),
   direccion: z
     .string()
     .min(5, 'La dirección debe tener al menos 5 caracteres')
@@ -323,6 +327,7 @@ export const paso1DraftSchema = z.object({
 
 export const ubicacionDraftSchema = z.object({
   ciudad: z.union([z.string(), z.null()]).optional(),
+  estado: z.union([z.string(), z.null()]).optional(),
   direccion: z.union([z.string(), z.null()]).optional(),
   latitud: z.union([z.number(), z.null()]).optional(),
   longitud: z.union([z.number(), z.null()]).optional(),

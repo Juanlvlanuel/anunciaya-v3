@@ -177,6 +177,7 @@ export const negocioSucursales = pgTable("negocio_sucursales", {
 	esPrincipal: boolean('es_principal').default(false).notNull(),
 	direccion: varchar({ length: 250 }),
 	ciudad: varchar({ length: 120 }).notNull(),
+	estado: varchar({ length: 100 }).notNull().default('Por configurar'),
 	ubicacion: text("ubicacion"),
 	telefono: varchar({ length: 20 }),
 	whatsapp: varchar({ length: 20 }),

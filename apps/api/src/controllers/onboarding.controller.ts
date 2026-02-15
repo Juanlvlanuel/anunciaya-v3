@@ -117,8 +117,27 @@ export const actualizarSucursalPrincipalController = async (req: Request, res: R
             });
         }
 
-        // ACTUALIZADO: Usa actualizarSucursal del negocioManagement.service
-        const result = await actualizarSucursal(negocioId, validacion.data);
+        // Buscar sucursal principal del negocio
+        const [sucursalPrincipal] = await db
+            .select({ id: negocioSucursales.id })
+            .from(negocioSucursales)
+            .where(
+                and(
+                    eq(negocioSucursales.negocioId, negocioId),
+                    eq(negocioSucursales.esPrincipal, true)
+                )
+            )
+            .limit(1);
+
+        if (!sucursalPrincipal) {
+            return res.status(404).json({
+                success: false,
+                message: 'Sucursal principal no encontrada',
+            });
+        }
+
+        // ACTUALIZADO: Usa actualizarSucursal con sucursalId correcto
+        const result = await actualizarSucursal(sucursalPrincipal.id, validacion.data);
 
         res.status(200).json(result);
     } catch (error) {

@@ -196,6 +196,7 @@ export interface FiltrosHistorialCanjes {
 export interface FiltrosRecompensas {
   negocioId?: string; // Filtrar por negocio específico
   soloDisponibles?: boolean; // Solo las que el usuario puede canjear (tiene puntos y stock)
+  ciudad?: string;
 }
 
 /**

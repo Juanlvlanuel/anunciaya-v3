@@ -504,7 +504,7 @@ export async function subirGaleriaController(req: Request, res: Response) {
 export async function actualizarInformacionController(req: Request, res: Response) {
     try {
         const { id: negocioId } = req.params;
-        const { nombre, descripcion, subcategoriasIds, participaCardYA } = req.body;
+        const { nombre, descripcion, subcategoriasIds, participaCardYA, nombreSucursal, sucursalId } = req.body;
         const userId = (req as any).usuario?.usuarioId;
 
         if (!userId) {
@@ -554,6 +554,8 @@ export async function actualizarInformacionController(req: Request, res: Respons
         await actualizarInfoGeneral(negocioId, {
             nombre: nombre.trim(),
             subcategoriasIds,
+            nombreSucursal,
+            sucursalId,
         });
 
         // 2. Actualizar descripción (si viene)
@@ -619,8 +621,8 @@ export async function actualizarContactoController(req: Request, res: Response) 
 
         const esGerente = queryUsuario.rows[0]?.sucursal_asignada !== null;
 
-        // 1. Actualizar nombre de sucursal (solo gerentes)
-        if (nombreSucursal && esGerente) {
+        // 1. Actualizar nombre de sucursal (gerentes y dueños)
+        if (nombreSucursal) {
             await actualizarNombreSucursal(sucursalId, nombreSucursal);
         }
 
@@ -672,8 +674,7 @@ export async function actualizarContactoController(req: Request, res: Response) 
  */
 export async function actualizarUbicacionController(req: Request, res: Response) {
     try {
-        const { id: negocioId } = req.params;
-        const { direccion, ciudad, latitud, longitud, zonaHoraria } = req.body;
+        const { direccion, ciudad, estado, latitud, longitud, zonaHoraria } = req.body;
         const userId = (req as any).usuario?.usuarioId;
         const sucursalId = req.query.sucursalId as string | undefined;
 
@@ -699,9 +700,10 @@ export async function actualizarUbicacionController(req: Request, res: Response)
             });
         }
 
-        await actualizarSucursal(negocioId, {
+        await actualizarSucursal(sucursalId!, {
             direccion,
             ciudad,
+            estado,
             latitud,
             longitud,
             zonaHoraria: zonaHoraria || 'America/Mexico_City',

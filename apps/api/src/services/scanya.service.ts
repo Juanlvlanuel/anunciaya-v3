@@ -120,8 +120,8 @@ export async function loginDueno(
         }
 
         // Determinar rol: dueño o gerente
-        const esDueno = !!usuario.negocioId;
-        const esGerente = !usuario.negocioId && !!usuario.sucursalAsignada;
+        const esDueno = !!usuario.negocioId && !usuario.sucursalAsignada;
+        const esGerente = !!usuario.negocioId && !!usuario.sucursalAsignada;
 
         if (!esDueno && !esGerente) {
             return {
@@ -1883,7 +1883,7 @@ export async function otorgarPuntos(
         return {
             success: true,
             message: subioDeNivel
-                ? `Â¡${puntosFinales} puntos otorgados! El cliente subió a nivel ${nuevoNivel}`
+                ? `¡${puntosFinales} puntos otorgados! El cliente subió a nivel ${nuevoNivel}`
                 : `${puntosFinales} puntos otorgados`,
             data: {
                 transaccion: {
@@ -3789,11 +3789,19 @@ export async function obtenerContadores(
         // -------------------------------------------------------------------------
         // 2. Contar reseñas pendientes de respuesta
         // -------------------------------------------------------------------------
-        // TODO: Implementar en Fase 14 (Chat + Reseñas en ScanYA)
-        // La tabla resenas usa destinoId/destinoTipo y no tiene columna 'respuesta'
-        // Las respuestas son reseñas donde autorTipo='negocio'
-        // Por ahora retornamos 0
-        const resenasPendientes = 0;
+        let resenasPendientes = 0;
+        try {
+            const { contarResenasPendientes } = await import('./resenas.service.js');
+
+            // Gerente/Empleado: solo su sucursal | Dueño: todas
+            const sucursalFiltro = (payload.tipo === 'gerente' || payload.tipo === 'empleado')
+                ? payload.sucursalId
+                : undefined;
+
+            resenasPendientes = await contarResenasPendientes(payload.negocioId, sucursalFiltro);
+        } catch (err) {
+            console.error('Error contando reseñas pendientes:', err);
+        }
 
         // -------------------------------------------------------------------------
         // 3. Contar mensajes sin leer (ChatYA)

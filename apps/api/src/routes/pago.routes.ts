@@ -20,6 +20,7 @@
 import { Router } from 'express';
 import express from 'express';
 import pagoController from '../controllers/pago.controller.js';
+import { verificarToken } from '../middleware/auth.js';
 
 const router: Router = Router();
 
@@ -44,6 +45,19 @@ const router: Router = Router();
  * }
  */
 router.post('/crear-checkout', pagoController.crearCheckout);
+
+/**
+ * POST /api/pagos/crear-checkout-upgrade
+ * 
+ * Crea una sesión de Stripe Checkout para upgrade de cuenta personal a comercial.
+ * REQUIERE AUTENTICACIÓN.
+ * 
+ * Body:
+ * {
+ *   "nombreNegocio": "Mi Negocio"
+ * }
+ */
+router.post('/crear-checkout-upgrade', verificarToken, pagoController.crearCheckoutUpgrade);
 
 /**
  * POST /api/pagos/webhook

@@ -52,6 +52,16 @@ interface DatosCheckout {
 }
 
 /**
+ * Datos necesarios para upgrade de cuenta personal a comercial
+ * (nombre y apellidos se obtienen de la BD)
+ */
+interface DatosCheckoutUpgrade {
+    usuarioId: string;
+    correo: string;
+    nombreNegocio: string;
+}
+
+/**
  * Respuesta al crear una sesión de checkout
  */
 interface RespuestaCheckout {
@@ -71,10 +81,12 @@ interface DatosUsuarioWebhook {
         perfil: 'comercial';
         membresia: number;
         correoVerificado: boolean;
-        tieneModoComercial: boolean;        // ✅ AGREGAR
-        modoActivo: 'personal' | 'comercial'; // ✅ AGREGAR
-        negocioId: string | null;            // ✅ AGREGAR
-        onboardingCompletado: boolean;       // ✅ AGREGAR
+        tieneModoComercial: boolean;
+        modoActivo: 'personal' | 'comercial';
+        negocioId: string | null;
+        sucursalActiva?: string | null;
+        nombreNegocio?: string | null;
+        onboardingCompletado: boolean;
     };
     accessToken: string;
     refreshToken: string;
@@ -225,6 +237,118 @@ export async function crearCheckoutSession(
 }
 
 // =============================================================================
+// FUNCIÓN 1.5: CREAR CHECKOUT SESSION PARA UPGRADE
+// =============================================================================
+
+/**
+ * Crea una sesión de pago para upgrade de cuenta personal a comercial.
+ * 
+ * ¿Qué hace?
+ * 1. Usuario YA está autenticado (tiene cuenta personal)
+ * 2. Crea una Checkout Session en Stripe
+ * 3. Guarda datos en Redis para el webhook
+ * 4. Devuelve URL para redirigir al usuario
+ * 
+ * Diferencias con crearCheckoutSession:
+ * - No requiere verificación de email (ya tiene cuenta)
+ * - No crea usuario nuevo (actualiza el existente)
+ * - Metadata tiene tipo: 'upgrade_comercial'
+ * 
+ * @param datos - usuarioId, correo, nombre, apellidos, nombreNegocio
+ * @returns sessionId y URL de checkout
+ */
+export async function crearCheckoutUpgrade(
+    datos: DatosCheckoutUpgrade
+): Promise<RespuestaCheckout> {
+    const { usuarioId, correo, nombreNegocio } = datos;
+
+    // -------------------------------------------------------------------------
+    // PASO 1: Verificar que el usuario existe y NO tiene modo comercial
+    // -------------------------------------------------------------------------
+    const [usuario] = await db
+        .select()
+        .from(usuarios)
+        .where(eq(usuarios.id, usuarioId))
+        .limit(1);
+
+    if (!usuario) {
+        throw new Error('Usuario no encontrado');
+    }
+
+    if (usuario.tieneModoComercial) {
+        throw new Error('Ya tienes acceso al modo comercial');
+    }
+
+    // Obtener nombre y apellidos de la BD
+    const nombre = usuario.nombre;
+    const apellidos = usuario.apellidos;
+
+    // -------------------------------------------------------------------------
+    // PASO 2: Crear sesión en Stripe
+    // -------------------------------------------------------------------------
+    const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+
+        line_items: [
+            {
+                price: env.STRIPE_PRICE_COMERCIAL,
+                quantity: 1,
+            },
+        ],
+
+        subscription_data: {
+            trial_period_days: 7,
+            metadata: {
+                usuarioId,
+                correo,
+                nombreNegocio,
+                tipo: 'upgrade_comercial',
+            },
+        },
+
+        metadata: {
+            usuarioId,
+            correo,
+            nombre,
+            apellidos,
+            nombreNegocio,
+            tipo: 'upgrade_comercial',
+        },
+
+        customer_email: correo,
+
+        success_url: `${env.FRONTEND_URL}/crear-negocio-exito?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${env.FRONTEND_URL}/crear-negocio?cancelado=true`,
+
+        allow_promotion_codes: true,
+        locale: 'es',
+    });
+
+    // -------------------------------------------------------------------------
+    // PASO 3: Guardar datos en Redis para el webhook
+    // -------------------------------------------------------------------------
+    await redis.setex(
+        `stripe:upgrade:${session.id}`,
+        60 * 60, // 1 hora
+        JSON.stringify({
+            usuarioId,
+            correo,
+            nombre,
+            apellidos,
+            nombreNegocio,
+            createdAt: new Date().toISOString(),
+        })
+    );
+
+    console.log('📦 Datos de upgrade guardados en Redis:', correo);
+
+    return {
+        sessionId: session.id,
+        checkoutUrl: session.url!,
+    };
+}
+
+// =============================================================================
 // FUNCIÓN 2: PROCESAR WEBHOOK DE STRIPE
 // =============================================================================
 
@@ -341,8 +465,22 @@ async function manejarCheckoutCompletado(
     // PASO 1: Extraer datos del metadata
     // -------------------------------------------------------------------------
     const metadata = session.metadata;
-    if (!metadata || metadata.tipo !== 'registro_comercial') {
+    if (!metadata || !metadata.tipo) {
         console.error('⚠️ Metadata inválido en sesión:', session.id);
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // PASO 1.5: Si es upgrade, delegar a función específica
+    // -------------------------------------------------------------------------
+    if (metadata.tipo === 'upgrade_comercial') {
+        await manejarUpgradeCompletado(session);
+        return;
+    }
+
+    // Solo continuar si es registro comercial normal
+    if (metadata.tipo !== 'registro_comercial') {
+        console.error('⚠️ Tipo de checkout no reconocido:', metadata.tipo);
         return;
     }
 
@@ -506,6 +644,161 @@ async function manejarCheckoutCompletado(
 }
 
 // =============================================================================
+// FUNCIÓN AUXILIAR: MANEJAR UPGRADE COMPLETADO
+// =============================================================================
+
+/**
+ * Maneja el evento checkout.session.completed para upgrade de cuenta.
+ * 
+ * Diferencias con manejarCheckoutCompletado:
+ * - NO crea usuario nuevo (actualiza el existente)
+ * - Usuario ya tiene cuenta personal
+ * - Solo activa tieneModoComercial y crea negocio
+ * 
+ * @param session - Sesión de Stripe completada
+ */
+async function manejarUpgradeCompletado(
+    session: Stripe.Checkout.Session
+): Promise<void> {
+    console.log('✅ Upgrade completado:', session.id);
+
+    const metadata = session.metadata;
+    if (!metadata) return;
+
+    const { usuarioId, correo, nombreNegocio } = metadata;
+
+    // -------------------------------------------------------------------------
+    // PASO 1: Recuperar datos de Redis
+    // -------------------------------------------------------------------------
+    const datosRedisKey = `stripe:upgrade:${session.id}`;
+    const datosRedisStr = await redis.get(datosRedisKey);
+
+    if (!datosRedisStr) {
+        console.error('❌ No se encontraron datos de upgrade en Redis para:', session.id);
+        return;
+    }
+
+    console.log('📦 Datos de upgrade recuperados de Redis:', correo);
+
+    // -------------------------------------------------------------------------
+    // PASO 2: Verificar que el usuario existe
+    // -------------------------------------------------------------------------
+    const [usuario] = await db
+        .select()
+        .from(usuarios)
+        .where(eq(usuarios.id, usuarioId))
+        .limit(1);
+
+    if (!usuario) {
+        console.error('❌ Usuario no encontrado para upgrade:', usuarioId);
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // PASO 3: Crear negocio
+    // -------------------------------------------------------------------------
+    const [nuevoNegocio] = await db
+        .insert(negocios)
+        .values({
+            usuarioId: usuario.id,
+            nombre: nombreNegocio || 'Mi Negocio',
+            esBorrador: true,
+            verificado: false,
+            participaPuntos: false,
+        })
+        .returning();
+
+    console.log('✅ Negocio creado:', nuevoNegocio.id);
+
+    // -------------------------------------------------------------------------
+    // PASO 4: Crear sucursal principal
+    // -------------------------------------------------------------------------
+    const [sucursalPrincipal] = await db
+        .insert(negocioSucursales)
+        .values({
+            negocioId: nuevoNegocio.id,
+            nombre: nombreNegocio || 'Mi Negocio',
+            esPrincipal: true,
+            ciudad: 'Por configurar',
+            activa: true,
+        })
+        .returning();
+
+    console.log('✅ Sucursal principal creada:', sucursalPrincipal.id);
+
+    // -------------------------------------------------------------------------
+    // PASO 5: Actualizar usuario (activar modo comercial)
+    // -------------------------------------------------------------------------
+    await db
+        .update(usuarios)
+        .set({
+            perfil: 'comercial',
+            tieneModoComercial: true,
+            modoActivo: 'comercial',
+            negocioId: nuevoNegocio.id,
+            stripeCustomerId: session.customer as string,
+            stripeSubscriptionId: session.subscription as string,
+            updatedAt: new Date().toISOString(),
+        })
+        .where(eq(usuarios.id, usuario.id));
+
+    console.log('✅ Usuario actualizado con modo comercial:', usuario.id);
+
+    // -------------------------------------------------------------------------
+    // PASO 6: Generar nuevos tokens JWT (con datos actualizados)
+    // -------------------------------------------------------------------------
+    const payload: PayloadToken = {
+        usuarioId: usuario.id,
+        correo: usuario.correo,
+        perfil: 'comercial',
+        membresia: usuario.membresia,
+        modoActivo: 'comercial',
+    };
+
+    const { accessToken, refreshToken } = generarTokens(payload);
+
+    // -------------------------------------------------------------------------
+    // PASO 7: Guardar tokens en Redis
+    // -------------------------------------------------------------------------
+    const datosUsuario: DatosUsuarioWebhook = {
+        usuario: {
+            id: usuario.id,
+            nombre: usuario.nombre,
+            apellidos: usuario.apellidos,
+            correo: usuario.correo,
+            perfil: 'comercial',
+            membresia: usuario.membresia,
+            correoVerificado: usuario.correoVerificado ?? false,
+            tieneModoComercial: true,
+            modoActivo: 'comercial',
+            negocioId: nuevoNegocio.id,
+            sucursalActiva: sucursalPrincipal.id,
+            nombreNegocio: nombreNegocio || 'Mi Negocio',
+            onboardingCompletado: false,
+        },
+        accessToken,
+        refreshToken,
+    };
+
+    // Usar clave específica para upgrade
+    const keyRedis = `stripe:upgrade:tokens:${session.id}`;
+    await redis.setex(
+        keyRedis,
+        10 * 60, // 10 minutos (más tiempo por si hay delays)
+        JSON.stringify(datosUsuario)
+    );
+
+    await guardarSesion(usuario.id, refreshToken);
+
+    console.log('✅ Tokens de upgrade guardados en Redis:', session.id);
+
+    // -------------------------------------------------------------------------
+    // PASO 8: Limpiar datos temporales
+    // -------------------------------------------------------------------------
+    await redis.del(datosRedisKey);
+}
+
+// =============================================================================
 // FUNCIÓN AUXILIAR: PROCESAR CANCELACIÓN DE SUSCRIPCIÓN
 // =============================================================================
 
@@ -609,7 +902,9 @@ async function procesarCancelacionSuscripcion(
 export async function verificarSession(
     sessionId: string
 ): Promise<DatosUsuarioWebhook> {
-    const keyRedis = `stripe:tokens:${sessionId}`;
+    // Claves posibles: registro nuevo o upgrade
+    const keyRegistro = `stripe:tokens:${sessionId}`;
+    const keyUpgrade = `stripe:upgrade:tokens:${sessionId}`;
 
     // -------------------------------------------------------------------------
     // PASO 1: Intentar recuperar tokens de Redis (con reintentos)
@@ -620,7 +915,11 @@ export async function verificarSession(
     const maxIntentos = 6; // 6 intentos x 5 segundos = 30 segundos máximo
 
     while (intentos < maxIntentos && !datosUsuario) {
-        datosUsuario = await redis.get(keyRedis);
+        // Buscar en ambas claves (registro normal o upgrade)
+        datosUsuario = await redis.get(keyRegistro);
+        if (!datosUsuario) {
+            datosUsuario = await redis.get(keyUpgrade);
+        }
 
         if (!datosUsuario) {
             // Esperar 5 segundos antes de reintentar
@@ -657,8 +956,9 @@ export async function verificarSession(
     // -------------------------------------------------------------------------
     const datos = JSON.parse(datosUsuario) as DatosUsuarioWebhook;
 
-    // Limpiar Redis después de devolver los tokens
-    await redis.del(keyRedis);
+    // NO borramos los tokens aquí porque React StrictMode puede hacer 
+    // doble llamada en desarrollo. Los tokens expirarán solos (TTL 10 min).
+    // En producción esto no es problema porque StrictMode está desactivado.
 
     return datos;
 }
@@ -669,6 +969,7 @@ export async function verificarSession(
 
 export default {
     crearCheckoutSession,
+    crearCheckoutUpgrade,
     procesarWebhook,
     verificarSession,
 };

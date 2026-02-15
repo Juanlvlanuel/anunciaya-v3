@@ -60,6 +60,7 @@ function mapearSucursalResumen(row: SucursalResumenRow) {
         sucursalNombre: row.sucursal_nombre,
         direccion: row.direccion,
         ciudad: row.ciudad,
+        estado: row.estado,
         telefono: row.telefono,
         whatsapp: row.whatsapp,
         tieneEnvioDomicilio: row.tiene_envio_domicilio,
@@ -110,6 +111,7 @@ function mapearPerfilCompleto(row: PerfilSucursalRow) {
         esPrincipal: row.es_principal,
         direccion: row.direccion,
         ciudad: row.ciudad,
+        estado: row.estado,
         telefono: row.telefono,
         whatsapp: row.whatsapp,
         correo: row.correo,
@@ -264,7 +266,7 @@ export async function listarSucursalesCercanas(
                         ORDER BY g.orden
                     )
                     FROM negocio_galeria g
-                    WHERE g.negocio_id = n.id
+                    WHERE g.sucursal_id = s.id
                     LIMIT 8
                 ) as galeria,
                 
@@ -441,6 +443,7 @@ export async function obtenerPerfilSucursal(
                 s.redes_sociales,
                 s.direccion,
                 s.ciudad,
+                s.estado,
                 s.telefono,
                 s.whatsapp,
                 s.correo,
@@ -505,15 +508,13 @@ export async function obtenerPerfilSucursal(
                         'orden', ng.orden
                     ) ORDER BY ng.orden)
                     FROM negocio_galeria ng
-                    WHERE ng.negocio_id = n.id
+                    WHERE ng.sucursal_id = s.id
                 ) as galeria,
                 
-                -- Métricas de la sucursal
+                -- Métricas de interacción (follows, shares, clicks, messages)
                 (
                     SELECT json_build_object(
-                        'totalLikes', COALESCE(m.total_likes, 0),
                         'totalFollows', COALESCE(m.total_follows, 0),
-                        'totalViews', COALESCE(m.total_views, 0),
                         'totalShares', COALESCE(m.total_shares, 0),
                         'totalClicks', COALESCE(m.total_clicks, 0),
                         'totalMessages', COALESCE(m.total_messages, 0)
@@ -675,7 +676,7 @@ export async function obtenerGaleriaNegocio(negocioId: string) {
                 cloudinaryPublicId: negocioGaleria.cloudinaryPublicId,
             })
             .from(negocioGaleria)
-            .where(eq(negocioGaleria.negocioId, negocioId))
+            .where(eq(negocioGaleria.sucursalId, negocioId))
             .orderBy(negocioGaleria.orden);
 
         return {
@@ -695,11 +696,12 @@ export async function obtenerGaleriaNegocio(negocioId: string) {
  * Usado en auth, chat, publicaciones, etc.
  */
 export interface DatosNegocio {
-    nombre: string | null;
-    correo: string | null;
-    logo: string | null;
-    fotoPerfil: string | null;
-    sucursalPrincipalId: string | null;  // ID de la sucursal principal (para dueños)
+    nombre: string | null;              // Nombre del negocio
+    correo: string | null;              // Correo de la sucursal
+    logo: string | null;                // Logo del negocio
+    fotoPerfil: string | null;          // Foto de perfil de la sucursal
+    sucursalPrincipalId: string | null; // ID de la sucursal
+    nombreSucursal: string | null;      // ✅ NUEVO: Nombre de la sucursal
 }
 
 /**
@@ -733,13 +735,22 @@ export async function obtenerSucursalesNegocio(negocioId: string) {
 }
 
 /**
- * Obtiene datos del negocio y su sucursal principal
- * Para mostrar en la UI cuando el usuario está en modo comercial
+ * Obtiene datos del negocio y sucursal
+ * - Si recibe sucursalId: usa esa sucursal (para gerentes)
+ * - Si NO recibe sucursalId: usa la principal (para dueños)
+ * 
+ * @param negocioId - UUID del negocio
+ * @param sucursalId - UUID de sucursal específica (opcional, para gerentes)
+ * @returns Datos del negocio + datos de la sucursal
  */
-export async function obtenerDatosNegocio(negocioId: string | null): Promise<DatosNegocio | undefined> {
+export async function obtenerDatosNegocio(
+    negocioId: string | null,
+    sucursalId?: string | null  // ✅ NUEVO: parámetro opcional
+): Promise<DatosNegocio | undefined> {
     if (!negocioId) return undefined;
 
     try {
+        // 1. Obtener datos del negocio (nombre, logo)
         const [negocio] = await db
             .select({
                 nombre: negocios.nombre,
@@ -751,25 +762,33 @@ export async function obtenerDatosNegocio(negocioId: string | null): Promise<Dat
 
         if (!negocio) return undefined;
 
-        const [sucursalPrincipal] = await db
+        // 2. ✅ LÓGICA CONDICIONAL: ¿Qué sucursal buscar?
+        const condiciones = sucursalId
+            ? [eq(negocioSucursales.id, sucursalId)]  // Gerente: buscar SU sucursal
+            : [                                        // Dueño: buscar la principal
+                eq(negocioSucursales.negocioId, negocioId),
+                eq(negocioSucursales.esPrincipal, true)
+            ];
+
+        // 3. Obtener datos de la sucursal (correo, fotoPerfil)
+        const [sucursal] = await db
             .select({
                 id: negocioSucursales.id,
+                nombre: negocioSucursales.nombre,      // ✅ NUEVO: nombre de la sucursal
                 correo: negocioSucursales.correo,
                 fotoPerfil: negocioSucursales.fotoPerfil,
             })
             .from(negocioSucursales)
-            .where(and(
-                eq(negocioSucursales.negocioId, negocioId),
-                eq(negocioSucursales.esPrincipal, true)
-            ))
+            .where(and(...condiciones))  // ✅ Usar las condiciones dinámicas
             .limit(1);
 
         return {
             nombre: negocio.nombre,
-            correo: sucursalPrincipal?.correo ?? null,
+            correo: sucursal?.correo ?? null,
             logo: negocio.logo,
-            fotoPerfil: sucursalPrincipal?.fotoPerfil ?? null,
-            sucursalPrincipalId: sucursalPrincipal?.id ?? null,
+            fotoPerfil: sucursal?.fotoPerfil ?? null,
+            sucursalPrincipalId: sucursal?.id ?? null,
+            nombreSucursal: sucursal?.nombre ?? null,  // ✅ NUEVO
         };
     } catch (error) {
         console.error('Error obteniendo datos del negocio:', error);

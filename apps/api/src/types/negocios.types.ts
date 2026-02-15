@@ -37,6 +37,7 @@ export interface PerfilSucursalRow {
     redes_sociales: Record<string, string> | null;
     direccion: string | null;
     ciudad: string | null;
+    estado: string | null;
     telefono: string | null;
     whatsapp: string | null;
     correo: string | null;
@@ -116,6 +117,7 @@ export interface SucursalResumenRow {
     sucursal_nombre: string;
     direccion: string | null;
     ciudad: string | null;
+    estado: string | null;
     telefono: string | null;
     whatsapp: string | null;
     portada_url: string | null;

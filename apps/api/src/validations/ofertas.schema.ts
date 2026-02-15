@@ -104,10 +104,14 @@ const campoLimiteUsos = z
 
 /**
  * Campo: UUID (para validar IDs)
+ * Permisivo: acepta cualquier formato UUID (incluyendo UUIDs de testing)
  */
 const campoUUID = z
   .string()
-  .uuid('El ID debe ser un UUID válido');
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    'El ID debe ser un UUID válido'
+  );
 
 // =============================================================================
 // SCHEMA 1: CREAR OFERTA
@@ -288,7 +292,7 @@ export type DuplicarOfertaInput = z.infer<typeof duplicarOfertaSchema>;
 // Nota: Si viene sucursalId, filtra por esa sucursal específica (para perfil de negocio)
 
 export const filtrosFeedSchema = z.object({
-  sucursalId: z.string().uuid().optional(),
+  sucursalId: campoUUID.optional(),
   latitud: z.coerce.number().optional(),
   longitud: z.coerce.number().optional(),
   distanciaMaxKm: z.coerce.number().int().positive().max(500).optional().default(50),

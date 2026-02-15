@@ -99,6 +99,12 @@ export const filtrosRecompensasSchema = z.object({
     .default('false')
     .transform((val) => val === 'true')
     .pipe(z.boolean()),
+
+  // Filtro por ciudad (nombre de la ciudad seleccionada por el usuario)
+  ciudad: z
+    .string()
+    .max(120, 'La ciudad no puede tener más de 120 caracteres')
+    .optional(),
 });
 
 // =============================================================================

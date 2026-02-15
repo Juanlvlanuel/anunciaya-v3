@@ -114,6 +114,9 @@ interface UsuarioPublico {
   correoNegocio: string | null;
   logoNegocio: string | null;
   fotoPerfilNegocio: string | null;
+  nombreSucursalAsignada: string | null;
+  correoSucursalAsignada: string | null;
+  fotoPerfilSucursalAsignada: string | null;
   createdAt: string;
 }
 
@@ -148,7 +151,8 @@ function usuarioAPublico(
   usuario: typeof usuarios.$inferSelect,
   onboardingCompletado?: boolean,
   datosNegocio?: DatosNegocio,
-  sucursalActivaCalculada?: string | null
+  sucursalActivaCalculada?: string | null,
+  datosNegocioGerente?: DatosNegocio
 ): UsuarioPublico {
   return {
     id: usuario.id,
@@ -179,7 +183,10 @@ function usuarioAPublico(
     correoNegocio: datosNegocio?.correo ?? null,
     logoNegocio: datosNegocio?.logo ?? null,
     fotoPerfilNegocio: datosNegocio?.fotoPerfil ?? null,
-    createdAt: usuario.createdAt ?? new Date().toISOString(),    
+    nombreSucursalAsignada: datosNegocioGerente?.nombreSucursal ?? null,
+    correoSucursalAsignada: datosNegocioGerente?.correo ?? null,
+    fotoPerfilSucursalAsignada: datosNegocioGerente?.fotoPerfil ?? null,  // ✅ NUEVO
+    createdAt: usuario.createdAt ?? new Date().toISOString(),
   };
 }
 
@@ -744,6 +751,7 @@ export async function loginUsuario(
     // -------------------------------------------------------------------------
     let onboardingCompletado = false;
     let datosNegocio: DatosNegocio | undefined;
+    let datosNegocioGerente: DatosNegocio | undefined;  // ✅ NUEVO
 
     if (usuario.negocioId) {
       const [negocio] = await db
@@ -756,6 +764,11 @@ export async function loginUsuario(
 
       // Obtener nombre, correo y logo del negocio
       datosNegocio = await obtenerDatosNegocio(usuario.negocioId);
+
+      // ✅ NUEVO: Si tiene sucursal asignada (gerente), cargar datos de ESA sucursal
+      if (usuario.sucursalAsignada) {
+        datosNegocioGerente = await obtenerDatosNegocio(usuario.negocioId, usuario.sucursalAsignada);
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -782,7 +795,7 @@ export async function loginUsuario(
         success: true,
         message: 'Requiere verificación de dos factores',
         data: {
-          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada),
+          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
           accessToken: '',
           refreshToken: '',
           requiere2FA: true,
@@ -833,7 +846,7 @@ export async function loginUsuario(
       success: true,
       message: 'Inicio de sesión exitoso',
       data: {
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada),
+        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -997,6 +1010,7 @@ export async function obtenerUsuarioActual(
     // ✅ Si tiene negocio, obtener onboardingCompletado Y datos del negocio
     let onboardingCompletado = false;
     let datosNegocio: DatosNegocio | undefined;
+    let datosNegocioGerente: DatosNegocio | undefined;
 
     if (usuario.negocioId) {
       const [negocio] = await db
@@ -1011,6 +1025,11 @@ export async function obtenerUsuarioActual(
 
       // Obtener datos del negocio para el header
       datosNegocio = await obtenerDatosNegocio(usuario.negocioId);
+
+      // ✅ NUEVO: Si tiene sucursal asignada (gerente), cargar datos de ESA sucursal
+      if (usuario.sucursalAsignada) {
+        datosNegocioGerente = await obtenerDatosNegocio(usuario.negocioId, usuario.sucursalAsignada);
+      }
     }
 
     // =========================================================================
@@ -1033,7 +1052,7 @@ export async function obtenerUsuarioActual(
     return {
       success: true,
       message: 'Usuario obtenido',
-      data: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada),
+      data: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
       code: 200,
     };
 
@@ -1560,6 +1579,7 @@ export async function loginConGoogle(
     // Obtener datos del negocio (si tiene)
     let onboardingCompletado = false;
     let datosNegocio: DatosNegocio | undefined;
+    let datosNegocioGerente: DatosNegocio | undefined;
 
     if (usuario && usuario.negocioId) {
       const [negocio] = await db
@@ -1572,6 +1592,11 @@ export async function loginConGoogle(
 
       // Obtener nombre, correo y logo del negocio
       datosNegocio = await obtenerDatosNegocio(usuario.negocioId);
+
+      // ✅ NUEVO: Si tiene sucursal asignada (gerente), cargar datos de ESA sucursal
+      if (usuario.sucursalAsignada) {
+        datosNegocioGerente = await obtenerDatosNegocio(usuario.negocioId, usuario.sucursalAsignada);
+      }
     }
     // -------------------------------------------------------------------------
     // Paso 3: Si no existe, crear cuenta nueva
@@ -1650,7 +1675,7 @@ export async function loginConGoogle(
         message: 'Requiere verificación de dos factores',
         data: {
           usuarioNuevo: false,
-          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada),
+          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
           accessToken: '',
           refreshToken: '',
           requiere2FA: true,
@@ -1682,7 +1707,7 @@ export async function loginConGoogle(
       message: 'Inicio de sesión exitoso con Google',
       data: {
         usuarioNuevo: false,
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada),
+        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -2001,6 +2026,7 @@ export async function verificar2fa(
     // Obtener datos del negocio (si tiene)
     let onboardingCompletado = false;
     let datosNegocio: DatosNegocio | undefined;
+    let datosNegocioGerente: DatosNegocio | undefined;
 
     if (usuario && usuario.negocioId) {
       const [negocio] = await db
@@ -2013,6 +2039,12 @@ export async function verificar2fa(
 
       // Obtener nombre, correo y logo del negocio
       datosNegocio = await obtenerDatosNegocio(usuario.negocioId);
+
+      // ✅ NUEVO: Si tiene sucursal asignada (gerente), cargar datos de ESA sucursal
+      if (usuario.sucursalAsignada) {
+        datosNegocioGerente = await obtenerDatosNegocio(usuario.negocioId, usuario.sucursalAsignada);
+      }
+
     }
 
     if (!usuario || !usuario.dobleFactorSecreto) {
@@ -2108,7 +2140,7 @@ export async function verificar2fa(
       success: true,
       message: 'Verificación exitosa',
       data: {
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada),
+        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -2272,6 +2304,8 @@ export async function cambiarModo(
   correoNegocio: string | null;
   logoNegocio: string | null;
   fotoPerfilNegocio: string | null;
+  nombreSucursalAsignada: string | null;
+  correoSucursalAsignada: string | null;
   accessToken: string;
   refreshToken: string;
 }>> {
@@ -2317,6 +2351,12 @@ export async function cambiarModo(
       // Obtener datos del negocio (si tiene)
       const datosNegocio = await obtenerDatosNegocio(usuario.negocioId);
 
+      // ✅ NUEVO: Cargar datos de sucursal asignada (gerentes)
+      let datosNegocioGerente: DatosNegocio | undefined;
+      if (usuario.negocioId && usuario.sucursalAsignada) {
+        datosNegocioGerente = await obtenerDatosNegocio(usuario.negocioId, usuario.sucursalAsignada);
+      }
+
       // Calcular sucursalActiva
       let sucursalActivaCalculada: string | null = null;
       if (usuario.modoActivo === 'comercial' && usuario.negocioId) {
@@ -2335,6 +2375,8 @@ export async function cambiarModo(
           correoNegocio: datosNegocio?.correo ?? null,
           logoNegocio: datosNegocio?.logo ?? null,
           fotoPerfilNegocio: datosNegocio?.fotoPerfil ?? null,
+          nombreSucursalAsignada: datosNegocioGerente?.nombreSucursal ?? null,
+          correoSucursalAsignada: datosNegocioGerente?.correo ?? null,
           ...tokens,
         },
         code: 200,
@@ -2378,6 +2420,12 @@ export async function cambiarModo(
     // Obtener datos del negocio (si tiene)
     const datosNegocio = await obtenerDatosNegocio(usuarioActualizado.negocioId);
 
+    // ✅ NUEVO: Cargar datos de sucursal asignada (gerentes)
+    let datosNegocioGerente: DatosNegocio | undefined;
+    if (usuarioActualizado.negocioId && usuarioActualizado.sucursalAsignada) {
+      datosNegocioGerente = await obtenerDatosNegocio(usuarioActualizado.negocioId, usuarioActualizado.sucursalAsignada);
+    }
+
     // Calcular sucursalActiva para el nuevo modo
     let sucursalActivaCalculada: string | null = null;
     if (nuevoModo === 'comercial' && usuarioActualizado.negocioId) {
@@ -2397,6 +2445,8 @@ export async function cambiarModo(
         correoNegocio: datosNegocio?.correo ?? null,
         logoNegocio: datosNegocio?.logo ?? null,
         fotoPerfilNegocio: datosNegocio?.fotoPerfil ?? null,
+        nombreSucursalAsignada: datosNegocioGerente?.nombreSucursal ?? null,
+        correoSucursalAsignada: datosNegocioGerente?.correo ?? null,
         ...tokens,
       },
       code: 200,

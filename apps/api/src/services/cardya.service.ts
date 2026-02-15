@@ -286,6 +286,7 @@ export async function obtenerRecompensasDisponibles(
   filtros?: FiltrosRecompensas
 ): Promise<RespuestaServicio<RecompensaDisponible[]>> {
   try {
+    // Query base con JOIN a sucursales para obtener ciudad
     let query = db
       .select({
         id: recompensas.id,
@@ -298,9 +299,19 @@ export async function obtenerRecompensasDisponibles(
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
         puntosDisponibles: puntosBilletera.puntosDisponibles,
+        // Ciudad de la sucursal principal para filtrar
+        ciudadSucursal: negocioSucursales.ciudad,
       })
       .from(recompensas)
       .innerJoin(negocios, eq(recompensas.negocioId, negocios.id))
+      // JOIN con sucursal principal del negocio para obtener la ciudad
+      .innerJoin(
+        negocioSucursales,
+        and(
+          eq(negocioSucursales.negocioId, negocios.id),
+          eq(negocioSucursales.esPrincipal, true)
+        )
+      )
       .leftJoin(
         puntosBilletera,
         and(
@@ -311,11 +322,27 @@ export async function obtenerRecompensasDisponibles(
       .where(eq(recompensas.activa, true))
       .$dynamic();
 
+    // Filtro por negocio específico
     if (filtros?.negocioId) {
       query = query.where(eq(recompensas.negocioId, filtros.negocioId));
     }
 
-    const resultados = await query.orderBy(recompensas.orden, recompensas.puntosRequeridos);
+    // Filtro por ciudad (búsqueda flexible - encuentra "Puerto Peñasco" en "Puerto Peñasco, Sonora")
+    if (filtros?.ciudad) {
+      query = query.where(
+        sql`${negocioSucursales.ciudad} ILIKE ${filtros.ciudad + '%'}`
+      );
+    }
+
+    // Ordenar: primero negocios donde el usuario tiene puntos, luego por puntos requeridos
+    const resultados = await query.orderBy(
+      // Primero los que tienen billetera (puntos > 0)
+      sql`CASE WHEN ${puntosBilletera.puntosDisponibles} > 0 THEN 0 ELSE 1 END`,
+      // Dentro de cada grupo, por puntos disponibles desc (los que más tienen primero)
+      sql`COALESCE(${puntosBilletera.puntosDisponibles}, 0) DESC`,
+      // Finalmente por puntos requeridos asc (más baratos primero)
+      recompensas.puntosRequeridos
+    );
 
     const recompensasFormateadas: RecompensaDisponible[] = resultados
       .map((r) => {

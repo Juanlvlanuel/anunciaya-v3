@@ -15,7 +15,7 @@ import {
     negocios,
 } from '../db/schemas/schema.js';
 import { crearNotificacion } from './notificaciones.service.js';
-import type { CrearResenaInput } from '../validations/resenas.schema.js';
+import type { CrearResenaInput, ResponderResenaInput } from '../validations/resenas.schema.js';
 
 // =============================================================================
 // TIPOS
@@ -31,6 +31,12 @@ interface ResenaConAutor {
         nombre: string;
         avatarUrl: string | null;
     };
+    respuestaNegocio?: {
+        texto: string;
+        fecha: string;
+        negocioNombre: string;
+        negocioLogo: string | null;
+    } | null;
 }
 
 interface RespuestaServicio<T = unknown> {
@@ -62,9 +68,26 @@ export async function obtenerResenasSucursal(
                     'id', u.id,
                     'nombre', u.nombre,
                     'avatarUrl', u.avatar_url
-                ) as autor
+                ) as autor,
+                CASE
+                    WHEN resp.id IS NOT NULL THEN
+                        json_build_object(
+                            'texto',  resp.texto,
+                            'fecha',  resp.created_at,
+                            'negocioNombre', n.nombre,
+                            'negocioLogo',   n.logo_url
+                        )
+                    ELSE NULL
+                END AS respuesta_negocio
             FROM resenas r
             INNER JOIN usuarios u ON u.id = r.autor_id
+            LEFT JOIN resenas resp
+                ON  resp.autor_tipo       = 'negocio'
+                AND resp.interaccion_tipo = 'scanya'
+                AND resp.interaccion_id   = r.interaccion_id
+                AND resp.destino_id       = r.autor_id
+            LEFT JOIN negocio_sucursales ns ON ns.id = r.sucursal_id
+            LEFT JOIN negocios n ON n.id = ns.negocio_id
             WHERE r.sucursal_id = ${sucursalId}
               AND r.autor_tipo = 'cliente'
               AND r.destino_tipo = 'negocio'
@@ -79,6 +102,12 @@ export async function obtenerResenasSucursal(
             texto: row.texto as string | null,
             createdAt: row.created_at as string | null,
             autor: row.autor as { id: string; nombre: string; avatarUrl: string | null },
+            respuestaNegocio: row.respuesta_negocio as {
+                texto: string;
+                fecha: string;
+                negocioNombre: string;
+                negocioLogo: string | null;
+            } | null,
         }));
 
         return {
@@ -172,7 +201,7 @@ export async function verificarPuedeResenar(
             SELECT id::text
             FROM puntos_transacciones
             WHERE cliente_id = ${usuarioId}
-              AND negocio_id = ${sucursal.negocioId}
+              AND sucursal_id = ${sucursalId}
               AND created_at >= ${hace90Dias.toISOString()}
             ORDER BY created_at DESC
         `);
@@ -284,25 +313,8 @@ export async function crearResena(
 
         const row = resultado.rows[0] as Record<string, unknown>;
 
-        // 4. Actualizar métricas de la sucursal (total_resenas + promedio_rating)
-        await db.execute(sql`
-            INSERT INTO metricas_entidad (entity_type, entity_id, total_resenas, promedio_rating, updated_at)
-            VALUES (
-                'sucursal', ${datos.sucursalId},
-                (SELECT COUNT(*)::int FROM resenas WHERE sucursal_id = ${datos.sucursalId}),
-                (SELECT COALESCE(AVG(rating), 0) FROM resenas WHERE sucursal_id = ${datos.sucursalId} AND rating IS NOT NULL),
-                NOW()
-            )
-            ON CONFLICT (entity_type, entity_id) DO UPDATE SET
-                total_resenas = (SELECT COUNT(*)::int FROM resenas WHERE sucursal_id = ${datos.sucursalId}),
-                promedio_rating = (
-                    SELECT COALESCE(AVG(rating), 0)
-                    FROM resenas
-                    WHERE sucursal_id = ${datos.sucursalId}
-                      AND rating IS NOT NULL
-                ),
-                updated_at = NOW()
-        `);
+        // 4. Rating y total_calificaciones se actualizan automáticamente en
+        //    negocio_sucursales vía trigger_actualizar_rating_sucursal (INSERT/UPDATE/DELETE en resenas)
 
         // 5. Obtener datos del autor para la respuesta
         const [autor] = await db
@@ -372,5 +384,379 @@ export async function crearResena(
         }
 
         return { success: false, message: 'Error al crear reseña', code: 500 };
+    }
+}
+
+// =============================================================================
+// OBTENER RESEÑAS DESDE PERSPECTIVA DEL NEGOCIO (ScanYA / Business Studio)
+// =============================================================================
+
+/**
+ * Lista reseñas de clientes hacia el negocio, incluyendo la respuesta del
+ * negocio si existe. Soporta filtro por sucursal y por estado (pendientes/todas).
+ *
+ * La "respuesta" se identifica como otra fila en `resenas` donde:
+ * - autor_tipo = 'negocio'
+ * - interaccion_tipo = 'scanya'
+ * - interaccion_id = id de la reseña original (como texto)
+ *
+ * @param negocioId  - UUID del negocio
+ * @param sucursalId - Opcional: filtrar por sucursal específica
+ * @param soloPendientes - true = solo reseñas sin respuesta
+ */
+export async function obtenerResenasNegocio(
+    negocioId: string,
+    sucursalId?: string,
+    soloPendientes: boolean = false
+): Promise<RespuestaServicio<Array<{
+    id: string;
+    rating: number | null;
+    texto: string | null;
+    createdAt: string | null;
+    sucursalId: string | null;
+    sucursalNombre: string | null;
+    autor: {
+        id: string;
+        nombre: string;
+        avatarUrl: string | null;
+    };
+    respuesta: {
+        id: string;
+        texto: string | null;
+        createdAt: string | null;
+    } | null;
+}>>> {
+    try {
+        const filtroSucursal = sucursalId
+            ? sql`AND r.sucursal_id = ${sucursalId}`
+            : sql``;
+
+        const filtroPendientes = soloPendientes
+            ? sql`AND resp.id IS NULL`
+            : sql``;
+
+        const query = sql`
+            SELECT
+                r.id::text        AS id,
+                r.rating,
+                r.texto,
+                r.created_at,
+                r.sucursal_id::text AS sucursal_id,
+                ns.nombre         AS sucursal_nombre,
+                json_build_object(
+                    'id',        u.id,
+                    'nombre',    u.nombre,
+                    'avatarUrl', u.avatar_url
+                ) AS autor,
+                CASE
+                    WHEN resp.id IS NOT NULL THEN
+                        json_build_object(
+                            'id',        resp.id::text,
+                            'texto',     resp.texto,
+                            'createdAt', resp.created_at
+                        )
+                    ELSE NULL
+                END AS respuesta
+            FROM resenas r
+            INNER JOIN usuarios u ON u.id = r.autor_id
+            LEFT JOIN negocio_sucursales ns ON ns.id = r.sucursal_id
+            LEFT JOIN resenas resp
+                ON  resp.autor_tipo       = 'negocio'
+                AND resp.interaccion_tipo = 'scanya'
+                AND resp.interaccion_id   = r.interaccion_id
+                AND resp.destino_id       = r.autor_id
+            WHERE r.destino_tipo = 'negocio'
+              AND r.destino_id   = ${negocioId}
+              AND r.autor_tipo   = 'cliente'
+              ${filtroSucursal}
+              ${filtroPendientes}
+            ORDER BY r.created_at DESC
+        `;
+
+        const resultado = await db.execute(query);
+
+        const resenas = (resultado.rows as Record<string, unknown>[]).map((row) => ({
+            id: row.id as string,
+            rating: row.rating as number | null,
+            texto: row.texto as string | null,
+            createdAt: row.created_at as string | null,
+            sucursalId: row.sucursal_id as string | null,
+            sucursalNombre: row.sucursal_nombre as string | null,
+            autor: row.autor as { id: string; nombre: string; avatarUrl: string | null },
+            respuesta: row.respuesta as { id: string; texto: string | null; createdAt: string | null } | null,
+        }));
+
+        return {
+            success: true,
+            message: `${resenas.length} reseña${resenas.length !== 1 ? 's' : ''} encontrada${resenas.length !== 1 ? 's' : ''}`,
+            data: resenas,
+        };
+    } catch (error) {
+        console.error('Error en obtenerResenasNegocio:', error);
+        return { success: false, message: 'Error al obtener reseñas', code: 500 };
+    }
+}
+
+// =============================================================================
+// RESPONDER RESEÑA (desde el negocio)
+// =============================================================================
+
+/**
+ * El negocio responde a una reseña de cliente.
+ *
+ * Inserta una nueva fila en `resenas` con:
+ * - autor_tipo = 'negocio', autor_id = NULL
+ * - destino_tipo = 'usuario', destino_id = autorId de la reseña original
+ * - interaccion_id = id de la reseña original
+ * - rating = NULL (las respuestas no llevan calificación)
+ *
+ * @param negocioId - UUID del negocio que responde
+ * @param datos     - { resenaId, texto }
+ */
+export async function responderResena(
+    negocioId: string,
+    datos: ResponderResenaInput,
+    respondidoPorId: string | null = null,
+    respondidoPorEmpleadoId: string | null = null
+): Promise<RespuestaServicio<{ id: string; texto: string; createdAt: string }>> {
+    try {
+        // 1. Obtener la reseña original y verificar que pertenece a este negocio
+        const resenaOriginal = await db.execute(sql`
+            SELECT r.id, r.autor_id, r.destino_id, r.sucursal_id, r.interaccion_id
+            FROM resenas r
+            WHERE r.id = ${datos.resenaId}
+              AND r.destino_tipo = 'negocio'
+              AND r.destino_id   = ${negocioId}
+              AND r.autor_tipo   = 'cliente'
+            LIMIT 1
+        `);
+
+        if (resenaOriginal.rows.length === 0) {
+            return {
+                success: false,
+                message: 'Reseña no encontrada o no pertenece a tu negocio',
+                code: 404,
+            };
+        }
+
+        const original = resenaOriginal.rows[0] as Record<string, unknown>;
+
+        // 2. Verificar si ya existe una respuesta
+        // Vinculamos por: mismo interaccion_id + destino = autor original
+        const respuestaExistente = await db.execute(sql`
+            SELECT id FROM resenas
+            WHERE autor_tipo       = 'negocio'
+              AND interaccion_tipo = 'scanya'
+              AND interaccion_id   = ${original.interaccion_id as string}
+              AND destino_id       = ${original.autor_id as string}
+            LIMIT 1
+        `);
+
+        let row: Record<string, unknown>;
+
+        if (respuestaExistente.rows.length > 0) {
+            // Ya existe respuesta → UPDATE (editar)
+            const existente = respuestaExistente.rows[0] as Record<string, unknown>;
+            const resultado = await db.execute(sql`
+                UPDATE resenas
+                SET texto = ${datos.texto.trim()},
+                    autor_id = ${respondidoPorId},
+                    respondido_por_empleado_id = ${respondidoPorEmpleadoId},
+                    updated_at = NOW()
+                WHERE id = ${existente.id as string}
+                RETURNING id::text, texto, created_at
+            `);
+            row = resultado.rows[0] as Record<string, unknown>;
+        } else {
+            // No existe → INSERT (nueva respuesta)
+            const resultado = await db.execute(sql`
+                INSERT INTO resenas (
+                    autor_id, autor_tipo, destino_tipo, destino_id,
+                    rating, texto, interaccion_tipo, interaccion_id,
+                    sucursal_id, respondido_por_empleado_id
+                ) VALUES (
+                    ${respondidoPorId}, 'negocio', 'usuario', ${original.autor_id as string},
+                    NULL, ${datos.texto.trim()}, 'scanya',
+                    ${original.interaccion_id as string},
+                    ${original.sucursal_id as string},
+                    ${respondidoPorEmpleadoId}
+                )
+                RETURNING id::text, texto, created_at
+            `);
+            row = resultado.rows[0] as Record<string, unknown>;
+        }
+
+        const esEdicion = respuestaExistente.rows.length > 0;
+
+        // 4. Notificar al cliente (solo en respuesta nueva, no en edición)
+        if (!esEdicion && original.autor_id) {
+            const [negocio] = await db
+                .select({ nombre: negocios.nombre })
+                .from(negocios)
+                .where(eq(negocios.id, negocioId))
+                .limit(1);
+
+            crearNotificacion({
+                usuarioId: original.autor_id as string,
+                modo: 'personal',
+                tipo: 'nueva_resena',
+                titulo: `${negocio?.nombre || 'Un negocio'} respondió tu reseña`,
+                mensaje: datos.texto.length > 80
+                    ? `"${datos.texto.slice(0, 80)}..."`
+                    : `"${datos.texto}"`,
+                negocioId,
+                sucursalId: original.sucursal_id as string,
+                referenciaId: datos.resenaId,
+                referenciaTipo: 'resena',
+                icono: '💬',
+            }).catch((err) => console.error('Error notificación respuesta reseña:', err));
+        }
+
+        return {
+            success: true,
+            message: esEdicion ? '¡Respuesta actualizada!' : '¡Respuesta publicada!',
+            data: {
+                id: row.id as string,
+                texto: row.texto as string,
+                createdAt: row.created_at as string,
+            },
+        };
+
+    } catch (error) {
+        console.error('Error en responderResena:', error);
+        return { success: false, message: 'Error al responder reseña', code: 500 };
+    }
+}
+
+// =============================================================================
+// CONTAR RESEÑAS PENDIENTES DE RESPUESTA
+// =============================================================================
+
+/**
+ * Cuenta las reseñas de clientes que aún no tienen respuesta del negocio.
+ * Usada por obtenerContadores() en scanya.service.ts
+ *
+ * @param negocioId  - UUID del negocio
+ * @param sucursalId - Opcional: filtrar por sucursal (para gerentes/empleados)
+ */
+export async function contarResenasPendientes(
+    negocioId: string,
+    sucursalId?: string
+): Promise<number> {
+    try {
+        const filtroSucursal = sucursalId
+            ? sql`AND r.sucursal_id = ${sucursalId}`
+            : sql``;
+
+        const resultado = await db.execute(sql`
+            SELECT COUNT(*)::int AS total
+            FROM resenas r
+            LEFT JOIN resenas resp
+                ON  resp.autor_tipo       = 'negocio'
+                AND resp.interaccion_tipo = 'scanya'
+                AND resp.interaccion_id   = r.interaccion_id
+                AND resp.destino_id       = r.autor_id
+            WHERE r.destino_tipo = 'negocio'
+              AND r.destino_id   = ${negocioId}
+              AND r.autor_tipo   = 'cliente'
+              AND resp.id IS NULL
+              ${filtroSucursal}
+        `);
+
+        const row = resultado.rows[0] as Record<string, unknown>;
+        return (row.total as number) || 0;
+    } catch (error) {
+        console.error('Error en contarResenasPendientes:', error);
+        return 0;
+    }
+}
+
+// =============================================================================
+// EDITAR RESEÑA (cliente edita su propia reseña)
+// =============================================================================
+
+/**
+ * El cliente edita su propia reseña (texto y/o rating).
+ * Solo puede editar reseñas donde es el autor.
+ *
+ * @param autorId  - UUID del usuario que edita
+ * @param resenaId - ID numérico de la reseña
+ * @param datos    - { texto?, rating? } al menos uno requerido
+ */
+export async function editarResena(
+    autorId: string,
+    resenaId: string,
+    datos: { texto?: string; rating?: number }
+): Promise<RespuestaServicio<{ id: string; texto: string | null; rating: number | null; updatedAt: string }>> {
+    try {
+        // 1. Verificar que la reseña exista y sea del autor
+        const resenaExistente = await db.execute(sql`
+            SELECT id, autor_id, sucursal_id
+            FROM resenas
+            WHERE id = ${resenaId}
+              AND autor_id    = ${autorId}
+              AND autor_tipo  = 'cliente'
+            LIMIT 1
+        `);
+
+        if (resenaExistente.rows.length === 0) {
+            return {
+                success: false,
+                message: 'Reseña no encontrada o no tienes permiso para editarla',
+                code: 404,
+            };
+        }
+
+        // 2. Construir campos a actualizar
+        const sets: string[] = [];
+        const valores: unknown[] = [];
+
+        if (datos.texto !== undefined) {
+            sets.push('texto');
+            valores.push(datos.texto.trim());
+        }
+        if (datos.rating !== undefined) {
+            sets.push('rating');
+            valores.push(datos.rating);
+        }
+
+        if (sets.length === 0) {
+            return {
+                success: false,
+                message: 'Debes incluir al menos texto o rating para editar',
+                code: 400,
+            };
+        }
+
+        // 3. UPDATE dinámico
+        const resultado = await db.execute(sql`
+            UPDATE resenas
+            SET
+                texto = COALESCE(${datos.texto?.trim() ?? null}, texto),
+                rating = COALESCE(${datos.rating ?? null}, rating),
+                updated_at = NOW()
+            WHERE id = ${resenaId}
+              AND autor_id = ${autorId}
+            RETURNING id::text, texto, rating, updated_at
+        `);
+
+        const row = resultado.rows[0] as Record<string, unknown>;
+
+        // 4. Rating se actualiza automáticamente en negocio_sucursales vía trigger
+
+        return {
+            success: true,
+            message: '¡Reseña actualizada!',
+            data: {
+                id: row.id as string,
+                texto: row.texto as string | null,
+                rating: row.rating as number | null,
+                updatedAt: row.updated_at as string,
+            },
+        };
+
+    } catch (error) {
+        console.error('Error en editarResena:', error);
+        return { success: false, message: 'Error al editar reseña', code: 500 };
     }
 }

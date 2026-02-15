@@ -409,17 +409,7 @@ export async function postDuplicarOferta(req: Request, res: Response) {
       });
     }
 
-    // Validar que el usuario sea DUEÑO (no tenga sucursalAsignada)
-    const usuario = req.usuario;
-    if (usuario?.sucursalAsignada) {
-      return res.status(403).json({
-        success: false,
-        message:
-          'Solo los dueños pueden duplicar ofertas a otras sucursales',
-      });
-    }
-
-    // Validar datos con Zod
+    // Validar datos con Zod PRIMERO (necesitamos ver las sucursales destino)
     const validacion = duplicarOfertaSchema.safeParse(req.body);
 
     if (!validacion.success) {
@@ -429,6 +419,26 @@ export async function postDuplicarOferta(req: Request, res: Response) {
         errores: formatearErroresZod(validacion.error),
       });
     }
+
+    // Validar permisos según rol
+    const usuario = req.usuario;
+    const esGerente = !!usuario?.sucursalAsignada;
+
+    // GERENTES: Solo pueden duplicar en SU PROPIA sucursal
+    if (esGerente) {
+      const sucursalAsignada = usuario?.sucursalAsignada;
+      const sucursalesDestino = validacion.data.sucursalesIds;
+
+      // Validar que solo esté duplicando a su propia sucursal
+      if (sucursalesDestino.length !== 1 || sucursalesDestino[0] !== sucursalAsignada) {
+        return res.status(403).json({
+          success: false,
+          message: 'Los gerentes solo pueden duplicar ofertas en su propia sucursal',
+        });
+      }
+    }
+
+    // DUEÑOS: Pueden duplicar a cualquier sucursal (sin validación adicional)
 
     // Obtener negocioId
     const negocioId = req.negocioId;

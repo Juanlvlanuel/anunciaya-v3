@@ -205,12 +205,37 @@ export async function actualizarConfigPuntos(
         .set(datosDB)
         .where(eq(puntosConfiguracion.negocioId, negocioId));
     } else {
-      // Crear nueva configuración
+      // Crear nueva configuración con TODOS los campos requeridos
       await db
         .insert(puntosConfiguracion)
         .values({
           negocioId,
-          ...datosDB,
+          // Campos enviados por el usuario O defaults
+          puntosPorPeso: datosDB.puntosPorPeso ?? CONFIG_DEFAULTS.puntosPorPeso.toString(),
+          pesosOriginales: datosDB.pesosOriginales ?? null,
+          puntosOriginales: datosDB.puntosOriginales ?? null,
+          minimoCompra: '0',                // Sin mínimo de compra
+          diasExpiracionPuntos: datosDB.diasExpiracionPuntos ?? CONFIG_DEFAULTS.diasExpiracionPuntos,
+          diasExpiracionVoucher: datosDB.diasExpiracionVoucher ?? CONFIG_DEFAULTS.diasExpiracionVoucher,
+          validarHorario: true,             // Validar horario por default
+          horarioInicio: '09:00:00',        // 9 AM
+          horarioFin: '22:00:00',           // 10 PM
+          activo: datosDB.activo ?? CONFIG_DEFAULTS.activo,
+          nivelesActivos: datosDB.nivelesActivos ?? CONFIG_DEFAULTS.nivelesActivos,
+          // Nivel Bronce
+          nivelBronceMin: datosDB.nivelBronceMin ?? CONFIG_DEFAULTS.nivelBronce.min,
+          nivelBronceMax: datosDB.nivelBronceMax ?? CONFIG_DEFAULTS.nivelBronce.max,
+          nivelBronceMultiplicador: datosDB.nivelBronceMultiplicador ?? CONFIG_DEFAULTS.nivelBronce.multiplicador.toString(),
+          nivelBronceNombre: null,          // Nombres personalizados opcionales
+          // Nivel Plata
+          nivelPlataMin: datosDB.nivelPlataMin ?? CONFIG_DEFAULTS.nivelPlata.min,
+          nivelPlataMax: datosDB.nivelPlataMax ?? CONFIG_DEFAULTS.nivelPlata.max,
+          nivelPlataMultiplicador: datosDB.nivelPlataMultiplicador ?? CONFIG_DEFAULTS.nivelPlata.multiplicador.toString(),
+          nivelPlataNombre: null,
+          // Nivel Oro
+          nivelOroMin: datosDB.nivelOroMin ?? CONFIG_DEFAULTS.nivelOro.min,
+          nivelOroMultiplicador: datosDB.nivelOroMultiplicador ?? CONFIG_DEFAULTS.nivelOro.multiplicador.toString(),
+          nivelOroNombre: null,
         });
     }
 
@@ -681,11 +706,6 @@ export async function obtenerEstadisticasPuntos(
     const condicionesBilletera = [
       eq(puntosBilletera.negocioId, negocioId),
     ];
-
-    // Filtro por sucursal (solo aplica a transacciones)
-    if (sucursalId) {
-      condicionesTransacciones.push(eq(puntosTransacciones.sucursalId, sucursalId));
-    }
 
     // NOTA: puntos_billetera NO tiene sucursalId
     // Las billeteras son por usuario+negocio, no por sucursal

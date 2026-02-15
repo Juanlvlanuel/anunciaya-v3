@@ -118,6 +118,106 @@ export async function crearCheckout(
 }
 
 // =============================================================================
+// CONTROLADOR 1.5: CREAR CHECKOUT UPGRADE (PERSONAL → COMERCIAL)
+// =============================================================================
+
+/**
+ * POST /api/pagos/crear-checkout-upgrade
+ * 
+ * Crea una sesión de pago para upgrade de cuenta personal a comercial.
+ * REQUIERE AUTENTICACIÓN (usuario ya logueado)
+ * 
+ * Body esperado:
+ * {
+ *   "nombreNegocio": "Mi Negocio"
+ * }
+ * 
+ * Respuesta exitosa:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "sessionId": "cs_test_xxx",
+ *     "checkoutUrl": "https://checkout.stripe.com/c/pay/cs_test_xxx"
+ *   }
+ * }
+ */
+export async function crearCheckoutUpgrade(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    // -------------------------------------------------------------------------
+    // PASO 1: Verificar autenticación
+    // -------------------------------------------------------------------------
+    const usuarioToken = req.usuario;
+
+    if (!usuarioToken) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado',
+      });
+      return;
+    }
+
+    // -------------------------------------------------------------------------
+    // PASO 2: Validar datos del request
+    // -------------------------------------------------------------------------
+    const { nombreNegocio } = req.body;
+
+    if (!nombreNegocio || nombreNegocio.trim().length < 3) {
+      res.status(400).json({
+        success: false,
+        message: 'El nombre del negocio es requerido (mínimo 3 caracteres)',
+      });
+      return;
+    }
+
+    // -------------------------------------------------------------------------
+    // PASO 3: Llamar al service (el service valida tieneModoComercial)
+    // -------------------------------------------------------------------------
+    const resultado = await pagoService.crearCheckoutUpgrade({
+      usuarioId: usuarioToken.usuarioId,
+      correo: usuarioToken.correo,
+      nombreNegocio: nombreNegocio.trim(),
+    });
+
+    // -------------------------------------------------------------------------
+    // PASO 4: Devolver respuesta exitosa
+    // -------------------------------------------------------------------------
+    res.status(200).json({
+      success: true,
+      data: resultado,
+      message: 'Sesión de pago para upgrade creada correctamente',
+    });
+  } catch (error) {
+    console.error('❌ Error en crearCheckoutUpgrade:', error);
+
+    if (error instanceof Error) {
+      if (error.message.includes('Ya tienes')) {
+        res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+        return;
+      }
+
+      if (error.message.includes('no encontrado')) {
+        res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+        return;
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error al crear sesión de pago para upgrade',
+    });
+  }
+}
+
+// =============================================================================
 // CONTROLADOR 2: WEBHOOK DE STRIPE
 // =============================================================================
 
@@ -282,6 +382,7 @@ export async function verificarSession(
 
 export default {
   crearCheckout,
+  crearCheckoutUpgrade,
   webhookStripe,
   verificarSession,
 };

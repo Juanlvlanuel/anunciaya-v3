@@ -24,6 +24,7 @@ import {
     articulos,
     articuloSucursales,
     usuarios,
+    puntosConfiguracion,
 } from '../db/schemas/schema';
 import type { ArticulosInput } from '../validations/onboarding.schema';
 import {
@@ -236,6 +237,52 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
             })
             .where(eq(usuarios.id, usuarioId));
 
+        // ───────────────────────────────────────────────────────────────────
+        // NUEVO: Si participa_puntos = true, crear configuración inicial
+        // ───────────────────────────────────────────────────────────────────
+        if (negocio.participaPuntos) {
+            // Verificar si ya existe configuración (por si acaso)
+            const [configExistente] = await db
+                .select()
+                .from(puntosConfiguracion)
+                .where(eq(puntosConfiguracion.negocioId, negocioId))
+                .limit(1);
+
+            // Solo crear si NO existe
+            if (!configExistente) {
+                await db.insert(puntosConfiguracion).values({
+                    negocioId,
+                    puntosPorPeso: '1.0',
+                    pesosOriginales: null,
+                    puntosOriginales: null,
+                    minimoCompra: '0',                // Sin mínimo de compra
+                    diasExpiracionPuntos: 90,
+                    diasExpiracionVoucher: 30,
+                    validarHorario: true,             // Validar horario por default
+                    horarioInicio: '09:00:00',        // 9 AM
+                    horarioFin: '22:00:00',           // 10 PM
+                    activo: true,
+                    nivelesActivos: true,
+                    // Nivel Bronce
+                    nivelBronceMin: 0,
+                    nivelBronceMax: 999,
+                    nivelBronceMultiplicador: '1.0',
+                    nivelBronceNombre: null,
+                    // Nivel Plata
+                    nivelPlataMin: 1000,
+                    nivelPlataMax: 4999,
+                    nivelPlataMultiplicador: '1.2',
+                    nivelPlataNombre: null,
+                    // Nivel Oro
+                    nivelOroMin: 5000,
+                    nivelOroMultiplicador: '1.5',
+                    nivelOroNombre: null,
+                });
+
+                console.log(`✅ Configuración de puntos creada automáticamente para negocio ${negocioId}`);
+            }
+        }
+
         return {
             success: true,
             message: 'Onboarding completado. ¡Tu negocio ya está publicado!',
@@ -318,6 +365,7 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
                     esPrincipal: negocioSucursales.esPrincipal,
                     direccion: negocioSucursales.direccion,
                     ciudad: negocioSucursales.ciudad,
+                    estado: negocioSucursales.estado,
                     telefono: negocioSucursales.telefono,
                     whatsapp: negocioSucursales.whatsapp,
                     correo: negocioSucursales.correo,
@@ -369,6 +417,7 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
             sucursal: sucursal ? {
                 id: sucursal.id,
                 ciudad: sucursal.ciudad,
+                estado: sucursal.estado,
                 direccion: sucursal.direccion,
                 latitud: sucursal.latitud || null,
                 longitud: sucursal.longitud || null,
@@ -473,6 +522,7 @@ export const guardarBorradorSucursal = async (
 
         // Actualiza si viene el campo (permite null o string)
         if (data.ciudad !== undefined) updateData.ciudad = data.ciudad || null;
+        if (data.estado !== undefined) updateData.estado = data.estado || null;
         if (data.direccion !== undefined) updateData.direccion = data.direccion || null;
         if (data.zonaHoraria !== undefined) updateData.zonaHoraria = data.zonaHoraria || null;
 

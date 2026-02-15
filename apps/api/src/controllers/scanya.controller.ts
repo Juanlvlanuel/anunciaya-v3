@@ -582,9 +582,8 @@ export async function historialController(req: Request, res: Response): Promise<
   const periodo = (req.query.periodo as string) || 'mes';
   const pagina = parseInt(req.query.pagina as string) || 1;
   const limite = parseInt(req.query.limite as string) || 20;
-  const sucursalId = req.query.sucursalId as string | undefined;
-  const empleadoId = req.query.empleadoId as string | undefined;
-
+  const filtroSucursalId = req.query.filtroSucursalId as string | undefined;
+  const filtroEmpleadoId = req.query.filtroEmpleadoId as string | undefined;
   const validacion = historialSchema.safeParse({ periodo, pagina, limite });
 
   if (!validacion.success) {
@@ -604,8 +603,8 @@ export async function historialController(req: Request, res: Response): Promise<
     validacion.data.periodo,
     validacion.data.pagina,
     validacion.data.limite,
-    sucursalId,
-    empleadoId
+    filtroSucursalId,
+    filtroEmpleadoId
   );
 
   // ---------------------------------------------------------------------------

@@ -19,7 +19,11 @@ import {
     getPromedioResenas,
     getPuedeResenar,
     postCrearResena,
+    getResenasNegocio,
+    postResponderResena,
+    putEditarResena,
 } from '../controllers/resenas.controller.js';
+import { verificarTokenScanYA, verificarPermiso } from '../middleware/scanyaAuth.middleware.js';
 
 const router: Router = Router();
 
@@ -36,5 +40,13 @@ router.get('/sucursal/:sucursalId/promedio', getPromedioResenas);
 
 router.get('/puede-resenar/:sucursalId', verificarToken, getPuedeResenar);
 router.post('/', verificarToken, postCrearResena);
+router.put('/:id', verificarToken, putEditarResena);
+
+// =============================================================================
+// RUTAS PROTEGIDAS SCANYA (requieren token ScanYA + permiso responderResenas)
+// =============================================================================
+
+router.get('/negocio', verificarTokenScanYA, verificarPermiso('responderResenas'), getResenasNegocio);
+router.post('/responder', verificarTokenScanYA, verificarPermiso('responderResenas'), postResponderResena);
 
 export default router;

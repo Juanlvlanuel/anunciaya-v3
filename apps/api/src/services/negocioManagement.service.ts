@@ -40,16 +40,21 @@ import { v2 as cloudinary } from 'cloudinary';
 /**
  * Actualiza nombre del negocio y asigna subcategorías
  * 
+ * LÓGICA DE NOMBRE:
+ * - Si el negocio tiene 1 sola sucursal → sincroniza nombre en ambas tablas
+ * - Si tiene 2+ sucursales → solo actualiza negocios.nombre (la marca)
+ * - Si se envía nombreSucursal → actualiza negocio_sucursales.nombre de la sucursal activa
+ * 
  * @param negocioId - UUID del negocio
- * @param datos - { nombre: string, subcategoriasIds: number[] }
+ * @param datos - { nombre, subcategoriasIds, nombreSucursal?, sucursalId? }
  * @returns Objeto con success y mensaje
  */
 export const actualizarInfoGeneral = async (
     negocioId: string,
-    datos: { nombre: string; subcategoriasIds: number[] }
+    datos: { nombre: string; subcategoriasIds: number[]; nombreSucursal?: string; sucursalId?: string }
 ) => {
     try {
-        const { nombre, subcategoriasIds } = datos;
+        const { nombre, subcategoriasIds, nombreSucursal, sucursalId } = datos;
         await db.transaction(async (tx) => {
             // 1. Verificar que el negocio existe
             const negocio = await tx
@@ -72,13 +77,39 @@ export const actualizarInfoGeneral = async (
                 throw new Error('Una o más subcategorías no son válidas');
             }
 
-            // 3. Actualizar nombre del negocio
+            // 3. Actualizar nombre del negocio (marca)
             await tx
                 .update(negocios)
                 .set({
                     nombre: nombre.trim(),
                 })
                 .where(eq(negocios.id, negocioId));
+
+            // 3.1 Sincronizar nombre en sucursal según cantidad de sucursales
+            const sucursalesDelNegocio = await tx
+                .select({ id: negocioSucursales.id, esPrincipal: negocioSucursales.esPrincipal })
+                .from(negocioSucursales)
+                .where(eq(negocioSucursales.negocioId, negocioId));
+
+            if (sucursalesDelNegocio.length === 1) {
+                // 1 sola ubicación → sincronizar nombre en ambas tablas
+                await tx
+                    .update(negocioSucursales)
+                    .set({
+                        nombre: nombre.trim(),
+                        updatedAt: new Date().toISOString(),
+                    })
+                    .where(eq(negocioSucursales.id, sucursalesDelNegocio[0].id));
+            } else if (nombreSucursal && sucursalId) {
+                // 2+ ubicaciones y se envió nombre de sucursal → actualizar solo esa sucursal
+                await tx
+                    .update(negocioSucursales)
+                    .set({
+                        nombre: nombreSucursal.trim(),
+                        updatedAt: new Date().toISOString(),
+                    })
+                    .where(eq(negocioSucursales.id, sucursalId));
+            }
 
             // 4. Eliminar todas las subcategorías anteriores
             await tx
@@ -190,20 +221,17 @@ export const actualizarRedesSocialesSucursal = async (
  * @returns Objeto con success, sucursalId y mensaje
  */
 export const actualizarSucursal = async (
-    negocioId: string,
+    sucursalId: string,
     data: UbicacionInput
 ) => {
     try {
-        // 1. Buscar la sucursal principal existente
+        // 1. Verificar que la sucursal existe
         const sucursal = await db.query.negocioSucursales.findFirst({
-            where: and(
-                eq(negocioSucursales.negocioId, negocioId),
-                eq(negocioSucursales.esPrincipal, true)
-            )
+            where: eq(negocioSucursales.id, sucursalId)
         });
 
         if (!sucursal) {
-            throw new Error('Sucursal principal no encontrada. Contacta a soporte.');
+            throw new Error('Sucursal no encontrada. Contacta a soporte.');
         }
 
         // 2. Convertir latitud y longitud a formato PostGIS POINT
@@ -214,12 +242,13 @@ export const actualizarSucursal = async (
             .update(negocioSucursales)
             .set({
                 ciudad: data.ciudad,
+                estado: data.estado,
                 direccion: data.direccion,
                 ubicacion: sql`ST_GeogFromText(${ubicacionPostGIS})`,
                 zonaHoraria: data.zonaHoraria,
                 updatedAt: new Date().toISOString(),
             })
-            .where(eq(negocioSucursales.id, sucursal.id));
+            .where(eq(negocioSucursales.id, sucursalId));
 
         // ✨ 4. Actualizar ciudad en tabla usuarios cuando se actualiza en sucursal
         if (data.ciudad) {
@@ -227,7 +256,7 @@ export const actualizarSucursal = async (
             const [negocio] = await db
                 .select({ usuarioId: negocios.usuarioId })
                 .from(negocios)
-                .where(eq(negocios.id, negocioId))
+                .where(eq(negocios.id, sucursal.negocioId))
                 .limit(1);
 
             if (negocio) {
@@ -350,11 +379,11 @@ export const actualizarHorariosSucursal = async (
             sucursalId,
             diaSemana: horario.diaSemana,
             abierto: horario.abierto,
-            horaApertura: horario.abierto ? horario.horaApertura : null,
-            horaCierre: horario.abierto ? horario.horaCierre : null,
+            horaApertura: horario.horaApertura || null,
+            horaCierre: horario.horaCierre || null,
             tieneHorarioComida: horario.tieneHorarioComida || false,
-            comidaInicio: horario.tieneHorarioComida ? horario.comidaInicio : null,
-            comidaFin: horario.tieneHorarioComida ? horario.comidaFin : null,
+            comidaInicio: horario.comidaInicio || null,
+            comidaFin: horario.comidaFin || null,
         }));
 
         await db.insert(negocioHorarios).values(horariosData);
@@ -914,7 +943,7 @@ export default {
     // Contacto
     actualizarContactoSucursal,
     actualizarContactoNegocio,
-    actualizarNombreSucursal,           
+    actualizarNombreSucursal,
 
     // Horarios
     actualizarHorariosSucursal,
@@ -926,8 +955,8 @@ export default {
     eliminarLogoNegocio,
     eliminarPortadaSucursal,
     eliminarImagenGaleria,
-    actualizarFotoPerfilSucursal,      
-    eliminarFotoPerfilSucursal,        
+    actualizarFotoPerfilSucursal,
+    eliminarFotoPerfilSucursal,
 
     // Métodos de Pago
     actualizarMetodosPagoNegocio,
@@ -936,6 +965,6 @@ export default {
     actualizarParticipacionPuntos,
 
     // Envío y Servicio
-    actualizarEnvioDomicilio,         
+    actualizarEnvioDomicilio,
     actualizarServicioDomicilio,
 };
