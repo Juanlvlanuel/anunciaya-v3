@@ -303,50 +303,63 @@ export function useArticulos(): UseArticulosReturn {
 
   const duplicar = useCallback(
     async (id: string, datos: DuplicarArticuloInput): Promise<boolean> => {
+      // Verificar si la sucursal actual está en las sucursales destino
+      const duplicaEnSucursalActual = datos.sucursalesIds.includes(sucursalId);
       const tempId = `temp-${Date.now()}`;
 
       try {
-        // 1. Obtener artículo original para copia optimista
-        const articuloOriginal = articulos.find((art) => art.id === id);
-
-        // 2. Actualización optimista (crear copia temporal)
-        if (articuloOriginal) {
-          const copiaTemporal: Articulo = {
-            ...articuloOriginal,
-            id: tempId,
-            totalVentas: 0,
-            totalVistas: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          setArticulos((prev) => [copiaTemporal, ...prev]);
+        // 1. Actualización optimista SOLO si duplica en la sucursal actual
+        if (duplicaEnSucursalActual) {
+          const articuloOriginal = articulos.find((art) => art.id === id);
+          
+          if (articuloOriginal) {
+            const copiaTemporal: Articulo = {
+              ...articuloOriginal,
+              id: tempId,
+              totalVentas: 0,
+              totalVistas: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            setArticulos((prev) => [copiaTemporal, ...prev]);
+          }
         }
 
-        // 3. Llamada al backend
+        // 2. Llamada al backend
         const respuesta = await duplicarArticulo(id, datos);
 
         if (respuesta.success && respuesta.data && respuesta.data.length > 0) {
-          // 4. Reemplazar ID temporal con ID real (sin recargar)
-          const nuevoId = respuesta.data[0].id;
-          setArticulos((prev) =>
-            prev.map((art) =>
-              art.id === tempId
-                ? { ...art, id: nuevoId }
-                : art
-            )
-          );
+          // 3. Si hicimos actualización optimista, reemplazar ID temporal con ID real
+          if (duplicaEnSucursalActual) {
+            const articuloDuplicadoEnActual = respuesta.data.find(
+              (art) => art.sucursalId === sucursalId
+            );
+            
+            if (articuloDuplicadoEnActual) {
+              // Solo actualizar el ID - ya tenemos todos los demás campos de la copia original
+              setArticulos((prev) =>
+                prev.map((art) =>
+                  art.id === tempId 
+                    ? { ...art, id: articuloDuplicadoEnActual.id }
+                    : art
+                )
+              );
+            }
+          }
           
-          // Invalidar caché de sucursal actual
-          invalidarCache(sucursalId);
+          // Invalidar caché de TODAS las sucursales destino
+          datos.sucursalesIds.forEach(id => invalidarCache(id));
           
+          notificar.exito('Artículo duplicado');
           return true;
-        }
-        else {
+        } else {
           throw new Error(respuesta.message || 'Error al duplicar artículo');
         }
       } catch (err) {
-        // 5. Revertir cambio optimista
-        setArticulos((prev) => prev.filter((art) => art.id !== tempId));
+        // 4. Revertir cambio optimista si lo hicimos
+        if (duplicaEnSucursalActual) {
+          setArticulos((prev) => prev.filter((art) => art.id !== tempId));
+        }
 
         const mensaje = err instanceof Error ? err.message : 'Error al duplicar artículo';
         notificar.error(mensaje);

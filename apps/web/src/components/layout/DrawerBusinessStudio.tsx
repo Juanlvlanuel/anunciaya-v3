@@ -30,6 +30,7 @@ import {
     Bell,
     MessageSquare,
 } from 'lucide-react';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 // =============================================================================
 // TIPOS
@@ -58,20 +59,20 @@ const opcionesMenu = [
     { id: 'clientes', label: 'Clientes', icono: Users, ruta: '/business-studio/clientes' },
     { id: 'opiniones', label: 'Opiniones', icono: MessageSquare, ruta: '/business-studio/opiniones' },
     { id: 'alertas', label: 'Alertas', icono: Bell, ruta: '/business-studio/alertas' },
-    
+
     // =========== CATÁLOGO & PROMOCIONES ===========
     { id: 'catalogo', label: 'Catálogo', icono: ShoppingBag, ruta: '/business-studio/catalogo' },
     { id: 'ofertas', label: 'Ofertas', icono: Tag, ruta: '/business-studio/ofertas' },
     { id: 'cupones', label: 'Cupones', icono: Ticket, ruta: '/business-studio/cupones' },
-    
+
     // =========== ENGAGEMENT & RECOMPENSAS ===========
     { id: 'puntos', label: 'Puntos', icono: Coins, ruta: '/business-studio/puntos' },
     { id: 'rifas', label: 'Rifas', icono: Gift, ruta: '/business-studio/rifas' },
-    
+
     // =========== RECURSOS HUMANOS ===========
     { id: 'empleados', label: 'Empleados', icono: UserCog, ruta: '/business-studio/empleados' },
     { id: 'vacantes', label: 'Vacantes', icono: Briefcase, ruta: '/business-studio/vacantes' },
-    
+
     // =========== ANÁLISIS & CONFIGURACIÓN ===========
     { id: 'reportes', label: 'Reportes', icono: FileBarChart, ruta: '/business-studio/reportes' },
     { id: 'sucursales', label: 'Sucursales', icono: Building2, ruta: '/business-studio/sucursales' },
@@ -85,6 +86,17 @@ const opcionesMenu = [
 export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudioProps) {
     const location = useLocation();
     const navigate = useNavigate();
+
+    // Detectar si es gerente
+    const usuario = useAuthStore((s) => s.usuario);
+    const esGerente = !!usuario?.sucursalAsignada;
+    const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
+    const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
+
+    // Filtrar opciones: ocultar "Sucursales" y "Puntos" para gerentes y dueños en sucursal secundaria
+    const opcionesFiltradas = vistaComoGerente
+        ? opcionesMenu.filter((opcion) => opcion.id !== 'sucursales' && opcion.id !== 'puntos')
+        : opcionesMenu;
 
     // Handler de navegación
     const handleNavegar = (ruta: string) => {
@@ -122,7 +134,7 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
 
                 {/* Opciones del menú */}
                 <div className="py-2">
-                    {opcionesMenu.map((opcion) => {
+                    {opcionesFiltradas.map((opcion) => {
                         const Icono = opcion.icono;
                         const esActivo =
                             location.pathname === opcion.ruta ||
@@ -132,11 +144,10 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                             <button
                                 key={opcion.id}
                                 onClick={() => handleNavegar(opcion.ruta)}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors ${
-                                    esActivo
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors ${esActivo
                                         ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-500'
                                         : 'text-gray-700 hover:bg-gray-50'
-                                }`}
+                                    }`}
                             >
                                 <Icono className={`w-5 h-5 ${esActivo ? 'text-blue-500' : 'text-gray-400'}`} />
                                 <span className={`font-medium ${esActivo ? 'text-blue-600' : ''}`}>

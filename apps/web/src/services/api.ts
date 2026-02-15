@@ -51,6 +51,7 @@ const RUTAS_SIN_SUCURSAL = [
   '/articulos/publico/',
   '/guardados/',   // Guardados personales del usuario
   '/seguidos/',    // Seguidos personales del usuario
+  '/duplicar',     // Duplicar artículos usa sucursalesIds en el body, no en query params
 ];
 
 /**
@@ -113,7 +114,12 @@ function procesarCola(token: string | null, error: Error | null): void {
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Detectar si es una ruta de ScanYA
-    const esScanYA = config.url?.startsWith('/scanya') || config.url?.startsWith('scanya');
+    // 1. Rutas explícitas de /scanya/*
+    // 2. Si el usuario está navegando en ScanYA PWA (window.location = /scanya),
+    //    TODAS las llamadas API deben usar token ScanYA (ej: /resenas/negocio)
+    const esRutaScanYA = config.url?.startsWith('/scanya') || config.url?.startsWith('scanya');
+    const estaEnContextoScanYA = typeof window !== 'undefined' && window.location.pathname.startsWith('/scanya');
+    const esScanYA = esRutaScanYA || (estaEnContextoScanYA && !!useScanYAStore.getState().accessToken);
 
     // Obtener tokens según el tipo de ruta
     let accessToken: string | null;
@@ -165,6 +171,11 @@ api.interceptors.request.use(
         // 1. URL es exactamente la ruta
         // 2. URL comienza con la ruta seguida de '/'
         // 3. URL comienza con la ruta seguida de '?'
+        // 4. Para "/duplicar", verificar si la URL contiene "/duplicar" en cualquier parte
+        if (rutaBase === '/duplicar') {
+          return url.includes('/duplicar');
+        }
+        
         return url === rutaBase || 
                url.startsWith(rutaBase + '/') || 
                url.startsWith(rutaBase + '?');
@@ -271,7 +282,9 @@ api.interceptors.response.use(
 
       try {
         // Detectar si la petición original era de ScanYA
-        const esScanYA = originalRequest.url?.includes('/scanya');
+        const esRutaScanYAOrig = originalRequest.url?.includes('/scanya');
+        const estaEnScanYA = typeof window !== 'undefined' && window.location.pathname.startsWith('/scanya');
+        const esScanYA = esRutaScanYAOrig || estaEnScanYA;
 
         let refreshToken: string | null;
         let refreshEndpoint: string;
@@ -323,7 +336,9 @@ api.interceptors.response.use(
         // Refresh falló: logout del store correcto
         procesarCola(null, refreshError as Error);
         
-        const esScanYA = originalRequest.url?.includes('/scanya');
+        const esRutaScanYAErr = originalRequest.url?.includes('/scanya');
+        const estaEnScanYAErr = typeof window !== 'undefined' && window.location.pathname.startsWith('/scanya');
+        const esScanYA = esRutaScanYAErr || estaEnScanYAErr;
         
         if (esScanYA) {
           useScanYAStore.getState().logout('sesion_expirada');

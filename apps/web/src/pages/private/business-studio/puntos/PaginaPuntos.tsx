@@ -250,7 +250,7 @@ export default function PaginaPuntos() {
 
   const usuario        = useAuthStore((s) => s.usuario);
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
-  const esGerente      = !usuario?.negocioId && !!usuario?.sucursalAsignada;
+  const esGerente      = !!usuario?.sucursalAsignada; // Gerente tiene sucursalAsignada, dueño tiene null
   const previewNegocioAbierto = useUiStore((s) => s.previewNegocioAbierto);
 
   // ─── Estado: Tab mobile ────────────────────────────────────────────────
@@ -302,7 +302,7 @@ export default function PaginaPuntos() {
     if (!configuracion) cargarConfiguracion();
     if (recompensas.length === 0) cargarRecompensas();
     // No limpiar al desmontar - los datos persisten en el store
-  }, [cargarConfiguracion, cargarRecompensas, configuracion, recompensas]);
+  }, []);
 
   // ─── Estadísticas: se recargan cuando cambia sucursal ──────────────────
   const recargarEstadisticas = useCallback(() => {

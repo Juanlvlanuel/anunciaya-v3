@@ -112,6 +112,7 @@ interface FiltrosNegociosState {
   // Acciones - Limpiar
   // ---------------------------------------------------------------------------
   limpiarFiltros: () => void;
+  resetearFiltrosTemporales: () => void; // Resetea solo búsqueda y distancia
 
   // ---------------------------------------------------------------------------
   // Computed (valores calculados)
@@ -337,6 +338,18 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
    */
   limpiarFiltros: () => {
     set(VALORES_INICIALES);
+  },
+
+  /**
+   * Resetea SOLO los filtros temporales (al salir de la página)
+   * Limpia: búsqueda y distancia
+   * Mantiene: categoría, subcategorías, CardYA, envío
+   */
+  resetearFiltrosTemporales: () => {
+    set({
+      busqueda: '',
+      distancia: 5, // Volver al valor por defecto
+    });
   },
 
   // ---------------------------------------------------------------------------

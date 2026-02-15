@@ -49,7 +49,12 @@ export function LayoutOnboarding({
   const pasoActual = useOnboardingStore(state => state.pasoActual);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 via-slate-50 to-blue-50">
+    <div
+      className="min-h-screen"
+      style={{
+        background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)',
+      }}
+    >
 
       {/* ===================================================================== */}
       {/* LAYOUT MÓVIL (Vertical) */}

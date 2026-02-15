@@ -33,6 +33,10 @@ function hayCiudadGuardada(): boolean {
 }
 
 export function RootLayout() {
+  // ⚠️ Detectar si estamos dentro del iframe de preview (Business Studio)
+  // En modo preview, NO se inicializa auth/socket/GPS para evitar ping-pong con localStorage
+  const esPreviewIframe = new URLSearchParams(window.location.search).has('preview');
+
   const hidratarAuth = useAuthStore((state) => state.hidratarAuth);
   const hidratarAuthScanYA = useScanYAStore((state) => state.hidratarAuth);
 
@@ -47,19 +51,27 @@ export function RootLayout() {
   useTituloDinamico();
 
   // Hidratar autenticación al cargar la app (AnunciaYA y ScanYA)
+  // ⚠️ En preview: hidratarAuth hace early return sin llamar servidor ni escribir localStorage
   useEffect(() => {
-    hidratarAuth(); // AnunciaYA
-    hidratarAuthScanYA(); // ScanYA
-  }, [hidratarAuth, hidratarAuthScanYA]);
+    hidratarAuth(); // AnunciaYA (en preview: solo lee localStorage, no escribe)
+    if (!esPreviewIframe) {
+      hidratarAuthScanYA(); // ScanYA — innecesario en preview
+    }
+  }, [hidratarAuth, hidratarAuthScanYA, esPreviewIframe]);
 
   // Iniciar detección de actividad para el timer de inactividad
+  // ⚠️ No necesario en preview (iframe no maneja sesión)
   useEffect(() => {
+    if (esPreviewIframe) return;
     const limpiar = iniciarDeteccionActividad();
     return limpiar;
-  }, []);
+  }, [esPreviewIframe]);
 
   // Detectar ubicación automáticamente si no hay ciudad guardada
+  // ⚠️ No necesario en preview (iframe solo renderiza vista del negocio)
   useEffect(() => {
+    if (esPreviewIframe) return;
+
     // Evitar doble ejecución (React StrictMode)
     if (deteccionEjecutada.current) return;
     deteccionEjecutada.current = true;
@@ -93,7 +105,7 @@ export function RootLayout() {
     };
 
     detectarUbicacion();
-  }, [obtenerUbicacion, setCiudad]);
+  }, [obtenerUbicacion, setCiudad, esPreviewIframe]);
 
   return (
     <>

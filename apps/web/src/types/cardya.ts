@@ -100,6 +100,7 @@ export interface RecompensaDisponible {
 export interface FiltrosRecompensas {
   negocioId?: string;
   soloDisponibles?: boolean;
+  ciudad?: string; // Filtrar por ciudad del usuario
 }
 
 export interface CanjearRecompensaInput {

@@ -22,7 +22,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Image, Trash2, Plus, Loader2, Store, UserCircle, Images } from 'lucide-react';
-import type { DatosImagenes } from '../hooks/usePerfil';
+import type { DatosImagenes, DatosInformacion } from '../hooks/usePerfil';
 import { useOptimisticUpload } from '../../../../../hooks/useOptimisticUpload';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { api } from '../../../../../services/api';
@@ -32,11 +32,15 @@ import { ModalImagenes } from '../../../../../components/ui';
 interface TabImagenesProps {
   datosImagenes: DatosImagenes;
   setDatosImagenes: (datos: DatosImagenes) => void;
+  esGerente: boolean;
+  datosInformacion: DatosInformacion;
 }
 
 export default function TabImagenes({
   datosImagenes,
   setDatosImagenes,
+  esGerente,
+  datosInformacion,
 }: TabImagenesProps) {
 
   const negocioId = useAuthStore((state) => state.usuario?.negocioId);
@@ -330,65 +334,67 @@ export default function TabImagenes({
     <div className="space-y-6 lg:space-y-4 2xl:space-y-6">
 
       {/* PRIMERA FILA: Logo + Foto Perfil + Portada */}
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_auto_1fr] items-start gap-5 lg:gap-4 2xl:gap-[60px]">
+      <div className={`grid grid-cols-1 ${(esGerente || (datosInformacion.totalSucursales > 1 && !datosInformacion.esPrincipal)) ? 'lg:grid-cols-[auto_1fr]' : 'lg:grid-cols-[auto_auto_1fr]'} items-start gap-5 lg:gap-4 2xl:gap-[60px]`}>
 
-        {/* Logo */}
-        <div className="shrink-0">
-          <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-800 mb-2 lg:mb-1.5 2xl:mb-2">
-            <Store className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-            Logo del Negocio
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-20 h-20 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20 bg-white rounded-xl border-2 border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-              {logo.imageUrl ? (
-                <img 
-                  src={logo.imageUrl} 
-                  alt="Logo" 
-                  className="w-full h-full object-cover cursor-pointer" 
-                  onClick={() => abrirImagenUnica(logo.imageUrl!)}
-                />
-              ) : (
-                <Image className="w-8 h-8 text-slate-400" />
-              )}
+        {/* Logo - Solo dueños en sucursal principal o con 1 sucursal */}
+        {!esGerente && (datosInformacion.totalSucursales === 1 || datosInformacion.esPrincipal) && (
+          <div className="shrink-0">
+            <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-800 mb-2 lg:mb-1.5 2xl:mb-2">
+              <Store className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
+              Logo del Negocio
             </div>
             <div className="flex items-center gap-2">
-              <label className="h-10 lg:h-9 2xl:h-10 px-3 lg:px-2.5 2xl:px-3 flex items-center text-xs font-bold text-blue-600 bg-blue-50 border-2 border-blue-300 rounded-lg hover:bg-blue-100 transition-all shadow-sm cursor-pointer whitespace-nowrap">
-                {logo.imageUrl ? 'Cambiar Logo' : 'Subir Logo'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) logo.uploadImage(file);
-                  }}
-                  disabled={logo.isUploading}
-                  className="hidden"
-                />
-              </label>
-              {logo.imageUrl && (
-                <div className="relative group">
-                  <button
-                    type="button"
-                    onClick={handleEliminarLogo}
+              <div className="relative w-20 h-20 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20 bg-white rounded-xl border-2 border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                {logo.imageUrl ? (
+                  <img
+                    src={logo.imageUrl}
+                    alt="Logo"
+                    className="w-full h-full object-cover cursor-pointer"
+                    onClick={() => abrirImagenUnica(logo.imageUrl!)}
+                  />
+                ) : (
+                  <Image className="w-8 h-8 text-slate-400" />
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="h-10 lg:h-9 2xl:h-10 px-3 lg:px-2.5 2xl:px-3 flex items-center text-xs font-bold text-blue-600 bg-blue-50 border-2 border-blue-300 rounded-lg hover:bg-blue-100 transition-all shadow-sm cursor-pointer whitespace-nowrap">
+                  {logo.imageUrl ? 'Cambiar Logo' : 'Subir Logo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) logo.uploadImage(file);
+                    }}
                     disabled={logo.isUploading}
-                    className="w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all shadow-sm disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                  >
-                    <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                  </button>
-                  {/* Tooltip */}
-                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                    Eliminar Logo
-                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-800"></div>
+                    className="hidden"
+                  />
+                </label>
+                {logo.imageUrl && (
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      onClick={handleEliminarLogo}
+                      disabled={logo.isUploading}
+                      className="w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all shadow-sm disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                    </button>
+                    {/* Tooltip */}
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      Eliminar Logo
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-800"></div>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
+            <p className="text-xs text-slate-500 mt-1">PNG o JPG (máx. 2MB)</p>
+            {logo.isUploading && (
+              <p className="text-xs text-blue-600 font-semibold mt-1">Subiendo...</p>
+            )}
           </div>
-          <p className="text-xs text-slate-500 mt-1">PNG o JPG (máx. 2MB)</p>
-          {logo.isUploading && (
-            <p className="text-xs text-blue-600 font-semibold mt-1">Subiendo...</p>
-          )}
-        </div>
+        )}
 
         {/* Foto Perfil */}
         <div className="shrink-0">
@@ -399,10 +405,10 @@ export default function TabImagenes({
           <div className="flex items-center gap-2">
             <div className="relative w-20 h-20 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20 bg-linear-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg shrink-0 overflow-hidden">
               {fotoPerfil.imageUrl ? (
-                <img 
-                  src={fotoPerfil.imageUrl} 
-                  alt="Perfil" 
-                  className="w-full h-full object-cover cursor-pointer" 
+                <img
+                  src={fotoPerfil.imageUrl}
+                  alt="Perfil"
+                  className="w-full h-full object-cover cursor-pointer"
                   onClick={() => abrirImagenUnica(fotoPerfil.imageUrl!)}
                 />
               ) : (
@@ -457,10 +463,10 @@ export default function TabImagenes({
           <div className="flex items-center gap-2">
             <div className="w-full lg:w-48 2xl:w-80 h-24 lg:h-20 2xl:h-24 bg-white rounded-xl border-2 border-slate-300 flex items-center justify-center overflow-hidden shadow-sm">
               {portada.imageUrl ? (
-                <img 
-                  src={portada.imageUrl} 
-                  alt="Portada" 
-                  className="w-full h-full object-cover cursor-pointer" 
+                <img
+                  src={portada.imageUrl}
+                  alt="Portada"
+                  className="w-full h-full object-cover cursor-pointer"
                   onClick={() => abrirImagenUnica(portada.imageUrl!)}
                 />
               ) : (
@@ -529,10 +535,10 @@ export default function TabImagenes({
               key={`galeria-${index}`}
               className="relative aspect-square bg-white rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm"
             >
-              <img 
-                src={url} 
-                alt={`Galería ${index + 1}`} 
-                className="w-full h-full object-cover cursor-pointer" 
+              <img
+                src={url}
+                alt={`Galería ${index + 1}`}
+                className="w-full h-full object-cover cursor-pointer"
                 onClick={() => abrirGaleria(index)}
               />
               {/* Botón eliminar - Siempre visible en esquina superior derecha */}

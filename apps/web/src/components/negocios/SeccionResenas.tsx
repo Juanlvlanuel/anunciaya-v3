@@ -8,16 +8,15 @@
  * Diseño moderno estilo Google/Yelp - Compacto con modal para ver más
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Star,
   ChevronRight,
   Plus,
-  ThumbsUp,
-  MessageCircle,
   User,
 } from 'lucide-react';
 import { ModalResenas } from './ModalResenas';
+import { ModalEscribirResena } from './ModalEscribirResena';
 
 // =============================================================================
 // TIPOS
@@ -35,12 +34,23 @@ interface Resena {
   };
   likes?: number;
   tieneRespuesta?: boolean;
+  respuestaNegocio?: {
+    texto: string;
+    fecha: string;
+    negocioNombre: string;
+    negocioLogo: string | null;
+  } | null;
 }
 
 interface SeccionResenasProps {
   resenas: Resena[];
   promedioRating?: number;
-  onEscribirResena?: () => void;
+  tieneCompraVerificada?: boolean;
+  resenaDestacadaId?: string | null;
+  onResenaDestacadaVista?: () => void;
+  onEscribirResena?: () => Promise<void> | void;
+  onEnviarResena?: (rating: number, texto: string) => void;
+  onEditarResena?: (resenaId: string, rating: number, texto: string) => void;
 }
 
 // =============================================================================
@@ -75,14 +85,56 @@ const formatearFecha = (fecha: string | null): string => {
 export function SeccionResenas({
   resenas,
   promedioRating,
+  tieneCompraVerificada,
+  resenaDestacadaId,
+  onResenaDestacadaVista,
   onEscribirResena,
+  onEnviarResena,
+  onEditarResena,
 }: SeccionResenasProps) {
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [resenaEditando, setResenaEditando] = useState<{
+    id: string;
+    rating: number | null;
+    texto: string | null;
+  } | null>(null);
+  const [modalEscribirAbierto, setModalEscribirAbierto] = useState(false);
+
+  useEffect(() => {
+    if (resenaDestacadaId) {
+      if (resenas.length > 0) {
+        setModalAbierto(true);
+      } else if (resenaDestacadaId === 'abrir') {
+        setModalEscribirAbierto(true);
+      }
+    }
+  }, [resenaDestacadaId, resenas]);
 
   // Preview de las primeras reseñas
   const resenasPreview = resenas.slice(0, RESENAS_PREVIEW);
   const tieneResenas = resenas.length > 0;
   const hayMasResenas = resenas.length > RESENAS_PREVIEW;
+
+  // Abrir modal escribir nueva reseña (espera verificación de compra)
+  const handleEscribirResena = async () => {
+    setResenaEditando(null);
+    await onEscribirResena?.();
+    setModalEscribirAbierto(true);
+  };
+
+  // Abrir modal editar reseña existente
+  const handleEditarResena = (resena: Resena) => {
+    setModalAbierto(false); // Cerrar modal de lista
+    setResenaEditando({ id: resena.id, rating: resena.rating, texto: resena.texto });
+    setModalEscribirAbierto(true);
+  };
+
+  // Cerrar modal escribir/editar
+  const handleCerrarEscribir = () => {
+    setModalEscribirAbierto(false);
+    setResenaEditando(null);
+    onResenaDestacadaVista?.();
+  };
 
   return (
     <>
@@ -108,7 +160,7 @@ export function SeccionResenas({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onEscribirResena();
+                  handleEscribirResena();
                 }}
                 className="flex items-center gap-1 px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 bg-white hover:bg-amber-50 text-amber-500 rounded-lg text-xs lg:text-xs 2xl:text-xs font-medium transition-all cursor-pointer"
               >
@@ -163,7 +215,7 @@ export function SeccionResenas({
             </p>
             {onEscribirResena && (
               <button
-                onClick={onEscribirResena}
+                onClick={handleEscribirResena}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -177,10 +229,25 @@ export function SeccionResenas({
       {/* Modal de todas las reseñas */}
       <ModalResenas
         abierto={modalAbierto}
-        onCerrar={() => setModalAbierto(false)}
+        onCerrar={() => {
+          setModalAbierto(false);
+          onResenaDestacadaVista?.();
+        }}
         resenas={resenas}
         promedioRating={promedioRating}
-        onEscribirResena={onEscribirResena}
+        onEscribirResena={handleEscribirResena}
+        onEditarResena={handleEditarResena}
+        resenaDestacadaId={resenaDestacadaId}
+      />
+
+      {/* Modal escribir / editar reseña */}
+      <ModalEscribirResena
+        abierto={modalEscribirAbierto}
+        onCerrar={handleCerrarEscribir}
+        tieneCompraVerificada={tieneCompraVerificada}
+        onEnviar={onEnviarResena}
+        resenaEditar={resenaEditando}
+        onEditar={onEditarResena}
       />
     </>
   );
@@ -198,71 +265,82 @@ interface CardResenaCompactaProps {
 function CardResenaCompacta({ resena, onClick }: CardResenaCompactaProps) {
   return (
     <div
-      className="flex gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer"
+      className="flex flex-col gap-0 p-3 bg-white rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer"
       onClick={onClick}
     >
-      {/* Avatar */}
-      <div className="shrink-0">
-        {resena.autor.avatarUrl ? (
-          <img
-            src={resena.autor.avatarUrl}
-            alt={resena.autor.nombre}
-            className="w-10 h-10 rounded-full object-cover"
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
-            <User className="w-5 h-5 text-slate-500" />
-          </div>
-        )}
-      </div>
-
-      {/* Contenido */}
-      <div className="flex-1 min-w-0">
-        {/* Header: nombre + fecha */}
-        <div className="flex items-center justify-between gap-2 mb-0.5">
-          <span className="font-medium text-slate-900 text-sm truncate">
-            {resena.autor.nombre}
-          </span>
-          <span className="text-xs text-slate-400 shrink-0">
-            {formatearFecha(resena.createdAt)}
-          </span>
+      <div className="flex gap-3">
+        {/* Avatar */}
+        <div className="shrink-0">
+          {resena.autor.avatarUrl ? (
+            <img
+              src={resena.autor.avatarUrl}
+              alt={resena.autor.nombre}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
+              <User className="w-5 h-5 text-slate-500" />
+            </div>
+          )}
         </div>
 
-        {/* Estrellas */}
-        <div className="flex gap-0.5 mb-1">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Star
-              key={star}
-              className={`w-3.5 h-3.5 ${
-                resena.rating && star <= resena.rating
+        {/* Contenido */}
+        <div className="flex-1 min-w-0">
+          {/* Header: nombre + fecha */}
+          <div className="flex items-center justify-between gap-2 mb-0.5">
+            <span className="font-medium text-slate-900 text-sm truncate">
+              {resena.autor.nombre}
+            </span>
+            <span className="text-xs text-slate-400 shrink-0">
+              {formatearFecha(resena.createdAt)}
+            </span>
+          </div>
+
+          {/* Estrellas */}
+          <div className="flex gap-0.5 mb-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`w-3.5 h-3.5 ${resena.rating && star <= resena.rating
                   ? 'text-amber-400 fill-current'
                   : 'text-slate-200'
-              }`}
-            />
-          ))}
-        </div>
+                  }`}
+              />
+            ))}
+          </div>
 
-        {/* Texto */}
-        {resena.texto && (
-          <p className="text-sm text-slate-600 line-clamp-2">{resena.texto}</p>
-        )}
-
-        {/* Footer: likes + respuesta */}
-        <div className="flex items-center gap-3 mt-2">
-          {resena.likes !== undefined && resena.likes > 0 && (
-            <span className="flex items-center gap-1 text-xs text-slate-400">
-              <ThumbsUp className="w-3 h-3" />
-              {resena.likes}
-            </span>
-          )}
-          {resena.tieneRespuesta && (
-            <span className="flex items-center gap-1 text-xs text-blue-500">
-              <MessageCircle className="w-3 h-3" />
-              Respuesta
-            </span>
+          {/* Texto */}
+          {resena.texto && (
+            <p className="text-sm text-slate-600 line-clamp-2">{resena.texto}</p>
           )}
         </div>
       </div>
+
+      {/* Respuesta del negocio */}
+      {resena.respuestaNegocio && (
+        <div className="mt-2 p-2.5 bg-blue-50 rounded-lg border border-blue-100">
+          <div className="flex items-center gap-2 mb-1">
+            {resena.respuestaNegocio.negocioLogo ? (
+              <img
+                src={resena.respuestaNegocio.negocioLogo}
+                alt={resena.respuestaNegocio.negocioNombre}
+                className="w-5 h-5 rounded-full object-cover shrink-0"
+              />
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-[8px] font-bold shrink-0">
+                {resena.respuestaNegocio.negocioNombre?.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-xs font-semibold text-blue-700 truncate">
+              {resena.respuestaNegocio.negocioNombre}
+            </span>
+            <span className="text-[10px] text-blue-400 ml-auto shrink-0">
+              {formatearFecha(resena.respuestaNegocio.fecha)}
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 line-clamp-2">{resena.respuestaNegocio.texto}</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -40,11 +40,9 @@ import { Boton } from '../../../../components/ui/Boton';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { ModalImagenes } from '../../../../components/ui';
-import { notificar } from '../../../../utils/notificaciones';
 import { ModalArticulo } from './ModalArticulo';
 import { ModalDuplicar } from './ModalDuplicar';
 import { CardArticulo } from './CardArticulo';
-import { obtenerSucursalesNegocio } from '../../../../services/negociosService';
 import type { Articulo, FiltrosArticulos, CrearArticuloInput } from '../../../../types/articulos';
 
 // =============================================================================
@@ -111,7 +109,6 @@ export function PaginaCatalogo() {
     const [modalDuplicarAbierto, setModalDuplicarAbierto] = useState(false);
     const [articuloEditando, setArticuloEditando] = useState<Articulo | null>(null);
     const [articuloDuplicando, setArticuloDuplicando] = useState<Articulo | null>(null);
-    const [totalSucursales, setTotalSucursales] = useState(0);
     const [paginaActual, setPaginaActual] = useState(0); // Bloque actual (0, 1, 2...) - Solo para laptop/desktop
     const [articulosCargados, setArticulosCargados] = useState(ARTICULOS_POR_PAGINA); // Para mobile infinite scroll
     const [previewAbierto, setPreviewAbierto] = useState(false); // Detectar preview
@@ -132,7 +129,8 @@ export function PaginaCatalogo() {
     });
 
     // Determinar si es dueño (puede duplicar a otras sucursales)
-    const esDueno = !usuario?.sucursalAsignada;
+    const esDueno = !usuario?.sucursalAsignada; // Dueño tiene sucursalAsignada null, gerente tiene UUID
+    const esGerente = !!usuario?.sucursalAsignada;
 
     // ===========================================================================
     // HANDLERS PARA MODAL DE IMÁGENES
@@ -153,22 +151,6 @@ export function PaginaCatalogo() {
             initialIndex: 0,
         });
     };
-
-    // ===========================================================================
-    // CARGAR CANTIDAD DE SUCURSALES
-    // ===========================================================================
-
-    useEffect(() => {
-        if (usuario?.negocioId && esDueno) {
-            obtenerSucursalesNegocio(usuario.negocioId)
-                .then((res) => {
-                    if (res.success && res.data) {
-                        setTotalSucursales(res.data.length);
-                    }
-                })
-                .catch(() => setTotalSucursales(0));
-        }
-    }, [usuario?.negocioId, esDueno]);
 
     // ===========================================================================
     // CATEGORÍAS ÚNICAS
@@ -379,21 +361,18 @@ export function PaginaCatalogo() {
     };
 
     const handleDuplicar = async (articulo: Articulo) => {
-        // Si hay más de 1 sucursal, mostrar modal para seleccionar
-        if (totalSucursales >= 1) {
-            setArticuloDuplicando(articulo);
-            setModalDuplicarAbierto(true);
+        // GERENTES: Duplicar directo en su sucursal asignada (sin modal)
+        if (esGerente && usuario?.sucursalAsignada) {
+            await duplicar(articulo.id, {
+                sucursalesIds: [usuario.sucursalAsignada],
+            });
             return;
         }
 
-        // Si hay 1 sola sucursal, duplicar directo en la misma
-        if (usuario?.sucursalActiva) {
-            const exito = await duplicar(articulo.id, {
-                sucursalesIds: [usuario.sucursalActiva],
-            });
-            if (exito) {
-                notificar.exito('Artículo duplicado correctamente');
-            }
+        // DUEÑOS: Abrir modal para seleccionar sucursales
+        if (esDueno) {
+            setArticuloDuplicando(articulo);
+            setModalDuplicarAbierto(true);
         }
     };
 
@@ -706,7 +685,7 @@ export function PaginaCatalogo() {
                                     articulo={articulo}
                                     onEditar={handleEditar}
                                     onEliminar={handleEliminar}
-                                    onDuplicar={esDueno ? handleDuplicar : undefined}
+                                    onDuplicar={handleDuplicar} 
                                     onToggle={handleToggle}
                                     onImagenClick={abrirImagenUnica}
                                 />

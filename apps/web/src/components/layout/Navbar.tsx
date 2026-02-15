@@ -37,6 +37,7 @@ import {
 
 // Stores
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useSearchStore, detectarSeccion, placeholderSeccion } from '../../stores/useSearchStore';
 import Tooltip from '../ui/Tooltip';
 import { useUiStore } from '../../stores/useUiStore';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -224,13 +225,20 @@ export const Navbar = () => {
   // ─────────────────────────────────────────────────────────────────────────────
   // ESTADO LOCAL Y REFS
   // ─────────────────────────────────────────────────────────────────────────────
-  const [searchQuery, setSearchQuery] = useState('');
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [buscadorExpandido, setBuscadorExpandido] = useState(false);
   const [inputVisible, setInputVisible] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buscadorRef = useRef<HTMLDivElement>(null);
   const inputBuscadorRef = useRef<HTMLInputElement>(null);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // BÚSQUEDA GLOBAL - Conectado al store compartido
+  // ─────────────────────────────────────────────────────────────────────────────
+  const searchQuery = useSearchStore((s) => s.query);
+  const setSearchQuery = useSearchStore((s) => s.setQuery);
+  const seccionActiva = detectarSeccion(location.pathname);
+  const placeholderBuscador = placeholderSeccion(seccionActiva);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // EFFECT: Inyectar estilos de animación
@@ -399,11 +407,17 @@ export const Navbar = () => {
   const esComercial = usuario?.modoActivo === 'comercial';
 
   const avatarUrl = esComercial
-    ? usuario?.fotoPerfilNegocio || null
+    ? (usuario?.sucursalAsignada
+      ? usuario.fotoPerfilSucursalAsignada       // Gerente
+      : usuario.fotoPerfilNegocio                // Dueño
+    ) || null
     : usuario?.avatarUrl || null;
 
   const usuarioInicial = esComercial
-    ? usuario?.nombreNegocio?.charAt(0).toUpperCase() || 'N'
+    ? (usuario?.sucursalAsignada
+      ? usuario.nombreSucursalAsignada?.charAt(0).toUpperCase()
+      : usuario.nombreNegocio?.charAt(0).toUpperCase()
+    ) || 'N'
     : usuario?.nombre?.charAt(0).toUpperCase() || '?';
 
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
@@ -430,9 +444,8 @@ export const Navbar = () => {
 
   const handleBusqueda = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      // TODO: Implementar búsqueda global
-    }
+    // El filtrado lo maneja cada página leyendo searchQuery del store
+    // No es necesario hacer nada aquí
   };
 
   // Handler para expandir buscador
@@ -555,14 +568,14 @@ export const Navbar = () => {
                       }}
                       onClick={expandirBuscador}
                     >
-                      Busca en todo AnunciaYA
+                      {placeholderBuscador}
                     </span>
 
                     {/* Input - expansión de izquierda a derecha */}
                     <form
                       onSubmit={handleBusqueda}
                       className={`
-                          overflow-hidden transition-[width] duration-300 ease-out
+                          relative overflow-hidden transition-[width] duration-300 ease-out
                           ${buscadorExpandido ? 'w-full' : 'w-0'}
                         `}
                       onTransitionEnd={() => {
@@ -583,11 +596,14 @@ export const Navbar = () => {
                             setBuscadorExpandido(false);
                           }
                         }}
-                        placeholder="Buscar negocios, ofertas..."
+                        placeholder={placeholderBuscador}
+                        autoCapitalize="off"
+                        spellCheck="false"
                         className="
                             w-64 lg:w-56 2xl:w-80
                             px-4 lg:px-3 2xl:px-5 
                             py-1.5 lg:py-1.5 2xl:py-2
+                            pr-10 lg:pr-9 2xl:pr-12
                             bg-white
                             rounded-full
                             text-xs lg:text-xs 2xl:text-sm
@@ -597,6 +613,29 @@ export const Navbar = () => {
                             shadow-lg
                           "
                       />
+
+                      {/* Botón X para limpiar */}
+                      {searchQuery.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery('');
+                            inputBuscadorRef.current?.focus();
+                          }}
+                          className="
+                            absolute right-3 lg:right-2 2xl:right-4 top-1/2 -translate-y-1/2
+                            w-5 h-5 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6
+                            bg-gray-300 hover:bg-gray-400
+                            rounded-full
+                            flex items-center justify-center
+                            transition-colors
+                            cursor-pointer
+                          "
+                          title="Limpiar búsqueda"
+                        >
+                          <X className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5 text-white" />
+                        </button>
+                      )}
                     </form>
                   </div>
                 </div>
@@ -876,14 +915,26 @@ export const Navbar = () => {
                               } overflow-hidden`}
                           >
                             {esComercial ? (
-                              usuario?.fotoPerfilNegocio ? (
+                              // Foto de perfil comercial
+                              (usuario?.sucursalAsignada
+                                ? usuario.fotoPerfilSucursalAsignada      // Gerente: foto de su sucursal
+                                : usuario.fotoPerfilNegocio               // Dueño: foto del negocio
+                              ) ? (
                                 <img
-                                  src={usuario.fotoPerfilNegocio}
-                                  alt={usuario?.nombreNegocio || 'Negocio'}
+                                  src={(usuario?.sucursalAsignada
+                                    ? usuario.fotoPerfilSucursalAsignada
+                                    : usuario.fotoPerfilNegocio) ?? undefined}
+                                  alt={usuario?.sucursalAsignada
+                                    ? usuario.nombreSucursalAsignada || 'Sucursal'
+                                    : usuario.nombreNegocio || 'Negocio'}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                usuario?.nombreNegocio?.charAt(0).toUpperCase() || 'N'
+                                // Inicial si no hay foto
+                                (usuario?.sucursalAsignada
+                                  ? usuario.nombreSucursalAsignada?.charAt(0).toUpperCase()
+                                  : usuario.nombreNegocio?.charAt(0).toUpperCase()
+                                ) || 'N'
                               )
                             ) : (
                               avatarUrl ? (
@@ -908,15 +959,17 @@ export const Navbar = () => {
 
                         {/* Nombre */}
                         <p className="font-bold text-gray-900 lg:text-xs 2xl:text-base text-base mb-0.5 px-2 truncate w-full">
-                          {esComercial && usuario?.nombreNegocio
+                          {esComercial
                             ? usuario.nombreNegocio
                             : `${usuario?.nombre} ${usuario?.apellidos}`}
                         </p>
 
                         {/* Correo */}
                         <p className="lg:text-[10px] 2xl:text-sm text-sm text-gray-600 px-2 truncate w-full">
-                          {esComercial && usuario?.correoNegocio
-                            ? usuario.correoNegocio
+                          {esComercial
+                            ? (usuario?.sucursalAsignada
+                              ? `Suc. ${usuario.nombreSucursalAsignada}`
+                              : usuario.correoNegocio)
                             : usuario?.correo}
                         </p>
                       </div>

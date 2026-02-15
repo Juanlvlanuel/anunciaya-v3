@@ -24,6 +24,7 @@ import { api } from '../../../../../services/api';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { notificar } from '../../../../../utils/notificaciones';
 import { detectarZonaHoraria } from '../../../../../utils/zonaHoraria';
+import { obtenerSucursalesNegocio } from '../../../../../services/negociosService';
 
 // =============================================================================
 // TIPOS
@@ -31,15 +32,19 @@ import { detectarZonaHoraria } from '../../../../../utils/zonaHoraria';
 
 export interface DatosInformacion {
   nombre: string;
+  nombreSucursal: string;
   descripcion: string;
   categoriaId: number;
   subcategoriasIds: number[];
   participaCardYA: boolean;
+  esPrincipal: boolean;
+  totalSucursales: number;
 }
 
 export interface DatosUbicacion {
   direccion: string;
   ciudad: string;
+  estado: string;
   codigoPostal: string;
   latitud: number | null;
   longitud: number | null;
@@ -108,6 +113,7 @@ interface PerfilCompleto {
   sucursalNombre: string;
   direccion: string;
   ciudad: string;
+  estado: string;
   latitud: number | null;
   longitud: number | null;
   telefono: string | null;
@@ -172,15 +178,19 @@ export function usePerfil() {
   // Estados por tabs
   const [datosInformacion, setDatosInformacion] = useState<DatosInformacion>({
     nombre: '',
+    nombreSucursal: '',
     descripcion: '',
     categoriaId: 0,
     subcategoriasIds: [],
     participaCardYA: false,
+    esPrincipal: true,
+    totalSucursales: 1,
   });
 
   const [datosUbicacion, setDatosUbicacion] = useState<DatosUbicacion>({
     direccion: '',
     ciudad: '',
+    estado: '',
     codigoPostal: '',
     latitud: null,
     longitud: null,
@@ -248,12 +258,27 @@ export function usePerfil() {
         const perfil = response.data.data;
 
         // Mapear a estados locales
+        // Obtener sucursales para determinar total y esPrincipal
+        let totalSucursales = 1;
+        let esPrincipal = true;
+        if (negocioId) {
+          const resSucursales = await obtenerSucursalesNegocio(negocioId);
+          if (resSucursales.success && resSucursales.data) {
+            totalSucursales = resSucursales.data.length;
+            const sucursalActual = resSucursales.data.find(s => s.id === sucursalActiva);
+            esPrincipal = sucursalActual?.esPrincipal ?? true;
+          }
+        }
+
         const infoInicial = {
           nombre: perfil.negocioNombre,
+          nombreSucursal: perfil.sucursalNombre || '',
           descripcion: perfil.negocioDescripcion || '',
           categoriaId: perfil.categorias[0]?.categoria.id || 0,
           subcategoriasIds: perfil.categorias.map(c => c.id),
           participaCardYA: perfil.aceptaCardya,
+          esPrincipal,
+          totalSucursales,
         };
         setDatosInformacion(infoInicial);
         setDatosInicialesInformacion(infoInicial);
@@ -261,6 +286,7 @@ export function usePerfil() {
         const ubicacionInicial = {
           direccion: perfil.direccion || '',
           ciudad: perfil.ciudad || '',
+          estado: perfil.estado || '',
           codigoPostal: '',
           latitud: perfil.latitud,
           longitud: perfil.longitud,
@@ -400,10 +426,13 @@ export function usePerfil() {
     try {
       setGuardando(true);
 
+      // Determinar si el dueño está viendo como gerente (sucursal secundaria)
+      const vistaComoGerenteGuardado = esGerente || (datosInformacion.totalSucursales > 1 && !datosInformacion.esPrincipal);
+
       // =========================================================================
-      // INFORMACIÓN (solo dueños)
+      // INFORMACIÓN (solo dueños en sucursal principal o con 1 sucursal)
       // =========================================================================
-      if (!esGerente && datosInicialesInformacion) {
+      if (!vistaComoGerenteGuardado && datosInicialesInformacion) {
         const cambioInfo = JSON.stringify(datosInformacion) !== JSON.stringify(datosInicialesInformacion);
 
         if (cambioInfo) {
@@ -416,6 +445,10 @@ export function usePerfil() {
               descripcion: datosInformacion.descripcion,
               subcategoriasIds: datosInformacion.subcategoriasIds,
               participaCardYA: datosInformacion.participaCardYA,
+              ...(datosInformacion.totalSucursales > 1 && {
+                nombreSucursal: datosInformacion.nombreSucursal,
+                sucursalId: sucursalActiva,
+              }),
             });
 
             // Actualizar nombreNegocio en authStore si cambió el nombre
@@ -441,18 +474,21 @@ export function usePerfil() {
       // =========================================================================
       if (datosInicialesContacto) {
         const cambioContacto = JSON.stringify(datosContacto) !== JSON.stringify(datosInicialesContacto);
+        const cambioNombreSucursal = vistaComoGerenteGuardado && datosInicialesInformacion
+          ? datosInformacion.nombreSucursal !== datosInicialesInformacion.nombreSucursal
+          : false;
 
-        if (cambioContacto) {
-          cambiosDetectados.push(esGerente ? 'Datos de Sucursal' : 'Contacto');
+        if (cambioContacto || cambioNombreSucursal) {
+          cambiosDetectados.push(vistaComoGerenteGuardado ? 'Datos de Sucursal' : 'Contacto');
           const datosAnteriores = { ...datosContacto };
 
           try {
             await api.put(`/negocios/${negocioId}/contacto`, {
-              nombreSucursal: esGerente ? datosContacto.nombreSucursal : undefined,
+              nombreSucursal: vistaComoGerenteGuardado ? datosInformacion.nombreSucursal : undefined,
               telefono: datosContacto.telefono,
               whatsapp: datosContacto.whatsapp,
               correo: datosContacto.email,
-              sitioWeb: !esGerente ? datosContacto.sitioWeb : undefined,
+              sitioWeb: !vistaComoGerenteGuardado ? datosContacto.sitioWeb : undefined,
               redesSociales: datosContacto.redesSociales,
             });
           } catch (error) {
@@ -477,6 +513,7 @@ export function usePerfil() {
             await api.put(`/negocios/${negocioId}/ubicacion`, {
               direccion: datosUbicacion.direccion,
               ciudad: datosUbicacion.ciudad,
+              estado: datosUbicacion.estado,
               latitud: datosUbicacion.latitud,
               longitud: datosUbicacion.longitud,
               zonaHoraria: detectarZonaHoraria(

@@ -33,6 +33,7 @@ import {
   ChevronRight,
   MessageSquare,
 } from 'lucide-react';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -105,6 +106,17 @@ export function MenuBusinessStudio() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Detectar si es gerente
+  const usuario = useAuthStore((s) => s.usuario);
+  const esGerente = !!usuario?.sucursalAsignada;
+  const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
+  const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
+
+  // Filtrar opciones: ocultar "Sucursales" y "Puntos" para gerentes y dueños en sucursal secundaria
+  const opcionesFiltradas = vistaComoGerente
+    ? opcionesMenu.filter((opcion) => opcion.id !== 'sucursales' && opcion.id !== 'puntos')
+    : opcionesMenu;
+
   // Estado para navegación por teclado
   const [indiceFocused, setIndiceFocused] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -122,7 +134,7 @@ export function MenuBusinessStudio() {
   }, []);
 
   // Encontrar índice activo basado en la ruta actual
-  const indiceActivo = opcionesMenu.findIndex(
+  const indiceActivo = opcionesFiltradas.findIndex(
     (opcion) =>
       location.pathname === opcion.ruta ||
       (opcion.id === 'dashboard' && location.pathname === '/business-studio')
@@ -138,7 +150,7 @@ export function MenuBusinessStudio() {
           e.preventDefault();
           setIndiceFocused((prev) => {
             const actual = prev === -1 ? indiceActivo : prev;
-            const nuevo = actual < opcionesMenu.length - 1 ? actual + 1 : 0;
+            const nuevo = actual < opcionesFiltradas.length - 1 ? actual + 1 : 0;
             botonesRef.current[nuevo]?.focus();
             return nuevo;
           });
@@ -148,7 +160,7 @@ export function MenuBusinessStudio() {
           e.preventDefault();
           setIndiceFocused((prev) => {
             const actual = prev === -1 ? indiceActivo : prev;
-            const nuevo = actual > 0 ? actual - 1 : opcionesMenu.length - 1;
+            const nuevo = actual > 0 ? actual - 1 : opcionesFiltradas.length - 1;
             botonesRef.current[nuevo]?.focus();
             return nuevo;
           });
@@ -162,14 +174,14 @@ export function MenuBusinessStudio() {
 
         case 'End':
           e.preventDefault();
-          setIndiceFocused(opcionesMenu.length - 1);
-          botonesRef.current[opcionesMenu.length - 1]?.focus();
+          setIndiceFocused(opcionesFiltradas.length - 1);
+          botonesRef.current[opcionesFiltradas.length - 1]?.focus();
           break;
 
         case 'Enter':
           if (indiceFocused >= 0) {
             e.preventDefault();
-            navigate(opcionesMenu[indiceFocused].ruta);
+            navigate(opcionesFiltradas[indiceFocused].ruta);
           }
           break;
       }
@@ -188,7 +200,7 @@ export function MenuBusinessStudio() {
     <div className="h-full flex flex-col bg-white z-0" ref={menuRef}>
       {/* Opciones del menú - Franjas */}
       <nav className="flex-1 overflow-y-auto py-2 lg:py-1.5 2xl:py-2" role="menu">
-        {opcionesMenu.map((opcion, index) => {
+        {opcionesFiltradas.map((opcion, index) => {
           const Icono = opcion.icono;
           const esActivo = index === indiceActivo;
           const esFocused = index === indiceFocused;
@@ -215,7 +227,7 @@ export function MenuBusinessStudio() {
                 }
               `}
             >
-              <Icono 
+              <Icono
                 className={`
                   w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0
                   ${esActivo ? 'text-white' : esFocused ? 'text-blue-500' : 'text-slate-400'}
@@ -232,11 +244,11 @@ export function MenuBusinessStudio() {
               {/* Indicador dinámico: Punto → Flecha */}
               <div className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 flex items-center justify-center">
                 {esActivo ? (
-                  <ChevronRight 
+                  <ChevronRight
                     className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white arrow-bounce"
                   />
                 ) : esFocused ? (
-                  <ChevronRight 
+                  <ChevronRight
                     className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 dot-to-arrow"
                   />
                 ) : (

@@ -11,10 +11,12 @@
  * Ubicación: apps/web/src/components/scanya/HeaderScanYA.tsx
  */
 
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Store } from 'lucide-react';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { obtenerSucursalesNegocio } from '@/services/negociosService';
 import IndicadorOffline from './IndicadorOffline';
 
 // =============================================================================
@@ -34,7 +36,48 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
   const { usuario, logout } = useScanYAStore();
   const online = useOnlineStatus();
 
+  // Estados para controlar la visualización del nombre
+  const [totalSucursales, setTotalSucursales] = useState<number>(0);
+  const [esSucursalPrincipal, setEsSucursalPrincipal] = useState<boolean>(false);
+  const [nombreSucursalReal, setNombreSucursalReal] = useState<string>('');
+
   if (!usuario) return null;
+
+  // Cargar información de sucursales
+  useEffect(() => {
+    async function cargarSucursales() {
+      if (!usuario?.negocioId) return;
+
+      try {
+        const respuesta = await obtenerSucursalesNegocio(usuario.negocioId);
+        
+        console.log('[HEADER DEBUG] Sucursales obtenidas:', respuesta.data);
+        console.log('[HEADER DEBUG] usuario.sucursalId:', usuario.sucursalId);
+        console.log('[HEADER DEBUG] usuario.tipo:', usuario.tipo);
+        
+        if (respuesta.success && respuesta.data) {
+          setTotalSucursales(respuesta.data.length);
+
+          // Buscar la sucursal actual para obtener su nombre real y si es principal
+          const sucursalActual = respuesta.data.find(s => s.id === usuario.sucursalId);
+          
+          console.log('[HEADER DEBUG] sucursalActual encontrada:', sucursalActual);
+          
+          if (sucursalActual) {
+            setEsSucursalPrincipal(sucursalActual.esPrincipal);
+            setNombreSucursalReal(sucursalActual.nombre);
+            
+            console.log('[HEADER DEBUG] esPrincipal:', sucursalActual.esPrincipal);
+            console.log('[HEADER DEBUG] nombreSucursalReal:', sucursalActual.nombre);
+          }
+        }
+      } catch (error) {
+        console.error('[HEADER SCANYA] Error cargando sucursales:', error);
+      }
+    }
+
+    cargarSucursales();
+  }, [usuario?.negocioId, usuario?.sucursalId]);
 
   // ---------------------------------------------------------------------------
   // HANDLERS
@@ -181,20 +224,39 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
                 {usuario.nombreNegocio}
               </h1>
 
-              {/* Separador + Sucursal (si existe) */}
-              {usuario.nombreSucursal && (
-                <>
-                  <span className="text-[#3B82F6] font-bold text-xl">•</span>
-                  <p
-                    className="
-                      text-[#94A3B8] truncate
-                      text-base 2xl:text-lg
-                    "
-                  >
-                    {usuario.nombreSucursal}
-                  </p>
-                </>
-              )}
+              {/* Separador + Sucursal (CONDICIONAL) */}
+              {(() => {
+                // CASO 1: GERENTE - siempre mostrar nombre REAL de la sucursal
+                if (usuario.tipo === 'gerente' && nombreSucursalReal) {
+                  return (
+                    <>
+                      <span className="text-[#3B82F6] font-bold text-xl">•</span>
+                      <p className="text-[#94A3B8] truncate text-base 2xl:text-lg">
+                        {nombreSucursalReal}
+                      </p>
+                    </>
+                  );
+                }
+
+                // CASO 2: DUEÑO con 1 sola sucursal - NO mostrar nada
+                if (usuario.tipo === 'dueno' && totalSucursales === 1) {
+                  return null;
+                }
+
+                // CASO 3: DUEÑO con 2+ sucursales
+                if (usuario.tipo === 'dueno' && totalSucursales > 1) {
+                  return (
+                    <>
+                      <span className="text-[#3B82F6] font-bold text-xl">•</span>
+                      <p className="text-[#94A3B8] truncate text-base 2xl:text-lg">
+                        {esSucursalPrincipal ? 'Matriz' : nombreSucursalReal}
+                      </p>
+                    </>
+                  );
+                }
+
+                return null;
+              })()}
             </div>
           </div>
 

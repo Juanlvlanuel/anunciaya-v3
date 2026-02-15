@@ -34,6 +34,13 @@ export interface DatosCheckout {
 }
 
 /**
+ * Datos necesarios para upgrade de cuenta personal a comercial
+ */
+export interface DatosCheckoutUpgrade {
+  nombreNegocio: string;
+}
+
+/**
  * Respuesta al crear una sesión de checkout
  */
 export interface RespuestaCheckout {
@@ -99,6 +106,41 @@ export async function crearCheckout(
 }
 
 // =============================================================================
+// FUNCIÓN 1.5: CREAR CHECKOUT UPGRADE (PERSONAL → COMERCIAL)
+// =============================================================================
+
+/**
+ * Crea una sesión de pago para upgrade de cuenta personal a comercial.
+ * 
+ * ¿Qué hace?
+ * - Usuario YA autenticado quiere activar modo comercial
+ * - Llama al backend para crear sesión de Stripe
+ * - Devuelve URL de checkout
+ * 
+ * ¿Cuándo se usa?
+ * - Desde /crear-negocio
+ * - Usuario con cuenta personal quiere hacer upgrade
+ * 
+ * @param datos - Solo nombreNegocio (el resto viene del token)
+ * @returns URL de checkout de Stripe
+ * 
+ * @example
+ * const { checkoutUrl } = await crearCheckoutUpgrade({
+ *   nombreNegocio: 'Mi Negocio'
+ * });
+ * window.location.href = checkoutUrl;
+ */
+export async function crearCheckoutUpgrade(
+  datos: DatosCheckoutUpgrade
+): Promise<RespuestaAPI<RespuestaCheckout>> {
+  const response = await api.post<RespuestaAPI<RespuestaCheckout>>(
+    '/pagos/crear-checkout-upgrade',
+    datos
+  );
+  return response.data;
+}
+
+// =============================================================================
 // FUNCIÓN 2: VERIFICAR SESSION
 // =============================================================================
 
@@ -136,6 +178,7 @@ export async function verificarSession(
 
 const pagoService = {
   crearCheckout,
+  crearCheckoutUpgrade,
   verificarSession,
 };
 

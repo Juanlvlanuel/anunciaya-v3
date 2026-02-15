@@ -59,7 +59,6 @@ export function PaginaRegistroExito() {
         verificacionIniciada.current = true;
 
         verificarPago();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ---------------------------------------------------------------------------
@@ -106,6 +105,9 @@ export function PaginaRegistroExito() {
                 correoNegocio: null,
                 logoNegocio: null,
                 fotoPerfilNegocio: null,
+                nombreSucursalAsignada: null,
+                correoSucursalAsignada: null,
+                fotoPerfilSucursalAsignada: null,
             };
 
             // Marcar como exitoso para ignorar errores de llamadas duplicadas
@@ -153,7 +155,7 @@ export function PaginaRegistroExito() {
     // ---------------------------------------------------------------------------
     if (estado === 'validando') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
                     {/* Spinner */}
                     <div className="flex justify-center mb-6">
@@ -199,7 +201,7 @@ export function PaginaRegistroExito() {
     // ---------------------------------------------------------------------------
     if (estado === 'exito') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-linear-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
                     {/* Ícono de éxito */}
                     <div className="flex justify-center mb-6">
@@ -227,7 +229,7 @@ export function PaginaRegistroExito() {
     // ---------------------------------------------------------------------------
     if (estado === 'error') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-linear-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
                     {/* Ícono de error */}
                     <div className="flex justify-center mb-6">
@@ -264,7 +266,7 @@ export function PaginaRegistroExito() {
     return (
         <>
             {/* Fondo mientras se muestra el modal */}
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50" />
+            <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50" />
 
             {/* Modal de bienvenida */}
             <ModalBienvenida

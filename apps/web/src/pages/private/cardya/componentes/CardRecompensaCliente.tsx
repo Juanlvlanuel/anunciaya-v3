@@ -137,9 +137,17 @@ export default function CardRecompensaCliente({
             <h4 className="text-lg font-bold text-slate-800 truncate leading-tight">
               {recompensa.nombre}
             </h4>
-            <div className="flex items-center gap-1 mt-0.5">
-              <Store className="w-3 h-3 text-amber-600 shrink-0" strokeWidth={2.5} />
-              <p className="text-xs text-amber-700 font-bold truncate">
+            <div className="flex items-center gap-2 mt-1">
+              {recompensa.negocioLogo ? (
+                <img
+                  src={recompensa.negocioLogo}
+                  alt={recompensa.negocioNombre}
+                  className="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-200"
+                />
+              ) : (
+                <Store className="w-5 h-5 text-amber-600 shrink-0" strokeWidth={2.5} />
+              )}
+              <p className="text-sm text-slate-700 font-bold truncate">
                 {recompensa.negocioNombre}
               </p>
             </div>
@@ -259,13 +267,18 @@ export default function CardRecompensaCliente({
 
         {/* Contenido */}
         <div className="flex-1 p-3.5 2xl:p-4 flex flex-col">
-          {/* Badge negocio */}
-          <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg self-start mb-2 2xl:mb-2.5"
-            style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '1px solid #fde68a' }}
-          >
-            <Store className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-amber-600" strokeWidth={2.5} />
-            <span className="text-[11px] 2xl:text-xs font-bold text-amber-800 truncate max-w-[140px]">
+          {/* Negocio */}
+          <div className="flex items-center gap-2 mb-2 2xl:mb-2.5">
+            {recompensa.negocioLogo ? (
+              <img
+                src={recompensa.negocioLogo}
+                alt={recompensa.negocioNombre}
+                className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-full object-cover shrink-0 border border-slate-200"
+              />
+            ) : (
+              <Store className="w-5 h-5 2xl:w-6 2xl:h-6 text-amber-600" strokeWidth={2.5} />
+            )}
+            <span className="text-sm 2xl:text-base font-bold text-slate-700 truncate">
               {recompensa.negocioNombre}
             </span>
           </div>

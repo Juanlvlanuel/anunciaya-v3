@@ -53,7 +53,6 @@ import { notificar } from '../../../../utils/notificaciones';
 import { CardOferta } from './CardOferta';
 import { ModalOferta } from './ModalOferta';
 import { ModalDuplicarOferta } from './ModalDuplicarOferta';
-import { obtenerSucursalesNegocio } from '../../../../services/negociosService';
 import type { Oferta, TipoOferta, EstadoOferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../../types/ofertas';
 
 // =============================================================================
@@ -132,7 +131,6 @@ export function PaginaOfertas() {
     const [modalDuplicarAbierto, setModalDuplicarAbierto] = useState(false);
     const [ofertaEditando, setOfertaEditando] = useState<Oferta | null>(null);
     const [ofertaDuplicando, setOfertaDuplicando] = useState<Oferta | null>(null);
-    const [totalSucursales, setTotalSucursales] = useState(0);
     const [paginaActual, setPaginaActual] = useState(0); // Bloque actual (0, 1, 2...) - Solo para laptop/desktop
     const [ofertasCargadas, setOfertasCargadas] = useState(OFERTAS_POR_PAGINA); // Para mobile infinite scroll
 
@@ -149,24 +147,9 @@ export function PaginaOfertas() {
         estado: 'todos',
     });
 
-    // Determinar si es dueño (para decidir si mostrar modal de sucursales)
-    const esDueno = !usuario?.sucursalAsignada;
-
-    // ===========================================================================
-    // CARGAR CANTIDAD DE SUCURSALES
-    // ===========================================================================
-
-    useEffect(() => {
-        if (usuario?.negocioId && esDueno) {
-            obtenerSucursalesNegocio(usuario.negocioId)
-                .then((res) => {
-                    if (res.success && res.data) {
-                        setTotalSucursales(res.data.length);
-                    }
-                })
-                .catch(() => setTotalSucursales(0));
-        }
-    }, [usuario?.negocioId, esDueno]);
+    // Determinar si es dueño o gerente
+    const esDueno = !usuario?.sucursalAsignada; // Dueño tiene sucursalAsignada null
+    const esGerente = !!usuario?.sucursalAsignada; // Gerente tiene UUID
 
     // ===========================================================================
     // CALCULAR ESTADO DE OFERTA (CON ZONA HORARIA)
@@ -382,21 +365,18 @@ export function PaginaOfertas() {
     };
 
     const handleDuplicar = async (oferta: Oferta) => {
-        // Si hay más de 1 sucursal, mostrar modal para seleccionar
-        if (totalSucursales >= 1) {
-            setOfertaDuplicando(oferta);
-            setModalDuplicarAbierto(true);
+        // GERENTES: Duplicar directo en su sucursal asignada (sin modal)
+        if (esGerente && usuario?.sucursalAsignada) {
+            await duplicar(oferta.id, {
+                sucursalesIds: [usuario.sucursalAsignada],
+            });
             return;
         }
 
-        // Si hay 1 sola sucursal, duplicar directo en la misma
-        if (usuario?.sucursalActiva) {
-            const exito = await duplicar(oferta.id, {
-                sucursalesIds: [usuario.sucursalActiva],
-            });
-            if (exito) {
-                notificar.exito('Oferta duplicada correctamente');
-            }
+        // DUEÑOS: Abrir modal para seleccionar sucursales
+        if (esDueno) {
+            setOfertaDuplicando(oferta);
+            setModalDuplicarAbierto(true);
         }
     };
 

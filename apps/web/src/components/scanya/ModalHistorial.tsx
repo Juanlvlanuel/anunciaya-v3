@@ -127,17 +127,16 @@ function CustomDropdown({ options, value, onChange, placeholder, disabled }: Cus
         "
         style={{
           background: 'rgba(255, 255, 255, 0.05)',
-          border: abierto 
-            ? '1px solid rgba(59, 130, 246, 0.5)' 
+          border: abierto
+            ? '1px solid rgba(59, 130, 246, 0.5)'
             : '1px solid rgba(255, 255, 255, 0.1)',
           color: value ? '#3B82F6' : '#94A3B8',
         }}
       >
         <span className="truncate">{displayText}</span>
-        <ChevronDown 
-          className={`w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#94A3B8] shrink-0 ml-2 transition-transform ${
-            abierto ? 'rotate-180' : ''
-          }`} 
+        <ChevronDown
+          className={`w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#94A3B8] shrink-0 ml-2 transition-transform ${abierto ? 'rotate-180' : ''
+            }`}
         />
       </button>
 
@@ -418,7 +417,6 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
         }
       });
     }
-    prevFiltroSucursal.current = filtroSucursalId;
   }, [filtroSucursalId, abierto, tipoUsuario]);
 
   // Recargar cuando cambia el periodo
@@ -433,15 +431,18 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   // Recargar cuando cambian los filtros de sucursal o empleado
   useEffect(() => {
     if (abierto && yaCargo) {
-      if (filtroSucursalId !== prevFiltroSucursal.current || filtroEmpleadoId !== prevFiltroEmpleado.current) {
+      const cambioSucursal = filtroSucursalId !== prevFiltroSucursal.current;
+      const cambioEmpleado = filtroEmpleadoId !== prevFiltroEmpleado.current;
+
+      if (cambioSucursal || cambioEmpleado) {
+        prevFiltroSucursal.current = filtroSucursalId;
+        prevFiltroEmpleado.current = filtroEmpleadoId;
         setPagina(1);
         setTransacciones([]);
         cargarHistorial(1, false);
       }
     }
-    prevFiltroSucursal.current = filtroSucursalId;
-    prevFiltroEmpleado.current = filtroEmpleadoId;
-  }, [filtroSucursalId, filtroEmpleadoId, abierto, yaCargo]);
+  }, [filtroSucursalId, filtroEmpleadoId, abierto, yaCargo, cargarHistorial]);
 
   // Recargar cuando hay nuevas ventas registradas
   useEffect(() => {

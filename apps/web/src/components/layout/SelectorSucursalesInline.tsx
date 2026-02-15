@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { obtenerSucursalesNegocio } from '../../services/negociosService';
+import Tooltip from '../../components/ui/Tooltip';
 
 // =============================================================================
 // TIPOS
@@ -38,7 +39,7 @@ interface Sucursal {
 // =============================================================================
 
 export default function SelectorSucursalesInline() {
-  const { usuario, setSucursalActiva } = useAuthStore();
+  const { usuario, setSucursalActiva, setEsSucursalPrincipal } = useAuthStore();
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -73,6 +74,12 @@ export default function SelectorSucursalesInline() {
           if (!usuario?.sucursalActiva && ordenadas.length > 0) {
             setSucursalActiva(ordenadas[0].id);
           }
+
+          // Actualizar si la sucursal activa es principal
+          if (usuario?.sucursalActiva) {
+            const sucursalAct = ordenadas.find(s => s.id === usuario.sucursalActiva);
+            setEsSucursalPrincipal(sucursalAct?.esPrincipal ?? true);
+          }
         }
       } catch (error) {
         console.error('[SELECTOR] Error cargando sucursales:', error);
@@ -92,13 +99,17 @@ export default function SelectorSucursalesInline() {
   // Handlers: Navegar entre sucursales
   const irAnterior = () => {
     if (indiceActual > 0) {
-      setSucursalActiva(sucursales[indiceActual - 1].id);
+      const sucAnterior = sucursales[indiceActual - 1];
+      setSucursalActiva(sucAnterior.id);
+      setEsSucursalPrincipal(sucAnterior.esPrincipal);
     }
   };
 
   const irSiguiente = () => {
     if (indiceActual < sucursales.length - 1) {
-      setSucursalActiva(sucursales[indiceActual + 1].id);
+      const sucSiguiente = sucursales[indiceActual + 1];
+      setSucursalActiva(sucSiguiente.id);
+      setEsSucursalPrincipal(sucSiguiente.esPrincipal);
     }
   };
 
@@ -119,15 +130,19 @@ export default function SelectorSucursalesInline() {
   // CASO 1: GERENTE (sin flechas, muestra nombre fijo)
   // =========================================================================
   if (esGerente) {
+    // Buscar el nombre de la sucursal asignada
+    const sucursalAsignada = sucursales.find(s => s.id === usuario?.sucursalAsignada);
+    const nombreSucursal = sucursalAsignada?.nombre || 'Sucursal Fija';
+
     return (
       <div className="flex flex-col">
         {/* Nombre del NEGOCIO - Responsive */}
         <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">
           {usuario?.nombreNegocio || 'Sin asignar'}
         </span>
-        {/* Etiqueta de sucursal fija */}
+        {/* Nombre real de la sucursal asignada */}
         <span className="text-xs lg:text-xs 2xl:text-sm text-cyan-300 font-bold">
-          Sucursal Fija
+          {nombreSucursal}
         </span>
       </div>
     );
@@ -139,14 +154,11 @@ export default function SelectorSucursalesInline() {
   if (esDueño && sucursales.length === 1) {
     return (
       <div className="flex flex-col">
-        {/* Nombre del NEGOCIO - Responsive */}
+        {/* Nombre del NEGOCIO - Responsive - CENTRADO */}
         <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">
           {usuario?.nombreNegocio || 'Sin nombre'}
         </span>
-        {/* Etiqueta "Matriz" */}
-        <span className="text-xs lg:text-xs 2xl:text-sm text-cyan-300 font-bold">
-          Matriz
-        </span>
+        {/* Sin texto debajo cuando solo hay 1 sucursal */}
       </div>
     );
   }
@@ -158,18 +170,18 @@ export default function SelectorSucursalesInline() {
     return (
       <div className="flex items-center gap-1 lg:gap-1 2xl:gap-2">
         {/* Flecha Izquierda */}
-        <button
-          onClick={irAnterior}
-          disabled={indiceActual === 0}
-          className={`p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-all ${
-            indiceActual === 0
+        <Tooltip text="Sucursal anterior" position="bottom">
+          <button
+            onClick={irAnterior}
+            disabled={indiceActual === 0}
+            className={`p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-all ${indiceActual === 0
               ? 'text-white/30 cursor-not-allowed'
               : 'text-white/70 hover:text-white hover:bg-white/10 active:scale-95 cursor-pointer'
-          }`}
-          title="Sucursal anterior"
-        >
-          <ChevronLeft className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-        </button>
+              }`}
+          >
+            <ChevronLeft className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+          </button>
+        </Tooltip>
 
         {/* Nombre del NEGOCIO + Etiqueta de Sucursal */}
         <div className="flex flex-col min-w-[140px] lg:min-w-[140px] 2xl:min-w-[200px]">
@@ -177,10 +189,10 @@ export default function SelectorSucursalesInline() {
           <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white truncate">
             {usuario?.nombreNegocio || 'Sin nombre'}
           </span>
-          
+
           {/* Segunda línea: "Matriz" o Nombre de Sucursal */}
           <span className="text-xs lg:text-xs 2xl:text-sm font-bold text-cyan-300">
-            {sucursalActual?.esPrincipal ? 'Matriz' : sucursalActual?.nombre}
+            {sucursalActual?.nombre}
           </span>
         </div>
 
@@ -190,18 +202,18 @@ export default function SelectorSucursalesInline() {
         </span>
 
         {/* Flecha Derecha */}
-        <button
-          onClick={irSiguiente}
-          disabled={indiceActual === sucursales.length - 1}
-          className={`p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-all ${
-            indiceActual === sucursales.length - 1
+        <Tooltip text="Siguiente sucursal" position="bottom">
+          <button
+            onClick={irSiguiente}
+            disabled={indiceActual === sucursales.length - 1}
+            className={`p-1 lg:p-1 2xl:p-1.5 rounded-lg transition-all ${indiceActual === sucursales.length - 1
               ? 'text-white/30 cursor-not-allowed'
               : 'text-white/70 hover:text-white hover:bg-white/10 active:scale-95 cursor-pointer'
-          }`}
-          title="Siguiente sucursal"
-        >
-          <ChevronRight className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-        </button>
+              }`}
+          >
+            <ChevronRight className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+          </button>
+        </Tooltip>
       </div>
     );
   }

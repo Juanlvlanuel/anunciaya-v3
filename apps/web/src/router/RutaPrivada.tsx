@@ -67,8 +67,14 @@ export function RutaPrivada({ children }: RutaPrivadaProps) {
             // Rutas ScanYA → Redirigir al login de ScanYA
             navigate('/scanya/login', { replace: true });
           } else {
-            // Rutas AnunciaYA → Guardar ruta pendiente y redirigir a landing
-            sessionStorage.setItem('ay_ruta_pendiente', location.pathname);
+            // Rutas AnunciaYA → Redirigir a landing
+            // Solo guardar ruta pendiente si NO fue logout reciente
+            const fueLogoutReciente = sessionStorage.getItem('ay_logout_reciente');
+            if (fueLogoutReciente) {
+              sessionStorage.removeItem('ay_logout_reciente');
+            } else {
+              sessionStorage.setItem('ay_ruta_pendiente', location.pathname);
+            }
             navigate('/', { replace: true });
           }
         }

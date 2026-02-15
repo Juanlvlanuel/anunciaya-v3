@@ -56,7 +56,7 @@ import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../co
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useNegociosCacheStore } from '../../../stores/useNegociosCacheStore';
-import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalEscribirResena, ModalOfertaDetalle } from '../../../components/negocios';
+import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
 import { DropdownCompartir, ModalAuthRequerido } from '../../../components/compartir';
 import { LayoutPublico } from '../../../components/layout';
@@ -159,9 +159,17 @@ const agruparMetodosPago = (metodos: MetodoPago[] | string[]): string[] => {
 interface ModalMapaProps {
     negocio: {
         negocioNombre: string;
+        sucursalNombre: string;
+        totalSucursales: number;
+        logoUrl: string | null;
+        whatsapp: string | null;
         direccion: string;
         latitud: number;
         longitud: number;
+        estaAbierto: boolean | null;
+        calificacion: number;
+        totalCalificaciones: number;
+        distanciaKm: number | null;
     };
     userLat: number | null;
     userLng: number | null;
@@ -219,9 +227,17 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                     <div className="flex items-center justify-between px-4 py-3 lg:px-5 lg:py-3 2xl:px-6 2xl:py-4">
                         {/* Info del negocio */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
-                                <MapPin className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-red-500" />
-                            </div>
+                            {negocio.logoUrl ? (
+                                <img
+                                    src={negocio.logoUrl}
+                                    alt={negocio.negocioNombre}
+                                    className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 rounded-xl object-cover shadow-sm"
+                                />
+                            ) : (
+                                <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                                    <span className="text-lg font-bold text-slate-400">{negocio.negocioNombre.charAt(0)}</span>
+                                </div>
+                            )}
                             <div className="min-w-0 flex-1">
                                 <h3 className="text-base lg:text-lg 2xl:text-xl font-bold text-slate-800 truncate">
                                     {negocio.negocioNombre}
@@ -319,6 +335,9 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                         <TileLayer
                             attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            keepBuffer={5}
+                            updateWhenZooming={false}
+                            updateWhenIdle={true}
                         />
 
                         {/* Marcador del negocio */}
@@ -326,11 +345,93 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                             position={[negocio.latitud, negocio.longitud]}
                             icon={negocioIcon}
                         >
-                            <Popup>
-                                <div className="text-center">
-                                    <strong className="text-base">{negocio.negocioNombre}</strong>
-                                    <br />
-                                    <span className="text-sm text-slate-600">{negocio.direccion}</span>
+                            <Popup className="popup-perfil">
+                                <div>
+                                    {/* Header azul */}
+                                    <div className="bg-linear-to-r from-blue-500 to-blue-600 px-4 py-3">
+                                        <div className="flex items-center gap-3">
+                                            {negocio.logoUrl ? (
+                                                <img
+                                                    src={negocio.logoUrl}
+                                                    alt={negocio.negocioNombre}
+                                                    className="w-11 h-11 rounded-xl object-cover shrink-0 border-2 border-white/30 shadow-lg"
+                                                />
+                                            ) : (
+                                                <div className="w-11 h-11 rounded-xl shrink-0 border-2 border-white/30 shadow-lg bg-black/20 flex items-center justify-center">
+                                                    <span className="text-white font-bold text-lg">{negocio.negocioNombre.charAt(0)}</span>
+                                                </div>
+                                            )}
+                                            <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                                <h3 className="text-[16px] font-bold text-white leading-tight truncate">
+                                                    {negocio.negocioNombre}
+                                                </h3>
+                                                {negocio.sucursalNombre?.includes(`${negocio.negocioNombre} - `) && (
+                                                    <p className="text-[12px] font-medium text-blue-100 truncate">
+                                                        Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Body */}
+                                    <div className="px-4 py-2.5">
+                                        {/* Status — Rating — Distancia */}
+                                        <div className="flex items-center justify-between text-[13px]">
+                                            {negocio.estaAbierto !== null && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: negocio.estaAbierto ? '#22c55e' : '#ef4444' }} />
+                                                    <span className={`font-semibold ${negocio.estaAbierto ? 'text-green-600' : 'text-red-500'}`}>
+                                                        {negocio.estaAbierto ? 'Abierto' : 'Cerrado'}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {negocio.totalCalificaciones > 0 && (
+                                                <div className="flex items-center gap-1">
+                                                    <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                                                    <span className="font-bold text-slate-800">{negocio.calificacion.toFixed(1)}</span>
+                                                    <span className="text-[12px] text-slate-400">({negocio.totalCalificaciones})</span>
+                                                </div>
+                                            )}
+                                            {negocio.distanciaKm !== null && (
+                                                <div className="flex items-center gap-1 text-slate-500">
+                                                    <MapPin className="w-3.5 h-3.5" />
+                                                    <span className="font-medium">
+                                                        {negocio.distanciaKm < 1 ? `${Math.round(negocio.distanciaKm * 1000)} m` : `${negocio.distanciaKm.toFixed(1)} km`}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Dirección */}
+                                        <p className="text-[12px] text-slate-400 mt-1.5 leading-tight truncate">
+                                            {negocio.direccion}
+                                        </p>
+
+                                        {/* Separador */}
+                                        <div className="h-px bg-slate-100 my-2" />
+
+                                        {/* ChatYA + WhatsApp */}
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); }}
+                                                className="cursor-pointer flex items-center gap-1.5 bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
+                                            >
+                                                <img src="/ChatYA.webp" alt="ChatYA" className="h-8 w-auto" />
+                                            </button>
+                                            {negocio.whatsapp && (
+                                                <>
+                                                    <div className="w-px h-6 bg-slate-200" />
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }}
+                                                        className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
+                                                    >
+                                                        <img src="/whatsapp.webp" alt="WhatsApp" className="w-8 h-8" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </Popup>
                         </Marker>
@@ -409,8 +510,6 @@ export function PaginaPerfilNegocio() {
         initialIndex: 0,
     });
 
-    // Modal de reseña
-    const [modalResenaAbierto, setModalResenaAbierto] = useState(false);
 
     // Distancia del usuario
     const [distanciaKm, setDistanciaKm] = useState<number | null>(null);
@@ -424,6 +523,7 @@ export function PaginaPerfilNegocio() {
     // Estado de las reseñas (fetch desde backend)
     const [resenas, setResenas] = useState<Resena[]>([]);
     const [puedeResenar, setPuedeResenar] = useState(false);
+    const [resenaDeepLinkId, setResenaDeepLinkId] = useState<string | null>(null);
 
     // Estado de las ofertas (fetch desde backend)
     const [ofertas, setOfertas] = useState<Oferta[]>([]);
@@ -543,7 +643,7 @@ export function PaginaPerfilNegocio() {
         }
 
         // Si no hay caché, hacer fetch normal
-        api.get(`/articulos/negocio/${negocio.negocioId}`)
+        api.get(`/articulos/negocio/${negocio.negocioId}`, { params: { sucursalId } })
             .then(res => {
                 if (res.data.success) {
                     const data = res.data.data || [];
@@ -631,6 +731,24 @@ export function PaginaPerfilNegocio() {
         }
     }, [ofertas, window.location.search]);
 
+    // =========================================================================
+    // DEEP LINK: Abrir modal de reseñas desde notificación (?resenaId=xxx)
+    // =========================================================================
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const resenaId = params.get('resenaId');
+
+        if (!resenaId || resenas.length === 0) return;
+
+        setResenaDeepLinkId(resenaId);
+        // Limpiar el param de la URL sin recargar
+        params.delete('resenaId');
+        const nuevaUrl = params.toString()
+            ? `${window.location.pathname}?${params.toString()}`
+            : window.location.pathname;
+        window.history.replaceState({}, '', nuevaUrl);
+    }, [resenas, window.location.search]);
+
     // =============================================================================
     // HANDLERS
     // =============================================================================
@@ -711,10 +829,8 @@ export function PaginaPerfilNegocio() {
     // =============================================================================
 
     const resenasData = resenas;
-    const promedioResenas = resenasData.length > 0
-        ? resenasData.reduce((acc, r) => acc + (r.rating || 0), 0) / resenasData.length
-        : 0;
-    const tieneCalificacion = resenasData.length > 0;
+    const promedioResenas = parseFloat(negocio?.calificacionPromedio || '0') || 0;
+    const tieneCalificacion = (negocio?.totalCalificaciones ?? 0) > 0;
     const tieneOfertas = ofertas.length > 0;
 
     // =============================================================================
@@ -823,30 +939,6 @@ export function PaginaPerfilNegocio() {
                 onClose={cerrarModalImagenes}
             />
 
-            {/* MODAL ESCRIBIR RESEÑA */}
-            <ModalEscribirResena
-                abierto={modalResenaAbierto}
-                onCerrar={() => setModalResenaAbierto(false)}
-                tieneCompraVerificada={puedeResenar}
-                onEnviar={async (rating, texto) => {
-                    try {
-                        const res = await api.post('/resenas', {
-                            sucursalId,
-                            rating,
-                            texto: texto || undefined,
-                        });
-                        if (res.data.success) {
-                            // Agregar reseña nueva al inicio de la lista
-                            setResenas(prev => [res.data.data, ...prev]);
-                            setModalResenaAbierto(false);
-                        }
-                    } catch (error: unknown) {
-                        const axiosError = error as { response?: { data?: { message?: string } } };
-                        console.error('Error al enviar reseña:', axiosError.response?.data?.message);
-                    }
-                }}
-            />
-
             {/* ================================================================
                 HERO
             ================================================================ */}
@@ -878,7 +970,7 @@ export function PaginaPerfilNegocio() {
                     <div className="flex items-center gap-1.5">
                         <Star className={`w-6 h-6 ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} />
                         <span className="text-base font-bold text-slate-700">
-                            {resenasData.length > 0 ? `${promedioResenas.toFixed(1)} (${resenasData.length})` : '0'}
+                            {tieneCalificacion ? `${promedioResenas.toFixed(1)} (${negocio?.totalCalificaciones ?? 0})` : '0'}
                         </span>
                     </div>
                     {distanciaKm !== null && (
@@ -973,7 +1065,7 @@ export function PaginaPerfilNegocio() {
                             </p>
                             {negocio.totalSucursales > 1 && (
                                 <p className="text-sm font-bold text-blue-600 mb-1 truncate">
-                                    {negocio.sucursalNombre}
+                                    Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
                                 </p>
                             )}
                             {/* Badges envío más grandes */}
@@ -1032,7 +1124,7 @@ export function PaginaPerfilNegocio() {
                                     {/* Sucursal */}
                                     {negocio.totalSucursales > 1 && (
                                         <p className="lg:text-base 2xl:text-lg font-semibold text-blue-600 mt-1">
-                                            {negocio.sucursalNombre}
+                                            Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
                                         </p>
                                     )}
 
@@ -1065,12 +1157,13 @@ export function PaginaPerfilNegocio() {
                                                 } catch {
                                                     setPuedeResenar(false);
                                                 }
-                                                setModalResenaAbierto(true);
+                                                // Abrir modal de reseñas (sin destacar ninguna)
+                                                setResenaDeepLinkId('abrir');
                                             }} className="flex items-center lg:gap-1 2xl:gap-2 lg:px-2 2xl:px-4 cursor-pointer hover:opacity-80"
                                         >
                                             <Star className={`lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 animate-bounce ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} style={{ animationDuration: '3s' }} />
                                             <span className="lg:text-sm 2xl:text-lg font-semibold text-slate-700">
-                                                {resenasData.length > 0 ? `${promedioResenas.toFixed(1)} (${resenasData.length})` : '0'}
+                                                {tieneCalificacion ? `${promedioResenas.toFixed(1)} (${negocio?.totalCalificaciones ?? 0})` : '0'}
                                             </span>
                                         </button>
                                         {distanciaKm !== null && (
@@ -1412,13 +1505,102 @@ export function PaginaPerfilNegocio() {
                                             <TileLayer
                                                 attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                                keepBuffer={5}
+                                                updateWhenZooming={false}
+                                                updateWhenIdle={true}
                                             />
                                             <Marker position={[negocio.latitud, negocio.longitud]}>
-                                                <Popup>
-                                                    <div className="text-center">
-                                                        <strong>{negocio.negocioNombre}</strong>
-                                                        <br />
-                                                        <span className="text-sm text-slate-600">{negocio.direccion}</span>
+                                                <Popup className="popup-perfil">
+                                                    <div>
+                                                        {/* Header azul */}
+                                                        <div className="bg-linear-to-r from-blue-500 to-blue-600 px-4 py-3">
+                                                            <div className="flex items-center gap-3">
+                                                                {negocio.logoUrl ? (
+                                                                    <img
+                                                                        src={negocio.logoUrl}
+                                                                        alt={negocio.negocioNombre}
+                                                                        className="w-11 h-11 rounded-xl object-cover shrink-0 border-2 border-white/30 shadow-lg"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-11 h-11 rounded-xl shrink-0 border-2 border-white/30 shadow-lg bg-black/20 flex items-center justify-center">
+                                                                        <span className="text-white font-bold text-lg">{negocio.negocioNombre.charAt(0)}</span>
+                                                                    </div>
+                                                                )}
+                                                                <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                                                    <h3 className="text-[16px] font-bold text-white leading-tight truncate">
+                                                                        {negocio.negocioNombre}
+                                                                    </h3>
+                                                                    {negocio.totalSucursales > 1 && (
+                                                                        <p className="text-[12px] font-medium text-blue-100 truncate">
+                                                                            Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Body */}
+                                                        <div className="px-4 py-2.5">
+                                                            {/* Status — Rating — Distancia */}
+                                                            <div className="flex items-center justify-between text-[13px]">
+                                                                {negocio.horarios?.length > 0 && (() => {
+                                                                    const info = calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria);
+                                                                    const abierto = info.estado === 'abierto';
+                                                                    return (
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: abierto ? '#22c55e' : '#ef4444' }} />
+                                                                            <span className={`font-semibold ${abierto ? 'text-green-600' : 'text-red-500'}`}>
+                                                                                {abierto ? 'Abierto' : 'Cerrado'}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })()}
+                                                                {tieneCalificacion && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                                                                        <span className="font-bold text-slate-800">{promedioResenas.toFixed(1)}</span>
+                                                                        <span className="text-[12px] text-slate-400">({negocio?.totalCalificaciones ?? 0})</span>
+                                                                    </div>
+                                                                )}
+                                                                {distanciaKm !== null && (
+                                                                    <div className="flex items-center gap-1 text-slate-500">
+                                                                        <MapPin className="w-3.5 h-3.5" />
+                                                                        <span className="font-medium">
+                                                                            {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)} m` : `${distanciaKm.toFixed(1)} km`}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Dirección */}
+                                                            <p className="text-[12px] text-slate-400 mt-1.5 leading-tight truncate">
+                                                                {negocio.direccion}
+                                                            </p>
+
+                                                            {/* Separador */}
+                                                            <div className="h-px bg-slate-100 my-2" />
+
+                                                            {/* ChatYA + WhatsApp */}
+                                                            <div className="flex items-center gap-3">
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleChatYA(); }}
+                                                                    className="cursor-pointer flex items-center gap-1.5 bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
+                                                                >
+                                                                    <img src="/ChatYA.webp" alt="ChatYA" className="h-8 w-auto" />
+                                                                </button>
+                                                                {negocio.whatsapp && (
+                                                                    <>
+                                                                        <div className="w-px h-6 bg-slate-200" />
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }}
+                                                                            className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
+                                                                        >
+                                                                            <img src="/whatsapp.webp" alt="WhatsApp" className="w-8 h-8" />
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </Popup>
                                             </Marker>
@@ -1626,6 +1808,7 @@ export function PaginaPerfilNegocio() {
                         <SeccionResenas
                             resenas={resenasData}
                             promedioRating={promedioResenas}
+                            tieneCompraVerificada={puedeResenar}
                             onEscribirResena={async () => {
                                 if (!sucursalId) return;
                                 try {
@@ -1634,8 +1817,42 @@ export function PaginaPerfilNegocio() {
                                 } catch {
                                     setPuedeResenar(false);
                                 }
-                                setModalResenaAbierto(true);
                             }}
+                            onEnviarResena={async (rating, texto) => {
+                                try {
+                                    const res = await api.post('/resenas', {
+                                        sucursalId,
+                                        rating,
+                                        texto: texto || undefined,
+                                    });
+                                    if (res.data.success) {
+                                        setResenas(prev => [res.data.data, ...prev]);
+                                    }
+                                } catch (error: unknown) {
+                                    const axiosError = error as { response?: { data?: { message?: string } } };
+                                    console.error('Error al enviar reseña:', axiosError.response?.data?.message);
+                                }
+                            }}
+                            onEditarResena={async (resenaId, rating, texto) => {
+                                try {
+                                    const res = await api.put(`/resenas/${resenaId}`, {
+                                        rating,
+                                        texto: texto || undefined,
+                                    });
+                                    if (res.data.success) {
+                                        setResenas(prev => prev.map(r =>
+                                            r.id === resenaId
+                                                ? { ...r, rating: res.data.data.rating ?? r.rating, texto: res.data.data.texto ?? r.texto }
+                                                : r
+                                        ));
+                                    }
+                                } catch (error: unknown) {
+                                    const axiosError = error as { response?: { data?: { message?: string } } };
+                                    console.error('Error al editar reseña:', axiosError.response?.data?.message);
+                                }
+                            }}
+                            resenaDestacadaId={resenaDeepLinkId}
+                            onResenaDestacadaVista={() => setResenaDeepLinkId(null)}
                         />
                     </div>
                 )}
@@ -1646,9 +1863,17 @@ export function PaginaPerfilNegocio() {
                 <ModalMapa
                     negocio={{
                         negocioNombre: negocio.negocioNombre,
+                        sucursalNombre: negocio.sucursalNombre,
+                        totalSucursales: negocio.totalSucursales,
+                        logoUrl: negocio.logoUrl,
+                        whatsapp: negocio.whatsapp,
                         direccion: negocio.direccion,
                         latitud: negocio.latitud,
-                        longitud: negocio.longitud
+                        longitud: negocio.longitud,
+                        estaAbierto: negocio.horarios?.length > 0 ? calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria).estado === 'abierto' : null,
+                        calificacion: promedioResenas,
+                        totalCalificaciones: negocio?.totalCalificaciones ?? 0,
+                        distanciaKm,
                     }}
                     userLat={userLat}
                     userLng={userLng}
@@ -1673,6 +1898,27 @@ export function PaginaPerfilNegocio() {
                     onClose={() => setOfertaDeepLink(null)}
                 />
             )}
+
+            {/* Estilos CSS para popups del mapa */}
+            <style>{`
+                .popup-perfil .leaflet-popup-content-wrapper {
+                    padding: 0;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
+                }
+                .popup-perfil .leaflet-popup-content {
+                    margin: 0;
+                    min-width: 240px;
+                    max-width: 270px;
+                }
+                .popup-perfil .leaflet-popup-tip {
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+                }
+                .popup-perfil p {
+                    margin: 0 !important;
+                }
+            `}</style>
         </div>
     );
 

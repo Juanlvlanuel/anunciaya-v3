@@ -23,6 +23,7 @@
 import { create } from 'zustand';
 import * as cardyaService from '../services/cardyaService';
 import { notificar } from '../utils/notificaciones';
+import { useGpsStore } from './useGpsStore';
 import type {
   BilleteraNegocio,
   DetalleNegocioBilletera,
@@ -184,6 +185,16 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
     const { recompensas } = get();
     const esCargaInicial = recompensas.length === 0;
 
+    // Obtener la ciudad del usuario desde el GPS store
+    const ciudadUsuario = useGpsStore.getState().ciudad?.nombre;
+
+    // Combinar filtros: prioridad a filtros explícitos, luego ciudad del GPS
+    const filtrosFinales: FiltrosRecompensas = {
+      ...filtros,
+      // Solo agregar ciudad si no viene en filtros y existe en el GPS store
+      ...(ciudadUsuario && !filtros?.negocioId ? { ciudad: ciudadUsuario } : {}),
+    };
+
     // Guardar filtros actuales
     if (filtros) {
       set({ filtrosRecompensas: filtros });
@@ -192,7 +203,7 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
     set({ cargandoRecompensas: esCargaInicial, error: null });
 
     try {
-      const respuesta = await cardyaService.getRecompensas(filtros || get().filtrosRecompensas);
+      const respuesta = await cardyaService.getRecompensas(filtrosFinales);
       if (respuesta.success && respuesta.data) {
         set({ recompensas: respuesta.data });
       }

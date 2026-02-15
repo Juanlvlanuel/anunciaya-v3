@@ -16,7 +16,7 @@
  * - Header con icono animado (estilo unificado Business Studio)
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Save, User } from 'lucide-react';
 import { usePerfil } from './hooks/usePerfil';
@@ -62,8 +62,14 @@ export default function PaginaPerfil() {
   const [tabActivo, setTabActivo] = useState(0);
   const hookPerfil = usePerfil();
 
-  const { loading, error, esGerente, guardando } = hookPerfil;
+  const { loading, error, esGerente, guardando, datosInformacion, datosUbicacion } = hookPerfil;
   const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
+
+  // Validación: campos requeridos para habilitar guardado
+  const camposRequeridosCompletos = Boolean(datosUbicacion.estado);
+
+  // Dueño viendo sucursal secundaria = misma vista que gerente
+  const vistaComoGerente = esGerente || (datosInformacion.totalSucursales > 1 && !datosInformacion.esPrincipal);
 
   // =============================================================================
   // TABS DISPONIBLES (DINÁMICOS)
@@ -72,8 +78,8 @@ export default function PaginaPerfil() {
   const tabs = useMemo<TabConfig[]>(() => {
     const allTabs: TabConfig[] = [];
 
-    // Tab 1: Datos del Negocio (solo dueños)
-    if (!esGerente) {
+    // Tab 1: Datos del Negocio (solo dueños viendo sucursal principal o con 1 sucursal)
+    if (!vistaComoGerente) {
       allTabs.push({
         key: 'informacion',
         label: 'Datos del Negocio',
@@ -89,7 +95,7 @@ export default function PaginaPerfil() {
     // Tab 2: Contacto / Datos de Sucursal
     allTabs.push({
       key: 'contacto',
-      label: esGerente ? 'Datos de Sucursal' : 'Contacto',
+      label: vistaComoGerente ? 'Datos de Sucursal' : 'Contacto',
       renderizar: () => <TabContacto {...hookPerfil} />,
     });
 
@@ -127,7 +133,12 @@ export default function PaginaPerfil() {
     });
 
     return allTabs;
-  }, [esGerente, hookPerfil]);
+  }, [esGerente, vistaComoGerente, hookPerfil]);
+
+  // Resetear al primer tab cuando cambia el modo de vista (al cambiar de sucursal)
+  useEffect(() => {
+    setTabActivo(0);
+  }, [vistaComoGerente]);
 
   // =============================================================================
   // FUNCIÓN DE GUARDADO
@@ -261,16 +272,15 @@ export default function PaginaPerfil() {
 
       {/* FAB - FLOATING ACTION BUTTON */}
       {createPortal(
-        <div className={`fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-transform duration-75 ${
-          previewNegocioAbierto 
-            ? 'lg:right-[375px] 2xl:translate-x-[510px]' 
-            : 'lg:right-[45px] 2xl:translate-x-[895px]'
-        }`}>
+        <div className={`fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-transform duration-75 ${previewNegocioAbierto
+          ? 'lg:right-[375px] 2xl:translate-x-[510px]'
+          : 'lg:right-[45px] 2xl:translate-x-[895px]'
+          }`}>
           <button
             onClick={handleGuardar}
-            disabled={guardando}
+            disabled={guardando || !camposRequeridosCompletos}
             className="w-14 h-14 lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed flex items-center justify-center group cursor-pointer"
-            title={guardando ? 'Guardando...' : 'Guardar Cambios'}
+            title={guardando ? 'Guardando...' : !camposRequeridosCompletos ? 'Completa los campos requeridos' : 'Guardar Cambios'}
           >
             {guardando ? (
               <div className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 border-3 border-white border-t-transparent rounded-full animate-spin"></div>

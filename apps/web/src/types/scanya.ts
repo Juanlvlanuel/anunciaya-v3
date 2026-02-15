@@ -475,6 +475,33 @@ export interface ConfiguracionPuntos {
 }
 
 // =============================================================================
+// RESEÑAS DEL NEGOCIO (para ScanYA / Business Studio)
+// =============================================================================
+
+/**
+ * Reseña vista desde perspectiva del negocio.
+ * Incluye datos del autor (cliente) y la respuesta del negocio si existe.
+ */
+export interface ResenaNegocio {
+  id: string;
+  rating: number | null;
+  texto: string | null;
+  createdAt: string | null;
+  sucursalId: string | null;
+  sucursalNombre: string | null;
+  autor: {
+    id: string;
+    nombre: string;
+    avatarUrl: string | null;
+  };
+  respuesta: {
+    id: string;
+    texto: string | null;
+    createdAt: string | null;
+  } | null;
+}
+
+// =============================================================================
 // RESPUESTA ESTÃNDAR DEL BACKEND
 // =============================================================================
 

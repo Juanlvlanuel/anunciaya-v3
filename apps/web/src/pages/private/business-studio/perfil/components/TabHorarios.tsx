@@ -22,6 +22,7 @@ import { useState, useEffect, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, Coffee, Copy, Check, X } from 'lucide-react';
 import type { DatosHorarios, HorarioDia } from '../hooks/usePerfil';
+import { notificar } from '@/utils/notificaciones';
 
 interface TabHorariosProps {
     datosHorarios: DatosHorarios;
@@ -90,6 +91,8 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
             comidaFin: horarioActual.comidaFin
         }));
         setDatosHorarios({ horarios: nuevosHorarios });
+
+        notificar.exito('Horario duplicado a toda la semana');
     };
 
     const establecer24_7 = () => {

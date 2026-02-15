@@ -44,6 +44,10 @@ import PaginaCardYA from '../pages/private/cardya/PaginaCardYA';
 // ⭐ NUEVO: Onboarding de negocio (Fase 5)
 import PaginaOnboarding from '../pages/private/business/onboarding/PaginaOnboarding';
 
+// ⭐ NUEVO: Upgrade a comercial (crear negocio)
+import PaginaCrearNegocio from '../pages/private/PaginaCrearNegocio';
+import PaginaCrearNegocioExito from '../pages/private/PaginaCrearNegocioExito';
+
 // Páginas de Business Studio (Fase 5.4)
 import PaginaDashboard from '../pages/private/business-studio/dashboard/PaginaDashboard';
 import PaginaPerfil from '../pages/private/business-studio/perfil/PaginaPerfil';
@@ -165,6 +169,19 @@ const router = createBrowserRouter([
       },
 
       // -----------------------------------------------------------------------
+      // ⭐ NUEVO: CREAR NEGOCIO ÉXITO (SIN MainLayout)
+      // Página de éxito post-pago con opciones
+      // -----------------------------------------------------------------------
+      {
+        path: '/crear-negocio-exito',
+        element: (
+          <RutaPrivada>
+            <PaginaCrearNegocioExito />
+          </RutaPrivada>
+        ),
+      },
+
+      // -----------------------------------------------------------------------
       // ⭐ NUEVO: SCANYA LOGIN (ruta pública SIN MainLayout)
       // PWA de punto de venta - Login independiente de AnunciaYA
       // -----------------------------------------------------------------------
@@ -237,6 +254,12 @@ const router = createBrowserRouter([
           {
             path: '/empleos',
             element: <PaginaEmpleos />,
+          },
+
+          // ⭐ UPGRADE: Crear negocio (personal → comercial)
+          {
+            path: '/crear-negocio',
+            element: <PaginaCrearNegocio />,
           },
 
           // Páginas de usuario

@@ -9,12 +9,14 @@
  * - Solo iconos Lucide (sin emojis)
  * - Responsive: default (móvil), lg: (1366x768), 2xl: (1920x1080+)
  * - Prop `grande` para versión más grande en MenuDrawer
- * - Redirección automática: Comercial → Personal en BS redirige a /inicio
+ * - Redirección automática: Si cambia de modo estando en ruta exclusiva → /inicio
+ *   - Rutas exclusivas Comercial: /business-studio/*, /scanya/*
+ *   - Rutas exclusivas Personal: /cardya, /cupones, /mis-publicaciones, /marketplace
  * 
  * Comportamiento:
  * - Si tiene ambos modos → Toggle interactivo
  * - Si solo tiene Personal → Badge estático (no clickeable)
- * - Si está en /business-studio y cambia a Personal → Redirige a /inicio
+ * - Si está en ruta exclusiva y cambia al otro modo → Redirige a /inicio
  * 
  * Ubicación: apps/web/src/components/ui/ToggleModoUsuario.tsx
  */
@@ -70,17 +72,26 @@ export function ToggleModoUsuario({ grande = false, onModoChanged }: ToggleModoU
         // No hacer nada si ya está en ese modo o está cambiando
         if (nuevoModo === modoActivo || cambiando) return;
 
-        // Guardar modo actual para verificar después
-        const modoAnterior = modoActivo;
+        // Guardar ruta actual para verificar si es exclusiva
+        const rutaActual = location.pathname;
 
-        // ✅ REDIRIGIR PRIMERO si va a salir de Business Studio
-        if (modoAnterior === 'comercial' && nuevoModo === 'personal') {
-            if (location.pathname.includes('/business-studio')) {
-                // Redirigir INMEDIATAMENTE antes de cambiar modo
-                navigate('/inicio');
-                // Pequeño delay para que la navegación inicie
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
+        // Rutas exclusivas de cada modo
+        const rutasExclusivasComercial = ['/business-studio', '/scanya'];
+        const rutasExclusivasPersonal = ['/cardya', '/cupones', '/mis-publicaciones', '/marketplace'];
+
+        // Verificar si está en ruta exclusiva del modo que va a abandonar
+        const estaEnRutaExclusivaComercial = rutasExclusivasComercial.some(ruta => rutaActual.startsWith(ruta));
+        const estaEnRutaExclusivaPersonal = rutasExclusivasPersonal.some(ruta => rutaActual.startsWith(ruta));
+
+        // ✅ REDIRIGIR si va a abandonar una ruta exclusiva
+        const debeRedirigir = 
+            (modoActivo === 'comercial' && nuevoModo === 'personal' && estaEnRutaExclusivaComercial) ||
+            (modoActivo === 'personal' && nuevoModo === 'comercial' && estaEnRutaExclusivaPersonal);
+
+        if (debeRedirigir) {
+            navigate('/inicio');
+            // Pequeño delay para que la navegación inicie
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         setCambiando(true);

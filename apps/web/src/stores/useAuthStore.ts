@@ -69,6 +69,9 @@ export interface Usuario {
   // Datos del negocio (modo comercial)
   nombreNegocio: string | null;
   correoNegocio: string | null;
+  nombreSucursalAsignada: string | null;
+  correoSucursalAsignada: string | null;
+  fotoPerfilSucursalAsignada: string | null;
   logoNegocio: string | null;
   fotoPerfilNegocio: string | null;
 }
@@ -118,6 +121,10 @@ interface AuthState {
 
   // Acciones para sucursal activa
   setSucursalActiva: (sucursalId: string) => void;
+  esSucursalPrincipal: boolean;
+  setEsSucursalPrincipal: (valor: boolean) => void;
+  sucursalPrincipalId: string | null;
+  setSucursalPrincipalId: (id: string | null) => void;
 
   // Acciones de Google OAuth pendiente ← NUEVO
   setDatosGooglePendiente: (datos: DatosGooglePendiente) => void;
@@ -206,6 +213,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   mostrarModalInactividad: false,
   tiempoRestante: 300,
   datosGooglePendiente: null, // ← NUEVO
+  esSucursalPrincipal: true,
+  sucursalPrincipalId: null,
 
   // Computed (se calcula en cada acceso)
   get isAuthenticated() {
@@ -450,6 +459,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   },
 
+  setEsSucursalPrincipal: (valor: boolean) => {
+    set({ esSucursalPrincipal: valor });
+  },
+
+  setSucursalPrincipalId: (id: string | null) => {
+    set({ sucursalPrincipalId: id });
+  },
+
   // ---------------------------------------------------------------------------
   // ACCIÓN: Cerrar sesión
   // ---------------------------------------------------------------------------
@@ -459,6 +476,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Limpiar localStorage
     limpiarStorageAuth();
+
+    // Limpiar ruta pendiente (evita redirigir a la ruta anterior al re-loguear)
+    sessionStorage.removeItem('ay_ruta_pendiente');
+
+    // Flag para que RutaPrivada NO guarde la ruta al detectar logout
+    sessionStorage.setItem('ay_logout_reciente', 'true');
 
     // Resetear estado
     set({
@@ -486,6 +509,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hidratarAuth: async () => {
     // Evitar doble hidratación
     if (get().hidratado) return;
+
+    // ⚠️ MODO PREVIEW (iframe de Business Studio):
+    // Solo lee localStorage para tener datos mínimos, pero NO:
+    // - Llama al servidor (evita escribir en localStorage → causa ping-pong)
+    // - Conecta Socket.io
+    // - Carga notificaciones
+    const esPreview = new URLSearchParams(window.location.search).has('preview');
+    if (esPreview) {
+      const accessToken = obtenerDeStorage(STORAGE_KEYS.accessToken);
+      const refreshToken = obtenerDeStorage(STORAGE_KEYS.refreshToken);
+      const usuarioStr = obtenerDeStorage(STORAGE_KEYS.usuario);
+
+      let usuario: Usuario | null = null;
+      if (usuarioStr) {
+        try { usuario = JSON.parse(usuarioStr); } catch { usuario = null; }
+      }
+
+      set({
+        accessToken,
+        refreshToken,
+        usuario,
+        cargando: false,
+        hidratado: true,
+      });
+      return; // ← Early return: sin servidor, sin socket, sin notificaciones
+    }
 
     set({ cargando: true });
 
@@ -803,6 +852,12 @@ export function iniciarSincronizacionTokens(): () => void {
     // CRÍTICO: Ignorar sincronización si estamos en rutas de ScanYA
     // ScanYA usa su propio store (useScanYAStore) con tokens sy_*
     if (window.location.pathname.startsWith('/scanya')) {
+      return;
+    }
+
+    // CRÍTICO: Ignorar sincronización en modo preview (iframe de Business Studio)
+    // Evita el ping-pong de localStorage entre app principal e iframe
+    if (new URLSearchParams(window.location.search).has('preview')) {
       return;
     }
 

@@ -13,6 +13,7 @@ import { Wallet, Gift, Clock, Ticket, ChevronLeft, Menu } from 'lucide-react';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { useCardyaStore } from '../../../stores/useCardyaStore';
 import { useUiStore } from '../../../stores/useUiStore';
+import { useGpsStore } from '../../../stores/useGpsStore';
 
 // Componentes
 import CardBilletera from './componentes/CardBilletera';
@@ -114,6 +115,7 @@ export function PaginaCardYA() {
         vouchers: vouchersHistorial,
         historialCompras,
         cargarTodo,
+        cargarRecompensas,
         cargarHistorialCompras,
         cargarVouchers,
         canjearRecompensa,
@@ -123,6 +125,9 @@ export function PaginaCardYA() {
         cargarHistorialCanjes,
         cargandoHistorialCanjes,
     } = useCardyaStore();
+
+    // Ciudad seleccionada (para recargar recompensas al cambiar)
+    const ciudadActual = useGpsStore((s) => s.ciudad?.nombre);
 
     // KPIs calculados desde datos reales
     const puntosGlobales = billeteras.reduce((sum, b) => sum + b.puntosDisponibles, 0);
@@ -188,6 +193,13 @@ export function PaginaCardYA() {
             cargarVouchers();
         }
     }, [tabActiva]);
+
+    // Recargar recompensas cuando cambia la ciudad seleccionada
+    useEffect(() => {
+        if (ciudadActual) {
+            cargarRecompensas();
+        }
+    }, [ciudadActual]);
 
     // Precarga en hover/touch: empieza a cargar antes del clic
     const precargarTab = (id: TabCardYA) => {

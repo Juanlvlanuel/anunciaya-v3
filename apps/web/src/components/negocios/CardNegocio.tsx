@@ -56,6 +56,7 @@ export interface CardNegocioProps {
   seleccionado: boolean;
   onSelect: () => void;
   modoPreview?: boolean;
+  onVerPerfil?: () => void;
 }
 
 // =============================================================================
@@ -127,10 +128,11 @@ const CARD_STYLES = `
 // COMPONENTE
 // =============================================================================
 
-export function CardNegocio({ negocio, seleccionado, modoPreview = false }: CardNegocioProps) {
+export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = false, onVerPerfil }: CardNegocioProps) {
   const navigate = useNavigate();
 
-  // ✅ Estado de visibilidad para optimizar carrusel
+  // ✅ Estado de visibilidad para pausar efectos cuando está fuera de pantalla
+  const [esVisible, setEsVisible] = useState(false);
 
   // ✅ Pre-fetch COMPLETO (perfil + ofertas + catálogo)
   const { prefetchCompleto } = useNegociosCacheStore();
@@ -198,19 +200,31 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
   const imagenActualRef = useRef(imagenActual);
   useEffect(() => { imagenActualRef.current = imagenActual; }, [imagenActual]);
 
-  // ── Pre-fetch COMPLETO cuando la tarjeta es visible (para móvil) ──
+  // ── Autoplay: rotar imágenes cada 4s (solo si hay más de 1 Y es visible) ──
   useEffect(() => {
-    if (!cardRef.current || prefetchEjecutado.current) return;
+    if (!esVisible || !negocio.galeria || negocio.galeria.length <= 1) return;
+    const interval = setInterval(() => {
+      const total = negocio.galeria?.length ?? 0;
+      const siguiente = imagenActualRef.current === total - 1 ? 0 : imagenActualRef.current + 1;
+      irAImagen(siguiente);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [negocio.galeria, irAImagen, esVisible]);
+
+  // ── Observer unificado: visibilidad (pausa efectos) + pre-fetch ──
+  useEffect(() => {
+    if (!cardRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
+          setEsVisible(entry.isIntersecting);
           if (entry.isIntersecting && !prefetchEjecutado.current) {
             prefetchEjecutado.current = true;
             prefetchCompleto(negocio.sucursalId);
           }
         });
       },
-      { threshold: 0.5 }
+      { threshold: 0.1 }
     );
     observer.observe(cardRef.current);
     return () => observer.disconnect();
@@ -241,6 +255,10 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
   };
 
   const handleClick = () => {
+    if (onVerPerfil) {
+      onVerPerfil();
+      return;
+    }
     const url = modoPreview
       ? `/negocios/${negocio.sucursalId}?preview=true`
       : `/negocios/${negocio.sucursalId}`;
@@ -294,6 +312,7 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
         <img
           src={negocio.galeria[imagenPrevia].url}
           alt=""
+          loading="lazy"
           className="absolute inset-0 w-full h-full object-cover"
           style={{
             opacity: crossfading ? 0 : 1,
@@ -307,6 +326,7 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
         <img
           src={negocio.galeria[imagenActual]?.url}
           alt={negocio.galeria[imagenActual]?.titulo || negocio.negocioNombre}
+          loading="lazy"
           className="absolute inset-0 w-full h-full object-cover"
           style={{
             opacity: crossfading && imagenPrevia !== null ? 0.5 : 1,
@@ -318,6 +338,7 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
         <img
           src={negocio.logoUrl}
           alt={negocio.negocioNombre}
+          loading="lazy"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ zIndex: 2 }}
         />
@@ -375,6 +396,7 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
               animation: abierto
                 ? 'cardStatusPulse 2s ease-in-out infinite'
                 : 'cardStatusPulse 2.5s ease-in-out infinite',
+              animationPlayState: esVisible ? 'running' : 'paused',
             }}
           />
         </span>
@@ -403,7 +425,7 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
       {liked && (
         <span
           className="absolute -inset-1 rounded-full border-2 border-red-500/35 pointer-events-none"
-          style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+          style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite', animationPlayState: esVisible ? 'running' : 'paused' }}
         />
       )}
       <svg className={iconSize} viewBox="0 0 24 24">
@@ -501,6 +523,7 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
             <img
               src={negocio.logoUrl}
               alt={negocio.negocioNombre}
+              loading="lazy"
               className="w-[42px] h-[42px] rounded-full object-cover shrink-0 border-2 border-white/80 shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
             />
           ) : (
@@ -590,11 +613,15 @@ export function CardNegocio({ negocio, seleccionado, modoPreview = false }: Card
       ref={cardRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`shrink-0 transition-all duration-200 ${
+      onClick={onSelect}
+      className={`shrink-0 cursor-pointer transition-all duration-200 ${
         modoPreview ? 'scale-[1.2] origin-left' : ''
       } ${
-        seleccionado ? 'ring-2 ring-blue-500 scale-[1.02] rounded-2xl' : ''
+        seleccionado ? 'ring-2 ring-blue-400 scale-[1.02] rounded-2xl' : ''
       }`}
+      style={seleccionado ? {
+        boxShadow: '0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(59, 130, 246, 0.15)',
+      } : undefined}
     >
       {renderCard()}
 

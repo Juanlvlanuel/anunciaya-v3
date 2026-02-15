@@ -9,53 +9,86 @@
  * Tab para editar información de contacto (teléfono, email, redes sociales)
  */
 
-import type { DatosContacto } from '../hooks/usePerfil';
+import type { DatosContacto, DatosInformacion } from '../hooks/usePerfil';
 
 interface TabContactoProps {
   datosContacto: DatosContacto;
   setDatosContacto: (datos: DatosContacto) => void;
+  datosInformacion: DatosInformacion;
+  setDatosInformacion: (datos: DatosInformacion) => void;
+  esGerente: boolean;
 }
 
 export default function TabContacto({
   datosContacto,
   setDatosContacto,
+  datosInformacion,
+  setDatosInformacion,
+  esGerente,
 }: TabContactoProps) {
 
   // Helper para normalizar formato de teléfono
   const normalizarTelefono = (tel: string): { lada: string; numero: string } => {
     if (!tel) return { lada: '+52', numero: '' };
-    
+
     if (tel.includes(' ') && tel.startsWith('+')) {
       const partes = tel.split(' ');
       return { lada: partes[0], numero: partes[1] || '' };
     }
-    
+
     if (tel.startsWith('+')) {
       const soloDigitos = tel.substring(1);
-      
+
       if (soloDigitos.length >= 10) {
         const numero = soloDigitos.slice(-10);
         const ladaSinMas = soloDigitos.slice(0, -10);
         const lada = '+' + (ladaSinMas || '52');
         return { lada, numero };
       }
-      
+
       return { lada: tel, numero: '' };
     }
-    
+
     if (/^\d+$/.test(tel)) {
       return { lada: '+52', numero: tel };
     }
-    
+
     return { lada: '+52', numero: tel.replace(/[^0-9]/g, '') };
   };
 
   return (
     <div className="space-y-5 lg:space-y-3 2xl:space-y-6">
 
+      {/* Nombre de la Sucursal - Visible para gerentes y dueños en sucursal secundaria */}
+      {(esGerente || (datosInformacion.totalSucursales > 1 && !datosInformacion.esPrincipal)) && (
+        <div>
+          <label htmlFor="input-nombre-sucursal-contacto" className="flex items-center gap-2.5 text-base 2xl:text-base lg:text-sm font-bold text-slate-700 mb-2">
+            <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Nombre de la Sucursal <span className="text-red-500">*</span>
+          </label>
+          <div
+            className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
+            style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+          >
+            <input
+              id="input-nombre-sucursal-contacto"
+              name="input-nombre-sucursal-contacto"
+              type="text"
+              value={datosInformacion.nombreSucursal}
+              onChange={(e) => setDatosInformacion({ ...datosInformacion, nombreSucursal: e.target.value })}
+              placeholder="Ej: Mi Negocio Plaza Norte"
+              className="flex-1 bg-transparent outline-none text-lg lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
+            />
+          </div>
+        </div>
+      )}
+
       {/* SECCIÓN PRINCIPAL: Teléfono, WhatsApp, Email, Sitio Web */}
       <div className="grid lg:grid-cols-2 gap-5 lg:gap-5 2xl:gap-6">
-        
+
         {/* Teléfono */}
         <div>
           <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2">
@@ -75,21 +108,21 @@ export default function TabContacto({
                 value={normalizarTelefono(datosContacto.telefono).lada}
                 onChange={(e) => {
                   let lada = e.target.value;
-                  
+
                   if (!lada.startsWith('+')) {
                     lada = '+' + lada.replace(/[^0-9]/g, '');
                   }
                   lada = lada.replace(/[^+0-9]/g, '');
-                  
+
                   if (lada === '+' || lada === '') {
                     lada = '+52';
                   }
-                  
+
                   const { numero } = normalizarTelefono(datosContacto.telefono);
-                  
-                  setDatosContacto({ 
-                    ...datosContacto, 
-                    telefono: numero ? `${lada} ${numero}` : lada 
+
+                  setDatosContacto({
+                    ...datosContacto,
+                    telefono: numero ? `${lada} ${numero}` : lada
                   });
                 }}
                 placeholder="+52"
@@ -108,9 +141,9 @@ export default function TabContacto({
                 onChange={(e) => {
                   const numero = e.target.value.replace(/[^0-9]/g, '');
                   const { lada } = normalizarTelefono(datosContacto.telefono);
-                  
-                  setDatosContacto({ 
-                    ...datosContacto, 
+
+                  setDatosContacto({
+                    ...datosContacto,
                     telefono: numero ? `${lada} ${numero}` : lada
                   });
                 }}
@@ -126,7 +159,7 @@ export default function TabContacto({
         <div>
           <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2">
             <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
             </svg>
             WhatsApp
           </div>
@@ -141,21 +174,21 @@ export default function TabContacto({
                 value={normalizarTelefono(datosContacto.whatsapp || '').lada}
                 onChange={(e) => {
                   let lada = e.target.value;
-                  
+
                   if (!lada.startsWith('+')) {
                     lada = '+' + lada.replace(/[^0-9]/g, '');
                   }
                   lada = lada.replace(/[^+0-9]/g, '');
-                  
+
                   if (lada === '+' || lada === '') {
                     lada = '+52';
                   }
-                  
+
                   const { numero } = normalizarTelefono(datosContacto.whatsapp || '');
-                  
-                  setDatosContacto({ 
-                    ...datosContacto, 
-                    whatsapp: numero ? `${lada} ${numero}` : lada 
+
+                  setDatosContacto({
+                    ...datosContacto,
+                    whatsapp: numero ? `${lada} ${numero}` : lada
                   });
                 }}
                 placeholder="+52"
@@ -174,9 +207,9 @@ export default function TabContacto({
                 onChange={(e) => {
                   const numero = e.target.value.replace(/[^0-9]/g, '');
                   const { lada } = normalizarTelefono(datosContacto.whatsapp || '');
-                  
-                  setDatosContacto({ 
-                    ...datosContacto, 
+
+                  setDatosContacto({
+                    ...datosContacto,
                     whatsapp: numero ? `${lada} ${numero}` : lada
                   });
                 }}
@@ -210,27 +243,29 @@ export default function TabContacto({
           </div>
         </div>
 
-        {/* Sitio Web */}
-        <div>
-          <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2">
-            <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-            </svg>
-            Sitio Web (opcional)
+        {/* Sitio Web - Solo visible para dueños en sucursal principal o con 1 sucursal */}
+        {!esGerente && (datosInformacion.totalSucursales === 1 || datosInformacion.esPrincipal) && (
+          <div>
+            <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2">
+              <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+              </svg>
+              Sitio Web (opcional)
+            </div>
+            <div
+              className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4"
+              style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+            >
+              <input
+                type="url"
+                value={datosContacto.sitioWeb || ''}
+                onChange={(e) => setDatosContacto({ ...datosContacto, sitioWeb: e.target.value })}
+                placeholder="https://tusitio.com"
+                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
+              />
+            </div>
           </div>
-          <div
-            className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4"
-            style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-          >
-            <input
-              type="url"
-              value={datosContacto.sitioWeb || ''}
-              onChange={(e) => setDatosContacto({ ...datosContacto, sitioWeb: e.target.value })}
-              placeholder="https://tusitio.com"
-              className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* SEPARADOR + HEADER REDES SOCIALES */}
@@ -246,7 +281,7 @@ export default function TabContacto({
 
         {/* GRID REDES SOCIALES */}
         <div className="grid lg:grid-cols-2 gap-5 lg:gap-5 2xl:gap-6">
-          
+
           {/* Facebook */}
           <div>
             <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2">

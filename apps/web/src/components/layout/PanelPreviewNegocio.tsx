@@ -2,6 +2,9 @@
  * PanelPreviewNegocio.tsx
  * ========================
  * Panel de preview con tabs para ver Card y Perfil del negocio.
+ * 
+ * Tab Card: Renderiza CardNegocio directamente (fetch directo por sucursalId)
+ * Tab Perfil: Usa iframe apuntando a PaginaPerfilNegocio
  *
  * Ubicacion: apps/web/src/components/layout/PanelPreviewNegocio.tsx
  */
@@ -10,6 +13,9 @@ import { useEffect, useState } from 'react';
 import { X, Eye, Loader2, Store, CreditCard, User } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
+import { get } from '../../services/api';
+import { CardNegocio } from '../negocios/CardNegocio';
+import type { NegocioResumen } from '../../types/negocios';
 
 interface PanelPreviewNegocioProps {
   esMobile?: boolean;
@@ -17,16 +23,57 @@ interface PanelPreviewNegocioProps {
 
 type TabActivo = 'card' | 'perfil';
 
+// =============================================================================
+// MAPPER: Perfil completo → NegocioResumen (lo que CardNegocio necesita)
+// =============================================================================
+
+function mapearPerfilAResumen(data: Record<string, unknown>): NegocioResumen {
+  return {
+    negocioId: data.negocioId as string,
+    negocioNombre: data.negocioNombre as string,
+    galeria: (data.galeria as NegocioResumen['galeria']) || [],
+    logoUrl: (data.logoUrl as string | null) ?? null,
+    aceptaCardya: (data.aceptaCardya as boolean) ?? false,
+    verificado: (data.verificado as boolean) ?? false,
+    sucursalId: data.sucursalId as string,
+    sucursalNombre: data.sucursalNombre as string,
+    direccion: (data.direccion as string) ?? '',
+    ciudad: (data.ciudad as string) ?? '',
+    telefono: (data.telefono as string) ?? '',
+    whatsapp: (data.whatsapp as string | null) ?? null,
+    tieneEnvioDomicilio: (data.tieneEnvioDomicilio as boolean) ?? false,
+    tieneServicioDomicilio: (data.tieneServicioDomicilio as boolean) ?? false,
+    calificacionPromedio: String(data.calificacionPromedio ?? '0'),
+    totalCalificaciones: (data.totalCalificaciones as number) ?? 0,
+    totalLikes: (data.totalLikes as number) ?? 0,
+    totalVisitas: (data.totalVisitas as number) ?? 0,
+    activa: (data.activa as boolean) ?? true,
+    latitud: (data.latitud as number | null) ?? null,
+    longitud: (data.longitud as number | null) ?? null,
+    distanciaKm: null,
+    categorias: (data.categorias as NegocioResumen['categorias']) || [],
+    metodosPago: (data.metodosPago as string[]) || [],
+    liked: (data.liked as boolean) ?? false,
+    followed: (data.followed as boolean) ?? false,
+    estaAbierto: (data.estaAbierto as boolean | null) ?? null,
+  };
+}
+
+// =============================================================================
+// COMPONENTE PRINCIPAL
+// =============================================================================
+
 export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioProps) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sucursalId, setSucursalId] = useState<string | null>(null);
   const [tabActivo, setTabActivo] = useState<TabActivo>('card');
+  const [negocioPreview, setNegocioPreview] = useState<NegocioResumen | null>(null);
 
   const usuario = useAuthStore((state) => state.usuario);
   const cerrarPreviewNegocio = useUiStore((state) => state.cerrarPreviewNegocio);
 
-  // Usar la sucursal activa del usuario
+  // Obtener sucursalId del usuario
   useEffect(() => {
     if (!usuario?.negocioId) {
       setError('No se encontró el negocio');
@@ -41,8 +88,43 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
     }
 
     setSucursalId(usuario.sucursalActiva);
-    setCargando(false);
   }, [usuario?.negocioId, usuario?.sucursalActiva]);
+
+  // Fetch directo del negocio por sucursalId
+  useEffect(() => {
+    if (!sucursalId) return;
+
+    let cancelado = false;
+
+    async function fetchNegocio() {
+      try {
+        setCargando(true);
+        setError(null);
+
+        const resp = await get<Record<string, unknown>>(`/negocios/sucursal/${sucursalId}`);
+
+        if (cancelado) return;
+
+        if (resp.success && resp.data) {
+          setNegocioPreview(mapearPerfilAResumen(resp.data));
+        } else {
+          setError('No se pudo cargar el negocio');
+        }
+      } catch {
+        if (!cancelado) {
+          setError('Error al cargar el negocio');
+        }
+      } finally {
+        if (!cancelado) {
+          setCargando(false);
+        }
+      }
+    }
+
+    fetchNegocio();
+
+    return () => { cancelado = true; };
+  }, [sucursalId]);
 
   // Render Header con Tabs
   const renderHeader = () => {
@@ -157,21 +239,51 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
     );
   }
 
-  // URLs para los iframes
-  const urlCard = '/negocios?preview=card&sucursalId=' + sucursalId;
+  // URL para iframe del perfil
   const urlPerfil = '/negocios/' + sucursalId + '?preview=true';
+
+  // Render del contenido según tab activo
+  const renderContenido = () => {
+    const cardVisible = tabActivo === 'card';
+
+    return (
+      <>
+        {/* Tab Card - render directo */}
+        <div className={`flex-1 bg-linear-to-br from-slate-100 to-slate-200 flex items-center justify-center p-4 overflow-auto ${cardVisible ? '' : 'hidden'}`}>
+          {negocioPreview ? (
+            <div className="max-w-[300px] w-full 2xl:mr-14 mr-14">
+              <CardNegocio
+                negocio={negocioPreview}
+                seleccionado={false}
+                onSelect={() => { }}
+                modoPreview={true}
+                onVerPerfil={() => setTabActivo('perfil')}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-500 p-4">
+              <Store className="w-12 h-12 text-gray-300" />
+              <span className="text-sm">No se pudo cargar la card</span>
+            </div>
+          )}
+        </div>
+
+        {/* Tab Perfil - iframe precargado (se oculta con CSS, no se desmonta) */}
+        <iframe
+          src={urlPerfil}
+          className={`flex-1 w-full border-0 ${cardVisible ? 'hidden' : ''}`}
+          title="Preview del perfil"
+        />
+      </>
+    );
+  };
 
   // Render principal
   if (esMobile) {
     return (
-      <div className="fixed inset-0 z-30 bg-white">
+      <div className="fixed inset-0 z-30 bg-white flex flex-col">
         {renderHeader()}
-        <iframe
-          key={tabActivo}
-          src={tabActivo === 'card' ? urlCard : urlPerfil}
-          className="w-full h-[calc(100vh-100px)] border-0"
-          title="Preview del negocio"
-        />
+        {renderContenido()}
       </div>
     );
   }
@@ -179,12 +291,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
   return (
     <div className="h-full flex flex-col">
       {renderHeader()}
-      <iframe
-        key={tabActivo}
-        src={tabActivo === 'card' ? urlCard : urlPerfil}
-        className="flex-1 w-full border-0"
-        title="Preview del negocio"
-      />
+      {renderContenido()}
     </div>
   );
 }

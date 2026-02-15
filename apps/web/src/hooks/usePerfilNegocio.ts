@@ -18,10 +18,11 @@
  * - ✅ Función refetch manual
  * - ✅ TypeScript completo
  * 
- * FLUJO:
+ * FLUJO (stale-while-revalidate):
  * 1. ¿Existe en caché? → Mostrar inmediato (loading=false)
- * 2. ¿No existe? → Mostrar loading, hacer fetch
- * 3. Al recibir datos → Guardar en caché
+ * 2. Fetch en segundo plano para traer datos frescos (likes, follows, etc.)
+ * 3. ¿No existe en caché? → Mostrar loading, hacer fetch
+ * 4. Al recibir datos → Guardar en caché
  * 
  * USO:
  * ```tsx
@@ -223,7 +224,7 @@ export function usePerfilNegocio(
   
   /**
    * Efecto que ejecuta el fetch cuando cambia el ID
-   * Si hay datos en caché, los usa inmediatamente
+   * Patrón stale-while-revalidate: muestra caché inmediato + fetch fresco en segundo plano
    */
   useEffect(() => {
     // Reset del ref cuando cambia el ID
@@ -240,11 +241,14 @@ export function usePerfilNegocio(
         setFromCache(true);
         setError(null);
         
-        // Ejecutar callback
-        if (!callbackEjecutado.current) {
-          callbackEjecutado.current = true;
-          onSuccess?.(cacheado);
-        }
+        // Ejecutar callback con datos cacheados
+        callbackEjecutado.current = true;
+        onSuccess?.(cacheado);
+
+        // Revalidar en segundo plano para traer datos frescos (likes, follows, etc.)
+        // Reseteamos el flag para que onSuccess se ejecute de nuevo con datos frescos
+        callbackEjecutado.current = false;
+        fetchNegocio(true);
       } else {
         // No hay caché - hacer fetch normal
         setFromCache(false);

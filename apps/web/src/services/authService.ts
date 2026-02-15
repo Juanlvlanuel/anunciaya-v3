@@ -42,6 +42,9 @@ export interface Usuario {
   correoNegocio: string | null;
   logoNegocio: string | null;
   fotoPerfilNegocio: string | null;
+  nombreSucursalAsignada: string | null;
+  correoSucursalAsignada: string | null;
+  fotoPerfilSucursalAsignada: string | null;
   createdAt: string;
 }
 /**

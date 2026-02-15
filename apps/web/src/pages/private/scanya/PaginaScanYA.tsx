@@ -31,6 +31,7 @@ import {
   ModalVouchers,
   ModalCanjearVoucher,
   ModalRecordatorios,
+  ModalResenas,
 } from '@/components/scanya';
 import type { RecordatorioScanYA } from '@/types/scanya';
 import type { TurnoScanYA, RespuestaTurnoActual } from '@/types/scanya';
@@ -65,7 +66,7 @@ export default function PaginaScanYA() {
   const [cargandoTurno, setCargandoTurno] = useState(false);
 
   // Estado unificado para controlar qué modal está abierto (evita conflictos y temblores)
-  type ModalActivo = 'ninguno' | 'cerrar' | 'venta' | 'historial' | 'vouchers' | 'canjear' | 'recordatorios';
+  type ModalActivo = 'ninguno' | 'cerrar' | 'venta' | 'historial' | 'vouchers' | 'canjear' | 'recordatorios' | 'resenas';
   const [modalActivo, setModalActivo] = useState<ModalActivo>('ninguno');
   const [voucherACanjear, setVoucherACanjear] = useState<{ voucherId: string; clienteId: string; clienteNombre: string; recompensaNombre: string; } | null>(null);
 
@@ -330,6 +331,11 @@ export default function PaginaScanYA() {
       setModalActivo('recordatorios');
       return;
     }
+    // Interceptar reseñas para abrir modal
+    if (ruta === '/scanya/resenas') {
+      setModalActivo('resenas');
+      return;
+    }
     navigate(ruta);
   };
 
@@ -548,7 +554,7 @@ export default function PaginaScanYA() {
       </div>
 
       {/* Todo el contenido con z-index para estar encima del fondo */}
-      <div className={`relative z-10 h-full flex flex-col transition-all duration-300 ${(['venta', 'historial', 'vouchers', 'canjear', 'recordatorios'].includes(modalActivo)) ? 'lg:mr-[350px] 2xl:mr-[450px]' : ''}`}>        {/* Header */}
+      <div className={`relative z-10 h-full flex flex-col transition-all duration-300 ${(['venta', 'historial', 'vouchers', 'canjear', 'recordatorios', 'resenas'].includes(modalActivo)) ? 'lg:mr-[350px] 2xl:mr-[450px]' : ''}`}>        {/* Header */}
         <HeaderScanYA />
 
         {/* Barra Info Negocio (solo móvil, sin contenedor) */}
@@ -733,6 +739,19 @@ export default function PaginaScanYA() {
             setContadores(prev => ({
               ...prev,
               recordatoriosPendientes: cantidad,
+            }));
+          }}
+        />
+
+        {/* Modal Reseñas (Fase 14) */}
+        <ModalResenas
+          abierto={modalActivo === 'resenas'}
+          onClose={() => setModalActivo('ninguno')}
+          onResenaRespondida={() => {
+            // Decrementar contador optimistamente
+            setContadores(prev => ({
+              ...prev,
+              resenasPendientes: Math.max(0, prev.resenasPendientes - 1),
             }));
           }}
         />

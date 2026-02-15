@@ -205,15 +205,17 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
             {/* Nombre */}
             <p className="font-bold text-gray-900 text-base mb-0.5 px-2 truncate w-full">
-              {esComercial && usuario?.nombreNegocio
+              {esComercial
                 ? usuario.nombreNegocio
                 : `${usuario?.nombre} ${usuario?.apellidos}`}
             </p>
 
             {/* Correo */}
             <p className="text-sm text-gray-600 px-2 truncate w-full">
-              {esComercial && usuario?.correoNegocio
-                ? usuario.correoNegocio
+              {esComercial
+                ? (usuario?.sucursalAsignada
+                  ? `Suc. ${usuario.nombreSucursalAsignada}`
+                  : usuario.correoNegocio)
                 : usuario?.correo}
             </p>
           </div>

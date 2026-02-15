@@ -32,6 +32,14 @@ interface ModalEscribirResenaProps {
     tieneCompraVerificada?: boolean;
     /** Callback al enviar la reseña exitosamente */
     onEnviar?: (rating: number, texto: string) => void;
+    /** Modo edición: datos de la reseña a editar */
+    resenaEditar?: {
+        id: string;
+        rating: number | null;
+        texto: string | null;
+    } | null;
+    /** Callback al editar exitosamente */
+    onEditar?: (resenaId: string, rating: number, texto: string) => void;
 }
 
 // =============================================================================
@@ -120,12 +128,20 @@ function VistaCompraRequerida({ onCerrar }: VistaCompraRequeridaProps) {
 interface FormularioCalificacionProps {
     onCerrar: () => void;
     onEnviar?: (rating: number, texto: string) => void;
+    /** Modo edición */
+    resenaEditar?: {
+        id: string;
+        rating: number | null;
+        texto: string | null;
+    } | null;
+    onEditar?: (resenaId: string, rating: number, texto: string) => void;
 }
 
-function FormularioCalificacion({ onCerrar, onEnviar }: FormularioCalificacionProps) {
-    const [selectedRating, setSelectedRating] = useState(0);
+function FormularioCalificacion({ onCerrar, onEnviar, resenaEditar, onEditar }: FormularioCalificacionProps) {
+    const esEdicion = !!resenaEditar;
+    const [selectedRating, setSelectedRating] = useState(resenaEditar?.rating || 0);
     const [hoverRating, setHoverRating] = useState(0);
-    const [texto, setTexto] = useState('');
+    const [texto, setTexto] = useState(resenaEditar?.texto || '');
     const [enviando, setEnviando] = useState(false);
 
     const handleEnviar = async () => {
@@ -133,7 +149,11 @@ function FormularioCalificacion({ onCerrar, onEnviar }: FormularioCalificacionPr
 
         setEnviando(true);
         try {
-            await onEnviar?.(selectedRating, texto);
+            if (esEdicion && resenaEditar) {
+                await onEditar?.(resenaEditar.id, selectedRating, texto);
+            } else {
+                await onEnviar?.(selectedRating, texto);
+            }
             onCerrar();
         } catch (error) {
             console.error('Error al enviar reseña:', error);
@@ -232,7 +252,7 @@ function FormularioCalificacion({ onCerrar, onEnviar }: FormularioCalificacionPr
                             : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                     }`}
                 >
-                    {enviando ? 'Enviando...' : 'Publicar Reseña'}
+                    {enviando ? 'Enviando...' : esEdicion ? 'Guardar Cambios' : 'Publicar Reseña'}
                 </button>
             </div>
         </>
@@ -248,14 +268,25 @@ export function ModalEscribirResena({
     onCerrar,
     tieneCompraVerificada = false,
     onEnviar,
+    resenaEditar,
+    onEditar,
 }: ModalEscribirResenaProps) {
     const { esMobile } = useBreakpoint();
+    const esEdicion = !!resenaEditar;
+
+    // En modo edición, siempre mostrar el formulario (ya tiene compra verificada)
+    const mostrarFormulario = esEdicion || tieneCompraVerificada;
 
     // Contenido compartido
     const contenido = (
         <div className="p-4">
-            {tieneCompraVerificada ? (
-                <FormularioCalificacion onCerrar={onCerrar} onEnviar={onEnviar} />
+            {mostrarFormulario ? (
+                <FormularioCalificacion
+                    onCerrar={onCerrar}
+                    onEnviar={onEnviar}
+                    resenaEditar={resenaEditar}
+                    onEditar={onEditar}
+                />
             ) : (
                 <VistaCompraRequerida onCerrar={onCerrar} />
             )}
@@ -270,7 +301,7 @@ export function ModalEscribirResena({
             <ModalBottom
                 abierto={abierto}
                 onCerrar={onCerrar}
-                titulo="Escribir Reseña"
+                titulo={esEdicion ? "Editar Reseña" : "Escribir Reseña"}
                 iconoTitulo={<Star className="w-5 h-5 text-white fill-current" />}
                 mostrarHeader={false}
                 sinScrollInterno={true}
@@ -281,7 +312,7 @@ export function ModalEscribirResena({
                     <div className="flex items-center justify-between">
                         <h3 className="flex items-center gap-2 text-base font-semibold text-white">
                             <Star className="w-5 h-5 fill-current" />
-                            <span>Escribir Reseña</span>
+                            <span>{esEdicion ? "Editar Reseña" : "Escribir Reseña"}</span>
                         </h3>
                         <button
                             onClick={onCerrar}
@@ -316,7 +347,7 @@ export function ModalEscribirResena({
                 <div className="flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-base lg:text-sm 2xl:text-lg font-semibold text-white">
                         <Star className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 fill-current" />
-                        <span>Escribir Reseña</span>
+                        <span>{esEdicion ? "Editar Reseña" : "Escribir Reseña"}</span>
                     </h3>
                     <button
                         onClick={onCerrar}

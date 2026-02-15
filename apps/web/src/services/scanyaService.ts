@@ -38,6 +38,7 @@ import type {
   RecordatorioScanYA,
   ConfiguracionScanYA,
   ConfiguracionPuntos,
+  ResenaNegocio,
 } from '../types/scanya';
 
 // =============================================================================
@@ -188,8 +189,8 @@ export async function obtenerHistorial(
   periodo: PeriodoHistorial = 'mes',
   pagina: number = 1,
   limite: number = 20,
-  sucursalId?: string,    // ← AGREGAR
-  empleadoId?: string     // ← AGREGAR
+  filtroSucursalId?: string,    
+  filtroEmpleadoId?: string     
 ): Promise<RespuestaAPI<{
   transacciones: TransaccionScanYA[];
   total: number;
@@ -202,7 +203,7 @@ export async function obtenerHistorial(
     pagina: number;
     totalPaginas: number;
   }>>(`${BASE}/historial`, {
-    params: { periodo, pagina, limite, sucursalId, empleadoId },
+    params: { periodo, pagina, limite, filtroSucursalId, filtroEmpleadoId },  
   });
   return response.data;
 }
@@ -461,6 +462,41 @@ export async function obtenerUrlSubidaTicket(
 }
 
 // =============================================================================
+// RESEÑAS (FASE 14)
+// =============================================================================
+
+/**
+ * Obtener reseñas del negocio (con respuestas incluidas)
+ * GET /api/resenas/negocio
+ */
+export async function obtenerResenasNegocio(
+  sucursalId?: string,
+  pendientes?: boolean
+): Promise<RespuestaAPI<ResenaNegocio[]>> {
+  const params: Record<string, string> = {};
+  if (sucursalId) params.sucursalId = sucursalId;
+  if (pendientes) params.pendientes = 'true';
+  const response = await api.get<RespuestaAPI<ResenaNegocio[]>>(
+    '/resenas/negocio', { params }
+  );
+  return response.data;
+}
+
+/**
+ * Responder una reseña desde el negocio
+ * POST /api/resenas/responder
+ */
+export async function responderResena(
+  resenaId: string,
+  texto: string
+): Promise<RespuestaAPI<{ id: string; texto: string; createdAt: string }>> {
+  const response = await api.post<RespuestaAPI<{ id: string; texto: string; createdAt: string }>>(
+    '/resenas/responder', { resenaId, texto }
+  );
+  return response.data;
+}
+
+// =============================================================================
 // EXPORT DEFAULT (OBJETO CON TODAS LAS FUNCIONES)
 // =============================================================================
 
@@ -506,6 +542,10 @@ const scanyaService = {
   // Listas para filtros
   obtenerSucursalesLista,
   obtenerOperadoresLista,
+
+  // Reseñas
+  obtenerResenasNegocio,
+  responderResena,
 };
 
 export default scanyaService;

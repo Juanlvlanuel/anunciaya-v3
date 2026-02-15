@@ -14,7 +14,7 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import { MapPin, Navigation, Loader2, X } from 'lucide-react';
 import L from 'leaflet';
 import { useGpsStore } from '@/stores/useGpsStore';
-import { buscarCiudades, buscarCiudadCercana, type CiudadConNombreCompleto } from '@/data/ciudadesPopulares';
+import { buscarCiudades, buscarCiudadCercana, buscarEstados, estadosMexico, type CiudadConNombreCompleto } from '@/data/ciudadesPopulares';
 import { notificar } from '@/utils/notificaciones';
 
 import 'leaflet/dist/leaflet.css';
@@ -128,6 +128,9 @@ export default function TabUbicacion({
   const [busquedaCiudad, setBusquedaCiudad] = useState('');
   const [resultadosCiudad, setResultadosCiudad] = useState<CiudadConNombreCompleto[]>([]);
   const [mostrarResultados, setMostrarResultados] = useState(false);
+  const [busquedaEstado, setBusquedaEstado] = useState('');
+  const [resultadosEstado, setResultadosEstado] = useState<string[]>([]);
+  const [mostrarResultadosEstado, setMostrarResultadosEstado] = useState(false);
   const [detectandoUbicacion, setDetectandoUbicacion] = useState(false);
   const [mapaListo, setMapaListo] = useState(false);
   const [forzarCentrado, setForzarCentrado] = useState(0);
@@ -140,17 +143,59 @@ export default function TabUbicacion({
     return () => clearTimeout(timer);
   }, []);
 
+  const contenedorGeneralRef = useRef<HTMLDivElement>(null);
   const contenedorCiudadRef = useRef<HTMLDivElement>(null);
+  const contenedorEstadoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (mostrarResultados && contenedorCiudadRef.current) {
+    if (mostrarResultados && contenedorGeneralRef.current) {
       setTimeout(() => {
-        contenedorCiudadRef.current?.scrollIntoView({
+        contenedorGeneralRef.current?.scrollIntoView({
           behavior: 'smooth',
           block: 'center',
         });
       }, 100);
     }
+  }, [mostrarResultados]);
+
+  // Cerrar dropdown de estado al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        contenedorEstadoRef.current &&
+        !contenedorEstadoRef.current.contains(event.target as Node)
+      ) {
+        setMostrarResultadosEstado(false);
+      }
+    };
+
+    if (mostrarResultadosEstado) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [mostrarResultadosEstado]);
+
+  // Cerrar dropdown de ciudad al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        contenedorCiudadRef.current &&
+        !contenedorCiudadRef.current.contains(event.target as Node)
+      ) {
+        setMostrarResultados(false);
+      }
+    };
+
+    if (mostrarResultados) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [mostrarResultados]);
 
   const handleBusquedaCiudad = useCallback((valor: string) => {
@@ -167,19 +212,44 @@ export default function TabUbicacion({
   }, []);
 
   const handleSeleccionarCiudad = useCallback((ciudad: CiudadConNombreCompleto) => {
-    const nombreCompleto = `${ciudad.nombre}, ${ciudad.estado}`;
-    setBusquedaCiudad(nombreCompleto);
+    // Solo guardar el nombre de la ciudad (sin estado) en busquedaCiudad
+    setBusquedaCiudad('');
 
     const coords = obtenerCoordenadasDeCiudad(ciudad);
 
     setDatosUbicacion({
       ...datosUbicacion,
-      ciudad: nombreCompleto,
+      // Guardar ciudad y estado por separado en la BD
+      ciudad: ciudad.nombre,
+      estado: ciudad.estado,
       latitud: coords?.lat ?? datosUbicacion.latitud,
       longitud: coords?.lng ?? datosUbicacion.longitud,
     });
 
     setMostrarResultados(false);
+    setMostrarResultadosEstado(false);
+  }, [datosUbicacion, setDatosUbicacion]);
+
+  const handleBusquedaEstado = useCallback((valor: string) => {
+    setBusquedaEstado(valor);
+
+    if (valor.trim().length >= 1) {
+      const resultados = buscarEstados(valor);
+      setResultadosEstado(resultados);
+      setMostrarResultadosEstado(true);
+    } else {
+      setResultadosEstado(estadosMexico);
+      setMostrarResultadosEstado(true);
+    }
+  }, []);
+
+  const handleSeleccionarEstado = useCallback((estado: string) => {
+    setBusquedaEstado('');
+    setDatosUbicacion({
+      ...datosUbicacion,
+      estado: estado,
+    });
+    setMostrarResultadosEstado(false);
   }, [datosUbicacion, setDatosUbicacion]);
 
   const handleDetectarUbicacion = useCallback(async () => {
@@ -196,15 +266,21 @@ export default function TabUbicacion({
 
         setDatosUbicacion({
           ...datosUbicacion,
+          // Guardar ciudad y estado por separado en la BD
           ciudad: ciudadCercana
-            ? `${ciudadCercana.nombre}, ${ciudadCercana.estado}`
+            ? ciudadCercana.nombre
             : datosUbicacion.ciudad,
+          estado: ciudadCercana
+            ? ciudadCercana.estado
+            : datosUbicacion.estado,
           latitud: coordenadas.latitud,
           longitud: coordenadas.longitud,
         });
 
+        // Limpiar búsquedas ya que los valores se muestran desde datosUbicacion
         if (ciudadCercana) {
-          setBusquedaCiudad(`${ciudadCercana.nombre}, ${ciudadCercana.estado}`);
+          setBusquedaCiudad('');
+          setBusquedaEstado('');
         }
 
         setForzarCentrado(prev => prev + 1);
@@ -254,16 +330,24 @@ export default function TabUbicacion({
         </div>
       </div>
 
-      {/* Ciudad con Autocomplete + Botón Detectar */}
-      <div ref={contenedorCiudadRef} className="relative z-10">
-        <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2">
-          <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-          Ciudad <span className="text-red-500">*</span>
+      {/* Ciudad + Estado + GPS en una línea */}
+      <div ref={contenedorGeneralRef}>
+        {/* Labels */}
+        <div className="flex gap-2 mb-2">
+          <div className="w-1/2 flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
+            <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
+            Ciudad <span className="text-red-500">*</span>
+          </div>
+          <div className="w-[30%] flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
+            <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
+            Estado <span className="text-red-500">*</span>
+          </div>
         </div>
 
+        {/* Inputs en una línea */}
         <div className="flex gap-2">
-          {/* Input con Autocomplete */}
-          <div className="relative flex-1">
+          {/* Input Ciudad - 50% */}
+          <div ref={contenedorCiudadRef} className="relative w-1/2 z-20">
             <div
               className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
               style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
@@ -297,7 +381,7 @@ export default function TabUbicacion({
               )}
             </div>
 
-            {/* Dropdown de resultados */}
+            {/* Dropdown de ciudades */}
             {mostrarResultados && resultadosCiudad.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl max-h-60 overflow-y-auto z-50" style={{ border: '2.5px solid #dde4ef' }}>
                 {resultadosCiudad.map((ciudad, index) => (
@@ -322,19 +406,83 @@ export default function TabUbicacion({
             )}
           </div>
 
-          {/* Botón Detectar Ubicación */}
+          {/* Input Estado - 30% */}
+          <div ref={contenedorEstadoRef} className="relative w-[30%] z-10">
+            <div
+              className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
+              style={{ 
+                border: !datosUbicacion.estado ? '2.5px solid #ef4444' : '2.5px solid #dde4ef', 
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' 
+              }}
+            >
+              <input
+                type="text"
+                value={busquedaEstado || datosUbicacion.estado || ''}
+                onChange={(e) => handleBusquedaEstado(e.target.value)}
+                onFocus={() => {
+                  setResultadosEstado(estadosMexico);
+                  setMostrarResultadosEstado(true);
+                }}
+                placeholder="Estado..."
+                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
+              />
+
+              {/* Botón limpiar búsqueda estado */}
+              {busquedaEstado && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBusquedaEstado('');
+                    setResultadosEstado([]);
+                    setMostrarResultadosEstado(false);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 transition-colors ml-2 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Dropdown de estados */}
+            {mostrarResultadosEstado && resultadosEstado.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl max-h-60 overflow-y-auto z-50" style={{ border: '2.5px solid #dde4ef' }}>
+                {resultadosEstado.map((estado, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleSeleccionarEstado(estado)}
+                    className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors flex items-center gap-2.5 border-b border-slate-100 last:border-0 cursor-pointer"
+                  >
+                    <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="text-sm font-medium text-slate-900 truncate">
+                      {estado}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Mensaje de error cuando estado está vacío */}
+            {!datosUbicacion.estado && (
+              <p className="absolute -bottom-5 left-0 text-xs text-red-500 font-medium">
+                Selecciona un estado
+              </p>
+            )}
+          </div>
+
+          {/* Botón GPS - 20% */}
           <button
             type="button"
             onClick={handleDetectarUbicacion}
             disabled={detectandoUbicacion}
-            className="shrink-0 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-semibold transition-colors shadow-sm flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+            className="shrink-0 w-[20%] h-12 lg:h-10 2xl:h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-semibold transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
           >
             {detectandoUbicacion ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <Navigation className="w-5 h-5" />
             )}
-            <span className="hidden lg:inline text-sm">Usar mi ubicación</span>
+            <span className="hidden lg:inline text-sm">Usar GPS</span>
           </button>
         </div>
       </div>

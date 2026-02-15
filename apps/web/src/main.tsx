@@ -9,8 +9,12 @@ import { iniciarSincronizacionTokens } from './stores/useAuthStore'; // ← AGRE
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-// Iniciar sincronización de tokens entre pestañas ← AGREGAR ESTE COMENTARIO
-iniciarSincronizacionTokens(); // ← AGREGAR ESTA LÍNEA
+// Iniciar sincronización de tokens entre pestañas
+// ⚠️ NO iniciar en modo preview (iframe de Business Studio) para evitar ping-pong
+const esPreviewIframe = new URLSearchParams(window.location.search).has('preview');
+if (!esPreviewIframe) {
+  iniciarSincronizacionTokens();
+}
 
 // ==========================================
 // Registrar Service Worker de ScanYA PWA

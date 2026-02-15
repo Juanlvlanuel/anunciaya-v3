@@ -28,6 +28,7 @@ import { useGpsStore } from '../../stores/useGpsStore';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useSearchStore, detectarSeccion, placeholderSeccion } from '../../stores/useSearchStore';
 import { DrawerBusinessStudio } from './DrawerBusinessStudio';
+import { obtenerSucursalesNegocio } from '../../services/negociosService';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -131,6 +132,47 @@ export function MobileHeader() {
   // Estado del drawer BS
   const [drawerBsAbierto, setDrawerBsAbierto] = useState(false);
 
+  // Sucursales (para cambio de sucursal en móvil)
+  const { setSucursalActiva, setEsSucursalPrincipal } = useAuthStore();
+  const [sucursalesMobile, setSucursalesMobile] = useState<{ id: string; nombre: string; esPrincipal: boolean }[]>([]);
+
+  useEffect(() => {
+    if (!usuario?.negocioId || usuario?.modoActivo !== 'comercial') {
+      setSucursalesMobile([]);
+      return;
+    }
+    obtenerSucursalesNegocio(usuario.negocioId).then((resp) => {
+      if (resp.success && resp.data) {
+        const ordenadas = [...resp.data].sort((a: any, b: any) => {
+          if (a.esPrincipal) return -1;
+          if (b.esPrincipal) return 1;
+          return a.nombre.localeCompare(b.nombre);
+        });
+        setSucursalesMobile(ordenadas);
+      }
+    }).catch(() => setSucursalesMobile([]));
+  }, [usuario?.negocioId, usuario?.modoActivo]);
+
+  const indiceSucursalActual = sucursalesMobile.findIndex(s => s.id === usuario?.sucursalActiva);
+  const sucursalActual = sucursalesMobile[indiceSucursalActual];
+  const tieneMuchasSucursales = sucursalesMobile.length > 1;
+
+  const irSucursalAnterior = () => {
+    if (indiceSucursalActual > 0) {
+      const suc = sucursalesMobile[indiceSucursalActual - 1];
+      setSucursalActiva(suc.id);
+      setEsSucursalPrincipal(suc.esPrincipal);
+    }
+  };
+
+  const irSucursalSiguiente = () => {
+    if (indiceSucursalActual < sucursalesMobile.length - 1) {
+      const suc = sucursalesMobile[indiceSucursalActual + 1];
+      setSucursalActiva(suc.id);
+      setEsSucursalPrincipal(suc.esPrincipal);
+    }
+  };
+
   // Obtener sección actual del breadcrumb
   const obtenerSeccionActual = () => {
     if (location.pathname === '/business-studio') return 'Dashboard';
@@ -156,13 +198,21 @@ export function MobileHeader() {
   // Navegación entre módulos
   // ---------------------------------------------------------------------------
 
+  const esGerente = !!usuario?.sucursalAsignada;
+  const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
+  const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
+
+  // Filtrar módulos para vista gerente
+  const modulosFiltrados = vistaComoGerente
+    ? MODULOS_BS.filter(m => m.ruta !== '/business-studio/sucursales' && m.ruta !== '/business-studio/puntos')
+    : MODULOS_BS;
+
+
   const obtenerIndiceModuloActual = () => {
-    // Buscar coincidencia exacta primero
-    const indiceExacto = MODULOS_BS.findIndex(modulo => location.pathname === modulo.ruta);
+    const indiceExacto = modulosFiltrados.findIndex(modulo => location.pathname === modulo.ruta);
     if (indiceExacto !== -1) return indiceExacto;
 
-    // Si no hay coincidencia exacta, buscar el que empiece con la ruta (excepto Dashboard)
-    return MODULOS_BS.findIndex(modulo =>
+    return modulosFiltrados.findIndex(modulo =>
       modulo.ruta !== '/business-studio' && location.pathname.startsWith(modulo.ruta)
     );
   };
@@ -170,20 +220,22 @@ export function MobileHeader() {
   const navegarModuloAnterior = () => {
     const indiceActual = obtenerIndiceModuloActual();
     if (indiceActual > 0) {
-      navigate(MODULOS_BS[indiceActual - 1].ruta);
+      navigate(modulosFiltrados[indiceActual - 1].ruta);
     }
   };
 
   const navegarModuloSiguiente = () => {
     const indiceActual = obtenerIndiceModuloActual();
-    if (indiceActual >= 0 && indiceActual < MODULOS_BS.length - 1) {
-      navigate(MODULOS_BS[indiceActual + 1].ruta);
+    if (indiceActual >= 0 && indiceActual < modulosFiltrados.length - 1) {
+      navigate(modulosFiltrados[indiceActual + 1].ruta);
     }
   };
 
   const indiceModuloActual = obtenerIndiceModuloActual();
   const hayModuloAnterior = indiceModuloActual > 0;
-  const hayModuloSiguiente = indiceModuloActual >= 0 && indiceModuloActual < MODULOS_BS.length - 1;
+  const hayModuloSiguiente = indiceModuloActual >= 0 && indiceModuloActual < modulosFiltrados.length - 1;
+
+
 
   // ---------------------------------------------------------------------------
   // Effect: Auto-detectar ubicación al cargar (solo si no hay ciudad)
@@ -293,47 +345,47 @@ export function MobileHeader() {
                   </button>
                 )}
 
-            {/* Botón Preview (solo en Business Studio) */}
-            {esBusinessStudio && (
-              <button
-                onClick={togglePreviewNegocio}
-                className={`p-2 rounded-full transition-colors ${previewNegocioAbierto
-                    ? 'text-red-300 hover:bg-red-500/20'
-                    : 'text-emerald-300 hover:bg-emerald-500/20'
-                  }`}
-                title={previewNegocioAbierto ? 'Cerrar Preview' : 'Ver mi Negocio'}
-              >
-                {previewNegocioAbierto ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Eye className="w-6 h-6" />
+                {/* Botón Preview (solo en Business Studio) */}
+                {esBusinessStudio && (
+                  <button
+                    onClick={togglePreviewNegocio}
+                    className={`p-2 rounded-full transition-colors ${previewNegocioAbierto
+                      ? 'text-red-300 hover:bg-red-500/20'
+                      : 'text-emerald-300 hover:bg-emerald-500/20'
+                      }`}
+                    title={previewNegocioAbierto ? 'Cerrar Preview' : 'Ver mi Negocio'}
+                  >
+                    {previewNegocioAbierto ? (
+                      <X className="w-6 h-6" />
+                    ) : (
+                      <Eye className="w-6 h-6" />
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
 
-            {/* Botón Notificaciones */}
-            <button
-              onClick={togglePanel}
-              className="relative p-2 text-white/90 hover:bg-white/20 hover:text-white rounded-full transition-colors"
-              title="Notificaciones"
-            >
-              <Bell className="w-6 h-6" />
-              {cantidadNoLeidas > 0 && (
-                <span className="absolute top-0 right-0 min-w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold pulse-badge px-1">
-                  {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
-                </span>
-              )}
-            </button>
+                {/* Botón Notificaciones */}
+                <button
+                  onClick={togglePanel}
+                  className="relative p-2 text-white/90 hover:bg-white/20 hover:text-white rounded-full transition-colors"
+                  title="Notificaciones"
+                >
+                  <Bell className="w-6 h-6" />
+                  {cantidadNoLeidas > 0 && (
+                    <span className="absolute top-0 right-0 min-w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold pulse-badge px-1">
+                      {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
+                    </span>
+                  )}
+                </button>
 
-            {/* Botón Menú */}
-            <button
-              onClick={abrirMenuDrawer}
-              className="p-2 text-white/90 hover:bg-white/20 hover:text-white rounded-full transition-colors"
-              title="Menú"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-          </div>
+                {/* Botón Menú */}
+                <button
+                  onClick={abrirMenuDrawer}
+                  className="p-2 text-white/90 hover:bg-white/20 hover:text-white rounded-full transition-colors"
+                  title="Menú"
+                >
+                  <Menu className="w-6 h-6" />
+                </button>
+              </div>
             </>
           )}
         </header>
@@ -364,9 +416,35 @@ export function MobileHeader() {
                   <Store className="w-4 h-4 text-white" />
                 )}
               </div>
-              <span className="text-sm font-bold text-gray-800 truncate max-w-[120px]">
-                {usuario?.nombreNegocio || 'Mi Negocio'}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-gray-800 truncate max-w-[140px]">
+                  {usuario?.nombreNegocio || 'Mi Negocio'}
+                </span>
+                {tieneMuchasSucursales && sucursalActual && (
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[11px] font-semibold text-blue-600 truncate max-w-[100px]">
+                      {sucursalActual.nombre}
+                    </span>
+                    <button
+                      onClick={irSucursalAnterior}
+                      disabled={indiceSucursalActual === 0}
+                      className={`p-0.5 rounded ${indiceSucursalActual === 0 ? 'text-gray-300' : 'text-blue-500 active:scale-95'}`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-[11px] text-gray-400">
+                      {indiceSucursalActual + 1}/{sucursalesMobile.length}
+                    </span>
+                    <button
+                      onClick={irSucursalSiguiente}
+                      disabled={indiceSucursalActual === sucursalesMobile.length - 1}
+                      className={`p-0.5 rounded ${indiceSucursalActual === sucursalesMobile.length - 1 ? 'text-gray-300' : 'text-blue-500 active:scale-95'}`}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Navegación entre módulos */}
@@ -376,8 +454,8 @@ export function MobileHeader() {
                 onClick={navegarModuloAnterior}
                 disabled={!hayModuloAnterior}
                 className={`p-1 rounded transition-colors ${hayModuloAnterior
-                    ? 'text-blue-600 hover:bg-blue-50 active:scale-95'
-                    : 'text-gray-300 cursor-not-allowed'
+                  ? 'text-blue-600 hover:bg-blue-50 active:scale-95'
+                  : 'text-gray-300 cursor-not-allowed'
                   }`}
                 title={hayModuloAnterior ? 'Módulo anterior' : 'No hay módulo anterior'}
               >
@@ -394,8 +472,8 @@ export function MobileHeader() {
                 onClick={navegarModuloSiguiente}
                 disabled={!hayModuloSiguiente}
                 className={`p-1 rounded transition-colors ${hayModuloSiguiente
-                    ? 'text-blue-600 hover:bg-blue-50 active:scale-95'
-                    : 'text-gray-300 cursor-not-allowed'
+                  ? 'text-blue-600 hover:bg-blue-50 active:scale-95'
+                  : 'text-gray-300 cursor-not-allowed'
                   }`}
                 title={hayModuloSiguiente ? 'Módulo siguiente' : 'No hay módulo siguiente'}
               >

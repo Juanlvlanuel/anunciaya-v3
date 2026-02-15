@@ -78,6 +78,7 @@ export async function getDetalleNegocio(negocioId: string) {
  * Filtros disponibles:
  * - soloDisponibles: true → solo recompensas que puedes canjear
  * - negocioId: filtrar por negocio específico
+ * - ciudad: filtrar por ciudad del usuario
  * - limit/offset: paginación
  *
  * @param filtros - Filtros opcionales
@@ -90,6 +91,9 @@ export async function getRecompensas(filtros?: FiltrosRecompensas) {
   }
   if (filtros?.negocioId) {
     params.append('negocioId', filtros.negocioId);
+  }
+  if (filtros?.ciudad) {
+    params.append('ciudad', filtros.ciudad);
   }
 
   const query = params.toString();

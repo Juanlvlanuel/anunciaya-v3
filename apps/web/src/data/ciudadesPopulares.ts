@@ -214,6 +214,13 @@ export const ciudadesPopulares: Ciudad[] = [
     alias: ["cananea sonora"],
     importancia: 60
   },
+  {
+    nombre: "Sonoyta",
+    estado: "Sonora",
+    coordenadas: { lat: 31.8664, lng: -112.8572 },
+    alias: ["sonoita", "sonoyta sonora"],
+    importancia: 58
+  },
 
   // ===================================
   // CIUDADES FRONTERIZAS
@@ -552,6 +559,45 @@ export const ciudadesPopulares: Ciudad[] = [
 ];
 
 // =============================================================================
+// DATOS - ESTADOS DE MÉXICO (32 estados)
+// =============================================================================
+
+export const estadosMexico: string[] = [
+  "Aguascalientes",
+  "Baja California",
+  "Baja California Sur",
+  "Campeche",
+  "Chiapas",
+  "Chihuahua",
+  "Ciudad de México",
+  "Coahuila",
+  "Colima",
+  "Durango",
+  "Estado de México",
+  "Guanajuato",
+  "Guerrero",
+  "Hidalgo",
+  "Jalisco",
+  "Michoacán",
+  "Morelos",
+  "Nayarit",
+  "Nuevo León",
+  "Oaxaca",
+  "Puebla",
+  "Querétaro",
+  "Quintana Roo",
+  "San Luis Potosí",
+  "Sinaloa",
+  "Sonora",
+  "Tabasco",
+  "Tamaulipas",
+  "Tlaxcala",
+  "Veracruz",
+  "Yucatán",
+  "Zacatecas"
+];
+
+// =============================================================================
 // FUNCIONES DE UTILIDAD
 // =============================================================================
 
@@ -602,6 +648,32 @@ export function buscarCiudades(texto: string, limite: number = 10): CiudadConNom
       
       // Luego por importancia
       return b.importancia - a.importancia;
+    })
+    .slice(0, limite);
+}
+
+/**
+ * Busca estados por texto
+ */
+export function buscarEstados(texto: string, limite: number = 10): string[] {
+  if (!texto || texto.length < 1) return [];
+
+  const textoNormalizado = normalizarTexto(texto);
+
+  return estadosMexico
+    .filter((estado) => {
+      const estadoNormalizado = normalizarTexto(estado);
+      return estadoNormalizado.includes(textoNormalizado);
+    })
+    .sort((a, b) => {
+      // Priorizar coincidencia al inicio
+      const aStartsWith = normalizarTexto(a).startsWith(textoNormalizado);
+      const bStartsWith = normalizarTexto(b).startsWith(textoNormalizado);
+      
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      
+      return a.localeCompare(b);
     })
     .slice(0, limite);
 }

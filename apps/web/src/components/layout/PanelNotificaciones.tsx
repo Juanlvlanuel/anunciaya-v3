@@ -144,6 +144,11 @@ const obtenerRutaDestino = (notificacion: Notificacion): string | null => {
       case 'recompensa':
         return referenciaId ? `/cardya?tab=recompensas&id=${referenciaId}` : '/cardya?tab=recompensas';
 
+      case 'resena':
+        return notificacion.sucursalId && referenciaId
+          ? `/negocios/${notificacion.sucursalId}?resenaId=${referenciaId}`
+          : null;
+
       default:
         return null;
     }

@@ -21,6 +21,7 @@ import {
   Gift,
   BarChart3,
   ChevronRight,
+  ChevronLeft,
   Store,
   ArrowRight,
   TrendingUp,
@@ -32,6 +33,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { obtenerSucursalesNegocio } from '../../services/negociosService';
 import { WidgetCardYA } from './WidgetCardYA';
 import { MenuBusinessStudio } from './MenuBusinessStudio';
 import { ModalImagenes } from '../ui/ModalImagenes';
@@ -275,9 +277,23 @@ export function ColumnaIzquierda() {
   const logoNegocio = usuario?.logoNegocio;
   const nombreNegocio = usuario?.nombreNegocio || 'Mi Negocio';
   const onboardingCompletado = usuario?.onboardingCompletado ?? false;
+  const esGerente = !!usuario?.sucursalAsignada;
+  const sucursalPrincipalId = useAuthStore((s) => s.sucursalPrincipalId);
+  const sucursalParaPerfil = esGerente ? usuario?.sucursalActiva : (sucursalPrincipalId || usuario?.sucursalActiva);
 
   // Estado para modal de logo
   const [modalLogoAbierto, setModalLogoAbierto] = useState(false);
+
+// Resetear sucursal activa a la principal al entrar o salir de Business Studio
+  const setSucursalActiva = useAuthStore((s) => s.setSucursalActiva);
+  const setEsSucursalPrincipal = useAuthStore((s) => s.setEsSucursalPrincipal);
+
+  useEffect(() => {
+    if (sucursalPrincipalId && usuario?.sucursalActiva !== sucursalPrincipalId) {
+      setSucursalActiva(sucursalPrincipalId);
+      setEsSucursalPrincipal(true);
+    }
+  }, [esBusinessStudio]);
 
   // Si estamos en Business Studio → Mostrar menú BS
   if (esBusinessStudio) {
@@ -293,7 +309,7 @@ export function ColumnaIzquierda() {
       {/* ===== NEGOCIO ACTIVO - Header mejorado ===== */}
       <div className="border-b-2 border-slate-200 bg-linear-to-r from-slate-200 to-slate-50">
         <div className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-4 lg:py-2.5 2xl:py-4">
-          {/* Logo - Clickeable para ver imagen grande */}
+          {/* Logo - Clickeable para ver imagen grande (solo si hay logo) */}
           {logoNegocio ? (
             <button
               onClick={() => setModalLogoAbierto(true)}
@@ -310,21 +326,29 @@ export function ColumnaIzquierda() {
           {/* Nombre y link */}
           <div className="flex-1 min-w-0 text-left">
             <p className="font-bold text-black text-sm lg:text-xs 2xl:text-base truncate">{nombreNegocio}</p>
-            <button
-              onClick={() => navigate(`/negocios/${usuario?.sucursalActiva}`)}
-              className="text-xs lg:text-[10px] 2xl:text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
-            >
-              Ver mi negocio <Eye className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 inline-block ml-0.5" />
-            </button>
+            {onboardingCompletado ? (
+              <button
+                onClick={() => navigate(`/negocios/${sucursalParaPerfil}`)}
+                className="text-xs lg:text-[10px] 2xl:text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+              >
+                Ver mi negocio <Eye className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 inline-block ml-0.5" />
+              </button>
+            ) : (
+              <span className="text-xs lg:text-[10px] 2xl:text-sm text-slate-400">
+                Pendiente de configurar
+              </span>
+            )}
           </div>
 
-          {/* Flecha - Clickeable para ir al negocio */}
-          <button
-            onClick={() => navigate(`/negocios/${usuario?.sucursalActiva}`)}
-            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 flex items-center justify-center rounded-full hover:bg-blue-100 transition-colors cursor-pointer"
-          >
-            <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500" />
-          </button>
+          {/* Flecha - Solo si onboarding completado */}
+          {onboardingCompletado && (
+            <button
+              onClick={() => navigate(`/negocios/${sucursalParaPerfil}`)}
+              className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 flex items-center justify-center rounded-full hover:bg-blue-100 transition-colors cursor-pointer"
+            >
+              <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -384,7 +408,7 @@ export function ColumnaIzquierda() {
       </div>
     </div>
   ) : (
-    <div 
+    <div
       className="absolute inset-0 overflow-y-auto flex flex-col transition-all duration-300"
       style={{ background: tema.background }}
     >
@@ -399,6 +423,8 @@ export function ColumnaIzquierda() {
 
 function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
   const navigate = useNavigate();
+  const usuario = useAuthStore((state) => state.usuario);
+  const tieneModoComercial = usuario?.tieneModoComercial ?? false;
 
   return (
     <>
@@ -425,46 +451,48 @@ function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
       {/* Espacio flexible */}
       <div className="flex-1" />
 
-      {/* CTA PARA NEGOCIOS */}
-      <div className={`${tema.ctaBg}`}>
-        <div className="w-full px-4 py-5 lg:py-4 2xl:py-5 text-left">
-          {/* Header del CTA */}
-          <div className="flex items-center gap-3 mb-3">
-            <div className={`w-11 h-11 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 ${tema.ctaIconBg} rounded-xl flex items-center justify-center shadow-lg`}>
-              <Store className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
+      {/* CTA PARA NEGOCIOS - Solo mostrar si NO tiene modo comercial */}
+      {!tieneModoComercial && (
+        <div className={`${tema.ctaBg}`}>
+          <div className="w-full px-4 py-5 lg:py-4 2xl:py-5 text-left">
+            {/* Header del CTA */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-11 h-11 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 ${tema.ctaIconBg} rounded-xl flex items-center justify-center shadow-lg`}>
+                <Store className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
+              </div>
+              <div>
+                <p className={`font-bold text-base lg:text-sm 2xl:text-base ${tema.textPrimary}`}>¿Tienes un negocio?</p>
+                <p className={`text-sm lg:text-xs 2xl:text-sm ${tema.textSecondary}`}>Crea tu perfil y llega a más clientes</p>
+              </div>
             </div>
-            <div>
-              <p className={`font-bold text-base lg:text-sm 2xl:text-base ${tema.textPrimary}`}>¿Tienes un negocio?</p>
-              <p className={`text-sm lg:text-xs 2xl:text-sm ${tema.textSecondary}`}>Crea tu perfil y llega a más clientes</p>
+
+            {/* Stats del CTA */}
+            <div className={`flex items-center justify-between text-sm lg:text-xs 2xl:text-sm mb-3 px-1 ${tema.textSecondary}`}>
+              <span className="flex flex-col items-center">
+                <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>$449</strong>
+                <span className={`text-xs ${tema.textMuted}`}>/mes</span>
+              </span>
+              <span className="flex flex-col items-center">
+                <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaHighlight}`}>7 días</strong>
+                <span className={`text-xs ${tema.textMuted}`}>gratis</span>
+              </span>
+              <span className="flex flex-col items-center">
+                <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>2.5k+</strong>
+                <span className={`text-xs ${tema.textMuted}`}>negocios</span>
+              </span>
             </div>
-          </div>
 
-          {/* Stats del CTA */}
-          <div className={`flex items-center justify-between text-sm lg:text-xs 2xl:text-sm mb-3 px-1 ${tema.textSecondary}`}>
-            <span className="flex flex-col items-center">
-              <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>$449</strong>
-              <span className={`text-xs ${tema.textMuted}`}>/mes</span>
-            </span>
-            <span className="flex flex-col items-center">
-              <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaHighlight}`}>7 días</strong>
-              <span className={`text-xs ${tema.textMuted}`}>gratis</span>
-            </span>
-            <span className="flex flex-col items-center">
-              <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>2.5k+</strong>
-              <span className={`text-xs ${tema.textMuted}`}>negocios</span>
-            </span>
+            {/* Botón del CTA */}
+            <button
+              onClick={() => navigate('/crear-negocio')}
+              className={`w-full flex items-center justify-center gap-2 py-3 lg:py-2.5 2xl:py-3 2xl:rounded-xl lg:rounded-lg text-base lg:text-sm 2xl:text-base font-semibold active:scale-[0.98] transition-all shadow-lg cursor-pointer btn-shine ${tema.ctaButtonClass}`}
+            >
+              <span>Empezar ahora</span>
+              <ArrowRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+            </button>
           </div>
-
-          {/* Botón del CTA */}
-          <button
-            onClick={() => navigate('/registro', { state: { tipoCuenta: 'Comercial' } })}
-            className={`w-full flex items-center justify-center gap-2 py-3 lg:py-2.5 2xl:py-3 2xl:rounded-xl lg:rounded-lg text-base lg:text-sm 2xl:text-base font-semibold active:scale-[0.98] transition-all shadow-lg cursor-pointer btn-shine ${tema.ctaButtonClass}`}
-          >
-            <span>Empezar ahora</span>
-            <ArrowRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-          </button>
         </div>
-      </div>
+      )}
     </>
   );
 }
@@ -487,6 +515,48 @@ function ContenidoComercial() {
   const navigate = useNavigate();
   const usuario = useAuthStore((state) => state.usuario);
   const sucursalActiva = usuario?.sucursalActiva;
+  const { setSucursalActiva, setEsSucursalPrincipal, setSucursalPrincipalId } = useAuthStore();
+  const esGerente = !!usuario?.sucursalAsignada;
+
+  // Sucursales para selector
+  const [sucursales, setSucursales] = useState<{ id: string; nombre: string; esPrincipal: boolean }[]>([]);
+
+  useEffect(() => {
+    if (!usuario?.negocioId || usuario?.modoActivo !== 'comercial') return;
+    obtenerSucursalesNegocio(usuario.negocioId).then((resp) => {
+      if (resp.success && resp.data) {
+        type Sucursal = { id: string; nombre: string; esPrincipal: boolean };
+        const ordenadas = [...resp.data].sort((a: Sucursal, b: Sucursal) => {
+          if (a.esPrincipal) return -1;
+          if (b.esPrincipal) return 1;
+          return a.nombre.localeCompare(b.nombre);
+        });
+        setSucursales(ordenadas);
+        const principal = ordenadas.find((s: Sucursal) => s.esPrincipal);
+        if (principal) setSucursalPrincipalId(principal.id);
+      }
+    }).catch(() => { });
+  }, [usuario?.negocioId, usuario?.modoActivo]);
+
+  const indiceSuc = sucursales.findIndex(s => s.id === sucursalActiva);
+  const sucActual = sucursales[indiceSuc];
+  const tieneMuchasSuc = sucursales.length > 1 && !esGerente;
+
+  const irSucAnterior = () => {
+    if (indiceSuc > 0) {
+      const suc = sucursales[indiceSuc - 1];
+      setSucursalActiva(suc.id);
+      setEsSucursalPrincipal(suc.esPrincipal);
+    }
+  };
+
+  const irSucSiguiente = () => {
+    if (indiceSuc < sucursales.length - 1) {
+      const suc = sucursales[indiceSuc + 1];
+      setSucursalActiva(suc.id);
+      setEsSucursalPrincipal(suc.esPrincipal);
+    }
+  };
 
   // Estado local para KPIs del día (independiente del Dashboard)
   const [kpisHoy, setKpisHoy] = useState<{
@@ -523,15 +593,42 @@ function ContenidoComercial() {
 
   return (
     <>
-      {/* ===== RESUMEN DE HOY - Header con icono colorido ===== */}
-      <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 bg-linear-to-r from-blue-100 to-slate-50 border-b-2 border-slate-200">
-        <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 text-left">
-          <div className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 bg-blue-600 rounded-md flex items-center justify-center">
-            <BarChart3 className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-white" />
+      {/* ===== RESUMEN DE HOY - Header ===== */}
+      <div className="px-4 lg:px-3 2xl:px-4 pt-6 lg:pt-4 2xl:pt-6 pb-3 lg:pb-2 2xl:pb-3 bg-linear-to-r from-blue-100 to-slate-50 border-b-2 border-slate-200">
+        <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
+          <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 bg-blue-600 rounded-lg lg:rounded-md 2xl:rounded-lg flex items-center justify-center shadow-sm">
+            <BarChart3 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white" />
           </div>
-          <p className="text-sm lg:text-[11px] 2xl:text-sm text-black uppercase tracking-wide font-bold">
-            Resumen de Hoy
-          </p>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-black text-sm lg:text-xs 2xl:text-base">
+              Resumen de Hoy
+            </p>
+            {/* Selector de sucursal (solo dueños con 2+) */}
+            {tieneMuchasSuc && sucActual && (
+              <div className="flex items-center gap-0.5 lg:gap-1 2xl:gap-1.5 mt-0.5">
+                <span className="text-xs lg:text-xs 2xl:text-sm font-semibold text-blue-600 truncate max-w-[110px] lg:max-w-[120px] 2xl:max-w-[140px]">
+                  {sucActual.nombre}
+                </span>
+                <button
+                  onClick={irSucAnterior}
+                  disabled={indiceSuc === 0}
+                  className={`p-0.5 rounded ${indiceSuc === 0 ? 'text-gray-300' : 'text-blue-500 active:scale-95 cursor-pointer'}`}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5" />
+                </button>
+                <span className="text-[10px] lg:text-xs 2xl:text-xs text-slate-400 font-semibold">
+                  {indiceSuc + 1}/{sucursales.length}
+                </span>
+                <button
+                  onClick={irSucSiguiente}
+                  disabled={indiceSuc === sucursales.length - 1}
+                  className={`p-0.5 rounded ${indiceSuc === sucursales.length - 1 ? 'text-gray-300' : 'text-blue-500 active:scale-95 cursor-pointer'}`}
+                >
+                  <ChevronRight className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

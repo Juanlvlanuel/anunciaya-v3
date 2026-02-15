@@ -311,52 +311,65 @@ export function useOfertas(): UseOfertasReturn {
 
   const duplicar = useCallback(
     async (id: string, datos: DuplicarOfertaInput): Promise<boolean> => {
+      // Verificar si la sucursal actual está en las sucursales destino
+      const duplicaEnSucursalActual = datos.sucursalesIds.includes(sucursalId);
       const tempId = `temp-${Date.now()}`;
 
       try {
-        // 1. Obtener oferta original para copia optimista
-        const ofertaOriginal = ofertas.find((of) => of.id === id);
-
-        // 2. Actualización optimista (crear copia temporal)
-        if (ofertaOriginal) {
-          const copiaTemporal: Oferta = {
-            ...ofertaOriginal,
-            id: tempId,
-            usosActuales: 0,
-            totalVistas: 0,
-            totalShares: 0,
-            totalClicks: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          setOfertas((prev) => [copiaTemporal, ...prev]);
+        // 1. Actualización optimista SOLO si duplica en la sucursal actual
+        if (duplicaEnSucursalActual) {
+          const ofertaOriginal = ofertas.find((of) => of.id === id);
+          
+          if (ofertaOriginal) {
+            const copiaTemporal: Oferta = {
+              ...ofertaOriginal,
+              id: tempId,
+              usosActuales: 0,
+              totalVistas: 0,
+              totalShares: 0,
+              totalClicks: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            setOfertas((prev) => [copiaTemporal, ...prev]);
+          }
         }
 
-        // 3. Llamada al backend
+        // 2. Llamada al backend
         const respuesta = await duplicarOferta(id, datos);
 
         if (respuesta.success && respuesta.data && respuesta.data.length > 0) {
-          // 4. Reemplazar ID temporal con ID real (sin recargar)
-          const nuevoId = respuesta.data[0].id;
-          setOfertas((prev) =>
-            prev.map((of) =>
-              of.id === tempId
-                ? { ...of, id: nuevoId }
-                : of
-            )
-          );
+          // 3. Si hicimos actualización optimista, reemplazar ID temporal con ID real
+          if (duplicaEnSucursalActual) {
+            const ofertaDuplicadaEnActual = respuesta.data.find(
+              (of) => of.sucursalId === sucursalId
+            );
+            
+            if (ofertaDuplicadaEnActual) {
+              // Solo actualizar el ID - ya tenemos todos los demás campos de la copia original
+              setOfertas((prev) =>
+                prev.map((of) =>
+                  of.id === tempId 
+                    ? { ...of, id: ofertaDuplicadaEnActual.id }
+                    : of
+                )
+              );
+            }
+          }
           
-          // Invalidar caché de sucursal actual
-          invalidarCache(sucursalId);
+          // Invalidar caché de TODAS las sucursales destino
+          datos.sucursalesIds.forEach(id => invalidarCache(id));
           
-          notificar.exito(`Oferta duplicada a ${respuesta.data.length} sucursal(es)`);
+          notificar.exito('Oferta duplicada');
           return true;
         } else {
           throw new Error(respuesta.message || 'Error al duplicar oferta');
         }
       } catch (err) {
-        // 5. Revertir cambio optimista
-        setOfertas((prev) => prev.filter((of) => of.id !== tempId));
+        // 4. Revertir cambio optimista si lo hicimos
+        if (duplicaEnSucursalActual) {
+          setOfertas((prev) => prev.filter((of) => of.id !== tempId));
+        }
 
         const mensaje = err instanceof Error ? err.message : 'Error al duplicar oferta';
         notificar.error(mensaje);

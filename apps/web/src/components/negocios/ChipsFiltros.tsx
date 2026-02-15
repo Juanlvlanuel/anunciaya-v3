@@ -3,7 +3,7 @@
 // Chips de filtros reutilizable (barra flotante sobre mapa y header grid)
 // =============================================================================
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MapPin,
   CreditCard,
@@ -58,6 +58,15 @@ export function ChipsFiltros({
 }: ChipsFiltrosProps) {
   const esFlotante = variante === 'flotante';
 
+  // Estado local del slider: visual instantáneo, commit al store solo al soltar
+  const [distanciaLocal, setDistanciaLocal] = useState(distancia);
+  const [arrastrando, setArrastrando] = useState(false);
+
+  // Sincronizar si el store cambia externamente (ej: limpiar filtros)
+  useEffect(() => {
+    if (!arrastrando) setDistanciaLocal(distancia);
+  }, [distancia, arrastrando]);
+
   // Estilos según variante
   const chipBase = esFlotante
     ? 'rounded-full shadow-lg px-3 py-2 lg:px-3.5 lg:py-2 text-sm lg:text-[13px]'
@@ -90,16 +99,18 @@ export function ChipsFiltros({
       {/* Distancia — slider inline */}
       <div className="shrink-0 flex items-center gap-2 bg-white/10 rounded-full px-3.5 py-1.5 border border-white/10">
         <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-        <span className="text-[13px] font-semibold text-white whitespace-nowrap">{distancia} km</span>
+        <span className="text-[13px] font-semibold text-white whitespace-nowrap min-w-12 text-center">{distanciaLocal} km</span>
         <input
           type="range"
           min="1"
           max="50"
-          value={distancia}
-          onChange={(e) => setDistancia(Number(e.target.value))}
+          value={distanciaLocal}
+          onChange={(e) => { setDistanciaLocal(Number(e.target.value)); setArrastrando(true); }}
+          onMouseUp={() => { setArrastrando(false); setDistancia(distanciaLocal); }}
+          onTouchEnd={() => { setArrastrando(false); setDistancia(distanciaLocal); }}
           className="w-[90px] h-[5px] rounded-full appearance-none cursor-pointer accent-blue-500"
           style={{
-            background: `linear-gradient(to right, #3b82f6 ${((distancia - 1) / 49) * 100}%, rgba(255,255,255,0.15) ${((distancia - 1) / 49) * 100}%)`,
+            background: `linear-gradient(to right, #3b82f6 ${((distanciaLocal - 1) / 49) * 100}%, rgba(255,255,255,0.15) ${((distanciaLocal - 1) / 49) * 100}%)`,
           }}
         />
       </div>
@@ -166,16 +177,22 @@ export function ChipsFiltros({
         Envío
       </button>
 
-      {/* Limpiar */}
-      {filtrosActivos() > 0 && (
-        <button
-          onClick={limpiarFiltros}
-          className={`shrink-0 bg-white text-red-500 rounded-full ${limpiarSize} flex items-center justify-center border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-400 transition-all cursor-pointer ${esFlotante ? 'shadow-lg' : ''}`}
-          title="Limpiar filtros"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      )}
+      {/* Limpiar - Siempre visible */}
+      <button
+        onClick={filtrosActivos() > 0 ? limpiarFiltros : undefined}
+        disabled={filtrosActivos() === 0}
+        className={`
+          shrink-0 rounded-full ${limpiarSize} flex items-center justify-center border transition-all
+          ${esFlotante ? 'shadow-lg' : ''}
+          ${filtrosActivos() > 0
+            ? 'bg-white text-red-500 border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-400 cursor-pointer'
+            : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+          }
+        `}
+        title={filtrosActivos() > 0 ? "Limpiar filtros" : "Sin filtros activos"}
+      >
+        <X className="w-4 h-4" />
+      </button>
     </>
   );
 }

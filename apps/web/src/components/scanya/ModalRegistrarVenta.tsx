@@ -343,8 +343,8 @@ export function ModalRegistrarVenta({
                     esNuevo: esNuevoEnNegocio,
                 });
                 setErrorCliente(null);
-                // Avanzar a monto
-                setSeccionActiva('monto');
+                // Avanzar a concepto
+                setSeccionActiva('concepto');
             } else {
                 setCliente(null);
                 setErrorCliente(respuesta.message || 'Cliente no registrado');
@@ -902,7 +902,7 @@ export function ModalRegistrarVenta({
                                                     }}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter' && telefono.length === 10) {
-                                                            setSeccionActiva('monto');
+                                                            setSeccionActiva('concepto');
                                                         }
                                                     }}
                                                     placeholder="6441234567"
@@ -961,7 +961,7 @@ export function ModalRegistrarVenta({
                                                     }}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter' && telefono.length === 10) {
-                                                            setSeccionActiva('monto');
+                                                            setSeccionActiva('concepto');
                                                         }
                                                     }}
                                                     placeholder="6441234567"
@@ -1094,8 +1094,14 @@ export function ModalRegistrarVenta({
                                         type="text"
                                         value={concepto}
                                         onChange={(e) => setConcepto(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                setSeccionActiva('monto');
+                                            }
+                                        }}
                                         placeholder="Ej: 3 tacos al pastor, Corte de cabello..."
                                         maxLength={200}
+                                        autoFocus={!esMobile}
                                         className="w-full py-2 px-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[#1A1A1A] border border-[#333] text-white"
                                     />
                                     <p className="text-[#94A3B8] text-xs mt-1">
