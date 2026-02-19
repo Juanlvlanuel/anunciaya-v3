@@ -13,6 +13,9 @@
 
 import { Server as SocketServer } from 'socket.io';
 import type { Server as HttpServer } from 'http';
+import { db } from './db/index.js';
+import { usuarios } from './db/schemas/schema.js';
+import { eq } from 'drizzle-orm';
 
 let io: SocketServer | null = null;
 
@@ -36,10 +39,68 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
     socket.on('unirse', (usuarioId: string) => {
       if (usuarioId) {
         socket.join(`usuario:${usuarioId}`);
+        socket.data.usuarioId = usuarioId;
       }
     });
 
+    // -----------------------------------------------------------------
+    // ChatYA: Indicador "Escribiendo..."
+    // -----------------------------------------------------------------
+    socket.on('chatya:escribiendo', (data: { conversacionId: string; destinatarioId: string }) => {
+      if (data.destinatarioId) {
+        io!.to(`usuario:${data.destinatarioId}`).emit('chatya:escribiendo', {
+          conversacionId: data.conversacionId,
+        });
+      }
+    });
+
+    socket.on('chatya:dejar-escribir', (data: { conversacionId: string; destinatarioId: string }) => {
+      if (data.destinatarioId) {
+        io!.to(`usuario:${data.destinatarioId}`).emit('chatya:dejar-escribir', {
+          conversacionId: data.conversacionId,
+        });
+      }
+    });
+
+    // -----------------------------------------------------------------
+    // ChatYA: Confirmar entrega (2 palomitas grises)
+    // -----------------------------------------------------------------
+    socket.on('chatya:entregado', (data: { conversacionId: string; emisorId: string; mensajeIds: string[] }) => {
+      if (data.emisorId) {
+        io!.to(`usuario:${data.emisorId}`).emit('chatya:entregado', {
+          conversacionId: data.conversacionId,
+          mensajeIds: data.mensajeIds,
+        });
+      }
+    });
+
+    // -----------------------------------------------------------------
+    // ChatYA: Estado del usuario (conectado/ausente/desconectado)
+    // -----------------------------------------------------------------
+    socket.on('chatya:estado', (data: { usuarioId: string; estado: string }) => {
+      socket.broadcast.emit('chatya:estado-usuario', {
+        usuarioId: data.usuarioId,
+        estado: data.estado,
+      });
+    });
+
+    // -----------------------------------------------------------------
+    // Disconnect: Actualizar última conexión + notificar estado
+    // -----------------------------------------------------------------
     socket.on('disconnect', () => {
+      const usuarioId = socket.data.usuarioId as string | undefined;
+      if (usuarioId) {
+        db.update(usuarios)
+          .set({ ultimaConexion: new Date().toISOString() })
+          .where(eq(usuarios.id, usuarioId))
+          .then(() => {})
+          .catch((err) => console.error('Error actualizando última conexión:', err));
+
+        socket.broadcast.emit('chatya:estado-usuario', {
+          usuarioId,
+          estado: 'desconectado',
+        });
+      }
     });
   });
   console.log('⚡ Socket.io inicializado');

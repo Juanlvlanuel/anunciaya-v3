@@ -5,9 +5,9 @@ dotenv.config();
 
 // App y conexiones
 import app from './app';
-import { connectMongo } from './db/mongo';
 import { createServer } from 'http';
 import { inicializarSocket } from './socket';
+import { inicializarCronChatYA } from './cron/chatya.cron.js';
 
 const PORT = process.env.API_PORT || 4000;
 const HOST = process.env.API_HOST || '0.0.0.0';
@@ -15,9 +15,6 @@ const HOST = process.env.API_HOST || '0.0.0.0';
 // Iniciar servidor
 const iniciarServidor = async () => {
   try {
-    // Conectar a MongoDB
-    await connectMongo();
-
     // Crear servidor HTTP y montar Socket.io
     const server = createServer(app);
     inicializarSocket(server);
@@ -31,6 +28,9 @@ const iniciarServidor = async () => {
       console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
       console.log('');
     });
+
+    // Cron job: limpieza de chats inactivos (diario 3:00 AM)
+    inicializarCronChatYA();
   } catch (error) {
     console.error('❌ Error iniciando servidor:', error);
     process.exit(1);

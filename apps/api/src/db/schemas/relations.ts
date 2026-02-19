@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, regiones, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, cupones, ofertas, cuponGaleria, cuponUsos, cuponUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, dinamicas, dinamicaPremios, dinamicaParticipaciones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, notificaciones } from "./schema";
+import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, regiones, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, cupones, ofertas, cuponGaleria, cuponUsos, cuponUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, dinamicas, dinamicaPremios, dinamicaParticipaciones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
 
 export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	embajadore: one(embajadores, {
@@ -43,6 +43,13 @@ export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	}),
 	vouchersCanjes: many(vouchersCanje),
 	notificaciones: many(notificaciones),
+	// ChatYA
+	chatConversacionesComoP1: many(chatConversaciones, { relationName: "chatConv_p1" }),
+	chatConversacionesComoP2: many(chatConversaciones, { relationName: "chatConv_p2" }),
+	chatMensajes: many(chatMensajes),
+	chatReacciones: many(chatReacciones),
+	chatContactos: many(chatContactos, { relationName: "chatContactos_usuario" }),
+	chatBloqueados: many(chatBloqueados, { relationName: "chatBloqueados_usuario" }),
 }));
 
 export const embajadoresRelations = relations(embajadores, ({ one, many }) => ({
@@ -128,6 +135,9 @@ export const negocioSucursalesRelations = relations(negocioSucursales, ({ one, m
 	bolsaTrabajos: many(bolsaTrabajo),
 	dinamicas: many(dinamicas),
 	articuloSucursales: many(articuloSucursales),
+	// ChatYA
+	chatConversacionesComoSucP1: many(chatConversaciones, { relationName: "chatConv_sucursalP1" }),
+	chatConversacionesComoSucP2: many(chatConversaciones, { relationName: "chatConv_sucursalP2" }),
 }));
 
 export const regionesRelations = relations(regiones, ({ many }) => ({
@@ -285,6 +295,7 @@ export const empleadosRelations = relations(empleados, ({ one, many }) => ({
 	puntosTransacciones: many(puntosTransacciones),
 	vouchersCanjes: many(vouchersCanje),
 	alertasSeguridads: many(alertasSeguridad),
+	chatMensajes: many(chatMensajes),
 }));
 
 export const empleadoHorariosRelations = relations(empleadoHorarios, ({ one }) => ({
@@ -709,5 +720,129 @@ export const notificacionesRelations = relations(notificaciones, ({ one }) => ({
 	negocio: one(negocios, {
 		fields: [notificaciones.negocioId],
 		references: [negocios.id],
+	}),
+}));
+
+
+// --- Conversaciones ---
+
+export const chatConversacionesRelations = relations(chatConversaciones, ({ one, many }) => ({
+	participante1: one(usuarios, {
+		fields: [chatConversaciones.participante1Id],
+		references: [usuarios.id],
+		relationName: "chatConv_p1"
+	}),
+	participante2: one(usuarios, {
+		fields: [chatConversaciones.participante2Id],
+		references: [usuarios.id],
+		relationName: "chatConv_p2"
+	}),
+	sucursalP1: one(negocioSucursales, {
+		fields: [chatConversaciones.participante1SucursalId],
+		references: [negocioSucursales.id],
+		relationName: "chatConv_sucursalP1"
+	}),
+	sucursalP2: one(negocioSucursales, {
+		fields: [chatConversaciones.participante2SucursalId],
+		references: [negocioSucursales.id],
+		relationName: "chatConv_sucursalP2"
+	}),
+	mensajes: many(chatMensajes),
+	mensajesFijados: many(chatMensajesFijados),
+}));
+
+// --- Mensajes ---
+
+export const chatMensajesRelations = relations(chatMensajes, ({ one, many }) => ({
+	conversacion: one(chatConversaciones, {
+		fields: [chatMensajes.conversacionId],
+		references: [chatConversaciones.id]
+	}),
+	emisor: one(usuarios, {
+		fields: [chatMensajes.emisorId],
+		references: [usuarios.id]
+	}),
+	sucursal: one(negocioSucursales, {
+		fields: [chatMensajes.emisorSucursalId],
+		references: [negocioSucursales.id]
+	}),
+	empleado: one(empleados, {
+		fields: [chatMensajes.empleadoId],
+		references: [empleados.id]
+	}),
+	respuestaA: one(chatMensajes, {
+		fields: [chatMensajes.respuestaAId],
+		references: [chatMensajes.id],
+		relationName: "chatMsg_respuesta"
+	}),
+	reenviadoDe: one(chatMensajes, {
+		fields: [chatMensajes.reenviadoDeId],
+		references: [chatMensajes.id],
+		relationName: "chatMsg_reenviado"
+	}),
+	reacciones: many(chatReacciones),
+}));
+
+// --- Reacciones ---
+
+export const chatReaccionesRelations = relations(chatReacciones, ({ one }) => ({
+	mensaje: one(chatMensajes, {
+		fields: [chatReacciones.mensajeId],
+		references: [chatMensajes.id]
+	}),
+	usuario: one(usuarios, {
+		fields: [chatReacciones.usuarioId],
+		references: [usuarios.id]
+	}),
+}));
+
+// --- Mensajes fijados ---
+
+export const chatMensajesFijadosRelations = relations(chatMensajesFijados, ({ one }) => ({
+	conversacion: one(chatConversaciones, {
+		fields: [chatMensajesFijados.conversacionId],
+		references: [chatConversaciones.id]
+	}),
+	mensaje: one(chatMensajes, {
+		fields: [chatMensajesFijados.mensajeId],
+		references: [chatMensajes.id]
+	}),
+	usuario: one(usuarios, {
+		fields: [chatMensajesFijados.fijadoPor],
+		references: [usuarios.id]
+	}),
+}));
+
+// --- Contactos ---
+
+export const chatContactosRelations = relations(chatContactos, ({ one }) => ({
+	usuario: one(usuarios, {
+		fields: [chatContactos.usuarioId],
+		references: [usuarios.id],
+		relationName: "chatContactos_usuario"
+	}),
+	contacto: one(usuarios, {
+		fields: [chatContactos.contactoId],
+		references: [usuarios.id],
+		relationName: "chatContactos_contacto"
+	}),
+	negocio: one(negocios, {
+		fields: [chatContactos.negocioId],
+		references: [negocios.id]
+	}),
+}));
+
+// --- Bloqueados ---
+
+export const chatBloqueadosRelations = relations(chatBloqueados, ({ one }) => ({
+	usuario: one(usuarios, {
+		fields: [chatBloqueados.usuarioId],
+		references: [usuarios.id],
+		relationName: "chatBloqueados_usuario"
+	}),
+	bloqueado: one(usuarios, {
+		fields: [chatBloqueados.bloqueadoId],
+		references: [usuarios.id],
+		relationName: "chatBloqueados_bloqueado"
 	}),
 }));

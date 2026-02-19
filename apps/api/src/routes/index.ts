@@ -35,6 +35,7 @@ import transaccionesRoutes from './transacciones.routes';
 import clientesRoutes from './clientes.routes';
 import cardyaRoutes from './cardya.routes';
 import notificacionesRoutes from './notificaciones.routes';
+import chatyaRoutes from './chatya.routes';
 
 const router: Router = Router();
 
@@ -106,6 +107,9 @@ router.use('/cardya', cardyaRoutes);
 
 // Rutas de Notificaciones (tiempo real)
 router.use('/notificaciones', notificacionesRoutes);
+
+// Rutas de ChatYA (Chat 1:1)
+router.use('/chatya', chatyaRoutes);
 
 // Aquí se agregarán más rutas:
 // router.use('/marketplace', marketplaceRoutes);

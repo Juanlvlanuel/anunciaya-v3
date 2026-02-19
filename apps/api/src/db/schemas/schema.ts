@@ -85,6 +85,7 @@ export const usuarios = pgTable("usuarios", {
 	referidoPor: uuid("referido_por").references((): AnyPgColumn => embajadores.id, { onDelete: 'set null' }),
 	negocioId: uuid('negocio_id').references((): AnyPgColumn => negocios.id, { onDelete: 'set null' }),
 	sucursalAsignada: uuid('sucursal_asignada').references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'set null' }),
+	ultimaConexion: timestamp("ultima_conexion", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_usuarios_correo_verificado").using("btree", table.correoVerificado.asc().nullsLast()),
 	index("idx_usuarios_created_at").using("btree", table.createdAt.asc().nullsLast()),
@@ -1934,4 +1935,241 @@ export const notificaciones = pgTable("notificaciones", {
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'nuevo_cupon'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nueva_dinamica'::character varying, 'nuevo_empleo'::character varying])::text[])`),
 	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'dinamica'::character varying, 'empleo'::character varying])::text[]))`),
+]);
+
+
+// ============================================================================
+// ChatYA - Tablas de Chat (agregar al final de schema.ts)
+// Sprint 1 - Febrero 2026
+// ============================================================================
+
+export const chatConversaciones = pgTable("chat_conversaciones", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+
+	// Participante 1
+	participante1Id: uuid("participante1_id").notNull(),
+	participante1Modo: varchar("participante1_modo", { length: 15 }).notNull(),
+	participante1SucursalId: uuid("participante1_sucursal_id"),
+
+	// Participante 2
+	participante2Id: uuid("participante2_id").notNull(),
+	participante2Modo: varchar("participante2_modo", { length: 15 }).notNull(),
+	participante2SucursalId: uuid("participante2_sucursal_id"),
+
+	// Contexto de origen
+	contextoTipo: varchar("contexto_tipo", { length: 20 }).default('directo').notNull(),
+	contextoReferenciaId: uuid("contexto_referencia_id"),
+
+	// Preview del último mensaje
+	ultimoMensajeTexto: varchar("ultimo_mensaje_texto", { length: 100 }),
+	ultimoMensajeFecha: timestamp("ultimo_mensaje_fecha", { withTimezone: true, mode: 'string' }),
+	ultimoMensajeTipo: varchar("ultimo_mensaje_tipo", { length: 20 }),
+
+	// Contadores no leídos
+	noLeidosP1: integer("no_leidos_p1").default(0).notNull(),
+	noLeidosP2: integer("no_leidos_p2").default(0).notNull(),
+
+	// Acciones por participante
+	fijadaPorP1: boolean("fijada_por_p1").default(false).notNull(),
+	fijadaPorP2: boolean("fijada_por_p2").default(false).notNull(),
+	archivadaPorP1: boolean("archivada_por_p1").default(false).notNull(),
+	archivadaPorP2: boolean("archivada_por_p2").default(false).notNull(),
+	silenciadaPorP1: boolean("silenciada_por_p1").default(false).notNull(),
+	silenciadaPorP2: boolean("silenciada_por_p2").default(false).notNull(),
+	eliminadaPorP1: boolean("eliminada_por_p1").default(false).notNull(),
+	eliminadaPorP2: boolean("eliminada_por_p2").default(false).notNull(),
+
+	// Timestamps
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_chat_conv_participante1").using("btree", table.participante1Id.asc().nullsLast()),
+	index("idx_chat_conv_participante2").using("btree", table.participante2Id.asc().nullsLast()),
+	index("idx_chat_conv_updated").using("btree", table.updatedAt.desc().nullsFirst()),
+	index("idx_chat_conv_p1_activas").using("btree", table.participante1Id.asc().nullsLast(), table.updatedAt.desc().nullsFirst()).where(sql`(eliminada_por_p1 = false)`),
+	index("idx_chat_conv_p2_activas").using("btree", table.participante2Id.asc().nullsLast(), table.updatedAt.desc().nullsFirst()).where(sql`(eliminada_por_p2 = false)`),
+	foreignKey({
+		columns: [table.participante1Id],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_conv_participante1"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.participante2Id],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_conv_participante2"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.participante1SucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_chat_conv_sucursal_p1"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.participante2SucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_chat_conv_sucursal_p2"
+	}).onDelete("set null"),
+	check("chat_conv_modo_p1_check", sql`(participante1_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
+	check("chat_conv_modo_p2_check", sql`(participante2_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
+	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'dinamica'::character varying, 'empleo'::character varying, 'directo'::character varying])::text[])`),
+	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id`),
+]);
+
+export const chatMensajes = pgTable("chat_mensajes", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	conversacionId: uuid("conversacion_id").notNull(),
+	emisorId: uuid("emisor_id"),
+	emisorModo: varchar("emisor_modo", { length: 15 }),
+	emisorSucursalId: uuid("emisor_sucursal_id"),
+
+	// Empleado ScanYA que respondió (tracking interno)
+	empleadoId: uuid("empleado_id"),
+
+	// Contenido
+	tipo: varchar({ length: 20 }).default('texto').notNull(),
+	contenido: text().notNull(),
+	estado: varchar({ length: 15 }).default('enviado').notNull(),
+
+	// Edición
+	editado: boolean().default(false).notNull(),
+	editadoAt: timestamp("editado_at", { withTimezone: true, mode: 'string' }),
+
+	// Eliminación soft
+	eliminado: boolean().default(false).notNull(),
+	eliminadoAt: timestamp("eliminado_at", { withTimezone: true, mode: 'string' }),
+
+	// Referencias a otros mensajes
+	respuestaAId: uuid("respuesta_a_id").references((): AnyPgColumn => chatMensajes.id, { onDelete: 'set null' }),
+	reenviadoDeId: uuid("reenviado_de_id").references((): AnyPgColumn => chatMensajes.id, { onDelete: 'set null' }),
+
+	// Timestamps
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	entregadoAt: timestamp("entregado_at", { withTimezone: true, mode: 'string' }),
+	leidoAt: timestamp("leido_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_chat_msg_conversacion").using("btree", table.conversacionId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_chat_msg_emisor").using("btree", table.emisorId.asc().nullsLast()).where(sql`(emisor_id IS NOT NULL)`),
+	index("idx_chat_msg_empleado").using("btree", table.empleadoId.asc().nullsLast()).where(sql`(empleado_id IS NOT NULL)`),
+	index("idx_chat_msg_no_eliminados").using("btree", table.conversacionId.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`(eliminado = false)`),
+	foreignKey({
+		columns: [table.conversacionId],
+		foreignColumns: [chatConversaciones.id],
+		name: "fk_chat_msg_conversacion"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.emisorId],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_msg_emisor"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.emisorSucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_chat_msg_sucursal"
+	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.empleadoId],
+		foreignColumns: [empleados.id],
+		name: "fk_chat_msg_empleado"
+	}).onDelete("set null"),
+	check("chat_msg_modo_check", sql`(emisor_modo IS NULL OR (emisor_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[]))`),
+	check("chat_msg_tipo_check", sql`(tipo)::text = ANY ((ARRAY['texto'::character varying, 'imagen'::character varying, 'audio'::character varying, 'documento'::character varying, 'ubicacion'::character varying, 'contacto'::character varying, 'sistema'::character varying])::text[])`),
+	check("chat_msg_estado_check", sql`(estado)::text = ANY ((ARRAY['enviado'::character varying, 'entregado'::character varying, 'leido'::character varying])::text[])`),
+]);
+
+export const chatReacciones = pgTable("chat_reacciones", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	mensajeId: uuid("mensaje_id").notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	emoji: varchar({ length: 10 }).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_chat_reacciones_mensaje").using("btree", table.mensajeId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.mensajeId],
+		foreignColumns: [chatMensajes.id],
+		name: "fk_chat_reacciones_mensaje"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_reacciones_usuario"
+	}).onDelete("cascade"),
+	unique("chat_reacciones_unique").on(table.mensajeId, table.usuarioId, table.emoji),
+]);
+
+export const chatMensajesFijados = pgTable("chat_mensajes_fijados", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	conversacionId: uuid("conversacion_id").notNull(),
+	mensajeId: uuid("mensaje_id").notNull(),
+	fijadoPor: uuid("fijado_por").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_chat_msg_fijados_conv").using("btree", table.conversacionId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.conversacionId],
+		foreignColumns: [chatConversaciones.id],
+		name: "fk_chat_msg_fijados_conv"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.mensajeId],
+		foreignColumns: [chatMensajes.id],
+		name: "fk_chat_msg_fijados_mensaje"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.fijadoPor],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_msg_fijados_usuario"
+	}).onDelete("cascade"),
+	unique("chat_msg_fijados_unique").on(table.conversacionId, table.mensajeId),
+]);
+
+export const chatContactos = pgTable("chat_contactos", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	contactoId: uuid("contacto_id").notNull(),
+	tipo: varchar({ length: 15 }).notNull(),
+	negocioId: uuid("negocio_id"),
+	alias: varchar({ length: 100 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_chat_contactos_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.tipo.asc().nullsLast()),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_contactos_usuario"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.contactoId],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_contactos_contacto"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.negocioId],
+		foreignColumns: [negocios.id],
+		name: "fk_chat_contactos_negocio"
+	}).onDelete("cascade"),
+	unique("chat_contactos_unique").on(table.usuarioId, table.contactoId, table.tipo),
+	check("chat_contactos_tipo_check", sql`(tipo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
+	check("chat_contactos_no_auto", sql`usuario_id != contacto_id`),
+]);
+
+export const chatBloqueados = pgTable("chat_bloqueados", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	bloqueadoId: uuid("bloqueado_id").notNull(),
+	motivo: varchar({ length: 200 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_chat_bloqueados_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_bloqueados_usuario"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.bloqueadoId],
+		foreignColumns: [usuarios.id],
+		name: "fk_chat_bloqueados_bloqueado"
+	}).onDelete("cascade"),
+	unique("chat_bloqueados_unique").on(table.usuarioId, table.bloqueadoId),
+	check("chat_bloqueados_no_auto", sql`usuario_id != bloqueado_id`),
 ]);
