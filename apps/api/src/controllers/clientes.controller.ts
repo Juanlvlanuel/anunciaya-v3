@@ -7,14 +7,24 @@
  * 
  * ENDPOINTS:
  * GET    /api/clientes/top                     - Top clientes con puntos
+ * GET    /api/clientes/kpis                    - KPIs para página Clientes BS
+ * GET    /api/clientes                         - Lista de clientes con filtros
+ * GET    /api/clientes/:id                     - Detalle completo de un cliente
+ * GET    /api/clientes/:id/historial           - Historial de transacciones de un cliente
  * 
- * NOTA: Consume funciones de puntos.service.ts (service compartido)
+ * NOTA: Consume funciones de puntos.service.ts y clientes.service.ts
  */
 
 import { Request, Response } from 'express';
 import {
   obtenerTopClientes,
 } from '../services/puntos.service.js';
+import {
+  obtenerKPIsClientes,
+  obtenerClientes,
+  obtenerDetalleCliente,
+  obtenerHistorialCliente,
+} from '../services/clientes.service.js';
 
 // =============================================================================
 // HELPERS PARA OBTENER DATOS DEL CONTEXTO
@@ -114,6 +124,220 @@ export async function obtenerTopClientesController(
     res.status(500).json({
       success: false,
       message: 'Error al obtener top clientes',
+    });
+  }
+}
+
+// =============================================================================
+// 2. OBTENER KPIs CLIENTES (Página Clientes BS)
+// =============================================================================
+
+/**
+ * GET /api/clientes/kpis
+ * Obtiene 4 KPIs: total clientes, distribución nivel, nuevos mes, inactivos
+ * Acceso: Dueños y Gerentes
+ */
+export async function obtenerKPIsClientesController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const negocioId = obtenerNegocioId(req);
+
+    if (!negocioId) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado',
+      });
+      return;
+    }
+
+    let sucursalId = obtenerSucursalId(req);
+
+    if (esGerente(req)) {
+      sucursalId = req.usuario?.sucursalAsignada || undefined;
+      if (!sucursalId) {
+        res.status(403).json({
+          success: false,
+          message: 'Gerente debe tener sucursal asignada',
+        });
+        return;
+      }
+    }
+
+    const resultado = await obtenerKPIsClientes(negocioId, sucursalId);
+
+    res.status(resultado.code || 200).json(resultado);
+  } catch (error) {
+    console.error('Error en obtenerKPIsClientesController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener KPIs de clientes',
+    });
+  }
+}
+
+// =============================================================================
+// 3. OBTENER LISTA DE CLIENTES (Página Clientes BS)
+// =============================================================================
+
+/**
+ * GET /api/clientes?busqueda=xxx&nivel=oro&limit=20&offset=0
+ * Lista clientes con filtros y paginación
+ * Acceso: Dueños y Gerentes
+ */
+export async function obtenerClientesController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const negocioId = obtenerNegocioId(req);
+
+    if (!negocioId) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado',
+      });
+      return;
+    }
+
+    let sucursalId = obtenerSucursalId(req);
+
+    if (esGerente(req)) {
+      sucursalId = req.usuario?.sucursalAsignada || undefined;
+      if (!sucursalId) {
+        res.status(403).json({
+          success: false,
+          message: 'Gerente debe tener sucursal asignada',
+        });
+        return;
+      }
+    }
+
+    // Parámetros de filtro
+    const busqueda = req.query.busqueda as string | undefined;
+    const nivel = req.query.nivel as 'bronce' | 'plata' | 'oro' | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    // Validar nivel
+    if (nivel && !['bronce', 'plata', 'oro'].includes(nivel)) {
+      res.status(400).json({
+        success: false,
+        message: 'Nivel inválido. Valores permitidos: bronce, plata, oro',
+      });
+      return;
+    }
+
+    const resultado = await obtenerClientes(negocioId, {
+      sucursalId,
+      busqueda,
+      nivel,
+      limit,
+      offset,
+    });
+
+    res.status(resultado.code || 200).json(resultado);
+  } catch (error) {
+    console.error('Error en obtenerClientesController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener clientes',
+    });
+  }
+}
+
+// =============================================================================
+// 4. OBTENER DETALLE DE UN CLIENTE (Modal Clientes BS)
+// =============================================================================
+
+/**
+ * GET /api/clientes/:id
+ * Detalle completo: puntos, vouchers, estadísticas, datos personales
+ * Acceso: Dueños y Gerentes
+ */
+export async function obtenerDetalleClienteController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const negocioId = obtenerNegocioId(req);
+
+    if (!negocioId) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado',
+      });
+      return;
+    }
+
+    const clienteId = req.params.id;
+
+    if (!clienteId) {
+      res.status(400).json({
+        success: false,
+        message: 'ID de cliente requerido',
+      });
+      return;
+    }
+
+    const resultado = await obtenerDetalleCliente(negocioId, clienteId);
+
+    res.status(resultado.code || 200).json(resultado);
+  } catch (error) {
+    console.error('Error en obtenerDetalleClienteController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener detalle del cliente',
+    });
+  }
+}
+
+// =============================================================================
+// 5. OBTENER HISTORIAL DE UN CLIENTE (Modal Clientes BS)
+// =============================================================================
+
+/**
+ * GET /api/clientes/:id/historial?limit=20&offset=0
+ * Transacciones de un cliente específico
+ * Acceso: Dueños y Gerentes
+ */
+export async function obtenerHistorialClienteController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const negocioId = obtenerNegocioId(req);
+
+    if (!negocioId) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado',
+      });
+      return;
+    }
+
+    const clienteId = req.params.id;
+
+    if (!clienteId) {
+      res.status(400).json({
+        success: false,
+        message: 'ID de cliente requerido',
+      });
+      return;
+    }
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const resultado = await obtenerHistorialCliente(negocioId, clienteId, limit, offset);
+
+    res.status(resultado.code || 200).json(resultado);
+  } catch (error) {
+    console.error('Error en obtenerHistorialClienteController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener historial del cliente',
     });
   }
 }

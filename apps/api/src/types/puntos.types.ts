@@ -102,7 +102,14 @@ export interface TransaccionPuntos {
   sucursalNombre: string | null;
   empleadoId: string | null;
   empleadoNombre: string | null;
-  empleadoTipo: 'empleado' | 'usuario' | null; // empleado, usuario (gerente/dueño), o null
+  empleadoTipo: 'empleado' | 'usuario' | null;
+  montoEfectivo: number;
+  montoTarjeta: number;
+  montoTransferencia: number;
+  fotoTicketUrl: string | null;
+  nota: string | null;
+  numeroOrden: string | null;
+  motivoRevocacion: string | null;
 }
 
 // =============================================================================
@@ -110,3 +117,113 @@ export interface TransaccionPuntos {
 // =============================================================================
 
 export type PeriodoEstadisticas = 'hoy' | 'semana' | 'mes' | '3meses' | 'anio' | 'todo';
+
+// =============================================================================
+// KPIs TRANSACCIONES (Página Transacciones BS)
+// =============================================================================
+
+export interface KPIsTransacciones {
+  totalVentas: number;
+  totalTransacciones: number;
+  ticketPromedio: number;
+  totalRevocadas: number;
+}
+
+// =============================================================================
+// KPIs CLIENTES (Página Clientes BS)
+// =============================================================================
+
+export interface KPIsClientes {
+  totalClientes: number;
+  distribucionNivel: {
+    bronce: number;
+    plata: number;
+    oro: number;
+  };
+  nuevosEsteMes: number;
+  inactivos30Dias: number;
+}
+
+// =============================================================================
+// CLIENTE COMPLETO (Lista de clientes BS)
+// =============================================================================
+
+export interface ClienteCompleto {
+  id: string;
+  nombre: string;
+  telefono: string | null;
+  avatarUrl: string | null;
+  puntosDisponibles: number;
+  puntosAcumuladosTotal: number;
+  nivelActual: string;
+  ultimaActividad: string | null;
+  totalVisitas: number;
+}
+
+// =============================================================================
+// DETALLE CLIENTE (Modal detalle BS)
+// =============================================================================
+
+export interface ClienteDetalle {
+  id: string;
+  nombre: string;
+  telefono: string | null;
+  correo: string | null;
+  avatarUrl: string | null;
+  puntosDisponibles: number;
+  puntosAcumuladosTotal: number;
+  puntosCanjeadosTotal: number;
+  nivelActual: string;
+  clienteDesde: string | null;
+  ultimaActividad: string | null;
+  totalVisitas: number;
+  totalGastado: number;
+  promedioCompra: number;
+  totalVouchers: number;
+  vouchersUsados: number;
+  // Configuración de niveles del negocio (para calcular progreso)
+  configNiveles: {
+    bronceMax: number;
+    plataMin: number;
+    plataMax: number;
+    oroMin: number;
+  } | null;
+}
+
+// =============================================================================
+// KPIs CANJES (Tab Canjes en Transacciones BS)
+// =============================================================================
+
+export interface KPIsCanjes {
+  pendientes: number;
+  usados: number;
+  vencidos: number;
+  totalCanjes: number;
+}
+
+// =============================================================================
+// VOUCHER CANJE (Tabla + Modal Canjes en Transacciones BS)
+// =============================================================================
+
+export interface VoucherCanje {
+  id: string;
+  // Cliente
+  clienteId: string;
+  clienteNombre: string;
+  clienteTelefono: string | null;
+  clienteAvatarUrl: string | null;
+  // Recompensa
+  recompensaNombre: string;
+  recompensaDescripcion: string | null;
+  recompensaImagenUrl: string | null;
+  // Puntos y estado
+  puntosUsados: number;
+  estado: 'pendiente' | 'usado' | 'expirado';
+  // Fechas
+  expiraAt: string | null;
+  createdAt: string | null;
+  usadoAt: string | null;
+  // Donde se canjeó (null si pendiente)
+  sucursalNombre: string | null;
+  usadoPorNombre: string | null;
+}

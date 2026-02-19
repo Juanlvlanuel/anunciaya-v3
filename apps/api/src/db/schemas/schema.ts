@@ -987,7 +987,7 @@ export const guardados = pgTable("guardados", {
 
 export const resenas = pgTable("resenas", {
 	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
-	autorId: uuid("autor_id"),  // ← QUITAR .notNull()
+	autorId: uuid("autor_id"),
 	autorTipo: varchar("autor_tipo", { length: 10 }).notNull(),
 	destinoTipo: varchar("destino_tipo", { length: 10 }).notNull(),
 	destinoId: uuid("destino_id").notNull(),
@@ -998,10 +998,12 @@ export const resenas = pgTable("resenas", {
 	sucursalId: uuid("sucursal_id").references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'cascade' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	respondidoPorEmpleadoId: uuid("respondido_por_empleado_id").references(() => empleados.id, { onDelete: 'set null' }),
 }, (table) => [
 	index("idx_resenas_destino").using("btree", table.destinoTipo.asc().nullsLast(), table.destinoId.asc().nullsLast()),
 	index("idx_resenas_interaccion").using("btree", table.interaccionTipo.asc().nullsLast(), table.interaccionId.asc().nullsLast()),
 	index("idx_resenas_sucursal_id").using("btree", table.sucursalId.asc().nullsLast()),
+	index("idx_resenas_respondido_empleado").using("btree", table.respondidoPorEmpleadoId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.autorId],
 		foreignColumns: [usuarios.id],
@@ -1722,6 +1724,9 @@ export const puntosTransacciones = pgTable("puntos_transacciones", {
 	cuponUsoId: bigint("cupon_uso_id", { mode: 'number' }),
 	nota: text("nota"),
 	concepto: varchar("concepto", { length: 200 }),
+	motivoRevocacion: text("motivo_revocacion"),
+	revocadoPor: uuid("revocado_por"),
+	revocadoAt: timestamp("revocado_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_puntos_transacciones_billetera").using("btree", table.billeteraId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	index("idx_puntos_transacciones_cliente").using("btree", table.clienteId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
@@ -1764,6 +1769,12 @@ export const puntosTransacciones = pgTable("puntos_transacciones", {
 		foreignColumns: [cuponUsos.id],
 		name: "fk_puntos_transacciones_cupon_uso"
 	}).onDelete("set null"),
+	foreignKey({
+		columns: [table.revocadoPor],
+		foreignColumns: [usuarios.id],
+		name: "fk_puntos_transacciones_revocado_por"
+	}).onDelete("set null"),
+	index("idx_puntos_transacciones_revocadas").using("btree", table.negocioId.asc().nullsLast(), table.revocadoAt.desc().nullsFirst()).where(sql`((estado)::text = 'cancelado'::text)`),
 	check("puntos_transacciones_estado_check", sql`(estado)::text = ANY ((ARRAY['pendiente'::character varying, 'confirmado'::character varying, 'rechazado'::character varying, 'cancelado'::character varying])::text[])`),
 	check("puntos_transacciones_monto_check", sql`monto_compra > (0)::numeric`),
 	check("puntos_transacciones_puntos_check", sql`puntos_otorgados >= 0`),

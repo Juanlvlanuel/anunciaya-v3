@@ -1,9 +1,9 @@
 /**
  * cardya.service.ts
  * =================
- * Servicio principal del módulo CardYA (Cliente)
+ * Servicio principal del mÃ³dulo CardYA (Cliente)
  * 
- * Ubicación: apps/api/src/services/cardya.service.ts
+ * UbicaciÃ³n: apps/api/src/services/cardya.service.ts
  */
 import { emitirEvento } from '../socket.js';
 import { db } from '../db/index.js';
@@ -322,12 +322,12 @@ export async function obtenerRecompensasDisponibles(
       .where(eq(recompensas.activa, true))
       .$dynamic();
 
-    // Filtro por negocio específico
+    // Filtro por negocio especÃ­fico
     if (filtros?.negocioId) {
       query = query.where(eq(recompensas.negocioId, filtros.negocioId));
     }
 
-    // Filtro por ciudad (búsqueda flexible - encuentra "Puerto Peñasco" en "Puerto Peñasco, Sonora")
+    // Filtro por ciudad (bÃºsqueda flexible - encuentra "Puerto PeÃ±asco" en "Puerto PeÃ±asco, Sonora")
     if (filtros?.ciudad) {
       query = query.where(
         sql`${negocioSucursales.ciudad} ILIKE ${filtros.ciudad + '%'}`
@@ -338,9 +338,9 @@ export async function obtenerRecompensasDisponibles(
     const resultados = await query.orderBy(
       // Primero los que tienen billetera (puntos > 0)
       sql`CASE WHEN ${puntosBilletera.puntosDisponibles} > 0 THEN 0 ELSE 1 END`,
-      // Dentro de cada grupo, por puntos disponibles desc (los que más tienen primero)
+      // Dentro de cada grupo, por puntos disponibles desc (los que mÃ¡s tienen primero)
       sql`COALESCE(${puntosBilletera.puntosDisponibles}, 0) DESC`,
-      // Finalmente por puntos requeridos asc (más baratos primero)
+      // Finalmente por puntos requeridos asc (mÃ¡s baratos primero)
       recompensas.puntosRequeridos
     );
 
@@ -402,7 +402,7 @@ export async function generarVoucher(
     const recomp = recompensa[0];
 
     if (!recomp.activa) {
-      return { success: false, message: 'Esta recompensa no está disponible', code: 400 };
+      return { success: false, message: 'Esta recompensa no estÃ¡ disponible', code: 400 };
     }
 
     if (recomp.stock !== null && recomp.stock <= 0) {
@@ -466,7 +466,7 @@ export async function generarVoucher(
           recompensaId: recompensaId,
           usuarioId: usuarioId,
           negocioId: recomp.negocioId,
-          sucursalId: null, // ✅ NULL = voucher libre
+          sucursalId: null, // âœ… NULL = voucher libre
           codigo: codigo,
           qrData: JSON.stringify({ codigo, recompensaId, usuarioId }),
           puntosUsados: recomp.puntosRequeridos,
@@ -513,7 +513,7 @@ export async function generarVoucher(
     // Obtener sucursal principal para notificaciones
     const sucursalPrincipalId = await obtenerSucursalPrincipal(recomp.negocioId);
 
-    // Notificar al dueño si el stock está bajo (menos de 5)
+    // Notificar al dueÃ±o si el stock estÃ¡ bajo (menos de 5)
     if (recomp.stock !== null && recomp.stock - 1 <= 5 && recomp.stock - 1 > 0) {
       const [negocioDuenoStock] = await db
         .select({ usuarioId: negocios.usuarioId })
@@ -526,18 +526,18 @@ export async function generarVoucher(
           usuarioId: negocioDuenoStock.usuarioId,
           modo: 'comercial',
           tipo: 'stock_bajo',
-          titulo: `¡Stock bajo! Quedan ${recomp.stock - 1}`,
-          mensaje: `La recompensa "${recomp.nombre}" se está agotando`,
+          titulo: `Â¡Stock bajo! Quedan ${recomp.stock - 1}`,
+          mensaje: `La recompensa "${recomp.nombre}" se estÃ¡ agotando`,
           negocioId: recomp.negocioId,
           sucursalId: sucursalPrincipalId ?? undefined,
           referenciaId: recompensaId,
           referenciaTipo: 'recompensa',
-          icono: '⚠️',
-        }).catch((err) => console.error('Error notificación stock bajo:', err));
+          icono: 'âš ï¸',
+        }).catch((err) => console.error('Error notificaciÃ³n stock bajo:', err));
       }
     }
 
-    // Notificar si se agotó
+    // Notificar si se agotÃ³
     if (recomp.stock !== null && recomp.stock - 1 === 0) {
       const [negocioDuenoAgotado] = await db
         .select({ usuarioId: negocios.usuarioId })
@@ -550,14 +550,14 @@ export async function generarVoucher(
           usuarioId: negocioDuenoAgotado.usuarioId,
           modo: 'comercial',
           tipo: 'stock_bajo',
-          titulo: '¡Recompensa agotada!',
+          titulo: 'Â¡Recompensa agotada!',
           mensaje: `"${recomp.nombre}" ya no tiene stock disponible`,
           negocioId: recomp.negocioId,
           sucursalId: sucursalPrincipalId ?? undefined,
           referenciaId: recompensaId,
           referenciaTipo: 'recompensa',
-          icono: '🚫',
-        }).catch((err) => console.error('Error notificación agotada:', err));
+          icono: 'ðŸš«',
+        }).catch((err) => console.error('Error notificaciÃ³n agotada:', err));
       }
     }
 
@@ -566,16 +566,16 @@ export async function generarVoucher(
       usuarioId,
       modo: 'personal',
       tipo: 'voucher_generado',
-      titulo: '¡Recompensa canjeada!',
+      titulo: 'Â¡Recompensa canjeada!',
       mensaje: `Canjeaste: ${recomp.nombre} en ${negocio[0]?.nombre ?? 'un negocio'}`,
       negocioId: recomp.negocioId,
       sucursalId: sucursalPrincipalId ?? undefined,
       referenciaId: resultado.id,
       referenciaTipo: 'voucher',
-      icono: '🎟️',
-    }).catch((err) => console.error('Error notificación voucher generado:', err));
+      icono: 'ðŸŽŸï¸',
+    }).catch((err) => console.error('Error notificaciÃ³n voucher generado:', err));
 
-    // Notificar al dueño (voucher pendiente de entregar)
+    // Notificar al dueÃ±o (voucher pendiente de entregar)
     const [negocioDueno] = await db
       .select({ usuarioId: negocios.usuarioId })
       .from(negocios)
@@ -588,30 +588,30 @@ export async function generarVoucher(
         modo: 'comercial',
         tipo: 'voucher_pendiente',
         titulo: 'Nuevo voucher por entregar',
-        mensaje: `Un cliente canjeó: ${recomp.nombre}`,
+        mensaje: `Un cliente canjeÃ³: ${recomp.nombre}`,
         negocioId: recomp.negocioId,
         sucursalId: sucursalPrincipalId ?? undefined,
         referenciaId: resultado.id,
         referenciaTipo: 'voucher',
-        icono: '🎟️',
-      }).catch((err) => console.error('Error notificación dueño voucher:', err));
+        icono: 'ðŸŽŸï¸',
+      }).catch((err) => console.error('Error notificaciÃ³n dueÃ±o voucher:', err));
 
       // Notificar a empleados de TODAS las sucursales (cualquiera puede entregar)
       notificarNegocioCompleto(recomp.negocioId, {
         modo: 'comercial',
         tipo: 'voucher_pendiente',
         titulo: 'Nuevo voucher por entregar',
-        mensaje: `Un cliente canjeó: ${recomp.nombre}`,
+        mensaje: `Un cliente canjeÃ³: ${recomp.nombre}`,
         negocioId: recomp.negocioId,
         referenciaId: resultado.id,
         referenciaTipo: 'voucher',
-        icono: '🎟️',
-      }).catch((err) => console.error('Error notificación empleados voucher:', err));
+        icono: 'ðŸŽŸï¸',
+      }).catch((err) => console.error('Error notificaciÃ³n empleados voucher:', err));
     }
 
     return {
       success: true,
-      message: '¡Recompensa canjeada! Muestra el código en el negocio',
+      message: 'Â¡Recompensa canjeada! Muestra el cÃ³digo en el negocio',
       data: voucherCompleto
     };
   } catch (error) {
@@ -828,7 +828,7 @@ export async function obtenerHistorialCompras(
     // Contar sucursales por negocio para ocultar cuando solo hay 1
     const negocioIds = [...new Set(resultados.map((h) => h.negocioId))];
 
-    // Guard: si no hay resultados, no ejecutar la query (IN() vacío es SQL inválido)
+    // Guard: si no hay resultados, no ejecutar la query (IN() vacÃ­o es SQL invÃ¡lido)
     const sucursalesPorNegocio = new Map<string, number>();
 
     if (negocioIds.length > 0) {
@@ -1004,7 +1004,7 @@ function calcularProgresoNivel(
     puntosActuales,
     puntosMinNivel,
     puntosMaxNivel,
-    porcentaje: Math.round(porcentaje),
+    porcentaje: Math.round(porcentaje * 100) / 100,
     puntosFaltantes,
     siguienteNivel,
   };

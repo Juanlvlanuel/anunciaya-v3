@@ -38,6 +38,9 @@ export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	bolsaTrabajos: many(bolsaTrabajo),
 	puntosBilleteras: many(puntosBilletera),
 	puntosTransacciones: many(puntosTransacciones),
+	transaccionesRevocadas: many(puntosTransacciones, {
+		relationName: "transacciones_revocadoPor_usuarios_id"
+	}),
 	vouchersCanjes: many(vouchersCanje),
 	notificaciones: many(notificaciones),
 }));
@@ -628,6 +631,11 @@ export const puntosTransaccionesRelations = relations(puntosTransacciones, ({ on
 	sucursal: one(negocioSucursales, {
 		fields: [puntosTransacciones.sucursalId],
 		references: [negocioSucursales.id]
+	}),
+	revocadoPorUsuario: one(usuarios, {
+		fields: [puntosTransacciones.revocadoPor],
+		references: [usuarios.id],
+		relationName: "transacciones_revocadoPor_usuarios_id"
 	}),
 	transaccionesEvidencias: many(transaccionesEvidencia),
 	alertasSeguridads: many(alertasSeguridad),

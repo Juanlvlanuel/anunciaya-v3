@@ -38,7 +38,8 @@ import {
   empleados,
   negocioSucursales,
   vouchersCanje,
-  negocios
+  negocios,
+  scanyaTurnos
 } from '../db/schemas/schema.js';
 import type {
   ActualizarConfigPuntosInput,
@@ -55,7 +56,7 @@ import type {
   PeriodoEstadisticas
 } from '../types/puntos.types.js';
 import { eliminarImagen } from './cloudinary.service.js';
-import { startOfDay, startOfWeek, startOfMonth, startOfYear, subMonths } from 'date-fns';
+import { startOfDay, subDays, subMonths, subYears } from 'date-fns';
 import { crearNotificacion, obtenerSucursalPrincipal } from './notificaciones.service.js';
 
 // =============================================================================
@@ -679,16 +680,16 @@ export async function obtenerEstadisticasPuntos(
         fechaInicio = startOfDay(new Date());
         break;
       case 'semana':
-        fechaInicio = startOfWeek(new Date());
+        fechaInicio = startOfDay(subDays(new Date(), 7));
         break;
       case 'mes':
-        fechaInicio = startOfMonth(new Date());
+        fechaInicio = startOfDay(subDays(new Date(), 30));
         break;
       case '3meses':
-        fechaInicio = subMonths(new Date(), 3);
+        fechaInicio = startOfDay(subMonths(new Date(), 3));
         break;
       case 'anio':
-        fechaInicio = startOfYear(new Date());
+        fechaInicio = startOfDay(subYears(new Date(), 1));
         break;
       case 'todo':
       default:
@@ -841,13 +842,21 @@ export async function obtenerHistorialTransacciones(
   sucursalId?: string,
   periodo: PeriodoEstadisticas = 'todo',
   limit: number = 50,
-  offset: number = 0
-): Promise<RespuestaServicio<TransaccionPuntos[]>> {
+  offset: number = 0,
+  busqueda?: string,
+  operadorId?: string,
+  estado?: string
+): Promise<RespuestaServicio<{ historial: TransaccionPuntos[], total: number }>> {
   try {
     const condiciones = [eq(puntosTransacciones.negocioId, negocioId)];
 
     if (sucursalId) {
       condiciones.push(eq(puntosTransacciones.sucursalId, sucursalId));
+    }
+
+    // Filtro por estado
+    if (estado) {
+      condiciones.push(eq(puntosTransacciones.estado, estado));
     }
 
     // Filtro por periodo (fecha)
@@ -857,24 +866,35 @@ export async function obtenerHistorialTransacciones(
         fechaInicio = startOfDay(new Date());
         break;
       case 'semana':
-        fechaInicio = startOfWeek(new Date());
+        fechaInicio = startOfDay(subDays(new Date(), 7));
         break;
       case 'mes':
-        fechaInicio = startOfMonth(new Date());
+        fechaInicio = startOfDay(subDays(new Date(), 30));
         break;
       case '3meses':
-        fechaInicio = subMonths(new Date(), 3);
+        fechaInicio = startOfDay(subMonths(new Date(), 3));
         break;
       case 'anio':
-        fechaInicio = startOfYear(new Date());
+        fechaInicio = startOfDay(subYears(new Date(), 1));
         break;
       case 'todo':
       default:
-        fechaInicio = new Date(0); // Desde el inicio de los tiempos
+        fechaInicio = new Date(0);
         break;
     }
 
     condiciones.push(gte(puntosTransacciones.createdAt, fechaInicio.toISOString()));
+
+    // Filtro por operador (empleado o dueño/gerente que registró la venta)
+    if (operadorId) {
+      condiciones.push(
+        sql`(${scanyaTurnos.empleadoId} = ${operadorId} OR ${scanyaTurnos.usuarioId} = ${operadorId})`
+      );
+    }
+
+    // Filtro por búsqueda (nombre o teléfono del cliente)
+    // Se aplica en el WHERE después del JOIN con usuarios
+    const busquedaNormalizada = busqueda?.trim().toLowerCase();
 
     const transacciones = await db
       .select({
@@ -902,17 +922,35 @@ export async function obtenerHistorialTransacciones(
           WHEN ${sql.raw('u2.id')} IS NOT NULL THEN 'usuario'
           ELSE NULL
         END`,
+        montoEfectivo: puntosTransacciones.montoEfectivo,
+        montoTarjeta: puntosTransacciones.montoTarjeta,
+        montoTransferencia: puntosTransacciones.montoTransferencia,
+        fotoTicketUrl: puntosTransacciones.fotoTicketUrl,
+        nota: puntosTransacciones.nota,
+        numeroOrden: puntosTransacciones.numeroOrden,
+        motivoRevocacion: puntosTransacciones.motivoRevocacion,
       })
       .from(puntosTransacciones)
       .innerJoin(usuarios, eq(puntosTransacciones.clienteId, usuarios.id))
       .leftJoin(negocioSucursales, eq(puntosTransacciones.sucursalId, negocioSucursales.id))
       .leftJoin(empleados, eq(puntosTransacciones.empleadoId, empleados.id))
-      // JOIN adicional para gerentes/dueños (usuarios que registraron la venta)
+      // JOIN a través del turno para obtener el dueño/gerente que registró la venta
+      .leftJoin(scanyaTurnos, eq(puntosTransacciones.turnoId, scanyaTurnos.id))
       .leftJoin(
         sql`usuarios u2`,
-        sql`${puntosTransacciones.empleadoId} = u2.id`
+        sql`${scanyaTurnos.usuarioId} = u2.id`
       )
-      .where(and(...condiciones))
+      .where(
+        busquedaNormalizada
+          ? and(
+            ...condiciones,
+            sql`(
+                LOWER(CONCAT(${usuarios.nombre}, ' ', ${usuarios.apellidos})) LIKE ${`%${busquedaNormalizada}%`}
+                OR LOWER(${usuarios.telefono}) LIKE ${`%${busquedaNormalizada}%`}
+              )`
+          )
+          : and(...condiciones)
+      )
       .orderBy(desc(puntosTransacciones.createdAt))
       .limit(limit)
       .offset(offset);
@@ -934,13 +972,46 @@ export async function obtenerHistorialTransacciones(
       sucursalNombre: t.sucursalNombre,
       empleadoId: t.empleadoId,
       empleadoNombre: t.empleadoNombre,
-      empleadoTipo: t.empleadoTipo as 'empleado' | 'usuario' | null, // empleado, usuario (gerente/dueño), o null
+      empleadoTipo: t.empleadoTipo as 'empleado' | 'usuario' | null,
+      montoEfectivo: Number(t.montoEfectivo || 0),
+      montoTarjeta: Number(t.montoTarjeta || 0),
+      montoTransferencia: Number(t.montoTransferencia || 0),
+      fotoTicketUrl: t.fotoTicketUrl || null,
+      nota: t.nota || null,
+      numeroOrden: t.numeroOrden || null,
+      motivoRevocacion: t.motivoRevocacion || null,
     }));
+
+    // Contar total de registros (mismas condiciones, sin limit/offset)
+    const condicionesCount = [...condiciones];
+    if (busquedaNormalizada) {
+      condicionesCount.push(
+        sql`(
+          LOWER(CONCAT(${usuarios.nombre}, ' ', ${usuarios.apellidos})) LIKE ${`%${busquedaNormalizada}%`}
+          OR LOWER(${usuarios.telefono}) LIKE ${`%${busquedaNormalizada}%`}
+        )`
+      );
+    }
+
+    let countQuery = db
+      .select({ total: sql<number>`COUNT(*)` })
+      .from(puntosTransacciones)
+      .innerJoin(usuarios, eq(puntosTransacciones.clienteId, usuarios.id));
+
+    // Si filtramos por operador, necesitamos el JOIN con turnos
+    if (operadorId) {
+      countQuery = countQuery.leftJoin(scanyaTurnos, eq(puntosTransacciones.turnoId, scanyaTurnos.id)) as typeof countQuery;
+    }
+
+    const [conteo] = await countQuery.where(and(...condicionesCount));
 
     return {
       success: true,
       message: 'Historial obtenido',
-      data: transaccionesFormateadas,
+      data: {
+        historial: transaccionesFormateadas,
+        total: Number(conteo.total),
+      },
       code: 200,
     };
   } catch (error) {
@@ -960,7 +1031,9 @@ export async function obtenerHistorialTransacciones(
 export async function revocarTransaccion(
   transaccionId: string,
   negocioId: string,
-  sucursalId?: string // Para gerentes: validar que sea de su sucursal
+  sucursalId?: string, // Para gerentes: validar que sea de su sucursal
+  motivo?: string,     // Motivo obligatorio al revocar
+  revocadoPor?: string // UUID del usuario que revoca
 ): Promise<RespuestaServicio> {
   try {
     // Paso 1: Obtener transacción
@@ -1018,10 +1091,15 @@ export async function revocarTransaccion(
 
     // Paso 4: Ejecutar revocación en transacción DB
     await db.transaction(async (tx) => {
-      // Cancelar transacción
+      // Cancelar transacción con datos de revocación
       await tx
         .update(puntosTransacciones)
-        .set({ estado: 'cancelado' })
+        .set({
+          estado: 'cancelado',
+          motivoRevocacion: motivo || null,
+          revocadoPor: revocadoPor || null,
+          revocadoAt: new Date().toISOString(),
+        })
         .where(eq(puntosTransacciones.id, transaccionId));
 
       // Restar puntos de billetera
@@ -1029,6 +1107,7 @@ export async function revocarTransaccion(
         .update(puntosBilletera)
         .set({
           puntosDisponibles: sql`puntos_disponibles - ${transaccion.puntosOtorgados}`,
+          puntosAcumuladosTotal: sql`puntos_acumulados_total - ${transaccion.puntosOtorgados}`,
         })
         .where(eq(puntosBilletera.id, transaccion.billeteraId));
     });
@@ -1285,4 +1364,69 @@ export async function verificarExpiraciones(
 ): Promise<void> {
   await expirarVouchersVencidos(negocioId);
   await expirarPuntosPorInactividad(usuarioId, negocioId);
+}
+
+// =============================================================================
+// 13. OBTENER OPERADORES (para filtro dropdown en Transacciones BS)
+// =============================================================================
+
+/**
+ * Obtiene lista de operadores que han registrado ventas en el negocio.
+ * Incluye empleados, gerentes y dueños.
+ * Se obtiene desde los turnos de ScanYA.
+ */
+export async function obtenerOperadoresTransacciones(
+  negocioId: string,
+  sucursalId?: string
+): Promise<RespuestaServicio<{ id: string; nombre: string; tipo: string }[]>> {
+  try {
+    const condicionesTurno = [eq(scanyaTurnos.negocioId, negocioId)];
+    if (sucursalId) {
+      condicionesTurno.push(eq(scanyaTurnos.sucursalId, sucursalId));
+    }
+
+    // Operadores tipo empleado
+    const operadoresEmpleado = await db
+      .selectDistinct({
+        id: empleados.id,
+        nombre: empleados.nombre,
+      })
+      .from(scanyaTurnos)
+      .innerJoin(empleados, eq(scanyaTurnos.empleadoId, empleados.id))
+      .where(and(...condicionesTurno, sql`${scanyaTurnos.empleadoId} IS NOT NULL`));
+
+    // Operadores tipo usuario (dueños/gerentes)
+    const operadoresUsuario = await db
+      .selectDistinct({
+        id: usuarios.id,
+        nombre: sql<string>`CONCAT(${usuarios.nombre}, ' ', COALESCE(${usuarios.apellidos}, ''))`,
+        sucursalAsignada: usuarios.sucursalAsignada,
+      })
+      .from(scanyaTurnos)
+      .innerJoin(usuarios, eq(scanyaTurnos.usuarioId, usuarios.id))
+      .where(and(...condicionesTurno, sql`${scanyaTurnos.usuarioId} IS NOT NULL`));
+
+    const resultado = [
+      ...operadoresEmpleado.map(o => ({ id: o.id, nombre: o.nombre?.trim() || '', tipo: 'empleado' })),
+      ...operadoresUsuario.map(o => ({
+        id: o.id,
+        nombre: o.nombre?.trim() || '',
+        tipo: o.sucursalAsignada ? 'gerente' : 'dueño',
+      })),
+    ].sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    return {
+      success: true,
+      message: 'Operadores obtenidos',
+      data: resultado,
+      code: 200,
+    };
+  } catch (error) {
+    console.error('Error al obtener operadores:', error);
+    return {
+      success: false,
+      message: 'Error al obtener operadores',
+      code: 500,
+    };
+  }
 }

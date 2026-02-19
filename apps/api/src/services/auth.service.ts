@@ -117,6 +117,7 @@ interface UsuarioPublico {
   nombreSucursalAsignada: string | null;
   correoSucursalAsignada: string | null;
   fotoPerfilSucursalAsignada: string | null;
+  participaPuntos: boolean; // Sistema CardYA activo
   createdAt: string;
 }
 
@@ -186,6 +187,7 @@ function usuarioAPublico(
     nombreSucursalAsignada: datosNegocioGerente?.nombreSucursal ?? null,
     correoSucursalAsignada: datosNegocioGerente?.correo ?? null,
     fotoPerfilSucursalAsignada: datosNegocioGerente?.fotoPerfil ?? null,  // ✅ NUEVO
+    participaPuntos: datosNegocio?.participaPuntos ?? true,  // ✅ CardYA activo
     createdAt: usuario.createdAt ?? new Date().toISOString(),
   };
 }

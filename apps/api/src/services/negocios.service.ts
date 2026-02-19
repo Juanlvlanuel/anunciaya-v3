@@ -702,6 +702,7 @@ export interface DatosNegocio {
     fotoPerfil: string | null;          // Foto de perfil de la sucursal
     sucursalPrincipalId: string | null; // ID de la sucursal
     nombreSucursal: string | null;      // ✅ NUEVO: Nombre de la sucursal
+    participaPuntos: boolean;           // ✅ Sistema CardYA activo
 }
 
 /**
@@ -750,11 +751,12 @@ export async function obtenerDatosNegocio(
     if (!negocioId) return undefined;
 
     try {
-        // 1. Obtener datos del negocio (nombre, logo)
+        // 1. Obtener datos del negocio (nombre, logo, participaPuntos)
         const [negocio] = await db
             .select({
                 nombre: negocios.nombre,
                 logo: negocios.logoUrl,
+                participaPuntos: negocios.participaPuntos,
             })
             .from(negocios)
             .where(eq(negocios.id, negocioId))
@@ -789,6 +791,7 @@ export async function obtenerDatosNegocio(
             fotoPerfil: sucursal?.fotoPerfil ?? null,
             sucursalPrincipalId: sucursal?.id ?? null,
             nombreSucursal: sucursal?.nombre ?? null,  // ✅ NUEVO
+            participaPuntos: negocio.participaPuntos ?? true,  // ✅ CardYA activo
         };
     } catch (error) {
         console.error('Error obteniendo datos del negocio:', error);

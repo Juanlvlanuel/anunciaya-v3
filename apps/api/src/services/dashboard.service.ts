@@ -341,6 +341,7 @@ export async function obtenerKPIs(
         const zonaHoraria = await obtenerZonaHorariaNegocio(negocioId, sucursalId);
         const { inicio, fin, inicioAnterior, finAnterior } = calcularRangoFechas(periodo, zonaHoraria);
         const ahora = new Date().toISOString();
+        const sucursalIdParam = sucursalId ?? null;
 
         // Query para ventas, clientes y transacciones
         const ventasQuery = sql`
@@ -411,7 +412,7 @@ export async function obtenerKPIs(
                 
             FROM puntos_transacciones
             WHERE negocio_id = ${negocioId}
-            AND (${sucursalId}::uuid IS NULL OR sucursal_id = ${sucursalId}::uuid)
+            AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid)
         `;
 
         // Query para clientes nuevos vs recurrentes
@@ -420,7 +421,7 @@ export async function obtenerKPIs(
                 SELECT DISTINCT cliente_id
                 FROM puntos_transacciones
                 WHERE negocio_id = ${negocioId}
-                  AND (${sucursalId}::uuid IS NULL OR sucursal_id = ${sucursalId}::uuid)
+                  AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid)
                   AND estado = 'confirmado'
                   AND created_at >= ${inicio.toISOString()}
                   AND created_at <= ${fin.toISOString()}
@@ -429,7 +430,7 @@ export async function obtenerKPIs(
                 SELECT DISTINCT cliente_id
                 FROM puntos_transacciones
                 WHERE negocio_id = ${negocioId}
-                  AND (${sucursalId}::uuid IS NULL OR sucursal_id = ${sucursalId}::uuid)
+                  AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid)
                   AND estado = 'confirmado'
                   AND created_at < ${inicio.toISOString()}
             )
@@ -460,7 +461,7 @@ export async function obtenerKPIs(
             FROM cupon_usos cu
             JOIN cupones c ON c.id = cu.cupon_id
             WHERE c.negocio_id = ${negocioId}
-                AND (${sucursalId}::uuid IS NULL OR cu.sucursal_id = ${sucursalId}::uuid)
+                AND (${sucursalIdParam}::uuid IS NULL OR cu.sucursal_id = ${sucursalIdParam}::uuid)
         `;
 
         // Query para ofertas y campañas activas (counts)
@@ -468,14 +469,14 @@ export async function obtenerKPIs(
             SELECT 
                 (SELECT COUNT(*)::int FROM ofertas 
                  WHERE negocio_id = ${negocioId}
-                   AND (${sucursalId}::uuid IS NULL OR sucursal_id = ${sucursalId}::uuid)
+                   AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid)
                    AND activo = true 
                    AND fecha_inicio <= ${ahora} 
                    AND fecha_fin >= ${ahora}) as ofertas_activas,
                    
                 (SELECT COUNT(*)::int FROM cupones 
                  WHERE negocio_id = ${negocioId}
-                   AND (${sucursalId}::uuid IS NULL OR sucursal_id = ${sucursalId}::uuid) 
+                   AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid) 
                    AND activo = true 
                    AND estado = 'publicado'
                    AND fecha_inicio <= ${ahora} 
@@ -491,13 +492,12 @@ export async function obtenerKPIs(
                 COALESCE(s.total_likes, 0)::int as likes
             FROM negocio_sucursales s
             WHERE s.negocio_id = ${negocioId}
-            AND (${sucursalId}::uuid IS NULL OR s.id = ${sucursalId}::uuid)
-            AND (${sucursalId}::uuid IS NOT NULL OR s.es_principal = true)
+            AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
+            AND (${sucursalIdParam}::uuid IS NOT NULL OR s.es_principal = true)
             LIMIT 1
         `;
 
         // Query para mini gráfica de ventas
-        const sucursalIdParam = sucursalId ?? null;
 
         const miniGraficaQuery = sql`
             SELECT 
@@ -521,7 +521,7 @@ export async function obtenerKPIs(
             FROM metricas_entidad m
             JOIN negocio_sucursales s ON s.id = m.entity_id
             WHERE s.negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR s.id = ${sucursalId}::uuid)
+              AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
               AND m.entity_type = 'sucursal'
         `;
 
@@ -730,6 +730,7 @@ export async function obtenerCampanasActivas(
     limite: number = 5,
     sucursalId?: string) {
     try {
+        const sucursalIdParam = sucursalId ?? null;
         const ofertasQuery = sql`
             SELECT 
                 o.id, o.titulo, o.tipo, o.valor,
@@ -745,7 +746,7 @@ export async function obtenerCampanasActivas(
             LEFT JOIN metricas_entidad m 
                 ON m.entity_type = 'oferta' AND m.entity_id = o.id
             WHERE o.negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR o.sucursal_id = ${sucursalId}::uuid)
+              AND (${sucursalIdParam}::uuid IS NULL OR o.sucursal_id = ${sucursalIdParam}::uuid)
               AND o.activo = true
             ORDER BY 
                 CASE WHEN o.fecha_fin >= NOW() THEN 0 ELSE 1 END,
@@ -762,7 +763,7 @@ export async function obtenerCampanasActivas(
                 CASE WHEN fecha_expiracion < NOW() THEN true ELSE false END as expirada
             FROM cupones
             WHERE negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR sucursal_id = ${sucursalId}::uuid)
+              AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid)
               AND activo = true
             ORDER BY 
                 CASE WHEN fecha_expiracion >= NOW() THEN 0 ELSE 1 END,
@@ -817,6 +818,7 @@ export async function obtenerInteracciones(
     limite: number = 10,
     sucursalId?: string) {
     try {
+        const sucursalIdParam = sucursalId ?? null;
         // 1. Ventas recientes
         const ventasQuery = sql`
             SELECT 
@@ -829,7 +831,7 @@ export async function obtenerInteracciones(
             FROM puntos_transacciones pt
             JOIN usuarios u ON u.id = pt.cliente_id
             WHERE pt.negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR pt.sucursal_id = ${sucursalId}::uuid)
+              AND (${sucursalIdParam}::uuid IS NULL OR pt.sucursal_id = ${sucursalIdParam}::uuid)
               AND pt.estado = 'confirmado'
             ORDER BY pt.created_at DESC
             LIMIT 5
@@ -848,7 +850,7 @@ export async function obtenerInteracciones(
             JOIN cupones c ON c.id = cu.cupon_id
             JOIN usuarios u ON u.id = cu.usuario_id
             WHERE c.negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR c.sucursal_id = ${sucursalId}::uuid)
+              AND (${sucursalIdParam}::uuid IS NULL OR c.sucursal_id = ${sucursalIdParam}::uuid)
               AND cu.estado = 'usado'
             ORDER BY cu.usado_at DESC
             LIMIT 5
@@ -878,7 +880,7 @@ export async function obtenerInteracciones(
             LEFT JOIN negocios n ON n.id = vs.negocio_id
             JOIN negocio_sucursales s ON s.id = v.entity_id
             WHERE s.negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR s.id = ${sucursalId}::uuid)
+              AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
               AND v.entity_type = 'sucursal'
               AND v.tipo_accion = 'like'
             ORDER BY v.created_at DESC
@@ -909,7 +911,7 @@ export async function obtenerInteracciones(
             LEFT JOIN negocios n ON n.id = vs.negocio_id
             JOIN negocio_sucursales s ON s.id = v.entity_id
             WHERE s.negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR s.id = ${sucursalId}::uuid)
+              AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
               AND v.entity_type = 'sucursal'
               AND v.tipo_accion = 'follow'
             ORDER BY v.created_at DESC
@@ -927,7 +929,7 @@ export async function obtenerInteracciones(
             FROM metricas_entidad m
             JOIN negocio_sucursales s ON s.id = m.entity_id
             WHERE s.negocio_id = ${negocioId}
-              AND (${sucursalId}::uuid IS NULL OR s.id = ${sucursalId}::uuid)
+              AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
               AND m.entity_type = 'sucursal'
               AND m.total_shares > 0
               AND m.updated_at >= NOW() - INTERVAL '7 days'
@@ -1008,6 +1010,7 @@ export async function obtenerResenasRecientes(
     limite: number = 5,
     sucursalId?: string) {
     try {
+        const sucursalIdParam = sucursalId ?? null;
         const query = sql`
             SELECT 
                 r.id,
@@ -1021,7 +1024,7 @@ export async function obtenerResenasRecientes(
             JOIN usuarios u ON u.id = r.autor_id
             JOIN negocio_sucursales s ON s.id = r.sucursal_id
             WHERE s.negocio_id = ${negocioId}
-             AND (${sucursalId}::uuid IS NULL OR s.id = ${sucursalId}::uuid)
+             AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
              AND r.destino_tipo = 'negocio'
             ORDER BY r.created_at DESC
             LIMIT ${limite}
@@ -1058,6 +1061,7 @@ export async function obtenerAlertasRecientes(
     sucursalId?: string
 ) {
     try {
+        const sucursalIdParam = sucursalId ?? null;
         const query = sql`
             SELECT 
                 id, tipo, severidad, titulo,
@@ -1066,7 +1070,7 @@ export async function obtenerAlertasRecientes(
           WHERE negocio_id = ${negocioId}
             AND (
                 sucursal_id IS NULL
-                OR sucursal_id = ${sucursalId}::uuid
+                OR sucursal_id = ${sucursalIdParam}::uuid
             )
             ORDER BY created_at DESC
             LIMIT ${limite}

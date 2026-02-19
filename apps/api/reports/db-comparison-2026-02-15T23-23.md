@@ -1,6 +1,6 @@
 # 🔍 Reporte de Comparación de Bases de Datos
 
-**Fecha:** 26/1/2026, 8:39:16 p.m.
+**Fecha:** 15/2/2026, 5:23:59 p.m.
 **Proyecto:** AnunciaYA v3.0
 **Local:** PostgreSQL (localhost:5432)
 **Producción:** Supabase (PostgreSQL)
@@ -30,11 +30,11 @@
 ============================================================
 
 
-**Local:** 65 tablas
-**Supabase:** 65 tablas
+**Local:** 66 tablas
+**Supabase:** 66 tablas
 
 
-**✅ Tablas en ambas:** 65
+**✅ Tablas en ambas:** 66
 
 
 ============================================================
@@ -66,7 +66,19 @@
 ============================================================
 
 
-**✅ Foreign Keys en ambas:** 118
+**⚠️ Foreign Keys solo en LOCAL:**
+
+- notificaciones.negocio_id → negocios.id
+- notificaciones.usuario_id → usuarios.id
+
+
+**⚠️ Foreign Keys solo en SUPABASE:**
+
+- notificaciones.negocio_id → negocios.id
+- notificaciones.usuario_id → usuarios.id
+
+
+**✅ Foreign Keys en ambas:** 121
 
 
 ============================================================
@@ -245,6 +257,7 @@
 - negocio_sucursales.2200_37060_10_not_null (CHECK)
 - negocio_sucursales.2200_37060_1_not_null (CHECK)
 - negocio_sucursales.2200_37060_20_not_null (CHECK)
+- negocio_sucursales.2200_37060_24_not_null (CHECK)
 - negocio_sucursales.2200_37060_2_not_null (CHECK)
 - negocio_sucursales.2200_37060_3_not_null (CHECK)
 - negocio_sucursales.2200_37060_4_not_null (CHECK)
@@ -252,6 +265,13 @@
 - negocios.2200_23851_29_not_null (CHECK)
 - negocios.2200_23851_2_not_null (CHECK)
 - negocios.2200_23851_32_not_null (CHECK)
+- notificaciones.2200_94382_11_not_null (CHECK)
+- notificaciones.2200_94382_1_not_null (CHECK)
+- notificaciones.2200_94382_2_not_null (CHECK)
+- notificaciones.2200_94382_3_not_null (CHECK)
+- notificaciones.2200_94382_4_not_null (CHECK)
+- notificaciones.2200_94382_5_not_null (CHECK)
+- notificaciones.2200_94382_6_not_null (CHECK)
 - ofertas.2200_24302_10_not_null (CHECK)
 - ofertas.2200_24302_1_not_null (CHECK)
 - ofertas.2200_24302_2_not_null (CHECK)
@@ -338,7 +358,6 @@
 - puntos_configuracion.2200_29141_2_not_null (CHECK)
 - puntos_configuracion.2200_29141_3_not_null (CHECK)
 - puntos_configuracion.2200_29141_4_not_null (CHECK)
-- puntos_configuracion.2200_29141_5_not_null (CHECK)
 - puntos_configuracion.2200_29141_6_not_null (CHECK)
 - puntos_configuracion.2200_29141_9_not_null (CHECK)
 - puntos_transacciones.2200_29221_10_not_null (CHECK)
@@ -356,7 +375,6 @@
 - recompensas.2200_29199_2_not_null (CHECK)
 - recompensas.2200_29199_3_not_null (CHECK)
 - recompensas.2200_29199_5_not_null (CHECK)
-- recompensas.2200_29199_7_not_null (CHECK)
 - recompensas.2200_29199_8_not_null (CHECK)
 - recompensas.2200_29199_9_not_null (CHECK)
 - regiones.2200_28973_1_not_null (CHECK)
@@ -407,7 +425,6 @@
 - votos.2200_24622_4_not_null (CHECK)
 - votos.2200_24622_6_not_null (CHECK)
 - vouchers_canje.2200_29276_10_not_null (CHECK)
-- vouchers_canje.2200_29276_14_not_null (CHECK)
 - vouchers_canje.2200_29276_1_not_null (CHECK)
 - vouchers_canje.2200_29276_2_not_null (CHECK)
 - vouchers_canje.2200_29276_3_not_null (CHECK)
@@ -589,6 +606,7 @@
 - negocio_sucursales.25814_27273_10_not_null (CHECK)
 - negocio_sucursales.25814_27273_1_not_null (CHECK)
 - negocio_sucursales.25814_27273_20_not_null (CHECK)
+- negocio_sucursales.25814_27273_24_not_null (CHECK)
 - negocio_sucursales.25814_27273_2_not_null (CHECK)
 - negocio_sucursales.25814_27273_3_not_null (CHECK)
 - negocio_sucursales.25814_27273_4_not_null (CHECK)
@@ -596,6 +614,13 @@
 - negocios.25814_27290_17_not_null (CHECK)
 - negocios.25814_27290_1_not_null (CHECK)
 - negocios.25814_27290_2_not_null (CHECK)
+- notificaciones.25814_50754_12_not_null (CHECK)
+- notificaciones.25814_50754_1_not_null (CHECK)
+- notificaciones.25814_50754_2_not_null (CHECK)
+- notificaciones.25814_50754_3_not_null (CHECK)
+- notificaciones.25814_50754_4_not_null (CHECK)
+- notificaciones.25814_50754_5_not_null (CHECK)
+- notificaciones.25814_50754_6_not_null (CHECK)
 - ofertas.25814_27305_10_not_null (CHECK)
 - ofertas.25814_27305_1_not_null (CHECK)
 - ofertas.25814_27305_2_not_null (CHECK)
@@ -760,7 +785,7 @@
 - vouchers_canje.25814_27607_9_not_null (CHECK)
 
 
-**✅ Constraints en ambas:** 143
+**✅ Constraints en ambas:** 146
 
 
 ============================================================
@@ -768,7 +793,7 @@
 ============================================================
 
 
-**⚠️ Se encontraron 682 diferencias**
+**⚠️ Se encontraron 699 diferencias**
 
 **Diferencias por categoría:**
 
@@ -777,5 +802,5 @@
 - Columnas: 0 tablas con diferencias
 - Índices: 0 tablas con diferencias
 - Triggers: 0 tablas con diferencias
-- Foreign Keys: 0
-- Constraints: 678
+- Foreign Keys: 4
+- Constraints: 691

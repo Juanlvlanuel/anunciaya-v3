@@ -210,6 +210,7 @@ export async function loginDueno(
                     nombre: negocios.nombre,
                     logoUrl: negocios.logoUrl,
                     onboardingCompletado: negocios.onboardingCompletado,
+                    participaPuntos: negocios.participaPuntos,
                 })
                 .from(negocios)
                 .where(eq(negocios.id, usuario.negocioId!))
@@ -227,6 +228,15 @@ export async function loginDueno(
                 return {
                     success: false,
                     message: 'Debes completar el registro de tu negocio en AnunciaYA antes de usar ScanYA',
+                    code: 403,
+                };
+            }
+
+            // Verificar que el negocio tenga CardYA activo
+            if (!negocioEncontrado.participaPuntos) {
+                return {
+                    success: false,
+                    message: 'El sistema de puntos (CardYA) no está activo para este negocio. Actívalo en Business Studio → Mi Perfil.',
                     code: 403,
                 };
             }
@@ -533,6 +543,7 @@ export async function loginEmpleado(
                 id: negocios.id,
                 nombre: negocios.nombre,
                 logoUrl: negocios.logoUrl,
+                participaPuntos: negocios.participaPuntos,
             })
             .from(negocios)
             .where(eq(negocios.id, sucursal.negocioId))
@@ -543,6 +554,15 @@ export async function loginEmpleado(
                 success: false,
                 message: 'Negocio no encontrado',
                 code: 404,
+            };
+        }
+
+        // Verificar que el negocio tenga CardYA activo
+        if (!negocio.participaPuntos) {
+            return {
+                success: false,
+                message: 'El sistema de puntos (CardYA) no está activo para este negocio',
+                code: 403,
             };
         }
 
@@ -1551,6 +1571,23 @@ export async function otorgarPuntos(
         }
 
         // -------------------------------------------------------------------------
+        // Paso 1.5: Verificar que el negocio tenga CardYA activo
+        // -------------------------------------------------------------------------
+        const [negocioCheck] = await db
+            .select({ participaPuntos: negocios.participaPuntos })
+            .from(negocios)
+            .where(eq(negocios.id, payload.negocioId))
+            .limit(1);
+
+        if (!negocioCheck?.participaPuntos) {
+            return {
+                success: false,
+                message: 'El sistema de puntos (CardYA) no está activo para este negocio',
+                code: 403,
+            };
+        }
+
+        // -------------------------------------------------------------------------
         // Paso 2: Verificar que el cliente exista
         // -------------------------------------------------------------------------
         const [cliente] = await db
@@ -2115,6 +2152,7 @@ export async function obtenerHistorial(
             .select({
                 // Transacción
                 id: puntosTransacciones.id,
+                estado: puntosTransacciones.estado,
                 montoCompra: puntosTransacciones.montoCompra,
                 montoEfectivo: puntosTransacciones.montoEfectivo,
                 montoTarjeta: puntosTransacciones.montoTarjeta,
@@ -2257,6 +2295,7 @@ export async function obtenerHistorial(
 
             return {
                 id: t.id,
+                estado: t.estado,
                 // Cliente
                 clienteNombre: t.clienteNombre,
                 clienteTelefono: t.clienteTelefono,

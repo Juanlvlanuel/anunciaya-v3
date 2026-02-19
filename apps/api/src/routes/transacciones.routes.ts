@@ -5,18 +5,29 @@
  * 
  * Ubicación: apps/api/src/routes/transacciones.routes.ts
  * 
- * RUTAS:
+ * RUTAS - TAB VENTAS:
  * GET    /api/transacciones/historial       - Historial de transacciones de puntos
- * POST   /api/transacciones/:id/revocar     - Revocar transacción
+ * GET    /api/transacciones/kpis            - KPIs para página Transacciones BS
+ * GET    /api/transacciones/exportar        - Exportar CSV de transacciones
+ * POST   /api/transacciones/:id/revocar     - Revocar transacción (con motivo)
+ * 
+ * RUTAS - TAB CANJES:
+ * GET    /api/transacciones/canjes          - Historial de canjes (vouchers)
+ * GET    /api/transacciones/canjes/kpis     - KPIs para Tab Canjes
  * 
  * NOTA: Consume controllers de transacciones.controller.ts
- *       La lógica vive en puntos.service.ts (service compartido)
+ *       La lógica vive en puntos.service.ts y transacciones.service.ts
  */
 
 import { Router, type Router as RouterType } from 'express';
 import {
   obtenerHistorialController,
   revocarTransaccionController,
+  obtenerKPIsTransaccionesController,
+  exportarTransaccionesController,
+  obtenerOperadoresController,
+  obtenerKPIsCanjesController,
+  obtenerHistorialCanjesController,
 } from '../controllers/transacciones.controller.js';
 
 // Importar middlewares
@@ -36,7 +47,7 @@ router.use(verificarToken);
 router.use(verificarNegocio);
 
 // =============================================================================
-// RUTAS: HISTORIAL DE TRANSACCIONES
+// RUTAS ESTÁTICAS (van primero para evitar conflicto con :id)
 // =============================================================================
 
 /**
@@ -46,13 +57,53 @@ router.use(verificarNegocio);
  */
 router.get('/historial', obtenerHistorialController);
 
+/**
+ * GET /api/transacciones/kpis?periodo=semana
+ * Obtiene 4 KPIs: total ventas, # transacciones, ticket promedio, revocadas
+ * Acceso: Dueños y Gerentes
+ */
+router.get('/kpis', obtenerKPIsTransaccionesController);
+
+/**
+ * GET /api/transacciones/exportar?periodo=mes
+ * Descarga CSV con todas las transacciones del periodo
+ * Acceso: Dueños y Gerentes
+ */
+router.get('/exportar', exportarTransaccionesController);
+
+/**
+ * GET /api/transacciones/operadores
+ * Lista de operadores que han registrado ventas (para dropdown filtro)
+ * Acceso: Dueños y Gerentes
+ */
+router.get('/operadores', obtenerOperadoresController);
+
 // =============================================================================
-// RUTAS: REVOCAR TRANSACCIÓN
+// RUTAS TAB CANJES (van antes de rutas con parámetros)
+// =============================================================================
+
+/**
+ * GET /api/transacciones/canjes/kpis?periodo=semana
+ * Obtiene 4 KPIs: pendientes, usados, vencidos, total canjes
+ * Acceso: Dueños y Gerentes
+ */
+router.get('/canjes/kpis', obtenerKPIsCanjesController);
+
+/**
+ * GET /api/transacciones/canjes?periodo=semana&limit=20&offset=0&estado=pendiente
+ * Obtiene historial de canjes (vouchers) con filtros
+ * Acceso: Dueños y Gerentes
+ */
+router.get('/canjes', obtenerHistorialCanjesController);
+
+// =============================================================================
+// RUTAS CON PARÁMETROS (van después)
 // =============================================================================
 
 /**
  * POST /api/transacciones/:id/revocar
- * Revoca una transacción de puntos
+ * Body: { motivo: string }
+ * Revoca una transacción de puntos con motivo obligatorio
  * Acceso: Dueños y Gerentes
  */
 router.post('/:id/revocar', revocarTransaccionController);
