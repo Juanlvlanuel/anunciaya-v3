@@ -56,6 +56,7 @@ import BSPaginaOfertas from '../pages/private/business-studio/ofertas/PaginaOfer
 import PaginaPuntos from '../pages/private/business-studio/puntos/PaginaPuntos';
 import PaginaTransacciones from '../pages/private/business-studio/transacciones/PaginaTransacciones';
 import PaginaClientes from '../pages/private/business-studio/clientes/PaginaClientes';
+import PaginaOpiniones from '../pages/private/business-studio/opiniones/PaginaOpiniones';
 
 
 // ⭐ NUEVO: ScanYA Login (Fase 8)
@@ -88,7 +89,6 @@ const PaginaConfiguracion = () => <PlaceholderPage nombre="⚙️ Configuración
 const PaginaConfigurarNegocio = () => <PlaceholderPage nombre="🏪 Configurar Negocio" />;
 
 // Páginas de Business Studio (ordenadas según menú)
-const BSPaginaOpiniones = () => <PlaceholderPage nombre="💬 Opiniones" />;
 const BSPaginaAlertas = () => <PlaceholderPage nombre="🔔 Alertas" />;
 const BSPaginaCupones = () => <PlaceholderPage nombre="🎟️ Cupones" />;
 const BSPaginaRifas = () => <PlaceholderPage nombre="🎁 Rifas" />;
@@ -339,7 +339,7 @@ const router = createBrowserRouter([
             path: '/business-studio/opiniones',
             element: (
               <ModoGuard requiereModo="comercial">
-                <BSPaginaOpiniones />
+                <PaginaOpiniones />
               </ModoGuard>
             ),
           },

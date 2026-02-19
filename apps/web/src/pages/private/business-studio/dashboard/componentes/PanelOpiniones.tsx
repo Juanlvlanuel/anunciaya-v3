@@ -1,12 +1,16 @@
 /**
  * PanelOpiniones.tsx
  * ===================
- * Panel que muestra las reseñas recientes
- * 
+ * Panel que muestra las reseñas recientes en el Dashboard.
+ * Incluye link "Ver todas →" hacia /business-studio/opiniones.
+ *
  * UBICACIÓN: apps/web/src/pages/private/business-studio/dashboard/componentes/PanelOpiniones.tsx
+ *
+ * ACTUALIZADO: Febrero 2026 - Sprint 4 (link a PaginaOpiniones + mejora visual)
  */
 
-import { MessageSquare, Star, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { MessageSquare, Star, User, ChevronRight } from 'lucide-react';
 import type { Resena } from '../../../../../services/dashboardService';
 
 // =============================================================================
@@ -40,7 +44,7 @@ function RatingStars({ rating }: { rating: number }) {
           key={star}
           className={`w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 ${
             star <= rating
-              ? 'text-yellow-400 fill-yellow-400'
+              ? 'text-amber-400 fill-amber-400'
               : 'text-slate-200'
           }`}
         />
@@ -62,17 +66,30 @@ function getEmojiPorRating(rating: number): string {
 // =============================================================================
 
 export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 max-h-[270px] lg:max-h-[230px] 2xl:max-h-[340px] flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200">
       {/* Header */}
       <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
-        <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
-          <MessageSquare className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5 text-yellow-600" />
+        <div
+          className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg, #fde68a, #fbbf24)', boxShadow: '0 2px 6px rgba(245,158,11,0.3)' }}
+        >
+          <MessageSquare className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5 text-amber-800" />
         </div>
-        <div>
+        <div className="flex-1">
           <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800 leading-tight">Reseñas</h3>
           <p className="text-[10px] lg:text-[9px] 2xl:text-[12px] text-slate-500">Opiniones recientes</p>
         </div>
+        {/* Link "Ver todas →" */}
+        <button
+          onClick={() => navigate('/business-studio/opiniones')}
+          className="flex items-center gap-0.5 text-[11px] lg:text-[10px] 2xl:text-[11px] font-semibold text-amber-600 hover:text-amber-700 transition-colors cursor-pointer shrink-0"
+        >
+          Ver todas
+          <ChevronRight className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+        </button>
       </div>
 
       {/* Lista */}
@@ -81,7 +98,7 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
           resenas.map((resena) => (
             <div
               key={resena.id}
-              className="p-2 lg:p-1.5 2xl:p-2 rounded-lg border border-slate-200 hover:border-slate-300 transition-all"
+              className="p-2 lg:p-1.5 2xl:p-2 rounded-lg border border-amber-100 bg-amber-50/30 hover:bg-amber-50/60 transition-all"
             >
               {/* Header de reseña */}
               <div className="flex items-center justify-between mb-1">
@@ -113,8 +130,8 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
 
               {/* Texto */}
               {resena.texto && (
-                <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-600 mt-1 line-clamp-2">
-                  {resena.texto}
+                <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-600 mt-1 line-clamp-2 italic">
+                  "{resena.texto}"
                 </p>
               )}
             </div>
