@@ -55,10 +55,8 @@ interface SeccionCatalogoProps {
 // CONSTANTES - Items a mostrar en preview por breakpoint
 // =============================================================================
 
-// Móvil: 2 cols → mostrar 2 items (FAB encima del 2do)
 // Laptop: 3 cols → mostrar 3 items (FAB encima del 3ro)
 // Desktop: 4 cols → mostrar 4 items (FAB encima del 4to)
-const ITEMS_PREVIEW_MOVIL = 2;
 const ITEMS_PREVIEW_LAPTOP = 3;
 const ITEMS_PREVIEW_DESKTOP = 4;
 
@@ -97,7 +95,6 @@ export function SeccionCatalogo({
   }, [catalogo]);
 
   // Cuántos items quedan por mostrar
-  const itemsRestantesMovil = Math.max(0, totalItems - ITEMS_PREVIEW_MOVIL);
   const itemsRestantesLaptop = Math.max(0, totalItems - ITEMS_PREVIEW_LAPTOP);
   const itemsRestantesDesktop = Math.max(0, totalItems - ITEMS_PREVIEW_DESKTOP);
 

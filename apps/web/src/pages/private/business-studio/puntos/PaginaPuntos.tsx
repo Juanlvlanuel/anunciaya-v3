@@ -940,7 +940,7 @@ export default function PaginaPuntos() {
         ═══════════════════════════════════════════════════════════════════ */}
         <div className={`hidden lg:block ${!esGerente ? 'mt-4 lg:mt-14 2xl:mt-14' : ''}`}>
           {/* Fila superior: 2 columnas */}
-          <div className="grid grid-cols-[1fr_2fr] gap-3 lg:gap-3 2xl:gap-4 mb-3 lg:mb-3 2xl:mb-4">
+          <div className="grid grid-cols-[1fr_2fr] lg:grid-cols-[1.6fr_2fr] 2xl:grid-cols-[1fr_2fr] gap-3 lg:gap-3 2xl:gap-4 mb-3 lg:mb-3 2xl:mb-4">
             {seccionConfiguracion}
             {seccionNiveles}
           </div>

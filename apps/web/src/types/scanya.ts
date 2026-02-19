@@ -298,6 +298,8 @@ export interface ResultadoOtorgarPuntos {
  */
 export interface TransaccionScanYA {
   id: string;
+  // Estado
+  estado: 'pendiente' | 'confirmado' | 'cancelado' | 'rechazado';
   // Cliente
   clienteNombre: string;
   clienteTelefono: string | null;

@@ -5,6 +5,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
 import { AlertTriangle, X } from 'lucide-react';
 import i18n from '../config/i18n';
 
@@ -490,8 +491,13 @@ export const notificar = {
       const container = document.createElement('div');
       document.body.appendChild(container);
 
+      const root = createRoot(container);
+
       const cleanup = () => {
-        document.body.removeChild(container);
+        root.unmount();
+        if (document.body.contains(container)) {
+          document.body.removeChild(container);
+        }
       };
 
       const handleConfirm = () => {
@@ -499,17 +505,7 @@ export const notificar = {
         resolve();
       };
 
-      const root = (window as any).ReactDOM?.createRoot
-        ? (window as any).ReactDOM.createRoot(container)
-        : null;
-
-      if (root) {
-        root.render(React.createElement(ModalSesionExpirada, { onConfirm: handleConfirm }));
-      } else {
-        window.alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
-        cleanup();
-        resolve();
-      }
+      root.render(React.createElement(ModalSesionExpirada, { onConfirm: handleConfirm }));
     });
   },
 };

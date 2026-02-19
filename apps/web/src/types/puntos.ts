@@ -218,6 +218,13 @@ export interface TransaccionPuntos {
   empleadoId: string | null;
   empleadoNombre: string | null;
   empleadoTipo: 'empleado' | 'usuario' | null;
+  montoEfectivo: number;
+  montoTarjeta: number;
+  montoTransferencia: number;
+  fotoTicketUrl: string | null;
+  nota: string | null;
+  numeroOrden: string | null;
+  motivoRevocacion: string | null;
 }
 
 // =============================================================================

@@ -51,6 +51,8 @@ interface ModalDuplicarProps {
 
 export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarProps) {
   const { usuario } = useAuthStore();
+  const totalSucursalesStore = useAuthStore((s) => s.totalSucursales);
+  const setTotalSucursales = useAuthStore((s) => s.setTotalSucursales);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [sucursalesSeleccionadas, setSucursalesSeleccionadas] = useState<Set<string>>(new Set());
   const [cargando, setCargando] = useState(true);
@@ -71,6 +73,13 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
       return;
     }
 
+    // ✅ Si el store ya sabe que hay 1 sola sucursal, no hacer API call
+    if (totalSucursalesStore <= 1) {
+      setSucursales([]);
+      setCargando(false);
+      return;
+    }
+
     try {
       setCargando(true);
       const respuesta = await obtenerSucursalesNegocio(usuario.negocioId);
@@ -82,6 +91,8 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
       }
 
       setSucursales(respuesta.data);
+      // ✅ Alimentar el store global
+      setTotalSucursales(respuesta.data.length);
 
       // Auto-seleccionar todas las sucursales
       const idsDisponibles = respuesta.data.map((s) => s.id);

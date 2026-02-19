@@ -38,6 +38,7 @@ import {
   FileText,
   MapPin,
   Briefcase,
+  Lock,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -127,6 +128,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // Computed
   // ---------------------------------------------------------------------------
   const esComercial = usuario?.modoActivo === 'comercial';
+  const participaPuntos = usuario?.participaPuntos ?? true;
   const inicialUsuario = usuario?.nombre?.charAt(0).toUpperCase() || 'U';
 
   // TODO: Estos datos deben venir del store o API
@@ -246,21 +248,45 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           {esComercial && (
             <>
               {/* ScanYA */}
-              <MenuDrawerItem
-                iconoImagen="/IconoScanYA.webp"
-                label={
-                  <span>
-                    <span className="text-blue-700 font-bold">Scan</span>
-                    <span className="text-red-600 font-bold">YA</span>
-                  </span>
-                }
-                bgColor="bg-linear-to-br from-orange-500 to-orange-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-orange-50"
-                arrowColor="text-orange-400 group-hover:text-orange-600"
-                comercial
-                onClick={() => handleNavegar('/scanya')}
-              />
+              {/* ScanYA - Deshabilitado si CardYA no está activo */}
+              {participaPuntos ? (
+                <MenuDrawerItem
+                  iconoImagen="/IconoScanYA.webp"
+                  label={
+                    <span>
+                      <span className="text-blue-700 font-bold">Scan</span>
+                      <span className="text-red-600 font-bold">YA</span>
+                    </span>
+                  }
+                  bgColor="bg-linear-to-br from-orange-500 to-orange-600"
+                  iconColor="text-white"
+                  hoverGradient="hover:from-orange-50"
+                  arrowColor="text-gray-400 group-hover:text-orange-600"
+                  comercial
+                  onClick={() => handleNavegar('/scanya')}
+                />
+              ) : (
+                <div className="w-full flex items-center gap-3 px-4 py-2.5 opacity-50 cursor-not-allowed">
+                  <div className="w-auto h-8 relative">
+                    <img
+                      src="/IconoScanYA.webp"
+                      alt="ScanYA"
+                      className="w-full h-full object-contain grayscale"
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-400 rounded-full flex items-center justify-center">
+                      <Lock className="w-2.5 h-2.5 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-slate-400 text-md">
+                      <span className="font-bold">Scan</span>
+                      <span className="font-bold">YA</span>
+                    </span>
+                    <span className="text-xs text-slate-400">Activa CardYA</span>
+                  </div>
+                  <Lock className="w-4 h-4 ml-auto text-slate-400" />
+                </div>
+              )}
 
               {/* Business Studio */}
               <MenuDrawerItem
@@ -274,7 +300,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 bgColor="bg-linear-to-br from-blue-500 to-blue-600"
                 iconColor="text-white"
                 hoverGradient="hover:from-orange-50"
-                arrowColor="text-orange-400 group-hover:text-orange-600"
+                arrowColor="text-gray-400 group-hover:text-orange-600"
                 comercial
                 onClick={() => handleNavegar('/business-studio')}
               />

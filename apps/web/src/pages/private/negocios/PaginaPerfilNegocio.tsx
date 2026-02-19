@@ -1340,7 +1340,7 @@ export function PaginaPerfilNegocio() {
                     {/* ============ COLUMNA PRINCIPAL ============ */}
                     <div className="space-y-6">
 
-                        {/* ============ PROMOCIONES Y OFERTAS ============ */}
+                        {/* ============ PROMOCIONES Y OFERTAS ============ */} 
                         {!seccionExpandida && tieneOfertas && (
                             <div className="px-5 lg:px-0">
                                 <SeccionOfertas

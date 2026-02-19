@@ -98,6 +98,8 @@ export default function CardBilletera({
   );
 
   // ─── Barra de progreso ───
+  const esNivelMaximo = billetera.nivelActual === 'oro';
+
   // ─── Animación de barra de progreso ───
   const [progresoAnimado, setProgresoAnimado] = useState(0);
 
@@ -107,13 +109,36 @@ export default function CardBilletera({
 
     // Esperar un frame para que el browser pinte el 0, luego animar
     const timer = requestAnimationFrame(() => {
-      setProgresoAnimado(progresoCalculado);
+      setProgresoAnimado(esNivelMaximo ? 100 : progresoCalculado);
     });
 
     return () => cancelAnimationFrame(timer);
-  }, [progresoCalculado, billetera.negocioId]);
+  }, [progresoCalculado, billetera.negocioId, esNivelMaximo]);
 
-  const barraProgreso = puntosFaltantes !== null && (
+  const barraProgreso = esNivelMaximo ? (
+    // Nivel Oro: barra dorada al 100%
+    <div className="mt-2 lg:mt-3.5">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs lg:text-[11px] 2xl:text-xs text-yellow-600 font-semibold">
+          ¡Nivel máximo!
+        </span>
+        <span className="text-xs lg:text-[11px] 2xl:text-xs font-bold text-yellow-600">
+          100%
+        </span>
+      </div>
+      <div className="w-full h-1.5 lg:h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${progresoAnimado}%`,
+            background: nivel.barBg,
+            transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        />
+      </div>
+    </div>
+  ) : puntosFaltantes !== null && (
+    // Bronce/Plata: barra con progreso
     <div className="mt-2 lg:mt-3.5">
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-600 font-semibold">

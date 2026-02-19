@@ -623,7 +623,7 @@ export const Navbar = () => {
                             inputBuscadorRef.current?.focus();
                           }}
                           className="
-                            absolute right-3 lg:right-2 2xl:right-4 top-1/2 -translate-y-1/2
+                            absolute right-3 lg:right-2 2xl:right-8 top-1/2 -translate-y-1/2
                             w-5 h-5 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6
                             bg-gray-300 hover:bg-gray-400
                             rounded-full

@@ -18,7 +18,7 @@ import {
   Coins,
   Calendar,
   CheckCircle,
-  MessageCircle,
+
   MapPin,
 } from 'lucide-react';
 import type { VoucherPendiente, VoucherCompleto } from '@/types/scanya';
@@ -250,13 +250,9 @@ export function TarjetaVoucher({
             <Tooltip text="Contactar por ChatYA" position="top">
               <button
                 onClick={() => onContactar?.(telefono)}
-                className="flex items-center justify-center w-6 h-6 lg:w-4.5 lg:h-4.5 2xl:w-6 2xl:h-6 rounded-full transition-all cursor-pointer hover:scale-110"
-                style={{
-                  background: 'rgba(59, 130, 246, 0.2)',
-                  color: '#3B82F6',
-                }}
+                className="cursor-pointer hover:scale-110 transition-all"
               >
-                <MessageCircle className="w-3.5 h-3.5 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
+                <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-auto h-6 lg:w-auto lg:h-4 2xl:w-auto 2xl:h-7" />
               </button>
             </Tooltip>
           </div>

@@ -234,7 +234,7 @@ export function PaginaCatalogo() {
 
     // Control para laptop/desktop (paginación)
     const totalPaginas = Math.ceil(articulosFiltrados.length / ARTICULOS_POR_PAGINA);
-    const hayMas = isMobile 
+    const hayMas = isMobile
         ? articulosCargados < articulosFiltrados.length  // Mobile: hay más artículos sin cargar
         : paginaActual < totalPaginas - 1;               // Desktop: hay más páginas
     const hayAnterior = !isMobile && paginaActual > 0;   // Solo en desktop
@@ -309,7 +309,7 @@ export function PaginaCatalogo() {
     // Cargar más artículos automáticamente en mobile cuando lleguemos al final
     const cargarMas = useCallback(() => {
         if (isMobile && articulosCargados < articulosFiltrados.length) {
-            setArticulosCargados(prev => 
+            setArticulosCargados(prev =>
                 Math.min(prev + ARTICULOS_POR_PAGINA, articulosFiltrados.length)
             );
         }
@@ -476,12 +476,12 @@ export function PaginaCatalogo() {
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
                                 className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.tipo === 'producto' ? 'ring-3 ring-cyan-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: filtros.tipo === 'producto' 
-                                        ? 'linear-gradient(135deg, #67e8f9, #22d3ee)' 
+                                    background: filtros.tipo === 'producto'
+                                        ? 'linear-gradient(135deg, #67e8f9, #22d3ee)'
                                         : 'linear-gradient(135deg, #ecfeff, #fff)',
                                     border: filtros.tipo === 'producto' ? '3px solid #06b6d4' : '2px solid #67e8f9',
-                                    boxShadow: filtros.tipo === 'producto' 
-                                        ? '0 4px 12px rgba(6,182,212,0.4)' 
+                                    boxShadow: filtros.tipo === 'producto'
+                                        ? '0 4px 12px rgba(6,182,212,0.4)'
                                         : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
@@ -502,12 +502,12 @@ export function PaginaCatalogo() {
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
                                 className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.tipo === 'servicio' ? 'ring-3 ring-purple-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: filtros.tipo === 'servicio' 
-                                        ? 'linear-gradient(135deg, #d8b4fe, #c084fc)' 
+                                    background: filtros.tipo === 'servicio'
+                                        ? 'linear-gradient(135deg, #d8b4fe, #c084fc)'
                                         : 'linear-gradient(135deg, #faf5ff, #fff)',
                                     border: filtros.tipo === 'servicio' ? '3px solid #9333ea' : '2px solid #d8b4fe',
-                                    boxShadow: filtros.tipo === 'servicio' 
-                                        ? '0 4px 12px rgba(147,51,234,0.4)' 
+                                    boxShadow: filtros.tipo === 'servicio'
+                                        ? '0 4px 12px rgba(147,51,234,0.4)'
                                         : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
@@ -528,12 +528,12 @@ export function PaginaCatalogo() {
                                 onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === true ? 'todos' : true }))}
                                 className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.disponible === true ? 'ring-3 ring-green-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: filtros.disponible === true 
-                                        ? 'linear-gradient(135deg, #86efac, #4ade80)' 
+                                    background: filtros.disponible === true
+                                        ? 'linear-gradient(135deg, #86efac, #4ade80)'
                                         : 'linear-gradient(135deg, #f0fdf4, #fff)',
                                     border: filtros.disponible === true ? '3px solid #22c55e' : '2px solid #86efac',
-                                    boxShadow: filtros.disponible === true 
-                                        ? '0 4px 12px rgba(34,197,94,0.4)' 
+                                    boxShadow: filtros.disponible === true
+                                        ? '0 4px 12px rgba(34,197,94,0.4)'
                                         : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
@@ -554,12 +554,12 @@ export function PaginaCatalogo() {
                                 onClick={() => setFiltros(prev => ({ ...prev, disponible: prev.disponible === false ? 'todos' : false }))}
                                 className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtros.disponible === false ? 'ring-3 ring-red-500 lg:scale-105' : ''}`}
                                 style={{
-                                    background: filtros.disponible === false 
-                                        ? 'linear-gradient(135deg, #fca5a5, #f87171)' 
+                                    background: filtros.disponible === false
+                                        ? 'linear-gradient(135deg, #fca5a5, #f87171)'
                                         : 'linear-gradient(135deg, #fef2f2, #fff)',
                                     border: filtros.disponible === false ? '3px solid #ef4444' : '2px solid #fca5a5',
-                                    boxShadow: filtros.disponible === false 
-                                        ? '0 4px 12px rgba(239,68,68,0.4)' 
+                                    boxShadow: filtros.disponible === false
+                                        ? '0 4px 12px rgba(239,68,68,0.4)'
                                         : '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
@@ -583,7 +583,7 @@ export function PaginaCatalogo() {
                 {/* ===================================================================== */}
 
                 <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border border-slate-200 p-3 lg:p-2 2xl:p-3 mt-4 lg:mt-7 2xl:mt-14">
-                    <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 ">
+                    <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
                         {/* Búsqueda */}
                         <div className="flex-1">
                             <Input
@@ -602,7 +602,7 @@ export function PaginaCatalogo() {
                         {/* Botón Agregar */}
                         <Boton
                             variante="primario"
-                            iconoIzquierda={<Plus className="w-4 h-4" />}
+                            iconoIzquierda={<Plus className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />}
                             onClick={handleCrear}
                             className="shrink-0 cursor-pointer"
                         >
@@ -614,45 +614,45 @@ export function PaginaCatalogo() {
                     {/* Filtros de categoría - Scroll horizontal */}
                     <div className="mt-2 pt-2 border-t border-slate-100 overflow-x-auto">
                         <div className="flex gap-1.5 pb-1">
-                        {/* Todas las categorías */}
-                        <button
-                            onClick={() => setFiltros(prev => ({ ...prev, categoria: 'todas' }))}
-                            className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-sm lg:text-sm font-medium transition-all cursor-pointer ${filtros.categoria === 'todas'
+                            {/* Todas las categorías */}
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, categoria: 'todas' }))}
+                                className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-sm lg:text-sm font-medium transition-all cursor-pointer ${filtros.categoria === 'todas'
                                     ? 'bg-blue-500 text-white lg:scale-105 shadow-lg'
                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                }`}
-                        >
-                            <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
-                            Todas
-                        </button>
-
-                        {/* Categorías dinámicas */}
-                        {categoriasUnicas.map((cat) => (
-                            <button
-                                key={cat}
-                                onClick={() => setFiltros(prev => ({
-                                    ...prev,
-                                    categoria: prev.categoria === cat ? 'todas' : cat
-                                }))}
-                                className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-sm lg:text-sm font-medium transition-all cursor-pointer ${filtros.categoria === cat
-                                        ? 'bg-blue-500 text-white lg:scale-105 shadow-lg'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
                             >
-                                {cat}
+                                <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
+                                Todas
                             </button>
-                        ))}
 
-                        {/* Limpiar filtros si hay activos */}
-                        {hayFiltrosActivos && (
-                            <button
-                                onClick={limpiarFiltros}
-                                className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-sm lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all cursor-pointer"
-                            >
-                                <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
-                                Limpiar
-                            </button>
-                        )}
+                            {/* Categorías dinámicas */}
+                            {categoriasUnicas.map((cat) => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setFiltros(prev => ({
+                                        ...prev,
+                                        categoria: prev.categoria === cat ? 'todas' : cat
+                                    }))}
+                                    className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-sm lg:text-sm font-medium transition-all cursor-pointer ${filtros.categoria === cat
+                                        ? 'bg-blue-500 text-white lg:scale-105 shadow-lg'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+
+                            {/* Limpiar filtros si hay activos */}
+                            {hayFiltrosActivos && (
+                                <button
+                                    onClick={limpiarFiltros}
+                                    className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 lg:px-3 lg:py-1.5 rounded-full lg:rounded-lg text-sm lg:text-sm font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-all cursor-pointer"
+                                >
+                                    <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
+                                    Limpiar
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -685,7 +685,7 @@ export function PaginaCatalogo() {
                                     articulo={articulo}
                                     onEditar={handleEditar}
                                     onEliminar={handleEliminar}
-                                    onDuplicar={handleDuplicar} 
+                                    onDuplicar={handleDuplicar}
                                     onToggle={handleToggle}
                                     onImagenClick={abrirImagenUnica}
                                 />
@@ -694,8 +694,8 @@ export function PaginaCatalogo() {
 
                         {/* Sentinel para Infinite Scroll (solo mobile) */}
                         {isMobile && hayMas && (
-                            <div 
-                                ref={observerRef} 
+                            <div
+                                ref={observerRef}
                                 className="w-full h-20 flex items-center justify-center"
                             >
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -723,7 +723,7 @@ export function PaginaCatalogo() {
                                     </div>
                                 </div>
                             </div>
-                        ,
+                            ,
                             document.body
                         )}
 
@@ -748,7 +748,7 @@ export function PaginaCatalogo() {
                                     </div>
                                 </div>
                             </div>
-                        ,
+                            ,
                             document.body
                         )}
                     </>

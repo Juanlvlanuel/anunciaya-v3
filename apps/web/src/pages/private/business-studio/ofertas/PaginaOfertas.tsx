@@ -573,7 +573,7 @@ export function PaginaOfertas() {
                             <Input
                                 id="input-busqueda-ofertas"
                                 name="input-busqueda-ofertas"
-                                icono={<Search className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-slate-400" />}
+                                icono={<Search className="w-5 h-5 lg:w-3 lg:h-3 2xl:w-5 2xl:h-5 text-slate-400" />}
                                 placeholder="Buscar por título..."
                                 value={filtros.busqueda}
                                 onChange={(e) => setFiltros(prev => ({ ...prev, busqueda: e.target.value }))}

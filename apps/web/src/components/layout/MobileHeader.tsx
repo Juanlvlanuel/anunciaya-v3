@@ -133,7 +133,8 @@ export function MobileHeader() {
   const [drawerBsAbierto, setDrawerBsAbierto] = useState(false);
 
   // Sucursales (para cambio de sucursal en móvil)
-  const { setSucursalActiva, setEsSucursalPrincipal } = useAuthStore();
+  const { setSucursalActiva, setEsSucursalPrincipal, setTotalSucursales } = useAuthStore();
+  const totalSucursales = useAuthStore((s) => s.totalSucursales);
   const [sucursalesMobile, setSucursalesMobile] = useState<{ id: string; nombre: string; esPrincipal: boolean }[]>([]);
 
   useEffect(() => {
@@ -143,19 +144,22 @@ export function MobileHeader() {
     }
     obtenerSucursalesNegocio(usuario.negocioId).then((resp) => {
       if (resp.success && resp.data) {
-        const ordenadas = [...resp.data].sort((a: any, b: any) => {
+        const ordenadas = [...resp.data].sort((a: { esPrincipal: boolean; nombre: string }, b: { esPrincipal: boolean; nombre: string }) => {
           if (a.esPrincipal) return -1;
           if (b.esPrincipal) return 1;
           return a.nombre.localeCompare(b.nombre);
         });
         setSucursalesMobile(ordenadas);
+
+        // ✅ Alimentar el store global con el total de sucursales
+        setTotalSucursales(ordenadas.length);
       }
     }).catch(() => setSucursalesMobile([]));
   }, [usuario?.negocioId, usuario?.modoActivo]);
 
   const indiceSucursalActual = sucursalesMobile.findIndex(s => s.id === usuario?.sucursalActiva);
   const sucursalActual = sucursalesMobile[indiceSucursalActual];
-  const tieneMuchasSucursales = sucursalesMobile.length > 1;
+  const tieneMuchasSucursales = totalSucursales > 1;
 
   const irSucursalAnterior = () => {
     if (indiceSucursalActual > 0) {

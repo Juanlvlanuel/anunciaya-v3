@@ -74,6 +74,7 @@ export interface Usuario {
   fotoPerfilSucursalAsignada: string | null;
   logoNegocio: string | null;
   fotoPerfilNegocio: string | null;
+  participaPuntos?: boolean; // Sistema CardYA activo
 }
 
 /**
@@ -125,6 +126,8 @@ interface AuthState {
   setEsSucursalPrincipal: (valor: boolean) => void;
   sucursalPrincipalId: string | null;
   setSucursalPrincipalId: (id: string | null) => void;
+  totalSucursales: number;
+  setTotalSucursales: (total: number) => void;
 
   // Acciones de Google OAuth pendiente ← NUEVO
   setDatosGooglePendiente: (datos: DatosGooglePendiente) => void;
@@ -215,6 +218,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   datosGooglePendiente: null, // ← NUEVO
   esSucursalPrincipal: true,
   sucursalPrincipalId: null,
+  totalSucursales: 1,
 
   // Computed (se calcula en cada acceso)
   get isAuthenticated() {
@@ -296,6 +300,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
     registrarListenerNotificaciones();
+
+    // ========================================================================
+    // CARGAR TOTAL DE SUCURSALES EN BACKGROUND (modo comercial)
+    // ========================================================================
+    if (usuario.modoActivo === 'comercial' && usuario.negocioId) {
+      (async () => {
+        try {
+          const { obtenerSucursalesNegocio } = await import('../services/negociosService');
+          const respuesta = await obtenerSucursalesNegocio(usuario.negocioId!);
+          if (respuesta.success && respuesta.data) {
+            get().setTotalSucursales(respuesta.data.length);
+          }
+        } catch (error) {
+          console.error('❌ Error cargando total sucursales:', error);
+        }
+      })();
+    }
 
     // ========================================================================
     // CARGAR SUCURSAL PRINCIPAL EN BACKGROUND (solo dueños)
@@ -467,6 +488,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ sucursalPrincipalId: id });
   },
 
+  setTotalSucursales: (total: number) => {
+    set({ totalSucursales: total });
+  },
+
   // ---------------------------------------------------------------------------
   // ACCIÓN: Cerrar sesión
   // ---------------------------------------------------------------------------
@@ -612,6 +637,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         cargarNotificaciones(usuarioHidratado.modoActivo);
         const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
         registrarListenerNotificaciones();
+
+        // Cargar total de sucursales (modo comercial)
+        if (usuarioHidratado.modoActivo === 'comercial' && usuarioHidratado.negocioId) {
+          (async () => {
+            try {
+              const { obtenerSucursalesNegocio } = await import('../services/negociosService');
+              const respuesta = await obtenerSucursalesNegocio(usuarioHidratado.negocioId!);
+              if (respuesta.success && respuesta.data) {
+                get().setTotalSucursales(respuesta.data.length);
+              }
+            } catch (error) {
+              console.error('❌ Error cargando total sucursales:', error);
+            }
+          })();
+        }
       }
 
       set({ cargando: false, hidratado: true });

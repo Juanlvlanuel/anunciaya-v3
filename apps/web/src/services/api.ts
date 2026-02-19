@@ -304,10 +304,23 @@ api.interceptors.response.use(
           throw new Error('No hay refresh token');
         }
 
-        // Llamar al endpoint de refresh correspondiente
-        const response = await axios.post(refreshEndpoint, {
-          refreshToken,
-        });
+        // Llamar al endpoint de refresh con 1 reintento ante errores de red
+        let response;
+        try {
+          response = await axios.post(refreshEndpoint, { refreshToken });
+        } catch (primerIntento) {
+          // Si fue error de red (timeout, conexión), reintentar UNA vez
+          const esErrorRed = primerIntento instanceof AxiosError && 
+            (!primerIntento.response || primerIntento.code === 'ECONNABORTED' || primerIntento.code === 'ERR_NETWORK');
+          
+          if (esErrorRed) {
+            // Esperar 1 segundo antes de reintentar
+            await new Promise(r => setTimeout(r, 1000));
+            response = await axios.post(refreshEndpoint, { refreshToken });
+          } else {
+            throw primerIntento;
+          }
+        }
 
         // Verificar respuesta exitosa
         if (response.data?.success && response.data?.data) {
@@ -319,6 +332,10 @@ api.interceptors.response.use(
           } else {
             useAuthStore.getState().setTokens(nuevoAccess, nuevoRefresh);
           }
+
+          // CRÍTICO: Liberar el flag ANTES de procesar la cola
+          // Así si llega otra petición 401, inicia un nuevo ciclo de refresh
+          isRefreshing = false;
 
           // Procesar cola de peticiones pendientes
           procesarCola(nuevoAccess, null);
@@ -333,6 +350,9 @@ api.interceptors.response.use(
           throw new Error('Respuesta de refresh inválida');
         }
       } catch (refreshError) {
+        // CRÍTICO: Liberar el flag ANTES de procesar la cola
+        isRefreshing = false;
+
         // Refresh falló: logout del store correcto
         procesarCola(null, refreshError as Error);
         
@@ -350,9 +370,6 @@ api.interceptors.response.use(
         }
         
         return Promise.reject(error);
-      }
-      finally {
-        isRefreshing = false;
       }
     }
 

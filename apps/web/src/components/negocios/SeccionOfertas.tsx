@@ -183,12 +183,12 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, class
             `}</style>
 
             <div className={className}>
-                {/* Header clickeable */}
+                {/* Header clickeable */} 
                 <button
                     onClick={() => setModalAbierto(true)}
-                    className="mb-3 flex w-full items-center justify-between rounded-xl bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 px-3 py-2 text-white transition-all hover:scale-[1.01] hover:shadow-lg active:scale-[0.99] cursor-pointer"
+                    className="mb-3 flex w-full items-center justify-between rounded-xl bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 hover:from-slate-700 hover:via-slate-600 hover:to-slate-500 px-3 py-2 text-white transition-all  hover:shadow-lg active:scale-[0.99] cursor-pointer"
                 >
-                    <h2 className="flex items-center gap-2 text-base font-semibold">
+                    <h2 className="flex items-center gap-2 text-lg lg:text-base 2xl:text-lg font-semibold">
                         <Tag className="h-5 w-5" />
                         <span>Ofertas</span>
                         <span className="text-sm font-normal text-slate-300">({ofertasOrdenadas.length})</span>
@@ -201,7 +201,7 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, class
                         </div>
                     ) : (
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 transition-colors hover:bg-white/30">
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white animate-bounceX" />
                         </div>
                     )}
                 </button>

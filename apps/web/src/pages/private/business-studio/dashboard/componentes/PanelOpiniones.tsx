@@ -49,6 +49,14 @@ function RatingStars({ rating }: { rating: number }) {
   );
 }
 
+function getEmojiPorRating(rating: number): string {
+  if (rating === 5) return '🤩';
+  if (rating === 4) return '😊';
+  if (rating === 3) return '😐';
+  if (rating === 2) return '😕';
+  return '😞';
+}
+
 // =============================================================================
 // COMPONENTE
 // =============================================================================
@@ -61,7 +69,10 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
         <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
           <MessageSquare className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5 text-yellow-600" />
         </div>
-        <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800">Reseñas Recientes</h3>
+        <div>
+          <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800 leading-tight">Reseñas</h3>
+          <p className="text-[10px] lg:text-[9px] 2xl:text-[12px] text-slate-500">Opiniones recientes</p>
+        </div>
       </div>
 
       {/* Lista */}
@@ -90,14 +101,15 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
                   <span className="text-xs lg:text-[10px] 2xl:text-xs font-medium text-slate-700">
                     {resena.autor.nombre}
                   </span>
+                  <RatingStars rating={resena.rating} />
                 </div>
-                <span className="text-[10px] lg:text-[9px] 2xl:text-[10px] text-slate-400">
-                  {formatearFecha(resena.createdAt)}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] lg:text-[9px] 2xl:text-[10px] text-slate-400">
+                    {formatearFecha(resena.createdAt)}
+                  </span>
+                  <span className="text-sm lg:text-xs 2xl:text-sm">{getEmojiPorRating(resena.rating)}</span>
+                </div>
               </div>
-
-              {/* Rating */}
-              <RatingStars rating={resena.rating} />
 
               {/* Texto */}
               {resena.texto && (

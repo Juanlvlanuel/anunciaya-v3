@@ -39,7 +39,7 @@ interface Sucursal {
 // =============================================================================
 
 export default function SelectorSucursalesInline() {
-  const { usuario, setSucursalActiva, setEsSucursalPrincipal } = useAuthStore();
+  const { usuario, setSucursalActiva, setEsSucursalPrincipal, setTotalSucursales } = useAuthStore();
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -69,6 +69,9 @@ export default function SelectorSucursalesInline() {
             return a.nombre.localeCompare(b.nombre);
           });
           setSucursales(ordenadas);
+
+          // ✅ Alimentar el store global con el total de sucursales
+          setTotalSucursales(ordenadas.length);
 
           // ✅ Si no hay sucursal activa, asignar la primera (principal)
           if (!usuario?.sucursalActiva && ordenadas.length > 0) {
