@@ -1,0 +1,1169 @@
+/**
+ * useChatYAStore.ts
+ * ==================
+ * Store de Zustand para el módulo ChatYA (Chat 1:1 en tiempo real).
+ *
+ * UBICACIÓN: apps/web/src/stores/useChatYAStore.ts
+ *
+ * RESPONSABILIDADES:
+ *   - Gestionar conversaciones (lista, crear, fijar, archivar, silenciar, eliminar)
+ *   - Gestionar mensajes (listar, enviar, editar, eliminar, reenviar)
+ *   - Gestionar contactos y bloqueados
+ *   - Controlar badge de no leídos (total y por conversación)
+ *   - Controlar la vista activa del ChatOverlay
+ *   - Manejar cola de mensajes offline
+ *   - Manejar indicador "escribiendo..."
+ *   - Escuchar eventos Socket.io para tiempo real
+ *
+ * MODO DUAL:
+ *   - Al cambiar el toggle personal/comercial, la lista de chats cambia
+ *   - Se pasa el modo al endpoint y el backend filtra
+ *
+ * OPTIMISTIC UI:
+ *   - enviarMensaje: aparece instantáneamente con ID temporal
+ *   - toggleFijar/Archivar/Silenciar: cambio inmediato, rollback si falla
+ *   - marcarComoLeido: resetea contador inmediatamente
+ */
+
+import { create } from 'zustand';
+import * as chatyaService from '../services/chatyaService';
+import { escucharEvento } from '../services/socketService';
+import { notificar } from '../utils/notificaciones';
+import type {
+  Conversacion,
+  Mensaje,
+  ModoChatYA,
+  VistaChatYA,
+  CrearConversacionInput,
+  EnviarMensajeInput,
+  EditarMensajeInput,
+  ReenviarMensajeInput,
+  Contacto,
+  AgregarContactoInput,
+  UsuarioBloqueado,
+  BloquearUsuarioInput,
+  MensajeFijado,
+  MensajeOffline,
+  EstadoEscribiendo,
+  ListaPaginada,
+  EventoMensajeNuevo,
+  EventoMensajeEditado,
+  EventoMensajeEliminado,
+  EventoLeido,
+  EventoEscribiendo,
+  EventoEntregado,
+  EventoReaccion,
+  EventoMensajeFijado,
+  EventoMensajeDesfijado,
+} from '../types/chatya';
+
+// =============================================================================
+// CONSTANTES
+// =============================================================================
+
+/** Máximo de mensajes en cola offline */
+const MAX_COLA_OFFLINE = 50;
+
+// =============================================================================
+// TIPOS DEL STORE
+// =============================================================================
+
+interface ChatYAState {
+  // ─── Navegación interna ────────────────────────────────────────────────
+  vistaActiva: VistaChatYA;
+  conversacionActivaId: string | null;
+
+  // ─── Conversaciones ────────────────────────────────────────────────────
+  conversaciones: Conversacion[];
+  totalConversaciones: number;
+  cargandoConversaciones: boolean;
+
+  // ─── Mensajes (de la conversación activa) ──────────────────────────────
+  mensajes: Mensaje[];
+  totalMensajes: number;
+  cargandoMensajes: boolean;
+  cargandoMensajesAntiguos: boolean;
+  hayMasMensajes: boolean;
+
+  // ─── Badge no leídos ──────────────────────────────────────────────────
+  totalNoLeidos: number;
+
+  // ─── Escribiendo ──────────────────────────────────────────────────────
+  escribiendo: EstadoEscribiendo | null;
+
+  // ─── Cola offline ─────────────────────────────────────────────────────
+  colaOffline: MensajeOffline[];
+
+  // ─── Contactos (Sprint 5) ─────────────────────────────────────────────
+  contactos: Contacto[];
+  cargandoContactos: boolean;
+
+  // ─── Bloqueados (Sprint 5) ────────────────────────────────────────────
+  bloqueados: UsuarioBloqueado[];
+  cargandoBloqueados: boolean;
+
+  // ─── Mensajes fijados (Sprint 5) ──────────────────────────────────────
+  mensajesFijados: MensajeFijado[];
+  cargandoFijados: boolean;
+
+  // ─── Búsqueda (Sprint 5) ──────────────────────────────────────────────
+  resultadosBusqueda: Mensaje[];
+  totalResultadosBusqueda: number;
+  cargandoBusqueda: boolean;
+
+  // ─── Enviando ─────────────────────────────────────────────────────────
+  enviandoMensaje: boolean;
+
+  // ─── Error global ─────────────────────────────────────────────────────
+  error: string | null;
+
+  // ─── ACCIONES: Navegación ─────────────────────────────────────────────
+  setVistaActiva: (vista: VistaChatYA) => void;
+  abrirConversacion: (conversacionId: string) => void;
+  volverALista: () => void;
+
+  // ─── ACCIONES: Conversaciones ─────────────────────────────────────────
+  cargarConversaciones: (modo?: ModoChatYA, offset?: number) => Promise<void>;
+  crearConversacion: (datos: CrearConversacionInput) => Promise<Conversacion | null>;
+  toggleFijar: (id: string) => Promise<void>;
+  toggleArchivar: (id: string) => Promise<void>;
+  toggleSilenciar: (id: string) => Promise<void>;
+  eliminarConversacion: (id: string) => Promise<boolean>;
+  marcarComoLeido: (id: string) => Promise<void>;
+
+  // ─── ACCIONES: Mensajes ───────────────────────────────────────────────
+  cargarMensajes: (conversacionId: string, offset?: number) => Promise<void>;
+  cargarMensajesAntiguos: () => Promise<void>;
+  enviarMensaje: (datos: EnviarMensajeInput) => Promise<Mensaje | null>;
+  editarMensaje: (mensajeId: string, datos: EditarMensajeInput) => Promise<boolean>;
+  eliminarMensaje: (mensajeId: string) => Promise<boolean>;
+  reenviarMensaje: (mensajeId: string, datos: ReenviarMensajeInput) => Promise<boolean>;
+
+  // ─── ACCIONES: Badge ──────────────────────────────────────────────────
+  cargarNoLeidos: (modo?: ModoChatYA) => Promise<void>;
+
+  // ─── ACCIONES: Contactos (Sprint 5) ───────────────────────────────────
+  cargarContactos: (tipo?: 'personal' | 'comercial') => Promise<void>;
+  agregarContacto: (datos: AgregarContactoInput) => Promise<Contacto | null>;
+  eliminarContacto: (id: string) => Promise<boolean>;
+
+  // ─── ACCIONES: Bloqueo (Sprint 5) ─────────────────────────────────────
+  cargarBloqueados: () => Promise<void>;
+  bloquearUsuario: (datos: BloquearUsuarioInput) => Promise<boolean>;
+  desbloquearUsuario: (bloqueadoId: string) => Promise<boolean>;
+
+  // ─── ACCIONES: Reacciones (Sprint 5) ──────────────────────────────────
+  toggleReaccion: (mensajeId: string, emoji: string) => Promise<void>;
+
+  // ─── ACCIONES: Mensajes fijados (Sprint 5) ────────────────────────────
+  cargarMensajesFijados: (conversacionId: string) => Promise<void>;
+  fijarMensaje: (conversacionId: string, mensajeId: string) => Promise<boolean>;
+  desfijarMensaje: (conversacionId: string, mensajeId: string) => Promise<boolean>;
+
+  // ─── ACCIONES: Búsqueda (Sprint 5) ────────────────────────────────────
+  buscarMensajes: (conversacionId: string, texto: string, offset?: number) => Promise<void>;
+  limpiarBusqueda: () => void;
+
+  // ─── ACCIONES: Cola offline ───────────────────────────────────────────
+  agregarAColaOffline: (mensaje: MensajeOffline) => void;
+  enviarColaOffline: () => Promise<void>;
+
+  // ─── ACCIONES: Escribiendo ────────────────────────────────────────────
+  setEscribiendo: (estado: EstadoEscribiendo | null) => void;
+
+  // ─── Carga inicial y reset ────────────────────────────────────────────
+  inicializar: (modo?: ModoChatYA) => Promise<void>;
+  limpiar: () => void;
+}
+
+// =============================================================================
+// ESTADO INICIAL
+// =============================================================================
+
+const ESTADO_INICIAL = {
+  vistaActiva: 'lista' as VistaChatYA,
+  conversacionActivaId: null as string | null,
+  conversaciones: [] as Conversacion[],
+  totalConversaciones: 0,
+  cargandoConversaciones: false,
+  mensajes: [] as Mensaje[],
+  totalMensajes: 0,
+  cargandoMensajes: false,
+  cargandoMensajesAntiguos: false,
+  hayMasMensajes: false,
+  totalNoLeidos: 0,
+  escribiendo: null as EstadoEscribiendo | null,
+  colaOffline: [] as MensajeOffline[],
+  contactos: [] as Contacto[],
+  cargandoContactos: false,
+  bloqueados: [] as UsuarioBloqueado[],
+  cargandoBloqueados: false,
+  mensajesFijados: [] as MensajeFijado[],
+  cargandoFijados: false,
+  resultadosBusqueda: [] as Mensaje[],
+  totalResultadosBusqueda: 0,
+  cargandoBusqueda: false,
+  enviandoMensaje: false,
+  error: null as string | null,
+};
+
+// =============================================================================
+// STORE
+// =============================================================================
+
+export const useChatYAStore = create<ChatYAState>((set, get) => ({
+  ...ESTADO_INICIAL,
+
+  // ===========================================================================
+  // ACCIONES: Navegación interna
+  // ===========================================================================
+
+  setVistaActiva: (vista: VistaChatYA) => {
+    set({ vistaActiva: vista });
+  },
+
+  /**
+   * Abre una conversación: cambia a vista chat, carga mensajes,
+   * marca como leído automáticamente.
+   */
+  abrirConversacion: (conversacionId: string) => {
+    set({
+      vistaActiva: 'chat',
+      conversacionActivaId: conversacionId,
+      mensajes: [],
+      totalMensajes: 0,
+      hayMasMensajes: false,
+      escribiendo: null,
+    });
+
+    // Cargar mensajes y marcar como leído en paralelo
+    get().cargarMensajes(conversacionId);
+    get().marcarComoLeido(conversacionId);
+  },
+
+  /** Vuelve a la lista de conversaciones y limpia el estado del chat activo */
+  volverALista: () => {
+    set({
+      vistaActiva: 'lista',
+      conversacionActivaId: null,
+      mensajes: [],
+      totalMensajes: 0,
+      hayMasMensajes: false,
+      escribiendo: null,
+      resultadosBusqueda: [],
+      totalResultadosBusqueda: 0,
+      mensajesFijados: [],
+    });
+  },
+
+  // ===========================================================================
+  // ACCIONES: Conversaciones
+  // ===========================================================================
+
+  cargarConversaciones: async (modo: ModoChatYA = 'personal', offset = 0) => {
+    const { conversaciones } = get();
+    const esCargaInicial = conversaciones.length === 0 && offset === 0;
+
+    set({ cargandoConversaciones: esCargaInicial, error: null });
+
+    try {
+      const respuesta = await chatyaService.getConversaciones(modo, 20, offset);
+      if (respuesta.success && respuesta.data) {
+        const data = respuesta.data as ListaPaginada<Conversacion>;
+        set({
+          conversaciones: offset === 0
+            ? data.items
+            : [...conversaciones, ...data.items],
+          totalConversaciones: data.total,
+        });
+      }
+    } catch (error) {
+      console.error('Error cargando conversaciones:', error);
+      set({ error: 'Error al cargar conversaciones' });
+    } finally {
+      set({ cargandoConversaciones: false });
+    }
+  },
+
+  crearConversacion: async (datos: CrearConversacionInput) => {
+    try {
+      const respuesta = await chatyaService.crearConversacion(datos);
+      if (respuesta.success && respuesta.data) {
+        const nueva = respuesta.data;
+
+        // Agregar al inicio de la lista si no existe
+        set((state) => {
+          const yaExiste = state.conversaciones.some((c) => c.id === nueva.id);
+          return {
+            conversaciones: yaExiste
+              ? state.conversaciones
+              : [nueva, ...state.conversaciones],
+          };
+        });
+
+        return nueva;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error creando conversación:', error);
+      notificar.error('No se pudo iniciar la conversación');
+      return null;
+    }
+  },
+
+  /** Toggle fijar (optimista) */
+  toggleFijar: async (id: string) => {
+    const { conversaciones } = get();
+    const convAnterior = conversaciones.find((c) => c.id === id);
+    if (!convAnterior) return;
+
+    // Optimista: cambiar inmediatamente
+    set({
+      conversaciones: conversaciones.map((c) =>
+        c.id === id ? { ...c, fijada: !c.fijada } : c
+      ),
+    });
+
+    try {
+      const respuesta = await chatyaService.toggleFijarConversacion(id);
+      if (!respuesta.success) {
+        // Rollback
+        set({ conversaciones });
+      }
+    } catch {
+      set({ conversaciones });
+    }
+  },
+
+  /** Toggle archivar (optimista) */
+  toggleArchivar: async (id: string) => {
+    const { conversaciones } = get();
+    const convAnterior = conversaciones.find((c) => c.id === id);
+    if (!convAnterior) return;
+
+    // Optimista: si se archiva, quitarla de la lista principal
+    const nuevaArchivada = !convAnterior.archivada;
+    set({
+      conversaciones: nuevaArchivada
+        ? conversaciones.filter((c) => c.id !== id)
+        : conversaciones.map((c) =>
+            c.id === id ? { ...c, archivada: false } : c
+          ),
+    });
+
+    try {
+      const respuesta = await chatyaService.toggleArchivarConversacion(id);
+      if (!respuesta.success) {
+        set({ conversaciones });
+      }
+    } catch {
+      set({ conversaciones });
+    }
+  },
+
+  /** Toggle silenciar (optimista) */
+  toggleSilenciar: async (id: string) => {
+    const { conversaciones } = get();
+
+    set({
+      conversaciones: conversaciones.map((c) =>
+        c.id === id ? { ...c, silenciada: !c.silenciada } : c
+      ),
+    });
+
+    try {
+      const respuesta = await chatyaService.toggleSilenciarConversacion(id);
+      if (!respuesta.success) {
+        set({ conversaciones });
+      }
+    } catch {
+      set({ conversaciones });
+    }
+  },
+
+  eliminarConversacion: async (id: string) => {
+    const { conversaciones, conversacionActivaId } = get();
+    const conversacionesAnterior = [...conversaciones];
+
+    // Optimista: quitar de la lista
+    set({
+      conversaciones: conversaciones.filter((c) => c.id !== id),
+    });
+
+    // Si era la activa, volver a la lista
+    if (conversacionActivaId === id) {
+      get().volverALista();
+    }
+
+    try {
+      const respuesta = await chatyaService.eliminarConversacion(id);
+      if (respuesta.success) {
+        return true;
+      } else {
+        set({ conversaciones: conversacionesAnterior });
+        notificar.error(respuesta.message || 'No se pudo eliminar el chat');
+        return false;
+      }
+    } catch {
+      set({ conversaciones: conversacionesAnterior });
+      notificar.error('Error al eliminar el chat');
+      return false;
+    }
+  },
+
+  /** Marcar como leído (optimista): resetea contador inmediatamente */
+  marcarComoLeido: async (id: string) => {
+    const { conversaciones, totalNoLeidos } = get();
+    const conv = conversaciones.find((c) => c.id === id);
+    if (!conv || conv.noLeidos === 0) return;
+
+    const noLeidosAnterior = conv.noLeidos;
+
+    // Optimista: resetear contador de esta conversación
+    set({
+      conversaciones: conversaciones.map((c) =>
+        c.id === id ? { ...c, noLeidos: 0 } : c
+      ),
+      totalNoLeidos: Math.max(0, totalNoLeidos - noLeidosAnterior),
+    });
+
+    try {
+      await chatyaService.marcarComoLeido(id);
+    } catch {
+      // Rollback silencioso — la próxima carga sincronizará
+    }
+  },
+
+  // ===========================================================================
+  // ACCIONES: Mensajes
+  // ===========================================================================
+
+  cargarMensajes: async (conversacionId: string, offset = 0) => {
+    set({ cargandoMensajes: offset === 0, cargandoMensajesAntiguos: offset > 0 });
+
+    try {
+      const respuesta = await chatyaService.getMensajes(conversacionId, 30, offset);
+      if (respuesta.success && respuesta.data) {
+        const data = respuesta.data as ListaPaginada<Mensaje>;
+        set((state) => ({
+          mensajes: offset === 0
+            ? data.items
+            : [...state.mensajes, ...data.items],
+          totalMensajes: data.total,
+          hayMasMensajes: offset + data.items.length < data.total,
+        }));
+      }
+    } catch (error) {
+      console.error('Error cargando mensajes:', error);
+    } finally {
+      set({ cargandoMensajes: false, cargandoMensajesAntiguos: false });
+    }
+  },
+
+  /** Carga la siguiente página de mensajes antiguos (scroll infinito hacia arriba) */
+  cargarMensajesAntiguos: async () => {
+    const { conversacionActivaId, mensajes, cargandoMensajesAntiguos, hayMasMensajes } = get();
+    if (!conversacionActivaId || cargandoMensajesAntiguos || !hayMasMensajes) return;
+
+    await get().cargarMensajes(conversacionActivaId, mensajes.length);
+  },
+
+  /**
+   * Enviar mensaje (optimista).
+   * 1. Crea mensaje temporal con ID local
+   * 2. Lo inserta al inicio del array (más reciente primero)
+   * 3. Envía al backend
+   * 4. Reemplaza ID temporal con el real
+   * 5. Si falla → rollback o mover a cola offline
+   */
+  enviarMensaje: async (datos: EnviarMensajeInput) => {
+    const { conversacionActivaId, mensajes, conversaciones } = get();
+    if (!conversacionActivaId) return null;
+
+    const idTemporal = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    // Crear mensaje optimista
+    const mensajeOptimista: Mensaje = {
+      id: idTemporal,
+      conversacionId: conversacionActivaId,
+      emisorId: null, // Se llenará con el ID real del backend
+      emisorModo: null,
+      emisorSucursalId: null,
+      empleadoId: datos.empleadoId || null,
+      tipo: datos.tipo || 'texto',
+      contenido: datos.contenido,
+      estado: 'enviado',
+      editado: false,
+      editadoAt: null,
+      eliminado: false,
+      eliminadoAt: null,
+      respuestaAId: datos.respuestaAId || null,
+      reenviadoDeId: null,
+      createdAt: new Date().toISOString(),
+      entregadoAt: null,
+      leidoAt: null,
+    };
+
+    // Insertar al inicio (más reciente primero)
+    set({
+      mensajes: [mensajeOptimista, ...mensajes],
+      enviandoMensaje: true,
+    });
+
+    // Actualizar preview de la conversación en la lista
+    set({
+      conversaciones: conversaciones.map((c) =>
+        c.id === conversacionActivaId
+          ? {
+              ...c,
+              ultimoMensajeTexto: datos.tipo === 'texto'
+                ? datos.contenido.substring(0, 100)
+                : datos.tipo === 'imagen' ? '📷 Imagen'
+                : datos.tipo === 'audio' ? '🎤 Audio'
+                : datos.tipo === 'documento' ? '📎 Documento'
+                : datos.contenido.substring(0, 100),
+              ultimoMensajeFecha: new Date().toISOString(),
+              ultimoMensajeTipo: datos.tipo || 'texto',
+            }
+          : c
+      ),
+    });
+
+    try {
+      const respuesta = await chatyaService.enviarMensaje(conversacionActivaId, datos);
+      if (respuesta.success && respuesta.data) {
+        // Reemplazar mensaje temporal con el real del backend
+        set((state) => ({
+          mensajes: state.mensajes.map((m) =>
+            m.id === idTemporal ? respuesta.data! : m
+          ),
+        }));
+        return respuesta.data;
+      } else {
+        // Rollback: quitar mensaje temporal
+        set((state) => ({
+          mensajes: state.mensajes.filter((m) => m.id !== idTemporal),
+        }));
+        notificar.error(respuesta.message || 'No se pudo enviar el mensaje');
+        return null;
+      }
+    } catch {
+      // Si hay error de red, mover a cola offline
+      set((state) => ({
+        mensajes: state.mensajes.map((m) =>
+          m.id === idTemporal ? { ...m, estado: 'enviado' as const } : m
+        ),
+      }));
+
+      get().agregarAColaOffline({
+        idTemporal,
+        conversacionId: conversacionActivaId,
+        contenido: datos.contenido,
+        tipo: datos.tipo || 'texto',
+        respuestaAId: datos.respuestaAId,
+        creadoLocalAt: new Date().toISOString(),
+        reintentos: 0,
+      });
+
+      return null;
+    } finally {
+      set({ enviandoMensaje: false });
+    }
+  },
+
+  editarMensaje: async (mensajeId: string, datos: EditarMensajeInput) => {
+    const { mensajes } = get();
+    const mensajesAnterior = [...mensajes];
+
+    // Optimista
+    set({
+      mensajes: mensajes.map((m) =>
+        m.id === mensajeId
+          ? { ...m, contenido: datos.contenido, editado: true }
+          : m
+      ),
+    });
+
+    try {
+      const respuesta = await chatyaService.editarMensaje(mensajeId, datos);
+      if (respuesta.success && respuesta.data) {
+        set((state) => ({
+          mensajes: state.mensajes.map((m) =>
+            m.id === mensajeId ? respuesta.data! : m
+          ),
+        }));
+        return true;
+      } else {
+        set({ mensajes: mensajesAnterior });
+        return false;
+      }
+    } catch {
+      set({ mensajes: mensajesAnterior });
+      return false;
+    }
+  },
+
+  eliminarMensaje: async (mensajeId: string) => {
+    const { mensajes } = get();
+    const mensajesAnterior = [...mensajes];
+
+    // Optimista: marcar como eliminado
+    set({
+      mensajes: mensajes.map((m) =>
+        m.id === mensajeId
+          ? { ...m, eliminado: true, contenido: 'Se eliminó este mensaje' }
+          : m
+      ),
+    });
+
+    try {
+      const respuesta = await chatyaService.eliminarMensaje(mensajeId);
+      if (respuesta.success) {
+        return true;
+      } else {
+        set({ mensajes: mensajesAnterior });
+        return false;
+      }
+    } catch {
+      set({ mensajes: mensajesAnterior });
+      return false;
+    }
+  },
+
+  reenviarMensaje: async (mensajeId: string, datos: ReenviarMensajeInput) => {
+    try {
+      const respuesta = await chatyaService.reenviarMensaje(mensajeId, datos);
+      if (respuesta.success) {
+        notificar.exito('Mensaje reenviado');
+        return true;
+      }
+      notificar.error(respuesta.message || 'No se pudo reenviar');
+      return false;
+    } catch {
+      notificar.error('Error al reenviar el mensaje');
+      return false;
+    }
+  },
+
+  // ===========================================================================
+  // ACCIONES: Badge no leídos
+  // ===========================================================================
+
+  cargarNoLeidos: async (modo: ModoChatYA = 'personal') => {
+    try {
+      const respuesta = await chatyaService.getNoLeidos(modo);
+      if (respuesta.success && respuesta.data) {
+        set({ totalNoLeidos: respuesta.data.total });
+      }
+    } catch (error) {
+      console.error('Error cargando no leídos:', error);
+    }
+  },
+
+  // ===========================================================================
+  // ACCIONES: Contactos (Sprint 5)
+  // ===========================================================================
+
+  cargarContactos: async (tipo: 'personal' | 'comercial' = 'personal') => {
+    const { contactos } = get();
+    const esCargaInicial = contactos.length === 0;
+
+    set({ cargandoContactos: esCargaInicial });
+
+    try {
+      const respuesta = await chatyaService.getContactos(tipo);
+      if (respuesta.success && respuesta.data) {
+        set({ contactos: respuesta.data });
+      }
+    } catch (error) {
+      console.error('Error cargando contactos:', error);
+    } finally {
+      set({ cargandoContactos: false });
+    }
+  },
+
+  agregarContacto: async (datos: AgregarContactoInput) => {
+    try {
+      const respuesta = await chatyaService.agregarContacto(datos);
+      if (respuesta.success && respuesta.data) {
+        set((state) => ({
+          contactos: [...state.contactos, respuesta.data!],
+        }));
+        notificar.exito('Contacto agregado');
+        return respuesta.data;
+      }
+      notificar.error(respuesta.message || 'No se pudo agregar el contacto');
+      return null;
+    } catch {
+      notificar.error('Error al agregar contacto');
+      return null;
+    }
+  },
+
+  eliminarContacto: async (id: string) => {
+    const { contactos } = get();
+    const contactosAnterior = [...contactos];
+
+    // Optimista
+    set({ contactos: contactos.filter((c) => c.id !== id) });
+
+    try {
+      const respuesta = await chatyaService.eliminarContacto(id);
+      if (respuesta.success) {
+        return true;
+      }
+      set({ contactos: contactosAnterior });
+      return false;
+    } catch {
+      set({ contactos: contactosAnterior });
+      return false;
+    }
+  },
+
+  // ===========================================================================
+  // ACCIONES: Bloqueo (Sprint 5)
+  // ===========================================================================
+
+  cargarBloqueados: async () => {
+    const { bloqueados } = get();
+    const esCargaInicial = bloqueados.length === 0;
+
+    set({ cargandoBloqueados: esCargaInicial });
+
+    try {
+      const respuesta = await chatyaService.getBloqueados();
+      if (respuesta.success && respuesta.data) {
+        set({ bloqueados: respuesta.data });
+      }
+    } catch (error) {
+      console.error('Error cargando bloqueados:', error);
+    } finally {
+      set({ cargandoBloqueados: false });
+    }
+  },
+
+  bloquearUsuario: async (datos: BloquearUsuarioInput) => {
+    try {
+      const respuesta = await chatyaService.bloquearUsuario(datos);
+      if (respuesta.success && respuesta.data) {
+        set((state) => ({
+          bloqueados: [...state.bloqueados, respuesta.data!],
+        }));
+        notificar.exito('Usuario bloqueado');
+        return true;
+      }
+      notificar.error(respuesta.message || 'No se pudo bloquear');
+      return false;
+    } catch {
+      notificar.error('Error al bloquear usuario');
+      return false;
+    }
+  },
+
+  desbloquearUsuario: async (bloqueadoId: string) => {
+    const { bloqueados } = get();
+    const bloqueadosAnterior = [...bloqueados];
+
+    // Optimista
+    set({ bloqueados: bloqueados.filter((b) => b.bloqueadoId !== bloqueadoId) });
+
+    try {
+      const respuesta = await chatyaService.desbloquearUsuario(bloqueadoId);
+      if (respuesta.success) {
+        notificar.exito('Usuario desbloqueado');
+        return true;
+      }
+      set({ bloqueados: bloqueadosAnterior });
+      return false;
+    } catch {
+      set({ bloqueados: bloqueadosAnterior });
+      return false;
+    }
+  },
+
+  // ===========================================================================
+  // ACCIONES: Reacciones (Sprint 5)
+  // ===========================================================================
+
+  toggleReaccion: async (mensajeId: string, emoji: string) => {
+    try {
+      const respuesta = await chatyaService.toggleReaccion(mensajeId, emoji);
+      if (!respuesta.success) {
+        notificar.error('No se pudo reaccionar');
+      }
+      // La actualización de UI viene por Socket.io (chatya:reaccion)
+    } catch {
+      notificar.error('Error al reaccionar');
+    }
+  },
+
+  // ===========================================================================
+  // ACCIONES: Mensajes fijados (Sprint 5)
+  // ===========================================================================
+
+  cargarMensajesFijados: async (conversacionId: string) => {
+    set({ cargandoFijados: true });
+
+    try {
+      const respuesta = await chatyaService.getMensajesFijados(conversacionId);
+      if (respuesta.success && respuesta.data) {
+        set({ mensajesFijados: respuesta.data });
+      }
+    } catch (error) {
+      console.error('Error cargando mensajes fijados:', error);
+    } finally {
+      set({ cargandoFijados: false });
+    }
+  },
+
+  fijarMensaje: async (conversacionId: string, mensajeId: string) => {
+    try {
+      const respuesta = await chatyaService.fijarMensaje(conversacionId, mensajeId);
+      if (respuesta.success && respuesta.data) {
+        set((state) => ({
+          mensajesFijados: [respuesta.data!, ...state.mensajesFijados],
+        }));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  desfijarMensaje: async (conversacionId: string, mensajeId: string) => {
+    const { mensajesFijados } = get();
+    const fijadosAnterior = [...mensajesFijados];
+
+    // Optimista
+    set({
+      mensajesFijados: mensajesFijados.filter((f) => f.mensajeId !== mensajeId),
+    });
+
+    try {
+      const respuesta = await chatyaService.desfijarMensaje(conversacionId, mensajeId);
+      if (respuesta.success) {
+        return true;
+      }
+      set({ mensajesFijados: fijadosAnterior });
+      return false;
+    } catch {
+      set({ mensajesFijados: fijadosAnterior });
+      return false;
+    }
+  },
+
+  // ===========================================================================
+  // ACCIONES: Búsqueda (Sprint 5)
+  // ===========================================================================
+
+  buscarMensajes: async (conversacionId: string, texto: string, offset = 0) => {
+    set({ cargandoBusqueda: true });
+
+    try {
+      const respuesta = await chatyaService.buscarMensajes(conversacionId, texto, 20, offset);
+      if (respuesta.success && respuesta.data) {
+        const data = respuesta.data as ListaPaginada<Mensaje>;
+        set((state) => ({
+          resultadosBusqueda: offset === 0
+            ? data.items
+            : [...state.resultadosBusqueda, ...data.items],
+          totalResultadosBusqueda: data.total,
+        }));
+      }
+    } catch (error) {
+      console.error('Error buscando mensajes:', error);
+    } finally {
+      set({ cargandoBusqueda: false });
+    }
+  },
+
+  limpiarBusqueda: () => {
+    set({ resultadosBusqueda: [], totalResultadosBusqueda: 0 });
+  },
+
+  // ===========================================================================
+  // ACCIONES: Cola offline
+  // ===========================================================================
+
+  agregarAColaOffline: (mensaje: MensajeOffline) => {
+    set((state) => {
+      let cola = [...state.colaOffline, mensaje];
+      // Si excede el máximo, descartar los más antiguos
+      if (cola.length > MAX_COLA_OFFLINE) {
+        cola = cola.slice(cola.length - MAX_COLA_OFFLINE);
+      }
+      return { colaOffline: cola };
+    });
+  },
+
+  /** Envía todos los mensajes de la cola offline al reconectar */
+  enviarColaOffline: async () => {
+    const { colaOffline } = get();
+    if (colaOffline.length === 0) return;
+
+    const colaActual = [...colaOffline];
+    set({ colaOffline: [] });
+
+    for (const mensajePendiente of colaActual) {
+      try {
+        const respuesta = await chatyaService.enviarMensaje(
+          mensajePendiente.conversacionId,
+          {
+            contenido: mensajePendiente.contenido,
+            tipo: mensajePendiente.tipo,
+            respuestaAId: mensajePendiente.respuestaAId,
+          }
+        );
+
+        if (respuesta.success && respuesta.data) {
+          // Reemplazar mensaje temporal con el real
+          set((state) => ({
+            mensajes: state.mensajes.map((m) =>
+              m.id === mensajePendiente.idTemporal ? respuesta.data! : m
+            ),
+          }));
+        }
+      } catch {
+        // Si falla de nuevo, re-encolar con +1 reintento
+        if (mensajePendiente.reintentos < 3) {
+          get().agregarAColaOffline({
+            ...mensajePendiente,
+            reintentos: mensajePendiente.reintentos + 1,
+          });
+        }
+        // Si ya reintentó 3 veces, se descarta
+      }
+    }
+  },
+
+  // ===========================================================================
+  // ACCIONES: Escribiendo
+  // ===========================================================================
+
+  setEscribiendo: (estado: EstadoEscribiendo | null) => {
+    set({ escribiendo: estado });
+  },
+
+  // ===========================================================================
+  // ACCIONES: Inicializar y limpiar
+  // ===========================================================================
+
+  /** Carga inicial: conversaciones + badge no leídos */
+  inicializar: async (modo: ModoChatYA = 'personal') => {
+    await Promise.all([
+      get().cargarConversaciones(modo),
+      get().cargarNoLeidos(modo),
+    ]);
+  },
+
+  limpiar: () => {
+    set({ ...ESTADO_INICIAL });
+  },
+}));
+
+// =============================================================================
+// SELECTORES
+// =============================================================================
+
+export const selectConversaciones = (state: ChatYAState) => state.conversaciones;
+export const selectMensajes = (state: ChatYAState) => state.mensajes;
+export const selectConversacionActivaId = (state: ChatYAState) => state.conversacionActivaId;
+export const selectVistaActiva = (state: ChatYAState) => state.vistaActiva;
+export const selectTotalNoLeidos = (state: ChatYAState) => state.totalNoLeidos;
+export const selectEscribiendo = (state: ChatYAState) => state.escribiendo;
+export const selectCargandoConversaciones = (state: ChatYAState) => state.cargandoConversaciones;
+export const selectCargandoMensajes = (state: ChatYAState) => state.cargandoMensajes;
+
+/** Obtiene la conversación activa completa desde la lista */
+export const selectConversacionActiva = (state: ChatYAState) =>
+  state.conversaciones.find((c) => c.id === state.conversacionActivaId) ?? null;
+
+// =============================================================================
+// LISTENERS SOCKET.IO — Tiempo real
+// =============================================================================
+
+/** chatya:mensaje-nuevo — Mensaje nuevo de otro participante */
+escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, mensaje }) => {
+  const state = useChatYAStore.getState();
+
+  // Si estamos viendo esta conversación, agregar el mensaje
+  if (state.conversacionActivaId === conversacionId) {
+    useChatYAStore.setState((prev) => ({
+      mensajes: [mensaje, ...prev.mensajes],
+    }));
+
+    // Marcar como leído automáticamente (estamos viendo la conversación)
+    state.marcarComoLeido(conversacionId);
+  } else {
+    // Incrementar badge global
+    useChatYAStore.setState((prev) => ({
+      totalNoLeidos: prev.totalNoLeidos + 1,
+    }));
+  }
+
+  // Actualizar preview en la lista de conversaciones
+  useChatYAStore.setState((prev) => ({
+    conversaciones: prev.conversaciones.map((c) =>
+      c.id === conversacionId
+        ? {
+            ...c,
+            ultimoMensajeTexto: mensaje.tipo === 'texto'
+              ? mensaje.contenido.substring(0, 100)
+              : mensaje.tipo === 'sistema'
+              ? mensaje.contenido.substring(0, 100)
+              : `[${mensaje.tipo}]`,
+            ultimoMensajeFecha: mensaje.createdAt,
+            ultimoMensajeTipo: mensaje.tipo,
+            noLeidos: prev.conversacionActivaId === conversacionId
+              ? 0
+              : c.noLeidos + 1,
+          }
+        : c
+    ),
+  }));
+});
+
+/** chatya:mensaje-editado — Mensaje editado en tiempo real */
+escucharEvento<EventoMensajeEditado>('chatya:mensaje-editado', ({ conversacionId, mensaje }) => {
+  const state = useChatYAStore.getState();
+
+  if (state.conversacionActivaId === conversacionId) {
+    useChatYAStore.setState((prev) => ({
+      mensajes: prev.mensajes.map((m) =>
+        m.id === mensaje.id ? mensaje : m
+      ),
+    }));
+  }
+});
+
+/** chatya:mensaje-eliminado — Mensaje eliminado en tiempo real */
+escucharEvento<EventoMensajeEliminado>('chatya:mensaje-eliminado', ({ conversacionId, mensajeId }) => {
+  const state = useChatYAStore.getState();
+
+  if (state.conversacionActivaId === conversacionId) {
+    useChatYAStore.setState((prev) => ({
+      mensajes: prev.mensajes.map((m) =>
+        m.id === mensajeId
+          ? { ...m, eliminado: true, contenido: 'Se eliminó este mensaje' }
+          : m
+      ),
+    }));
+  }
+});
+
+/** chatya:leido — Palomitas azules (el otro leyó los mensajes) */
+escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoAt }) => {
+  const state = useChatYAStore.getState();
+
+  if (state.conversacionActivaId === conversacionId) {
+    useChatYAStore.setState((prev) => ({
+      mensajes: prev.mensajes.map((m) =>
+        m.estado !== 'leido'
+          ? { ...m, estado: 'leido' as const, leidoAt }
+          : m
+      ),
+    }));
+  }
+});
+
+/** chatya:escribiendo — Indicador "escribiendo..." */
+escucharEvento<EventoEscribiendo>('chatya:escribiendo', ({ conversacionId }) => {
+  const state = useChatYAStore.getState();
+
+  if (state.conversacionActivaId === conversacionId) {
+    useChatYAStore.setState({
+      escribiendo: { conversacionId, timestamp: Date.now() },
+    });
+
+    // Auto-limpiar después de 5 segundos si no llega dejar-escribir
+    setTimeout(() => {
+      const current = useChatYAStore.getState().escribiendo;
+      if (current && current.conversacionId === conversacionId && Date.now() - current.timestamp >= 4500) {
+        useChatYAStore.setState({ escribiendo: null });
+      }
+    }, 5000);
+  }
+});
+
+/** chatya:dejar-escribir — Dejar de mostrar "escribiendo..." */
+escucharEvento<EventoEscribiendo>('chatya:dejar-escribir', ({ conversacionId }) => {
+  const state = useChatYAStore.getState();
+
+  if (state.escribiendo?.conversacionId === conversacionId) {
+    useChatYAStore.setState({ escribiendo: null });
+  }
+});
+
+/** chatya:entregado — Palomitas dobles grises (mensaje entregado al receptor) */
+escucharEvento<EventoEntregado>('chatya:entregado', ({ conversacionId, mensajeIds }) => {
+  const state = useChatYAStore.getState();
+
+  if (state.conversacionActivaId === conversacionId) {
+    useChatYAStore.setState((prev) => ({
+      mensajes: prev.mensajes.map((m) =>
+        mensajeIds.includes(m.id) && m.estado === 'enviado'
+          ? { ...m, estado: 'entregado' as const, entregadoAt: new Date().toISOString() }
+          : m
+      ),
+    }));
+  }
+});
+
+/** chatya:reaccion — Reacción agregada/removida en tiempo real */
+escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, emoji, usuarioId, accion }) => {
+  const state = useChatYAStore.getState();
+
+  if (state.conversacionActivaId === conversacionId) {
+    useChatYAStore.setState((prev) => ({
+      mensajes: prev.mensajes.map((m) => {
+        if (m.id !== mensajeId) return m;
+
+        const reacciones = [...(m.reacciones || [])];
+
+        if (accion === 'agregada') {
+          const existente = reacciones.find((r) => r.emoji === emoji);
+          if (existente) {
+            existente.cantidad += 1;
+            (existente.usuarios as string[]).push(usuarioId);
+          } else {
+            reacciones.push({ emoji, cantidad: 1, usuarios: [usuarioId] });
+          }
+        } else {
+          const existente = reacciones.find((r) => r.emoji === emoji);
+          if (existente) {
+            existente.cantidad -= 1;
+            existente.usuarios = (existente.usuarios as string[]).filter((id) => id !== usuarioId);
+            if (existente.cantidad <= 0) {
+              const idx = reacciones.indexOf(existente);
+              reacciones.splice(idx, 1);
+            }
+          }
+        }
+
+        return { ...m, reacciones };
+      }),
+    }));
+  }
+});
+
+/** chatya:mensaje-fijado — Mensaje fijado en tiempo real */
+escucharEvento<EventoMensajeFijado>('chatya:mensaje-fijado', ({ conversacionId, mensajeId: _mensajeId, fijadoPor: _fijadoPor }) => {
+  const state = useChatYAStore.getState();
+
+  // Recargar la lista de fijados si estamos en esa conversación
+  if (state.conversacionActivaId === conversacionId) {
+    state.cargarMensajesFijados(conversacionId);
+  }
+});
+
+/** chatya:mensaje-desfijado — Mensaje desfijado en tiempo real */
+escucharEvento<EventoMensajeDesfijado>('chatya:mensaje-desfijado', ({ conversacionId, mensajeId }) => {
+  const state = useChatYAStore.getState();
+
+  if (state.conversacionActivaId === conversacionId) {
+    useChatYAStore.setState((prev) => ({
+      mensajesFijados: prev.mensajesFijados.filter((f) => f.mensajeId !== mensajeId),
+    }));
+  }
+});

@@ -81,6 +81,19 @@ export function escucharEvento<T = unknown>(
 }
 
 /**
+ * Emite un evento al servidor.
+ * Si el socket no está conectado, el evento se pierde silenciosamente.
+ */
+export function emitirEvento<T = unknown>(
+  evento: string,
+  datos: T
+): void {
+  if (socket?.connected) {
+    socket.emit(evento, datos);
+  }
+}
+
+/**
  * Desconecta del servidor de Socket.io.
  */
 export function desconectarSocket(): void {
