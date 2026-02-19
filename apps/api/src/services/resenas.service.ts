@@ -760,3 +760,107 @@ export async function editarResena(
         return { success: false, message: 'Error al editar reseña', code: 500 };
     }
 }
+
+// =============================================================================
+// OBTENER KPIs DE RESEÑAS (Business Studio)
+// =============================================================================
+
+/**
+ * Obtiene KPIs de reseñas para la página Opiniones de Business Studio.
+ *
+ * Retorna:
+ * - promedio: calificación promedio (ej: 4.5)
+ * - total: cantidad total de reseñas de clientes
+ * - pendientes: reseñas sin respuesta del negocio
+ * - distribucion: cuántas reseñas hay por cada nivel de estrellas (1-5)
+ *
+ * @param negocioId  - UUID del negocio
+ * @param sucursalId - Opcional: filtrar por sucursal (gerentes o dueño filtrando)
+ */
+export async function obtenerKPIsResenas(
+    negocioId: string,
+    sucursalId?: string
+): Promise<RespuestaServicio<{
+    promedio: number;
+    total: number;
+    pendientes: number;
+    distribucion: {
+        estrellas5: number;
+        estrellas4: number;
+        estrellas3: number;
+        estrellas2: number;
+        estrellas1: number;
+    };
+}>> {
+    try {
+        const filtroSucursal = sucursalId
+            ? sql`AND r.sucursal_id = ${sucursalId}`
+            : sql``;
+
+        // ── Query 1: Promedio, total y pendientes ──
+        const statsResult = await db.execute(sql`
+            SELECT
+                COALESCE(ROUND(AVG(r.rating)::numeric, 1), 0) AS promedio,
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE resp.id IS NULL)::int AS pendientes
+            FROM resenas r
+            LEFT JOIN resenas resp
+                ON  resp.autor_tipo       = 'negocio'
+                AND resp.interaccion_tipo = 'scanya'
+                AND resp.interaccion_id   = r.interaccion_id
+                AND resp.destino_id       = r.autor_id
+            WHERE r.destino_tipo = 'negocio'
+              AND r.destino_id   = ${negocioId}
+              AND r.autor_tipo   = 'cliente'
+              ${filtroSucursal}
+        `);
+
+        const stats = statsResult.rows[0] as Record<string, unknown>;
+
+        // ── Query 2: Distribución por estrellas ──
+        const distResult = await db.execute(sql`
+            SELECT
+                r.rating,
+                COUNT(*)::int AS cantidad
+            FROM resenas r
+            WHERE r.destino_tipo = 'negocio'
+              AND r.destino_id   = ${negocioId}
+              AND r.autor_tipo   = 'cliente'
+              AND r.rating IS NOT NULL
+              ${filtroSucursal}
+            GROUP BY r.rating
+            ORDER BY r.rating DESC
+        `);
+
+        // Mapear distribución (inicializar en 0)
+        const distribucion = {
+            estrellas5: 0,
+            estrellas4: 0,
+            estrellas3: 0,
+            estrellas2: 0,
+            estrellas1: 0,
+        };
+
+        for (const row of distResult.rows as Record<string, unknown>[]) {
+            const rating = Number(row.rating);
+            if (rating >= 1 && rating <= 5) {
+                const key = `estrellas${rating}` as keyof typeof distribucion;
+                distribucion[key] = Number(row.cantidad) || 0;
+            }
+        }
+
+        return {
+            success: true,
+            message: 'KPIs obtenidos',
+            data: {
+                promedio: Number(stats.promedio) || 0,
+                total: Number(stats.total) || 0,
+                pendientes: Number(stats.pendientes) || 0,
+                distribucion,
+            },
+        };
+    } catch (error) {
+        console.error('Error en obtenerKPIsResenas:', error);
+        return { success: false, message: 'Error al obtener KPIs de reseñas', code: 500 };
+    }
+}

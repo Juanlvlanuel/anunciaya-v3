@@ -15,6 +15,7 @@ import {
     obtenerResenasNegocio,
     responderResena,
     editarResena,
+    obtenerKPIsResenas,
 } from '../services/resenas.service.js';
 import { crearResenaSchema, responderResenaSchema, editarResenaSchema } from '../validations/resenas.schema.js';
 
@@ -283,5 +284,121 @@ export async function putEditarResena(req: Request, res: Response): Promise<void
     } catch (error) {
         console.error('Error en putEditarResena:', error);
         res.status(500).json({ success: false, message: 'Error al editar reseña' });
+    }
+}
+
+// =============================================================================
+// ██████  BUSINESS STUDIO  ██████
+// =============================================================================
+
+// =============================================================================
+// GET /api/resenas/business-studio (requiere auth normal + negocio)
+// =============================================================================
+
+/**
+ * Lista reseñas del negocio para Business Studio.
+ * Misma lógica que getResenasNegocio (ScanYA) pero con auth normal.
+ *
+ * Query params:
+ * - sucursalId: filtro por sucursal (inyectado por Axios interceptor)
+ * - pendientes: 'true' para solo reseñas sin respuesta
+ */
+export async function getResenasBS(req: Request, res: Response): Promise<void> {
+    try {
+        const negocioId = req.negocioId;
+
+        if (!negocioId) {
+            res.status(401).json({ success: false, message: 'No autenticado' });
+            return;
+        }
+
+        const sucursalId = req.query.sucursalId as string | undefined;
+        const soloPendientes = req.query.pendientes === 'true';
+
+        const resultado = await obtenerResenasNegocio(negocioId, sucursalId, soloPendientes);
+
+        res.status(resultado.code ?? 200).json(resultado);
+    } catch (error) {
+        console.error('Error en getResenasBS:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener reseñas' });
+    }
+}
+
+// =============================================================================
+// GET /api/resenas/business-studio/kpis (requiere auth normal + negocio)
+// =============================================================================
+
+/**
+ * KPIs de reseñas para la página Opiniones de Business Studio.
+ * Retorna: promedio, total, pendientes, distribución por estrellas.
+ *
+ * Query params:
+ * - sucursalId: filtro por sucursal (inyectado por Axios interceptor)
+ */
+export async function getKPIsResenasBS(req: Request, res: Response): Promise<void> {
+    try {
+        const negocioId = req.negocioId;
+
+        if (!negocioId) {
+            res.status(401).json({ success: false, message: 'No autenticado' });
+            return;
+        }
+
+        const sucursalId = req.query.sucursalId as string | undefined;
+
+        const resultado = await obtenerKPIsResenas(negocioId, sucursalId);
+
+        res.status(resultado.code ?? 200).json(resultado);
+    } catch (error) {
+        console.error('Error en getKPIsResenasBS:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener KPIs de reseñas' });
+    }
+}
+
+// =============================================================================
+// POST /api/resenas/business-studio/responder (requiere auth normal + negocio)
+// =============================================================================
+
+/**
+ * Responder reseña desde Business Studio.
+ * Misma lógica que postResponderResena (ScanYA) pero con auth normal.
+ * El dueño/gerente responde con su usuarioId (no empleadoId).
+ *
+ * Body: { resenaId, texto }
+ */
+export async function postResponderResenaBS(req: Request, res: Response): Promise<void> {
+    try {
+        const negocioId = req.negocioId;
+        const usuarioId = req.usuario?.usuarioId;
+
+        if (!negocioId || !usuarioId) {
+            res.status(401).json({ success: false, message: 'No autenticado' });
+            return;
+        }
+
+        // Validar con Zod
+        const validacion = responderResenaSchema.safeParse(req.body);
+
+        if (!validacion.success) {
+            res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errors: formatearErroresZod(validacion.error),
+            });
+            return;
+        }
+
+        // Desde BS siempre es un usuario (dueño/gerente), no un empleado
+        const resultado = await responderResena(
+            negocioId,
+            validacion.data,
+            usuarioId,   // respondidoPorId (usuario)
+            null         // respondidoPorEmpleadoId (no aplica en BS)
+        );
+
+        res.status(resultado.code ?? (resultado.success ? 201 : 400)).json(resultado);
+    } catch (error) {
+        console.error('Error en postResponderResenaBS:', error);
+        res.status(500).json({ success: false, message: 'Error al responder reseña' });
     }
 }
