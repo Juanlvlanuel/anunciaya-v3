@@ -2010,8 +2010,8 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	}).onDelete("set null"),
 	check("chat_conv_modo_p1_check", sql`(participante1_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("chat_conv_modo_p2_check", sql`(participante2_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'dinamica'::character varying, 'empleo'::character varying, 'directo'::character varying])::text[])`),
-	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id`),
+	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'dinamica'::character varying, 'empleo'::character varying, 'directo'::character varying, 'notas'::character varying])::text[])`),
+	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id OR contexto_tipo = 'notas'`),
 ]);
 
 export const chatMensajes = pgTable("chat_mensajes", {

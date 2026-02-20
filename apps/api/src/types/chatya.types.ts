@@ -29,7 +29,8 @@ export type ContextoTipo =
   | 'oferta'
   | 'dinamica'
   | 'empleo'
-  | 'directo';
+  | 'directo'
+  | 'notas';
 
 // =============================================================================
 // INPUTS (lo que recibe el backend)
@@ -245,4 +246,35 @@ export interface BusquedaMensajesInput {
   texto: string;
   limit: number;
   offset: number;
+}
+
+// --- BÚSQUEDA DE PERSONAS Y NEGOCIOS (Sprint 5) ---
+
+export interface BuscarPersonasResponse {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  alias: string | null;
+  avatarUrl: string | null;
+}
+
+export interface BuscarNegociosResponse {
+  /** Visible: nombre del negocio */
+  negocioNombre: string;
+  /** Visible: nombre de sucursal (null si solo tiene 1) */
+  sucursalNombre: string | null;
+  /** Visible: foto de perfil de la sucursal */
+  fotoPerfil: string | null;
+  /** Visible: calificación promedio */
+  calificacionPromedio: number;
+  /** Visible: nombre de la categoría principal */
+  categoria: string | null;
+  /** Visible: distancia en km (null si no hay GPS) */
+  distanciaKm: number | null;
+  /** Técnico: para participante2Id al crear conversación */
+  usuarioId: string;
+  /** Técnico: para participante2SucursalId */
+  sucursalId: string;
+  /** Técnico: para contextoReferenciaId */
+  negocioId: string;
 }

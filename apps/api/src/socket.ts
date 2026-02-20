@@ -93,7 +93,7 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
         db.update(usuarios)
           .set({ ultimaConexion: new Date().toISOString() })
           .where(eq(usuarios.id, usuarioId))
-          .then(() => {})
+          .then(() => { })
           .catch((err) => console.error('Error actualizando última conexión:', err));
 
         socket.broadcast.emit('chatya:estado-usuario', {

@@ -23,6 +23,10 @@
  *
  * RUTAS - LECTURA:
  * PATCH  /api/chatya/conversaciones/:id/leer            - Marcar como leídos
+ *
+ * RUTAS - BÚSQUEDA PERSONAS/NEGOCIOS:
+ * GET    /api/chatya/buscar-personas                     - Buscar usuarios por nombre/alias
+ * GET    /api/chatya/buscar-negocios                     - Buscar negocios por nombre/categoría/descripción
  */
 
 import { Router, type Router as RouterType } from 'express';
@@ -40,19 +44,22 @@ import {
   eliminarMensajeController,
   reenviarMensajeController,
   marcarLeidosController,
-  listarContactosController, 
-  agregarContactoController, 
+  listarContactosController,
+  agregarContactoController,
   eliminarContactoController,
-  listarBloqueadosController, 
-  bloquearUsuarioController, 
+  listarBloqueadosController,
+  bloquearUsuarioController,
   desbloquearUsuarioController,
-  toggleReaccionController, 
+  toggleReaccionController,
   obtenerReaccionesController,
-  fijarMensajeController, 
-  desfijarMensajeController, 
+  fijarMensajeController,
+  desfijarMensajeController,
   listarFijadosController,
   buscarMensajesController,
   contarNoLeidosController,
+  buscarPersonasController,
+  buscarNegociosController,
+  misNotasController,
 } from '../controllers/chatya.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 
@@ -70,6 +77,13 @@ router.use(verificarToken);
 // =============================================================================
 // CONVERSACIONES
 // =============================================================================
+
+// =============================================================================
+// MIS NOTAS
+// =============================================================================
+
+/** GET /api/chatya/mis-notas — Obtener/crear conversación consigo mismo */
+router.get('/mis-notas', misNotasController);
 
 /** GET /api/chatya/conversaciones?modo=personal&limit=20&offset=0 */
 router.get('/conversaciones', listarConversacionesController);
@@ -176,6 +190,16 @@ router.get('/conversaciones/:id/buscar', buscarMensajesController);
 
 /** GET /api/chatya/no-leidos?modo=personal */
 router.get('/no-leidos', contarNoLeidosController);
+
+// =============================================================================
+// BÚSQUEDA DE PERSONAS Y NEGOCIOS (Sprint 5)
+// =============================================================================
+
+/** GET /api/chatya/buscar-personas?q=texto&limit=10 */
+router.get('/buscar-personas', buscarPersonasController);
+
+/** GET /api/chatya/buscar-negocios?q=texto&ciudad=Ciudad de México&lat=19.43&lng=-99.13&limit=10 */
+router.get('/buscar-negocios', buscarNegociosController);
 
 // =============================================================================
 // EXPORTAR ROUTER

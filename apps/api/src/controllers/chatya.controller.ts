@@ -9,32 +9,35 @@
 
 import type { Request, Response } from 'express';
 import {
-    listarConversaciones,
-    obtenerConversacion,
-    crearObtenerConversacion,
-    toggleFijarConversacion,
-    toggleArchivarConversacion,
-    toggleSilenciarConversacion,
-    eliminarConversacion,
-    listarMensajes,
-    enviarMensaje,
-    editarMensaje,
-    eliminarMensaje,
-    reenviarMensaje,
-    marcarMensajesLeidos,
-    listarContactos,
-    agregarContacto,
-    eliminarContacto,
-    listarBloqueados,
-    bloquearUsuario,
-    desbloquearUsuario,
-    toggleReaccion,
-    obtenerReacciones,
-    fijarMensaje,
-    desfijarMensaje,
-    listarMensajesFijados,
-    buscarMensajes,
-    contarTotalNoLeidos,
+  listarConversaciones,
+  obtenerConversacion,
+  crearObtenerConversacion,
+  obtenerOCrearMisNotas,
+  toggleFijarConversacion,
+  toggleArchivarConversacion,
+  toggleSilenciarConversacion,
+  eliminarConversacion,
+  listarMensajes,
+  enviarMensaje,
+  editarMensaje,
+  eliminarMensaje,
+  reenviarMensaje,
+  marcarMensajesLeidos,
+  listarContactos,
+  agregarContacto,
+  eliminarContacto,
+  listarBloqueados,
+  bloquearUsuario,
+  desbloquearUsuario,
+  toggleReaccion,
+  obtenerReacciones,
+  fijarMensaje,
+  desfijarMensaje,
+  listarMensajesFijados,
+  buscarMensajes,
+  contarTotalNoLeidos,
+  buscarPersonas,
+  buscarNegocios,
 } from '../services/chatya.service.js';
 import type { ModoChatYA, ContextoTipo } from '../types/chatya.types.js';
 
@@ -43,15 +46,15 @@ import type { ModoChatYA, ContextoTipo } from '../types/chatya.types.js';
 // =============================================================================
 
 function obtenerUsuarioId(req: Request): string {
-    return req.usuario!.usuarioId;
+  return req.usuario!.usuarioId;
 }
 
 function obtenerModo(req: Request): ModoChatYA {
-    return (req.usuario!.modoActivo as ModoChatYA) || 'personal';
+  return (req.usuario!.modoActivo as ModoChatYA) || 'personal';
 }
 
 function obtenerSucursalId(req: Request): string | null {
-    return req.usuario!.sucursalAsignada || null;
+  return req.usuario!.sucursalAsignada || null;
 }
 
 // =============================================================================
@@ -62,58 +65,59 @@ function obtenerSucursalId(req: Request): string | null {
  * GET /api/chatya/conversaciones?modo=personal&limit=20&offset=0
  */
 export async function listarConversacionesController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const modo = (req.query.modo as ModoChatYA) || obtenerModo(req);
-        const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
-        const offset = parseInt(req.query.offset as string) || 0;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const modo = (req.query.modo as ModoChatYA) || obtenerModo(req);
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+    const offset = parseInt(req.query.offset as string) || 0;
 
-        const resultado = await listarConversaciones(usuarioId, modo, { limit, offset });
+    const archivadas = req.query.archivadas === 'true';
+    const resultado = await listarConversaciones(usuarioId, modo, { limit, offset }, archivadas);
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en listarConversacionesController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en listarConversacionesController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
  * GET /api/chatya/conversaciones/:id
  */
 export async function obtenerConversacionController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const conversacionId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const conversacionId = req.params.id;
 
-        const resultado = await obtenerConversacion(conversacionId, usuarioId);
+    const resultado = await obtenerConversacion(conversacionId, usuarioId);
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en obtenerConversacionController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en obtenerConversacionController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
@@ -121,170 +125,202 @@ export async function obtenerConversacionController(req: Request, res: Response)
  * Body: { participante2Id, participante2Modo?, contextoTipo?, contextoReferenciaId? }
  */
 export async function crearConversacionController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const modo = obtenerModo(req);
-        const sucursalId = obtenerSucursalId(req);
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const modo = obtenerModo(req);
+    const sucursalId = obtenerSucursalId(req);
 
-        const {
-            participante2Id,
-            participante2Modo = 'personal',
-            participante2SucursalId = null,
-            contextoTipo = 'directo',
-            contextoReferenciaId = null,
-        } = req.body;
+    const {
+      participante2Id,
+      participante2Modo = 'personal',
+      participante2SucursalId = null,
+      contextoTipo = 'directo',
+      contextoReferenciaId = null,
+    } = req.body;
 
-        if (!participante2Id) {
-            return res.status(400).json({
-                success: false,
-                message: 'participante2Id es requerido',
-            });
-        }
-
-        if (participante2Id === usuarioId) {
-            return res.status(400).json({
-                success: false,
-                message: 'No puedes chatear contigo mismo',
-            });
-        }
-
-        const resultado = await crearObtenerConversacion({
-            participante2Id,
-            participante1Modo: modo,
-            participante2Modo: participante2Modo as ModoChatYA,
-            participante1SucursalId: sucursalId,
-            participante2SucursalId,
-            contextoTipo: contextoTipo as ContextoTipo,
-            contextoReferenciaId,
-        }, usuarioId);
-
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en crearConversacionController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!participante2Id) {
+      return res.status(400).json({
+        success: false,
+        message: 'participante2Id es requerido',
+      });
     }
+
+    if (participante2Id === usuarioId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes chatear contigo mismo',
+      });
+    }
+
+    const resultado = await crearObtenerConversacion({
+      participante2Id,
+      participante1Modo: modo,
+      participante2Modo: participante2Modo as ModoChatYA,
+      participante1SucursalId: sucursalId,
+      participante2SucursalId,
+      contextoTipo: contextoTipo as ContextoTipo,
+      contextoReferenciaId,
+    }, usuarioId);
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en crearConversacionController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
  * PATCH /api/chatya/conversaciones/:id/fijar
  */
 export async function fijarConversacionController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const conversacionId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const conversacionId = req.params.id;
 
-        const resultado = await toggleFijarConversacion(conversacionId, usuarioId);
+    const resultado = await toggleFijarConversacion(conversacionId, usuarioId);
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en fijarConversacionController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en fijarConversacionController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
  * PATCH /api/chatya/conversaciones/:id/archivar
  */
 export async function archivarConversacionController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const conversacionId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const conversacionId = req.params.id;
 
-        const resultado = await toggleArchivarConversacion(conversacionId, usuarioId);
+    const resultado = await toggleArchivarConversacion(conversacionId, usuarioId);
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en archivarConversacionController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en archivarConversacionController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
  * PATCH /api/chatya/conversaciones/:id/silenciar
  */
 export async function silenciarConversacionController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const conversacionId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const conversacionId = req.params.id;
 
-        const resultado = await toggleSilenciarConversacion(conversacionId, usuarioId);
+    const resultado = await toggleSilenciarConversacion(conversacionId, usuarioId);
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en silenciarConversacionController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en silenciarConversacionController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
  * DELETE /api/chatya/conversaciones/:id
  */
 export async function eliminarConversacionController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const conversacionId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const conversacionId = req.params.id;
 
-        const resultado = await eliminarConversacion(conversacionId, usuarioId);
+    const resultado = await eliminarConversacion(conversacionId, usuarioId);
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-        });
-    } catch (error) {
-        console.error('Error en eliminarConversacionController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+    });
+  } catch (error) {
+    console.error('Error en eliminarConversacionController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+// =============================================================================
+// MIS NOTAS
+// =============================================================================
+
+/**
+ * GET /api/chatya/mis-notas
+ * Obtiene o crea la conversación "Mis Notas" del usuario.
+ */
+export async function misNotasController(req: Request, res: Response) {
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+
+    const resultado = await obtenerOCrearMisNotas(usuarioId);
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en misNotasController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 // =============================================================================
@@ -295,30 +331,30 @@ export async function eliminarConversacionController(req: Request, res: Response
  * GET /api/chatya/conversaciones/:id/mensajes?limit=30&offset=0
  */
 export async function listarMensajesController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const conversacionId = req.params.id;
-        const limit = Math.min(parseInt(req.query.limit as string) || 30, 50);
-        const offset = parseInt(req.query.offset as string) || 0;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const conversacionId = req.params.id;
+    const limit = Math.min(parseInt(req.query.limit as string) || 30, 50);
+    const offset = parseInt(req.query.offset as string) || 0;
 
-        const resultado = await listarMensajes(conversacionId, usuarioId, { limit, offset });
+    const resultado = await listarMensajes(conversacionId, usuarioId, { limit, offset });
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en listarMensajesController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en listarMensajesController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
@@ -326,60 +362,60 @@ export async function listarMensajesController(req: Request, res: Response) {
  * Body: { contenido, tipo?, respuestaAId?, empleadoId? }
  */
 export async function enviarMensajeController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const modo = obtenerModo(req);
-        const sucursalId = obtenerSucursalId(req);
-        const conversacionId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const modo = obtenerModo(req);
+    const sucursalId = obtenerSucursalId(req);
+    const conversacionId = req.params.id;
 
-        const {
-            contenido,
-            tipo = 'texto',
-            respuestaAId = null,
-            empleadoId = null,
-        } = req.body;
+    const {
+      contenido,
+      tipo = 'texto',
+      respuestaAId = null,
+      empleadoId = null,
+    } = req.body;
 
-        if (!contenido || contenido.trim().length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'El contenido del mensaje es requerido',
-            });
-        }
-
-        if (tipo === 'texto' && contenido.length > 5000) {
-            return res.status(400).json({
-                success: false,
-                message: 'El mensaje no puede exceder 5,000 caracteres',
-            });
-        }
-
-        const resultado = await enviarMensaje({
-            conversacionId,
-            emisorId: usuarioId,
-            emisorModo: modo,
-            emisorSucursalId: sucursalId,
-            empleadoId,
-            tipo,
-            contenido: contenido.trim(),
-            respuestaAId,
-        });
-
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(201).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en enviarMensajeController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!contenido || contenido.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'El contenido del mensaje es requerido',
+      });
     }
+
+    if (tipo === 'texto' && contenido.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        message: 'El mensaje no puede exceder 5,000 caracteres',
+      });
+    }
+
+    const resultado = await enviarMensaje({
+      conversacionId,
+      emisorId: usuarioId,
+      emisorModo: modo,
+      emisorSucursalId: sucursalId,
+      empleadoId,
+      tipo,
+      contenido: contenido.trim(),
+      respuestaAId,
+    });
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en enviarMensajeController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
@@ -387,74 +423,74 @@ export async function enviarMensajeController(req: Request, res: Response) {
  * Body: { contenido }
  */
 export async function editarMensajeController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const mensajeId = req.params.id;
-        const { contenido } = req.body;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const mensajeId = req.params.id;
+    const { contenido } = req.body;
 
-        if (!contenido || contenido.trim().length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'El contenido es requerido',
-            });
-        }
-
-        if (contenido.length > 5000) {
-            return res.status(400).json({
-                success: false,
-                message: 'El mensaje no puede exceder 5,000 caracteres',
-            });
-        }
-
-        const resultado = await editarMensaje({
-            mensajeId,
-            emisorId: usuarioId,
-            contenido: contenido.trim(),
-        });
-
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en editarMensajeController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!contenido || contenido.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'El contenido es requerido',
+      });
     }
+
+    if (contenido.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        message: 'El mensaje no puede exceder 5,000 caracteres',
+      });
+    }
+
+    const resultado = await editarMensaje({
+      mensajeId,
+      emisorId: usuarioId,
+      contenido: contenido.trim(),
+    });
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en editarMensajeController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
  * DELETE /api/chatya/mensajes/:id
  */
 export async function eliminarMensajeController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const mensajeId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const mensajeId = req.params.id;
 
-        const resultado = await eliminarMensaje(mensajeId, usuarioId);
+    const resultado = await eliminarMensaje(mensajeId, usuarioId);
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-        });
-    } catch (error) {
-        console.error('Error en eliminarMensajeController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+    });
+  } catch (error) {
+    console.error('Error en eliminarMensajeController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 /**
@@ -462,51 +498,51 @@ export async function eliminarMensajeController(req: Request, res: Response) {
  * Body: { destinatarioId, destinatarioModo?, destinatarioSucursalId? }
  */
 export async function reenviarMensajeController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const modo = obtenerModo(req);
-        const sucursalId = obtenerSucursalId(req);
-        const mensajeOriginalId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const modo = obtenerModo(req);
+    const sucursalId = obtenerSucursalId(req);
+    const mensajeOriginalId = req.params.id;
 
-        const {
-            destinatarioId,
-            destinatarioModo = 'personal',
-            destinatarioSucursalId = null,
-        } = req.body;
+    const {
+      destinatarioId,
+      destinatarioModo = 'personal',
+      destinatarioSucursalId = null,
+    } = req.body;
 
-        if (!destinatarioId) {
-            return res.status(400).json({
-                success: false,
-                message: 'destinatarioId es requerido',
-            });
-        }
-
-        const resultado = await reenviarMensaje({
-            mensajeOriginalId,
-            emisorId: usuarioId,
-            emisorModo: modo,
-            emisorSucursalId: sucursalId,
-            destinatarioId,
-            destinatarioModo: destinatarioModo as ModoChatYA,
-            destinatarioSucursalId,
-        });
-
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(201).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en reenviarMensajeController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!destinatarioId) {
+      return res.status(400).json({
+        success: false,
+        message: 'destinatarioId es requerido',
+      });
     }
+
+    const resultado = await reenviarMensaje({
+      mensajeOriginalId,
+      emisorId: usuarioId,
+      emisorModo: modo,
+      emisorSucursalId: sucursalId,
+      destinatarioId,
+      destinatarioModo: destinatarioModo as ModoChatYA,
+      destinatarioSucursalId,
+    });
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en reenviarMensajeController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 // =============================================================================
@@ -517,27 +553,27 @@ export async function reenviarMensajeController(req: Request, res: Response) {
  * PATCH /api/chatya/conversaciones/:id/leer
  */
 export async function marcarLeidosController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const conversacionId = req.params.id;
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const conversacionId = req.params.id;
 
-        const resultado = await marcarMensajesLeidos(conversacionId, usuarioId);
+    const resultado = await marcarMensajesLeidos(conversacionId, usuarioId);
 
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-        });
-    } catch (error) {
-        console.error('Error en marcarLeidosController:', error);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+    });
+  } catch (error) {
+    console.error('Error en marcarLeidosController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }
 
 // =============================================================================
@@ -865,6 +901,77 @@ export async function contarNoLeidosController(req: Request, res: Response) {
     return res.status(200).json({ success: true, message: resultado.message, data: resultado.data });
   } catch (error) {
     console.error('Error en contarNoLeidosController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+// =============================================================================
+// BÚSQUEDA DE PERSONAS Y NEGOCIOS (Sprint 5)
+// =============================================================================
+
+/**
+ * GET /api/chatya/buscar-personas?q=texto&limit=10
+ */
+export async function buscarPersonasController(req: Request, res: Response) {
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const q = req.query.q as string;
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'El texto de búsqueda debe tener al menos 2 caracteres',
+      });
+    }
+
+    const resultado = await buscarPersonas(q, usuarioId, limit);
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
+    }
+
+    return res.status(200).json({ success: true, message: resultado.message, data: resultado.data });
+  } catch (error) {
+    console.error('Error en buscarPersonasController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+/**
+ * GET /api/chatya/buscar-negocios?q=texto&ciudad=Ciudad de México&lat=19.43&lng=-99.13&limit=10
+ */
+export async function buscarNegociosController(req: Request, res: Response) {
+  try {
+    const q = req.query.q as string;
+    const ciudad = req.query.ciudad as string;
+    const lat = req.query.lat ? parseFloat(req.query.lat as string) : null;
+    const lng = req.query.lng ? parseFloat(req.query.lng as string) : null;
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'El texto de búsqueda debe tener al menos 2 caracteres',
+      });
+    }
+
+    if (!ciudad || ciudad.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'La ciudad es requerida',
+      });
+    }
+
+    const resultado = await buscarNegocios(q, ciudad, lat, lng, limit);
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
+    }
+
+    return res.status(200).json({ success: true, message: resultado.message, data: resultado.data });
+  } catch (error) {
+    console.error('Error en buscarNegociosController:', error);
     return res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 }

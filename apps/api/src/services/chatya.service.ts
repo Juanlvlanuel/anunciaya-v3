@@ -41,6 +41,8 @@ import type {
     ReaccionResponse,
     MensajeFijadoResponse,
     BusquedaMensajesInput,
+    BuscarPersonasResponse,
+    BuscarNegociosResponse,
 } from '../types/chatya.types.js';
 
 
@@ -186,7 +188,8 @@ async function actualizarPreview(
 export async function listarConversaciones(
     usuarioId: string,
     modo: ModoChatYA,
-    paginacion: PaginacionInput
+    paginacion: PaginacionInput,
+    archivadas: boolean = false
 ): Promise<RespuestaServicio<ListaPaginada<ConversacionResponse>>> {
     try {
         // Buscar conversaciones donde el usuario es p1 o p2 en el modo correcto
@@ -198,12 +201,16 @@ export async function listarConversaciones(
                     and(
                         eq(chatConversaciones.participante1Id, usuarioId),
                         eq(chatConversaciones.participante1Modo, modo),
-                        eq(chatConversaciones.eliminadaPorP1, false)
+                        eq(chatConversaciones.eliminadaPorP1, false),
+                        eq(chatConversaciones.archivadaPorP1, archivadas),
+                        ne(chatConversaciones.contextoTipo, 'notas')
                     ),
                     and(
                         eq(chatConversaciones.participante2Id, usuarioId),
                         eq(chatConversaciones.participante2Modo, modo),
-                        eq(chatConversaciones.eliminadaPorP2, false)
+                        eq(chatConversaciones.eliminadaPorP2, false),
+                        eq(chatConversaciones.archivadaPorP2, archivadas),
+                        ne(chatConversaciones.contextoTipo, 'notas')
                     )
                 )
             )
@@ -220,12 +227,16 @@ export async function listarConversaciones(
                     and(
                         eq(chatConversaciones.participante1Id, usuarioId),
                         eq(chatConversaciones.participante1Modo, modo),
-                        eq(chatConversaciones.eliminadaPorP1, false)
+                        eq(chatConversaciones.eliminadaPorP1, false),
+                        eq(chatConversaciones.archivadaPorP1, archivadas),
+                        ne(chatConversaciones.contextoTipo, 'notas')
                     ),
                     and(
                         eq(chatConversaciones.participante2Id, usuarioId),
                         eq(chatConversaciones.participante2Modo, modo),
-                        eq(chatConversaciones.eliminadaPorP2, false)
+                        eq(chatConversaciones.eliminadaPorP2, false),
+                        eq(chatConversaciones.archivadaPorP2, archivadas),
+                        ne(chatConversaciones.contextoTipo, 'notas')
                     )
                 )
             );
@@ -442,6 +453,105 @@ export async function crearObtenerConversacion(
         return { success: false, message: 'Error al crear conversación', code: 500 };
     }
 }
+
+// =============================================================================
+// 3b. OBTENER O CREAR "MIS NOTAS"
+// =============================================================================
+
+/**
+ * Obtiene o crea la conversación "Mis Notas" del usuario.
+ * Es una conversación donde p1 = p2 = usuarioId, con contextoTipo = 'notas'.
+ * Se auto-crea la primera vez que se llama.
+ */
+export async function obtenerOCrearMisNotas(
+    usuarioId: string
+): Promise<RespuestaServicio<ConversacionResponse>> {
+    try {
+        // Buscar si ya existe
+        const [existente] = await db
+            .select()
+            .from(chatConversaciones)
+            .where(
+                and(
+                    eq(chatConversaciones.participante1Id, usuarioId),
+                    eq(chatConversaciones.participante2Id, usuarioId),
+                    eq(chatConversaciones.contextoTipo, 'notas')
+                )
+            )
+            .limit(1);
+
+        if (existente) {
+            // Si estaba eliminada, restaurar
+            if (existente.eliminadaPorP1) {
+                await db
+                    .update(chatConversaciones)
+                    .set({ eliminadaPorP1: false })
+                    .where(eq(chatConversaciones.id, existente.id));
+            }
+
+            return {
+                success: true,
+                message: 'Mis Notas obtenida',
+                data: mapearMisNotas(existente),
+            };
+        }
+
+        // Crear nueva
+        const [nueva] = await db
+            .insert(chatConversaciones)
+            .values({
+                participante1Id: usuarioId,
+                participante1Modo: 'personal',
+                participante1SucursalId: null,
+                participante2Id: usuarioId,
+                participante2Modo: 'personal',
+                participante2SucursalId: null,
+                contextoTipo: 'notas',
+                contextoReferenciaId: null,
+            })
+            .returning();
+
+        return {
+            success: true,
+            message: 'Mis Notas creada',
+            data: mapearMisNotas(nueva),
+        };
+    } catch (error) {
+        console.error('Error en obtenerOCrearMisNotas:', error);
+        return { success: false, message: 'Error al obtener Mis Notas', code: 500 };
+    }
+}
+
+/**
+ * Helper: Mapea la conversación de "Mis Notas" al response.
+ * No tiene "otro participante" porque es consigo mismo.
+ */
+function mapearMisNotas(
+    conv: typeof chatConversaciones.$inferSelect,
+): ConversacionResponse {
+    return {
+        id: conv.id,
+        participante1Id: conv.participante1Id,
+        participante1Modo: conv.participante1Modo as ModoChatYA,
+        participante1SucursalId: conv.participante1SucursalId,
+        participante2Id: conv.participante2Id,
+        participante2Modo: conv.participante2Modo as ModoChatYA,
+        participante2SucursalId: conv.participante2SucursalId,
+        contextoTipo: conv.contextoTipo as ContextoTipo,
+        contextoReferenciaId: conv.contextoReferenciaId,
+        ultimoMensajeTexto: conv.ultimoMensajeTexto,
+        ultimoMensajeFecha: conv.ultimoMensajeFecha,
+        ultimoMensajeTipo: conv.ultimoMensajeTipo as TipoMensaje | null,
+        noLeidos: 0,
+        fijada: conv.fijadaPorP1,
+        archivada: conv.archivadaPorP1,
+        silenciada: conv.silenciadaPorP1,
+        createdAt: conv.createdAt ?? '',
+        updatedAt: conv.updatedAt ?? '',
+        otroParticipante: undefined,
+    };
+}
+
 
 // =============================================================================
 // 4-6. TOGGLES: FIJAR, ARCHIVAR, SILENCIAR
@@ -661,6 +771,39 @@ export async function listarMensajes(
             leidoAt: msg.leidoAt,
         }));
 
+        // ── Poblar respuestaA para mensajes que son respuestas ──
+        const idsRespuesta = items
+            .filter((m) => m.respuestaAId)
+            .map((m) => m.respuestaAId!);
+
+        if (idsRespuesta.length > 0) {
+            const mensajesOriginales = await db
+                .select({
+                    id: chatMensajes.id,
+                    contenido: chatMensajes.contenido,
+                    tipo: chatMensajes.tipo,
+                    emisorId: chatMensajes.emisorId,
+                })
+                .from(chatMensajes)
+                .where(sql`${chatMensajes.id} IN ${idsRespuesta}`);
+
+            const mapaOriginales = new Map(
+                mensajesOriginales.map((m) => [m.id, m])
+            );
+
+            for (const item of items) {
+                if (item.respuestaAId && mapaOriginales.has(item.respuestaAId)) {
+                    const orig = mapaOriginales.get(item.respuestaAId)!;
+                    item.respuestaA = {
+                        id: orig.id,
+                        contenido: orig.contenido,
+                        tipo: orig.tipo as TipoMensaje,
+                        emisorId: orig.emisorId,
+                    };
+                }
+            }
+        }
+
         return {
             success: true,
             message: 'Mensajes obtenidos',
@@ -724,14 +867,31 @@ export async function enviarMensaje(
             })
             .returning();
 
-        // Actualizar preview de la conversación (incrementar no leídos del OTRO)
-        const incrementarDe = pos === 'p1' ? 'p2' : 'p1';
-        await actualizarPreview(
-            input.conversacionId,
-            input.contenido,
-            input.tipo,
-            incrementarDe as 'p1' | 'p2'
-        );
+        // Actualizar preview de la conversación
+        // En "Mis Notas" (p1 = p2) NO incrementar no leídos
+        const esMisNotas = conv.contextoTipo === 'notas';
+        if (esMisNotas) {
+            // Solo actualizar preview sin incrementar contador
+            await db
+                .update(chatConversaciones)
+                .set({
+                    ultimoMensajeTexto: input.tipo === 'texto'
+                        ? input.contenido.substring(0, 100)
+                        : `[${input.tipo}]`,
+                    ultimoMensajeFecha: new Date().toISOString(),
+                    ultimoMensajeTipo: input.tipo,
+                    updatedAt: new Date().toISOString(),
+                })
+                .where(eq(chatConversaciones.id, input.conversacionId));
+        } else {
+            const incrementarDe = pos === 'p1' ? 'p2' : 'p1';
+            await actualizarPreview(
+                input.conversacionId,
+                input.contenido,
+                input.tipo,
+                incrementarDe as 'p1' | 'p2'
+            );
+        }
 
         // Si el otro participante había eliminado la conversación, restaurarla
         if (pos === 'p1' && conv.eliminadaPorP2) {
@@ -767,17 +927,47 @@ export async function enviarMensaje(
             leidoAt: mensaje.leidoAt,
         };
 
-        // Emitir por Socket.io al OTRO participante (todos sus dispositivos)
-        emitirAUsuario(otroId, 'chatya:mensaje-nuevo', {
-            conversacionId: input.conversacionId,
-            mensaje: mensajeResponse,
-        });
+        // ── Poblar respuestaA si es una respuesta ──
+        if (mensaje.respuestaAId) {
+            const [msgOriginal] = await db
+                .select({
+                    id: chatMensajes.id,
+                    contenido: chatMensajes.contenido,
+                    tipo: chatMensajes.tipo,
+                    emisorId: chatMensajes.emisorId,
+                })
+                .from(chatMensajes)
+                .where(eq(chatMensajes.id, mensaje.respuestaAId))
+                .limit(1);
 
-        // También emitir al emisor (para sincronizar sus otros dispositivos)
-        emitirAUsuario(input.emisorId, 'chatya:mensaje-nuevo', {
-            conversacionId: input.conversacionId,
-            mensaje: mensajeResponse,
-        });
+            if (msgOriginal) {
+                mensajeResponse.respuestaA = {
+                    id: msgOriginal.id,
+                    contenido: msgOriginal.contenido,
+                    tipo: msgOriginal.tipo as TipoMensaje,
+                    emisorId: msgOriginal.emisorId,
+                };
+            }
+        }
+
+        // Emitir por Socket.io
+        if (esMisNotas) {
+            // Mis Notas: emitir solo una vez al emisor (evitar duplicados)
+            emitirAUsuario(input.emisorId, 'chatya:mensaje-nuevo', {
+                conversacionId: input.conversacionId,
+                mensaje: mensajeResponse,
+            });
+        } else {
+            // Chat normal: emitir al otro + al emisor (multi-dispositivo)
+            emitirAUsuario(otroId, 'chatya:mensaje-nuevo', {
+                conversacionId: input.conversacionId,
+                mensaje: mensajeResponse,
+            });
+            emitirAUsuario(input.emisorId, 'chatya:mensaje-nuevo', {
+                conversacionId: input.conversacionId,
+                mensaje: mensajeResponse,
+            });
+        }
 
         return {
             success: true,
@@ -1714,20 +1904,20 @@ export async function buscarMensajes(
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
 
-        // Búsqueda full-text en español
-        const tsQuery = input.texto.trim().split(/\s+/).join(' & ');
+        // Búsqueda por coincidencia parcial (ILIKE) — más intuitiva para chat
+        const patron = `%${input.texto.trim()}%`;
+
+        const filtrosBusqueda = and(
+            eq(chatMensajes.conversacionId, input.conversacionId),
+            eq(chatMensajes.tipo, 'texto'),
+            eq(chatMensajes.eliminado, false),
+            sql`${chatMensajes.contenido} ILIKE ${patron}`
+        );
 
         const mensajes = await db
             .select()
             .from(chatMensajes)
-            .where(
-                and(
-                    eq(chatMensajes.conversacionId, input.conversacionId),
-                    eq(chatMensajes.tipo, 'texto'),
-                    eq(chatMensajes.eliminado, false),
-                    sql`to_tsvector('spanish', ${chatMensajes.contenido}) @@ to_tsquery('spanish', ${tsQuery})`
-                )
-            )
+            .where(filtrosBusqueda)
             .orderBy(desc(chatMensajes.createdAt))
             .limit(input.limit)
             .offset(input.offset);
@@ -1735,14 +1925,7 @@ export async function buscarMensajes(
         const [countResult] = await db
             .select({ count: sql<number>`count(*)::int` })
             .from(chatMensajes)
-            .where(
-                and(
-                    eq(chatMensajes.conversacionId, input.conversacionId),
-                    eq(chatMensajes.tipo, 'texto'),
-                    eq(chatMensajes.eliminado, false),
-                    sql`to_tsvector('spanish', ${chatMensajes.contenido}) @@ to_tsquery('spanish', ${tsQuery})`
-                )
-            );
+            .where(filtrosBusqueda);
 
         const items: MensajeResponse[] = mensajes.map((msg) => ({
             id: msg.id,
@@ -1819,5 +2002,190 @@ export async function contarTotalNoLeidos(
     } catch (error) {
         console.error('Error en contarTotalNoLeidos:', error);
         return { success: false, message: 'Error al contar no leídos', code: 500 };
+    }
+}
+
+// =============================================================================
+// 27. BUSCAR PERSONAS (para iniciar chat nuevo)
+// =============================================================================
+
+/**
+ * Busca usuarios por nombre, apellidos o alias.
+ * Excluye: al usuario que busca, bloqueados bidireccionales, inactivos/suspendidos.
+ * Ordena: alfabéticamente por nombre.
+ */
+export async function buscarPersonas(
+    texto: string,
+    usuarioId: string,
+    limit: number = 10
+): Promise<RespuestaServicio<BuscarPersonasResponse[]>> {
+    try {
+        const termino = `%${texto.trim()}%`;
+
+        const resultado = await db.execute(sql`
+            SELECT
+                u.id,
+                u.nombre,
+                u.apellidos,
+                u.alias,
+                u.avatar_url
+            FROM usuarios u
+            WHERE u.estado = 'activo'
+              AND u.id != ${usuarioId}
+              AND (
+                  u.nombre ILIKE ${termino}
+                  OR u.apellidos ILIKE ${termino}
+                  OR u.alias ILIKE ${termino}
+              )
+              -- Excluir bloqueados (en cualquier dirección)
+              AND NOT EXISTS (
+                  SELECT 1 FROM chat_bloqueados cb
+                  WHERE (cb.usuario_id = ${usuarioId} AND cb.bloqueado_id = u.id)
+                     OR (cb.usuario_id = u.id AND cb.bloqueado_id = ${usuarioId})
+              )
+            ORDER BY u.nombre ASC, u.apellidos ASC
+            LIMIT ${limit}
+        `);
+
+        const items = (resultado.rows as unknown as Array<{
+            id: string;
+            nombre: string;
+            apellidos: string;
+            alias: string | null;
+            avatar_url: string | null;
+        }>).map((row) => ({
+            id: row.id,
+            nombre: row.nombre,
+            apellidos: row.apellidos,
+            alias: row.alias,
+            avatarUrl: row.avatar_url,
+        }));
+
+        return { success: true, message: `${items.length} personas encontradas`, data: items };
+    } catch (error) {
+        console.error('Error en buscarPersonas:', error);
+        return { success: false, message: 'Error al buscar personas', code: 500 };
+    }
+}
+
+// =============================================================================
+// 28. BUSCAR NEGOCIOS/SUCURSALES (para iniciar chat nuevo)
+// =============================================================================
+
+/**
+ * Busca negocios por nombre, descripción, categoría o subcategoría.
+ * Filtra por ciudad. Calcula distancia con PostGIS si hay coordenadas.
+ * Ordena por distancia (cerca → lejos) si hay GPS, sino alfabético.
+ *
+ * Si el negocio solo tiene 1 sucursal, sucursalNombre = null.
+ * Si tiene múltiples, muestra el nombre de cada sucursal.
+ */
+export async function buscarNegocios(
+    texto: string,
+    ciudad: string,
+    latitud: number | null,
+    longitud: number | null,
+    limit: number = 10
+): Promise<RespuestaServicio<BuscarNegociosResponse[]>> {
+    try {
+        const termino = `%${texto.trim()}%`;
+
+        const resultado = await db.execute(sql`
+            SELECT
+                n.id AS negocio_id,
+                n.nombre AS negocio_nombre,
+                n.usuario_id,
+                s.id AS sucursal_id,
+                s.nombre AS sucursal_nombre,
+                s.foto_perfil,
+                COALESCE(s.calificacion_promedio, 0)::float AS calificacion_promedio,
+
+                -- Contar sucursales del negocio para saber si mostrar nombre
+                (
+                    SELECT COUNT(*)::int
+                    FROM negocio_sucursales sub
+                    WHERE sub.negocio_id = n.id AND sub.activa = true
+                ) AS total_sucursales,
+
+                -- Categoría principal (primera asignada)
+                (
+                    SELECT c.nombre
+                    FROM asignacion_subcategorias asig
+                    JOIN subcategorias_negocio sc ON sc.id = asig.subcategoria_id
+                    JOIN categorias_negocio c ON c.id = sc.categoria_id
+                    WHERE asig.negocio_id = n.id
+                    LIMIT 1
+                ) AS categoria,
+
+                -- Distancia en km (null si no hay GPS)
+                ${latitud && longitud
+                ? sql`
+                    ST_Distance(
+                        s.ubicacion::geography,
+                        ST_SetSRID(ST_MakePoint(${longitud}, ${latitud}), 4326)::geography
+                    ) / 1000 AS distancia_km
+                `
+                : sql`NULL AS distancia_km`
+            }
+
+            FROM negocios n
+            JOIN negocio_sucursales s ON s.negocio_id = n.id
+
+            -- Join para buscar también por categoría/subcategoría
+            LEFT JOIN asignacion_subcategorias asig ON asig.negocio_id = n.id
+            LEFT JOIN subcategorias_negocio sc ON sc.id = asig.subcategoria_id
+            LEFT JOIN categorias_negocio c ON c.id = sc.categoria_id
+
+            WHERE n.activo = true
+              AND n.onboarding_completado = true
+              AND s.activa = true
+              AND s.ubicacion IS NOT NULL
+              AND s.ciudad ILIKE ${ciudad}
+              AND (
+                  n.nombre ILIKE ${termino}
+                  OR n.descripcion ILIKE ${termino}
+                  OR c.nombre ILIKE ${termino}
+                  OR sc.nombre ILIKE ${termino}
+              )
+
+            -- Evitar duplicados por múltiples categorías/subcategorías
+            GROUP BY n.id, n.nombre, n.usuario_id, s.id, s.nombre, s.foto_perfil, s.calificacion_promedio, s.ubicacion
+
+            ORDER BY
+                ${latitud && longitud
+                ? sql`distancia_km ASC NULLS LAST`
+                : sql`n.nombre ASC`
+            }
+
+            LIMIT ${limit}
+        `);
+
+        const items = (resultado.rows as unknown as Array<{
+            negocio_id: string;
+            negocio_nombre: string;
+            usuario_id: string;
+            sucursal_id: string;
+            sucursal_nombre: string;
+            foto_perfil: string | null;
+            calificacion_promedio: number;
+            total_sucursales: number;
+            categoria: string | null;
+            distancia_km: number | null;
+        }>).map((row) => ({
+            negocioNombre: row.negocio_nombre,
+            sucursalNombre: row.total_sucursales > 1 ? row.sucursal_nombre : null,
+            fotoPerfil: row.foto_perfil,
+            calificacionPromedio: Number(row.calificacion_promedio) || 0,
+            categoria: row.categoria,
+            distanciaKm: row.distancia_km ? Math.round(row.distancia_km * 10) / 10 : null,
+            usuarioId: row.usuario_id,
+            sucursalId: row.sucursal_id,
+            negocioId: row.negocio_id,
+        }));
+
+        return { success: true, message: `${items.length} negocios encontrados`, data: items };
+    } catch (error) {
+        console.error('Error en buscarNegocios:', error);
+        return { success: false, message: 'Error al buscar negocios', code: 500 };
     }
 }
