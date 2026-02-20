@@ -301,6 +301,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
     registrarListenerNotificaciones();
 
+    // Cargar badge de ChatYA (mensajes no leídos)
+    const chatYAModule = await import('./useChatYAStore');
+    const { cargarNoLeidos: cargarNoLeidosChat } = chatYAModule.useChatYAStore.getState();
+    cargarNoLeidosChat(usuario.modoActivo as 'personal' | 'comercial');
+
     // ========================================================================
     // CARGAR TOTAL DE SUCURSALES EN BACKGROUND (modo comercial)
     // ========================================================================
@@ -637,6 +642,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         cargarNotificaciones(usuarioHidratado.modoActivo);
         const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
         registrarListenerNotificaciones();
+
+        // Cargar badge de ChatYA (mensajes no leídos)
+        const chatYAMod = await import('./useChatYAStore');
+        const { cargarNoLeidos: cargarNoLeidosChat } = chatYAMod.useChatYAStore.getState();
+        cargarNoLeidosChat(usuarioHidratado.modoActivo as 'personal' | 'comercial');
 
         // Cargar total de sucursales (modo comercial)
         if (usuarioHidratado.modoActivo === 'comercial' && usuarioHidratado.negocioId) {

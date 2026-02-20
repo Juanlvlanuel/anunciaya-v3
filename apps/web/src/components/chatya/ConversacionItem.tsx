@@ -87,16 +87,16 @@ export function ConversacionItem({ conversacion, activa, onClick }: Conversacion
     <button
       onClick={onClick}
       className={`
-        w-full flex items-center gap-2 px-2 py-2 mx-0.5 text-left
+        w-full flex items-center gap-3 lg:gap-2.5 px-3 lg:px-2.5 py-3 lg:py-2.5 mx-0.5 text-left cursor-pointer
         rounded-r-lg border-l-[3px] transition-colors duration-75
         ${activa
-          ? 'bg-blue-50/80 border-l-blue-500'
+          ? 'bg-blue-100/80 border-l-blue-500'
           : 'border-l-transparent hover:bg-gray-100/70'
         }
       `}
     >
       {/* Avatar */}
-      <div className="w-9 h-9 rounded-full shrink-0 relative">
+      <div className="w-12 lg:w-10 h-12 lg:h-10 rounded-full shrink-0 relative">
         {avatarUrl ? (
           <img
             src={avatarUrl}
@@ -105,7 +105,7 @@ export function ConversacionItem({ conversacion, activa, onClick }: Conversacion
           />
         ) : (
           <div className="w-full h-full rounded-full bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-            <span className="text-white text-[11px] font-bold">{iniciales}</span>
+            <span className="text-white text-sm lg:text-xs font-bold">{iniciales}</span>
           </div>
         )}
       </div>
@@ -113,28 +113,28 @@ export function ConversacionItem({ conversacion, activa, onClick }: Conversacion
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
-          <p className={`text-[11.5px] truncate leading-tight ${tieneNoLeidos ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>
+          <p className={`text-[15px] lg:text-[13px] truncate leading-tight ${tieneNoLeidos ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>
             {nombre}
           </p>
-          <span className="text-[9px] text-gray-400 font-medium shrink-0">
+          <span className="text-xs lg:text-[11px] text-gray-500 font-medium shrink-0">
             {tiempo}
           </span>
         </div>
         <div className="flex items-center justify-between gap-1 mt-0.5">
-          <p className={`text-[10px] truncate ${tieneNoLeidos ? 'text-gray-600 font-medium' : 'text-gray-400'}`}>
+          <p className={`text-[13px] lg:text-xs truncate ${tieneNoLeidos ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
             {conversacion.ultimoMensajeTexto || 'Sin mensajes aún'}
           </p>
           <div className="flex items-center gap-1 shrink-0">
             {/* Íconos de estado */}
             {conversacion.silenciada && (
-              <VolumeX className="w-3 h-3 text-gray-300" />
+              <VolumeX className="w-3.5 h-3.5 text-gray-400" />
             )}
             {conversacion.fijada && (
-              <Pin className="w-3 h-3 text-gray-300 rotate-45" />
+              <Pin className="w-3.5 h-3.5 text-gray-400 rotate-45" />
             )}
             {/* Badge no leídos */}
             {tieneNoLeidos && (
-              <span className="min-w-4 h-4 px-1 bg-red-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center">
+              <span className="min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center">
                 {conversacion.noLeidos > 9 ? '9+' : conversacion.noLeidos}
               </span>
             )}

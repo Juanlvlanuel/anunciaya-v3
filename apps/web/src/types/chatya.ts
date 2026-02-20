@@ -44,7 +44,8 @@ export type ContextoTipo =
   | 'oferta'
   | 'dinamica'
   | 'empleo'
-  | 'directo';
+  | 'directo'
+  | 'notas';
 
 // =============================================================================
 // PAGINACIÓN
@@ -388,6 +389,34 @@ export interface MensajeOffline {
 }
 
 // =============================================================================
+// BÚSQUEDA DE PERSONAS Y NEGOCIOS (Sprint 5)
+// =============================================================================
+
+/** Resultado de buscar personas por nombre/alias */
+export interface PersonaBusqueda {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  alias: string | null;
+  avatarUrl: string | null;
+}
+
+/** Resultado de buscar negocios/sucursales */
+export interface NegocioBusqueda {
+  /** Visible */
+  negocioNombre: string;
+  sucursalNombre: string | null;
+  fotoPerfil: string | null;
+  calificacionPromedio: number;
+  categoria: string | null;
+  distanciaKm: number | null;
+  /** Técnicos (para crear conversación) */
+  usuarioId: string;
+  sucursalId: string;
+  negocioId: string;
+}
+
+// =============================================================================
 // ESTADOS DE UI
 // =============================================================================
 
@@ -395,6 +424,7 @@ export interface MensajeOffline {
 export type VistaChatYA =
   | 'lista'             // Lista de conversaciones
   | 'chat'              // Ventana de chat activa
+  | 'buscar-nuevo'      // Buscar personas/negocios para iniciar chat (Sprint 5)
   | 'contactos'         // Lista de contactos (Sprint 5)
   | 'bloqueados'        // Lista de bloqueados (Sprint 5)
   | 'archivados'        // Conversaciones archivadas (Sprint 5)

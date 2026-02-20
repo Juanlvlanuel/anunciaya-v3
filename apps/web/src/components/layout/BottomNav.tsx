@@ -25,6 +25,7 @@ import { NavLink } from 'react-router-dom';
 import { Store, ShoppingCart, Tag, Gift, BarChart3 } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useHideOnScroll } from '../../hooks/useHideOnScroll';
 
 // =============================================================================
@@ -100,10 +101,8 @@ export function BottomNav() {
   // Auto-hide al hacer scroll down (solo móvil)
   const { hideStyle } = useHideOnScroll({ direction: 'down' });
 
-  // ---------------------------------------------------------------------------
-  // Datos de ejemplo (TODO: traer del store real)
-  // ---------------------------------------------------------------------------
-  const mensajesCount = 3;
+  // ChatYA Store - badge real
+  const mensajesCount = useChatYAStore((s) => s.totalNoLeidos);
 
   // ---------------------------------------------------------------------------
   // Render

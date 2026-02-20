@@ -6,7 +6,7 @@
  * UBICACIÓN: apps/web/src/services/chatyaService.ts
  *
  * PROPÓSITO:
- * 26 funciones HTTP alineadas 1:1 con los 26 endpoints del backend.
+ * 28 funciones HTTP alineadas 1:1 con los 28 endpoints del backend.
  * Cubre todos los sprints del módulo ChatYA:
  *   - Conversaciones: listar, obtener, crear, fijar, archivar, silenciar, eliminar, leer
  *   - Mensajes: listar, enviar, editar, eliminar, reenviar
@@ -16,6 +16,7 @@
  *   - Mensajes fijados: listar, fijar, desfijar
  *   - Búsqueda: full-text dentro de conversación
  *   - Badge: total no leídos
+ *   - Búsqueda personas y negocios: para iniciar chat nuevo (Sprint 5)
  *
  * AUTENTICACIÓN:
  *   - Todas las rutas requieren usuario autenticado
@@ -45,6 +46,8 @@ import type {
   BloquearUsuarioInput,
   ReaccionAgrupada,
   MensajeFijado,
+  PersonaBusqueda,
+  NegocioBusqueda,
 } from '../types/chatya';
 
 // =============================================================================
@@ -66,12 +69,14 @@ import type {
 export async function getConversaciones(
   modo: ModoChatYA = 'personal',
   limit = 20,
-  offset = 0
+  offset = 0,
+  archivadas = false
 ) {
   const params = new URLSearchParams();
   params.append('modo', modo);
   params.append('limit', limit.toString());
   params.append('offset', offset.toString());
+  if (archivadas) params.append('archivadas', 'true');
 
   return get<ListaPaginada<Conversacion>>(`/chatya/conversaciones?${params}`);
 }
@@ -472,4 +477,70 @@ export async function buscarMensajes(
  */
 export async function getNoLeidos(modo: ModoChatYA = 'personal') {
   return get<{ total: number }>(`/chatya/no-leidos?modo=${modo}`);
+}
+
+// =============================================================================
+// BÚSQUEDA DE PERSONAS Y NEGOCIOS (Endpoints 27-28)
+// =============================================================================
+
+/**
+ * 27. Buscar personas por nombre, apellidos o alias.
+ * GET /api/chatya/buscar-personas?q=texto&limit=10
+ *
+ * Excluye al usuario actual, bloqueados e inactivos.
+ *
+ * @param q - Texto de búsqueda (mínimo 2 caracteres)
+ * @param limit - Máximo de resultados (default 10)
+ */
+export async function buscarPersonas(q: string, limit = 10) {
+  const params = new URLSearchParams();
+  params.append('q', q);
+  params.append('limit', limit.toString());
+
+  return get<PersonaBusqueda[]>(`/chatya/buscar-personas?${params}`);
+}
+
+/**
+ * 28. Buscar negocios/sucursales por nombre, descripción, categoría o subcategoría.
+ * GET /api/chatya/buscar-negocios?q=texto&ciudad=...&lat=...&lng=...&limit=10
+ *
+ * Filtra por ciudad. Calcula distancia con PostGIS si hay coordenadas.
+ * Ordena por cercanía si hay GPS, sino alfabético.
+ *
+ * @param q - Texto de búsqueda (mínimo 2 caracteres)
+ * @param ciudad - Ciudad para filtrar resultados
+ * @param lat - Latitud del usuario (opcional, para calcular distancia)
+ * @param lng - Longitud del usuario (opcional, para calcular distancia)
+ * @param limit - Máximo de resultados (default 10)
+ */
+export async function buscarNegocios(
+  q: string,
+  ciudad: string,
+  lat?: number | null,
+  lng?: number | null,
+  limit = 10
+) {
+  const params = new URLSearchParams();
+  params.append('q', q);
+  params.append('ciudad', ciudad);
+  if (lat != null) params.append('lat', lat.toString());
+  if (lng != null) params.append('lng', lng.toString());
+  params.append('limit', limit.toString());
+
+  return get<NegocioBusqueda[]>(`/chatya/buscar-negocios?${params}`);
+}
+
+// =============================================================================
+// MIS NOTAS (Endpoint 29)
+// =============================================================================
+
+/**
+ * 29. Obtener o crear la conversación "Mis Notas".
+ * GET /api/chatya/mis-notas
+ *
+ * Auto-crea la conversación la primera vez que se llama.
+ * Retorna la conversación donde p1 = p2 = usuario actual.
+ */
+export async function getMisNotas() {
+  return get<Conversacion>('/chatya/mis-notas');
 }

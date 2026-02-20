@@ -21,7 +21,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Minus, ChevronLeft } from 'lucide-react';
+import { X, Minus, ChevronLeft, StickyNote } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -57,6 +57,8 @@ export function ChatOverlay() {
   const volverALista = useChatYAStore((s) => s.volverALista);
   const totalNoLeidos = useChatYAStore((s) => s.totalNoLeidos);
   const inicializar = useChatYAStore((s) => s.inicializar);
+  const misNotasId = useChatYAStore((s) => s.misNotasId);
+  const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
 
   const modoActivo = useAuthStore((s) => s.usuario?.modoActivo) || 'personal';
 
@@ -85,7 +87,46 @@ export function ChatOverlay() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Effect: Inicializar store al abrir ChatYA
+  // Effect: Limpiar conversación activa al cerrar/minimizar ChatYA
+  // SIN ESTO: el store mantiene conversacionActivaId con el último chat abierto,
+  // y el listener de chatya:mensaje-nuevo asume que el usuario está viendo esa
+  // conversación → marca como leído en vez de incrementar el badge.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!chatYAAbierto || chatYAMinimizado) {
+      if (conversacionActivaId) {
+        volverALista();
+      }
+    }
+  }, [chatYAAbierto, chatYAMinimizado, conversacionActivaId, volverALista]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Limpiar conversación activa al cambiar de modo (Personal ↔ Comercial)
+  // SIN ESTO: si el usuario cambia de modo con una conversación abierta, los
+  // listeners siguen procesando eventos de esa conversación del modo anterior.
+  // ---------------------------------------------------------------------------
+  const modoAnteriorRef = useRef(modoActivo);
+  useEffect(() => {
+    if (modoAnteriorRef.current !== modoActivo) {
+      modoAnteriorRef.current = modoActivo;
+      if (conversacionActivaId) {
+        volverALista();
+      }
+    }
+  }, [modoActivo, conversacionActivaId, volverALista]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Cargar badge de no leídos al montar (sin esperar a abrir el chat)
+  // Así el badge del Navbar/BottomNav muestra el contador real desde el inicio
+  // ---------------------------------------------------------------------------
+  const cargarNoLeidos = useChatYAStore((s) => s.cargarNoLeidos);
+
+  useEffect(() => {
+    cargarNoLeidos(modoActivo as 'personal' | 'comercial');
+  }, [modoActivo, cargarNoLeidos]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Inicializar store completo al abrir ChatYA
   // Carga conversaciones + badge en paralelo
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -248,7 +289,7 @@ export function ChatOverlay() {
         className={`
           fixed z-70 bg-white overflow-hidden flex
           ${esDesktop
-            ? `right-3 top-[66px] bottom-3 w-[700px] 2xl:w-[850px] rounded-2xl shadow-[0_8px_48px_rgba(15,29,58,0.22),0_0_0_1px_rgba(15,29,58,0.06)] flex-row`
+            ? `right-3 top-[66px] bottom-3 w-[750px] 2xl:w-[900px] rounded-2xl shadow-[0_8px_48px_rgba(15,29,58,0.28),0_0_0_1.5px_rgba(15,29,58,0.12)] flex-row`
             : `bottom-0 left-0 right-0 h-[90vh] rounded-t-[22px] shadow-[0_-10px_50px_rgba(15,29,58,0.25)] flex-col`
           }
         `}
@@ -256,53 +297,70 @@ export function ChatOverlay() {
         {/* ═══ MÓVIL: Handle + Header ═══ */}
         {!esDesktop && (
           <>
-            {/* Handle de arrastre */}
-            <div
-              ref={handleRef}
-              className="flex items-center justify-center py-2 shrink-0 cursor-grab active:cursor-grabbing"
-            >
-              <div className="w-10 h-1 bg-gray-300 rounded-full" />
-            </div>
+            {/* Zona oscura unificada: Handle + Header + Modo */}
+            <div className="shrink-0 bg-linear-to-br from-[#0a1628] via-[#0f1d3a] to-[#1a3058] rounded-t-[22px]">
+              {/* Handle de arrastre */}
+              <div
+                ref={handleRef}
+                className="flex items-center justify-center py-1 cursor-grab active:cursor-grabbing"
+              >
+                <div className="w-10 h-1 bg-white/25 rounded-full" />
+              </div>
 
-            {/* Header móvil */}
-            <div className="flex items-center justify-between px-4 pb-2 shrink-0">
-              <div className="flex items-center gap-2">
-                {/* Botón atrás cuando está en chat */}
-                {enChat && (
+              {/* Header móvil */}
+              <div className="flex items-center justify-between px-4">
+                <div className="flex items-center gap-2">
+                  {/* Botón atrás cuando está en chat */}
+                  {enChat && (
+                    <button
+                      onClick={handleAtras}
+                      className="p-1.5 -ml-1.5 hover:bg-white/10 rounded-lg cursor-pointer"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-white/70" />
+                    </button>
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <img
+                      src="/ChatYA.webp"
+                      alt="ChatYA"
+                      className="h-10 w-auto object-contain"
+                    />
+                    {totalNoLeidos > 0 && (
+                      <span className="min-w-5 h-5 px-1.5 bg-amber-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                        {totalNoLeidos > 99 ? '99+' : totalNoLeidos}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={cerrarChatYA}
+                  className="p-1.5 hover:bg-white/10 rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5 text-white/70" />
+                </button>
+              </div>
+
+              {/* Indicador de modo + Mis Notas */}
+              <div className="flex items-center justify-between px-4 pb-1">
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${modoActivo === 'comercial' ? 'bg-amber-500' : 'bg-blue-400'}`} />
+                  <span className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                    Modo {modoActivo === 'comercial' ? 'Comercial' : 'Personal'}
+                  </span>
+                </div>
+                {misNotasId && (
                   <button
-                    onClick={handleAtras}
-                    className="p-1.5 -ml-1.5 hover:bg-gray-100 rounded-lg"
+                    onClick={() => abrirConversacion(misNotasId)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer ${conversacionActivaId === misNotasId
+                        ? 'bg-white/15 text-white'
+                        : 'hover:bg-white/10 text-white/60 hover:text-white'
+                      }`}
                   >
-                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                    <StickyNote className="w-5 h-5" />
+                    Mis Notas
                   </button>
                 )}
-                <div className="flex items-center gap-1.5">
-                  <img
-                    src="/ChatYA.webp"
-                    alt="ChatYA"
-                    className="h-8 w-auto object-contain"
-                  />
-                  {totalNoLeidos > 0 && (
-                    <span className="min-w-5 h-5 px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center shadow-sm">
-                      {totalNoLeidos > 99 ? '99+' : totalNoLeidos}
-                    </span>
-                  )}
-                </div>
               </div>
-              <button
-                onClick={cerrarChatYA}
-                className="p-1.5 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            {/* Indicador de modo */}
-            <div className="flex items-center gap-1.5 px-4 pb-2 shrink-0">
-              <div className={`w-1.5 h-1.5 rounded-full ${modoActivo === 'comercial' ? 'bg-amber-500' : 'bg-blue-500'}`} />
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Modo {modoActivo === 'comercial' ? 'Comercial' : 'Personal'}
-              </span>
             </div>
 
             {/* Contenido móvil: una vista a la vez */}
@@ -320,32 +378,32 @@ export function ChatOverlay() {
         {esDesktop && (
           <>
             {/* Panel izquierdo: Lista de conversaciones */}
-            <div className="w-[210px] 2xl:w-[230px] min-w-[210px] 2xl:min-w-[230px] border-r border-gray-200 flex flex-col bg-gray-50/80">
+            <div className="w-[270px] 2xl:w-[290px] min-w-[270px] 2xl:min-w-[290px] border-r border-gray-300 flex flex-col bg-linear-to-b from-gray-100/80 to-gray-200/60">
               {/* Header de la lista */}
-              <div className="px-3 py-2.5 flex items-center justify-between bg-linear-to-b from-[#0f1d3a] to-[#162850] rounded-tl-2xl shrink-0">
-                <div className="flex items-center gap-1.5">
+              <div className="px-3.5 py-3 flex items-center justify-between bg-linear-to-br from-[#0a1628] via-[#0f1d3a] to-[#1a3058] rounded-tl-2xl shrink-0">
+                <div className="flex items-center gap-2">
                   <img
                     src="/ChatYA.webp"
                     alt="ChatYA"
-                    className="h-7 w-auto object-contain brightness-0 invert"
+                    className="h-9 w-auto object-contain"
                   />
                   {totalNoLeidos > 0 && (
-                    <span className="min-w-[18px] h-[18px] px-1 bg-amber-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center shadow-sm">
+                    <span className="min-w-5 h-5 px-1.5 bg-amber-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center shadow-sm">
                       {totalNoLeidos > 99 ? '99+' : totalNoLeidos}
                     </span>
                   )}
                 </div>
-                <div className="flex gap-0.5">
+                <div className="flex gap-1">
                   <button
                     onClick={minimizarChatYA}
-                    className="w-6 h-6 rounded-md bg-white/8 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white"
+                    className="w-7 h-7 rounded-md bg-white/8 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white cursor-pointer"
                     title="Minimizar"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={cerrarChatYA}
-                    className="w-6 h-6 rounded-md bg-white/8 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white"
+                    className="w-7 h-7 rounded-md bg-white/8 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white cursor-pointer"
                     title="Cerrar"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -353,12 +411,26 @@ export function ChatOverlay() {
                 </div>
               </div>
 
-              {/* Indicador de modo */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-gray-200 shrink-0">
-                <div className={`w-1.5 h-1.5 rounded-full ${modoActivo === 'comercial' ? 'bg-amber-500' : 'bg-blue-500'}`} />
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  {modoActivo === 'comercial' ? 'Comercial' : 'Personal'}
-                </span>
+              {/* Indicador de modo + Mis Notas */}
+              <div className="flex items-center justify-between px-3.5 py-2 border-b border-gray-300 shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${modoActivo === 'comercial' ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    {modoActivo === 'comercial' ? 'Comercial' : 'Personal'}
+                  </span>
+                </div>
+                {misNotasId && (
+                  <button
+                    onClick={() => abrirConversacion(misNotasId)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${conversacionActivaId === misNotasId
+                      ? 'bg-blue-100 text-blue-600'
+                      : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    <StickyNote className="w-4 h-4" />
+                    Mis Notas
+                  </button>
+                )}
               </div>
 
               {/* Lista de conversaciones */}
@@ -368,7 +440,7 @@ export function ChatOverlay() {
             </div>
 
             {/* Panel derecho: Ventana de chat */}
-            <div className="flex-1 flex flex-col min-w-0 bg-linear-to-b from-gray-50 to-white">
+            <div className="flex-1 flex flex-col min-w-0 bg-linear-to-b from-gray-100/70 to-gray-200/50">
               {enChat ? (
                 <VentanaChat />
               ) : (
@@ -376,7 +448,7 @@ export function ChatOverlay() {
                 <div className="flex-1 flex flex-col items-center justify-center px-6">
                   <div className="w-16 h-16 bg-linear-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center mb-4">
                     <img
-                      src="/ChatYA.webp"
+                      src="/logo-ChatYA-blanco.webp"
                       alt="ChatYA"
                       className="h-10 w-auto object-contain"
                     />

@@ -13,8 +13,19 @@
  * UBICACIÓN: apps/web/src/components/chatya/BurbujaMensaje.tsx
  */
 
-import { Check, CheckCheck, Store } from 'lucide-react';
+import { useRef, useCallback, useState } from 'react';
+import { Check, CheckCheck, Store, SmilePlus } from 'lucide-react';
 import type { Mensaje } from '../../types/chatya';
+
+// =============================================================================
+// CONSTANTES
+// =============================================================================
+
+/** Tiempo en ms para considerar long press en móvil */
+const LONG_PRESS_MS = 500;
+
+/** Emojis rápidos para reaccionar */
+const EMOJIS_RAPIDOS = ['👍', '❤️', '😂', '😮', '😢'];
 
 // =============================================================================
 // TIPOS
@@ -23,6 +34,15 @@ import type { Mensaje } from '../../types/chatya';
 interface BurbujaMensajeProps {
   mensaje: Mensaje;
   esMio: boolean;
+  esMisNotas?: boolean;
+  /** true cuando este mensaje coincide con la búsqueda activa (highlight amarillo) */
+  resaltado?: boolean;
+  /** Callback cuando se activa el menú contextual (long press / click derecho) */
+  onMenuContextual?: (mensaje: Mensaje, posicion: { x: number; y: number }) => void;
+  /** Callback para reaccionar con emoji (desde hover en desktop) */
+  onReaccionar?: (mensajeId: string, emoji: string) => void;
+  /** ID del mensaje que tiene el menú contextual abierto (para emojis flotantes en móvil) */
+  menuActivoId?: string | null;
 }
 
 // =============================================================================
@@ -43,59 +63,178 @@ function formatearHora(fecha: string): string {
 // COMPONENTE
 // =============================================================================
 
-export function BurbujaMensaje({ mensaje, esMio }: BurbujaMensajeProps) {
+export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId }: BurbujaMensajeProps) {
   const hora = formatearHora(mensaje.createdAt);
-  const esNegocio = !!mensaje.emisorSucursalId;
+  const esNegocio = !esMisNotas && !!mensaje.emisorSucursalId;
+
+  /** Picker de emojis abierto (hover en desktop) */
+  const [emojiPickerAbierto, setEmojiPickerAbierto] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Long press (móvil) y click derecho (desktop)
+  // ---------------------------------------------------------------------------
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchMovedRef = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!onMenuContextual) return;
+    touchMovedRef.current = false;
+    timerRef.current = setTimeout(() => {
+      // Vibración háptica si está disponible
+      if (navigator.vibrate) navigator.vibrate(30);
+      const touch = e.touches[0];
+      onMenuContextual(mensaje, { x: touch.clientX, y: touch.clientY });
+    }, LONG_PRESS_MS);
+  }, [mensaje, onMenuContextual]);
+
+  const handleTouchMove = useCallback(() => {
+    touchMovedRef.current = true;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!onMenuContextual) return;
+    e.preventDefault();
+    onMenuContextual(mensaje, { x: e.clientX, y: e.clientY });
+  }, [mensaje, onMenuContextual]);
 
   // Mensaje eliminado
   if (mensaje.eliminado) {
     return (
-      <div className={`max-w-[84%] px-3 py-2 rounded-xl ${esMio ? 'self-end' : 'self-start'}`}>
-        <p className="text-[11px] text-gray-400 italic">Se eliminó este mensaje</p>
+      <div
+        id={`msg-${mensaje.id}`}
+        onContextMenu={handleContextMenu}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={`max-w-[84%] px-3 py-2 rounded-xl ${esMio ? 'self-end' : 'self-start'} ${resaltado ? 'ring-2 ring-amber-400 bg-amber-50/60' : ''}`}
+      >
+        <p className="text-sm lg:text-xs text-gray-400 italic">Se eliminó este mensaje</p>
       </div>
     );
   }
 
   return (
-    <div
-      className={`
-        max-w-[84%] px-3 py-2 rounded-[14px] relative
-        ${esMio
-          ? 'self-end bg-linear-to-br from-[#2563eb] to-[#3b82f6] text-white rounded-br-[5px] shadow-[0_2px_8px_rgba(37,99,235,0.25)]'
-          : 'self-start bg-white text-gray-800 rounded-bl-[5px] shadow-[0_1px_4px_rgba(15,29,58,0.08)] border border-gray-100'
-        }
-      `}
-    >
-      {/* Tag de negocio (solo mensajes del otro que es negocio) */}
-      {!esMio && esNegocio && (
-        <div className="flex items-center gap-1 mb-0.5">
-          <Store className="w-2.5 h-2.5 text-amber-500" />
-          <span className="text-[9px] font-bold text-amber-500">Negocio</span>
+    <div className={`relative group ${esMio ? 'self-end' : 'self-start'} max-w-[84%] select-none`}>
+      {/* Botón emoji hover (solo desktop, no eliminados, no Mis Notas) */}
+      {!mensaje.eliminado && !esMisNotas && onReaccionar && (
+        <div className={`absolute top-1/2 -translate-y-1/2 hidden lg:group-hover:flex z-10 ${esMio ? '-left-8' : '-right-8'}`}>
+          <button
+            onClick={() => setEmojiPickerAbierto((v) => !v)}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-300 hover:text-gray-500 hover:bg-gray-100 cursor-pointer"
+          >
+            <SmilePlus className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* Contenido */}
-      <p className="text-[12px] leading-normal wrap-break-word whitespace-pre-wrap">
+      {/* Picker de emojis rápidos (desktop) */}
+      {emojiPickerAbierto && onReaccionar && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setEmojiPickerAbierto(false)} />
+          <div className={`absolute z-20 bg-white rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] border border-gray-200 flex items-center gap-0.5 px-1.5 py-1 ${esMio ? 'right-0 -top-10' : 'left-0 -top-10'}`}>
+            {EMOJIS_RAPIDOS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  onReaccionar(mensaje.id, emoji);
+                  setEmojiPickerAbierto(false);
+                }}
+                className="w-8 h-8 text-base flex items-center justify-center rounded-full hover:bg-gray-100 active:scale-125 cursor-pointer"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div
+        id={`msg-${mensaje.id}`}
+        onContextMenu={handleContextMenu}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={`
+          px-2.5 py-1.5 rounded-[14px] relative
+          ${esMio
+            ? 'bg-linear-to-br from-[#2563eb] to-[#3b82f6] text-white rounded-br-[5px] shadow-[0_2px_8px_rgba(37,99,235,0.25)]'
+            : 'bg-white text-gray-800 rounded-bl-[5px] shadow-[0_1px_4px_rgba(15,29,58,0.08)] border border-gray-100'
+          }
+          ${resaltado ? 'ring-2 ring-amber-400' : ''}
+          ${menuActivoId === mensaje.id ? 'ring-2 ring-blue-400 scale-[1.02]' : ''}
+        `}
+      >
+      {/* Tag de negocio (solo mensajes del otro que es negocio) */}
+      {!esMio && esNegocio && (
+        <div className="flex items-center gap-1 mb-0.5">
+          <Store className="w-3.5 lg:w-3 h-3.5 lg:h-3 text-amber-500" />
+          <span className="text-xs lg:text-[10px] font-bold text-amber-500">Negocio</span>
+        </div>
+      )}
+
+      {/* Quote del mensaje respondido */}
+      {mensaje.respuestaA && !mensaje.eliminado && (
+        <div
+          className={`
+            mb-1.5 px-2.5 py-1.5 rounded-lg border-l-[3px] cursor-pointer
+            ${esMio
+              ? 'bg-white/15 border-l-white/50'
+              : 'bg-gray-100 border-l-blue-400'
+            }
+          `}
+          onClick={() => {
+            const el = document.getElementById(`msg-${mensaje.respuestaA!.id}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}
+        >
+          <p className={`text-xs lg:text-[10px] font-bold ${esMio ? 'text-white/80' : 'text-blue-500'}`}>
+            {mensaje.respuestaA.emisorId === mensaje.emisorId ? 'Tú' : 'Mensaje'}
+          </p>
+          <p className={`text-[13px] lg:text-[11px] truncate ${esMio ? 'text-white/60' : 'text-gray-500'}`}>
+            {mensaje.respuestaA.contenido}
+          </p>
+        </div>
+      )}
+
+      {/* Contenido + hora inline (estilo WhatsApp) */}
+      <p className="text-[15px] lg:text-[13px] leading-relaxed wrap-break-word whitespace-pre-wrap">
         {mensaje.contenido}
-      </p>
-
-      {/* Footer: hora + editado + palomitas */}
-      <div className={`flex items-center gap-1 mt-0.5 ${esMio ? 'justify-end' : ''}`}>
-        {/* Indicador editado */}
-        {mensaje.editado && (
-          <span className={`text-[8px] italic ${esMio ? 'text-white/50' : 'text-gray-400'}`}>
-            editado
-          </span>
-        )}
-
-        {/* Hora */}
-        <span className={`text-[9px] ${esMio ? 'text-white/55' : 'text-gray-400'}`}>
-          {hora}
+        {/* Hora inline: spacer + metadata */}
+        <span className={`inline-flex items-center gap-0.5 align-bottom ml-1.5 text-[10px] lg:text-[9px] ${esMio ? 'text-white/50' : 'text-gray-400'}`}>
+          {mensaje.editado && <span className="italic">editado</span>}
+          <span>{hora}</span>
+          {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
         </span>
+      </p>
+    </div>
 
-        {/* Palomitas (solo mensajes propios) */}
-        {esMio && <Palomitas estado={mensaje.estado} />}
-      </div>
+      {/* Burbuja de emojis flotante (móvil, cuando este mensaje tiene menú activo) */}
+      {menuActivoId === mensaje.id && !mensaje.eliminado && !esMisNotas && onReaccionar && (
+        <div className={`absolute z-20 ${esMio ? 'right-0' : 'left-0'} -bottom-14`}>
+          <div className="bg-white rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.12)] border border-gray-200 flex items-center gap-1 px-2.5 py-1.5">
+            {EMOJIS_RAPIDOS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => onReaccionar(mensaje.id, emoji)}
+                className="w-11 h-11 text-2xl flex items-center justify-center rounded-full active:scale-125 active:bg-gray-100 cursor-pointer"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -107,12 +246,12 @@ export function BurbujaMensaje({ mensaje, esMio }: BurbujaMensajeProps) {
 function Palomitas({ estado }: { estado: 'enviado' | 'entregado' | 'leido' }) {
   switch (estado) {
     case 'leido':
-      return <CheckCheck className="w-3.5 h-3.5 text-sky-300" />;
+      return <CheckCheck className="w-4 h-4 text-sky-300" />;
     case 'entregado':
-      return <CheckCheck className="w-3.5 h-3.5 text-white/50" />;
+      return <CheckCheck className="w-4 h-4 text-white/55" />;
     case 'enviado':
     default:
-      return <Check className="w-3 h-3 text-white/50" />;
+      return <Check className="w-3.5 h-3.5 text-white/55" />;
   }
 }
 

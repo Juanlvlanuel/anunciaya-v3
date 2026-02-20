@@ -37,7 +37,7 @@ export function BarraMinimizada({ onExpandir, totalNoLeidos }: BarraMinimizadaPr
       {/* Logo ChatYA — botón principal para expandir */}
       <button
         onClick={onExpandir}
-        className="w-[42px] h-[42px] bg-linear-to-br from-red-600 to-red-700 rounded-[13px] flex items-center justify-center relative shrink-0 shadow-[0_3px_12px_rgba(212,43,43,0.3)] hover:scale-105 active:scale-95"
+        className="w-[42px] h-[42px] bg-linear-to-br from-red-600 to-red-700 rounded-[13px] flex items-center justify-center relative shrink-0 shadow-[0_3px_12px_rgba(212,43,43,0.3)] hover:scale-105 active:scale-95 cursor-pointer"
         title="Abrir ChatYA"
       >
         <MessageSquare className="w-5 h-5 text-white fill-white" />
@@ -63,7 +63,7 @@ export function BarraMinimizada({ onExpandir, totalNoLeidos }: BarraMinimizadaPr
           <button
             key={conv.id}
             onClick={onExpandir}
-            className="w-10 h-10 rounded-full relative shrink-0 hover:scale-110 active:scale-95 my-0.5"
+            className="w-10 h-10 rounded-full relative shrink-0 hover:scale-110 active:scale-95 my-0.5 cursor-pointer"
             title={otro.negocioNombre || `${otro.nombre} ${otro.apellidos || ''}`}
           >
             {otro.avatarUrl || otro.negocioLogo ? (

@@ -37,7 +37,7 @@ export function SeparadorFecha({ fecha }: SeparadorFechaProps) {
 
   return (
     <div className="flex justify-center py-2">
-      <span className="text-[10px] font-semibold text-gray-500 bg-white px-3 py-1 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.04)] tracking-wide">
+      <span className="text-[11px] font-semibold text-gray-500 bg-white/90 px-3.5 py-1 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-gray-200 tracking-wide">
         {texto}
       </span>
     </div>

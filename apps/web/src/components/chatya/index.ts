@@ -14,3 +14,6 @@ export { BurbujaMensaje } from './BurbujaMensaje';
 export { InputMensaje } from './InputMensaje';
 export { IndicadorEscribiendo } from './IndicadorEscribiendo';
 export { SeparadorFecha } from './SeparadorFecha';
+export { MenuContextualChat } from './MenuContextualChat';
+export { BarraBusquedaChat } from './BarraBusquedaChat';
+export { MenuContextualMensaje } from './MenuContextualMensaje';

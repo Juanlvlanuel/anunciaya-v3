@@ -42,6 +42,7 @@ import Tooltip from '../ui/Tooltip';
 import { useUiStore } from '../../stores/useUiStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
+import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useNegociosCacheStore } from '../../stores/useNegociosCacheStore';
 import { ToggleModoUsuario } from '../ui/ToggleModoUsuario';
 import SelectorSucursalesInline from './SelectorSucursalesInline';
@@ -426,7 +427,7 @@ export const Navbar = () => {
     ? NAV_ITEMS_BASE
     : [NAV_ITEMS_BASE[0], NAV_ITEM_MARKET, ...NAV_ITEMS_BASE.slice(1)];
 
-  const mensajesCount = 2;
+  const mensajesCount = useChatYAStore((s) => s.totalNoLeidos);
   const { prefetchListaNegocios } = useNegociosCacheStore();
 
 
