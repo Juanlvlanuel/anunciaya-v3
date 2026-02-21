@@ -1981,6 +1981,10 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	eliminadaPorP1: boolean("eliminada_por_p1").default(false).notNull(),
 	eliminadaPorP2: boolean("eliminada_por_p2").default(false).notNull(),
 
+	// Timestamp de "mensajes visibles desde" (para ocultar mensajes anteriores al eliminar chat)
+	mensajesVisiblesDesdeP1: timestamp("mensajes_visibles_desde_p1", { withTimezone: true, mode: 'string' }),
+	mensajesVisiblesDesdeP2: timestamp("mensajes_visibles_desde_p2", { withTimezone: true, mode: 'string' }),
+
 	// Timestamps
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),

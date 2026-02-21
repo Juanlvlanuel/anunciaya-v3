@@ -656,18 +656,47 @@ export async function eliminarConversacion(
         }
 
         const esP1 = pos === 'p1';
+        const ahora = new Date().toISOString();
 
-        // Marcar como eliminada por este participante
+        // Marcar como eliminada por este participante + guardar timestamp de visibilidad
         if (esP1) {
             await db
                 .update(chatConversaciones)
-                .set({ eliminadaPorP1: true })
+                .set({
+                    eliminadaPorP1: true,
+                    mensajesVisiblesDesdeP1: ahora,
+                })
                 .where(eq(chatConversaciones.id, conversacionId));
         } else {
             await db
                 .update(chatConversaciones)
-                .set({ eliminadaPorP2: true })
+                .set({
+                    eliminadaPorP2: true,
+                    mensajesVisiblesDesdeP2: ahora,
+                })
                 .where(eq(chatConversaciones.id, conversacionId));
+        }
+
+        // Limpiar mensajes huérfanos (invisibles para ambos participantes)
+        // Si ambos tienen timestamp de visibilidad, borrar mensajes anteriores al más antiguo
+        const convParaLimpieza = esP1
+            ? { miVisibleDesde: ahora, otroVisibleDesde: conv.mensajesVisiblesDesdeP2 }
+            : { miVisibleDesde: ahora, otroVisibleDesde: conv.mensajesVisiblesDesdeP1 };
+
+        if (convParaLimpieza.otroVisibleDesde) {
+            // Ambos tienen timestamp → borrar mensajes que ninguno puede ver
+            const corte = convParaLimpieza.miVisibleDesde < convParaLimpieza.otroVisibleDesde
+                ? convParaLimpieza.miVisibleDesde
+                : convParaLimpieza.otroVisibleDesde;
+
+            await db
+                .delete(chatMensajes)
+                .where(
+                    and(
+                        eq(chatMensajes.conversacionId, conversacionId),
+                        sql`${chatMensajes.createdAt} < ${corte}`
+                    )
+                );
         }
 
         // Verificar si AMBOS la eliminaron → hard delete
@@ -723,30 +752,38 @@ export async function listarMensajes(
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
 
+        // Determinar desde cuándo este usuario puede ver mensajes
+        const visibleDesde = pos === 'p1'
+            ? conv.mensajesVisiblesDesdeP1
+            : conv.mensajesVisiblesDesdeP2;
+
+        // Construir condiciones base
+        const condiciones = [
+            eq(chatMensajes.conversacionId, conversacionId),
+            eq(chatMensajes.eliminado, false),
+        ];
+
+        // Si el usuario eliminó el chat anteriormente, solo mostrar mensajes posteriores
+        if (visibleDesde) {
+            condiciones.push(
+                sql`${chatMensajes.createdAt} >= ${visibleDesde}`
+            );
+        }
+
         // Obtener mensajes no eliminados, ordenados por más reciente
         const mensajes = await db
             .select()
             .from(chatMensajes)
-            .where(
-                and(
-                    eq(chatMensajes.conversacionId, conversacionId),
-                    eq(chatMensajes.eliminado, false)
-                )
-            )
+            .where(and(...condiciones))
             .orderBy(desc(chatMensajes.createdAt))
             .limit(paginacion.limit)
             .offset(paginacion.offset);
 
-        // Contar total
+        // Contar total (con el mismo filtro de visibilidad)
         const [countResult] = await db
             .select({ count: sql<number>`count(*)::int` })
             .from(chatMensajes)
-            .where(
-                and(
-                    eq(chatMensajes.conversacionId, conversacionId),
-                    eq(chatMensajes.eliminado, false)
-                )
-            );
+            .where(and(...condiciones));
 
         const items: MensajeResponse[] = mensajes.map((msg) => ({
             id: msg.id,
@@ -1919,12 +1956,26 @@ export async function buscarMensajes(
         // Búsqueda por coincidencia parcial (ILIKE) — más intuitiva para chat
         const patron = `%${input.texto.trim()}%`;
 
-        const filtrosBusqueda = and(
+        // Determinar desde cuándo este usuario puede ver mensajes
+        const visibleDesde = pos === 'p1'
+            ? conv.mensajesVisiblesDesdeP1
+            : conv.mensajesVisiblesDesdeP2;
+
+        const condiciones = [
             eq(chatMensajes.conversacionId, input.conversacionId),
             eq(chatMensajes.tipo, 'texto'),
             eq(chatMensajes.eliminado, false),
-            sql`${chatMensajes.contenido} ILIKE ${patron}`
-        );
+            sql`${chatMensajes.contenido} ILIKE ${patron}`,
+        ];
+
+        // Si el usuario eliminó el chat anteriormente, solo buscar en mensajes posteriores
+        if (visibleDesde) {
+            condiciones.push(
+                sql`${chatMensajes.createdAt} >= ${visibleDesde}`
+            );
+        }
+
+        const filtrosBusqueda = and(...condiciones);
 
         const mensajes = await db
             .select()
