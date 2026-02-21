@@ -201,16 +201,17 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
               </span>
             )}
             {/* Flechita menú contextual (hover desktop) */}
-            <button
+            <div
+              role="button"
               onClick={(e) => {
                 e.stopPropagation();
-                const rect = e.currentTarget.getBoundingClientRect();
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                 onMenuContextual?.(conversacion, { x: rect.right - 144, y: rect.bottom + 4 });
               }}
               className="hidden lg:group-hover:flex w-5 h-5 items-center justify-center rounded hover:bg-blue-200 cursor-pointer"
             >
               <ChevronDown className="w-4 h-4 text-blue-400" />
-            </button>
+            </div>
           </div>
         </div>
       </div>

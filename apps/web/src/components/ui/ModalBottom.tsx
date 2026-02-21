@@ -55,6 +55,8 @@ interface ModalBottomProps {
   alturaMaxima?: 'sm' | 'md' | 'lg';
   /** Clases CSS adicionales para el contenedor */
   className?: string;
+  /** Clase de z-index para el wrapper (default: 'z-50'). Usar z-90 para modales sobre ChatYA */
+  zIndice?: string;
 }
 
 // =============================================================================
@@ -91,6 +93,7 @@ export function ModalBottom({
   sinScrollInterno = false,
   alturaMaxima = 'lg',
   className = '',
+  zIndice = 'z-50',
 }: ModalBottomProps) {
   // ---------------------------------------------------------------------------
   // Estado
@@ -257,7 +260,7 @@ export function ModalBottom({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className={`fixed inset-0 ${zIndice} flex items-end justify-center`}
       role="dialog"
       aria-modal="true"
     >

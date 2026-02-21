@@ -756,8 +756,26 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   reenviarMensaje: async (mensajeId: string, datos: ReenviarMensajeInput) => {
     try {
       const respuesta = await chatyaService.reenviarMensaje(mensajeId, datos);
-      if (respuesta.success) {
+      if (respuesta.success && respuesta.data) {
         notificar.exito('Mensaje reenviado');
+
+        // Obtener la conversación destino para actualizar/agregar en la lista
+        const convId = (respuesta.data as { conversacionId?: string }).conversacionId;
+        if (convId) {
+          try {
+            const convResp = await chatyaService.getConversacion(convId);
+            if (convResp.success && convResp.data) {
+              const convActualizada = convResp.data as Conversacion;
+              set((state) => {
+                const sinDuplicado = state.conversaciones.filter((c) => c.id !== convId);
+                return { conversaciones: [convActualizada, ...sinDuplicado] };
+              });
+            }
+          } catch {
+            // Si falla obtener la conversación, al menos el reenvío ya se hizo
+          }
+        }
+
         return true;
       }
       notificar.error(respuesta.message || 'No se pudo reenviar');
@@ -1277,14 +1295,17 @@ escucharEvento<EventoMensajeEliminado>('chatya:mensaje-eliminado', ({ conversaci
 });
 
 /** chatya:leido — Palomitas azules (el otro leyó los mensajes) */
-escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoAt }) => {
+escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoPor, leidoAt }) => {
 
   const state = useChatYAStore.getState();
 
+  // Solo marcar como leídos los mensajes que NO fueron enviados por quien leyó.
+  // Ejemplo: si leidoPor = Ian, solo mis mensajes se marcan como leídos (Ian los leyó).
+  // Si leidoPor = yo, solo los mensajes de Ian se marcan (yo los leí) — sync multi-dispositivo.
   if (state.conversacionActivaId === conversacionId) {
     useChatYAStore.setState((prev) => ({
       mensajes: prev.mensajes.map((m) =>
-        m.estado !== 'leido'
+        m.emisorId !== leidoPor && m.estado !== 'leido'
           ? { ...m, estado: 'leido' as const, leidoAt }
           : m
       ),
@@ -1292,14 +1313,15 @@ escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoAt }) => {
   }
 
   // Actualizar estado del último mensaje en la lista de conversaciones
+  // Solo si el último mensaje fue enviado por alguien distinto a quien leyó
   useChatYAStore.setState((prev) => ({
     conversaciones: prev.conversaciones.map((c) =>
-      c.id === conversacionId
+      c.id === conversacionId && c.ultimoMensajeEmisorId !== leidoPor
         ? { ...c, ultimoMensajeEstado: 'leido' as const }
         : c
     ),
     conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
-      c.id === conversacionId
+      c.id === conversacionId && c.ultimoMensajeEmisorId !== leidoPor
         ? { ...c, ultimoMensajeEstado: 'leido' as const }
         : c
     ),

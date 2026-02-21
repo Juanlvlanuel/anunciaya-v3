@@ -10,7 +10,7 @@
  */
 
 import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
-import { Search, MoreVertical, Store, StickyNote, X, Reply, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
@@ -23,6 +23,9 @@ import { SeparadorFecha } from './SeparadorFecha';
 import { MenuContextualChat } from './MenuContextualChat';
 import { MenuContextualMensaje } from './MenuContextualMensaje';
 import { BarraBusquedaChat } from './BarraBusquedaChat';
+import { PanelInfoContacto } from './PanelInfoContacto';
+import { ModalReenviar } from './ModalReenviar';
+import { ModalImagenes } from '../ui/ModalImagenes';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { Mensaje } from '../../types/chatya';
 
@@ -95,6 +98,16 @@ export function VentanaChat() {
   const estaEscribiendo = !esMisNotas && escribiendo?.conversacionId === conversacionActivaId;
 
   // ---------------------------------------------------------------------------
+  // Estado local: panel lateral de información del contacto
+  // ---------------------------------------------------------------------------
+  const [panelAbierto, setPanelAbierto] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Estado local: modal de imagen del avatar (vive fuera del panel para no desmontarse)
+  // ---------------------------------------------------------------------------
+  const [modalAvatarUrl, setModalAvatarUrl] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
   // Estado local: menú contextual del header (tres puntos)
   // ---------------------------------------------------------------------------
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -116,6 +129,11 @@ export function VentanaChat() {
   // Estado local: modo respuesta (al seleccionar "Responder" del menú contextual)
   // ---------------------------------------------------------------------------
   const [mensajeRespondiendo, setMensajeRespondiendo] = useState<Mensaje | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Estado local: modo reenvío (al seleccionar "Reenviar" del menú contextual)
+  // ---------------------------------------------------------------------------
+  const [mensajeReenviando, setMensajeReenviando] = useState<Mensaje | null>(null);
 
   // ---------------------------------------------------------------------------
   // Breakpoint para menú contextual (bottom sheet en móvil, popup en desktop)
@@ -152,7 +170,9 @@ export function VentanaChat() {
   // Handlers: Menú contextual de mensaje
   // ---------------------------------------------------------------------------
   const handleMenuContextualMensaje = useCallback((msg: Mensaje, pos: { x: number; y: number }) => {
-    setMenuMensaje({ mensaje: msg, posicion: pos });
+    setMenuMensaje((prev) =>
+      prev?.mensaje.id === msg.id ? null : { mensaje: msg, posicion: pos }
+    );
   }, []);
 
   const handleCerrarMenuMensaje = useCallback(() => {
@@ -173,6 +193,10 @@ export function VentanaChat() {
 
   const handleCancelarRespuesta = useCallback(() => {
     setMensajeRespondiendo(null);
+  }, []);
+
+  const handleReenviarMensaje = useCallback((msg: Mensaje) => {
+    setMensajeReenviando(msg);
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -272,7 +296,9 @@ export function VentanaChat() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden">
+      {/* ── Área principal del chat ── */}
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
       {/* ═══ Header del chat ═══ */}
       <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 border-b border-gray-300 shrink-0 bg-white/90`}>
 
@@ -287,6 +313,7 @@ export function VentanaChat() {
             mensajesFijados={mensajesFijados}
             onEditar={handleEditarMensaje}
             onResponder={handleResponderMensaje}
+            onReenviar={handleReenviarMensaje}
             onCerrar={() => setMenuMensaje(null)}
           />
         ) : busquedaAbierta && conversacionActivaId ? (
@@ -300,8 +327,11 @@ export function VentanaChat() {
           />
         ) : (
           <>
-            {/* Avatar */}
-            <div className="w-10 h-10 rounded-full shrink-0">
+            {/* Avatar — clickeable para abrir panel */}
+            <button
+              onClick={() => !esMisNotas && setPanelAbierto((v) => !v)}
+              className={`w-10 h-10 rounded-full shrink-0 ${!esMisNotas ? 'cursor-pointer hover:opacity-80' : ''}`}
+            >
               {esMisNotas ? (
                 <div className="w-full h-full rounded-full bg-linear-to-br from-amber-400 to-amber-600 flex items-center justify-center">
                   <StickyNote className="w-5 h-5 text-white" />
@@ -313,10 +343,13 @@ export function VentanaChat() {
                   <span className="text-white text-xs font-bold">{iniciales}</span>
                 </div>
               )}
-            </div>
+            </button>
 
-            {/* Info */}
-            <div className="flex-1 min-w-0">
+            {/* Info — clickeable para abrir panel */}
+            <button
+              onClick={() => !esMisNotas && setPanelAbierto((v) => !v)}
+              className={`flex-1 min-w-0 text-left ${!esMisNotas ? 'cursor-pointer' : ''}`}
+            >
               <div className="flex items-center gap-1.5">
                 {esNegocio && <Store className="w-4 h-4 text-amber-500 shrink-0" />}
                 <p className="text-base font-bold text-gray-800 truncate leading-tight">{nombre}</p>
@@ -336,7 +369,7 @@ export function VentanaChat() {
                   En línea
                 </p>
               )}
-            </div>
+            </button>
           </>
         )}
 
@@ -538,7 +571,33 @@ export function VentanaChat() {
           onCerrar={handleCerrarMenuMensaje}
           onEditar={handleEditarMensaje}
           onResponder={handleResponderMensaje}
+          onReenviar={handleReenviarMensaje}
           esMobile={false}
+        />
+      )}
+      </div>{/* fin área principal */}
+
+      {/* ═══ Panel lateral de información del contacto ═══ */}
+      {panelAbierto && conversacion && !esMisNotas && !esMobile && (
+        <PanelInfoContacto
+          conversacion={conversacion}
+          onCerrar={() => setPanelAbierto(false)}
+          onAbrirImagen={(url) => setModalAvatarUrl(url)}
+        />
+      )}
+
+      {/* ═══ Modal imagen avatar — vive fuera del condicional del panel ═══ */}
+      <ModalImagenes
+        images={modalAvatarUrl ? [modalAvatarUrl] : []}
+        isOpen={!!modalAvatarUrl}
+        onClose={() => setModalAvatarUrl(null)}
+      />
+
+      {/* ═══ Modal reenviar mensaje ═══ */}
+      {mensajeReenviando && (
+        <ModalReenviar
+          mensaje={mensajeReenviando}
+          onCerrar={() => setMensajeReenviando(null)}
         />
       )}
     </div>
@@ -557,6 +616,7 @@ function AccionesHeaderMobile({
   mensajesFijados,
   onEditar,
   onResponder,
+  onReenviar,
   onCerrar,
 }: {
   mensaje: Mensaje;
@@ -566,6 +626,7 @@ function AccionesHeaderMobile({
   mensajesFijados: Array<{ mensajeId: string }>;
   onEditar: (msg: Mensaje) => void;
   onResponder: (msg: Mensaje) => void;
+  onReenviar: (msg: Mensaje) => void;
   onCerrar: () => void;
 }) {
   const acciones: Array<{ icono: typeof Reply; label: string; onClick: () => void; color?: string }> = [];
@@ -585,6 +646,15 @@ function AccionesHeaderMobile({
     label: 'Copiar',
     onClick: () => { onCerrar(); if (mensaje.contenido) navigator.clipboard.writeText(mensaje.contenido); },
   });
+
+  // Reenviar (no en Mis Notas, no si está eliminado)
+  if (!esMisNotas && !mensaje.eliminado) {
+    acciones.push({
+      icono: Forward,
+      label: 'Reenviar',
+      onClick: () => { onCerrar(); onReenviar(mensaje); },
+    });
+  }
 
   // Fijar/Desfijar
   if (!esMisNotas && conversacionActivaId) {

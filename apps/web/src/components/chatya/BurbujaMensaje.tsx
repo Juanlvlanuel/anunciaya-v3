@@ -192,6 +192,7 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
       {/* Flechita menú contextual (hover desktop) */}
       {!mensaje.eliminado && !esMisNotas && onMenuContextual && (
         <button
+          data-menu-trigger="true"
           onClick={(e) => {
             e.stopPropagation();
             const rect = e.currentTarget.getBoundingClientRect();

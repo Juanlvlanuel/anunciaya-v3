@@ -76,6 +76,7 @@ export function MainLayout() {
   const menuDrawerAbierto = useUiStore((state) => state.menuDrawerAbierto);
   const cerrarMenuDrawer = useUiStore((state) => state.cerrarMenuDrawer);
   const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
+  const chatYAAbierto = useUiStore((state) => state.chatYAAbierto);
 
   const modalUbicacionAbierto = useUiStore((state) => state.modalUbicacionAbierto);
   const cerrarModalUbicacion = useUiStore((state) => state.cerrarModalUbicacion);
@@ -202,7 +203,7 @@ export function MainLayout() {
               <main
                 ref={mainRef}
                 className={`fixed left-0 right-0 overflow-y-auto transition-all z-20 lg:pl-56 ${esPerfilNegocio ? '2xl:pl-80' : '2xl:pl-[287px]'
-                  } ${esBusinessStudio
+                  } ${chatYAAbierto ? 'invisible! transition-none!' : ''} ${esBusinessStudio
                     ? previewNegocioAbierto
                       ? 'lg:pr-[400px] 2xl:pr-[480px]'
                       : 'pr-0'

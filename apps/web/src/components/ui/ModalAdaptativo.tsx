@@ -91,6 +91,8 @@ interface ModalAdaptativoProps {
 
   /** Fuerza Modal centrado sin importar dispositivo (ej: modal sobre modal) */
   centrado?: boolean;
+  /** Clase de z-index para el wrapper (default: 'z-50'). Usar z-90 para modales sobre ChatYA */
+  zIndice?: string;
 }
 
 // =============================================================================
@@ -116,6 +118,7 @@ export function ModalAdaptativo({
   alturaMaxima = 'lg',
   // Especial
   centrado = false,
+  zIndice,
 }: ModalAdaptativoProps) {
   const { esMobile } = useBreakpoint();
 
@@ -133,6 +136,7 @@ export function ModalAdaptativo({
         mostrarHeader={mostrarHeader}
         sinScrollInterno={sinScrollInterno}
         alturaMaxima={alturaMaxima}
+        zIndice={zIndice}
       >
         {children}
       </ModalBottom>
@@ -153,6 +157,7 @@ export function ModalAdaptativo({
       mostrarBotonCerrar={mostrarBotonCerrar}
       mostrarHeader={mostrarHeader}
       className={className}
+        zIndice={zIndice}
     >
       {children}
     </Modal>

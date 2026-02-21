@@ -21,6 +21,7 @@
  */
 
 import { useRef, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { X, StickyNote } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
@@ -56,6 +57,10 @@ export function ChatOverlay() {
   const inicializar = useChatYAStore((s) => s.inicializar);
   const misNotasId = useChatYAStore((s) => s.misNotasId);
   const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
+
+  // Cerrar al cambiar de ruta (después de que React Router ya navegó)
+  const location = useLocation();
+  const rutaInicialRef = useRef(location.pathname);
 
   const modoActivo = useAuthStore((s) => s.usuario?.modoActivo) || 'personal';
 
@@ -200,28 +205,17 @@ export function ChatOverlay() {
   }, [chatYAAbierto, chatYAMinimizado, esDesktop, dragStartY, dragCurrentY, cerrarChatYA]);
 
   // ---------------------------------------------------------------------------
-  // Effect: Click outside para cerrar en desktop
+  // Effect: Cerrar al cambiar de ruta en desktop
+  // Se ejecuta DESPUÉS de que React Router ya renderizó la nueva página,
+  // evitando el flash del contenido anterior.
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!chatYAAbierto || chatYAMinimizado || !esDesktop) return;
-
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-chatya-button="true"]')) return;
-      if (panelRef.current && !panelRef.current.contains(target)) {
-        cerrarChatYA();
-      }
-    };
-
-    const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClick);
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClick);
-    };
-  }, [chatYAAbierto, chatYAMinimizado, esDesktop, cerrarChatYA]);
+    if (!esDesktop) return;
+    if (location.pathname !== rutaInicialRef.current) {
+      rutaInicialRef.current = location.pathname;
+      if (chatYAAbierto) cerrarChatYA();
+    }
+  }, [location.pathname, chatYAAbierto, cerrarChatYA, esDesktop]);
 
   // ---------------------------------------------------------------------------
   // Effect: Cerrar con ESC
@@ -298,6 +292,16 @@ export function ChatOverlay() {
       )}
 
       {/* Panel principal */}
+      {/* X flotante esquina superior derecha — solo desktop y sin chat activo */}
+      {esDesktop && !conversacionActivaId && (
+        <button
+          onClick={cerrarChatYA}
+          className="fixed z-71 lg:right-[264px] 2xl:right-[351px] top-[87px] w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-red-50 text-gray-400 hover:text-red-500 cursor-pointer transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+
       <div
         ref={panelRef}
         style={{
@@ -307,7 +311,7 @@ export function ChatOverlay() {
         className={`
           fixed z-70 bg-white overflow-hidden flex
           ${esDesktop
-            ? `right-3 top-[66px] bottom-3 w-[750px] 2xl:w-[900px] rounded-2xl shadow-[0_8px_48px_rgba(15,29,58,0.28),0_0_0_1.5px_rgba(15,29,58,0.12)] flex-row`
+            ? `top-[91px] bottom-3 lg:left-[232px] 2xl:left-[310px] lg:right-[268px] 2xl:right-[355px] rounded-2xl shadow-[0_8px_48px_rgba(15,29,58,0.28),0_0_0_1.5px_rgba(15,29,58,0.12)] flex-row`
             : `bottom-0 left-0 right-0 h-[90vh] rounded-t-[22px] shadow-[0_-10px_50px_rgba(15,29,58,0.25)] flex-col`
           }
         `}

@@ -55,6 +55,8 @@ interface ModalProps {
   paddingContenido?: 'none' | 'sm' | 'md' | 'lg';
   /** Clases CSS adicionales para el contenedor del modal */
   className?: string;
+  /** Clase de z-index para el wrapper (default: 'z-50'). Usar z-90 para modales sobre ChatYA */
+  zIndice?: string;
 }
 
 // =============================================================================
@@ -99,6 +101,7 @@ export function Modal({
   mostrarHeader = true,
   paddingContenido = 'md',
   className = '',
+  zIndice = 'z-50',
 }: ModalProps) {
   // ---------------------------------------------------------------------------
   // Estado para animación de salida
@@ -182,7 +185,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 lg:p-6 2xl:p-8"
+      className={`fixed inset-0 ${zIndice} flex items-center justify-center p-3 lg:p-6 2xl:p-8`}
       role="dialog"
       aria-modal="true"
     >

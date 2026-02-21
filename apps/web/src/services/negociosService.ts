@@ -15,6 +15,7 @@
  */
 
 import { get, del } from './api';
+import type { NegocioCompleto } from '../types/negocios';
 
 // =============================================================================
 // TIPOS
@@ -145,6 +146,16 @@ export async function eliminarImagenGaleria(negocioId: string, imageId: number) 
   return del(`/negocios/${negocioId}/galeria/${imageId}`);
 }
 
+/**
+ * Obtiene el perfil completo de una sucursal.
+ * Incluye calificación, categorías, horarios y estado abierto/cerrado.
+ * Usado por PanelInfoContacto en ChatYA (Vista 2: usuario → negocio).
+ * GET /api/negocios/sucursal/:sucursalId
+ */
+export async function obtenerPerfilSucursal(sucursalId: string) {
+  return get<NegocioCompleto>(`/negocios/sucursal/${sucursalId}`);
+}
+
 // =============================================================================
 // EXPORT DEFAULT
 // =============================================================================
@@ -154,6 +165,7 @@ export default {
   obtenerSucursalPrincipal,
   obtenerNegocio,
   obtenerGaleriaNegocio,
+  obtenerPerfilSucursal,
   eliminarLogo,
   eliminarPortada,
   eliminarImagenGaleria,

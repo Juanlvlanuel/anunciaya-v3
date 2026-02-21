@@ -26,6 +26,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import {
   Reply,
   Copy,
+  Forward,
   Pin,
   PinOff,
   Pencil,
@@ -51,6 +52,8 @@ interface MenuContextualMensajeProps {
   onEditar: (mensaje: Mensaje) => void;
   /** Callback para activar modo respuesta en VentanaChat */
   onResponder: (mensaje: Mensaje) => void;
+  /** Callback para abrir modal de reenvío en VentanaChat */
+  onReenviar: (mensaje: Mensaje) => void;
   /** ¿Estamos en móvil? */
   esMobile: boolean;
 }
@@ -67,6 +70,7 @@ export function MenuContextualMensaje({
   onCerrar,
   onEditar,
   onResponder,
+  onReenviar,
   esMobile,
 }: MenuContextualMensajeProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -81,6 +85,7 @@ export function MenuContextualMensaje({
     if (esMobile) return;
 
     const handleClickFuera = (e: MouseEvent) => {
+      if ((e.target as HTMLElement).closest('[data-menu-trigger="true"]')) return;
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onCerrar();
       }
@@ -146,6 +151,12 @@ export function MenuContextualMensaje({
     onResponder(mensaje);
   }, [mensaje, onCerrar, onResponder]);
 
+  /** Reenviar mensaje a otro contacto */
+  const handleReenviar = useCallback(() => {
+    onCerrar();
+    onReenviar(mensaje);
+  }, [mensaje, onCerrar, onReenviar]);
+
   /** Editar mensaje propio */
   const handleEditar = useCallback(() => {
     onCerrar();
@@ -195,6 +206,11 @@ export function MenuContextualMensaje({
 
   // Copiar
   opciones.push({ icono: Copy, label: 'Copiar texto', onClick: handleCopiar });
+
+  // Reenviar (no en Mis Notas, no si está eliminado)
+  if (!esMisNotas && !mensaje.eliminado) {
+    opciones.push({ icono: Forward, label: 'Reenviar', onClick: handleReenviar });
+  }
 
   // Fijar (no en Mis Notas)
   if (!esMisNotas) {

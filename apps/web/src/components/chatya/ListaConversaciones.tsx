@@ -195,7 +195,9 @@ export function ListaConversaciones() {
   // Menú contextual de conversación (click derecho / long press)
   // ---------------------------------------------------------------------------
   const handleMenuContextual = useCallback((conv: Conversacion, pos: { x: number; y: number }) => {
-    setMenuContextual({ conversacion: conv, x: pos.x, y: pos.y });
+    setMenuContextual((prev) =>
+      prev?.conversacion.id === conv.id ? null : { conversacion: conv, x: pos.x, y: pos.y }
+    );
   }, []);
 
   const cerrarMenuCtx = useCallback(() => setMenuContextual(null), []);
