@@ -23,8 +23,9 @@ import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { ConversacionItem } from './ConversacionItem';
+import { MenuContextualChat } from './MenuContextualChat';
 import * as chatyaService from '../../services/chatyaService';
-import type { ModoChatYA, PersonaBusqueda, NegocioBusqueda } from '../../types/chatya';
+import type { ModoChatYA, PersonaBusqueda, NegocioBusqueda, Conversacion } from '../../types/chatya';
 
 // =============================================================================
 // TIPOS LOCALES
@@ -44,8 +45,8 @@ export function ListaConversaciones() {
   const cargando = useChatYAStore((s) => s.cargandoConversaciones);
   const conversacionActivaId = useChatYAStore((s) => s.conversacionActivaId);
   const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
   const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
-  const crearConversacion = useChatYAStore((s) => s.crearConversacion);
 
   const modoActivo = (useAuthStore((s) => s.usuario?.modoActivo) || 'personal') as ModoChatYA;
 
@@ -61,9 +62,9 @@ export function ListaConversaciones() {
   const [personasResultados, setPersonasResultados] = useState<PersonaBusqueda[]>([]);
   const [negociosResultados, setNegociosResultados] = useState<NegocioBusqueda[]>([]);
   const [buscandoBackend, setBuscandoBackend] = useState(false);
-  const [creandoChat, setCreandoChat] = useState<string | null>(null);
   const [viendoArchivados, setViendoArchivados] = useState(false);
   const [cargandoArchivados, setCargandoArchivados] = useState(false);
+  const [menuContextual, setMenuContextual] = useState<{ conversacion: Conversacion; x: number; y: number } | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -191,52 +192,60 @@ export function ListaConversaciones() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Handler: Click en persona → crear conversación y abrir chat
+  // Menú contextual de conversación (click derecho / long press)
   // ---------------------------------------------------------------------------
-  const handleClickPersona = useCallback(async (persona: PersonaBusqueda) => {
-    if (creandoChat) return;
-    setCreandoChat(persona.id);
+  const handleMenuContextual = useCallback((conv: Conversacion, pos: { x: number; y: number }) => {
+    setMenuContextual({ conversacion: conv, x: pos.x, y: pos.y });
+  }, []);
 
-    try {
-      const conv = await crearConversacion({
+  const cerrarMenuCtx = useCallback(() => setMenuContextual(null), []);
+
+  // ---------------------------------------------------------------------------
+  // Handler: Click en persona → abrir chat temporal (lazy creation)
+  // ---------------------------------------------------------------------------
+  const handleClickPersona = useCallback((persona: PersonaBusqueda) => {
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: persona.id,
+        nombre: persona.nombre,
+        apellidos: persona.apellidos,
+        avatarUrl: persona.avatarUrl,
+      },
+      datosCreacion: {
         participante2Id: persona.id,
         participante2Modo: 'personal',
         contextoTipo: 'directo',
-      });
-
-      if (conv) {
-        abrirConversacion(conv.id);
-        limpiarBusqueda();
-      }
-    } finally {
-      setCreandoChat(null);
-    }
-  }, [crearConversacion, abrirConversacion, limpiarBusqueda, creandoChat]);
+      },
+    });
+    limpiarBusqueda();
+  }, [abrirChatTemporal, limpiarBusqueda]);
 
   // ---------------------------------------------------------------------------
-  // Handler: Click en negocio → crear conversación y abrir chat
+  // Handler: Click en negocio → abrir chat temporal (lazy creation)
   // ---------------------------------------------------------------------------
-  const handleClickNegocio = useCallback(async (negocio: NegocioBusqueda) => {
-    if (creandoChat) return;
-    setCreandoChat(negocio.sucursalId);
-
-    try {
-      const conv = await crearConversacion({
+  const handleClickNegocio = useCallback((negocio: NegocioBusqueda) => {
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: negocio.usuarioId,
+        nombre: negocio.negocioNombre,
+        apellidos: '',
+        avatarUrl: negocio.fotoPerfil,
+        negocioNombre: negocio.negocioNombre,
+        negocioLogo: negocio.fotoPerfil || undefined,
+        sucursalNombre: negocio.sucursalNombre || undefined,
+      },
+      datosCreacion: {
         participante2Id: negocio.usuarioId,
         participante2Modo: 'comercial',
         participante2SucursalId: negocio.sucursalId,
         contextoTipo: 'negocio',
         contextoReferenciaId: negocio.negocioId,
-      });
-
-      if (conv) {
-        abrirConversacion(conv.id);
-        limpiarBusqueda();
-      }
-    } finally {
-      setCreandoChat(null);
-    }
-  }, [crearConversacion, abrirConversacion, limpiarBusqueda, creandoChat]);
+      },
+    });
+    limpiarBusqueda();
+  }, [abrirChatTemporal, limpiarBusqueda]);
 
   // ---------------------------------------------------------------------------
   // Skeleton de carga inicial
@@ -318,7 +327,7 @@ export function ListaConversaciones() {
       )}
 
       {/* ═══ Contenido scrolleable ═══ */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide flex flex-col">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide flex flex-col relative">
 
         {/* ─── MODO BÚSQUEDA: 3 secciones mientras escribes ─── */}
         {estaBuscando ? (
@@ -338,6 +347,7 @@ export function ListaConversaciones() {
                       abrirConversacion(conv.id);
                       limpiarBusqueda();
                     }}
+                    onMenuContextual={handleMenuContextual}
                   />
                 ))}
               </div>
@@ -368,8 +378,7 @@ export function ListaConversaciones() {
                     <button
                       key={neg.sucursalId}
                       onClick={() => handleClickNegocio(neg)}
-                      disabled={creandoChat === neg.sucursalId}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50/60 text-left disabled:opacity-50 cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50/60 text-left cursor-pointer"
                     >
                       {/* Foto de perfil */}
                       {neg.fotoPerfil ? (
@@ -386,29 +395,29 @@ export function ListaConversaciones() {
 
                       {/* Info del negocio */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800 truncate">
+                        <p className="text-[15px] lg:text-[13px] font-semibold text-gray-800 truncate">
                           {neg.negocioNombre}
                         </p>
                         {neg.sucursalNombre && (
-                          <p className="text-[11px] text-gray-400 truncate">
+                          <p className="text-[13px] lg:text-xs text-gray-600 font-medium truncate">
                             {neg.sucursalNombre}
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-0.5">
                           {neg.categoria && (
-                            <span className="text-[10px] text-gray-400">
+                            <span className="text-[13px] lg:text-xs text-gray-500 font-medium">
                               {neg.categoria}
                             </span>
                           )}
                           {neg.calificacionPromedio > 0 && (
-                            <span className="flex items-center gap-0.5 text-[10px] text-amber-500">
-                              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                            <span className="flex items-center gap-0.5 text-[13px] lg:text-xs text-amber-500 font-medium">
+                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                               {neg.calificacionPromedio.toFixed(1)}
                             </span>
                           )}
                           {neg.distanciaKm != null && (
-                            <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                              <MapPin className="w-2.5 h-2.5" />
+                            <span className="flex items-center gap-0.5 text-[13px] lg:text-xs text-gray-500 font-medium">
+                              <MapPin className="w-3 h-3" />
                               {neg.distanciaKm < 1
                                 ? `${Math.round(neg.distanciaKm * 1000)}m`
                                 : `${neg.distanciaKm.toFixed(1)}km`
@@ -448,8 +457,7 @@ export function ListaConversaciones() {
                     <button
                       key={persona.id}
                       onClick={() => handleClickPersona(persona)}
-                      disabled={creandoChat === persona.id}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50/60 text-left disabled:opacity-50 cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50/60 text-left cursor-pointer"
                     >
                       {/* Avatar */}
                       {persona.avatarUrl ? (
@@ -468,11 +476,11 @@ export function ListaConversaciones() {
 
                       {/* Info de la persona */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800 truncate">
+                        <p className="text-[15px] lg:text-[13px] font-semibold text-gray-800 truncate">
                           {persona.nombre} {persona.apellidos}
                         </p>
                         {persona.alias && (
-                          <p className="text-[11px] text-gray-400 truncate">
+                          <p className="text-[13px] lg:text-xs text-gray-600 font-medium truncate">
                             @{persona.alias}
                           </p>
                         )}
@@ -534,6 +542,7 @@ export function ListaConversaciones() {
                   onClick={() => {
                     abrirConversacion(conv.id);
                   }}
+                  onMenuContextual={handleMenuContextual}
                 />
               ))
             )}
@@ -578,10 +587,20 @@ export function ListaConversaciones() {
                   conversacion={conv}
                   activa={conv.id === conversacionActivaId}
                   onClick={() => abrirConversacion(conv.id)}
+                  onMenuContextual={handleMenuContextual}
                 />
               ))
             )}
           </div>
+        )}
+
+        {/* ═══ Menú contextual flotante (reutiliza MenuContextualChat) ═══ */}
+        {menuContextual && (
+          <MenuContextualChat
+            conversacion={menuContextual.conversacion}
+            onCerrar={cerrarMenuCtx}
+            posicion={{ x: menuContextual.x, y: menuContextual.y }}
+          />
         )}
       </div>
     </div>

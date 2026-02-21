@@ -35,7 +35,7 @@ export type TipoMensaje =
   | 'sistema';
 
 /** Estados de entrega del mensaje (palomitas) */
-export type EstadoMensaje = 'enviado' | 'entregado' | 'leido';
+export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 
 /** Desde dónde se inició la conversación */
 export type ContextoTipo =
@@ -102,6 +102,8 @@ export interface Conversacion {
   ultimoMensajeTexto: string | null;
   ultimoMensajeFecha: string | null;
   ultimoMensajeTipo: TipoMensaje | null;
+  ultimoMensajeEstado: EstadoMensaje | null;
+  ultimoMensajeEmisorId: string | null;
   noLeidos: number;
   fijada: boolean;
   archivada: boolean;

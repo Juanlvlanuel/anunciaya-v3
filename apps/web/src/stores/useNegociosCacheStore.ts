@@ -320,17 +320,14 @@ export const useNegociosCacheStore = create<NegociosCacheState>((set, get) => ({
     
     const { timestamp, coordenadas, data } = state.listaNegocios;
     
-    // Verificar expiración
+    // Verificar expiración — solo retornar null, sin mutar estado durante render
     if (Date.now() - timestamp > CACHE_TTL) {
-      set({ listaNegocios: null });
       return null;
     }
     
     // Verificar que la ubicación no haya cambiado significativamente
     const { latitud, longitud } = useGpsStore.getState();
     if (coordenadas.latitud !== latitud || coordenadas.longitud !== longitud) {
-      // Ubicación cambió, invalidar caché
-      set({ listaNegocios: null });
       return null;
     }
     

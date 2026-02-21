@@ -38,6 +38,8 @@ interface InputMensajeProps {
   mensajeRespondiendo?: Mensaje | null;
   /** Callback para cancelar la respuesta */
   onCancelarRespuesta?: () => void;
+  /** Si el contacto está bloqueado, deshabilitar el input */
+  bloqueado?: boolean;
 }
 
 // =============================================================================
@@ -49,10 +51,14 @@ export function InputMensaje({
   onCancelarEdicion,
   mensajeRespondiendo = null,
   onCancelarRespuesta,
+  bloqueado = false,
 }: InputMensajeProps) {
   const enviarMensaje = useChatYAStore((s) => s.enviarMensaje);
   const enviandoMensaje = useChatYAStore((s) => s.enviandoMensaje);
   const conversacionActivaId = useChatYAStore((s) => s.conversacionActivaId);
+  const chatTemporal = useChatYAStore((s) => s.chatTemporal);
+  const crearConversacion = useChatYAStore((s) => s.crearConversacion);
+  const transicionarAConversacionReal = useChatYAStore((s) => s.transicionarAConversacionReal);
 
   const [texto, setTexto] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -153,6 +159,20 @@ export function InputMensaje({
       return;
     }
 
+    // ── CHAT TEMPORAL: crear conversación real primero, luego enviar ──
+    if (chatTemporal && conversacionActivaId?.startsWith('temp_')) {
+      const conv = await crearConversacion(chatTemporal.datosCreacion);
+      if (!conv) {
+        setTexto(contenido); // Restaurar el texto si falla
+        return;
+      }
+      // Transicionar al ID real SIN resetear mensajes (preserva mensaje optimista)
+      transicionarAConversacionReal(conv.id);
+      await enviarMensaje({ contenido, tipo: 'texto' });
+      inputRef.current?.focus();
+      return;
+    }
+
     // ── MODO RESPUESTA: enviar con referencia al mensaje original ──
     if (mensajeRespondiendo) {
       await enviarMensaje({ contenido, tipo: 'texto', respuestaAId: mensajeRespondiendo.id });
@@ -188,7 +208,7 @@ export function InputMensaje({
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
-  const puedeEnviar = texto.trim().length > 0 && !enviandoMensaje;
+  const puedeEnviar = texto.trim().length > 0 && !enviandoMensaje && !bloqueado;
 
   return (
     <div className="border-t border-gray-300 bg-white shrink-0">
@@ -234,13 +254,15 @@ export function InputMensaje({
           type="text"
           value={texto}
           onChange={(e) => {
+            if (bloqueado) return;
             setTexto(e.target.value);
             if (e.target.value.trim()) manejarEscribiendo();
           }}
           onKeyDown={handleKeyDown}
-          placeholder={mensajeEditando ? 'Editar mensaje...' : mensajeRespondiendo ? 'Escribir respuesta...' : 'Escribe un mensaje...'}
+          disabled={bloqueado}
+          placeholder={bloqueado ? 'No puedes enviar mensajes a este contacto' : mensajeEditando ? 'Editar mensaje...' : mensajeRespondiendo ? 'Escribir respuesta...' : 'Escribe un mensaje...'}
           maxLength={5000}
-          className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-full text-[13px] text-gray-800 placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)]"
+          className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-full text-[13px] text-gray-800 placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
         />
 
         {/* Botón enviar */}

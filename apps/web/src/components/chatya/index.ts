@@ -6,7 +6,6 @@
  * UBICACIÓN: apps/web/src/components/chatya/index.ts
  */
 
-export { BarraMinimizada } from './BarraMinimizada';
 export { ListaConversaciones } from './ListaConversaciones';
 export { ConversacionItem } from './ConversacionItem';
 export { VentanaChat } from './VentanaChat';

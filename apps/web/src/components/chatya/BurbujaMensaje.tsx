@@ -14,7 +14,7 @@
  */
 
 import { useRef, useCallback, useState } from 'react';
-import { Check, CheckCheck, Store, SmilePlus } from 'lucide-react';
+import { Check, CheckCheck, Store, SmilePlus, AlertCircle, ChevronDown } from 'lucide-react';
 import type { Mensaje } from '../../types/chatya';
 
 // =============================================================================
@@ -66,9 +66,11 @@ function formatearHora(fecha: string): string {
 export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId }: BurbujaMensajeProps) {
   const hora = formatearHora(mensaje.createdAt);
   const esNegocio = !esMisNotas && !!mensaje.emisorSucursalId;
+  const esFallido = mensaje.estado === 'fallido';
 
   /** Picker de emojis abierto (hover en desktop) */
   const [emojiPickerAbierto, setEmojiPickerAbierto] = useState(false);
+  const emojiCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ---------------------------------------------------------------------------
   // Long press (móvil) y click derecho (desktop)
@@ -125,24 +127,36 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
   }
 
   return (
-    <div className={`relative group ${esMio ? 'self-end' : 'self-start'} max-w-[84%] select-none`}>
+    <div
+      className={`group flex ${esMio ? 'justify-end' : 'justify-start'}`}
+      onMouseLeave={() => {
+        if (emojiPickerAbierto) {
+          emojiCloseTimerRef.current = setTimeout(() => setEmojiPickerAbierto(false), 400);
+        }
+      }}
+      onMouseEnter={() => {
+        if (emojiCloseTimerRef.current) {
+          clearTimeout(emojiCloseTimerRef.current);
+          emojiCloseTimerRef.current = null;
+        }
+      }}
+    >
+    <div className={`relative max-w-[84%] select-none`}>
       {/* Botón emoji hover (solo desktop, no eliminados, no Mis Notas) */}
       {!mensaje.eliminado && !esMisNotas && onReaccionar && (
-        <div className={`absolute top-1/2 -translate-y-1/2 hidden lg:group-hover:flex z-10 ${esMio ? '-left-8' : '-right-8'}`}>
+        <div className={`absolute top-1/2 -translate-y-1/2 z-10 ${emojiPickerAbierto ? 'flex' : 'hidden lg:group-hover:flex'} ${esMio ? '-left-9' : '-right-9'}`}>
           <button
             onClick={() => setEmojiPickerAbierto((v) => !v)}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-300 hover:text-gray-500 hover:bg-gray-100 cursor-pointer"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
           >
-            <SmilePlus className="w-4 h-4" />
+            <SmilePlus className="w-[18px] h-[18px]" />
           </button>
         </div>
       )}
 
       {/* Picker de emojis rápidos (desktop) */}
       {emojiPickerAbierto && onReaccionar && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setEmojiPickerAbierto(false)} />
-          <div className={`absolute z-20 bg-white rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] border border-gray-200 flex items-center gap-0.5 px-1.5 py-1 ${esMio ? 'right-0 -top-10' : 'left-0 -top-10'}`}>
+        <div className={`absolute z-20 bg-white rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] border border-gray-200 flex items-center gap-0 px-1 py-0.5 ${esMio ? 'right-0 -top-10' : 'left-0 -top-10'}`}>
             {EMOJIS_RAPIDOS.map((emoji) => (
               <button
                 key={emoji}
@@ -150,13 +164,12 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
                   onReaccionar(mensaje.id, emoji);
                   setEmojiPickerAbierto(false);
                 }}
-                className="w-8 h-8 text-base flex items-center justify-center rounded-full hover:bg-gray-100 active:scale-125 cursor-pointer"
+                className="w-8 h-8 text-lg flex items-center justify-center hover:scale-125 active:scale-140 cursor-pointer"
               >
                 {emoji}
               </button>
             ))}
           </div>
-        </>
       )}
 
       <div
@@ -173,8 +186,25 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
           }
           ${resaltado ? 'ring-2 ring-amber-400' : ''}
           ${menuActivoId === mensaje.id ? 'ring-2 ring-blue-400 scale-[1.02]' : ''}
+          ${esFallido ? 'opacity-60' : ''}
         `}
       >
+      {/* Flechita menú contextual (hover desktop) */}
+      {!mensaje.eliminado && !esMisNotas && onMenuContextual && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            onMenuContextual(mensaje, { x: esMio ? rect.right - 144 : rect.left, y: rect.bottom + 4 });
+          }}
+          className={`absolute top-0.5 right-0.5 z-10 flex w-6 h-5 items-center justify-center rounded cursor-pointer opacity-0 lg:group-hover:opacity-100 ${
+            esMio ? 'hover:bg-white/20 text-white/70 hover:text-white' : 'hover:bg-gray-100 text-gray-300 hover:text-gray-500'
+          }`}
+        >
+          <ChevronDown className="w-4 h-4" />
+        </button>
+      )}
+
       {/* Tag de negocio (solo mensajes del otro que es negocio) */}
       {!esMio && esNegocio && (
         <div className="flex items-center gap-1 mb-0.5">
@@ -219,6 +249,14 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
       </p>
     </div>
 
+      {/* Indicador de mensaje fallido */}
+      {esFallido && esMio && (
+        <div className="flex items-center justify-end gap-1 mt-0.5 mr-1">
+          <AlertCircle className="w-3 h-3 text-red-400" />
+          <span className="text-[11px] text-red-400">No se pudo entregar este mensaje</span>
+        </div>
+      )}
+
       {/* Burbuja de emojis flotante (móvil, cuando este mensaje tiene menú activo) */}
       {menuActivoId === mensaje.id && !mensaje.eliminado && !esMisNotas && onReaccionar && (
         <div className={`absolute z-20 ${esMio ? 'right-0' : 'left-0'} -bottom-14`}>
@@ -236,6 +274,7 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
         </div>
       )}
     </div>
+    </div>
   );
 }
 
@@ -243,12 +282,14 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
 // SUBCOMPONENTE: Palomitas de estado
 // =============================================================================
 
-function Palomitas({ estado }: { estado: 'enviado' | 'entregado' | 'leido' }) {
+function Palomitas({ estado }: { estado: 'enviado' | 'entregado' | 'leido' | 'fallido' }) {
   switch (estado) {
     case 'leido':
       return <CheckCheck className="w-4 h-4 text-sky-300" />;
     case 'entregado':
       return <CheckCheck className="w-4 h-4 text-white/55" />;
+    case 'fallido':
+      return <AlertCircle className="w-3.5 h-3.5 text-red-300" />;
     case 'enviado':
     default:
       return <Check className="w-3.5 h-3.5 text-white/55" />;

@@ -27,6 +27,7 @@ import {
   Reply,
   Copy,
   Pin,
+  PinOff,
   Pencil,
   Trash2,
 } from 'lucide-react';
@@ -70,6 +71,8 @@ export function MenuContextualMensaje({
 }: MenuContextualMensajeProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const conversacionActivaId = useChatYAStore((s) => s.conversacionActivaId);
+  const mensajesFijados = useChatYAStore((s) => s.mensajesFijados);
+  const estaFijado = mensajesFijados.some((f) => f.mensajeId === mensaje.id);
 
   // ---------------------------------------------------------------------------
   // Click fuera para cerrar (desktop)
@@ -154,11 +157,15 @@ export function MenuContextualMensaje({
     onCerrar();
     if (!conversacionActivaId) return;
     try {
-      await chatyaService.fijarMensaje(conversacionActivaId, mensaje.id);
+      if (estaFijado) {
+        await chatyaService.desfijarMensaje(conversacionActivaId, mensaje.id);
+      } else {
+        await chatyaService.fijarMensaje(conversacionActivaId, mensaje.id);
+      }
     } catch {
       void 0; // Silencioso
     }
-  }, [conversacionActivaId, mensaje.id, onCerrar]);
+  }, [conversacionActivaId, mensaje.id, estaFijado, onCerrar]);
 
   /** Eliminar mensaje propio */
   const handleEliminar = useCallback(async () => {
@@ -191,7 +198,7 @@ export function MenuContextualMensaje({
 
   // Fijar (no en Mis Notas)
   if (!esMisNotas) {
-    opciones.push({ icono: Pin, label: 'Fijar mensaje', onClick: handleFijar });
+    opciones.push({ icono: estaFijado ? PinOff : Pin, label: estaFijado ? 'Desfijar mensaje' : 'Fijar mensaje', onClick: handleFijar });
   }
 
   // Editar (solo mensajes propios de tipo texto)
@@ -256,7 +263,7 @@ export function MenuContextualMensaje({
   return (
     <div
       ref={menuRef}
-      className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border border-gray-200 overflow-hidden min-w-[180px]"
+      className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border border-gray-200 overflow-hidden min-w-36"
       style={{ left: posicion.x, top: posicion.y }}
     >
       {/* Opciones */}
@@ -265,7 +272,7 @@ export function MenuContextualMensaje({
           <button
             key={opcion.label}
             onClick={opcion.onClick}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-gray-50 cursor-pointer"
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
           >
             <opcion.icono className={`w-4 h-4 ${opcion.color || 'text-gray-500'}`} />
             <span className={`text-xs font-medium ${opcion.color || 'text-gray-700'}`}>

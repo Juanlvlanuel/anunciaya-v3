@@ -68,6 +68,29 @@ const MAX_COLA_OFFLINE = 50;
 // TIPOS DEL STORE
 // =============================================================================
 
+// =============================================================================
+// CHAT TEMPORAL (lazy creation)
+// El chat se muestra antes de existir en el backend.
+// La conversación real se crea solo al enviar el primer mensaje.
+// =============================================================================
+
+export interface ChatTemporal {
+  /** ID local — siempre empieza con "temp_" */
+  id: string;
+  /** Datos del contacto para mostrar el header igual que un chat real */
+  otroParticipante: {
+    id: string;
+    nombre: string;
+    apellidos: string;
+    avatarUrl: string | null;
+    negocioNombre?: string;
+    negocioLogo?: string;
+    sucursalNombre?: string;
+  };
+  /** Datos para crear la conversación real al enviar el primer mensaje */
+  datosCreacion: CrearConversacionInput;
+}
+
 interface ChatYAState {
   // ─── Navegación interna ────────────────────────────────────────────────
   vistaActiva: VistaChatYA;
@@ -115,6 +138,9 @@ interface ChatYAState {
   totalResultadosBusqueda: number;
   cargandoBusqueda: boolean;
 
+  // ─── Chat Temporal (lazy creation) ───────────────────────────────────
+  chatTemporal: ChatTemporal | null;
+
   // ─── Enviando ─────────────────────────────────────────────────────────
   enviandoMensaje: boolean;
 
@@ -124,6 +150,8 @@ interface ChatYAState {
   // ─── ACCIONES: Navegación ─────────────────────────────────────────────
   setVistaActiva: (vista: VistaChatYA) => void;
   abrirConversacion: (conversacionId: string) => void;
+  abrirChatTemporal: (datos: ChatTemporal) => void;
+  transicionarAConversacionReal: (conversacionId: string) => void;
   volverALista: () => void;
 
   // ─── ACCIONES: Conversaciones ─────────────────────────────────────────
@@ -217,6 +245,7 @@ const ESTADO_INICIAL = {
   totalResultadosBusqueda: 0,
   cargandoBusqueda: false,
   enviandoMensaje: false,
+  chatTemporal: null as ChatTemporal | null,
   error: null as string | null,
 };
 
@@ -245,15 +274,47 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     set({
       vistaActiva: 'chat',
       conversacionActivaId: conversacionId,
+      chatTemporal: null,
       mensajes: [],
       totalMensajes: 0,
       hayMasMensajes: false,
       escribiendo: null,
+      cargandoMensajes: true,
     });
 
     // Cargar mensajes y marcar como leído en paralelo
     get().cargarMensajes(conversacionId);
+    get().cargarMensajesFijados(conversacionId);
     get().marcarComoLeido(conversacionId);
+  },
+
+  /**
+   * Transiciona de chat temporal a conversación real.
+   * A diferencia de abrirConversacion, NO resetea mensajes — preserva
+   * el mensaje optimista que ya está en pantalla.
+   */
+  transicionarAConversacionReal: (conversacionId: string) => {
+    set({
+      conversacionActivaId: conversacionId,
+      chatTemporal: null,
+    });
+  },
+
+  /**
+   * Abre un chat temporal sin crear conversación en el backend.
+   * La conversación real se crea cuando el usuario envía el primer mensaje.
+   */
+  abrirChatTemporal: (datos: ChatTemporal) => {
+    set({
+      vistaActiva: 'chat',
+      conversacionActivaId: datos.id,
+      chatTemporal: datos,
+      mensajes: [],
+      totalMensajes: 0,
+      hayMasMensajes: false,
+      escribiendo: null,
+      cargandoMensajes: false,
+    });
   },
 
   /** Vuelve a la lista de conversaciones y limpia el estado del chat activo */
@@ -261,6 +322,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     set({
       vistaActiva: 'lista',
       conversacionActivaId: null,
+      chatTemporal: null,
       mensajes: [],
       totalMensajes: 0,
       hayMasMensajes: false,
@@ -456,19 +518,33 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
 
   /** Marcar como leído (optimista): resetea contador inmediatamente */
   marcarComoLeido: async (id: string) => {
-    const { conversaciones, totalNoLeidos } = get();
+    const { conversaciones, conversacionesArchivadas, totalNoLeidos, noLeidosArchivados } = get();
+
+    // Buscar en lista normal
     const conv = conversaciones.find((c) => c.id === id);
-    if (!conv || conv.noLeidos === 0) return;
+    if (conv && conv.noLeidos > 0) {
+      set({
+        conversaciones: conversaciones.map((c) =>
+          c.id === id ? { ...c, noLeidos: 0 } : c
+        ),
+        totalNoLeidos: Math.max(0, totalNoLeidos - conv.noLeidos),
+      });
+    }
 
-    const noLeidosAnterior = conv.noLeidos;
+    // Buscar en archivados
+    const convArch = conversacionesArchivadas.find((c) => c.id === id);
+    if (convArch && convArch.noLeidos > 0) {
+      set({
+        conversacionesArchivadas: conversacionesArchivadas.map((c) =>
+          c.id === id ? { ...c, noLeidos: 0 } : c
+        ),
+        noLeidosArchivados: Math.max(0, noLeidosArchivados - convArch.noLeidos),
+        totalNoLeidos: Math.max(0, get().totalNoLeidos - convArch.noLeidos),
+      });
+    }
 
-    // Optimista: resetear contador de esta conversación
-    set({
-      conversaciones: conversaciones.map((c) =>
-        c.id === id ? { ...c, noLeidos: 0 } : c
-      ),
-      totalNoLeidos: Math.max(0, totalNoLeidos - noLeidosAnterior),
-    });
+    // Si no había no leídos en ninguna lista, no llamar al backend
+    if ((!conv || conv.noLeidos === 0) && (!convArch || convArch.noLeidos === 0)) return;
 
     try {
       await chatyaService.marcarComoLeido(id);
@@ -568,6 +644,8 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
                     : datos.contenido.substring(0, 100),
             ultimoMensajeFecha: new Date().toISOString(),
             ultimoMensajeTipo: datos.tipo || 'texto',
+            ultimoMensajeEstado: 'enviado' as const,
+            ultimoMensajeEmisorId: miId,
           }
           : c
       ),
@@ -584,11 +662,12 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         }));
         return respuesta.data;
       } else {
-        // Rollback: quitar mensaje temporal
+        // Marcar como fallido (se queda visible con ⚠) en vez de eliminar
         set((state) => ({
-          mensajes: state.mensajes.filter((m) => m.id !== idTemporal),
+          mensajes: state.mensajes.map((m) =>
+            m.id === idTemporal ? { ...m, estado: 'fallido' as const } : m
+          ),
         }));
-        notificar.error(respuesta.message || 'No se pudo enviar el mensaje');
         return null;
       }
     } catch {
@@ -787,18 +866,37 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   },
 
   bloquearUsuario: async (datos: BloquearUsuarioInput) => {
+    const { bloqueados } = get();
+
+    // Optimista: agregar inmediatamente con datos mínimos para que esBloqueado sea true
+    const entradaOptimista: UsuarioBloqueado = {
+      id: `opt_${Date.now()}`,
+      bloqueadoId: datos.bloqueadoId,
+      motivo: datos.motivo || null,
+      createdAt: new Date().toISOString(),
+      nombre: '',
+      apellidos: '',
+      avatarUrl: '',
+    };
+    set({ bloqueados: [...bloqueados, entradaOptimista] });
+
     try {
       const respuesta = await chatyaService.bloquearUsuario(datos);
       if (respuesta.success && respuesta.data) {
+        // Solo actualizar el id temporal con el id real del servidor
         set((state) => ({
-          bloqueados: [...state.bloqueados, respuesta.data!],
+          bloqueados: state.bloqueados.map((b) =>
+            b.id === entradaOptimista.id ? { ...b, id: respuesta.data!.id } : b
+          ),
         }));
         notificar.exito('Usuario bloqueado');
         return true;
       }
+      set({ bloqueados }); // revertir
       notificar.error(respuesta.message || 'No se pudo bloquear');
       return false;
     } catch {
+      set({ bloqueados }); // revertir
       notificar.error('Error al bloquear usuario');
       return false;
     }
@@ -1119,6 +1217,28 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
               : `[${mensaje.tipo}]`,
           ultimoMensajeFecha: mensaje.createdAt,
           ultimoMensajeTipo: mensaje.tipo,
+          ultimoMensajeEstado: mensaje.estado,
+          ultimoMensajeEmisorId: mensaje.emisorId,
+          noLeidos: prev.conversacionActivaId === conversacionId
+            ? 0
+            : c.noLeidos + 1,
+        }
+        : c
+    ),
+    // También actualizar en archivados
+    conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
+      c.id === conversacionId
+        ? {
+          ...c,
+          ultimoMensajeTexto: mensaje.tipo === 'texto'
+            ? mensaje.contenido.substring(0, 100)
+            : mensaje.tipo === 'sistema'
+              ? mensaje.contenido.substring(0, 100)
+              : `[${mensaje.tipo}]`,
+          ultimoMensajeFecha: mensaje.createdAt,
+          ultimoMensajeTipo: mensaje.tipo,
+          ultimoMensajeEstado: mensaje.estado,
+          ultimoMensajeEmisorId: mensaje.emisorId,
           noLeidos: prev.conversacionActivaId === conversacionId
             ? 0
             : c.noLeidos + 1,
@@ -1170,6 +1290,20 @@ escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoAt }) => {
       ),
     }));
   }
+
+  // Actualizar estado del último mensaje en la lista de conversaciones
+  useChatYAStore.setState((prev) => ({
+    conversaciones: prev.conversaciones.map((c) =>
+      c.id === conversacionId
+        ? { ...c, ultimoMensajeEstado: 'leido' as const }
+        : c
+    ),
+    conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
+      c.id === conversacionId
+        ? { ...c, ultimoMensajeEstado: 'leido' as const }
+        : c
+    ),
+  }));
 });
 
 /** chatya:escribiendo — Indicador "escribiendo..." */
@@ -1213,6 +1347,20 @@ escucharEvento<EventoEntregado>('chatya:entregado', ({ conversacionId, mensajeId
       ),
     }));
   }
+
+  // Actualizar estado del último mensaje en la lista
+  useChatYAStore.setState((prev) => ({
+    conversaciones: prev.conversaciones.map((c) =>
+      c.id === conversacionId && c.ultimoMensajeEstado === 'enviado'
+        ? { ...c, ultimoMensajeEstado: 'entregado' as const }
+        : c
+    ),
+    conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
+      c.id === conversacionId && c.ultimoMensajeEstado === 'enviado'
+        ? { ...c, ultimoMensajeEstado: 'entregado' as const }
+        : c
+    ),
+  }));
 });
 
 /** chatya:reaccion — Reacción agregada/removida en tiempo real */

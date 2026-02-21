@@ -633,7 +633,7 @@ export function PaginaNegocios() {
           {/* Pestaña lateral → Vista Mapa */}
           <button
             onClick={() => setVistaLista(false)}
-            className="fixed right-0 top-1/2 -translate-y-1/2 z-1000 w-9 h-16 flex items-center justify-center pr-1 rounded-l-2xl cursor-pointer active:scale-95 transition-all hover:w-11"
+            className="fixed right-0 top-1/2 -translate-y-1/2 z-40 w-9 h-16 flex items-center justify-center pr-1 rounded-l-2xl cursor-pointer active:scale-95 transition-all hover:w-11"
             style={{
               background: 'rgba(0,0,0,0.45)',
               backdropFilter: 'blur(12px)',
@@ -653,7 +653,7 @@ export function PaginaNegocios() {
       <div className="relative" style={{ height: 'calc(100vh - 130px)' }}>
 
         {/* Mapa con viñeta difuminada */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 isolate">
           <MapContainer
             center={centroInicial}
             zoom={14}
@@ -716,7 +716,7 @@ export function PaginaNegocios() {
         </div>
 
         {/* Header con pills de categorías (mismo estilo que vista lista) */}
-        <div className="absolute top-0 left-0 right-0 z-1000">
+        <div className="absolute top-0 left-0 right-0 z-40">
           <div className="bg-black  py-1.5">
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
               <button
@@ -748,7 +748,7 @@ export function PaginaNegocios() {
         {/* Pestaña lateral → Vista Lista */}
         <button
           onClick={() => setVistaLista(true)}
-          className="fixed right-0 top-1/2 -translate-y-1/2 z-1000 w-9 h-16 flex items-center justify-center pr-1 rounded-l-2xl cursor-pointer active:scale-95 transition-all hover:w-11"
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 w-9 h-16 flex items-center justify-center pr-1 rounded-l-2xl cursor-pointer active:scale-95 transition-all hover:w-11"
           style={{
             background: 'rgba(0,0,0,0.45)',
             backdropFilter: 'blur(12px)',

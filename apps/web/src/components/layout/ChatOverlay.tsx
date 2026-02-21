@@ -20,14 +20,13 @@
  * UBICACIÓN: apps/web/src/components/layout/ChatOverlay.tsx
  */
 
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Minus, ChevronLeft, StickyNote } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
+import { X, StickyNote } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 
 // Componentes del chat
-import { BarraMinimizada } from '../chatya/BarraMinimizada';
 import { ListaConversaciones } from '../chatya/ListaConversaciones';
 import { VentanaChat } from '../chatya/VentanaChat';
 
@@ -49,8 +48,6 @@ export function ChatOverlay() {
   const chatYAAbierto = useUiStore((s) => s.chatYAAbierto);
   const chatYAMinimizado = useUiStore((s) => s.chatYAMinimizado);
   const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
-  const minimizarChatYA = useUiStore((s) => s.minimizarChatYA);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
   const vistaActiva = useChatYAStore((s) => s.vistaActiva);
   const conversacionActivaId = useChatYAStore((s) => s.conversacionActivaId);
@@ -203,7 +200,7 @@ export function ChatOverlay() {
   }, [chatYAAbierto, chatYAMinimizado, esDesktop, dragStartY, dragCurrentY, cerrarChatYA]);
 
   // ---------------------------------------------------------------------------
-  // Effect: Click outside para minimizar en desktop
+  // Effect: Click outside para cerrar en desktop
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!chatYAAbierto || chatYAMinimizado || !esDesktop) return;
@@ -212,7 +209,7 @@ export function ChatOverlay() {
       const target = e.target as HTMLElement;
       if (target.closest('[data-chatya-button="true"]')) return;
       if (panelRef.current && !panelRef.current.contains(target)) {
-        minimizarChatYA();
+        cerrarChatYA();
       }
     };
 
@@ -224,7 +221,7 @@ export function ChatOverlay() {
       clearTimeout(timer);
       document.removeEventListener('mousedown', handleClick);
     };
-  }, [chatYAAbierto, chatYAMinimizado, esDesktop, minimizarChatYA]);
+  }, [chatYAAbierto, chatYAMinimizado, esDesktop, cerrarChatYA]);
 
   // ---------------------------------------------------------------------------
   // Effect: Cerrar con ESC
@@ -239,30 +236,51 @@ export function ChatOverlay() {
   }, [chatYAAbierto, cerrarChatYA]);
 
   // ---------------------------------------------------------------------------
-  // Handler: botón atrás en móvil (de chat → lista)
+  // Effect: Flecha nativa al abrir ChatOverlay → cerrar desde la lista
   // ---------------------------------------------------------------------------
-  const handleAtras = useCallback(() => {
-    if (vistaActiva === 'chat') {
+  useEffect(() => {
+    if (!chatYAAbierto) return;
+
+    window.history.pushState({ chatyaOverlay: true }, '');
+
+    const handlePopStateOverlay = () => {
+      // Si hay un chat abierto, el listener del chat lo maneja
+      if (useChatYAStore.getState().conversacionActivaId) return;
+      cerrarChatYA();
+    };
+
+    window.addEventListener('popstate', handlePopStateOverlay);
+    return () => {
+      window.removeEventListener('popstate', handlePopStateOverlay);
+    };
+  }, [chatYAAbierto, cerrarChatYA]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Flecha nativa del celular → volver a lista de chats
+  // Cuando se abre un chat, se empuja un estado al historial del navegador.
+  // Al presionar "atrás" en el celular, se captura el evento popstate y se
+  // regresa a la lista sin navegar fuera de la app.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!conversacionActivaId) return;
+
+    // Empujar estado al historial cuando se abre un chat
+    window.history.pushState({ chatya: true }, '');
+
+    const handlePopState = () => {
       volverALista();
-    }
-  }, [vistaActiva, volverALista]);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [conversacionActivaId, volverALista]);
 
   // ---------------------------------------------------------------------------
   // No renderizar si está cerrado
   // ---------------------------------------------------------------------------
   if (!chatYAAbierto) return null;
-
-  // ---------------------------------------------------------------------------
-  // ESTADO MINIMIZADO (solo desktop) — barra lateral de avatares
-  // ---------------------------------------------------------------------------
-  if (chatYAMinimizado && esDesktop) {
-    return (
-      <BarraMinimizada
-        onExpandir={abrirChatYA}
-        totalNoLeidos={totalNoLeidos}
-      />
-    );
-  }
 
   // ---------------------------------------------------------------------------
   // ESTADO EXPANDIDO
@@ -310,15 +328,6 @@ export function ChatOverlay() {
               {/* Header móvil */}
               <div className="flex items-center justify-between px-4">
                 <div className="flex items-center gap-2">
-                  {/* Botón atrás cuando está en chat */}
-                  {enChat && (
-                    <button
-                      onClick={handleAtras}
-                      className="p-1.5 -ml-1.5 hover:bg-white/10 rounded-lg cursor-pointer"
-                    >
-                      <ChevronLeft className="w-5 h-5 text-white/70" />
-                    </button>
-                  )}
                   <div className="flex items-center gap-1.5">
                     <img
                       src="/ChatYA.webp"
@@ -352,8 +361,8 @@ export function ChatOverlay() {
                   <button
                     onClick={() => abrirConversacion(misNotasId)}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer ${conversacionActivaId === misNotasId
-                        ? 'bg-white/15 text-white'
-                        : 'hover:bg-white/10 text-white/60 hover:text-white'
+                      ? 'bg-white/15 text-white'
+                      : 'hover:bg-white/10 text-white/60 hover:text-white'
                       }`}
                   >
                     <StickyNote className="w-5 h-5" />
@@ -393,22 +402,6 @@ export function ChatOverlay() {
                     </span>
                   )}
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={minimizarChatYA}
-                    className="w-7 h-7 rounded-md bg-white/8 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white cursor-pointer"
-                    title="Minimizar"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={cerrarChatYA}
-                    className="w-7 h-7 rounded-md bg-white/8 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white cursor-pointer"
-                    title="Cerrar"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </div>
 
               {/* Indicador de modo + Mis Notas */}
@@ -445,18 +438,36 @@ export function ChatOverlay() {
                 <VentanaChat />
               ) : (
                 /* Estado vacío: ningún chat seleccionado */
-                <div className="flex-1 flex flex-col items-center justify-center px-6">
-                  <div className="w-16 h-16 bg-linear-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden bg-linear-to-br from-blue-100/80 via-indigo-100/60 to-sky-100/70">
+                  {/* Burbujas decorativas animadas */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-[15%] left-[12%] w-20 h-20 bg-blue-200/60 rounded-full animate-[float_6s_ease-in-out_infinite]" />
+                    <div className="absolute top-[60%] right-[10%] w-14 h-14 bg-indigo-200/50 rounded-full animate-[float_8s_ease-in-out_infinite_1s]" />
+                    <div className="absolute bottom-[20%] left-[18%] w-10 h-10 bg-sky-200/55 rounded-full animate-[float_7s_ease-in-out_infinite_2s]" />
+                    <div className="absolute top-[30%] right-[22%] w-8 h-8 bg-blue-300/40 rounded-full animate-[float_5s_ease-in-out_infinite_0.5s]" />
+                    <div className="absolute bottom-[35%] right-[30%] w-6 h-6 bg-indigo-200/50 rounded-full animate-[float_9s_ease-in-out_infinite_3s]" />
+                  </div>
+
+                  {/* Contenido central */}
+                  <div className="relative z-10 flex flex-col items-center">
                     <img
                       src="/logo-ChatYA-blanco.webp"
                       alt="ChatYA"
-                      className="h-10 w-auto object-contain"
+                      className="h-20 w-auto object-contain mb-6"
                     />
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">¡Bienvenido a ChatYA!</h3>
+                    <p className="text-sm text-gray-400 text-center max-w-[260px] leading-relaxed">
+                      Selecciona una conversación para comenzar a chatear
+                    </p>
                   </div>
-                  <h3 className="text-base font-bold text-gray-800 mb-1">¡Bienvenido a ChatYA!</h3>
-                  <p className="text-xs text-gray-400 text-center max-w-[200px] leading-relaxed">
-                    Selecciona una conversación para comenzar a chatear
-                  </p>
+
+                  {/* Keyframes para las burbujas */}
+                  <style>{`
+                    @keyframes float {
+                      0%, 100% { transform: translateY(0px) scale(1); opacity: 0.6; }
+                      50% { transform: translateY(-18px) scale(1.08); opacity: 1; }
+                    }
+                  `}</style>
                 </div>
               )}
             </div>

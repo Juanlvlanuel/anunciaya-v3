@@ -9,10 +9,11 @@
  * UBICACIÓN: apps/web/src/components/chatya/VentanaChat.tsx
  */
 
-import { useRef, useEffect, useCallback, useState } from 'react';
-import { Search, MoreVertical, Store, StickyNote, X, Reply, Copy, Pin, Pencil, Trash2 } from 'lucide-react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
+import { Search, MoreVertical, Store, StickyNote, X, Reply, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useUiStore } from '../../stores/useUiStore';
 import * as chatyaService from '../../services/chatyaService';
 import type { Conversacion } from '../../types/chatya';
 import { BurbujaMensaje } from './BurbujaMensaje';
@@ -34,6 +35,7 @@ export function VentanaChat() {
   // Store
   // ---------------------------------------------------------------------------
   const conversacionActivaId = useChatYAStore((s) => s.conversacionActivaId);
+  const chatTemporal = useChatYAStore((s) => s.chatTemporal);
   const conversaciones = useChatYAStore((s) => s.conversaciones);
   const mensajes = useChatYAStore((s) => s.mensajes);
   const cargandoMensajes = useChatYAStore((s) => s.cargandoMensajes);
@@ -42,9 +44,13 @@ export function VentanaChat() {
   const cargarMensajesAntiguos = useChatYAStore((s) => s.cargarMensajesAntiguos);
   const escribiendo = useChatYAStore((s) => s.escribiendo);
   const misNotasId = useChatYAStore((s) => s.misNotasId);
-  const volverALista = useChatYAStore((s) => s.volverALista);
+  const bloqueados = useChatYAStore((s) => s.bloqueados);
+  const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
+  const mensajesFijados = useChatYAStore((s) => s.mensajesFijados);
+  const desfijarMensaje = useChatYAStore((s) => s.desfijarMensaje);
 
   const usuario = useAuthStore((s) => s.usuario);
+  const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
 
   // ---------------------------------------------------------------------------
   // Derivados
@@ -54,9 +60,11 @@ export function VentanaChat() {
   const conversacionEnArchivados = conversacionesArchivadas.find((c) => c.id === conversacionActivaId);
   const [conversacionRemota, setConversacionRemota] = useState<Conversacion | null>(null);
 
-  // Si no está en ninguna lista del store, cargar del backend
+  // Si no está en ninguna lista del store y no es temporal, cargar del backend
+  const esTemporal = conversacionActivaId?.startsWith('temp_') ?? false;
+
   useEffect(() => {
-    if (conversacionActivaId && !conversacionEnStore && !conversacionEnArchivados) {
+    if (!esTemporal && conversacionActivaId && !conversacionEnStore && !conversacionEnArchivados) {
       chatyaService.getConversacion(conversacionActivaId).then((res) => {
         if (res.success && res.data) {
           setConversacionRemota(res.data as Conversacion);
@@ -65,10 +73,12 @@ export function VentanaChat() {
     } else {
       setConversacionRemota(null);
     }
-  }, [conversacionActivaId, conversacionEnStore, conversacionEnArchivados]);
+  }, [conversacionActivaId, conversacionEnStore, conversacionEnArchivados, esTemporal]);
 
   const conversacion = conversacionEnStore || conversacionEnArchivados || conversacionRemota; const esMisNotas = conversacionActivaId === misNotasId;
-  const otro = conversacion?.otroParticipante;
+
+  // Si es temporal, usar datos del chatTemporal; si no, los de la conversación real
+  const otro = esTemporal ? chatTemporal?.otroParticipante : conversacion?.otroParticipante;
   const nombre = esMisNotas
     ? 'Mis Notas'
     : otro?.negocioNombre || (otro ? `${otro.nombre} ${otro.apellidos || ''}`.trim() : 'Chat');
@@ -80,6 +90,7 @@ export function VentanaChat() {
       : '?';
   const esNegocio = !esMisNotas && !!otro?.negocioNombre;
   const miId = usuario?.id || '';
+  const esBloqueado = !esMisNotas && !esTemporal && bloqueados.some((b) => b.bloqueadoId === otro?.id);
 
   const estaEscribiendo = !esMisNotas && escribiendo?.conversacionId === conversacionActivaId;
 
@@ -116,6 +127,21 @@ export function VentanaChat() {
   // ---------------------------------------------------------------------------
   const [busquedaAbierta, setBusquedaAbierta] = useState(false);
   const [mensajeResaltadoId, setMensajeResaltadoId] = useState<string | null>(null);
+  const fijadosRef = useRef<HTMLDivElement>(null);
+  const [flechasFijados, setFlechasFijados] = useState({ izq: false, der: false });
+
+  const checkFlechasFijados = useCallback(() => {
+    const el = fijadosRef.current;
+    if (!el) return;
+    setFlechasFijados({
+      izq: el.scrollLeft > 0,
+      der: el.scrollLeft + el.clientWidth < el.scrollWidth - 1,
+    });
+  }, []);
+
+  useEffect(() => {
+    checkFlechasFijados();
+  }, [mensajesFijados, checkFlechasFijados]);
 
   /** Callback estable para BarraBusquedaChat */
   const handleMensajeSeleccionado = useCallback((id: string | null) => {
@@ -161,8 +187,9 @@ export function VentanaChat() {
 
   // ---------------------------------------------------------------------------
   // Effect: Gestionar scroll según tipo de cambio en mensajes
+  // Con flex-col-reverse: scrollTop=0 = fondo (más reciente), scroll arriba = más antiguo
   // ---------------------------------------------------------------------------
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!scrollRef.current || mensajes.length === 0) {
       prevMensajesLenRef.current = mensajes.length;
       return;
@@ -171,17 +198,17 @@ export function VentanaChat() {
     const el = scrollRef.current;
 
     if (prevMensajesLenRef.current === 0) {
-      // ── Carga inicial → scroll al fondo ──
-      el.scrollTop = el.scrollHeight;
+      // ── Carga inicial → scrollTop=0 ya es el fondo con col-reverse ──
+      el.scrollTop = 0;
     } else if (cargandoAntiguosRef.current) {
-      // ── Mensajes antiguos cargados → preservar posición ──
+      // ── Mensajes antiguos cargados → preservar posición visual ──
       const nuevoScrollHeight = el.scrollHeight;
       const diferencia = nuevoScrollHeight - prevScrollHeightRef.current;
-      el.scrollTop = diferencia;
+      el.scrollTop = el.scrollTop + diferencia;
       cargandoAntiguosRef.current = false;
     } else if (mensajes.length > prevMensajesLenRef.current) {
-      // ── Mensaje nuevo recibido/enviado → scroll al fondo ──
-      el.scrollTop = el.scrollHeight;
+      // ── Mensaje nuevo recibido/enviado → volver al fondo ──
+      el.scrollTop = 0;
     }
 
     prevMensajesLenRef.current = mensajes.length;
@@ -209,9 +236,12 @@ export function VentanaChat() {
   const handleScroll = useCallback(() => {
     if (!scrollRef.current || cargandoMensajesAntiguos || !hayMasMensajes) return;
 
-    if (scrollRef.current.scrollTop < 50) {
-      // Guardar scrollHeight ANTES de cargar para calcular diferencia después
-      prevScrollHeightRef.current = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    const distanciaAlTope = el.scrollHeight - el.clientHeight - el.scrollTop;
+
+    // Con flex-col-reverse: scrollTop=0 es el fondo, máximo scrollTop es el tope (mensajes más antiguos)
+    if (distanciaAlTope < 50) {
+      prevScrollHeightRef.current = el.scrollHeight;
       cargandoAntiguosRef.current = true;
       cargarMensajesAntiguos();
     }
@@ -236,7 +266,7 @@ export function VentanaChat() {
   // ---------------------------------------------------------------------------
   // Agrupar mensajes por fecha para separadores
   // ---------------------------------------------------------------------------
-  const mensajesConSeparadores = agruparPorFecha(mensajes);
+  const mensajesConSeparadores = agruparPorFecha(mensajes).reverse();
 
   // ---------------------------------------------------------------------------
   // Render
@@ -254,6 +284,7 @@ export function VentanaChat() {
             esMio={menuMensaje!.mensaje.emisorId === miId}
             esMisNotas={esMisNotas}
             conversacionActivaId={conversacionActivaId}
+            mensajesFijados={mensajesFijados}
             onEditar={handleEditarMensaje}
             onResponder={handleResponderMensaje}
             onCerrar={() => setMenuMensaje(null)}
@@ -292,6 +323,11 @@ export function VentanaChat() {
               </div>
               {esMisNotas ? (
                 <p className="text-xs text-gray-400 font-medium">Notas personales</p>
+              ) : esBloqueado ? (
+                <p className="text-xs text-red-500 font-semibold flex items-center gap-1">
+                  <ShieldBan className="w-3 h-3" />
+                  Bloqueado
+                </p>
               ) : estaEscribiendo ? (
                 <p className="text-xs text-green-500 font-semibold">Escribiendo...</p>
               ) : (
@@ -319,26 +355,30 @@ export function VentanaChat() {
                 </button>
               )}
               <div className="relative">
-                <button
-                  onClick={() => setMenuAbierto((v) => !v)}
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${menuAbierto
-                    ? 'bg-gray-200 text-blue-500'
-                    : 'hover:bg-gray-100 text-gray-500 hover:text-blue-500'
-                    }`}
-                >
-                  <MoreVertical className="w-5 h-5" />
-                </button>
-                {menuAbierto && conversacion && (
-                  <MenuContextualChat
-                    conversacion={conversacion}
-                    onCerrar={() => setMenuAbierto(false)}
-                  />
+                {!esTemporal && (
+                  <>
+                    <button
+                      onClick={() => setMenuAbierto((v) => !v)}
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${menuAbierto
+                        ? 'bg-gray-200 text-blue-500'
+                        : 'hover:bg-gray-100 text-gray-500 hover:text-blue-500'
+                        }`}
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                    {menuAbierto && conversacion && (
+                      <MenuContextualChat
+                        conversacion={conversacion}
+                        onCerrar={() => setMenuAbierto(false)}
+                      />
+                    )}
+                  </>
                 )}
               </div>
             </>
           )}
           <button
-            onClick={volverALista}
+            onClick={cerrarChatYA}
             className="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-red-400 cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -346,6 +386,80 @@ export function VentanaChat() {
         </div>
         )}
       </div>
+
+      {/* ═══ Banner: Contacto bloqueado ═══ */}
+      {esBloqueado && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-50 border-b border-red-200 shrink-0">
+          <div className="flex items-center gap-2">
+            <ShieldBan className="w-4 h-4 text-red-500 shrink-0" />
+            <p className="text-xs text-red-600 font-medium">Has bloqueado a este contacto. No puede enviarte mensajes.</p>
+          </div>
+          <button
+            onClick={() => otro?.id && desbloquearUsuario(otro.id)}
+            className="text-xs font-semibold text-red-500 hover:text-red-700 whitespace-nowrap cursor-pointer shrink-0"
+          >
+            Desbloquear
+          </button>
+        </div>
+      )}
+
+      {/* ═══ Banner: Mensajes fijados ═══ */}
+      {mensajesFijados.length > 0 && !esMisNotas && (
+        <div className="flex items-center gap-0 bg-white/80 border-b border-gray-200 shrink-0">
+          <div className="pl-3 py-1.5 shrink-0 flex items-center">
+            <Pin className="w-4 h-4 text-blue-500 rotate-45" />
+          </div>
+          {/* Flecha izquierda */}
+          {flechasFijados.izq && (
+            <button
+              onClick={() => { fijadosRef.current?.scrollBy({ left: -150, behavior: 'smooth' }); }}
+              className="w-6 h-full flex items-center justify-center shrink-0 hover:bg-gray-100 cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+          )}
+          {/* Chips scrolleables */}
+          <div
+            ref={fijadosRef}
+            onScroll={checkFlechasFijados}
+            className="flex items-center gap-1.5 px-1.5 py-1.5 overflow-x-hidden flex-1 min-w-0"
+          >
+            {mensajesFijados.map((fijado) => (
+              <button
+                key={fijado.id}
+                onClick={() => {
+                  setMensajeResaltadoId(fijado.mensajeId);
+                  setTimeout(() => setMensajeResaltadoId(null), 2000);
+                }}
+                className="group/pin flex items-center gap-1.5 px-2 py-0.5 bg-blue-50/80 hover:bg-blue-100 rounded-full shrink-0 cursor-pointer border border-blue-200/50 max-w-[200px]"
+              >
+                <span className="text-xs text-gray-700 font-medium truncate">
+                  {fijado.mensaje.contenido}
+                </span>
+                <span
+                  role="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (conversacionActivaId) desfijarMensaje(conversacionActivaId, fijado.mensajeId);
+                  }}
+                  className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-blue-200 opacity-0 group-hover/pin:opacity-100 shrink-0"
+                >
+                  <X className="w-3 h-3 text-gray-400" />
+                </span>
+              </button>
+            ))}
+          </div>
+          {/* Flecha derecha */}
+          {flechasFijados.der && (
+            <button
+              onClick={() => { fijadosRef.current?.scrollBy({ left: 150, behavior: 'smooth' }); }}
+              className="w-6 h-full flex items-center justify-center shrink-0 hover:bg-gray-100 cursor-pointer pr-1"
+            >
+              <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ═══ Área de mensajes ═══ */}
       <div
@@ -357,28 +471,14 @@ export function VentanaChat() {
             setMenuMensaje(null);
           }
         }}
-        className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-1 bg-linear-to-b from-slate-100 to-stone-100/80 scrollbar-hide"
+        className="flex-1 overflow-y-auto px-3 py-2 flex flex-col-reverse gap-1 bg-linear-to-br from-blue-100/80 via-indigo-100/60 to-sky-100/70 scrollbar-hide"
       >
-        {/* Spinner de carga de mensajes antiguos */}
-        {cargandoMensajesAntiguos && (
-          <div className="flex justify-center py-2">
-            <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-          </div>
-        )}
-
-        {/* Skeleton carga inicial */}
-        {cargandoMensajes && mensajes.length === 0 ? (
-          <div className="flex-1 flex flex-col justify-end gap-2 py-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className={`h-10 rounded-xl animate-pulse ${i % 2 === 0 ? 'bg-blue-100 self-end w-3/5' : 'bg-gray-100 self-start w-2/3'}`}
-              />
-            ))}
-          </div>
-        ) : (
+        {/* Mensajes agrupados por fecha */}
+        {!cargandoMensajes && (
           <>
-            {/* Mensajes agrupados por fecha */}
+            {/* Indicador escribiendo */}
+            {estaEscribiendo && <IndicadorEscribiendo />}
+
             {mensajesConSeparadores.map((item) => {
               if (item.tipo === 'separador') {
                 return <SeparadorFecha key={item.fecha} fecha={item.fecha} />;
@@ -397,19 +497,36 @@ export function VentanaChat() {
               );
             })}
 
-            {/* Indicador escribiendo */}
-            {estaEscribiendo && <IndicadorEscribiendo />}
+            {/* Spinner de carga de mensajes antiguos — al final del DOM = visual tope */}
+            {cargandoMensajesAntiguos && (
+              <div className="flex justify-center py-2">
+                <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* ═══ Input de mensaje ═══ */}
-      <InputMensaje
-        mensajeEditando={mensajeEditando}
-        onCancelarEdicion={handleCancelarEdicion}
-        mensajeRespondiendo={mensajeRespondiendo}
-        onCancelarRespuesta={handleCancelarRespuesta}
-      />
+      {/* ═══ Input de mensaje / Barra de bloqueado ═══ */}
+      {esBloqueado ? (
+        <div className="border-t border-gray-300 bg-gray-100 shrink-0 px-4 py-3.5 flex items-center justify-center gap-2">
+          <ShieldBan className="w-4 h-4 text-gray-400 shrink-0" />
+          <p className="text-[13px] text-gray-500">No puedes enviar mensajes a este contacto.</p>
+          <button
+            onClick={() => otro?.id && desbloquearUsuario(otro.id)}
+            className="text-[13px] font-semibold text-blue-500 hover:text-blue-700 cursor-pointer"
+          >
+            Desbloquear
+          </button>
+        </div>
+      ) : (
+        <InputMensaje
+          mensajeEditando={mensajeEditando}
+          onCancelarEdicion={handleCancelarEdicion}
+          mensajeRespondiendo={mensajeRespondiendo}
+          onCancelarRespuesta={handleCancelarRespuesta}
+        />
+      )}
 
       {/* ═══ Menú contextual de mensaje (solo desktop: click derecho) ═══ */}
       {menuMensaje && !esMobile && (
@@ -437,6 +554,7 @@ function AccionesHeaderMobile({
   esMio,
   esMisNotas,
   conversacionActivaId,
+  mensajesFijados,
   onEditar,
   onResponder,
   onCerrar,
@@ -445,6 +563,7 @@ function AccionesHeaderMobile({
   esMio: boolean;
   esMisNotas: boolean;
   conversacionActivaId: string | null;
+  mensajesFijados: Array<{ mensajeId: string }>;
   onEditar: (msg: Mensaje) => void;
   onResponder: (msg: Mensaje) => void;
   onCerrar: () => void;
@@ -467,12 +586,22 @@ function AccionesHeaderMobile({
     onClick: () => { onCerrar(); if (mensaje.contenido) navigator.clipboard.writeText(mensaje.contenido); },
   });
 
-  // Fijar
+  // Fijar/Desfijar
   if (!esMisNotas && conversacionActivaId) {
+    const estaFijado = mensajesFijados.some((f) => f.mensajeId === mensaje.id);
     acciones.push({
-      icono: Pin,
-      label: 'Fijar',
-      onClick: async () => { onCerrar(); try { await chatyaService.fijarMensaje(conversacionActivaId, mensaje.id); } catch { void 0; } },
+      icono: estaFijado ? PinOff : Pin,
+      label: estaFijado ? 'Desfijar' : 'Fijar',
+      onClick: async () => {
+        onCerrar();
+        try {
+          if (estaFijado) {
+            await chatyaService.desfijarMensaje(conversacionActivaId, mensaje.id);
+          } else {
+            await chatyaService.fijarMensaje(conversacionActivaId, mensaje.id);
+          }
+        } catch { void 0; }
+      },
     });
   }
 

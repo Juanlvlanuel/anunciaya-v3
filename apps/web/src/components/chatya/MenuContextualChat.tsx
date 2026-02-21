@@ -12,9 +12,9 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { Pin, VolumeX, Volume2, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff } from 'lucide-react';
+import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
-import Swal from 'sweetalert2';
+import { notificar } from '../../utils/notificaciones';
 import type { Conversacion } from '../../types/chatya';
 
 // =============================================================================
@@ -24,19 +24,26 @@ import type { Conversacion } from '../../types/chatya';
 interface MenuContextualChatProps {
     conversacion: Conversacion;
     onCerrar: () => void;
+    /** Si se pasa, el menú se posiciona fixed en esas coordenadas (para uso desde lista) */
+    posicion?: { x: number; y: number };
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export function MenuContextualChat({ conversacion, onCerrar }: MenuContextualChatProps) {
+export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuContextualChatProps) {
     const toggleFijar = useChatYAStore((s) => s.toggleFijar);
     const toggleSilenciar = useChatYAStore((s) => s.toggleSilenciar);
     const toggleArchivar = useChatYAStore((s) => s.toggleArchivar);
     const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
     const bloquearUsuario = useChatYAStore((s) => s.bloquearUsuario);
+    const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
+    const bloqueados = useChatYAStore((s) => s.bloqueados);
     const volverALista = useChatYAStore((s) => s.volverALista);
+
+    const otroId = conversacion.otroParticipante?.id;
+    const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otroId);
 
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -77,54 +84,23 @@ export function MenuContextualChat({ conversacion, onCerrar }: MenuContextualCha
     const handleArchivar = async () => {
         onCerrar();
         await toggleArchivar(conversacion.id);
-        if (!conversacion.archivada) {
-            volverALista();
-        }
     };
 
     const handleBloquear = async () => {
         onCerrar();
-        const otroNombre = conversacion.otroParticipante?.negocioNombre
-            || `${conversacion.otroParticipante?.nombre || ''} ${conversacion.otroParticipante?.apellidos || ''}`.trim()
-            || 'este usuario';
-
-        const resultado = await Swal.fire({
-            title: '¿Bloquear?',
-            text: `No recibirás mensajes de ${otroNombre}`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Sí, bloquear',
-            cancelButtonText: 'Cancelar',
-        });
-
-        if (resultado.isConfirmed) {
-            const otroId = conversacion.otroParticipante?.id;
-            if (otroId) {
-                await bloquearUsuario({ bloqueadoId: otroId });
-                volverALista();
-            }
+        if (!otroId) return;
+        if (esBloqueado) {
+            await desbloquearUsuario(otroId);
+        } else {
+            await bloquearUsuario({ bloqueadoId: otroId });
         }
     };
 
     const handleEliminar = async () => {
         onCerrar();
-        const resultado = await Swal.fire({
-            title: '¿Eliminar chat?',
-            text: 'Se eliminará de tu lista. El otro participante aún podrá ver la conversación.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar',
-        });
-
-        if (resultado.isConfirmed) {
-            await eliminarConversacion(conversacion.id);
-            volverALista();
-        }
+        await eliminarConversacion(conversacion.id);
+        volverALista();
+        notificar.exito('Chat eliminado');
     };
 
     // ---------------------------------------------------------------------------
@@ -138,7 +114,7 @@ export function MenuContextualChat({ conversacion, onCerrar }: MenuContextualCha
             destructivo: false,
         },
         {
-            icono: conversacion.silenciada ? Volume2 : VolumeX,
+            icono: conversacion.silenciada ? Bell : BellOff,
             texto: conversacion.silenciada ? 'Desilenciar' : 'Silenciar',
             onClick: handleSilenciar,
             destructivo: false,
@@ -151,9 +127,9 @@ export function MenuContextualChat({ conversacion, onCerrar }: MenuContextualCha
         },
         {
             icono: ShieldBan,
-            texto: 'Bloquear',
+            texto: esBloqueado ? 'Desbloquear' : 'Bloquear',
             onClick: handleBloquear,
-            destructivo: true,
+            destructivo: !esBloqueado,
         },
         {
             icono: Trash2,
@@ -169,14 +145,15 @@ export function MenuContextualChat({ conversacion, onCerrar }: MenuContextualCha
     return (
         <div
             ref={menuRef}
-            className="absolute right-2 top-full mt-1 z-50 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden"
+            className={`${posicion ? 'fixed' : 'absolute right-2 top-full mt-1'} z-50 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden`}
+            style={posicion ? { left: posicion.x, top: posicion.y } : undefined}
         >
             {opciones.map((opcion) => (
                 <button
                     key={opcion.texto}
                     onClick={opcion.onClick}
                     className={`
-            w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] font-medium cursor-pointer
+            w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] font-medium cursor-pointer
             ${opcion.destructivo
                             ? 'text-red-500 hover:bg-red-50'
                             : 'text-gray-700 hover:bg-gray-100'
