@@ -1964,6 +1964,8 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	ultimoMensajeTexto: varchar("ultimo_mensaje_texto", { length: 100 }),
 	ultimoMensajeFecha: timestamp("ultimo_mensaje_fecha", { withTimezone: true, mode: 'string' }),
 	ultimoMensajeTipo: varchar("ultimo_mensaje_tipo", { length: 20 }),
+	ultimoMensajeEstado: varchar("ultimo_mensaje_estado", { length: 20 }),
+	ultimoMensajeEmisorId: uuid("ultimo_mensaje_emisor_id"),
 
 	// Contadores no leídos
 	noLeidosP1: integer("no_leidos_p1").default(0).notNull(),

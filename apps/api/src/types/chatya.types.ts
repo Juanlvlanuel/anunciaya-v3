@@ -21,7 +21,7 @@ export type TipoMensaje =
   | 'contacto'
   | 'sistema';
 
-export type EstadoMensaje = 'enviado' | 'entregado' | 'leido';
+export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 
 export type ContextoTipo =
   | 'negocio'
@@ -90,6 +90,8 @@ export interface ConversacionResponse {
   ultimoMensajeTexto: string | null;
   ultimoMensajeFecha: string | null;
   ultimoMensajeTipo: TipoMensaje | null;
+  ultimoMensajeEstado: EstadoMensaje | null;
+  ultimoMensajeEmisorId: string | null;
   noLeidos: number;
   fijada: boolean;
   archivada: boolean;

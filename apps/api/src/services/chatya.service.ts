@@ -25,6 +25,7 @@ import type {
     ModoChatYA,
     ContextoTipo,
     TipoMensaje,
+    EstadoMensaje,
     CrearConversacionInput,
     EnviarMensajeInput,
     EditarMensajeInput,
@@ -153,7 +154,8 @@ async function actualizarPreview(
     conversacionId: string,
     texto: string,
     tipo: TipoMensaje,
-    incrementarNoLeidosDe: 'p1' | 'p2'
+    incrementarNoLeidosDe: 'p1' | 'p2',
+    emisorId: string
 ) {
     const textoPreview = tipo === 'texto'
         ? texto.substring(0, 100)
@@ -175,6 +177,8 @@ async function actualizarPreview(
             ultimoMensajeTexto: textoPreview,
             ultimoMensajeFecha: new Date().toISOString(),
             ultimoMensajeTipo: tipo,
+            ultimoMensajeEstado: 'enviado' as EstadoMensaje,
+            ultimoMensajeEmisorId: emisorId,
             updatedAt: new Date().toISOString(),
             ...incremento,
         })
@@ -271,6 +275,8 @@ export async function listarConversaciones(
                     ultimoMensajeTexto: conv.ultimoMensajeTexto,
                     ultimoMensajeFecha: conv.ultimoMensajeFecha,
                     ultimoMensajeTipo: conv.ultimoMensajeTipo as TipoMensaje | null,
+                    ultimoMensajeEstado: (conv.ultimoMensajeEstado as EstadoMensaje) ?? null,
+                    ultimoMensajeEmisorId: conv.ultimoMensajeEmisorId ?? null,
                     noLeidos: esP1 ? conv.noLeidosP1 : conv.noLeidosP2,
                     fijada: esP1 ? conv.fijadaPorP1 : conv.fijadaPorP2,
                     archivada: esP1 ? conv.archivadaPorP1 : conv.archivadaPorP2,
@@ -349,6 +355,8 @@ export async function obtenerConversacion(
                 ultimoMensajeTexto: conv.ultimoMensajeTexto,
                 ultimoMensajeFecha: conv.ultimoMensajeFecha,
                 ultimoMensajeTipo: conv.ultimoMensajeTipo as TipoMensaje | null,
+                ultimoMensajeEstado: (conv.ultimoMensajeEstado as EstadoMensaje) ?? null,
+                ultimoMensajeEmisorId: conv.ultimoMensajeEmisorId ?? null,
                 noLeidos: esP1 ? conv.noLeidosP1 : conv.noLeidosP2,
                 fijada: esP1 ? conv.fijadaPorP1 : conv.fijadaPorP2,
                 archivada: esP1 ? conv.archivadaPorP1 : conv.archivadaPorP2,
@@ -434,18 +442,6 @@ export async function crearObtenerConversacion(
                 contextoReferenciaId: input.contextoReferenciaId ?? null,
             })
             .returning();
-
-        // Crear mensaje de sistema "Conversación creada"
-        await db
-            .insert(chatMensajes)
-            .values({
-                conversacionId: nueva.id,
-                emisorId: null,
-                emisorModo: null,
-                tipo: 'sistema',
-                contenido: 'Conversación creada',
-                estado: 'leido',
-            });
 
         return obtenerConversacion(nueva.id, usuarioId);
     } catch (error) {
@@ -542,6 +538,8 @@ function mapearMisNotas(
         ultimoMensajeTexto: conv.ultimoMensajeTexto,
         ultimoMensajeFecha: conv.ultimoMensajeFecha,
         ultimoMensajeTipo: conv.ultimoMensajeTipo as TipoMensaje | null,
+        ultimoMensajeEstado: (conv.ultimoMensajeEstado as EstadoMensaje) ?? null,
+        ultimoMensajeEmisorId: conv.ultimoMensajeEmisorId ?? null,
         noLeidos: 0,
         fijada: conv.fijadaPorP1,
         archivada: conv.archivadaPorP1,
@@ -880,6 +878,8 @@ export async function enviarMensaje(
                         : `[${input.tipo}]`,
                     ultimoMensajeFecha: new Date().toISOString(),
                     ultimoMensajeTipo: input.tipo,
+                    ultimoMensajeEstado: 'enviado',
+                    ultimoMensajeEmisorId: input.emisorId,
                     updatedAt: new Date().toISOString(),
                 })
                 .where(eq(chatConversaciones.id, input.conversacionId));
@@ -889,7 +889,8 @@ export async function enviarMensaje(
                 input.conversacionId,
                 input.contenido,
                 input.tipo,
-                incrementarDe as 'p1' | 'p2'
+                incrementarDe as 'p1' | 'p2',
+                input.emisorId
             );
         }
 
@@ -1251,7 +1252,7 @@ export async function marcarMensajesLeidos(
                 )
             );
 
-        // Resetear contador de no leídos
+        // Resetear contador de no leídos y actualizar estado del último mensaje si es del otro
         if (esP1) {
             await db
                 .update(chatConversaciones)
@@ -1263,6 +1264,17 @@ export async function marcarMensajesLeidos(
                 .set({ noLeidosP2: 0 })
                 .where(eq(chatConversaciones.id, conversacionId));
         }
+
+        // Si el último mensaje es del otro, actualizar su estado a 'leido' en la conversación
+        await db
+            .update(chatConversaciones)
+            .set({ ultimoMensajeEstado: 'leido' })
+            .where(
+                and(
+                    eq(chatConversaciones.id, conversacionId),
+                    eq(chatConversaciones.ultimoMensajeEmisorId, otroId)
+                )
+            );
 
         // Emitir palomitas azules al OTRO usuario (todos sus dispositivos)
         emitirAUsuario(otroId, 'chatya:leido', {
