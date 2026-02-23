@@ -179,6 +179,7 @@ export interface ContactoInput {
   contactoId: string;
   tipo: 'personal' | 'comercial';
   negocioId?: string | null;
+  sucursalId?: string | null;
   alias?: string | null;
 }
 
@@ -187,6 +188,7 @@ export interface ContactoResponse {
   contactoId: string;
   tipo: 'personal' | 'comercial';
   negocioId: string | null;
+  sucursalId: string | null;
   alias: string | null;
   createdAt: string;
   // Datos del contacto
@@ -195,6 +197,7 @@ export interface ContactoResponse {
   avatarUrl: string | null;
   negocioNombre?: string;
   negocioLogo?: string;
+  sucursalNombre?: string;
 }
 
 // --- BLOQUEO ---

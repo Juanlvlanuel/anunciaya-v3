@@ -1467,6 +1467,7 @@ export async function listarContactos(
                 contactoId: chatContactos.contactoId,
                 tipo: chatContactos.tipo,
                 negocioId: chatContactos.negocioId,
+                sucursalId: chatContactos.sucursalId,
                 alias: chatContactos.alias,
                 createdAt: chatContactos.createdAt,
                 nombre: usuarios.nombre,
@@ -1483,7 +1484,6 @@ export async function listarContactos(
             )
             .orderBy(usuarios.nombre);
 
-        // Para contactos comerciales, traer datos del negocio
         const items: ContactoResponse[] = await Promise.all(
             contactos.map(async (c) => {
                 const resp: ContactoResponse = {
@@ -1491,6 +1491,7 @@ export async function listarContactos(
                     contactoId: c.contactoId,
                     tipo: c.tipo as 'personal' | 'comercial',
                     negocioId: c.negocioId,
+                    sucursalId: c.sucursalId,
                     alias: c.alias,
                     createdAt: c.createdAt ?? '',
                     nombre: c.nombre,
@@ -1498,15 +1499,42 @@ export async function listarContactos(
                     avatarUrl: c.avatarUrl,
                 };
 
-                if (c.tipo === 'comercial' && c.negocioId) {
+                if (c.negocioId) {
+                    // Traer nombre y logo del negocio
                     const [negocio] = await db
-                        .select({ nombre: negocios.nombre })
+                        .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
                         .from(negocios)
                         .where(eq(negocios.id, c.negocioId))
                         .limit(1);
 
                     if (negocio) {
                         resp.negocioNombre = negocio.nombre;
+                        resp.negocioLogo = negocio.logoUrl ?? undefined;
+                    }
+
+                    // Traer datos de la sucursal específica (si se guardó con sucursalId)
+                    // Si no tiene sucursalId, traer la principal como fallback
+                    const sucursalCondicion = c.sucursalId
+                        ? eq(negocioSucursales.id, c.sucursalId)
+                        : and(
+                            eq(negocioSucursales.negocioId, c.negocioId),
+                            eq(negocioSucursales.esPrincipal, true)
+                        );
+
+                    const [sucursal] = await db
+                        .select({
+                            nombre: negocioSucursales.nombre,
+                            fotoPerfil: negocioSucursales.fotoPerfil,
+                        })
+                        .from(negocioSucursales)
+                        .where(sucursalCondicion)
+                        .limit(1);
+
+                    if (sucursal) {
+                        resp.sucursalNombre = sucursal.nombre;
+                        if (sucursal.fotoPerfil) {
+                            resp.negocioLogo = sucursal.fotoPerfil;
+                        }
                     }
                 }
 
@@ -1545,21 +1573,38 @@ export async function agregarContacto(
             return { success: false, message: 'Usuario no encontrado', code: 404 };
         }
 
-        // Verificar duplicado
+        // Verificar duplicado (incluye sucursalId para distinguir sucursales del mismo negocio)
+        const condicionesDuplicado = [
+            eq(chatContactos.usuarioId, usuarioId),
+            eq(chatContactos.contactoId, input.contactoId),
+            eq(chatContactos.tipo, input.tipo),
+        ];
+
+        if (input.sucursalId) {
+            condicionesDuplicado.push(eq(chatContactos.sucursalId, input.sucursalId));
+        } else {
+            condicionesDuplicado.push(sql`${chatContactos.sucursalId} IS NULL`);
+        }
+
         const [existente] = await db
             .select({ id: chatContactos.id })
             .from(chatContactos)
-            .where(
-                and(
-                    eq(chatContactos.usuarioId, usuarioId),
-                    eq(chatContactos.contactoId, input.contactoId),
-                    eq(chatContactos.tipo, input.tipo)
-                )
-            )
+            .where(and(...condicionesDuplicado))
             .limit(1);
 
         if (existente) {
             return { success: false, message: 'El contacto ya existe', code: 409 };
+        }
+
+        // Auto-derivar negocioId desde sucursalId si no se proporcionó
+        let negocioIdFinal = input.negocioId ?? null;
+        if (!negocioIdFinal && input.sucursalId) {
+            const [suc] = await db
+                .select({ negocioId: negocioSucursales.negocioId })
+                .from(negocioSucursales)
+                .where(eq(negocioSucursales.id, input.sucursalId))
+                .limit(1);
+            negocioIdFinal = suc?.negocioId ?? null;
         }
 
         const [nuevo] = await db
@@ -1568,7 +1613,8 @@ export async function agregarContacto(
                 usuarioId,
                 contactoId: input.contactoId,
                 tipo: input.tipo,
-                negocioId: input.negocioId ?? null,
+                negocioId: negocioIdFinal,
+                sucursalId: input.sucursalId ?? null,
                 alias: input.alias ?? null,
             })
             .returning({ id: chatContactos.id });

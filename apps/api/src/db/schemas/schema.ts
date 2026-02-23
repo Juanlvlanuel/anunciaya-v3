@@ -2134,6 +2134,7 @@ export const chatContactos = pgTable("chat_contactos", {
 	contactoId: uuid("contacto_id").notNull(),
 	tipo: varchar({ length: 15 }).notNull(),
 	negocioId: uuid("negocio_id"),
+	sucursalId: uuid("sucursal_id"),
 	alias: varchar({ length: 100 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
@@ -2153,7 +2154,12 @@ export const chatContactos = pgTable("chat_contactos", {
 		foreignColumns: [negocios.id],
 		name: "fk_chat_contactos_negocio"
 	}).onDelete("cascade"),
-	unique("chat_contactos_unique").on(table.usuarioId, table.contactoId, table.tipo),
+	foreignKey({
+		columns: [table.sucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_chat_contactos_sucursal"
+	}).onDelete("cascade"),
+	unique("chat_contactos_unique").on(table.usuarioId, table.contactoId, table.tipo, table.sucursalId),
 	check("chat_contactos_tipo_check", sql`(tipo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("chat_contactos_no_auto", sql`usuario_id != contacto_id`),
 ]);

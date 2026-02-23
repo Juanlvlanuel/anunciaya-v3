@@ -612,13 +612,13 @@ export async function listarContactosController(req: Request, res: Response) {
 export async function agregarContactoController(req: Request, res: Response) {
   try {
     const usuarioId = obtenerUsuarioId(req);
-    const { contactoId, tipo = 'personal', negocioId = null, alias = null } = req.body;
+    const { contactoId, tipo = 'personal', negocioId = null, sucursalId = null, alias = null } = req.body;
 
     if (!contactoId) {
       return res.status(400).json({ success: false, message: 'contactoId es requerido' });
     }
 
-    const resultado = await agregarContacto(usuarioId, { contactoId, tipo, negocioId, alias });
+    const resultado = await agregarContacto(usuarioId, { contactoId, tipo, negocioId, sucursalId, alias });
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
