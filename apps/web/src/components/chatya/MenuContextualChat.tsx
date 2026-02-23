@@ -12,8 +12,9 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff } from 'lucide-react';
+import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff, UserPlus, UserMinus } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import type { Conversacion } from '../../types/chatya';
 
 // =============================================================================
@@ -40,9 +41,30 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
     const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
     const bloqueados = useChatYAStore((s) => s.bloqueados);
     const volverALista = useChatYAStore((s) => s.volverALista);
+    const contactos = useChatYAStore((s) => s.contactos);
+    const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
+    const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
+
+    const usuario = useAuthStore((s) => s.usuario);
+    const miId = usuario?.id || '';
+    const modoActivo = usuario?.modoActivo || 'personal';
 
     const otroId = conversacion.otroParticipante?.id;
     const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otroId);
+
+    // Derivar sucursalId del otro participante
+    const otroSucursalId = conversacion.participante1Id === miId
+        ? conversacion.participante2SucursalId
+        : conversacion.participante1SucursalId;
+
+    // Verificar si ya es contacto
+    const contactoExistente = otroId
+        ? contactos.find((c) =>
+            c.contactoId === otroId &&
+            c.tipo === modoActivo &&
+            (!otroSucursalId || c.sucursalId === otroSucursalId)
+        )
+        : undefined;
 
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -101,6 +123,28 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
         volverALista();
     };
 
+    const handleToggleContacto = async () => {
+        onCerrar();
+        if (!otroId) return;
+        const otro = conversacion.otroParticipante;
+        if (contactoExistente) {
+            await eliminarContactoStore(contactoExistente.id);
+        } else {
+            await agregarContactoStore({
+                contactoId: otroId,
+                tipo: modoActivo as 'personal' | 'comercial',
+                sucursalId: otroSucursalId || null,
+            }, {
+                nombre: otro?.nombre || '',
+                apellidos: otro?.apellidos || '',
+                avatarUrl: otro?.avatarUrl || otro?.negocioLogo || null,
+                negocioNombre: otro?.negocioNombre,
+                negocioLogo: otro?.negocioLogo,
+                sucursalNombre: otro?.sucursalNombre,
+            });
+        }
+    };
+
     // ---------------------------------------------------------------------------
     // Opciones del menú
     // ---------------------------------------------------------------------------
@@ -121,6 +165,12 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
             icono: conversacion.archivada ? ArchiveRestore : Archive,
             texto: conversacion.archivada ? 'Desarchivar' : 'Archivar',
             onClick: handleArchivar,
+            destructivo: false,
+        },
+        {
+            icono: contactoExistente ? UserMinus : UserPlus,
+            texto: contactoExistente ? 'Quitar contacto' : 'Agregar contacto',
+            onClick: handleToggleContacto,
             destructivo: false,
         },
         {

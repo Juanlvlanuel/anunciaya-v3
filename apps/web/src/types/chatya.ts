@@ -210,7 +210,18 @@ export interface AgregarContactoInput {
   contactoId: string;
   tipo?: 'personal' | 'comercial';
   negocioId?: string | null;
+  sucursalId?: string | null;
   alias?: string | null;
+}
+
+/** Datos de display para actualización optimista al agregar contacto */
+export interface ContactoDisplay {
+  nombre: string;
+  apellidos: string;
+  avatarUrl: string | null;
+  negocioNombre?: string;
+  negocioLogo?: string;
+  sucursalNombre?: string;
 }
 
 /**
@@ -221,6 +232,7 @@ export interface Contacto {
   contactoId: string;
   tipo: 'personal' | 'comercial';
   negocioId: string | null;
+  sucursalId: string | null;
   alias: string | null;
   createdAt: string;
   /** Datos del contacto (joins del backend) */
@@ -229,6 +241,7 @@ export interface Contacto {
   avatarUrl: string | null;
   negocioNombre?: string;
   negocioLogo?: string;
+  sucursalNombre?: string;
 }
 
 // =============================================================================

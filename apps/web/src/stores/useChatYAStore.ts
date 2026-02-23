@@ -41,6 +41,7 @@ import type {
   ReenviarMensajeInput,
   Contacto,
   AgregarContactoInput,
+  ContactoDisplay,
   UsuarioBloqueado,
   BloquearUsuarioInput,
   MensajeFijado,
@@ -181,7 +182,7 @@ interface ChatYAState {
 
   // ─── ACCIONES: Contactos (Sprint 5) ───────────────────────────────────
   cargarContactos: (tipo?: 'personal' | 'comercial') => Promise<void>;
-  agregarContacto: (datos: AgregarContactoInput) => Promise<Contacto | null>;
+  agregarContacto: (datos: AgregarContactoInput, display?: ContactoDisplay) => Promise<Contacto | null>;
   eliminarContacto: (id: string) => Promise<boolean>;
 
   // ─── ACCIONES: Bloqueo (Sprint 5) ─────────────────────────────────────
@@ -838,19 +839,45 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     }
   },
 
-  agregarContacto: async (datos: AgregarContactoInput) => {
+  agregarContacto: async (datos: AgregarContactoInput, display?: ContactoDisplay) => {
+    const tempId = `temp_${Date.now()}`;
+    const contactoOptimista: Contacto = {
+      id: tempId,
+      contactoId: datos.contactoId,
+      tipo: datos.tipo || 'personal',
+      negocioId: datos.negocioId || null,
+      sucursalId: datos.sucursalId || null,
+      alias: datos.alias || null,
+      createdAt: new Date().toISOString(),
+      nombre: display?.nombre || '',
+      apellidos: display?.apellidos || '',
+      avatarUrl: display?.avatarUrl || null,
+      negocioNombre: display?.negocioNombre,
+      negocioLogo: display?.negocioLogo,
+      sucursalNombre: display?.sucursalNombre,
+    };
+
+    // Optimista: agregar inmediatamente
+    set((state) => ({ contactos: [...state.contactos, contactoOptimista] }));
+    notificar.exito('Contacto agregado');
+
     try {
       const respuesta = await chatyaService.agregarContacto(datos);
       if (respuesta.success && respuesta.data) {
+        // Reemplazar temp id con el real
         set((state) => ({
-          contactos: [...state.contactos, respuesta.data!],
+          contactos: state.contactos.map((c) =>
+            c.id === tempId ? { ...c, id: (respuesta.data as { id: string }).id } : c
+          ),
         }));
-        notificar.exito('Contacto agregado');
-        return respuesta.data;
+        return { ...contactoOptimista, id: (respuesta.data as { id: string }).id };
       }
+      // Rollback
+      set((state) => ({ contactos: state.contactos.filter((c) => c.id !== tempId) }));
       notificar.error(respuesta.message || 'No se pudo agregar el contacto');
       return null;
     } catch {
+      set((state) => ({ contactos: state.contactos.filter((c) => c.id !== tempId) }));
       notificar.error('Error al agregar contacto');
       return null;
     }
@@ -862,6 +889,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
 
     // Optimista
     set({ contactos: contactos.filter((c) => c.id !== id) });
+    notificar.exito('Contacto eliminado');
 
     try {
       const respuesta = await chatyaService.eliminarContacto(id);
@@ -869,9 +897,11 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         return true;
       }
       set({ contactos: contactosAnterior });
+      notificar.error('No se pudo eliminar el contacto');
       return false;
     } catch {
       set({ contactos: contactosAnterior });
+      notificar.error('Error al eliminar contacto');
       return false;
     }
   },

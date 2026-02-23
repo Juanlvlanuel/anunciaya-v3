@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import {
   X, Store, Star, Clock, ExternalLink, Bell, BellOff,
-  ShieldBan, Trash2, ChevronRight, Award, Coins, Calendar, User, Info,
+  ShieldBan, Trash2, ChevronRight, Award, Coins, Calendar, User, Info, UserPlus, UserMinus,
 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -102,6 +102,9 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
   const toggleSilenciar = useChatYAStore((s) => s.toggleSilenciar);
   const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
   const bloquearUsuario = useChatYAStore((s) => s.bloquearUsuario);
+  const contactos = useChatYAStore((s) => s.contactos);
+  const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
+  const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
 
   // ---------------------------------------------------------------------------
   // Derivados de la conversación
@@ -125,6 +128,35 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
   const iniciales = nombre
     ? nombre.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
     : '?';
+
+  // Verificar si ya es contacto
+  const contactoExistente = otro
+    ? contactos.find((c) =>
+        c.contactoId === otro.id &&
+        c.tipo === modoActivo &&
+        (!sucursalIdNegocio || c.sucursalId === sucursalIdNegocio)
+      )
+    : undefined;
+
+  const handleToggleContacto = async () => {
+    if (!otro) return;
+    if (contactoExistente) {
+      await eliminarContactoStore(contactoExistente.id);
+    } else {
+      await agregarContactoStore({
+        contactoId: otro.id,
+        tipo: modoActivo as 'personal' | 'comercial',
+        sucursalId: sucursalIdNegocio || null,
+      }, {
+        nombre: otro.nombre || '',
+        apellidos: otro.apellidos || '',
+        avatarUrl: otro.avatarUrl || otro.negocioLogo || null,
+        negocioNombre: otro.negocioNombre,
+        negocioLogo: otro.negocioLogo,
+        sucursalNombre: otro.sucursalNombre,
+      });
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Estado local
@@ -245,6 +277,17 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
               {conversacion.contextoTipo === 'dinamica' && `Contactó por dinámica: ${conversacion.contextoNombre || 'Dinámicas'}`}
             </span>
           )}
+          <button
+            onClick={handleToggleContacto}
+            className={`flex items-center gap-1.5 text-sm font-semibold px-3.5 py-1.5 rounded-full cursor-pointer transition-colors mt-1 ${
+              contactoExistente
+                ? 'bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500'
+                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+            }`}
+          >
+            {contactoExistente ? <UserMinus className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+            {contactoExistente ? 'Quitar de contactos' : 'Agregar a contactos'}
+          </button>
         </div>
       </div>
 

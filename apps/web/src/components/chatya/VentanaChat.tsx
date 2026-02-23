@@ -10,7 +10,7 @@
  */
 
 import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
-import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronLeft, ChevronRight, ChevronDown, UserPlus, UserMinus } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
@@ -26,6 +26,7 @@ import { BarraBusquedaChat } from './BarraBusquedaChat';
 import { PanelInfoContacto } from './PanelInfoContacto';
 import { ModalReenviar } from './ModalReenviar';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import Tooltip from '../ui/Tooltip';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { Mensaje } from '../../types/chatya';
 
@@ -51,6 +52,9 @@ export function VentanaChat() {
   const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
   const mensajesFijados = useChatYAStore((s) => s.mensajesFijados);
   const desfijarMensaje = useChatYAStore((s) => s.desfijarMensaje);
+  const contactos = useChatYAStore((s) => s.contactos);
+  const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
+  const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
 
   const usuario = useAuthStore((s) => s.usuario);
   const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
@@ -93,7 +97,22 @@ export function VentanaChat() {
       : '?';
   const esNegocio = !esMisNotas && !!otro?.negocioNombre;
   const miId = usuario?.id || '';
+  const modoActivo = usuario?.modoActivo || 'personal';
   const esBloqueado = !esMisNotas && !esTemporal && bloqueados.some((b) => b.bloqueadoId === otro?.id);
+
+  // Derivar sucursalId del otro participante
+  const otroSucursalId = conversacion
+    ? (conversacion.participante1Id === miId ? conversacion.participante2SucursalId : conversacion.participante1SucursalId)
+    : chatTemporal?.datosCreacion?.participante2SucursalId || null;
+
+  // Verificar si el otro participante ya es contacto
+  const contactoExistente = !esMisNotas && otro
+    ? contactos.find((c) =>
+        c.contactoId === otro.id &&
+        c.tipo === modoActivo &&
+        (!otroSucursalId || c.sucursalId === otroSucursalId)
+      )
+    : undefined;
 
   const estaEscribiendo = !esMisNotas && escribiendo?.conversacionId === conversacionActivaId;
 
@@ -101,6 +120,8 @@ export function VentanaChat() {
   // Estado local: panel lateral de información del contacto
   // ---------------------------------------------------------------------------
   const [panelAbierto, setPanelAbierto] = useState(false);
+  const panelMontado = useRef(false);
+  if (panelAbierto) panelMontado.current = true;
 
   // ---------------------------------------------------------------------------
   // Estado local: modal de imagen del avatar (vive fuera del panel para no desmontarse)
@@ -148,6 +169,29 @@ export function VentanaChat() {
   const [mostrarScrollAbajo, setMostrarScrollAbajo] = useState(false);
   const fijadosRef = useRef<HTMLDivElement>(null);
   const [flechasFijados, setFlechasFijados] = useState({ izq: false, der: false });
+
+  // ---------------------------------------------------------------------------
+  // Handler: agregar/eliminar contacto desde header
+  // ---------------------------------------------------------------------------
+  const handleToggleContacto = useCallback(async () => {
+    if (!otro) return;
+    if (contactoExistente) {
+      await eliminarContactoStore(contactoExistente.id);
+    } else {
+      await agregarContactoStore({
+        contactoId: otro.id,
+        tipo: modoActivo as 'personal' | 'comercial',
+        sucursalId: otroSucursalId || null,
+      }, {
+        nombre: otro.nombre,
+        apellidos: otro.apellidos,
+        avatarUrl: otro.avatarUrl,
+        negocioNombre: otro.negocioNombre,
+        negocioLogo: otro.negocioLogo,
+        sucursalNombre: otro.sucursalNombre,
+      });
+    }
+  }, [otro, contactoExistente, eliminarContactoStore, agregarContactoStore, modoActivo, otroSucursalId]);
 
   const checkFlechasFijados = useCallback(() => {
     const el = fijadosRef.current;
@@ -413,6 +457,23 @@ export function VentanaChat() {
                       <Search className="w-5 h-5" />
                     </button>
                   )}
+                  {/* Agregar/quitar contacto */}
+                  <Tooltip text={contactoExistente ? 'Quitar de contactos' : 'Agregar a contactos'}>
+                    <button
+                      onClick={handleToggleContacto}
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${
+                        contactoExistente
+                          ? 'hover:bg-red-100 text-green-600 hover:text-red-500'
+                          : 'hover:bg-slate-200 text-gray-500 hover:text-blue-500'
+                      }`}
+                    >
+                      {contactoExistente ? (
+                        <UserMinus className="w-5 h-5" />
+                      ) : (
+                        <UserPlus className="w-5 h-5" />
+                      )}
+                    </button>
+                  </Tooltip>
                   <div className="relative">
                     {!esTemporal && (
                       <>
@@ -623,12 +684,14 @@ export function VentanaChat() {
       </div>{/* fin área principal */}
 
       {/* ═══ Panel lateral de información del contacto ═══ */}
-      {panelAbierto && conversacion && !esMisNotas && !esMobile && (
-        <PanelInfoContacto
-          conversacion={conversacion}
-          onCerrar={() => setPanelAbierto(false)}
-          onAbrirImagen={(url) => setModalAvatarUrl(url)}
-        />
+      {panelMontado.current && conversacion && !esMisNotas && !esMobile && (
+        <div className={panelAbierto ? '' : 'hidden'}>
+          <PanelInfoContacto
+            conversacion={conversacion}
+            onCerrar={() => setPanelAbierto(false)}
+            onAbrirImagen={(url) => setModalAvatarUrl(url)}
+          />
+        </div>
       )}
 
       {/* ═══ Modal imagen avatar — vive fuera del condicional del panel ═══ */}
@@ -746,7 +809,6 @@ function AccionesHeaderMobile({
           key={accion.label}
           onClick={accion.onClick}
           className="flex flex-col items-center justify-center gap-1 py-1 rounded-lg active:bg-gray-100 cursor-pointer min-w-12"
-          title={accion.label}
         >
           <accion.icono className={`w-6 h-6 ${accion.color || 'text-gray-600'}`} />
           <span className={`text-[10px] font-semibold ${accion.color || 'text-gray-500'}`}>{accion.label}</span>

@@ -195,7 +195,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
                       : <Check className="w-3 h-3 text-gray-400 shrink-0 inline align-[-2px] mr-0.5" />
                 )}
                 {conversacion.ultimoMensajeTexto
-                  ? <TextoConEmojis texto={conversacion.ultimoMensajeTexto} tamañoEmoji={14} />
+                  ? <TextoConEmojis texto={conversacion.ultimoMensajeTexto} tamañoEmoji={22} />
                   : <span>Sin mensajes aún</span>
                 }
               </>

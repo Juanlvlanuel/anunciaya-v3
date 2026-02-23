@@ -323,9 +323,12 @@ export function ChatOverlay() {
   }, [conversacionActivaId, volverALista]);
 
   // ---------------------------------------------------------------------------
-  // No renderizar si está cerrado
+  // No renderizar si nunca se ha abierto (optimización: no montar al inicio)
+  // Una vez abierto, se mantiene montado con CSS hidden para cache de imágenes
   // ---------------------------------------------------------------------------
-  if (!chatYAAbierto) return null;
+  const seAbrioPreviamente = useRef(false);
+  if (chatYAAbierto) seAbrioPreviamente.current = true;
+  if (!seAbrioPreviamente.current) return null;
 
   // ---------------------------------------------------------------------------
   // ESTADO EXPANDIDO
@@ -333,7 +336,7 @@ export function ChatOverlay() {
   const enChat = vistaActiva === 'chat' && conversacionActivaId;
 
   return (
-    <>
+    <div className={!chatYAAbierto ? 'hidden' : ''}>
       {/* Overlay oscuro — solo móvil */}
       {!esDesktop && (
         <div
@@ -529,7 +532,7 @@ export function ChatOverlay() {
           </>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
