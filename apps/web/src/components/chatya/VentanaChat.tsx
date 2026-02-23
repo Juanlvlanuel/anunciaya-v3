@@ -10,7 +10,7 @@
  */
 
 import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
-import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
@@ -145,6 +145,7 @@ export function VentanaChat() {
   // ---------------------------------------------------------------------------
   const [busquedaAbierta, setBusquedaAbierta] = useState(false);
   const [mensajeResaltadoId, setMensajeResaltadoId] = useState<string | null>(null);
+  const [mostrarScrollAbajo, setMostrarScrollAbajo] = useState(false);
   const fijadosRef = useRef<HTMLDivElement>(null);
   const [flechasFijados, setFlechasFijados] = useState({ izq: false, der: false });
 
@@ -258,9 +259,16 @@ export function VentanaChat() {
   // Handler: Scroll infinito hacia arriba para cargar más mensajes
   // ---------------------------------------------------------------------------
   const handleScroll = useCallback(() => {
-    if (!scrollRef.current || cargandoMensajesAntiguos || !hayMasMensajes) return;
+    if (!scrollRef.current) return;
 
     const el = scrollRef.current;
+
+    // Con flex-col-reverse: scrollTop=0 es el fondo (más reciente)
+    // En Chrome scrollTop va negativo al subir
+    setMostrarScrollAbajo(Math.abs(el.scrollTop) > 300);
+
+    if (cargandoMensajesAntiguos || !hayMasMensajes) return;
+
     const distanciaAlTope = el.scrollHeight - el.clientHeight - el.scrollTop;
 
     // Con flex-col-reverse: scrollTop=0 es el fondo, máximo scrollTop es el tope (mensajes más antiguos)
@@ -298,283 +306,320 @@ export function VentanaChat() {
   return (
     <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden">
       {/* ── Área principal del chat ── */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0">
-      {/* ═══ Header del chat ═══ */}
-      <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 border-b border-gray-300 shrink-0 bg-white/90`}>
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-linear-to-br from-blue-200/60 via-indigo-200/50 to-sky-200/60">
+        {/* ═══ Header del chat ═══ */}
+        <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 border-b border-slate-200 shrink-0 bg-linear-to-b from-slate-100 to-blue-50`}>
 
-        {/* ── Zona izquierda: Avatar+Info  ó  Input búsqueda  ó  Acciones mensaje (móvil) ── */}
-        {mostrarAccionesEnHeader ? (
-          /* Acciones de mensaje en el header (móvil long press) */
-          <AccionesHeaderMobile
-            mensaje={menuMensaje!.mensaje}
-            esMio={menuMensaje!.mensaje.emisorId === miId}
+          {/* ── Zona izquierda: Avatar+Info  ó  Input búsqueda  ó  Acciones mensaje (móvil) ── */}
+          {mostrarAccionesEnHeader ? (
+            /* Acciones de mensaje en el header (móvil long press) */
+            <AccionesHeaderMobile
+              mensaje={menuMensaje!.mensaje}
+              esMio={menuMensaje!.mensaje.emisorId === miId}
+              esMisNotas={esMisNotas}
+              conversacionActivaId={conversacionActivaId}
+              mensajesFijados={mensajesFijados}
+              onEditar={handleEditarMensaje}
+              onResponder={handleResponderMensaje}
+              onReenviar={handleReenviarMensaje}
+              onCerrar={() => setMenuMensaje(null)}
+            />
+          ) : busquedaAbierta && conversacionActivaId ? (
+            <BarraBusquedaChat
+              conversacionId={conversacionActivaId}
+              onCerrar={() => {
+                setBusquedaAbierta(false);
+                setMensajeResaltadoId(null);
+              }}
+              onMensajeSeleccionado={handleMensajeSeleccionado}
+            />
+          ) : (
+            <>
+              {/* Avatar — clickeable para abrir modal si hay foto, o panel */}
+              <button
+                onClick={() => {
+                  if (!esMisNotas && avatarUrl) {
+                    setModalAvatarUrl(avatarUrl);
+                  } else if (!esMisNotas) {
+                    setPanelAbierto((v) => !v);
+                  }
+                }}
+                className={`w-10 h-10 rounded-full shrink-0 ${!esMisNotas ? 'cursor-pointer hover:opacity-80' : ''}`}
+              >
+                {esMisNotas ? (
+                  <div className="w-full h-full rounded-full bg-linear-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+                    <StickyNote className="w-5 h-5 text-white" />
+                  </div>
+                ) : avatarUrl ? (
+                  <img src={avatarUrl} alt={nombre} className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  <div className="w-full h-full rounded-full bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">{iniciales}</span>
+                  </div>
+                )}
+              </button>
+
+              {/* Info — clickeable para abrir panel */}
+              <button
+                onClick={() => !esMisNotas && setPanelAbierto((v) => !v)}
+                className={`flex-1 min-w-0 text-left ${!esMisNotas ? 'cursor-pointer' : ''}`}
+              >
+                <div className="flex items-center gap-1.5">
+                  {esNegocio && <Store className="w-4 h-4 text-amber-500 shrink-0" />}
+                  <p className="text-base font-bold text-gray-800 truncate leading-tight">{nombre}</p>
+                </div>
+                {esMisNotas ? (
+                  <p className="text-xs text-gray-400 font-medium">Notas personales</p>
+                ) : esBloqueado ? (
+                  <p className="text-xs text-red-500 font-semibold flex items-center gap-1">
+                    <ShieldBan className="w-3 h-3" />
+                    Bloqueado
+                  </p>
+                ) : estaEscribiendo ? (
+                  <p className="text-xs text-green-500 font-semibold">Escribiendo...</p>
+                ) : (
+                  <p className="text-xs font-medium flex items-center gap-1 truncate">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full shrink-0" />
+                    <span className="text-green-500">En línea</span>
+                    {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
+                      <>
+                        <span className="text-gray-300">·</span>
+                        <span className="text-gray-400 truncate">
+                          {conversacion.contextoTipo === 'negocio' && 'Desde: Tu perfil'}
+                          {conversacion.contextoTipo === 'oferta' && `Desde oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
+                          {conversacion.contextoTipo === 'marketplace' && `Desde publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
+                          {conversacion.contextoTipo === 'empleo' && `Desde vacante: ${conversacion.contextoNombre || 'Empleos'}`}
+                          {conversacion.contextoTipo === 'dinamica' && `Desde dinámica: ${conversacion.contextoNombre || 'Dinámicas'}`}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                )}
+              </button>
+            </>
+          )}
+
+          {/* ── Zona derecha: Acciones (ocultas cuando el header muestra acciones de mensaje) ── */}
+          {!mostrarAccionesEnHeader && (
+            <div className="flex gap-1.5 shrink-0">
+              {!esMisNotas && (
+                <>
+                  {/* Lupita: abre búsqueda / cuando está abierta se oculta (X está dentro de BarraBusquedaChat) */}
+                  {!busquedaAbierta && (
+                    <button
+                      onClick={() => setBusquedaAbierta(true)}
+                      className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 text-gray-500 hover:text-blue-500"
+                    >
+                      <Search className="w-5 h-5" />
+                    </button>
+                  )}
+                  <div className="relative">
+                    {!esTemporal && (
+                      <>
+                        <button
+                          onClick={() => setMenuAbierto((v) => !v)}
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${menuAbierto
+                            ? 'bg-gray-200 text-blue-500'
+                            : 'hover:bg-slate-200 text-gray-500 hover:text-blue-500'
+                            }`}
+                        >
+                          <MoreVertical className="w-5 h-5" />
+                        </button>
+                        {menuAbierto && conversacion && (
+                          <MenuContextualChat
+                            conversacion={conversacion}
+                            onCerrar={() => setMenuAbierto(false)}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+              <button
+                onClick={cerrarChatYA}
+                className="w-9 h-9 rounded-lg hover:bg-slate-200 flex items-center justify-center text-gray-500 hover:text-red-400 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ═══ Banner: Contacto bloqueado ═══ */}
+        {esBloqueado && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-50 border-b border-red-200 shrink-0">
+            <div className="flex items-center gap-2">
+              <ShieldBan className="w-4 h-4 text-red-500 shrink-0" />
+              <p className="text-xs text-red-600 font-medium">Has bloqueado a este contacto. No puede enviarte mensajes.</p>
+            </div>
+            <button
+              onClick={() => otro?.id && desbloquearUsuario(otro.id)}
+              className="text-xs font-semibold text-red-500 hover:text-red-700 whitespace-nowrap cursor-pointer shrink-0"
+            >
+              Desbloquear
+            </button>
+          </div>
+        )}
+
+        {/* ═══ Banner: Mensajes fijados ═══ */}
+        {mensajesFijados.length > 0 && !esMisNotas && (
+          <div className="flex items-center gap-0 bg-white/80 border-b border-gray-200 shrink-0">
+            <div className="pl-3 py-1.5 shrink-0 flex items-center">
+              <Pin className="w-4 h-4 text-blue-500 rotate-45" />
+            </div>
+            {/* Flecha izquierda */}
+            {flechasFijados.izq && (
+              <button
+                onClick={() => { fijadosRef.current?.scrollBy({ left: -150, behavior: 'smooth' }); }}
+                className="w-6 h-full flex items-center justify-center shrink-0 hover:bg-gray-100 cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
+              </button>
+            )}
+            {/* Chips scrolleables */}
+            <div
+              ref={fijadosRef}
+              onScroll={checkFlechasFijados}
+              className="flex items-center gap-1.5 px-1.5 py-1.5 overflow-x-hidden flex-1 min-w-0"
+            >
+              {mensajesFijados.map((fijado) => (
+                <button
+                  key={fijado.id}
+                  onClick={() => {
+                    setMensajeResaltadoId(fijado.mensajeId);
+                    setTimeout(() => setMensajeResaltadoId(null), 2000);
+                  }}
+                  className="group/pin flex items-center gap-1.5 px-2 py-0.5 bg-blue-50/80 hover:bg-blue-100 rounded-full shrink-0 cursor-pointer border border-blue-200/50 max-w-[200px]"
+                >
+                  <span className="text-xs text-gray-700 font-medium truncate">
+                    {fijado.mensaje.contenido}
+                  </span>
+                  <span
+                    role="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (conversacionActivaId) desfijarMensaje(conversacionActivaId, fijado.mensajeId);
+                    }}
+                    className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-blue-200 opacity-0 group-hover/pin:opacity-100 shrink-0"
+                  >
+                    <X className="w-3 h-3 text-gray-400" />
+                  </span>
+                </button>
+              ))}
+            </div>
+            {/* Flecha derecha */}
+            {flechasFijados.der && (
+              <button
+                onClick={() => { fijadosRef.current?.scrollBy({ left: 150, behavior: 'smooth' }); }}
+                className="w-6 h-full flex items-center justify-center shrink-0 hover:bg-gray-100 cursor-pointer pr-1"
+              >
+                <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Área de mensajes ═══ */}
+        <div className="flex-1 relative min-h-0">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            onClick={(e) => {
+              // Click fuera de una burbuja → deseleccionar mensaje
+              if (menuMensaje && !(e.target as HTMLElement).closest('[id^="msg-"]')) {
+                setMenuMensaje(null);
+              }
+            }}
+            className="absolute inset-0 overflow-y-auto px-3 lg:px-12 2xl:px-16 py-2 flex flex-col-reverse gap-1"
+            style={{
+              scrollbarWidth: 'auto',
+              scrollbarColor: '#A1B6C9 transparent',
+            }}
+          >
+          {/* Mensajes agrupados por fecha */}
+          {!cargandoMensajes && (
+            <>
+              {/* Indicador escribiendo */}
+              {estaEscribiendo && <IndicadorEscribiendo />}
+
+              {mensajesConSeparadores.map((item) => {
+                if (item.tipo === 'separador') {
+                  return <SeparadorFecha key={item.fecha} fecha={item.fecha} />;
+                }
+                return (
+                  <BurbujaMensaje
+                    key={item.mensaje.id}
+                    mensaje={item.mensaje}
+                    esMio={item.mensaje.emisorId === miId}
+                    esMisNotas={esMisNotas}
+                    miId={miId}
+                    resaltado={item.mensaje.id === mensajeResaltadoId}
+                    onMenuContextual={handleMenuContextualMensaje}
+                    onReaccionar={handleReaccionar}
+                    menuActivoId={esMobile ? menuMensaje?.mensaje.id ?? null : null}
+                  />
+                );
+              })}
+
+              {/* Spinner de carga de mensajes antiguos — al final del DOM = visual tope */}
+              {cargandoMensajesAntiguos && (
+                <div className="flex justify-center py-2">
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                </div>
+              )}
+            </>
+          )}
+          </div>
+
+          {/* Botón scroll al inicio (más reciente) — posicionado en el margen derecho */}
+          {mostrarScrollAbajo && (
+            <button
+              onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="absolute bottom-4 right-1 lg:right-0 2xl:right-5.5 w-11 h-11 rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:shadow-xl z-10 bg-linear-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+            >
+              <ChevronDown className="w-6 h-6 text-white" />
+            </button>
+          )}
+        </div>
+
+        {/* ═══ Input de mensaje / Barra de bloqueado ═══ */}
+        {esBloqueado ? (
+          <div className="border-t border-blue-300/40 shrink-0 px-4 py-3.5 flex items-center justify-center gap-2">
+            <ShieldBan className="w-4 h-4 text-gray-400 shrink-0" />
+            <p className="text-[13px] text-gray-500">No puedes enviar mensajes a este contacto.</p>
+            <button
+              onClick={() => otro?.id && desbloquearUsuario(otro.id)}
+              className="text-[13px] font-semibold text-blue-500 hover:text-blue-700 cursor-pointer"
+            >
+              Desbloquear
+            </button>
+          </div>
+        ) : (
+          <InputMensaje
+            mensajeEditando={mensajeEditando}
+            onCancelarEdicion={handleCancelarEdicion}
+            mensajeRespondiendo={mensajeRespondiendo}
+            onCancelarRespuesta={handleCancelarRespuesta}
+            nombreContacto={nombre}
+            miId={miId}
+          />
+        )}
+
+        {/* ═══ Menú contextual de mensaje (solo desktop: click derecho) ═══ */}
+        {menuMensaje && !esMobile && (
+          <MenuContextualMensaje
+            mensaje={menuMensaje.mensaje}
+            esMio={menuMensaje.mensaje.emisorId === miId}
             esMisNotas={esMisNotas}
-            conversacionActivaId={conversacionActivaId}
-            mensajesFijados={mensajesFijados}
+            posicion={menuMensaje.posicion}
+            onCerrar={handleCerrarMenuMensaje}
             onEditar={handleEditarMensaje}
             onResponder={handleResponderMensaje}
             onReenviar={handleReenviarMensaje}
-            onCerrar={() => setMenuMensaje(null)}
+            esMobile={false}
           />
-        ) : busquedaAbierta && conversacionActivaId ? (
-          <BarraBusquedaChat
-            conversacionId={conversacionActivaId}
-            onCerrar={() => {
-              setBusquedaAbierta(false);
-              setMensajeResaltadoId(null);
-            }}
-            onMensajeSeleccionado={handleMensajeSeleccionado}
-          />
-        ) : (
-          <>
-            {/* Avatar — clickeable para abrir panel */}
-            <button
-              onClick={() => !esMisNotas && setPanelAbierto((v) => !v)}
-              className={`w-10 h-10 rounded-full shrink-0 ${!esMisNotas ? 'cursor-pointer hover:opacity-80' : ''}`}
-            >
-              {esMisNotas ? (
-                <div className="w-full h-full rounded-full bg-linear-to-br from-amber-400 to-amber-600 flex items-center justify-center">
-                  <StickyNote className="w-5 h-5 text-white" />
-                </div>
-              ) : avatarUrl ? (
-                <img src={avatarUrl} alt={nombre} className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <div className="w-full h-full rounded-full bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">{iniciales}</span>
-                </div>
-              )}
-            </button>
-
-            {/* Info — clickeable para abrir panel */}
-            <button
-              onClick={() => !esMisNotas && setPanelAbierto((v) => !v)}
-              className={`flex-1 min-w-0 text-left ${!esMisNotas ? 'cursor-pointer' : ''}`}
-            >
-              <div className="flex items-center gap-1.5">
-                {esNegocio && <Store className="w-4 h-4 text-amber-500 shrink-0" />}
-                <p className="text-base font-bold text-gray-800 truncate leading-tight">{nombre}</p>
-              </div>
-              {esMisNotas ? (
-                <p className="text-xs text-gray-400 font-medium">Notas personales</p>
-              ) : esBloqueado ? (
-                <p className="text-xs text-red-500 font-semibold flex items-center gap-1">
-                  <ShieldBan className="w-3 h-3" />
-                  Bloqueado
-                </p>
-              ) : estaEscribiendo ? (
-                <p className="text-xs text-green-500 font-semibold">Escribiendo...</p>
-              ) : (
-                <p className="text-xs text-green-500 font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                  En línea
-                </p>
-              )}
-            </button>
-          </>
         )}
-
-        {/* ── Zona derecha: Acciones (ocultas cuando el header muestra acciones de mensaje) ── */}
-        {!mostrarAccionesEnHeader && (
-        <div className="flex gap-1.5 shrink-0">
-          {!esMisNotas && (
-            <>
-              {/* Lupita: abre búsqueda / cuando está abierta se oculta (X está dentro de BarraBusquedaChat) */}
-              {!busquedaAbierta && (
-                <button
-                  onClick={() => setBusquedaAbierta(true)}
-                  className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-100 text-gray-500 hover:text-blue-500"
-                >
-                  <Search className="w-5 h-5" />
-                </button>
-              )}
-              <div className="relative">
-                {!esTemporal && (
-                  <>
-                    <button
-                      onClick={() => setMenuAbierto((v) => !v)}
-                      className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${menuAbierto
-                        ? 'bg-gray-200 text-blue-500'
-                        : 'hover:bg-gray-100 text-gray-500 hover:text-blue-500'
-                        }`}
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-                    {menuAbierto && conversacion && (
-                      <MenuContextualChat
-                        conversacion={conversacion}
-                        onCerrar={() => setMenuAbierto(false)}
-                      />
-                    )}
-                  </>
-                )}
-              </div>
-            </>
-          )}
-          <button
-            onClick={cerrarChatYA}
-            className="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-red-400 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        )}
-      </div>
-
-      {/* ═══ Banner: Contacto bloqueado ═══ */}
-      {esBloqueado && (
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-50 border-b border-red-200 shrink-0">
-          <div className="flex items-center gap-2">
-            <ShieldBan className="w-4 h-4 text-red-500 shrink-0" />
-            <p className="text-xs text-red-600 font-medium">Has bloqueado a este contacto. No puede enviarte mensajes.</p>
-          </div>
-          <button
-            onClick={() => otro?.id && desbloquearUsuario(otro.id)}
-            className="text-xs font-semibold text-red-500 hover:text-red-700 whitespace-nowrap cursor-pointer shrink-0"
-          >
-            Desbloquear
-          </button>
-        </div>
-      )}
-
-      {/* ═══ Banner: Mensajes fijados ═══ */}
-      {mensajesFijados.length > 0 && !esMisNotas && (
-        <div className="flex items-center gap-0 bg-white/80 border-b border-gray-200 shrink-0">
-          <div className="pl-3 py-1.5 shrink-0 flex items-center">
-            <Pin className="w-4 h-4 text-blue-500 rotate-45" />
-          </div>
-          {/* Flecha izquierda */}
-          {flechasFijados.izq && (
-            <button
-              onClick={() => { fijadosRef.current?.scrollBy({ left: -150, behavior: 'smooth' }); }}
-              className="w-6 h-full flex items-center justify-center shrink-0 hover:bg-gray-100 cursor-pointer"
-            >
-              <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
-            </button>
-          )}
-          {/* Chips scrolleables */}
-          <div
-            ref={fijadosRef}
-            onScroll={checkFlechasFijados}
-            className="flex items-center gap-1.5 px-1.5 py-1.5 overflow-x-hidden flex-1 min-w-0"
-          >
-            {mensajesFijados.map((fijado) => (
-              <button
-                key={fijado.id}
-                onClick={() => {
-                  setMensajeResaltadoId(fijado.mensajeId);
-                  setTimeout(() => setMensajeResaltadoId(null), 2000);
-                }}
-                className="group/pin flex items-center gap-1.5 px-2 py-0.5 bg-blue-50/80 hover:bg-blue-100 rounded-full shrink-0 cursor-pointer border border-blue-200/50 max-w-[200px]"
-              >
-                <span className="text-xs text-gray-700 font-medium truncate">
-                  {fijado.mensaje.contenido}
-                </span>
-                <span
-                  role="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (conversacionActivaId) desfijarMensaje(conversacionActivaId, fijado.mensajeId);
-                  }}
-                  className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-blue-200 opacity-0 group-hover/pin:opacity-100 shrink-0"
-                >
-                  <X className="w-3 h-3 text-gray-400" />
-                </span>
-              </button>
-            ))}
-          </div>
-          {/* Flecha derecha */}
-          {flechasFijados.der && (
-            <button
-              onClick={() => { fijadosRef.current?.scrollBy({ left: 150, behavior: 'smooth' }); }}
-              className="w-6 h-full flex items-center justify-center shrink-0 hover:bg-gray-100 cursor-pointer pr-1"
-            >
-              <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ═══ Área de mensajes ═══ */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        onClick={(e) => {
-          // Click fuera de una burbuja → deseleccionar mensaje
-          if (menuMensaje && !(e.target as HTMLElement).closest('[id^="msg-"]')) {
-            setMenuMensaje(null);
-          }
-        }}
-        className="flex-1 overflow-y-auto px-3 py-2 flex flex-col-reverse gap-1 bg-linear-to-br from-blue-100/80 via-indigo-100/60 to-sky-100/70 scrollbar-hide"
-      >
-        {/* Mensajes agrupados por fecha */}
-        {!cargandoMensajes && (
-          <>
-            {/* Indicador escribiendo */}
-            {estaEscribiendo && <IndicadorEscribiendo />}
-
-            {mensajesConSeparadores.map((item) => {
-              if (item.tipo === 'separador') {
-                return <SeparadorFecha key={item.fecha} fecha={item.fecha} />;
-              }
-              return (
-                <BurbujaMensaje
-                  key={item.mensaje.id}
-                  mensaje={item.mensaje}
-                  esMio={item.mensaje.emisorId === miId}
-                  esMisNotas={esMisNotas}
-                  resaltado={item.mensaje.id === mensajeResaltadoId}
-                  onMenuContextual={handleMenuContextualMensaje}
-                  onReaccionar={handleReaccionar}
-                  menuActivoId={esMobile ? menuMensaje?.mensaje.id ?? null : null}
-                />
-              );
-            })}
-
-            {/* Spinner de carga de mensajes antiguos — al final del DOM = visual tope */}
-            {cargandoMensajesAntiguos && (
-              <div className="flex justify-center py-2">
-                <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* ═══ Input de mensaje / Barra de bloqueado ═══ */}
-      {esBloqueado ? (
-        <div className="border-t border-gray-300 bg-gray-100 shrink-0 px-4 py-3.5 flex items-center justify-center gap-2">
-          <ShieldBan className="w-4 h-4 text-gray-400 shrink-0" />
-          <p className="text-[13px] text-gray-500">No puedes enviar mensajes a este contacto.</p>
-          <button
-            onClick={() => otro?.id && desbloquearUsuario(otro.id)}
-            className="text-[13px] font-semibold text-blue-500 hover:text-blue-700 cursor-pointer"
-          >
-            Desbloquear
-          </button>
-        </div>
-      ) : (
-        <InputMensaje
-          mensajeEditando={mensajeEditando}
-          onCancelarEdicion={handleCancelarEdicion}
-          mensajeRespondiendo={mensajeRespondiendo}
-          onCancelarRespuesta={handleCancelarRespuesta}
-        />
-      )}
-
-      {/* ═══ Menú contextual de mensaje (solo desktop: click derecho) ═══ */}
-      {menuMensaje && !esMobile && (
-        <MenuContextualMensaje
-          mensaje={menuMensaje.mensaje}
-          esMio={menuMensaje.mensaje.emisorId === miId}
-          esMisNotas={esMisNotas}
-          posicion={menuMensaje.posicion}
-          onCerrar={handleCerrarMenuMensaje}
-          onEditar={handleEditarMensaje}
-          onResponder={handleResponderMensaje}
-          onReenviar={handleReenviarMensaje}
-          esMobile={false}
-        />
-      )}
       </div>{/* fin área principal */}
 
       {/* ═══ Panel lateral de información del contacto ═══ */}
@@ -644,7 +689,7 @@ function AccionesHeaderMobile({
   acciones.push({
     icono: Copy,
     label: 'Copiar',
-    onClick: () => { onCerrar(); if (mensaje.contenido) navigator.clipboard.writeText(mensaje.contenido); },
+    onClick: () => { onCerrar(); const sel = window.getSelection()?.toString().trim(); navigator.clipboard.writeText(sel || mensaje.contenido || ''); },
   });
 
   // Reenviar (no en Mis Notas, no si está eliminado)

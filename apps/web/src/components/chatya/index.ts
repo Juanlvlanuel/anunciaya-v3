@@ -16,3 +16,8 @@ export { SeparadorFecha } from './SeparadorFecha';
 export { MenuContextualChat } from './MenuContextualChat';
 export { BarraBusquedaChat } from './BarraBusquedaChat';
 export { MenuContextualMensaje } from './MenuContextualMensaje';
+export { ModalReenviar } from './ModalReenviar';
+export { PanelInfoContacto } from './PanelInfoContacto';
+export { SelectorEmojis } from './SelectorEmojis';
+export { EmojiNoto } from './EmojiNoto';
+export { TextoConEmojis } from './TextoConEmojis';

@@ -99,6 +99,7 @@ export interface Conversacion {
   participante2SucursalId: string | null;
   contextoTipo: ContextoTipo;
   contextoReferenciaId: string | null;
+  contextoNombre: string | null;
   ultimoMensajeTexto: string | null;
   ultimoMensajeFecha: string | null;
   ultimoMensajeTipo: TipoMensaje | null;

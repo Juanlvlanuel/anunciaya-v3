@@ -14,7 +14,6 @@
 import { useEffect, useRef } from 'react';
 import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
-import { notificar } from '../../utils/notificaciones';
 import type { Conversacion } from '../../types/chatya';
 
 // =============================================================================
@@ -100,7 +99,6 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
         onCerrar();
         await eliminarConversacion(conversacion.id);
         volverALista();
-        notificar.exito('Chat eliminado');
     };
 
     // ---------------------------------------------------------------------------

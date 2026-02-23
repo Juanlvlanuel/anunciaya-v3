@@ -169,8 +169,8 @@ export function BarraBusquedaChat({
   return (
     <div className="flex-1 flex items-center gap-2 min-w-0">
       {/* Input con fondo sutil */}
-      <div className="flex-1 flex items-center gap-2 px-3 h-10 rounded-full bg-gray-100 min-w-0">
-        <Search className="w-4 h-4 text-gray-400 shrink-0" />
+      <div className="flex-1 flex items-center gap-2 px-3 h-10 rounded-full bg-white/60 border border-slate-300 min-w-0">
+        <Search className="w-4 h-4 text-slate-500 shrink-0" />
         <input
           ref={inputRef}
           type="text"
@@ -178,7 +178,7 @@ export function BarraBusquedaChat({
           onChange={(e) => handleCambioTexto(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Buscar en la conversación..."
-          className="flex-1 text-sm text-gray-700 bg-transparent outline-none placeholder:text-gray-400 min-w-0"
+          className="flex-1 text-sm text-gray-700 bg-transparent outline-none placeholder:text-slate-400 min-w-0"
         />
 
         {/* Spinner de carga */}
@@ -188,7 +188,7 @@ export function BarraBusquedaChat({
 
         {/* Contador de resultados */}
         {textoContador && (
-          <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
+          <span className="text-xs text-slate-500 whitespace-nowrap shrink-0">
             {textoContador}
           </span>
         )}
@@ -216,7 +216,7 @@ export function BarraBusquedaChat({
         {/* Botón cerrar búsqueda */}
         <button
           onClick={onCerrar}
-          className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-400 cursor-pointer"
+          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-400 cursor-pointer"
           title="Cerrar búsqueda (ESC)"
         >
           <X className="w-4 h-4" />

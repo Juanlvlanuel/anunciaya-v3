@@ -63,6 +63,7 @@ export function ChatOverlay() {
   const rutaInicialRef = useRef(location.pathname);
 
   const modoActivo = useAuthStore((s) => s.usuario?.modoActivo) || 'personal';
+  const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva) || null;
 
   // ---------------------------------------------------------------------------
   // Refs
@@ -107,6 +108,11 @@ export function ChatOverlay() {
   // SIN ESTO: si el usuario cambia de modo con una conversación abierta, los
   // listeners siguen procesando eventos de esa conversación del modo anterior.
   // ---------------------------------------------------------------------------
+
+  const sucursalAnteriorRef = useRef(sucursalActiva);
+  const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
+  const cargarNoLeidos = useChatYAStore((s) => s.cargarNoLeidos);
+
   const modoAnteriorRef = useRef(modoActivo);
   useEffect(() => {
     if (modoAnteriorRef.current !== modoActivo) {
@@ -114,27 +120,72 @@ export function ChatOverlay() {
       if (conversacionActivaId) {
         volverALista();
       }
+
+      if (modoActivo === 'comercial') {
+        // Limpiar todo — NO cargar nada aquí
+        // El effect de sucursal recargará cuando sucursalActiva esté lista
+        useChatYAStore.setState({ conversaciones: [], conversacionesArchivadas: [], totalNoLeidos: 0 });
+      } else {
+        // Modo personal: recargar directo (no necesita sucursal)
+        if (chatYAAbierto) {
+          cargarConversaciones('personal', 0, true);
+        }
+        cargarNoLeidos('personal');
+      }
     }
-  }, [modoActivo, conversacionActivaId, volverALista]);
+  }, [modoActivo, conversacionActivaId, volverALista, chatYAAbierto, cargarConversaciones, cargarNoLeidos]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Recargar conversaciones al cambiar de sucursal (solo modo comercial)
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (sucursalAnteriorRef.current !== sucursalActiva) {
+      sucursalAnteriorRef.current = sucursalActiva;
+
+      // Cerrar solo el chat activo (sin limpiar la lista de conversaciones)
+      if (conversacionActivaId) {
+        volverALista();
+      }
+
+      // Recargar conversaciones silenciosamente (sin loading, reemplaza la lista directo)
+      // Badge: siempre actualizar al cambiar sucursal (aunque el chat esté cerrado)
+      if (modoActivo === 'comercial') {
+        cargarNoLeidos(modoActivo as 'personal' | 'comercial');
+      }
+
+      // Conversaciones: solo recargar si el chat está abierto
+      if (chatYAAbierto && modoActivo === 'comercial') {
+        cargarConversaciones(modoActivo as 'personal' | 'comercial', 0, true);
+      }
+    }
+  }, [sucursalActiva, conversacionActivaId, volverALista, chatYAAbierto, modoActivo, cargarConversaciones, cargarNoLeidos]);
 
   // ---------------------------------------------------------------------------
   // Effect: Cargar badge de no leídos al montar (sin esperar a abrir el chat)
   // Así el badge del Navbar/BottomNav muestra el contador real desde el inicio
   // ---------------------------------------------------------------------------
-  const cargarNoLeidos = useChatYAStore((s) => s.cargarNoLeidos);
+
 
   useEffect(() => {
-    cargarNoLeidos(modoActivo as 'personal' | 'comercial');
+    // Solo personal aquí — comercial lo maneja el effect de sucursal
+    if (modoActivo === 'personal') {
+      cargarNoLeidos('personal');
+    }
   }, [modoActivo, cargarNoLeidos]);
 
   // ---------------------------------------------------------------------------
   // Effect: Inicializar store completo al abrir ChatYA
   // Carga conversaciones + badge en paralelo
   // ---------------------------------------------------------------------------
+  const chatYAAbiertoRef = useRef(false);
   useEffect(() => {
-    if (chatYAAbierto) {
+    // Solo inicializar cuando ABRE el chat, no cuando cambia de modo/sucursal
+    // (esos cambios ya tienen sus propios effects con recarga silenciosa)
+    if (chatYAAbierto && !chatYAAbiertoRef.current) {
       inicializar(modoActivo as 'personal' | 'comercial');
     }
+    chatYAAbiertoRef.current = chatYAAbierto;
   }, [chatYAAbierto, modoActivo, inicializar]);
 
   // ---------------------------------------------------------------------------
@@ -286,7 +337,7 @@ export function ChatOverlay() {
       {/* Overlay oscuro — solo móvil */}
       {!esDesktop && (
         <div
-          className="fixed inset-0 bg-black/50 z-60 backdrop-blur-[2px]"
+          className="fixed inset-0 bg-black/50 z-38 backdrop-blur-[2px]"
           onClick={cerrarChatYA}
         />
       )}
@@ -296,7 +347,7 @@ export function ChatOverlay() {
       {esDesktop && !conversacionActivaId && (
         <button
           onClick={cerrarChatYA}
-          className="fixed z-71 lg:right-[264px] 2xl:right-[351px] top-[87px] w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-red-50 text-gray-400 hover:text-red-500 cursor-pointer transition-colors"
+          className="fixed z-40 right-4 top-[91px] w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-red-50 text-gray-400 hover:text-red-500 cursor-pointer transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -309,9 +360,9 @@ export function ChatOverlay() {
           transition: dragStartY !== null ? 'none' : undefined,
         }}
         className={`
-          fixed z-70 bg-white overflow-hidden flex
+          fixed z-39 bg-white overflow-hidden flex
           ${esDesktop
-            ? `top-[91px] bottom-3 lg:left-[232px] 2xl:left-[310px] lg:right-[268px] 2xl:right-[355px] rounded-2xl shadow-[0_8px_48px_rgba(15,29,58,0.28),0_0_0_1.5px_rgba(15,29,58,0.12)] flex-row`
+            ? `top-[83px] bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
             : `bottom-0 left-0 right-0 h-[90vh] rounded-t-[22px] shadow-[0_-10px_50px_rgba(15,29,58,0.25)] flex-col`
           }
         `}
@@ -391,9 +442,9 @@ export function ChatOverlay() {
         {esDesktop && (
           <>
             {/* Panel izquierdo: Lista de conversaciones */}
-            <div className="w-[270px] 2xl:w-[290px] min-w-[270px] 2xl:min-w-[290px] border-r border-gray-300 flex flex-col bg-linear-to-b from-gray-100/80 to-gray-200/60">
+            <div className="w-[320px] 2xl:w-[340px] min-w-[320px] 2xl:min-w-[340px] border-r border-white/10 flex flex-col min-h-0 bg-linear-to-b from-[#0B358F] to-black">
               {/* Header de la lista */}
-              <div className="px-3.5 py-3 flex items-center justify-between bg-linear-to-br from-[#0a1628] via-[#0f1d3a] to-[#1a3058] rounded-tl-2xl shrink-0">
+              <div className="px-3.5 py-3 flex items-center justify-between bg-black/50 backdrop-blur-sm border-b border-white/8 shrink-0">
                 <div className="flex items-center gap-2">
                   <img
                     src="/ChatYA.webp"
@@ -409,10 +460,10 @@ export function ChatOverlay() {
               </div>
 
               {/* Indicador de modo + Mis Notas */}
-              <div className="flex items-center justify-between px-3.5 py-2 border-b border-gray-300 shrink-0">
+              <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10 shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <div className={`w-2 h-2 rounded-full ${modoActivo === 'comercial' ? 'bg-amber-500' : 'bg-blue-500'}`} />
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <div className={`w-2 h-2 rounded-full ${modoActivo === 'comercial' ? 'bg-amber-400' : 'bg-blue-400'}`} />
+                  <span className="text-xs font-bold text-white/45 uppercase tracking-wider">
                     {modoActivo === 'comercial' ? 'Comercial' : 'Personal'}
                   </span>
                 </div>
@@ -420,8 +471,8 @@ export function ChatOverlay() {
                   <button
                     onClick={() => abrirConversacion(misNotasId)}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${conversacionActivaId === misNotasId
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
+                      ? 'bg-white/15 text-white'
+                      : 'hover:bg-white/10 text-white/45 hover:text-white/80'
                       }`}
                   >
                     <StickyNote className="w-4 h-4" />
@@ -431,7 +482,7 @@ export function ChatOverlay() {
               </div>
 
               {/* Lista de conversaciones */}
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 min-h-0 overflow-hidden">
                 <ListaConversaciones />
               </div>
             </div>
@@ -442,14 +493,14 @@ export function ChatOverlay() {
                 <VentanaChat />
               ) : (
                 /* Estado vacío: ningún chat seleccionado */
-                <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden bg-linear-to-br from-blue-100/80 via-indigo-100/60 to-sky-100/70">
+                <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden bg-linear-to-br from-blue-200/80 via-indigo-200/60 to-sky-200/70">
                   {/* Burbujas decorativas animadas */}
                   <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-[15%] left-[12%] w-20 h-20 bg-blue-200/60 rounded-full animate-[float_6s_ease-in-out_infinite]" />
-                    <div className="absolute top-[60%] right-[10%] w-14 h-14 bg-indigo-200/50 rounded-full animate-[float_8s_ease-in-out_infinite_1s]" />
-                    <div className="absolute bottom-[20%] left-[18%] w-10 h-10 bg-sky-200/55 rounded-full animate-[float_7s_ease-in-out_infinite_2s]" />
-                    <div className="absolute top-[30%] right-[22%] w-8 h-8 bg-blue-300/40 rounded-full animate-[float_5s_ease-in-out_infinite_0.5s]" />
-                    <div className="absolute bottom-[35%] right-[30%] w-6 h-6 bg-indigo-200/50 rounded-full animate-[float_9s_ease-in-out_infinite_3s]" />
+                    <div className="absolute top-[15%] left-[12%] w-20 h-20 bg-blue-300/70 rounded-full animate-[float_6s_ease-in-out_infinite]" />
+                    <div className="absolute top-[60%] right-[10%] w-14 h-14 bg-indigo-300/65 rounded-full animate-[float_8s_ease-in-out_infinite_1s]" />
+                    <div className="absolute bottom-[20%] left-[18%] w-10 h-10 bg-sky-300/70 rounded-full animate-[float_7s_ease-in-out_infinite_2s]" />
+                    <div className="absolute top-[30%] right-[22%] w-8 h-8 bg-blue-400/55 rounded-full animate-[float_5s_ease-in-out_infinite_0.5s]" />
+                    <div className="absolute bottom-[35%] right-[30%] w-6 h-6 bg-indigo-300/65 rounded-full animate-[float_9s_ease-in-out_infinite_3s]" />
                   </div>
 
                   {/* Contenido central */}
@@ -459,8 +510,8 @@ export function ChatOverlay() {
                       alt="ChatYA"
                       className="h-20 w-auto object-contain mb-6"
                     />
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">¡Bienvenido a ChatYA!</h3>
-                    <p className="text-sm text-gray-400 text-center max-w-[260px] leading-relaxed">
+                    <h3 className="text-xl font-bold text-gray-700 mb-2">¡Bienvenido a ChatYA!</h3>
+                    <p className="text-sm text-gray-500 font-medium text-center max-w-[260px] leading-relaxed">
                       Selecciona una conversación para comenzar a chatear
                     </p>
                   </div>
@@ -468,7 +519,7 @@ export function ChatOverlay() {
                   {/* Keyframes para las burbujas */}
                   <style>{`
                     @keyframes float {
-                      0%, 100% { transform: translateY(0px) scale(1); opacity: 0.6; }
+                      0%, 100% { transform: translateY(0px) scale(1); opacity: 0.7; }
                       50% { transform: translateY(-18px) scale(1.08); opacity: 1; }
                     }
                   `}</style>

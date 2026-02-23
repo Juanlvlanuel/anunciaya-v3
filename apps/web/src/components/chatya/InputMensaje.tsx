@@ -11,7 +11,10 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, X, Pencil, Reply } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Send, X, Pencil, Reply, Smile } from 'lucide-react';
+import { SelectorEmojis } from './SelectorEmojis';
+import { TextoConEmojis } from './TextoConEmojis';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { emitirEvento } from '../../services/socketService';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -40,6 +43,10 @@ interface InputMensajeProps {
   onCancelarRespuesta?: () => void;
   /** Si el contacto está bloqueado, deshabilitar el input */
   bloqueado?: boolean;
+  /** Nombre del contacto (para mostrar en barra de respuesta/edición) */
+  nombreContacto?: string;
+  /** ID del usuario actual (para determinar "Tú" vs nombre del contacto) */
+  miId?: string;
 }
 
 // =============================================================================
@@ -52,6 +59,8 @@ export function InputMensaje({
   mensajeRespondiendo = null,
   onCancelarRespuesta,
   bloqueado = false,
+  nombreContacto = '',
+  miId = '',
 }: InputMensajeProps) {
   const enviarMensaje = useChatYAStore((s) => s.enviarMensaje);
   const enviandoMensaje = useChatYAStore((s) => s.enviandoMensaje);
@@ -59,14 +68,43 @@ export function InputMensaje({
   const chatTemporal = useChatYAStore((s) => s.chatTemporal);
   const crearConversacion = useChatYAStore((s) => s.crearConversacion);
   const transicionarAConversacionReal = useChatYAStore((s) => s.transicionarAConversacionReal);
+  const borradores = useChatYAStore((s) => s.borradores);
+  const guardarBorrador = useChatYAStore((s) => s.guardarBorrador);
+  const limpiarBorrador = useChatYAStore((s) => s.limpiarBorrador);
 
   const [texto, setTexto] = useState('');
+  const [pickerAbierto, setPickerAbierto] = useState(false);
+  const [pickerSaliendo, setPickerSaliendo] = useState(false);
+  const [pickerPos, setPickerPos] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const smileBtnRef = useRef<HTMLButtonElement>(null);
   const escribiendoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const estaEscribiendoRef = useRef(false);
 
   // Focus automático al montar (solo en escritorio, en móvil evita abrir el teclado)
   const { esMobile } = useBreakpoint();
+
+  // Effect: al cambiar de conversación → guardar borrador actual y cargar el de la nueva
+  const conversacionAnteriorRef = useRef<string | null>(null);
+  useEffect(() => {
+    const anterior = conversacionAnteriorRef.current;
+
+    // Guardar borrador de la conversación anterior
+    if (anterior && anterior !== conversacionActivaId) {
+      if (texto.trim()) {
+        guardarBorrador(anterior, texto);
+      } else {
+        limpiarBorrador(anterior);
+      }
+    }
+
+    // Cargar borrador de la nueva conversación (solo si no hay modo edición)
+    if (conversacionActivaId && !mensajeEditando) {
+      setTexto(borradores[conversacionActivaId] || '');
+    }
+
+    conversacionAnteriorRef.current = conversacionActivaId;
+  }, [conversacionActivaId]);
 
   useEffect(() => {
     if (!esMobile) {
@@ -96,6 +134,16 @@ export function InputMensaje({
   // ---------------------------------------------------------------------------
   // Emitir eventos de escribiendo/dejar-escribir
   // ---------------------------------------------------------------------------
+
+  /** Cierra el picker de emojis con animación funnel */
+  const cerrarPicker = useCallback(() => {
+    if (!pickerAbierto || pickerSaliendo) return;
+    setPickerSaliendo(true);
+    setTimeout(() => {
+      setPickerAbierto(false);
+      setPickerSaliendo(false);
+    }, 200);
+  }, [pickerAbierto, pickerSaliendo]);
   const manejarEscribiendo = useCallback(() => {
     if (!conversacionActivaId) return;
 
@@ -135,8 +183,9 @@ export function InputMensaje({
     const contenido = texto.trim();
     if (!contenido || enviandoMensaje) return;
 
-    // Limpiar input inmediatamente (optimista)
+    // Limpiar input y borrador inmediatamente (optimista)
     setTexto('');
+    if (conversacionActivaId) limpiarBorrador(conversacionActivaId);
 
     // Dejar de emitir "escribiendo"
     if (escribiendoTimerRef.current) {
@@ -192,6 +241,7 @@ export function InputMensaje({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (pickerAbierto) cerrarPicker();
       handleEnviar();
     }
     if (e.key === 'Escape') {
@@ -211,77 +261,157 @@ export function InputMensaje({
   const puedeEnviar = texto.trim().length > 0 && !enviandoMensaje && !bloqueado;
 
   return (
-    <div className="border-t border-gray-300 bg-white shrink-0">
+    <div className="shrink-0 px-3 pb-3 pt-1">
       {/* ── Barra de edición ── */}
       {mensajeEditando && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200">
-          <Pencil className="w-4 h-4 text-amber-500 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-amber-600">Editando mensaje</p>
-            <p className="text-xs text-gray-500 truncate">{mensajeEditando.contenido}</p>
+        <div className="flex items-center gap-2.5 mb-2 mr-4 ml-4 px-6 py-1.5 bg-white/70 backdrop-blur-sm border border-amber-300 rounded-full shadow-sm">
+          {/* Borde lateral decorativo */}
+          <div className="w-[3.5px] self-stretch rounded-full bg-linear-to-b from-amber-500 to-amber-400 shrink-0" />
+          {/* Ícono en caja */}
+          <div className="w-8 h-8 rounded-lg bg-linear-to-br from-amber-500 to-amber-400 flex items-center justify-center shrink-0 shadow-[0_2px_6px_rgba(245,158,11,0.25)]">
+            <Pencil className="w-[15px] h-[15px] text-white" />
           </div>
+          {/* Contenido */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-600 leading-tight">Editando</p>
+            <p className="text-sm text-slate-500 truncate mt-px">
+              <TextoConEmojis texto={mensajeEditando.contenido || ''} tamañoEmoji={20} />
+            </p>
+          </div>
+          {/* Botón cerrar */}
           <button
             onClick={() => { setTexto(''); onCancelarEdicion?.(); }}
-            className="p-1 hover:bg-amber-100 rounded-full cursor-pointer shrink-0"
+            className="w-7 h-7 rounded-full flex items-center justify-center bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer shrink-0"
           >
-            <X className="w-4 h-4 text-amber-500" />
+            <X className="w-3.5 h-3.5 text-amber-600" />
           </button>
         </div>
       )}
 
       {/* ── Barra de respuesta ── */}
       {mensajeRespondiendo && !mensajeEditando && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border-b border-blue-200">
-          <Reply className="w-4 h-4 text-blue-500 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-blue-600">Respondiendo</p>
-            <p className="text-xs text-gray-500 truncate">{mensajeRespondiendo.contenido}</p>
+        <div className="flex items-center gap-2.5 mb-2 mr-4 ml-4 px-6 py-1.5 bg-white/70 backdrop-blur-sm border border-blue-300 rounded-full shadow-sm">
+          {/* Borde lateral decorativo */}
+          <div className="w-[3.5px] self-stretch rounded-full bg-linear-to-b from-blue-500 to-blue-400 shrink-0" />
+          {/* Ícono en caja */}
+          <div className="w-8 h-8 rounded-lg bg-linear-to-br from-blue-500 to-blue-400 flex items-center justify-center shrink-0 shadow-[0_2px_6px_rgba(59,130,246,0.25)]">
+            <Reply className="w-4 h-4 text-white" />
           </div>
+          {/* Contenido */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-blue-600 leading-tight">
+              {mensajeRespondiendo.emisorId === miId ? 'Tú' : nombreContacto || 'Mensaje'}
+            </p>
+            <p className="text-sm text-slate-500 truncate mt-px">
+              <TextoConEmojis texto={mensajeRespondiendo.contenido || ''} tamañoEmoji={20} />
+            </p>
+          </div>
+          {/* Botón cerrar */}
           <button
             onClick={() => onCancelarRespuesta?.()}
-            className="p-1 hover:bg-blue-100 rounded-full cursor-pointer shrink-0"
+            className="w-7 h-7 rounded-full flex items-center justify-center bg-blue-500/10 hover:bg-blue-500/20 cursor-pointer shrink-0"
           >
-            <X className="w-4 h-4 text-blue-500" />
+            <X className="w-3.5 h-3.5 text-blue-600" />
           </button>
         </div>
       )}
 
       {/* ── Input + botón enviar ── */}
-      <div className="flex items-center gap-2.5 px-4 py-3">
-        {/* Input de texto */}
-        <input
-          ref={inputRef}
-          type="text"
-          value={texto}
-          onChange={(e) => {
-            if (bloqueado) return;
-            setTexto(e.target.value);
-            if (e.target.value.trim()) manejarEscribiendo();
-          }}
-          onKeyDown={handleKeyDown}
-          disabled={bloqueado}
-          placeholder={bloqueado ? 'No puedes enviar mensajes a este contacto' : mensajeEditando ? 'Editar mensaje...' : mensajeRespondiendo ? 'Escribir respuesta...' : 'Escribe un mensaje...'}
-          maxLength={5000}
-          className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-full text-[13px] text-gray-800 placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-        />
+      <div className="flex items-center gap-2.5 px-4 py-1 pb-0">
+
+        {/* Pill: emoji + input */}
+        <div className="flex-1 flex items-center gap-1 px-3 py-2.5 bg-gray-200 border border-gray-300 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.25)] focus-within:shadow-[0_4px_22px_rgba(0,0,0,0.45)] transition-shadow duration-150">
+
+          {/* Botón emoji (solo desktop) */}
+          <button
+            ref={smileBtnRef}
+            onClick={() => {
+              if (pickerAbierto) {
+                cerrarPicker();
+              } else {
+                const rect = smileBtnRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setPickerPos({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                  });
+                }
+                setPickerAbierto(true);
+              }
+            }}
+            disabled={bloqueado}
+            className={`shrink-0 hidden lg:flex items-center justify-center cursor-pointer transition-transform duration-75 hover:scale-110 active:scale-95 text-gray-600 hover:text-gray-900 ${bloqueado ? 'opacity-40 cursor-not-allowed' : ''}`}
+          >
+            <Smile className="w-6 h-6" />
+          </button>
+
+          {/* Input de texto */}
+          <input
+            ref={inputRef}
+            type="text"
+            value={texto}
+            onChange={(e) => {
+              if (bloqueado) return;
+              setTexto(e.target.value);
+              if (e.target.value.trim()) manejarEscribiendo();
+            }}
+            onKeyDown={handleKeyDown}
+            disabled={bloqueado}
+            placeholder={bloqueado ? 'No puedes enviar mensajes a este contacto' : mensajeEditando ? 'Editar mensaje...' : mensajeRespondiendo ? 'Escribir respuesta...' : 'Escribe un mensaje...'}
+            maxLength={5000}
+            style={{ fontFamily: 'Inter, "Noto Color Emoji", sans-serif' }}
+            className="flex-1 px-2 bg-transparent border-none outline-none text-[15px] font-medium text-gray-800 placeholder:text-gray-500 disabled:text-gray-400 disabled:cursor-not-allowed"
+          />
+        </div>
+
+        {/* Portal: Picker completo de emojis */}
+        {(pickerAbierto || pickerSaliendo) && pickerPos && createPortal(
+          <div
+            className="fixed z-9999"
+            style={{
+              left: pickerPos.x,
+              top: pickerPos.y - 8,
+              transform: 'translate(-50%, -100%)',
+            }}
+          >
+            <div
+              className={`picker-portal-centrado ${pickerSaliendo ? 'emoji-popup-out' : 'emoji-popup-in'}`}
+              style={{ transformOrigin: 'center bottom' }}
+            >
+              <SelectorEmojis
+                onSeleccionar={(emoji) => {
+                  setTexto((prev) => prev + emoji);
+                  inputRef.current?.focus();
+                }}
+                onCerrar={cerrarPicker}
+                posicion="arriba-izq"
+                ancho={470}
+                alto={430}
+                cerrarAlSeleccionar={false}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
 
         {/* Botón enviar */}
         <button
           onClick={handleEnviar}
           disabled={!puedeEnviar}
           className={`
-            w-9 h-9 rounded-full flex items-center justify-center shrink-0
+            w-11 h-11 rounded-full flex items-center justify-center shrink-0
             ${puedeEnviar
               ? mensajeEditando
                 ? 'bg-linear-to-br from-amber-500 to-amber-400 text-white shadow-[0_3px_10px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95 cursor-pointer'
                 : 'bg-linear-to-br from-blue-600 to-blue-500 text-white shadow-[0_3px_10px_rgba(37,99,235,0.3)] hover:shadow-[0_4px_14px_rgba(37,99,235,0.4)] hover:scale-105 active:scale-95 cursor-pointer'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }
           `}
         >
-          <Send className="w-4.5 h-4.5" />
+          <Send className="w-5 h-5" />
         </button>
       </div>
+
     </div>
   );
 }

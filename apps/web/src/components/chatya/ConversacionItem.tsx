@@ -13,6 +13,7 @@ import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown } from 'lucide-
 import type { Conversacion } from '../../types/chatya';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { TextoConEmojis } from './TextoConEmojis';
 
 // =============================================================================
 // TIPOS
@@ -73,6 +74,8 @@ function formatearTiempo(fecha: string | null): string {
 export function ConversacionItem({ conversacion, activa, onClick, onMenuContextual }: ConversacionItemProps) {
   const otro = conversacion.otroParticipante;
   const bloqueados = useChatYAStore((s) => s.bloqueados);
+  const borradores = useChatYAStore((s) => s.borradores);
+  const borrador = borradores[conversacion.id] || null;
   const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otro?.id);
   const miId = useAuthStore((s) => s.usuario?.id);
 
@@ -136,16 +139,16 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       className={`
-        w-full flex items-center gap-3 lg:gap-2.5 px-3 lg:px-2.5 py-3 lg:py-2.5 mx-0.5 text-left cursor-pointer
+        w-full flex items-center gap-3 px-3 py-3 mx-0.5 text-left cursor-pointer
         rounded-r-lg border-l-[3px] transition-colors duration-75 group
         ${activa
-          ? 'bg-blue-100/80 border-l-blue-500'
-          : 'border-l-transparent hover:bg-blue-100/60'
+          ? 'bg-white/12 border-l-amber-400'
+          : 'border-l-transparent hover:bg-white/8'
         }
       `}
     >
       {/* Avatar */}
-      <div className="w-12 lg:w-10 h-12 lg:h-10 rounded-full shrink-0 relative">
+      <div className="w-12 lg:w-11 h-12 lg:h-11 rounded-full shrink-0 relative">
         {avatarUrl ? (
           <img
             src={avatarUrl}
@@ -154,7 +157,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
           />
         ) : (
           <div className={`w-full h-full rounded-full bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center ${esBloqueado ? 'opacity-40' : ''}`}>
-            <span className="text-white text-sm lg:text-xs font-bold">{iniciales}</span>
+            <span className="text-white text-sm font-bold">{iniciales}</span>
           </div>
         )}
         {/* Overlay bloqueado */}
@@ -167,32 +170,44 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-1 h-5 lg:h-4">
-          <p className={`text-[15px] lg:text-[13px] truncate leading-tight ${esBloqueado ? 'text-gray-400 font-medium' : tieneNoLeidos ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>
+        <div className="flex items-center justify-between gap-1 h-5">
+          <p className={`text-[15px] lg:text-[14px] truncate leading-tight ${esBloqueado ? 'text-white/35 font-medium' : tieneNoLeidos ? 'font-bold text-white' : 'font-semibold text-white/80'}`}>
             {nombre}
           </p>
-          <span className="text-xs lg:text-[11px] text-gray-500 font-medium shrink-0">
+          <span className="text-xs lg:text-[11px] text-white/45 font-medium shrink-0">
             {tiempo}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-1 mt-0.5 h-5 lg:h-[18px]">
-          <p className={`text-[13px] lg:text-xs truncate flex items-center gap-0.5 ${tieneNoLeidos ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
-            {ultimoEsMio && conversacion.ultimoMensajeEstado && (
-              conversacion.ultimoMensajeEstado === 'leido'
-                ? <CheckCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                : conversacion.ultimoMensajeEstado === 'entregado'
-                  ? <CheckCheck className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  : <Check className="w-3 h-3 text-gray-400 shrink-0" />
+        <div className="flex items-center justify-between gap-1 mt-0.5 h-5">
+          <p className={`text-[13px] truncate ${tieneNoLeidos ? 'text-white/80 font-medium' : 'text-white/50'}`}>
+            {borrador ? (
+              <>
+                <span className="text-amber-400 font-semibold">Borrador: </span>
+                <span className="text-white/60">{borrador}</span>
+              </>
+            ) : (
+              <>
+                {ultimoEsMio && conversacion.ultimoMensajeEstado && (
+                  conversacion.ultimoMensajeEstado === 'leido'
+                    ? <CheckCheck className="w-3.5 h-3.5 text-blue-500 shrink-0 inline align-[-3px] mr-0.5" />
+                    : conversacion.ultimoMensajeEstado === 'entregado'
+                      ? <CheckCheck className="w-3.5 h-3.5 text-gray-400 shrink-0 inline align-[-3px] mr-0.5" />
+                      : <Check className="w-3 h-3 text-gray-400 shrink-0 inline align-[-2px] mr-0.5" />
+                )}
+                {conversacion.ultimoMensajeTexto
+                  ? <TextoConEmojis texto={conversacion.ultimoMensajeTexto} tamañoEmoji={14} />
+                  : <span>Sin mensajes aún</span>
+                }
+              </>
             )}
-            <span className="truncate">{conversacion.ultimoMensajeTexto || 'Sin mensajes aún'}</span>
           </p>
           <div className="flex items-center gap-1 shrink-0">
             {/* Íconos de estado */}
             {conversacion.silenciada && (
-              <BellOff className="w-[18px] h-[18px] text-gray-400" />
+              <BellOff className="w-4 h-4 text-white/45" />
             )}
             {conversacion.fijada && (
-              <Pin className="w-3.5 h-3.5 text-gray-400 rotate-45" />
+              <Pin className="w-4.5 h-4.5 text-white/45 rotate-45" />
             )}
             {/* Badge no leídos */}
             {tieneNoLeidos && (
@@ -208,9 +223,9 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                 onMenuContextual?.(conversacion, { x: rect.right - 144, y: rect.bottom + 4 });
               }}
-              className="hidden lg:group-hover:flex w-5 h-5 items-center justify-center rounded hover:bg-blue-200 cursor-pointer"
+              className="hidden lg:group-hover:flex w-5 h-5 items-center justify-center rounded hover:bg-white/15 cursor-pointer"
             >
-              <ChevronDown className="w-4 h-4 text-blue-400" />
+              <ChevronDown className="w-4 h-4 text-white/50" />
             </div>
           </div>
         </div>

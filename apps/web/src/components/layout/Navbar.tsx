@@ -902,7 +902,7 @@ export const Navbar = () => {
 
                 {/* Dropdown Menu */}
                 {dropdownAbierto && (
-                  <div className="absolute right-0 top-full mt-2 lg:w-56 2xl:w-72 w-72 bg-white rounded-xl shadow-xl border border-gray-300 overflow-hidden z-40">
+                  <div className="absolute right-0 top-full mt-2 lg:w-56 2xl:w-72 w-72 bg-white rounded-xl shadow-xl border border-gray-300 overflow-hidden z-76">
 
                     {/* ===== HEADER CON GRADIENTE ===== */}
                     <div className="bg-linear-to-r from-slate-100 via-slate-200 to-slate-100 border-b border-gray-300 lg:p-2 2xl:p-4 p-4">

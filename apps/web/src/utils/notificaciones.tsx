@@ -1,12 +1,13 @@
 /**
  * notificaciones.tsx
  * =================
- * Sistema de notificaciones Ultra Clean para AnunciaYA
+ * Sistema de notificaciones Soft Pastel para AnunciaYA v3.0
+ * Fondos pastel · Bordes coloreados · Iconos sólidos · Progress bar
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AlertTriangle, X } from 'lucide-react';
+import { X, Lock } from 'lucide-react';
 import i18n from '../config/i18n';
 
 // =============================================================================
@@ -42,41 +43,60 @@ interface ConfirmacionOptions {
 }
 
 // =============================================================================
-// CONFIGURACIÓN DE ESTILOS
+// CONFIGURACIÓN VISUAL POR TIPO
 // =============================================================================
 
-const estilosNotificacion = {
+const TOAST_DURATION = 4000;
+
+const configTipo: Record<TipoNotificacion, {
+  color: string;
+  bg: string;
+  border: string;
+  icon: React.ReactNode;
+}> = {
   exito: {
-    icon: '✅',
-    accent: 'bg-green-500',
-    border: 'border-green-500/50',
-    bg: 'bg-slate-900/95',
-    text: 'text-white',
-    subtitle: 'text-slate-400',
+    color: '#22c55e',
+    bg: '#dcfce7',
+    border: 'rgba(34,197,94,0.35)',
+    icon: (
+      <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="10" fill="#22c55e" />
+        <path d="M6 10.5L8.5 13L14 7.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
   },
   error: {
-    icon: '❌',
-    accent: 'bg-red-500',
-    border: 'border-red-500/50',
-    bg: 'bg-slate-900/95',
-    text: 'text-white',
-    subtitle: 'text-slate-400',
+    color: '#ef4444',
+    bg: '#fee2e2',
+    border: 'rgba(239,68,68,0.35)',
+    icon: (
+      <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="10" fill="#ef4444" />
+        <path d="M7 7L13 13M13 7L7 13" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    ),
   },
   advertencia: {
-    icon: '⚠️',
-    accent: 'bg-amber-500',
-    border: 'border-amber-500/50',
-    bg: 'bg-slate-900/95',
-    text: 'text-white',
-    subtitle: 'text-slate-400',
+    color: '#f59e0b',
+    bg: '#fef3c7',
+    border: 'rgba(245,158,11,0.35)',
+    icon: (
+      <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="10" fill="#f59e0b" />
+        <path d="M10 6V11M10 13.5V14" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    ),
   },
   info: {
-    icon: 'ℹ️',
-    accent: 'bg-blue-500',
-    border: 'border-blue-500/50',
-    bg: 'bg-slate-900/95',
-    text: 'text-white',
-    subtitle: 'text-slate-400',
+    color: '#3b82f6',
+    bg: '#dbeafe',
+    border: 'rgba(59,130,246,0.35)',
+    icon: (
+      <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="10" fill="#3b82f6" />
+        <path d="M10 9V14M10 6.5V7" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    ),
   },
 };
 
@@ -108,50 +128,124 @@ interface NotificacionToastProps {
 }
 
 const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onClose }) => {
-  const [saliendo, setSaliendo] = useState(false);
-  const estilo = estilosNotificacion[notificacion.tipo];
+  const [estado, setEstado] = useState<'entrando' | 'visible' | 'saliendo'>('entrando');
+  const [progreso, setProgreso] = useState(100);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startRef = useRef<number>(Date.now());
+  const restanteRef = useRef<number>(TOAST_DURATION);
+
+  const config = configTipo[notificacion.tipo];
+
+  const iniciarTimer = useCallback(() => {
+    startRef.current = Date.now();
+    timerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startRef.current;
+      const remaining = restanteRef.current - elapsed;
+      const pct = Math.max(0, (remaining / TOAST_DURATION) * 100);
+      setProgreso(pct);
+      if (pct <= 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        cerrar();
+      }
+    }, 25);
+  }, []);
+
+  const pausarTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+      const elapsed = Date.now() - startRef.current;
+      restanteRef.current = restanteRef.current - elapsed;
+    }
+  }, []);
+
+  const reanudarTimer = useCallback(() => {
+    iniciarTimer();
+  }, [iniciarTimer]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      handleClose();
-    }, 3500);
+    const enterTimeout = setTimeout(() => setEstado('visible'), 20);
+    iniciarTimer();
+    return () => {
+      clearTimeout(enterTimeout);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
-    return () => clearTimeout(timer);
-  }, [notificacion.id]);
+  const cerrar = useCallback(() => {
+    setEstado('saliendo');
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimeout(() => onClose(notificacion.id), 300);
+  }, [notificacion.id, onClose]);
 
-  const handleClose = () => {
-    setSaliendo(true);
-    setTimeout(() => {
-      onClose(notificacion.id);
-    }, 300);
-  };
+  const esVisible = estado === 'visible';
 
   return (
     <div
-      className={`
-        mb-3 backdrop-blur-md ${estilo.bg} border ${estilo.border} rounded-2xl shadow-lg
-        overflow-hidden flex items-center transition-all duration-300
-        ${saliendo ? 'animate-slide-out-minimal opacity-0 translate-y-[-100px]' : 'animate-slide-in-minimal'}
-      `}
+      onMouseEnter={pausarTimer}
+      onMouseLeave={reanudarTimer}
+      className="mb-2"
       style={{
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        transform: `translateY(${esVisible ? '0' : '-14px'}) scale(${esVisible ? 1 : 0.97})`,
+        opacity: esVisible ? 1 : 0,
+        transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
-      <div className={`${estilo.accent} w-1.5 h-full shrink-0`}></div>
-      <div className="flex items-center gap-0 p-4 pr-10 flex-1">
-        <span className="text-2xl shrink-0">{estilo.icon}</span>
-        <div className="flex-1 min-w-0">
-          <p className={`${estilo.text} font-medium text-base line-clamp-2 text-center`}>{notificacion.mensaje}</p>
+      <div
+        className="relative overflow-hidden rounded-xl"
+        style={{
+          background: config.bg,
+          border: `1.5px solid ${config.border}`,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+          maxWidth: 'min(420px, calc(100vw - 32px))',
+          minWidth: 'min(300px, calc(100vw - 32px))',
+          width: 'fit-content',
+        }}
+      >
+        {/* Contenido */}
+        <div className="flex items-center gap-3 px-4 py-3.5">
+          {/* Icono */}
+          <div className="shrink-0">
+            {config.icon}
+          </div>
+
+          {/* Texto */}
+          <div className="min-w-0">
+            {notificacion.titulo && (
+              <p className="text-base font-semibold text-slate-800 leading-tight">
+                {notificacion.titulo}
+              </p>
+            )}
+            <p
+              className={`text-base leading-snug line-clamp-2 ${
+                notificacion.titulo ? 'text-slate-500 mt-0.5' : 'text-slate-700 font-medium'
+              }`}
+            >
+              {notificacion.mensaje}
+            </p>
+          </div>
+
+          {/* Cerrar */}
+          <button
+            onClick={cerrar}
+            className="shrink-0 p-1 rounded-md text-slate-400 hover:text-slate-600 transition-colors duration-150"
+          >
+            <X className="w-4.5 h-4.5" strokeWidth={2} />
+          </button>
         </div>
-        <button
-          onClick={handleClose}
-          className="absolute top-2 right-2 text-white hover:text-white/80 transition-colors shrink-0"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+
+        {/* Barra de progreso */}
+        <div className="h-0.5 w-full" style={{ background: `${config.color}15` }}>
+          <div
+            className="h-full"
+            style={{
+              width: `${progreso}%`,
+              background: config.color,
+              opacity: 0.4,
+              transition: 'width 0.05s linear',
+            }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -170,14 +264,150 @@ const ContenedorNotificaciones: React.FC<ContenedorNotificacionesProps> = ({ not
   if (notificaciones.length === 0) return null;
 
   return (
-    <div
-      className="fixed top-5 left-1/2 -translate-x-1/2 z-9999 w-full max-w-xs px-4 pointer-events-none"
-      style={{ perspective: '1000px' }}
-    >
-      <div className="pointer-events-auto">
+    <div className="fixed top-3 lg:top-4 left-1/2 -translate-x-1/2 z-9999 flex flex-col items-center pointer-events-none">
+      <div className="pointer-events-auto flex flex-col items-center">
         {notificaciones.map((notificacion) => (
           <NotificacionToast key={notificacion.id} notificacion={notificacion} onClose={onClose} />
         ))}
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// COMPONENTE: MODAL DE CONFIRMACIÓN ESTILO TOAST (RESPONSIVE)
+// =============================================================================
+
+interface ModalConfirmacionToastProps {
+  options: ConfirmacionOptions;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options, onConfirm, onCancel }) => {
+  const [saliendo, setSaliendo] = useState(false);
+
+  const handleClose = (callback: () => void) => {
+    setSaliendo(true);
+    setTimeout(() => callback(), 300);
+  };
+
+  return (
+    <div
+      className="fixed top-3 lg:top-4 left-1/2 -translate-x-1/2 z-10000 w-full max-w-sm lg:max-w-md px-3 lg:px-4 pointer-events-none"
+      style={{ perspective: '1000px' }}
+    >
+      <div
+        className={`pointer-events-auto relative overflow-hidden rounded-xl transition-all duration-300
+          ${saliendo ? 'opacity-0 -translate-y-3 scale-95' : 'animate-[confirmIn_0.3s_cubic-bezier(0.22,1,0.36,1)]'}
+        `}
+        style={{
+          background: '#fef3c7',
+          border: '1.5px solid rgba(245,158,11,0.35)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06)',
+        }}
+      >
+        {/* Contenido */}
+        <div className="p-4">
+          <div className="flex items-start gap-3 mb-3.5">
+            <div className="shrink-0 mt-0.5">
+              <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="10" fill="#f59e0b" />
+                <path d="M10 6V11M10 13.5V14" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm lg:text-base font-semibold text-slate-800 leading-tight">
+                {options.titulo}
+              </h3>
+              {options.descripcion && (
+                <p className="text-xs lg:text-sm text-slate-500 leading-relaxed mt-1">
+                  {options.descripcion}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => handleClose(onCancel)}
+              className="shrink-0 p-1 rounded-md text-slate-400 hover:text-slate-600 transition-colors duration-150"
+            >
+              <X className="w-4 h-4" strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {/* Botones */}
+          <div className="flex gap-2.5">
+            <button
+              onClick={() => handleClose(onCancel)}
+              className="flex-1 py-2 lg:py-2.5 px-4 rounded-lg text-xs lg:text-sm font-medium text-slate-600 bg-white/70 border border-slate-200 hover:bg-white transition-colors duration-150"
+            >
+              {i18n.t('common:confirmacion.cancelar')}
+            </button>
+            <button
+              onClick={() => handleClose(onConfirm)}
+              className="flex-1 py-2 lg:py-2.5 px-4 rounded-lg text-xs lg:text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors duration-150"
+              style={{ boxShadow: '0 2px 8px rgba(239,68,68,0.25)' }}
+            >
+              {i18n.t('common:confirmacion.confirmar')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// COMPONENTE: MODAL SESIÓN EXPIRADA
+// =============================================================================
+
+interface ModalSesionExpiradaProps {
+  onConfirm: () => void;
+}
+
+const ModalSesionExpirada: React.FC<ModalSesionExpiradaProps> = ({ onConfirm }) => {
+  return (
+    <div
+      className="fixed inset-0 z-10000 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]"
+      style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+    >
+      <div
+        className="w-full max-w-sm lg:max-w-md overflow-hidden rounded-2xl animate-[scaleIn_0.3s_cubic-bezier(0.34,1.56,0.64,1)]"
+        style={{
+          background: '#fff',
+          border: '1px solid rgba(0,0,0,0.06)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06)',
+        }}
+      >
+        <div className="p-6 pb-4">
+          <div className="flex items-start gap-4">
+            <div
+              className="shrink-0 flex items-center justify-center w-11 h-11 rounded-xl"
+              style={{ background: '#fef3c7' }}
+            >
+              <Lock className="w-5 h-5 text-amber-500" strokeWidth={2} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-slate-800 font-bold text-base lg:text-lg leading-tight mb-1.5">
+                Sesión expirada
+              </h3>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Tu sesión ha expirado por inactividad.
+                <br />
+                Por favor, inicia sesión nuevamente.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 pt-2">
+          <button
+            onClick={onConfirm}
+            className="w-full py-3 px-4 rounded-xl text-sm lg:text-base font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors duration-150 active:scale-[0.98]"
+            style={{ boxShadow: '0 4px 14px rgba(59,130,246,0.3)' }}
+          >
+            Ir al login
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -217,7 +447,7 @@ export const NotificacionesProvider: React.FC<{ children: React.ReactNode }> = (
     <NotificacionesContext.Provider value={{ agregar, remover, mostrarConfirmacion, ocultarConfirmacion }}>
       {children}
       <ContenedorNotificaciones notificaciones={notificaciones} onClose={remover} />
-      
+
       {confirmacion && (
         <ModalConfirmacionToast
           options={{ titulo: confirmacion.titulo, descripcion: confirmacion.descripcion }}
@@ -233,173 +463,23 @@ export const NotificacionesProvider: React.FC<{ children: React.ReactNode }> = (
       )}
 
       <style>{`
-        @keyframes slide-in-minimal {
+        @keyframes confirmIn {
           from {
-            transform: translateY(-100px);
+            transform: translateY(-14px) scale(0.97);
             opacity: 0;
           }
           to {
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
             opacity: 1;
           }
         }
-
-        @keyframes slide-out-minimal {
-          to {
-            transform: translateY(-100px);
-            opacity: 0;
-          }
-        }
-
-        .animate-slide-in-minimal {
-          animation: slide-in-minimal 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .animate-slide-out-minimal {
-          animation: slide-out-minimal 0.2s ease-in;
-        }
-      `}</style>
-    </NotificacionesContext.Provider>
-  );
-};
-
-// =============================================================================
-// COMPONENTE: MODAL DE CONFIRMACIÓN ESTILO TOAST (RESPONSIVE)
-// =============================================================================
-
-interface ModalConfirmacionToastProps {
-  options: ConfirmacionOptions;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options, onConfirm, onCancel }) => {
-  const [saliendo, setSaliendo] = useState(false);
-
-  const handleClose = (callback: () => void) => {
-    setSaliendo(true);
-    setTimeout(() => {
-      callback();
-    }, 300);
-  };
-
-  return (
-    <div
-      className="fixed top-3 lg:top-4 2xl:top-5 left-1/2 -translate-x-1/2 z-10000 w-full max-w-[340px] lg:max-w-[380px] 2xl:max-w-md px-3 lg:px-4 pointer-events-none"
-      style={{ perspective: '1000px' }}
-    >
-      <div
-        className={`
-          pointer-events-auto backdrop-blur-md bg-slate-900/95 border border-amber-500/50 
-          rounded-xl lg:rounded-xl 2xl:rounded-2xl shadow-2xl overflow-hidden transition-all duration-300
-          ${saliendo ? 'animate-slide-out-minimal opacity-0 translate-y-[-100px]' : 'animate-slide-in-minimal'}
-        `}
-        style={{
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        }}
-      >
-        {/* Línea de color superior */}
-        <div className="bg-amber-500 h-1 lg:h-1 2xl:h-1.5 w-full"></div>
-
-        {/* Contenido */}
-        <div className="p-3 lg:p-3.5 2xl:p-4">
-          {/* Header con ícono */}
-          <div className="flex items-start gap-2 lg:gap-2.5 2xl:gap-3 mb-2.5 lg:mb-3 2xl:mb-3.5">
-            <div className="shrink-0 mt-0.5">
-              <AlertTriangle className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-5 2xl:h-5 text-amber-500" strokeWidth={2.5} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-white font-semibold text-sm lg:text-sm 2xl:text-base leading-tight">
-                {options.titulo}
-              </h3>
-              {options.descripcion && (
-                <p className="text-slate-400 text-xs lg:text-xs 2xl:text-sm leading-relaxed mt-0.5">
-                  {options.descripcion}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => handleClose(onCancel)}
-              className="shrink-0 text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
-            </button>
-          </div>
-
-          {/* Botones */}
-          <div className="flex gap-2 lg:gap-2 2xl:gap-2.5">
-            <button
-              onClick={() => handleClose(onCancel)}
-              className="flex-1 bg-slate-700/80 hover:bg-slate-600 text-white font-medium py-1.5 lg:py-2 2xl:py-2.5 px-3 lg:px-3.5 2xl:px-4 rounded-lg lg:rounded-xl 2xl:rounded-xl transition-colors text-xs lg:text-sm 2xl:text-sm"
-            >
-              {i18n.t('common:confirmacion.cancelar')}
-            </button>
-            <button
-              onClick={() => handleClose(onConfirm)}
-              className="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-1.5 lg:py-2 2xl:py-2.5 px-3 lg:px-3.5 2xl:px-4 rounded-lg lg:rounded-xl 2xl:rounded-xl transition-colors text-xs lg:text-sm 2xl:text-sm"
-            >
-              {i18n.t('common:confirmacion.confirmar')}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// =============================================================================
-// COMPONENTE: MODAL SESIÓN EXPIRADA
-// =============================================================================
-
-interface ModalSesionExpiradaProps {
-  onConfirm: () => void;
-}
-
-const ModalSesionExpirada: React.FC<ModalSesionExpiradaProps> = ({ onConfirm }) => {
-  const esMobil = window.innerWidth < 640;
-
-  return (
-    <div className="fixed inset-0 z-10000 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div
-        className={`bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-scale-in ${
-          esMobil ? 'w-full max-w-sm' : 'w-full max-w-md'
-        }`}
-      >
-        <div className="p-6 pb-4">
-          <div className="flex items-start gap-4">
-            <div className="bg-amber-500/20 rounded-xl p-3 shrink-0">
-              <span className="text-3xl">🔒</span>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-white font-bold text-lg mb-2">Sesión expirada</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                Tu sesión ha expirado por inactividad.
-                <br />
-                Por favor, inicia sesión nuevamente.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="p-6 pt-2 bg-slate-900/50">
-          <button
-            onClick={onConfirm}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-xl transition-colors"
-          >
-            Ir al login
-          </button>
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes fade-in {
+        @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
-
-        @keyframes scale-in {
+        @keyframes scaleIn {
           from {
-            transform: scale(0.9);
+            transform: scale(0.92);
             opacity: 0;
           }
           to {
@@ -407,16 +487,8 @@ const ModalSesionExpirada: React.FC<ModalSesionExpiradaProps> = ({ onConfirm }) 
             opacity: 1;
           }
         }
-
-        .animate-fade-in {
-          animation: fade-in 0.2s ease-out;
-        }
-
-        .animate-scale-in {
-          animation: scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
       `}</style>
-    </div>
+    </NotificacionesContext.Provider>
   );
 };
 

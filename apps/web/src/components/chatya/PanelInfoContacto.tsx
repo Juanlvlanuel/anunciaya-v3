@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import {
   X, Store, Star, Clock, ExternalLink, Bell, BellOff,
-  ShieldBan, Trash2, ChevronRight, Award, Coins, Calendar, User,
+  ShieldBan, Trash2, ChevronRight, Award, Coins, Calendar, User, Info,
 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -183,11 +183,14 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="w-[270px] 2xl:w-[300px] min-w-[270px] 2xl:min-w-[300px] border-l border-gray-200 flex flex-col bg-white overflow-y-auto shrink-0">
+    <div className="w-[320px] 2xl:w-[340px] min-w-[320px] 2xl:min-w-[340px] border-l border-gray-200 flex flex-col bg-linear-to-b from-slate-100 to-blue-50 overflow-y-auto shrink-0">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 h-[61px] border-b border-gray-300 bg-white/90 shrink-0">
-        <span className="text-sm font-bold text-gray-700">Información</span>
+      <div className="flex items-center justify-between px-4 h-[61px] border-b border-slate-200 bg-slate-200 shrink-0">
+        <span className="flex items-center gap-2 text-base font-bold text-gray-800">
+          <Info className="w-4 h-4 text-gray-600" />
+          Información
+        </span>
         <button
           onClick={onCerrar}
           className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-gray-100 text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -197,13 +200,13 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
       </div>
 
       {/* ── Avatar + Nombre ── */}
-      <div className="flex flex-col items-center px-4 pt-5 pb-4 gap-2.5 border-b border-gray-100">
+      <div className="flex flex-col items-center px-4 pt-6 pb-5 gap-3 border-b border-white/20">
         <div
           role="button"
           tabIndex={avatarUrl ? 0 : -1}
           onClick={(e) => { e.stopPropagation(); if (avatarUrl) onAbrirImagen(avatarUrl); }}
           onKeyDown={(e) => { if (e.key === 'Enter' && avatarUrl) onAbrirImagen(avatarUrl); }}
-          className={`w-20 h-20 rounded-full overflow-hidden shadow-md shrink-0 ${avatarUrl ? 'cursor-pointer hover:opacity-90' : ''}`}
+          className={`w-24 h-24 rounded-full overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2)] shrink-0 ${avatarUrl ? 'cursor-pointer hover:opacity-90' : ''}`}
         >
           {avatarUrl ? (
             <img src={avatarUrl} alt={nombre} className="w-full h-full object-cover" />
@@ -219,43 +222,52 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
           )}
         </div>
 
-        <div className="flex flex-col items-center gap-0.5 text-center">
+        <div className="flex flex-col items-center gap-1 text-center">
           {tipoVista === 'negocio' && (
-            <span className="flex items-center gap-1 text-amber-500 text-xs font-semibold">
+            <span className="flex items-center gap-1 text-amber-600 text-xs font-semibold bg-amber-100/70 px-2.5 py-0.5 rounded-full">
               <Store className="w-3.5 h-3.5" />
               {otro?.sucursalNombre || 'Negocio'}
             </span>
           )}
-          <p className="text-base font-bold text-gray-800 leading-snug">{nombre}</p>
+          <p className="text-[17px] font-bold text-gray-800 leading-snug">{nombre}</p>
           {tipoVista !== 'negocio' && (
-            <span className="flex items-center gap-1 text-xs text-green-500 font-medium">
+            <span className="flex items-center gap-1.5 text-xs text-green-700 font-semibold bg-green-100/70 px-2.5 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
               En línea
+            </span>
+          )}
+          {conversacion.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
+            <span className="text-xs text-gray-500 font-medium mt-0.5">
+              {conversacion.contextoTipo === 'negocio' && 'Contactó desde: Tu perfil'}
+              {conversacion.contextoTipo === 'oferta' && `Contactó por oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
+              {conversacion.contextoTipo === 'marketplace' && `Contactó por publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
+              {conversacion.contextoTipo === 'empleo' && `Contactó por vacante: ${conversacion.contextoNombre || 'Empleos'}`}
+              {conversacion.contextoTipo === 'dinamica' && `Contactó por dinámica: ${conversacion.contextoNombre || 'Dinámicas'}`}
             </span>
           )}
         </div>
       </div>
 
       {/* ── Contenido dinámico ── */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(100,120,150,0.35) transparent' }}>
 
         {/* ════ VISTA 2: Usuario → Negocio ════ */}
         {tipoVista === 'negocio' && (
-          <div className="px-4 py-3 flex flex-col gap-3">
+          <div className="px-4 py-4 flex flex-col gap-3">
             {cargando ? (
               <div className="flex justify-center py-4">
-                <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/30 border-t-blue-500 rounded-full animate-spin" />
               </div>
             ) : negocio ? (
               <>
                 {/* Calificación */}
                 {parseFloat(negocio.calificacionPromedio) > 0 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5 bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
                     <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
                     <span className="text-sm font-bold text-gray-800">
                       {parseFloat(negocio.calificacionPromedio).toFixed(1)}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-500">
                       ({negocio.totalCalificaciones} reseñas)
                     </span>
                   </div>
@@ -263,24 +275,24 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
 
                 {/* Categoría */}
                 {negocio.categorias?.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Store className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span className="text-sm text-gray-600">
+                  <div className="flex items-center gap-2.5 bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
+                    <Store className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span className="text-sm text-gray-700">
                       {negocio.categorias[0].categoria.nombre}
                     </span>
                   </div>
                 )}
 
                 {/* Horario + estado */}
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+                <div className="flex items-center gap-2.5 bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
+                  <Clock className="w-4 h-4 text-gray-500 shrink-0" />
                   <div className="flex flex-col">
                     <span className={`text-sm font-semibold ${calcularAbierto(negocio.horarios) ? 'text-green-600' : 'text-red-500'}`}>
                       {calcularAbierto(negocio.horarios) ? 'Abierto ahora' : 'Cerrado'}
                     </span>
                     {(() => {
                       const h = horarioHoy(negocio.horarios);
-                      return h ? <span className="text-xs text-gray-400">{h}</span> : null;
+                      return h ? <span className="text-xs text-gray-500">{h}</span> : null;
                     })()}
                   </div>
                 </div>
@@ -288,31 +300,31 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
                 {/* Ver perfil */}
                 <a
                   href={`/negocios/${negocio.sucursalId}`}
-                  className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-600 text-sm font-semibold cursor-pointer transition-colors"
+                  className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white text-sm font-semibold cursor-pointer transition-colors shadow-sm"
                 >
                   <span>Ver perfil del negocio</span>
                   <ExternalLink className="w-4 h-4" />
                 </a>
               </>
             ) : (
-              <p className="text-xs text-gray-400 text-center py-2">No se pudo cargar la información</p>
+              <p className="text-xs text-gray-500 text-center py-2">No se pudo cargar la información</p>
             )}
           </div>
         )}
 
         {/* ════ VISTA 3: Negocio → Cliente ════ */}
         {tipoVista === 'cliente' && (
-          <div className="px-4 py-3 flex flex-col gap-3">
+          <div className="px-4 py-4 flex flex-col gap-3">
             {cargando ? (
               <div className="flex justify-center py-4">
-                <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/30 border-t-blue-500 rounded-full animate-spin" />
               </div>
             ) : cliente ? (
               <>
-                <div className="bg-blue-50 rounded-xl p-3 flex flex-col gap-2.5">
-                  <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Cliente registrado</p>
+                <div className="bg-white/90 shadow-sm rounded-xl p-3.5 flex flex-col gap-3">
+                  <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Cliente registrado</p>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <Award className={`w-4 h-4 shrink-0 ${nivelColor(cliente.nivelActual)}`} />
                     <span className={`text-sm font-bold ${nivelColor(cliente.nivelActual)}`}>
                       {nivelEmoji(cliente.nivelActual)}{' '}
@@ -320,20 +332,20 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <Coins className="w-4 h-4 text-amber-500 shrink-0" />
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-gray-800">
                         {cliente.puntosDisponibles.toLocaleString('es-MX')} pts
                       </span>
-                      <span className="text-xs text-gray-400">disponibles</span>
+                      <span className="text-xs text-gray-500">disponibles</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                  <div className="flex items-center gap-2.5">
+                    <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
                     <div className="flex flex-col">
-                      <span className="text-xs text-gray-400">Última compra</span>
+                      <span className="text-xs text-gray-500">Última compra</span>
                       <span className="text-sm font-semibold text-gray-700">
                         {formatFecha(cliente.ultimaActividad)}
                       </span>
@@ -349,17 +361,17 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
                       );
                     }
                   }}
-                  className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-600 text-sm font-semibold cursor-pointer transition-colors"
+                  className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white text-sm font-semibold cursor-pointer transition-colors shadow-sm"
                 >
                   <span>Ver detalle del cliente</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-2 py-4 text-center">
-                <User className="w-8 h-8 text-gray-300" />
-                <p className="text-sm text-gray-500">Sin billetera en tu negocio</p>
-                <p className="text-xs text-gray-400">Este usuario aún no ha comprado aquí</p>
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <User className="w-9 h-9 text-gray-400/60" />
+                <p className="text-sm text-gray-600 font-medium">Sin billetera en tu negocio</p>
+                <p className="text-xs text-gray-500">Este usuario aún no ha comprado aquí</p>
               </div>
             )}
           </div>
@@ -371,14 +383,14 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
       </div>
 
       {/* ── Acciones comunes ── */}
-      <div className="border-t border-gray-100 px-4 py-3 flex flex-col gap-1 shrink-0">
+      <div className="border-t border-white/20 px-4 py-3 flex flex-col gap-1 shrink-0">
         <button
           onClick={handleSilenciar}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-600 cursor-pointer transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-black/8 text-gray-600 cursor-pointer transition-colors"
         >
           {conversacion.silenciada
-            ? <Bell className="w-4 h-4 text-gray-400 shrink-0" />
-            : <BellOff className="w-4 h-4 text-gray-400 shrink-0" />
+            ? <Bell className="w-4 h-4 text-gray-500 shrink-0" />
+            : <BellOff className="w-4 h-4 text-gray-500 shrink-0" />
           }
           <span className="text-sm">
             {conversacion.silenciada ? 'Activar notificaciones' : 'Silenciar notificaciones'}
@@ -388,7 +400,7 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
         {!esModoComercial && (
           <button
             onClick={handleBloquear}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-50 text-red-500 cursor-pointer transition-colors"
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-100/60 text-red-500 cursor-pointer transition-colors"
           >
             <ShieldBan className="w-4 h-4 shrink-0" />
             <span className="text-sm font-medium">Bloquear</span>
@@ -397,7 +409,7 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
 
         <button
           onClick={handleEliminar}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-50 text-red-500 cursor-pointer transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-100/60 text-red-500 cursor-pointer transition-colors"
         >
           <Trash2 className="w-4 h-4 shrink-0" />
           <span className="text-sm font-medium">Eliminar chat</span>

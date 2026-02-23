@@ -368,7 +368,7 @@ function DropdownDesktop({
     <div
       ref={panelRef}
       className="
-        fixed z-50
+        fixed z-75
         2xl:top-[68px] 2xl:right-28  right-20 top-[58px]
         w-80 lg:w-80 2xl:w-96
         max-h-[400px] 2xl:max-h-[500px]

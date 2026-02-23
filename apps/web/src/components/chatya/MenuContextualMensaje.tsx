@@ -137,11 +137,13 @@ export function MenuContextualMensaje({
   // Handlers de acciones
   // ---------------------------------------------------------------------------
 
-  /** Copiar texto al portapapeles */
+  /** Copiar texto al portapapeles (selección parcial o mensaje completo) */
   const handleCopiar = useCallback(() => {
     onCerrar();
-    if (mensaje.contenido) {
-      navigator.clipboard.writeText(mensaje.contenido);
+    const seleccion = window.getSelection()?.toString().trim();
+    const textoCopiar = seleccion || mensaje.contenido;
+    if (textoCopiar) {
+      navigator.clipboard.writeText(textoCopiar);
     }
   }, [mensaje.contenido, onCerrar]);
 
