@@ -18,6 +18,7 @@ import {
     chatReacciones,
     chatMensajesFijados,
     chatContactos,
+    ofertas,
 } from '../db/schemas/schema.js';
 import { eq, and, or, desc, sql, ne } from 'drizzle-orm';
 import { emitirAUsuario } from '../socket.js';
@@ -80,6 +81,43 @@ async function existeBloqueo(usuarioA: string, usuarioB: string): Promise<boolea
         .limit(1);
 
     return !!bloqueo;
+}
+
+/**
+ * Resuelve el nombre legible del contexto de origen de una conversación.
+ * Solo hace query para tipos que tienen referencia ('negocio', 'oferta').
+ * Para los demás retorna null (cero queries innecesarias).
+ */
+async function resolverContextoNombre(
+    tipo: string | null,
+    referenciaId: string | null
+): Promise<string | null> {
+    if (!referenciaId || !tipo) return null;
+
+    try {
+        switch (tipo) {
+            case 'negocio': {
+                const [neg] = await db
+                    .select({ nombre: negocios.nombre })
+                    .from(negocios)
+                    .where(eq(negocios.id, referenciaId))
+                    .limit(1);
+                return neg?.nombre ?? null;
+            }
+            case 'oferta': {
+                const [ofe] = await db
+                    .select({ titulo: ofertas.titulo })
+                    .from(ofertas)
+                    .where(eq(ofertas.id, referenciaId))
+                    .limit(1);
+                return ofe?.titulo ?? null;
+            }
+            default:
+                return null;
+        }
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -193,57 +231,50 @@ export async function listarConversaciones(
     usuarioId: string,
     modo: ModoChatYA,
     paginacion: PaginacionInput,
-    archivadas: boolean = false
+    archivadas: boolean = false,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<ListaPaginada<ConversacionResponse>>> {
     try {
-        // Buscar conversaciones donde el usuario es p1 o p2 en el modo correcto
+        // Construir condiciones para P1
+        const condicionesP1 = [
+            eq(chatConversaciones.participante1Id, usuarioId),
+            eq(chatConversaciones.participante1Modo, modo),
+            eq(chatConversaciones.eliminadaPorP1, false),
+            eq(chatConversaciones.archivadaPorP1, archivadas),
+            ne(chatConversaciones.contextoTipo, 'notas'),
+        ];
+
+        // Construir condiciones para P2
+        const condicionesP2 = [
+            eq(chatConversaciones.participante2Id, usuarioId),
+            eq(chatConversaciones.participante2Modo, modo),
+            eq(chatConversaciones.eliminadaPorP2, false),
+            eq(chatConversaciones.archivadaPorP2, archivadas),
+            ne(chatConversaciones.contextoTipo, 'notas'),
+        ];
+
+        // En modo comercial: filtrar por sucursal activa
+        if (sucursalId) {
+            condicionesP1.push(eq(chatConversaciones.participante1SucursalId, sucursalId));
+            condicionesP2.push(eq(chatConversaciones.participante2SucursalId, sucursalId));
+        }
+
+        const whereClause = or(and(...condicionesP1), and(...condicionesP2));
+
+        // Buscar conversaciones
         const conversaciones = await db
             .select()
             .from(chatConversaciones)
-            .where(
-                or(
-                    and(
-                        eq(chatConversaciones.participante1Id, usuarioId),
-                        eq(chatConversaciones.participante1Modo, modo),
-                        eq(chatConversaciones.eliminadaPorP1, false),
-                        eq(chatConversaciones.archivadaPorP1, archivadas),
-                        ne(chatConversaciones.contextoTipo, 'notas')
-                    ),
-                    and(
-                        eq(chatConversaciones.participante2Id, usuarioId),
-                        eq(chatConversaciones.participante2Modo, modo),
-                        eq(chatConversaciones.eliminadaPorP2, false),
-                        eq(chatConversaciones.archivadaPorP2, archivadas),
-                        ne(chatConversaciones.contextoTipo, 'notas')
-                    )
-                )
-            )
+            .where(whereClause)
             .orderBy(desc(chatConversaciones.updatedAt))
             .limit(paginacion.limit)
             .offset(paginacion.offset);
 
-        // Contar total
+        // Contar total (misma condición)
         const [countResult] = await db
             .select({ count: sql<number>`count(*)::int` })
             .from(chatConversaciones)
-            .where(
-                or(
-                    and(
-                        eq(chatConversaciones.participante1Id, usuarioId),
-                        eq(chatConversaciones.participante1Modo, modo),
-                        eq(chatConversaciones.eliminadaPorP1, false),
-                        eq(chatConversaciones.archivadaPorP1, archivadas),
-                        ne(chatConversaciones.contextoTipo, 'notas')
-                    ),
-                    and(
-                        eq(chatConversaciones.participante2Id, usuarioId),
-                        eq(chatConversaciones.participante2Modo, modo),
-                        eq(chatConversaciones.eliminadaPorP2, false),
-                        eq(chatConversaciones.archivadaPorP2, archivadas),
-                        ne(chatConversaciones.contextoTipo, 'notas')
-                    )
-                )
-            );
+            .where(whereClause);
 
         // Mapear conversaciones con datos del otro participante
         const items: ConversacionResponse[] = await Promise.all(
@@ -251,7 +282,6 @@ export async function listarConversaciones(
                 const pos = determinarPosicion(conv, usuarioId)!;
                 const esP1 = pos === 'p1';
 
-                // El "otro" es el participante contrario
                 const otroId = esP1 ? conv.participante2Id : conv.participante1Id;
                 const otroModo = esP1 ? conv.participante2Modo : conv.participante1Modo;
                 const otroSucursalId = esP1 ? conv.participante2SucursalId : conv.participante1SucursalId;
@@ -260,6 +290,11 @@ export async function listarConversaciones(
                     otroId,
                     otroModo as ModoChatYA,
                     otroSucursalId
+                );
+
+                const contextoNombre = await resolverContextoNombre(
+                    conv.contextoTipo,
+                    conv.contextoReferenciaId
                 );
 
                 return {
@@ -272,6 +307,7 @@ export async function listarConversaciones(
                     participante2SucursalId: conv.participante2SucursalId,
                     contextoTipo: conv.contextoTipo as ContextoTipo,
                     contextoReferenciaId: conv.contextoReferenciaId,
+                    contextoNombre,
                     ultimoMensajeTexto: conv.ultimoMensajeTexto,
                     ultimoMensajeFecha: conv.ultimoMensajeFecha,
                     ultimoMensajeTipo: conv.ultimoMensajeTipo as TipoMensaje | null,
@@ -339,6 +375,11 @@ export async function obtenerConversacion(
             otroSucursalId
         );
 
+        const contextoNombre = await resolverContextoNombre(
+            conv.contextoTipo,
+            conv.contextoReferenciaId
+        );
+
         return {
             success: true,
             message: 'Conversación obtenida',
@@ -352,6 +393,7 @@ export async function obtenerConversacion(
                 participante2SucursalId: conv.participante2SucursalId,
                 contextoTipo: conv.contextoTipo as ContextoTipo,
                 contextoReferenciaId: conv.contextoReferenciaId,
+                contextoNombre,
                 ultimoMensajeTexto: conv.ultimoMensajeTexto,
                 ultimoMensajeFecha: conv.ultimoMensajeFecha,
                 ultimoMensajeTipo: conv.ultimoMensajeTipo as TipoMensaje | null,
@@ -388,6 +430,7 @@ export async function crearObtenerConversacion(
         }
 
         // Buscar conversación existente (en cualquier dirección)
+        // Incluye sucursalId para diferenciar chats con distintas sucursales del mismo negocio
         const [existente] = await db
             .select()
             .from(chatConversaciones)
@@ -397,13 +440,25 @@ export async function crearObtenerConversacion(
                         eq(chatConversaciones.participante1Id, usuarioId),
                         eq(chatConversaciones.participante2Id, input.participante2Id),
                         eq(chatConversaciones.participante1Modo, input.participante1Modo),
-                        eq(chatConversaciones.participante2Modo, input.participante2Modo)
+                        eq(chatConversaciones.participante2Modo, input.participante2Modo),
+                        input.participante1SucursalId
+                            ? eq(chatConversaciones.participante1SucursalId, input.participante1SucursalId)
+                            : sql`${chatConversaciones.participante1SucursalId} IS NULL`,
+                        input.participante2SucursalId
+                            ? eq(chatConversaciones.participante2SucursalId, input.participante2SucursalId)
+                            : sql`${chatConversaciones.participante2SucursalId} IS NULL`
                     ),
                     and(
                         eq(chatConversaciones.participante1Id, input.participante2Id),
                         eq(chatConversaciones.participante2Id, usuarioId),
                         eq(chatConversaciones.participante1Modo, input.participante2Modo),
-                        eq(chatConversaciones.participante2Modo, input.participante1Modo)
+                        eq(chatConversaciones.participante2Modo, input.participante1Modo),
+                        input.participante2SucursalId
+                            ? eq(chatConversaciones.participante1SucursalId, input.participante2SucursalId)
+                            : sql`${chatConversaciones.participante1SucursalId} IS NULL`,
+                        input.participante1SucursalId
+                            ? eq(chatConversaciones.participante2SucursalId, input.participante1SucursalId)
+                            : sql`${chatConversaciones.participante2SucursalId} IS NULL`
                     )
                 )
             )
@@ -535,6 +590,7 @@ function mapearMisNotas(
         participante2SucursalId: conv.participante2SucursalId,
         contextoTipo: conv.contextoTipo as ContextoTipo,
         contextoReferenciaId: conv.contextoReferenciaId,
+        contextoNombre: null,
         ultimoMensajeTexto: conv.ultimoMensajeTexto,
         ultimoMensajeFecha: conv.ultimoMensajeFecha,
         ultimoMensajeTipo: conv.ultimoMensajeTipo as TipoMensaje | null,
@@ -839,6 +895,44 @@ export async function listarMensajes(
             }
         }
 
+        // ── Poblar reacciones agrupadas por emoji ──
+        const idsMsg = items.map((m) => m.id);
+
+        if (idsMsg.length > 0) {
+            const reaccionesRaw = await db
+                .select({
+                    mensajeId: chatReacciones.mensajeId,
+                    emoji: chatReacciones.emoji,
+                    usuarioId: chatReacciones.usuarioId,
+                })
+                .from(chatReacciones)
+                .where(sql`${chatReacciones.mensajeId} IN ${idsMsg}`);
+
+            // Agrupar: { mensajeId -> { emoji -> [usuarioIds] } }
+            const mapaReacciones = new Map<string, Map<string, string[]>>();
+            for (const r of reaccionesRaw) {
+                if (!mapaReacciones.has(r.mensajeId)) {
+                    mapaReacciones.set(r.mensajeId, new Map());
+                }
+                const emojiMap = mapaReacciones.get(r.mensajeId)!;
+                if (!emojiMap.has(r.emoji)) {
+                    emojiMap.set(r.emoji, []);
+                }
+                emojiMap.get(r.emoji)!.push(r.usuarioId);
+            }
+
+            for (const item of items) {
+                const emojiMap = mapaReacciones.get(item.id);
+                if (emojiMap) {
+                    item.reacciones = Array.from(emojiMap.entries()).map(([emoji, usuarios]) => ({
+                        emoji,
+                        cantidad: usuarios.length,
+                        usuarios,
+                    }));
+                }
+            }
+        }
+
         return {
             success: true,
             message: 'Mensajes obtenidos',
@@ -1080,6 +1174,29 @@ export async function editarMensaje(
             entregadoAt: actualizado.entregadoAt,
             leidoAt: actualizado.leidoAt,
         };
+
+        // ── Poblar respuestaA si existe ──
+        if (actualizado.respuestaAId) {
+            const [msgOriginal] = await db
+                .select({
+                    id: chatMensajes.id,
+                    contenido: chatMensajes.contenido,
+                    tipo: chatMensajes.tipo,
+                    emisorId: chatMensajes.emisorId,
+                })
+                .from(chatMensajes)
+                .where(eq(chatMensajes.id, actualizado.respuestaAId))
+                .limit(1);
+
+            if (msgOriginal) {
+                mensajeResponse.respuestaA = {
+                    id: msgOriginal.id,
+                    contenido: msgOriginal.contenido,
+                    tipo: msgOriginal.tipo as TipoMensaje,
+                    emisorId: msgOriginal.emisorId,
+                };
+            }
+        }
 
         // Obtener el otro participante para emitir Socket.io
         const [conv] = await db
@@ -1610,7 +1727,7 @@ export async function toggleReaccion(
     try {
         // Verificar que el mensaje existe
         const [msg] = await db
-            .select({ id: chatMensajes.id, conversacionId: chatMensajes.conversacionId })
+            .select({ id: chatMensajes.id, conversacionId: chatMensajes.conversacionId, contenido: chatMensajes.contenido })
             .from(chatMensajes)
             .where(and(eq(chatMensajes.id, mensajeId), eq(chatMensajes.eliminado, false)))
             .limit(1);
@@ -1662,6 +1779,21 @@ export async function toggleReaccion(
                 emoji,
             });
             accion = 'agregada';
+        }
+
+        // Persistir preview de reacción en la conversación (solo al agregar)
+        if (accion === 'agregada') {
+            const preview = msg.contenido?.slice(0, 30) || '';
+            const truncado = msg.contenido && msg.contenido.length > 30 ? '...' : '';
+
+            await db
+                .update(chatConversaciones)
+                .set({
+                    ultimoMensajeTexto: `Reaccionó con ${emoji} a "${preview}${truncado}"`,
+                    ultimoMensajeFecha: new Date().toISOString(),
+                    ultimoMensajeEmisorId: usuarioId,
+                })
+                .where(eq(chatConversaciones.id, msg.conversacionId));
         }
 
         // Emitir por Socket.io a ambos participantes
@@ -2033,31 +2165,39 @@ export async function buscarMensajes(
 
 export async function contarTotalNoLeidos(
     usuarioId: string,
-    modo: ModoChatYA
+    modo: ModoChatYA,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<{ total: number }>> {
     try {
-        // Sumar no_leidos de todas las conversaciones activas del usuario en este modo
+        // Condiciones para P1
+        const condicionesP1 = [
+            eq(chatConversaciones.participante1Id, usuarioId),
+            eq(chatConversaciones.participante1Modo, modo),
+            eq(chatConversaciones.eliminadaPorP1, false),
+        ];
+
+        // Condiciones para P2
+        const condicionesP2 = [
+            eq(chatConversaciones.participante2Id, usuarioId),
+            eq(chatConversaciones.participante2Modo, modo),
+            eq(chatConversaciones.eliminadaPorP2, false),
+        ];
+
+        // En modo comercial: filtrar por sucursal activa
+        if (sucursalId) {
+            condicionesP1.push(eq(chatConversaciones.participante1SucursalId, sucursalId));
+            condicionesP2.push(eq(chatConversaciones.participante2SucursalId, sucursalId));
+        }
+
         const [resultP1] = await db
             .select({ total: sql<number>`COALESCE(SUM(no_leidos_p1), 0)::int` })
             .from(chatConversaciones)
-            .where(
-                and(
-                    eq(chatConversaciones.participante1Id, usuarioId),
-                    eq(chatConversaciones.participante1Modo, modo),
-                    eq(chatConversaciones.eliminadaPorP1, false)
-                )
-            );
+            .where(and(...condicionesP1));
 
         const [resultP2] = await db
             .select({ total: sql<number>`COALESCE(SUM(no_leidos_p2), 0)::int` })
             .from(chatConversaciones)
-            .where(
-                and(
-                    eq(chatConversaciones.participante2Id, usuarioId),
-                    eq(chatConversaciones.participante2Modo, modo),
-                    eq(chatConversaciones.eliminadaPorP2, false)
-                )
-            );
+            .where(and(...condicionesP2));
 
         const total = (resultP1?.total || 0) + (resultP2?.total || 0);
 

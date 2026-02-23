@@ -54,7 +54,9 @@ function obtenerModo(req: Request): ModoChatYA {
 }
 
 function obtenerSucursalId(req: Request): string | null {
-  return req.usuario!.sucursalAsignada || null;
+  // Gerente: sucursalAsignada fija desde el token
+  // Dueño: sucursalId enviada por el interceptor Axios como query param
+  return req.usuario!.sucursalAsignada || (req.query.sucursalId as string) || null;
 }
 
 // =============================================================================
@@ -70,9 +72,11 @@ export async function listarConversacionesController(req: Request, res: Response
     const modo = (req.query.modo as ModoChatYA) || obtenerModo(req);
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
     const offset = parseInt(req.query.offset as string) || 0;
+    const sucursalId = modo === 'comercial' ? obtenerSucursalId(req) : null;
 
     const archivadas = req.query.archivadas === 'true';
-    const resultado = await listarConversaciones(usuarioId, modo, { limit, offset }, archivadas);
+    const resultado = await listarConversaciones(usuarioId, modo, { limit, offset }, archivadas, sucursalId);
+
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -891,8 +895,9 @@ export async function contarNoLeidosController(req: Request, res: Response) {
   try {
     const usuarioId = obtenerUsuarioId(req);
     const modo = (req.query.modo as ModoChatYA) || obtenerModo(req);
+    const sucursalId = modo === 'comercial' ? obtenerSucursalId(req) : null;
 
-    const resultado = await contarTotalNoLeidos(usuarioId, modo);
+    const resultado = await contarTotalNoLeidos(usuarioId, modo, sucursalId);
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
