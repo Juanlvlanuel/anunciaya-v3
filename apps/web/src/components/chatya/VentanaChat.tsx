@@ -111,14 +111,24 @@ const AreaMensajes = memo(function AreaMensajes({
             diagMarca('7. primer itemContent');
             if (!virtuosoListoRef.current) {
               virtuosoListoRef.current = true;
-              requestAnimationFrame(() => {
-                virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+              const yaVisible = virtuosoWrapperRef.current?.style.opacity === '1';
+
+              if (yaVisible) {
+                // Caché: scroll directo con 1 solo rAF (ya está visible, no necesita reveal)
                 requestAnimationFrame(() => {
-                  if (virtuosoWrapperRef.current) {
-                    virtuosoWrapperRef.current.style.opacity = '1';
-                  }
+                  virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
                 });
-              });
+              } else {
+                // Sin caché: scroll + reveal con 2 rAFs (esconder → posicionar → mostrar)
+                requestAnimationFrame(() => {
+                  virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+                  requestAnimationFrame(() => {
+                    if (virtuosoWrapperRef.current) {
+                      virtuosoWrapperRef.current.style.opacity = '1';
+                    }
+                  });
+                });
+              }
             }
           }
           return (
@@ -468,10 +478,13 @@ function VentanaChatInner() {
     prevConvIdRef.current = conversacionActivaId;
     firstItemIndexRef.current = VIRTUAL_START;
     prevDataCountRef.current = 0;
-    // Ocultar Virtuoso hasta que tenga items (via DOM directo)
+
+    // Si hay mensajes = viene de caché → no esconder (transición instantánea)
+    // Si no hay mensajes = carga desde servidor → esconder hasta que lleguen
+    const tieneCache = mensajes.length > 0;
     virtuosoListoRef.current = false;
     if (virtuosoWrapperRef.current) {
-      virtuosoWrapperRef.current.style.opacity = '0';
+      virtuosoWrapperRef.current.style.opacity = tieneCache ? '1' : '0';
     }
   }
 
@@ -1177,21 +1190,36 @@ function OverlayDiagnostico() {
 // HELPER: Agrupar mensajes por fecha e intercalar separadores
 // =============================================================================
 
-function agruparPorFecha(mensajes: Mensaje[]): Array<{ tipo: 'separador'; fecha: string } | { tipo: 'mensaje'; mensaje: Mensaje }> {
-  const resultado: Array<{ tipo: 'separador'; fecha: string } | { tipo: 'mensaje'; mensaje: Mensaje }> = [];
-  let ultimaFecha = '';
-  const ordenados = [...mensajes].reverse();
+// Formateador reutilizable — se crea UNA sola vez en memoria (fuera del componente)
+const formateadorFecha = new Intl.DateTimeFormat('es-MX', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+});
 
-  for (const msg of ordenados) {
-    const fecha = new Date(msg.createdAt).toLocaleDateString('es-MX', {
-      day: 'numeric', month: 'long', year: 'numeric',
-    });
-    if (fecha !== ultimaFecha) {
-      ultimaFecha = fecha;
-      resultado.push({ tipo: 'separador', fecha });
+function agruparPorFecha(mensajes: Mensaje[]): Array<{ tipo: 'separador'; fecha: string } | { tipo: 'mensaje'; mensaje: Mensaje }> {
+  if (!mensajes.length) return [];
+
+  const resultado: Array<{ tipo: 'separador'; fecha: string } | { tipo: 'mensaje'; mensaje: Mensaje }> = [];
+  let ultimaFechaCorta = '';
+
+  // Loop inverso: recorre de atrás hacia adelante sin crear copia con [...].reverse()
+  for (let i = mensajes.length - 1; i >= 0; i--) {
+    const msg = mensajes[i];
+    const fechaObj = new Date(msg.createdAt);
+
+    // Comparación rápida con string simple (ej: "25-1-2026")
+    // Solo formatea bonito si el día cambió — evita llamar format() en cada mensaje
+    const fechaCorta = `${fechaObj.getDate()}-${fechaObj.getMonth()}-${fechaObj.getFullYear()}`;
+
+    if (fechaCorta !== ultimaFechaCorta) {
+      ultimaFechaCorta = fechaCorta;
+      resultado.push({ tipo: 'separador', fecha: formateadorFecha.format(fechaObj) });
     }
+
     resultado.push({ tipo: 'mensaje', mensaje: msg });
   }
+
   return resultado;
 }
 

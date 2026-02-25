@@ -56,14 +56,16 @@ interface BurbujaMensajeProps {
 // HELPERS
 // =============================================================================
 
+/** Formateador reutilizable — se crea UNA sola vez en memoria */
+const formateadorHora = new Intl.DateTimeFormat('es-MX', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+});
+
 /** Formatea hora del mensaje (ej: "10:30 AM") */
 function formatearHora(fecha: string): string {
-  const d = new Date(fecha);
-  return d.toLocaleTimeString('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formateadorHora.format(new Date(fecha));
 }
 
 // =============================================================================
