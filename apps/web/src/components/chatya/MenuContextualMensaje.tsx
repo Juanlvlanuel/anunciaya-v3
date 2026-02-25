@@ -33,7 +33,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { Mensaje } from '../../types/chatya';
-import * as chatyaService from '../../services/chatyaService';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 
 // =============================================================================
@@ -169,26 +168,18 @@ export function MenuContextualMensaje({
   const handleFijar = useCallback(async () => {
     onCerrar();
     if (!conversacionActivaId) return;
-    try {
-      if (estaFijado) {
-        await chatyaService.desfijarMensaje(conversacionActivaId, mensaje.id);
-      } else {
-        await chatyaService.fijarMensaje(conversacionActivaId, mensaje.id);
-      }
-    } catch {
-      void 0; // Silencioso
+    const store = useChatYAStore.getState();
+    if (estaFijado) {
+      await store.desfijarMensaje(conversacionActivaId, mensaje.id);
+    } else {
+      await store.fijarMensaje(conversacionActivaId, mensaje.id);
     }
   }, [conversacionActivaId, mensaje.id, estaFijado, onCerrar]);
 
   /** Eliminar mensaje propio */
   const handleEliminar = useCallback(async () => {
     onCerrar();
-    try {
-      await chatyaService.eliminarMensaje(mensaje.id);
-      // El store se actualiza vía Socket.io (chatya:mensaje-eliminado)
-    } catch {
-      void 0; // Silencioso
-    }
+    await useChatYAStore.getState().eliminarMensaje(mensaje.id);
   }, [mensaje.id, onCerrar]);
 
   // ---------------------------------------------------------------------------

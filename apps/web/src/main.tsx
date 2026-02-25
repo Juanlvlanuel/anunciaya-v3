@@ -21,10 +21,21 @@ if (!esPreviewIframe) {
 // ==========================================
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   window.addEventListener('load', () => {
+    // Service Worker de AnunciaYA (PWA principal - scope raíz)
+    navigator.serviceWorker
+      .register('/sw-anunciaya.js', { scope: '/' })
+      .then((registration) => {
+        console.log('[PWA AnunciaYA] Service Worker registrado:', registration.scope);
+      })
+      .catch((error) => {
+        console.error('[PWA AnunciaYA] Error registrando Service Worker:', error);
+      });
+
+    // Service Worker de ScanYA (PWA punto de venta - scope /scanya/)
     navigator.serviceWorker
       .register('/sw-scanya.js', { scope: '/scanya/' })
       .then((registration) => {
-        console.log('[PWA] Service Worker registrado:', registration.scope);
+        console.log('[PWA ScanYA] Service Worker registrado:', registration.scope);
         
         // Verificar actualizaciones cada 1 hora
         setInterval(() => {
@@ -32,11 +43,9 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
         }, 60 * 60 * 1000);
       })
       .catch((error) => {
-        console.error('[PWA] Error registrando Service Worker:', error);
+        console.error('[PWA ScanYA] Error registrando Service Worker:', error);
       });
   });
-} else if (import.meta.env.DEV) {
-  console.log('[PWA] Service Worker no registrado (desarrollo o HTTP)');
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

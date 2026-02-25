@@ -9,8 +9,8 @@
  * UBICACIÓN: apps/web/src/components/chatya/VentanaChat.tsx
  */
 
-import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
-import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronLeft, ChevronRight, ChevronDown, UserPlus, UserMinus } from 'lucide-react';
+import { useRef, useEffect, useCallback, useState, useMemo, memo, type RefObject, type MutableRefObject } from 'react';
+import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronDown, UserPlus, UserMinus, ArrowLeft, MessageSquare } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
@@ -23,29 +23,152 @@ import { SeparadorFecha } from './SeparadorFecha';
 import { MenuContextualChat } from './MenuContextualChat';
 import { MenuContextualMensaje } from './MenuContextualMensaje';
 import { BarraBusquedaChat } from './BarraBusquedaChat';
-import { PanelInfoContacto } from './PanelInfoContacto';
+import { PanelInfoContacto, cachéNegocio, cachéCliente } from './PanelInfoContacto';
 import { ModalReenviar } from './ModalReenviar';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import Tooltip from '../ui/Tooltip';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { Mensaje } from '../../types/chatya';
+import { obtenerPerfilSucursal } from '../../services/negociosService';
+import { getDetalleCliente } from '../../services/clientesService';
+import { diagMarca, diagSuscribir } from '../../utils/diagnosticoChatYA';
+
+// =============================================================================
+// TIPOS
+// =============================================================================
+type ItemChatYA = { tipo: 'separador'; fecha: string } | { tipo: 'mensaje'; mensaje: Mensaje };
+
+// =============================================================================
+// AreaMensajes — Componente aislado con React.memo
+// Virtuoso causa 2-3 re-renders internos al montar/posicionar. Sin memo, cada uno
+// re-renderiza TODO VentanaChat (~36ms × 3 = ~108ms desperdiciados).
+// Con memo, solo AreaMensajes se re-renderiza si sus props cambian.
+// =============================================================================
+interface AreaMensajesProps {
+  datos: ItemChatYA[];
+  firstItemIndex: number;
+  virtuosoRef: RefObject<VirtuosoHandle | null>;
+  virtuosoWrapperRef: RefObject<HTMLDivElement | null>;
+  virtuosoListoRef: MutableRefObject<boolean>;
+  scrollerRef: MutableRefObject<HTMLElement | null>;
+  mostrarScrollAbajoRef: MutableRefObject<boolean>;
+  scrollBtnRef: RefObject<HTMLButtonElement | null>;
+  diagItemCountRef: MutableRefObject<number>;
+  cargandoMensajesAntiguos: boolean;
+  estaEscribiendo: boolean;
+  esMobile: boolean;
+  esMisNotas: boolean;
+  miId: string;
+  mensajeResaltadoId: string | null;
+  menuMensajeId: string | null;
+  onStartReached: () => void;
+  onMenuContextual: (msg: Mensaje, pos: { x: number; y: number }) => void;
+  onReaccionar: (mensajeId: string, emoji: string) => Promise<void>;
+}
+
+const AreaMensajes = memo(function AreaMensajes({
+  datos, firstItemIndex,
+  virtuosoRef, virtuosoWrapperRef, virtuosoListoRef,
+  scrollerRef, mostrarScrollAbajoRef, scrollBtnRef, diagItemCountRef,
+  cargandoMensajesAntiguos, estaEscribiendo,
+  esMobile, esMisNotas, miId, mensajeResaltadoId, menuMensajeId,
+  onStartReached, onMenuContextual, onReaccionar,
+}: AreaMensajesProps) {
+  diagMarca('5b. AreaMensajes render');
+
+  return (
+    <div ref={virtuosoWrapperRef} style={{ position: 'absolute', inset: 0, opacity: 0 }}>
+      <Virtuoso
+        ref={virtuosoRef}
+        data={datos}
+        firstItemIndex={firstItemIndex}
+        initialTopMostItemIndex={datos.length - 1}
+        defaultItemHeight={68}
+        followOutput="auto"
+        alignToBottom
+        overscan={400}
+        increaseViewportBy={200}
+        startReached={onStartReached}
+        atBottomStateChange={(atBottom) => {
+          mostrarScrollAbajoRef.current = !atBottom;
+          if (scrollBtnRef.current) {
+            scrollBtnRef.current.style.display = atBottom ? 'none' : 'flex';
+          }
+        }}
+        atBottomThreshold={300}
+        scrollerRef={(ref) => {
+          if (ref instanceof HTMLElement) {
+            ref.setAttribute('data-scroll-container', '');
+            scrollerRef.current = ref;
+            diagMarca('8. Virtuoso scrollerRef');
+          }
+        }}
+        itemContent={(_index, item) => {
+          diagItemCountRef.current++;
+          if (diagItemCountRef.current === 1) {
+            diagMarca('7. primer itemContent');
+            if (!virtuosoListoRef.current) {
+              virtuosoListoRef.current = true;
+              requestAnimationFrame(() => {
+                if (virtuosoWrapperRef.current) {
+                  virtuosoWrapperRef.current.style.opacity = '1';
+                }
+              });
+            }
+          }
+          return (
+            <div className="pb-1 px-3 lg:px-12 2xl:px-16">
+              {item.tipo === 'separador' ? (
+                <SeparadorFecha key={item.fecha} fecha={item.fecha} />
+              ) : (
+                <BurbujaMensaje
+                  key={item.mensaje.id}
+                  mensaje={item.mensaje}
+                  esMio={item.mensaje.emisorId === miId}
+                  esMisNotas={esMisNotas}
+                  miId={miId}
+                  resaltado={item.mensaje.id === mensajeResaltadoId}
+                  onMenuContextual={onMenuContextual}
+                  onReaccionar={onReaccionar}
+                  menuActivoId={esMobile ? menuMensajeId : null}
+                />
+              )}
+            </div>
+          );
+        }}
+        components={{
+          Header: () => cargandoMensajesAntiguos ? (
+            <div className="flex justify-center py-2">
+              <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+            </div>
+          ) : null,
+          Footer: () => estaEscribiendo ? <IndicadorEscribiendo /> : null,
+        }}
+        style={{
+          height: '100%',
+          scrollbarWidth: esMobile ? 'none' : 'auto',
+          scrollbarColor: '#A1B6C9 transparent',
+        }}
+        className="py-2"
+      />
+    </div>
+  );
+});
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export function VentanaChat() {
+function VentanaChatInner() {
   // ---------------------------------------------------------------------------
   // Store
   // ---------------------------------------------------------------------------
   const conversacionActivaId = useChatYAStore((s) => s.conversacionActivaId);
   const chatTemporal = useChatYAStore((s) => s.chatTemporal);
-  const conversaciones = useChatYAStore((s) => s.conversaciones);
   const mensajes = useChatYAStore((s) => s.mensajes);
   const cargandoMensajes = useChatYAStore((s) => s.cargandoMensajes);
   const cargandoMensajesAntiguos = useChatYAStore((s) => s.cargandoMensajesAntiguos);
-  const hayMasMensajes = useChatYAStore((s) => s.hayMasMensajes);
-  const cargarMensajesAntiguos = useChatYAStore((s) => s.cargarMensajesAntiguos);
   const escribiendo = useChatYAStore((s) => s.escribiendo);
   const misNotasId = useChatYAStore((s) => s.misNotasId);
   const bloqueados = useChatYAStore((s) => s.bloqueados);
@@ -55,6 +178,16 @@ export function VentanaChat() {
   const contactos = useChatYAStore((s) => s.contactos);
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
+  const volverALista = useChatYAStore((s) => s.volverALista);
+
+  // ── Selectores DERIVADOS: solo re-renderizan si NUESTRA conversación cambia,
+  //    NO cuando cambia el badge/preview/typing de OTRA conversación ──
+  const conversacionEnStore = useChatYAStore(
+    (s) => s.conversaciones.find((c) => c.id === s.conversacionActivaId) ?? null
+  );
+  const conversacionEnArchivados = useChatYAStore(
+    (s) => s.conversacionesArchivadas.find((c) => c.id === s.conversacionActivaId) ?? null
+  );
 
   const usuario = useAuthStore((s) => s.usuario);
   const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
@@ -62,9 +195,6 @@ export function VentanaChat() {
   // ---------------------------------------------------------------------------
   // Derivados
   // ---------------------------------------------------------------------------
-  const conversacionEnStore = conversaciones.find((c) => c.id === conversacionActivaId);
-  const conversacionesArchivadas = useChatYAStore((s) => s.conversacionesArchivadas);
-  const conversacionEnArchivados = conversacionesArchivadas.find((c) => c.id === conversacionActivaId);
   const [conversacionRemota, setConversacionRemota] = useState<Conversacion | null>(null);
 
   // Si no está en ninguna lista del store y no es temporal, cargar del backend
@@ -110,11 +240,32 @@ export function VentanaChat() {
     ? contactos.find((c) =>
         c.contactoId === otro.id &&
         c.tipo === modoActivo &&
-        (!otroSucursalId || c.sucursalId === otroSucursalId)
+        c.sucursalId === otroSucursalId
       )
     : undefined;
 
   const estaEscribiendo = !esMisNotas && escribiendo?.conversacionId === conversacionActivaId;
+
+  // Alias del contacto tiene prioridad sobre el nombre real
+  const nombreMostrar = contactoExistente?.alias?.trim() || nombre;
+
+  // ---------------------------------------------------------------------------
+  // Precarga silenciosa del panel info al seleccionar conversación
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (esMisNotas || !otro) return;
+    const sucId = otroSucursalId;
+    const otherId = otro.id;
+    if (esNegocio && sucId && !cachéNegocio.has(sucId)) {
+      obtenerPerfilSucursal(sucId)
+        .then((res) => { if (res.success && res.data) cachéNegocio.set(sucId, res.data); })
+        .catch(() => void 0);
+    } else if (!esNegocio && modoActivo === 'comercial' && !cachéCliente.has(otherId)) {
+      getDetalleCliente(otherId)
+        .then((res) => { if (res.success && res.data) cachéCliente.set(otherId, res.data); })
+        .catch(() => void 0);
+    }
+  }, [otro?.id, otroSucursalId, esNegocio, modoActivo, esMisNotas]);
 
   // ---------------------------------------------------------------------------
   // Estado local: panel lateral de información del contacto
@@ -161,14 +312,53 @@ export function VentanaChat() {
   // ---------------------------------------------------------------------------
   const { esMobile } = useBreakpoint();
 
+  // ── DIAGNÓSTICO refs (el tracking se hace más abajo, después de todos los useState) ──
+  const diagItemCountRef = useRef(0);
+  const diagPrevRef = useRef<Record<string, unknown>>({});
+
   // ---------------------------------------------------------------------------
   // Estado local: búsqueda dentro del chat
   // ---------------------------------------------------------------------------
   const [busquedaAbierta, setBusquedaAbierta] = useState(false);
   const [mensajeResaltadoId, setMensajeResaltadoId] = useState<string | null>(null);
-  const [mostrarScrollAbajo, setMostrarScrollAbajo] = useState(false);
+  /** Ref: controla visibilidad del botón scroll-abajo SIN causar re-render */
+  const mostrarScrollAbajoRef = useRef(false);
+  const scrollBtnRef = useRef<HTMLButtonElement>(null);
   const fijadosRef = useRef<HTMLDivElement>(null);
-  const [flechasFijados, setFlechasFijados] = useState({ izq: false, der: false });
+  /** Índice del mensaje fijado visible actualmente en el banner */
+  const [fijadoIndice, setFijadoIndice] = useState(0);
+  /** Menú contextual del banner de fijados (long press) */
+  const [menuFijadoPos, setMenuFijadoPos] = useState<{ x: number; y: number } | null>(null);
+  const menuFijadoRef = useRef<HTMLDivElement>(null);
+
+  // ── DIAGNÓSTICO: Detectar QUÉ causa cada re-render ──
+  {
+    const current: Record<string, unknown> = {
+      // --- useChatYAStore ---
+      conversacionActivaId, chatTemporal, mensajes, cargandoMensajes,
+      cargandoMensajesAntiguos, escribiendo, misNotasId,
+      bloqueados, mensajesFijados, contactos,
+      conversacionEnStore, conversacionEnArchivados,
+      // --- useChatYAStore acciones ---
+      desbloquearUsuario, desfijarMensaje, agregarContactoStore,
+      eliminarContactoStore, volverALista,
+      // --- otros stores ---
+      usuario, cerrarChatYA, esMobile,
+      // --- useState local ---
+      conversacionRemota, panelAbierto, modalAvatarUrl,
+      menuAbierto, menuMensaje, mensajeEditando,
+      mensajeRespondiendo, mensajeReenviando,
+      busquedaAbierta, mensajeResaltadoId, fijadoIndice, menuFijadoPos,
+    };
+    const prev = diagPrevRef.current;
+    const cambios: string[] = [];
+    for (const key of Object.keys(current)) {
+      if (prev[key] !== current[key]) cambios.push(key);
+    }
+    diagMarca('5. VentanaChat render' + (cambios.length > 0 ? ' [' + cambios.join(', ') + ']' : ' [¿CONTEXTO?]'));
+    diagPrevRef.current = current;
+  }
+  diagItemCountRef.current = 0;
 
   // ---------------------------------------------------------------------------
   // Handler: agregar/eliminar contacto desde header
@@ -193,18 +383,12 @@ export function VentanaChat() {
     }
   }, [otro, contactoExistente, eliminarContactoStore, agregarContactoStore, modoActivo, otroSucursalId]);
 
-  const checkFlechasFijados = useCallback(() => {
-    const el = fijadosRef.current;
-    if (!el) return;
-    setFlechasFijados({
-      izq: el.scrollLeft > 0,
-      der: el.scrollLeft + el.clientWidth < el.scrollWidth - 1,
-    });
-  }, []);
-
+  // Mantener índice del fijado válido cuando cambian los fijados
   useEffect(() => {
-    checkFlechasFijados();
-  }, [mensajesFijados, checkFlechasFijados]);
+    if (mensajesFijados.length > 0 && fijadoIndice >= mensajesFijados.length) {
+      setFijadoIndice(0);
+    }
+  }, [mensajesFijados, fijadoIndice]);
 
   /** Callback estable para BarraBusquedaChat */
   const handleMensajeSeleccionado = useCallback((id: string | null) => {
@@ -215,9 +399,21 @@ export function VentanaChat() {
   // Handlers: Menú contextual de mensaje
   // ---------------------------------------------------------------------------
   const handleMenuContextualMensaje = useCallback((msg: Mensaje, pos: { x: number; y: number }) => {
-    setMenuMensaje((prev) =>
-      prev?.mensaje.id === msg.id ? null : { mensaje: msg, posicion: pos }
-    );
+    setMenuMensaje({ mensaje: msg, posicion: pos });
+
+    // Auto-scroll para que el popup de emojis (-top-14 ≈ 56px) sea visible
+    requestAnimationFrame(() => {
+      const msgEl = document.getElementById(`msg-${msg.id}`);
+      const container = scrollerRef.current;
+      if (msgEl && container) {
+        const msgRect = msgEl.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const espacioArriba = msgRect.top - containerRect.top;
+        if (espacioArriba < 80) {
+          container.scrollBy({ top: -(80 - espacioArriba), behavior: 'smooth' });
+        }
+      }
+    });
   }, []);
 
   const handleCerrarMenuMensaje = useCallback(() => {
@@ -245,83 +441,91 @@ export function VentanaChat() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Refs
+  // Refs — Virtuoso
   // ---------------------------------------------------------------------------
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const prevMensajesLenRef = useRef(0);
-  /** Guarda scrollHeight antes de insertar mensajes antiguos para preservar posición */
-  const prevScrollHeightRef = useRef(0);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const scrollerRef = useRef<HTMLElement | null>(null);
   /** Flag para distinguir carga de antiguos vs mensaje nuevo */
   const cargandoAntiguosRef = useRef(false);
+  /** Índice virtual inicial (número alto, decrece al cargar mensajes antiguos) */
+  const VIRTUAL_START = 100000;
+  const firstItemIndexRef = useRef(VIRTUAL_START);
+  const prevDataCountRef = useRef(0);
+  /** Ocultar Virtuoso hasta que tenga items — ref + DOM directo, sin re-render */
+  const virtuosoListoRef = useRef(false);
+  const virtuosoWrapperRef = useRef<HTMLDivElement>(null);
 
   // ---------------------------------------------------------------------------
-  // Effect: Gestionar scroll según tipo de cambio en mensajes
-  // Con flex-col-reverse: scrollTop=0 = fondo (más reciente), scroll arriba = más antiguo
+  // Reseteo síncrono: detectar cambio de conversación DURANTE el render
+  // Todo via refs — CERO setState = CERO re-renders extras
   // ---------------------------------------------------------------------------
-  useLayoutEffect(() => {
-    if (!scrollRef.current || mensajes.length === 0) {
-      prevMensajesLenRef.current = mensajes.length;
-      return;
+  const prevConvIdRef = useRef(conversacionActivaId);
+  if (prevConvIdRef.current !== conversacionActivaId) {
+    prevConvIdRef.current = conversacionActivaId;
+    firstItemIndexRef.current = VIRTUAL_START;
+    prevDataCountRef.current = 0;
+    // Ocultar Virtuoso hasta que tenga items (via DOM directo)
+    virtuosoListoRef.current = false;
+    if (virtuosoWrapperRef.current) {
+      virtuosoWrapperRef.current.style.opacity = '0';
     }
+  }
 
-    const el = scrollRef.current;
+  // Datos: mensajes en orden cronológico con separadores de fecha intercalados
+  const mensajesConSeparadores = useMemo(() => {
+    const resultado = agruparPorFecha(mensajes);
+    diagMarca('6. agruparPorFecha (' + resultado.length + ' items)');
+    return resultado;
+  }, [mensajes]);
 
-    if (prevMensajesLenRef.current === 0) {
-      // ── Carga inicial → scrollTop=0 ya es el fondo con col-reverse ──
-      el.scrollTop = 0;
-    } else if (cargandoAntiguosRef.current) {
-      // ── Mensajes antiguos cargados → preservar posición visual ──
-      const nuevoScrollHeight = el.scrollHeight;
-      const diferencia = nuevoScrollHeight - prevScrollHeightRef.current;
-      el.scrollTop = el.scrollTop + diferencia;
-      cargandoAntiguosRef.current = false;
-    } else if (mensajes.length > prevMensajesLenRef.current) {
-      // ── Mensaje nuevo recibido/enviado → volver al fondo ──
-      el.scrollTop = 0;
-    }
+  // ---------------------------------------------------------------------------
+  // Ajustar firstItemIndex al cargar mensajes antiguos (prepend) — SÍNCRONO
+  // Se ejecuta durante el render para que Virtuoso lea el valor correcto
+  // ---------------------------------------------------------------------------
+  const currentDataCount = mensajesConSeparadores.length;
+  if (cargandoAntiguosRef.current && currentDataCount > prevDataCountRef.current && prevDataCountRef.current > 0) {
+    const nuevos = currentDataCount - prevDataCountRef.current;
+    firstItemIndexRef.current -= nuevos;
+    cargandoAntiguosRef.current = false;
+  }
+  prevDataCountRef.current = currentDataCount;
 
-    prevMensajesLenRef.current = mensajes.length;
-  }, [mensajes.length]);
+  // ── DIAGNÓSTICO: Marcar cuándo el navegador termina de pintar ──
+  useEffect(() => {
+    if (!conversacionActivaId || mensajes.length === 0) return;
+    requestAnimationFrame(() => {
+      diagMarca('10. DOM commit (rAF1)');
+      requestAnimationFrame(() => {
+        diagMarca('11. PINTADO en pantalla (rAF2) — ' + diagItemCountRef.current + ' items');
+      });
+    });
+  }, [conversacionActivaId, mensajes.length]);
 
   // ---------------------------------------------------------------------------
   // Effect: Scroll al mensaje resaltado por búsqueda
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!mensajeResaltadoId || !scrollRef.current) return;
+    if (!mensajeResaltadoId) return;
 
-    const timer = setTimeout(() => {
-      const elemento = document.getElementById(`msg-${mensajeResaltadoId}`);
-      if (elemento && scrollRef.current) {
-        elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 50);
+    // Buscar el índice en la lista virtualizada
+    const index = mensajesConSeparadores.findIndex(
+      (item) => item.tipo === 'mensaje' && item.mensaje.id === mensajeResaltadoId
+    );
 
-    return () => clearTimeout(timer);
-  }, [mensajeResaltadoId]);
-
-  // ---------------------------------------------------------------------------
-  // Handler: Scroll infinito hacia arriba para cargar más mensajes
-  // ---------------------------------------------------------------------------
-  const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return;
-
-    const el = scrollRef.current;
-
-    // Con flex-col-reverse: scrollTop=0 es el fondo (más reciente)
-    // En Chrome scrollTop va negativo al subir
-    setMostrarScrollAbajo(Math.abs(el.scrollTop) > 300);
-
-    if (cargandoMensajesAntiguos || !hayMasMensajes) return;
-
-    const distanciaAlTope = el.scrollHeight - el.clientHeight - el.scrollTop;
-
-    // Con flex-col-reverse: scrollTop=0 es el fondo, máximo scrollTop es el tope (mensajes más antiguos)
-    if (distanciaAlTope < 50) {
-      prevScrollHeightRef.current = el.scrollHeight;
-      cargandoAntiguosRef.current = true;
-      cargarMensajesAntiguos();
+    if (index !== -1 && virtuosoRef.current) {
+      virtuosoRef.current.scrollToIndex({ index, align: 'center', behavior: 'smooth' });
     }
-  }, [cargandoMensajesAntiguos, hayMasMensajes, cargarMensajesAntiguos]);
+  }, [mensajeResaltadoId, mensajesConSeparadores]);
+
+  // ---------------------------------------------------------------------------
+  // Handler: Cargar mensajes antiguos cuando Virtuoso llega al tope
+  // ---------------------------------------------------------------------------
+  const handleStartReached = useCallback(() => {
+    const state = useChatYAStore.getState();
+    if (state.cargandoMensajesAntiguos || !state.hayMasMensajes) return;
+    cargandoAntiguosRef.current = true;
+    state.cargarMensajesAntiguos();
+  }, []);
 
   /** Flag: mostrar acciones en header (móvil, cuando hay menú contextual activo) */
   const mostrarAccionesEnHeader = esMobile && menuMensaje !== null && !esMisNotas;
@@ -330,19 +534,60 @@ export function VentanaChat() {
   // Handler: Reaccionar desde hover (desktop) o burbuja flotante (móvil)
   // ---------------------------------------------------------------------------
   const handleReaccionar = useCallback(async (mensajeId: string, emoji: string) => {
+    // ── Actualización optimista ──
+    const prevMensajes = useChatYAStore.getState().mensajes;
+    useChatYAStore.setState((prev) => ({
+      mensajes: prev.mensajes.map((m) => {
+        if (m.id !== mensajeId) return m;
+        const reacciones = [...(m.reacciones || [])].map((r) => ({ ...r, usuarios: [...(r.usuarios as string[])] }));
+        const existente = reacciones.find((r) => r.emoji === emoji);
+        const yaReaccione = (existente?.usuarios as string[] | undefined)?.includes(miId);
+
+        if (yaReaccione && existente) {
+          // Mismo emoji → toggle off (quitar)
+          existente.cantidad -= 1;
+          existente.usuarios = (existente.usuarios as string[]).filter((id) => id !== miId);
+          if (existente.cantidad <= 0) {
+            const idx = reacciones.indexOf(existente);
+            reacciones.splice(idx, 1);
+          }
+        } else {
+          // Emoji diferente o ninguno → quitar reacción previa si existe
+          for (const r of reacciones) {
+            const idx = (r.usuarios as string[]).indexOf(miId);
+            if (idx !== -1) {
+              r.cantidad -= 1;
+              (r.usuarios as string[]).splice(idx, 1);
+            }
+          }
+          // Limpiar emojis que quedaron en 0
+          const limpias = reacciones.filter((r) => r.cantidad > 0);
+
+          // Agregar nueva reacción
+          const existenteNuevo = limpias.find((r) => r.emoji === emoji);
+          if (existenteNuevo) {
+            existenteNuevo.cantidad += 1;
+            (existenteNuevo.usuarios as string[]).push(miId);
+          } else {
+            limpias.push({ emoji, cantidad: 1, usuarios: [miId] });
+          }
+          return { ...m, reacciones: limpias };
+        }
+        return { ...m, reacciones };
+      }),
+    }));
+
+    // Cerrar menú en móvil después de reaccionar
+    if (esMobile) setMenuMensaje(null);
+
+    // ── Llamada al servidor ──
     try {
       await chatyaService.toggleReaccion(mensajeId, emoji);
     } catch {
-      void 0; // Silencioso
+      // Revertir si falla
+      useChatYAStore.setState({ mensajes: prevMensajes });
     }
-    // Cerrar menú en móvil después de reaccionar
-    if (esMobile) setMenuMensaje(null);
-  }, [esMobile]);
-
-  // ---------------------------------------------------------------------------
-  // Agrupar mensajes por fecha para separadores
-  // ---------------------------------------------------------------------------
-  const mensajesConSeparadores = agruparPorFecha(mensajes).reverse();
+  }, [esMobile, miId]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -350,9 +595,9 @@ export function VentanaChat() {
   return (
     <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden">
       {/* ── Área principal del chat ── */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-linear-to-br from-blue-200/60 via-indigo-200/50 to-sky-200/60">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-linear-to-b from-[#0B358F] to-[#050d1a] lg:bg-linear-to-br lg:from-blue-200/60 lg:via-indigo-200/50 lg:to-sky-200/60">
         {/* ═══ Header del chat ═══ */}
-        <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 border-b border-slate-200 shrink-0 bg-linear-to-b from-slate-100 to-blue-50`}>
+        <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 shrink-0 border-b border-white/10 bg-[#0a1628] lg:border-slate-200 lg:bg-linear-to-b lg:from-slate-100 lg:to-blue-50`}>
 
           {/* ── Zona izquierda: Avatar+Info  ó  Input búsqueda  ó  Acciones mensaje (móvil) ── */}
           {mostrarAccionesEnHeader ? (
@@ -379,6 +624,16 @@ export function VentanaChat() {
             />
           ) : (
             <>
+              {/* Flecha atrás — solo móvil */}
+              {esMobile && (
+                <button
+                  onClick={volverALista}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 lg:hover:bg-slate-200 text-white/70 lg:text-gray-500 shrink-0"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+              )}
+
               {/* Avatar — clickeable para abrir modal si hay foto, o panel */}
               <button
                 onClick={() => {
@@ -395,7 +650,7 @@ export function VentanaChat() {
                     <StickyNote className="w-5 h-5 text-white" />
                   </div>
                 ) : avatarUrl ? (
-                  <img src={avatarUrl} alt={nombre} className="w-full h-full rounded-full object-cover" />
+                  <img src={avatarUrl} alt={nombreMostrar} className="w-full h-full rounded-full object-cover" />
                 ) : (
                   <div className="w-full h-full rounded-full bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center">
                     <span className="text-white text-xs font-bold">{iniciales}</span>
@@ -410,10 +665,10 @@ export function VentanaChat() {
               >
                 <div className="flex items-center gap-1.5">
                   {esNegocio && <Store className="w-4 h-4 text-amber-500 shrink-0" />}
-                  <p className="text-base font-bold text-gray-800 truncate leading-tight">{nombre}</p>
+                  <p className="text-base font-bold text-white lg:text-gray-800 truncate leading-tight">{nombreMostrar}</p>
                 </div>
                 {esMisNotas ? (
-                  <p className="text-xs text-gray-400 font-medium">Notas personales</p>
+                  <p className="text-xs text-white/50 lg:text-gray-400 font-medium">Notas personales</p>
                 ) : esBloqueado ? (
                   <p className="text-xs text-red-500 font-semibold flex items-center gap-1">
                     <ShieldBan className="w-3 h-3" />
@@ -427,8 +682,8 @@ export function VentanaChat() {
                     <span className="text-green-500">En línea</span>
                     {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
                       <>
-                        <span className="text-gray-300">·</span>
-                        <span className="text-gray-400 truncate">
+                        <span className="text-white/30 lg:text-gray-300">·</span>
+                        <span className="text-white/40 lg:text-gray-400 truncate">
                           {conversacion.contextoTipo === 'negocio' && 'Desde: Tu perfil'}
                           {conversacion.contextoTipo === 'oferta' && `Desde oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
                           {conversacion.contextoTipo === 'marketplace' && `Desde publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
@@ -443,13 +698,13 @@ export function VentanaChat() {
             </>
           )}
 
-          {/* ── Zona derecha: Acciones (ocultas cuando el header muestra acciones de mensaje) ── */}
-          {!mostrarAccionesEnHeader && (
+          {/* ── Zona derecha: Acciones (ocultas cuando el header muestra acciones de mensaje o búsqueda en móvil) ── */}
+          {!mostrarAccionesEnHeader && !(busquedaAbierta && esMobile) && (
             <div className="flex gap-1.5 shrink-0">
               {!esMisNotas && (
                 <>
-                  {/* Lupita: abre búsqueda / cuando está abierta se oculta (X está dentro de BarraBusquedaChat) */}
-                  {!busquedaAbierta && (
+                  {/* Lupita: abre búsqueda — solo desktop (en móvil está en menú contextual) */}
+                  {!busquedaAbierta && !esMobile && (
                     <button
                       onClick={() => setBusquedaAbierta(true)}
                       className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 text-gray-500 hover:text-blue-500"
@@ -457,7 +712,8 @@ export function VentanaChat() {
                       <Search className="w-5 h-5" />
                     </button>
                   )}
-                  {/* Agregar/quitar contacto */}
+                  {/* Agregar/quitar contacto — solo desktop (en móvil está en menú contextual) */}
+                  {!esMobile && (
                   <Tooltip text={contactoExistente ? 'Quitar de contactos' : 'Agregar a contactos'}>
                     <button
                       onClick={handleToggleContacto}
@@ -474,22 +730,24 @@ export function VentanaChat() {
                       )}
                     </button>
                   </Tooltip>
+                  )}
                   <div className="relative">
                     {!esTemporal && (
                       <>
                         <button
                           onClick={() => setMenuAbierto((v) => !v)}
                           className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${menuAbierto
-                            ? 'bg-gray-200 text-blue-500'
-                            : 'hover:bg-slate-200 text-gray-500 hover:text-blue-500'
+                            ? 'bg-white/20 lg:bg-gray-200 text-white lg:text-blue-500'
+                            : 'hover:bg-white/10 lg:hover:bg-slate-200 text-white/70 lg:text-gray-500 hover:text-white lg:hover:text-blue-500'
                             }`}
                         >
-                          <MoreVertical className="w-5 h-5" />
+                          <MoreVertical className="w-6 h-6 lg:w-5 lg:h-5" />
                         </button>
                         {menuAbierto && conversacion && (
                           <MenuContextualChat
                             conversacion={conversacion}
                             onCerrar={() => setMenuAbierto(false)}
+                            onBuscar={esMobile ? () => { setMenuAbierto(false); setBusquedaAbierta(true); } : undefined}
                           />
                         )}
                       </>
@@ -497,12 +755,15 @@ export function VentanaChat() {
                   </div>
                 </>
               )}
+              {/* X cerrar — solo desktop (en móvil la flecha atrás lo reemplaza) */}
+              {!esMobile && (
               <button
                 onClick={cerrarChatYA}
                 className="w-9 h-9 rounded-lg hover:bg-slate-200 flex items-center justify-center text-gray-500 hover:text-red-400 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
+              )}
             </div>
           )}
         </div>
@@ -523,125 +784,151 @@ export function VentanaChat() {
           </div>
         )}
 
-        {/* ═══ Banner: Mensajes fijados ═══ */}
-        {mensajesFijados.length > 0 && !esMisNotas && (
-          <div className="flex items-center gap-0 bg-white/80 border-b border-gray-200 shrink-0">
-            <div className="pl-3 py-1.5 shrink-0 flex items-center">
-              <Pin className="w-4 h-4 text-blue-500 rotate-45" />
-            </div>
-            {/* Flecha izquierda */}
-            {flechasFijados.izq && (
-              <button
-                onClick={() => { fijadosRef.current?.scrollBy({ left: -150, behavior: 'smooth' }); }}
-                className="w-6 h-full flex items-center justify-center shrink-0 hover:bg-gray-100 cursor-pointer"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
-              </button>
-            )}
-            {/* Chips scrolleables */}
-            <div
-              ref={fijadosRef}
-              onScroll={checkFlechasFijados}
-              className="flex items-center gap-1.5 px-1.5 py-1.5 overflow-x-hidden flex-1 min-w-0"
-            >
-              {mensajesFijados.map((fijado) => (
-                <button
-                  key={fijado.id}
-                  onClick={() => {
-                    setMensajeResaltadoId(fijado.mensajeId);
-                    setTimeout(() => setMensajeResaltadoId(null), 2000);
-                  }}
-                  className="group/pin flex items-center gap-1.5 px-2 py-0.5 bg-blue-50/80 hover:bg-blue-100 rounded-full shrink-0 cursor-pointer border border-blue-200/50 max-w-[200px]"
-                >
-                  <span className="text-xs text-gray-700 font-medium truncate">
-                    {fijado.mensaje.contenido}
-                  </span>
-                  <span
-                    role="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (conversacionActivaId) desfijarMensaje(conversacionActivaId, fijado.mensajeId);
-                    }}
-                    className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-blue-200 opacity-0 group-hover/pin:opacity-100 shrink-0"
-                  >
-                    <X className="w-3 h-3 text-gray-400" />
-                  </span>
-                </button>
-              ))}
-            </div>
-            {/* Flecha derecha */}
-            {flechasFijados.der && (
-              <button
-                onClick={() => { fijadosRef.current?.scrollBy({ left: 150, behavior: 'smooth' }); }}
-                className="w-6 h-full flex items-center justify-center shrink-0 hover:bg-gray-100 cursor-pointer pr-1"
-              >
-                <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-              </button>
-            )}
-          </div>
-        )}
+        {/* ═══ Banner: Mensaje fijado (estilo WhatsApp) ═══ */}
+        {mensajesFijados.filter((f) => f.mensaje).length > 0 && !esMisNotas && (() => {
+          const fijadosValidos = mensajesFijados.filter((f) => f.mensaje);
+          const indiceSeguro = fijadoIndice < fijadosValidos.length ? fijadoIndice : 0;
+          const fijadoActual = fijadosValidos[indiceSeguro];
+          if (!fijadoActual) return null;
 
-        {/* ═══ Área de mensajes ═══ */}
-        <div className="flex-1 relative min-h-0">
-          <div
-            ref={scrollRef}
-            onScroll={handleScroll}
-            onClick={(e) => {
-              // Click fuera de una burbuja → deseleccionar mensaje
-              if (menuMensaje && !(e.target as HTMLElement).closest('[id^="msg-"]')) {
-                setMenuMensaje(null);
-              }
-            }}
-            className="absolute inset-0 overflow-y-auto px-3 lg:px-12 2xl:px-16 py-2 flex flex-col-reverse gap-1"
-            style={{
-              scrollbarWidth: 'auto',
-              scrollbarColor: '#A1B6C9 transparent',
-            }}
-          >
-          {/* Mensajes agrupados por fecha */}
-          {!cargandoMensajes && (
+          const totalFijados = fijadosValidos.length;
+          let bannerTimer: ReturnType<typeof setTimeout> | null = null;
+          let bannerLongPressed = false;
+
+          return (
             <>
-              {/* Indicador escribiendo */}
-              {estaEscribiendo && <IndicadorEscribiendo />}
-
-              {mensajesConSeparadores.map((item) => {
-                if (item.tipo === 'separador') {
-                  return <SeparadorFecha key={item.fecha} fecha={item.fecha} />;
-                }
-                return (
-                  <BurbujaMensaje
-                    key={item.mensaje.id}
-                    mensaje={item.mensaje}
-                    esMio={item.mensaje.emisorId === miId}
-                    esMisNotas={esMisNotas}
-                    miId={miId}
-                    resaltado={item.mensaje.id === mensajeResaltadoId}
-                    onMenuContextual={handleMenuContextualMensaje}
-                    onReaccionar={handleReaccionar}
-                    menuActivoId={esMobile ? menuMensaje?.mensaje.id ?? null : null}
-                  />
-                );
-              })}
-
-              {/* Spinner de carga de mensajes antiguos — al final del DOM = visual tope */}
-              {cargandoMensajesAntiguos && (
-                <div className="flex justify-center py-2">
-                  <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+              <div
+                ref={fijadosRef}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white/90 lg:bg-white/80 border-b border-gray-200 shrink-0 cursor-pointer active:bg-gray-50 select-none"
+                onClick={() => {
+                  if (bannerLongPressed) { bannerLongPressed = false; return; }
+                  // Navegar al mensaje
+                  const el = document.getElementById(`msg-${fijadoActual.mensajeId}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  setMensajeResaltadoId(fijadoActual.mensajeId);
+                  setTimeout(() => setMensajeResaltadoId(null), 2000);
+                  // Rotar al siguiente fijado
+                  if (totalFijados > 1) {
+                    setFijadoIndice((prev) => (prev + 1) % totalFijados);
+                  }
+                }}
+                onTouchStart={(e) => {
+                  bannerLongPressed = false;
+                  const touchY = e.touches[0].clientY;
+                  bannerTimer = setTimeout(() => {
+                    bannerLongPressed = true;
+                    if (navigator.vibrate) navigator.vibrate(80);
+                    setMenuFijadoPos({ x: window.innerWidth / 2, y: touchY });
+                  }, 500);
+                }}
+                onTouchMove={() => { if (bannerTimer) { clearTimeout(bannerTimer); bannerTimer = null; } }}
+                onTouchEnd={() => { if (bannerTimer) { clearTimeout(bannerTimer); bannerTimer = null; } }}
+                onContextMenu={(e) => { e.preventDefault(); setMenuFijadoPos({ x: e.clientX, y: e.clientY }); }}
+              >
+                <Pin className="w-5 h-5 text-blue-500 rotate-45 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-800 font-medium truncate">
+                    {fijadoActual.mensaje.contenido}
+                  </p>
                 </div>
+                {totalFijados > 1 && (
+                  <span className="text-xs text-gray-400 font-medium shrink-0">
+                    {indiceSeguro + 1} de {totalFijados}
+                  </span>
+                )}
+              </div>
+
+              {/* Menú contextual: opciones del fijado (long press / click derecho) */}
+              {menuFijadoPos && (
+                <>
+                  <div className="fixed inset-0 z-80" onClick={() => setMenuFijadoPos(null)} />
+                  <div
+                    ref={menuFijadoRef}
+                    className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border border-gray-200 overflow-hidden min-w-[180px]"
+                    style={{
+                      left: Math.min(menuFijadoPos.x, window.innerWidth - 200),
+                      top: menuFijadoPos.y + 4,
+                    }}
+                  >
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setMenuFijadoPos(null);
+                          const el = document.getElementById(`msg-${fijadoActual.mensajeId}`);
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          setMensajeResaltadoId(fijadoActual.mensajeId);
+                          setTimeout(() => setMensajeResaltadoId(null), 2000);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 active:bg-gray-100 cursor-pointer"
+                      >
+                        <MessageSquare className="w-4.5 h-4.5 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">Ir al mensaje</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMenuFijadoPos(null);
+                          if (conversacionActivaId && fijadoActual.mensajeId) {
+                            desfijarMensaje(conversacionActivaId, fijadoActual.mensajeId);
+                          }
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 active:bg-gray-100 cursor-pointer"
+                      >
+                        <PinOff className="w-4.5 h-4.5 text-red-500" />
+                        <span className="text-sm font-medium text-red-500">Desfijar mensaje</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
             </>
-          )}
-          </div>
+          );
+        })()}
 
-          {/* Botón scroll al inicio (más reciente) — posicionado en el margen derecho */}
-          {mostrarScrollAbajo && (
-            <button
-              onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="absolute bottom-4 right-1 lg:right-0 2xl:right-5.5 w-11 h-11 rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:shadow-xl z-10 bg-linear-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-            >
-              <ChevronDown className="w-6 h-6 text-white" />
-            </button>
+        {/* ═══ Área de mensajes — Virtuoso (solo ~10-15 nodos en DOM) ═══ */}
+        <div
+          className="flex-1 relative min-h-0"
+          onClick={(e) => {
+            if (menuMensaje && !(e.target as HTMLElement).closest('[id^="msg-"]')) {
+              setMenuMensaje(null);
+            }
+          }}
+        >
+          {!cargandoMensajes && mensajesConSeparadores.length > 0 && (
+            <AreaMensajes
+              datos={mensajesConSeparadores}
+              firstItemIndex={firstItemIndexRef.current}
+              virtuosoRef={virtuosoRef}
+              virtuosoWrapperRef={virtuosoWrapperRef}
+              virtuosoListoRef={virtuosoListoRef}
+              scrollerRef={scrollerRef}
+              mostrarScrollAbajoRef={mostrarScrollAbajoRef}
+              scrollBtnRef={scrollBtnRef}
+              diagItemCountRef={diagItemCountRef}
+              cargandoMensajesAntiguos={cargandoMensajesAntiguos}
+              estaEscribiendo={estaEscribiendo}
+              esMobile={esMobile}
+              esMisNotas={esMisNotas}
+              miId={miId}
+              mensajeResaltadoId={mensajeResaltadoId}
+              menuMensajeId={esMobile ? menuMensaje?.mensaje.id ?? null : null}
+              onStartReached={handleStartReached}
+              onMenuContextual={handleMenuContextualMensaje}
+              onReaccionar={handleReaccionar}
+            />
           )}
+
+          {/* Botón scroll al fondo — siempre montado, visibilidad via ref */}
+          <button
+            ref={scrollBtnRef}
+            style={{ display: 'none' }}
+            onClick={() => virtuosoRef.current?.scrollToIndex({ index: mensajesConSeparadores.length - 1, behavior: 'smooth' })}
+            className="absolute bottom-4 right-1 lg:right-0 2xl:right-5.5 w-11 h-11 rounded-full shadow-lg items-center justify-center cursor-pointer hover:shadow-xl z-10 bg-linear-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+          >
+            <ChevronDown className="w-6 h-6 text-white" />
+          </button>
+
+          {/* ── DIAGNÓSTICO: Overlay temporal ── */}
+          <OverlayDiagnostico />
         </div>
 
         {/* ═══ Input de mensaje / Barra de bloqueado ═══ */}
@@ -662,7 +949,7 @@ export function VentanaChat() {
             onCancelarEdicion={handleCancelarEdicion}
             mensajeRespondiendo={mensajeRespondiendo}
             onCancelarRespuesta={handleCancelarRespuesta}
-            nombreContacto={nombre}
+            nombreContacto={nombreMostrar}
             miId={miId}
           />
         )}
@@ -684,8 +971,8 @@ export function VentanaChat() {
       </div>{/* fin área principal */}
 
       {/* ═══ Panel lateral de información del contacto ═══ */}
-      {panelMontado.current && conversacion && !esMisNotas && !esMobile && (
-        <div className={panelAbierto ? '' : 'hidden'}>
+      {panelMontado.current && conversacion && !esMisNotas && (
+        <div className={`${panelAbierto ? '' : 'hidden'} ${esMobile ? 'fixed inset-0 z-60 bg-white' : ''}`}>
           <PanelInfoContacto
             conversacion={conversacion}
             onCerrar={() => setPanelAbierto(false)}
@@ -711,6 +998,8 @@ export function VentanaChat() {
     </div>
   );
 }
+
+export const VentanaChat = memo(VentanaChatInner);
 
 // =============================================================================
 // SUBCOMPONENTE: Acciones en el header (móvil long press)
@@ -772,13 +1061,12 @@ function AccionesHeaderMobile({
       label: estaFijado ? 'Desfijar' : 'Fijar',
       onClick: async () => {
         onCerrar();
-        try {
-          if (estaFijado) {
-            await chatyaService.desfijarMensaje(conversacionActivaId, mensaje.id);
-          } else {
-            await chatyaService.fijarMensaje(conversacionActivaId, mensaje.id);
-          }
-        } catch { void 0; }
+        const store = useChatYAStore.getState();
+        if (estaFijado) {
+          await store.desfijarMensaje(conversacionActivaId, mensaje.id);
+        } else {
+          await store.fijarMensaje(conversacionActivaId, mensaje.id);
+        }
       },
     });
   }
@@ -797,7 +1085,10 @@ function AccionesHeaderMobile({
     acciones.push({
       icono: Trash2,
       label: 'Eliminar',
-      onClick: async () => { onCerrar(); try { await chatyaService.eliminarMensaje(mensaje.id); } catch { void 0; } },
+      onClick: async () => {
+        onCerrar();
+        await useChatYAStore.getState().eliminarMensaje(mensaje.id);
+      },
       color: 'text-red-500',
     });
   }
@@ -821,6 +1112,59 @@ function AccionesHeaderMobile({
         <X className="w-6 h-6 text-gray-400" />
         <span className="text-[10px] font-semibold text-gray-400">Cerrar</span>
       </button>
+    </div>
+  );
+}
+
+// =============================================================================
+// DIAGNÓSTICO: Overlay temporal — ELIMINAR DESPUÉS DE DIAGNOSTICAR
+// =============================================================================
+
+function OverlayDiagnostico() {
+  const [marcas, setMarcas] = useState<Array<{ nombre: string; tiempo: number }>>([]);
+
+  useEffect(() => {
+    return diagSuscribir((nuevasMarcas) => setMarcas(nuevasMarcas));
+  }, []);
+
+  if (marcas.length === 0) return null;
+
+  const total = marcas[marcas.length - 1]?.tiempo ?? 0;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 8,
+        left: 8,
+        right: 8,
+        zIndex: 9999,
+        background: 'rgba(0,0,0,0.88)',
+        color: '#fff',
+        padding: '10px 12px',
+        borderRadius: 10,
+        fontSize: 11,
+        fontFamily: 'monospace',
+        lineHeight: 1.6,
+        pointerEvents: 'auto',
+        maxHeight: '60vh',
+        overflow: 'auto',
+        WebkitOverflowScrolling: 'touch',
+      }}
+    >
+      <div style={{ fontWeight: 'bold', marginBottom: 4, fontSize: 12, color: '#fbbf24' }}>
+        ⏱️ Diagnóstico ChatYA — Total: {total}ms
+      </div>
+      {marcas.map((m, i) => {
+        const delta = i === 0 ? m.tiempo : m.tiempo - marcas[i - 1].tiempo;
+        const esLento = delta > 30;
+        return (
+          <div key={i} style={{ color: esLento ? '#f87171' : '#86efac' }}>
+            {m.nombre} → {m.tiempo}ms {delta > 0 ? `(+${delta}ms)` : ''}
+            {esLento ? ' ⚠️ LENTO' : ''}
+          </div>
+        );
+      })}
     </div>
   );
 }

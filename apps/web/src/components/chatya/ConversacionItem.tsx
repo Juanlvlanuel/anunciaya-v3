@@ -24,101 +24,156 @@ interface ConversacionItemProps {
   activa: boolean;
   onClick: () => void;
   onMenuContextual?: (conversacion: Conversacion, posicion: { x: number; y: number }) => void;
+  /** Modo selección múltiple (estilo WhatsApp) */
+  modoSeleccion?: boolean;
+  /** ¿Esta conversación está seleccionada? */
+  seleccionada?: boolean;
+  /** Callback para long press que inicia selección (solo móvil) */
+  onLongPress?: (conversacionId: string) => void;
+  /** Callback para toggle selección en modo selección */
+  onToggleSeleccion?: (conversacionId: string) => void;
 }
 
 // =============================================================================
 // HELPERS
 // =============================================================================
 
-/** Formatea la fecha del último mensaje para la lista */
+/** Formatea la fecha del último mensaje para la lista (estilo WhatsApp) */
 function formatearTiempo(fecha: string | null): string {
   if (!fecha) return '';
 
-  const ahora = new Date();
+  const zonaHoraria = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const msg = new Date(fecha);
-  const diffMs = ahora.getTime() - msg.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffHoras = Math.floor(diffMs / 3600000);
+  const ahora = new Date();
 
-  // Menos de 1 minuto
-  if (diffMin < 1) return 'Ahora';
+  // Obtener fecha (YYYY-MM-DD) en zona horaria local para comparar días
+  const fmtDia = new Intl.DateTimeFormat('en-CA', { timeZone: zonaHoraria, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const hoyStr = fmtDia.format(ahora);
+  const msgStr = fmtDia.format(msg);
 
-  // Menos de 1 hora
-  if (diffMin < 60) return `${diffMin}m`;
-
-  // Menos de 24 horas
-  if (diffHoras < 24) return `${diffHoras}h`;
+  // Hoy → mostrar hora exacta (ej: 2:35 p.m.)
+  if (msgStr === hoyStr) {
+    return new Intl.DateTimeFormat('es-MX', {
+      timeZone: zonaHoraria,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(msg);
+  }
 
   // Ayer
   const ayer = new Date(ahora);
   ayer.setDate(ayer.getDate() - 1);
-  if (msg.toDateString() === ayer.toDateString()) return 'Ayer';
+  if (msgStr === fmtDia.format(ayer)) return 'Ayer';
 
-  // Misma semana: nombre del día
+  // Misma semana (< 7 días)
+  const diffMs = ahora.getTime() - msg.getTime();
   const diffDias = Math.floor(diffMs / 86400000);
   if (diffDias < 7) {
     const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    return dias[msg.getDay()];
+    // Obtener día de la semana en zona horaria local
+    const diaSemana = new Intl.DateTimeFormat('en-US', { timeZone: zonaHoraria, weekday: 'short' }).format(msg);
+    const mapa: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return dias[mapa[diaSemana] ?? msg.getDay()];
   }
 
-  // Más de una semana: fecha corta
-  const dia = msg.getDate().toString().padStart(2, '0');
-  const mes = (msg.getMonth() + 1).toString().padStart(2, '0');
-  return `${dia}/${mes}`;
+  // Más de una semana: dd/mm/yy
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: zonaHoraria,
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  }).format(msg);
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export function ConversacionItem({ conversacion, activa, onClick, onMenuContextual }: ConversacionItemProps) {
+export function ConversacionItem({ conversacion, activa, onClick, onMenuContextual, modoSeleccion, seleccionada, onLongPress, onToggleSeleccion }: ConversacionItemProps) {
   const otro = conversacion.otroParticipante;
   const bloqueados = useChatYAStore((s) => s.bloqueados);
   const borradores = useChatYAStore((s) => s.borradores);
+  const contactos = useChatYAStore((s) => s.contactos);
   const borrador = borradores[conversacion.id] || null;
   const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otro?.id);
   const miId = useAuthStore((s) => s.usuario?.id);
+  const modoActivo = useAuthStore((s) => s.usuario?.modoActivo || 'personal');
 
   // ¿El último mensaje es mío? → mostrar palomitas
   const ultimoEsMio = !!miId && conversacion.ultimoMensajeEmisorId === miId;
 
   // ---------------------------------------------------------------------------
-  // Long press (móvil) + Click derecho (desktop)
+  // Long press (móvil → selección) + Click derecho (desktop → menú contextual)
   // ---------------------------------------------------------------------------
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
   const touchMovedRef = useRef(false);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onMenuContextual?.(conversacion, { x: e.clientX, y: e.clientY });
+    // Solo abrir menú contextual en desktop (en móvil usa selección)
+    if (!('ontouchstart' in window)) {
+      onMenuContextual?.(conversacion, { x: e.clientX, y: e.clientY });
+    }
   }, [conversacion, onMenuContextual]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  const handleTouchStart = useCallback(() => {
     touchMovedRef.current = false;
-    longPressTimer.current = setTimeout(() => {
-      const touch = e.touches[0];
-      onMenuContextual?.(conversacion, { x: touch.clientX, y: touch.clientY });
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      if (navigator.vibrate) navigator.vibrate(30);
+      onLongPress?.(conversacion.id);
     }, 500);
-  }, [conversacion, onMenuContextual]);
+  }, [conversacion.id, onLongPress]);
 
   const handleTouchMove = useCallback(() => {
     touchMovedRef.current = true;
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
   }, []);
 
   const handleTouchEnd = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
   }, []);
 
+  /** Bloquea onClick si el long press ya disparó la selección */
+  const handleClick = useCallback(() => {
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+    if (modoSeleccion && onToggleSeleccion) {
+      onToggleSeleccion(conversacion.id);
+      return;
+    }
+    onClick();
+  }, [onClick, modoSeleccion, onToggleSeleccion, conversacion.id]);
+
   // Nombre a mostrar: negocio si aplica, sino nombre personal
   const nombre = otro?.negocioNombre || (otro ? `${otro.nombre} ${otro.apellidos || ''}`.trim() : 'Chat');
+
+  // sucursalId del otro participante
+  const otroSucursalId = miId
+    ? (conversacion.participante1Id === miId ? conversacion.participante2SucursalId : conversacion.participante1SucursalId)
+    : null;
+
+  // Alias del contacto tiene prioridad sobre el nombre real
+  const contactoExistente = otro
+    ? contactos.find((c) =>
+        c.contactoId === otro.id &&
+        c.tipo === modoActivo &&
+        c.sucursalId === otroSucursalId
+      )
+    : undefined;
+  const nombreMostrar = contactoExistente?.alias?.trim() || nombre;
 
   // Iniciales para avatar fallback
   const iniciales = otro
@@ -133,17 +188,19 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
 
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       className={`
-        w-full flex items-center gap-3 px-3 py-3 mx-0.5 text-left cursor-pointer
+        w-full flex items-center gap-3 px-3 py-3 mx-0.5 text-left cursor-pointer select-none
         rounded-r-lg border-l-[3px] transition-colors duration-75 group
         ${activa
           ? 'bg-white/12 border-l-amber-400'
-          : 'border-l-transparent hover:bg-white/8'
+          : seleccionada
+            ? 'bg-blue-500/15 border-l-blue-400'
+            : 'border-l-transparent hover:bg-white/8'
         }
       `}
     >
@@ -152,7 +209,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
         {avatarUrl ? (
           <img
             src={avatarUrl}
-            alt={nombre}
+            alt={nombreMostrar}
             className={`w-full h-full rounded-full object-cover ${esBloqueado ? 'opacity-40' : ''}`}
           />
         ) : (
@@ -166,15 +223,21 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
             <ShieldBan className="w-5 h-5 text-red-500" />
           </div>
         )}
+        {/* Overlay selección (checkmark azul) */}
+        {seleccionada && (
+          <div className="absolute inset-0 rounded-full bg-blue-500/90 flex items-center justify-center">
+            <Check className="w-6 h-6 text-white" strokeWidth={3} />
+          </div>
+        )}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1 h-5">
           <p className={`text-[15px] lg:text-[14px] truncate leading-tight ${esBloqueado ? 'text-white/35 font-medium' : tieneNoLeidos ? 'font-bold text-white' : 'font-semibold text-white/80'}`}>
-            {nombre}
+            {nombreMostrar}
           </p>
-          <span className="text-xs lg:text-[11px] text-white/45 font-medium shrink-0">
+          <span className="text-[13px] lg:text-[11px] text-white/45 font-medium shrink-0">
             {tiempo}
           </span>
         </div>
@@ -218,6 +281,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
             {/* Flechita menú contextual (hover desktop) */}
             <div
               role="button"
+              data-menu-trigger="true"
               onClick={(e) => {
                 e.stopPropagation();
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

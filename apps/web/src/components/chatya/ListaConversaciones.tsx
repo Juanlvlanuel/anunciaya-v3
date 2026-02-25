@@ -18,12 +18,13 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, X, MessageSquarePlus, Store, Star, MapPin, Archive, ArrowLeft, Users, UserPlus, UserMinus } from 'lucide-react';
+import { Search, X, MessageSquarePlus, Store, Star, MapPin, Archive, ArrowLeft, Users, UserPlus, UserMinus, Loader2 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { ConversacionItem } from './ConversacionItem';
 import { MenuContextualChat } from './MenuContextualChat';
+import { MenuContextualContacto } from './MenuContextualContacto';
 import * as chatyaService from '../../services/chatyaService';
 import type { ModoChatYA, PersonaBusqueda, NegocioBusqueda, Conversacion, Contacto } from '../../types/chatya';
 import Tooltip from '../ui/Tooltip';
@@ -34,11 +35,22 @@ import Tooltip from '../ui/Tooltip';
 
 type TabFiltro = 'todos' | 'personas' | 'negocios';
 
+interface ListaConversacionesProps {
+  /** Set de IDs seleccionados (controlado desde ChatOverlay) */
+  seleccionadas?: Set<string>;
+  /** ¿Hay alguna conversación seleccionada? */
+  modoSeleccion?: boolean;
+  /** Long press inicia selección (solo móvil) */
+  onLongPressSeleccion?: (conversacionId: string) => void;
+  /** Toggle selección de una conversación */
+  onToggleSeleccion?: (conversacionId: string) => void;
+}
+
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export function ListaConversaciones() {
+export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressSeleccion, onToggleSeleccion }: ListaConversacionesProps) {
   // ---------------------------------------------------------------------------
   // Stores
   // ---------------------------------------------------------------------------
@@ -70,6 +82,8 @@ export function ListaConversaciones() {
   const [viendoArchivados, setViendoArchivados] = useState(false);
   const [viendoContactos, setViendoContactos] = useState(false);
   const [menuContextual, setMenuContextual] = useState<{ conversacion: Conversacion; x: number; y: number } | null>(null);
+  const [menuContacto, setMenuContacto] = useState<{ contacto: Contacto; x: number; y: number } | null>(null);
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,11 +96,11 @@ export function ListaConversaciones() {
   // ---------------------------------------------------------------------------
   useEffect(() => {
     cargarConversaciones(modoActivo);
-    // Limpiar datos del modo anterior y precargar en background
-    useChatYAStore.setState({ contactos: [], conversacionesArchivadas: [] });
+    // NO limpiar contactos/archivados aquí — causa parpadeo al dejar arrays vacíos.
+    // Las siguientes cargas son silenciosas y reemplazan los datos directamente.
     chatyaService.getContactos(modoActivo)
       .then((res) => useChatYAStore.setState({ contactos: res.data || [] }))
-      .catch(() => {});
+      .catch(() => { });
     useChatYAStore.getState().cargarArchivados(modoActivo);
   }, [modoActivo, cargarConversaciones]);
 
@@ -256,7 +270,7 @@ export function ListaConversaciones() {
     // Refresco silencioso (datos ya precargados al cambiar modo)
     chatyaService.getContactos(modoActivo)
       .then((res) => useChatYAStore.setState({ contactos: res.data || [] }))
-      .catch(() => {});
+      .catch(() => { });
   }, [modoActivo]);
 
   const salirContactos = useCallback(() => {
@@ -269,7 +283,7 @@ export function ListaConversaciones() {
     if (!viendoContactos) return;
     chatyaService.getContactos(modoActivo)
       .then((res) => useChatYAStore.setState({ contactos: res.data || [] }))
-      .catch(() => {});
+      .catch(() => { });
   }, [modoActivo, viendoContactos]);
 
   // Recargar archivados automáticamente al cambiar de modo (si ya está en vista archivados)
@@ -288,6 +302,30 @@ export function ListaConversaciones() {
   }, []);
 
   const cerrarMenuCtx = useCallback(() => setMenuContextual(null), []);
+
+  // ---------------------------------------------------------------------------
+  // Menú contextual de contacto (click derecho / long press)
+  // ---------------------------------------------------------------------------
+  const handleMenuContacto = useCallback((contacto: Contacto, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const rect = 'touches' in e
+      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      : { x: (e as React.MouseEvent).clientX, y: (e as React.MouseEvent).clientY };
+    setMenuContacto({ contacto, x: rect.x, y: rect.y });
+  }, []);
+
+  const cerrarMenuContacto = useCallback(() => setMenuContacto(null), []);
+
+  const handleLongPressStart = useCallback((contacto: Contacto, e: React.TouchEvent) => {
+    longPressRef.current = setTimeout(() => handleMenuContacto(contacto, e), 500);
+  }, [handleMenuContacto]);
+
+  const handleLongPressEnd = useCallback(() => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Handler: Click en persona → abrir chat temporal (lazy creation)
@@ -411,7 +449,7 @@ export function ListaConversaciones() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex-1 min-h-0 h-full flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-0 h-full flex flex-col overflow-hidden select-none">
       {/* ═══ Input de búsqueda (siempre visible) ═══ */}
       <div className="px-3 py-2.5 shrink-0">
         <div className="relative">
@@ -423,11 +461,10 @@ export function ListaConversaciones() {
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder={
               viendoArchivados ? 'Buscar en archivados...' :
-              viendoContactos ? 'Buscar contacto...' :
-              'Buscar chats, personas o negocios...'
+                viendoContactos ? 'Buscar contacto...' :
+                  'Buscar chats, personas o negocios...'
             }
-            className="w-full pl-10 pr-9 py-2.5 bg-white/10 border border-white/15 rounded-full text-sm text-white placeholder:text-white/35 outline-none focus:border-white/35 focus:bg-white/15"
-          />
+            className="w-full pl-10 pr-9 py-2.5 lg:py-2 text-base lg:text-sm bg-white/10 border border-white/15 rounded-full text-white placeholder:text-white/35 outline-none focus:border-white/35 focus:bg-white/15" />
           {/* Botón X para limpiar búsqueda */}
           {busqueda && (
             <button
@@ -525,9 +562,11 @@ export function ListaConversaciones() {
           ) : (
             contactosFiltrados.map((contacto) => {
               const esNegocio = !!contacto.negocioId;
-              const nombre = esNegocio
+              const nombreReal = esNegocio
                 ? (contacto.negocioNombre || contacto.nombre || 'Sin nombre')
                 : `${contacto.nombre || ''} ${contacto.apellidos || ''}`.trim() || 'Sin nombre';
+              // Alias tiene prioridad sobre el nombre real
+              const nombreMostrar = contacto.alias?.trim() || nombreReal;
               const avatar = esNegocio ? (contacto.negocioLogo || null) : contacto.avatarUrl;
               const iniciales = `${(contacto.nombre || '').charAt(0)}${(contacto.apellidos || '').charAt(0)}`.toUpperCase() || '?';
 
@@ -535,17 +574,21 @@ export function ListaConversaciones() {
                 <div
                   key={contacto.id}
                   onClick={() => handleChatDesdeContacto(contacto)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/8 border-b border-white/5 cursor-pointer"
+                  onContextMenu={(e) => handleMenuContacto(contacto, e)}
+                  onTouchStart={(e) => handleLongPressStart(contacto, e)}
+                  onTouchEnd={handleLongPressEnd}
+                  onTouchMove={handleLongPressEnd}
+                  className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/8 border-b border-white/5 cursor-pointer select-none"
                 >
-                  {/* Avatar */}
+                  {/* Avatar — siempre redondo */}
                   {avatar ? (
                     <img
                       src={avatar}
-                      alt={nombre}
-                      className={`w-10 h-10 shrink-0 object-cover ${esNegocio ? 'rounded-lg' : 'rounded-full'}`}
+                      alt={nombreMostrar}
+                      className="w-10 h-10 shrink-0 object-cover rounded-full"
                     />
                   ) : (
-                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center ${esNegocio ? 'rounded-lg bg-white/10' : 'rounded-full bg-linear-to-br from-blue-500 to-blue-700'}`}>
+                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-full ${esNegocio ? 'bg-white/10' : 'bg-linear-to-br from-blue-500 to-blue-700'}`}>
                       {esNegocio ? (
                         <Store className="w-5 h-5 text-white/40" />
                       ) : (
@@ -556,12 +599,11 @@ export function ListaConversaciones() {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-semibold text-white/85 truncate">{nombre}</p>
+                    <p className="text-[14px] font-semibold text-white/85 truncate">{nombreMostrar}</p>
                     {esNegocio && contacto.sucursalNombre && (
-                      <p className="text-xs text-white/45 truncate">{contacto.sucursalNombre}</p>
-                    )}
-                    {!esNegocio && contacto.alias && (
-                      <p className="text-xs text-white/45 truncate">@{contacto.alias}</p>
+                      <p className="text-xs text-white/45 truncate">
+                        suc. {contacto.sucursalNombre}
+                      </p>
                     )}
                   </div>
 
@@ -614,16 +656,9 @@ export function ListaConversaciones() {
               </p>
 
               {buscandoBackend && negociosResultados.length === 0 ? (
-                <div className="px-3 py-2 space-y-2">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-lg bg-white/10 animate-pulse shrink-0" />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-3 bg-white/10 rounded animate-pulse w-3/4" />
-                        <div className="h-2 bg-white/6 rounded animate-pulse w-1/2" />
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-2 px-3 py-3 text-white/40">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <span className="text-xs">Buscando...</span>
                 </div>
               ) : (
                 negociosResultados.map((neg) => {
@@ -700,9 +735,8 @@ export function ListaConversaciones() {
                               });
                             }
                           }}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full shrink-0 cursor-pointer ${
-                            contactoExistente ? 'hover:bg-red-500/20' : 'hover:bg-white/15'
-                          }`}
+                          className={`w-8 h-8 flex items-center justify-center rounded-full shrink-0 cursor-pointer ${contactoExistente ? 'hover:bg-red-500/20' : 'hover:bg-white/15'
+                            }`}
                         >
                           {contactoExistente ? (
                             <UserMinus className="w-4.5 h-4.5 text-red-400/70" />
@@ -726,16 +760,9 @@ export function ListaConversaciones() {
               </p>
 
               {buscandoBackend && personasResultados.length === 0 ? (
-                <div className="px-3 py-2 space-y-2">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-full bg-white/10 animate-pulse shrink-0" />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-3 bg-white/10 rounded animate-pulse w-2/3" />
-                        <div className="h-2 bg-white/6 rounded animate-pulse w-1/3" />
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-2 px-3 py-3 text-white/40">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <span className="text-xs">Buscando...</span>
                 </div>
               ) : (
                 personasResultados.map((persona) => {
@@ -789,9 +816,8 @@ export function ListaConversaciones() {
                               });
                             }
                           }}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full shrink-0 cursor-pointer ${
-                            contactoExistente ? 'hover:bg-red-500/20' : 'hover:bg-white/15'
-                          }`}
+                          className={`w-8 h-8 flex items-center justify-center rounded-full shrink-0 cursor-pointer ${contactoExistente ? 'hover:bg-red-500/20' : 'hover:bg-white/15'
+                            }`}
                         >
                           {contactoExistente ? (
                             <UserMinus className="w-4.5 h-4.5 text-red-400/70" />
@@ -824,23 +850,23 @@ export function ListaConversaciones() {
         {/* ─── VISTA NORMAL: Lista de conversaciones con tabs ─── */}
         <div className={!estaBuscando && !viendoArchivados && !viendoContactos ? 'flex flex-col h-full' : 'hidden'}>
           {/* Fila: Contactos (izq) + Archivados (der) */}
-          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/8">
+          <div className="flex items-center justify-between px-3.5 py-3.5 lg:py-2.5 border-b border-white/8">
             {/* Contactos */}
             <button
               onClick={verContactos}
-              className="flex items-center gap-2 text-white/40 hover:text-white/70 cursor-pointer transition-colors duration-75"
+              className="flex items-center gap-2 text-white/60 hover:text-white/70 cursor-pointer transition-colors duration-75"
             >
               <Users className="w-4.5 h-4.5" />
-              <span className="text-[13px] font-bold">Contactos</span>
+              <span className="2xl:text-[13px] text-[14px]  font-bold">Contactos</span>
             </button>
 
             {/* Archivados */}
             <button
               onClick={verArchivados}
-              className="flex items-center gap-2 text-white/40 hover:text-white/70 cursor-pointer transition-colors duration-75"
+              className="flex items-center gap-2 text-white/60 hover:text-white/70 cursor-pointer transition-colors duration-75"
             >
               <Archive className="w-4.5 h-4.5" />
-              <span className="text-[13px] font-bold">Archivados</span>
+              <span className="2xl:text-[13px] text-[14px] font-bold">Archivados</span>
               {noLeidosArchivados > 0 && (
                 <span className="min-w-[18px] h-[18px] px-1 bg-green-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center">
                   {noLeidosArchivados > 9 ? '9+' : noLeidosArchivados}
@@ -872,6 +898,10 @@ export function ListaConversaciones() {
                 activa={conv.id === conversacionActivaId}
                 onClick={() => abrirConversacion(conv.id)}
                 onMenuContextual={handleMenuContextual}
+                modoSeleccion={modoSeleccion}
+                seleccionada={seleccionadas?.has(conv.id)}
+                onLongPress={onLongPressSeleccion}
+                onToggleSeleccion={onToggleSeleccion}
               />
             ))
           )}
@@ -883,6 +913,15 @@ export function ListaConversaciones() {
             conversacion={menuContextual.conversacion}
             onCerrar={cerrarMenuCtx}
             posicion={{ x: menuContextual.x, y: menuContextual.y }}
+          />
+        )}
+
+        {/* ═══ Menú contextual de contacto ═══ */}
+        {menuContacto && (
+          <MenuContextualContacto
+            contacto={menuContacto.contacto}
+            posicion={{ x: menuContacto.x, y: menuContacto.y }}
+            onCerrar={cerrarMenuContacto}
           />
         )}
       </div>

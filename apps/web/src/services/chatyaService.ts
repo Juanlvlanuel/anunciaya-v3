@@ -311,6 +311,14 @@ export async function eliminarContacto(id: string) {
   return del<void>(`/chatya/contactos/${id}`);
 }
 
+/**
+ * PATCH /api/chatya/contactos/:id/alias
+ * Edita el alias personalizado de un contacto. Pasar alias: null para eliminarlo.
+ */
+export async function editarAliasContacto(id: string, alias: string | null) {
+  return patch<void>(`/chatya/contactos/${id}/alias`, { alias });
+}
+
 // =============================================================================
 // BLOQUEO (Endpoints 17-19)
 // =============================================================================

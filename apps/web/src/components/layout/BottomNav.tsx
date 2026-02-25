@@ -104,6 +104,9 @@ export function BottomNav() {
   // ChatYA Store - badge real
   const mensajesCount = useChatYAStore((s) => s.totalNoLeidos);
 
+  // No mostrar BottomNav cuando ChatYA está abierto (es fullscreen en móvil)
+  if (chatYAAbierto) return null;
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -112,7 +115,7 @@ export function BottomNav() {
       {/* Inyectar estilos de animación */}
       <style>{animationStyles}</style>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40" style={hideStyle}>
+      <nav className="fixed bottom-0 left-0 right-0 z-51" style={hideStyle}>
 
 
         {/* Fondo con gradiente negro y padding para safe-area */}
@@ -211,4 +214,4 @@ function NavButton({ item }: NavButtonProps) {
   );
 }
 
-export default BottomNav;
+export default BottomNav; 

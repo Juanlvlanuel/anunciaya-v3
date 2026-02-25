@@ -23,7 +23,15 @@ import { io, type Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000';
+const SOCKET_URL = (() => {
+  const apiUrl = import.meta.env.VITE_API_URL || '';
+  // Si es relativa (/api), usar el origen actual (funciona con ngrok, PWA, etc.)
+  if (!apiUrl || apiUrl.startsWith('/')) {
+    return window.location.origin;
+  }
+  // Si es absoluta (http://...), quitar /api
+  return apiUrl.replace('/api', '');
+})();
 
 /**
  * Callbacks registrados por los módulos (ChatYA, notificaciones, CardYA, etc.)

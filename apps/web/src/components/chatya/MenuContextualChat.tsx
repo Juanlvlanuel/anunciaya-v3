@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff, UserPlus, UserMinus } from 'lucide-react';
+import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff, UserPlus, UserMinus, Search } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import type { Conversacion } from '../../types/chatya';
@@ -26,13 +26,15 @@ interface MenuContextualChatProps {
     onCerrar: () => void;
     /** Si se pasa, el menú se posiciona fixed en esas coordenadas (para uso desde lista) */
     posicion?: { x: number; y: number };
+    /** Callback para abrir búsqueda dentro del chat (solo móvil) */
+    onBuscar?: () => void;
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuContextualChatProps) {
+export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar }: MenuContextualChatProps) {
     const toggleFijar = useChatYAStore((s) => s.toggleFijar);
     const toggleSilenciar = useChatYAStore((s) => s.toggleSilenciar);
     const toggleArchivar = useChatYAStore((s) => s.toggleArchivar);
@@ -62,7 +64,7 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
         ? contactos.find((c) =>
             c.contactoId === otroId &&
             c.tipo === modoActivo &&
-            (!otroSucursalId || c.sucursalId === otroSucursalId)
+            c.sucursalId === otroSucursalId
         )
         : undefined;
 
@@ -72,20 +74,23 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
     // Cerrar al hacer click fuera del menú
     // ---------------------------------------------------------------------------
     useEffect(() => {
-        function handleClick(e: MouseEvent) {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        function handleCierreExterno(e: Event) {
+            const target = e.target as HTMLElement;
+            // Ignorar clicks en el botón que abre/cierra el menú
+            if (target.closest?.('[data-menu-trigger="true"]')) return;
+            if (menuRef.current && !menuRef.current.contains(target)) {
                 onCerrar();
             }
         }
 
-        // Delay para que el click que abrió el menú no lo cierre inmediatamente
+        // Delay generoso para ignorar eventos residuales del long press / touch
         const timer = setTimeout(() => {
-            document.addEventListener('click', handleClick);
-        }, 150);
+            document.addEventListener('pointerdown', handleCierreExterno);
+        }, 400);
 
         return () => {
             clearTimeout(timer);
-            document.removeEventListener('click', handleClick);
+            document.removeEventListener('pointerdown', handleCierreExterno);
         };
     }, [onCerrar]);
 
@@ -149,6 +154,13 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
     // Opciones del menú
     // ---------------------------------------------------------------------------
     const opciones = [
+        // Buscar — solo visible en móvil (se pasa onBuscar desde VentanaChat)
+        ...(onBuscar ? [{
+            icono: Search,
+            texto: 'Buscar',
+            onClick: onBuscar,
+            destructivo: false,
+        }] : []),
         {
             icono: conversacion.fijada ? PinOff : Pin,
             texto: conversacion.fijada ? 'Desfijar' : 'Fijar',
@@ -193,7 +205,7 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
     return (
         <div
             ref={menuRef}
-            className={`${posicion ? 'fixed' : 'absolute right-2 top-full mt-1'} z-50 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden`}
+            className={`${posicion ? 'fixed' : 'absolute right-2 top-full mt-1'} z-50 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 overflow-hidden`}
             style={posicion ? { left: posicion.x, top: posicion.y } : undefined}
         >
             {opciones.map((opcion) => (
@@ -201,14 +213,14 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion }: MenuCon
                     key={opcion.texto}
                     onClick={opcion.onClick}
                     className={`
-            w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] font-medium cursor-pointer
+            w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-medium cursor-pointer
             ${opcion.destructivo
-                            ? 'text-red-500 hover:bg-red-50'
-                            : 'text-gray-700 hover:bg-gray-100'
+                            ? 'text-red-500 hover:bg-red-50 active:bg-red-100'
+                            : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
                         }
           `}
                 >
-                    <opcion.icono className={`w-4 h-4 shrink-0 ${opcion.destructivo ? 'text-red-400' : 'text-gray-400'}`} />
+                    <opcion.icono className={`w-[18px] h-[18px] shrink-0 ${opcion.destructivo ? 'text-red-400' : 'text-gray-400'}`} />
                     {opcion.texto}
                 </button>
             ))}

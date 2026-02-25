@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import {
   X, Store, Star, Clock, ExternalLink, Bell, BellOff,
-  ShieldBan, Trash2, ChevronRight, Award, Coins, Calendar, User, Info, UserPlus, UserMinus,
+  ShieldBan, Trash2, ChevronRight, Award, Coins, Calendar, User, UserPlus, UserMinus, ArrowLeft,
 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -25,6 +25,13 @@ import type { Conversacion } from '../../types/chatya';
 import type { NegocioCompleto } from '../../types/negocios';
 import type { ClienteDetalle } from '../../types/clientes';
 import Swal from 'sweetalert2';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
+
+// =============================================================================
+// CACHÉ EN MEMORIA (persiste mientras la app esté montada)
+// =============================================================================
+export const cachéNegocio = new Map<string, NegocioCompleto>();
+export const cachéCliente = new Map<string, ClienteDetalle>();
 
 // =============================================================================
 // HELPERS
@@ -98,6 +105,7 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
   const usuario = useAuthStore((s) => s.usuario);
   const modoActivo = usuario?.modoActivo || 'personal';
   const miId = usuario?.id || '';
+  const { esMobile } = useBreakpoint();
 
   const toggleSilenciar = useChatYAStore((s) => s.toggleSilenciar);
   const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
@@ -134,9 +142,12 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
     ? contactos.find((c) =>
         c.contactoId === otro.id &&
         c.tipo === modoActivo &&
-        (!sucursalIdNegocio || c.sucursalId === sucursalIdNegocio)
+        c.sucursalId === sucursalIdNegocio
       )
     : undefined;
+
+  // Alias del contacto tiene prioridad sobre el nombre real
+  const nombreMostrar = contactoExistente?.alias?.trim() || nombre;
 
   const handleToggleContacto = async () => {
     if (!otro) return;
@@ -161,9 +172,12 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
   // ---------------------------------------------------------------------------
   // Estado local
   // ---------------------------------------------------------------------------
-  const [negocio, setNegocio] = useState<NegocioCompleto | null>(null);
-  const [cliente, setCliente] = useState<ClienteDetalle | null>(null);
+  const [, forzarRender] = useState(0);
   const [cargando, setCargando] = useState(false);
+
+  // Leer siempre del caché por ID — nunca datos de un chat anterior
+  const negocioEfectivo = sucursalIdNegocio ? cachéNegocio.get(sucursalIdNegocio) ?? null : null;
+  const clienteEfectivo = otro ? cachéCliente.get(otro.id) ?? null : null;
 
   // ---------------------------------------------------------------------------
   // Cargar datos según vista
@@ -172,16 +186,28 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
     if (!otro) return;
 
     if (tipoVista === 'negocio' && sucursalIdNegocio) {
+      if (cachéNegocio.has(sucursalIdNegocio)) return; // ya está en caché
       setCargando(true);
       obtenerPerfilSucursal(sucursalIdNegocio)
-        .then((res) => { if (res.success && res.data) setNegocio(res.data); })
+        .then((res) => {
+          if (res.success && res.data) {
+            cachéNegocio.set(sucursalIdNegocio, res.data);
+            forzarRender((n) => n + 1);
+          }
+        })
         .catch(() => void 0)
         .finally(() => setCargando(false));
 
     } else if (tipoVista === 'cliente') {
+      if (cachéCliente.has(otro.id)) return; // ya está en caché
       setCargando(true);
       getDetalleCliente(otro.id)
-        .then((res) => { if (res.success && res.data) setCliente(res.data); })
+        .then((res) => {
+          if (res.success && res.data) {
+            cachéCliente.set(otro.id, res.data);
+            forzarRender((n) => n + 1);
+          }
+        })
         .catch(() => void 0)
         .finally(() => setCargando(false));
     }
@@ -215,24 +241,29 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="w-[320px] 2xl:w-[340px] min-w-[320px] 2xl:min-w-[340px] border-l border-gray-200 flex flex-col bg-linear-to-b from-slate-100 to-blue-50 overflow-y-auto shrink-0">
+    <div className={`${esMobile ? 'w-full h-full' : 'w-[320px] 2xl:w-[340px] min-w-[320px] 2xl:min-w-[340px] border-l border-gray-200'} flex flex-col ${esMobile ? 'bg-linear-to-b from-[#0B358F] to-[#050d1a]' : 'bg-linear-to-b from-slate-100 to-blue-50'} overflow-y-auto shrink-0`}>
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 h-[61px] border-b border-slate-200 bg-slate-200 shrink-0">
-        <span className="flex items-center gap-2 text-base font-bold text-gray-800">
-          <Info className="w-4 h-4 text-gray-600" />
-          Información
-        </span>
-        <button
-          onClick={onCerrar}
-          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-gray-100 text-gray-400 hover:text-gray-600 cursor-pointer"
-        >
-          <X className="w-4 h-4" />
-        </button>
+      {/* ── Botón cerrar flotante ── */}
+      <div className="shrink-0 px-2 pt-2" style={esMobile ? { paddingTop: 'max(0.5rem, env(safe-area-inset-top))' } : undefined}>
+        {esMobile ? (
+          <button
+            onClick={onCerrar}
+            className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 text-white/70 cursor-pointer"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+        ) : (
+          <button
+            onClick={onCerrar}
+            className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-200 text-gray-500 hover:text-red-400 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* ── Avatar + Nombre ── */}
-      <div className="flex flex-col items-center px-4 pt-6 pb-5 gap-3 border-b border-white/20">
+      <div className="flex flex-col items-center px-4 pt-2 pb-5 gap-3">
         <div
           role="button"
           tabIndex={avatarUrl ? 0 : -1}
@@ -241,7 +272,7 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
           className={`w-24 h-24 rounded-full overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2)] shrink-0 ${avatarUrl ? 'cursor-pointer hover:opacity-90' : ''}`}
         >
           {avatarUrl ? (
-            <img src={avatarUrl} alt={nombre} className="w-full h-full object-cover" />
+            <img src={avatarUrl} alt={nombreMostrar} className="w-full h-full object-cover" />
           ) : (
             <div className={`w-full h-full flex items-center justify-center text-white text-2xl font-bold
               ${tipoVista === 'negocio'
@@ -254,22 +285,56 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
           )}
         </div>
 
-        <div className="flex flex-col items-center gap-1 text-center">
-          {tipoVista === 'negocio' && (
-            <span className="flex items-center gap-1 text-amber-600 text-xs font-semibold bg-amber-100/70 px-2.5 py-0.5 rounded-full">
-              <Store className="w-3.5 h-3.5" />
-              {otro?.sucursalNombre || 'Negocio'}
-            </span>
+        <div className="flex flex-col items-center gap-0.5 text-center">
+          {/* CON ALIAS: Alias > Nombre real > Sucursal */}
+          {contactoExistente?.alias?.trim() ? (
+            <>
+              <p className="text-[19px] lg:text-[19px] font-bold text-white lg:text-gray-800 leading-snug">{contactoExistente.alias.trim()}</p>
+              {tipoVista === 'negocio' ? (
+                <span className="flex items-center gap-2 text-[15px] font-bold text-blue-400 lg:text-gray-800">
+                  <Store className="w-4 h-4 shrink-0" />
+                  {nombre}
+                </span>
+              ) : (
+                <p className="text-[15px] text-white/60 lg:text-gray-500 font-medium">{nombre}</p>
+              )}
+              {tipoVista === 'negocio' && otro?.sucursalNombre && (
+                <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium">
+                  Suc. {otro.sucursalNombre.includes(' - ')
+                    ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
+                    : otro.sucursalNombre}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              {/* SIN ALIAS: Nombre > Sucursal */}
+              {tipoVista === 'negocio' ? (
+                <span className="flex items-center gap-2 text-[20px] font-bold text-blue-400 lg:text-gray-800 leading-snug">
+                  <Store className="w-5 h-5 shrink-0" />
+                  {nombre}
+                </span>
+              ) : (
+                <p className="text-[20px] font-bold text-white lg:text-gray-800 leading-snug">{nombre}</p>
+              )}
+              {tipoVista === 'negocio' && otro?.sucursalNombre && (
+                <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium">
+                  Suc. {otro.sucursalNombre.includes(' - ')
+                    ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
+                    : otro.sucursalNombre}
+                </p>
+              )}
+            </>
           )}
-          <p className="text-[17px] font-bold text-gray-800 leading-snug">{nombre}</p>
+
           {tipoVista !== 'negocio' && (
-            <span className="flex items-center gap-1.5 text-xs text-green-700 font-semibold bg-green-100/70 px-2.5 py-0.5 rounded-full">
+            <span className="flex items-center gap-1.5 text-xs text-green-400 lg:text-green-700 font-semibold bg-green-500/15 lg:bg-green-100/70 px-2.5 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
               En línea
             </span>
           )}
           {conversacion.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
-            <span className="text-xs text-gray-500 font-medium mt-0.5">
+            <span className="text-xs text-white/40 lg:text-gray-500 font-medium mt-0.5">
               {conversacion.contextoTipo === 'negocio' && 'Contactó desde: Tu perfil'}
               {conversacion.contextoTipo === 'oferta' && `Contactó por oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
               {conversacion.contextoTipo === 'marketplace' && `Contactó por publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
@@ -279,10 +344,10 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
           )}
           <button
             onClick={handleToggleContacto}
-            className={`flex items-center gap-1.5 text-sm font-semibold px-3.5 py-1.5 rounded-full cursor-pointer transition-colors mt-1 ${
+            className={`flex items-center gap-1.5 text-sm lg:text-sm font-semibold px-3.5 py-1.5 rounded-full cursor-pointer transition-colors mt-1 ${
               contactoExistente
-                ? 'bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500'
-                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                ? 'bg-white/10 text-white/60 hover:bg-red-500/20 hover:text-red-400 lg:bg-gray-100 lg:text-gray-500 lg:hover:bg-red-50 lg:hover:text-red-500'
+                : 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 lg:bg-blue-50 lg:text-blue-600 lg:hover:bg-blue-100'
             }`}
           >
             {contactoExistente ? <UserMinus className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
@@ -297,52 +362,52 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
         {/* ════ VISTA 2: Usuario → Negocio ════ */}
         {tipoVista === 'negocio' && (
           <div className="px-4 py-4 flex flex-col gap-3">
-            {cargando ? (
+            {cargando && !negocioEfectivo ? (
               <div className="flex justify-center py-4">
                 <div className="w-5 h-5 border-2 border-white/30 border-t-blue-500 rounded-full animate-spin" />
               </div>
-            ) : negocio ? (
+            ) : negocioEfectivo ? (
               <>
                 {/* Calificación */}
-                {parseFloat(negocio.calificacionPromedio) > 0 && (
-                  <div className="flex items-center gap-2.5 bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
+                {parseFloat(negocioEfectivo.calificacionPromedio) > 0 && (
+                  <div className="flex items-center gap-2.5 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
                     <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
-                    <span className="text-sm font-bold text-gray-800">
-                      {parseFloat(negocio.calificacionPromedio).toFixed(1)}
+                    <span className="text-sm lg:text-sm font-bold text-white lg:text-gray-800">
+                      {parseFloat(negocioEfectivo.calificacionPromedio).toFixed(1)}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      ({negocio.totalCalificaciones} reseñas)
+                    <span className="text-xs text-white/50 lg:text-gray-500">
+                      ({negocioEfectivo.totalCalificaciones} reseñas)
                     </span>
                   </div>
                 )}
 
                 {/* Categoría */}
-                {negocio.categorias?.length > 0 && (
-                  <div className="flex items-center gap-2.5 bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
-                    <Store className="w-4 h-4 text-gray-500 shrink-0" />
-                    <span className="text-sm text-gray-700">
-                      {negocio.categorias[0].categoria.nombre}
+                {negocioEfectivo.categorias?.length > 0 && (
+                  <div className="flex items-center gap-2.5 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
+                    <Store className="w-4 h-4 text-white/50 lg:text-gray-500 shrink-0" />
+                    <span className="text-sm lg:text-sm text-white/80 lg:text-gray-700">
+                      {negocioEfectivo.categorias[0].categoria.nombre}
                     </span>
                   </div>
                 )}
 
                 {/* Horario + estado */}
-                <div className="flex items-center gap-2.5 bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
-                  <Clock className="w-4 h-4 text-gray-500 shrink-0" />
+                <div className="flex items-center gap-2.5 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
+                  <Clock className="w-4 h-4 text-white/50 lg:text-gray-500 shrink-0" />
                   <div className="flex flex-col">
-                    <span className={`text-sm font-semibold ${calcularAbierto(negocio.horarios) ? 'text-green-600' : 'text-red-500'}`}>
-                      {calcularAbierto(negocio.horarios) ? 'Abierto ahora' : 'Cerrado'}
+                    <span className={`text-sm font-semibold ${calcularAbierto(negocioEfectivo.horarios) ? 'text-green-600' : 'text-red-500'}`}>
+                      {calcularAbierto(negocioEfectivo.horarios) ? 'Abierto ahora' : 'Cerrado'}
                     </span>
                     {(() => {
-                      const h = horarioHoy(negocio.horarios);
-                      return h ? <span className="text-xs text-gray-500">{h}</span> : null;
+                      const h = horarioHoy(negocioEfectivo.horarios);
+                      return h ? <span className="text-xs text-white/40 lg:text-gray-500">{h}</span> : null;
                     })()}
                   </div>
                 </div>
 
                 {/* Ver perfil */}
                 <a
-                  href={`/negocios/${negocio.sucursalId}`}
+                  href={`/negocios/${negocioEfectivo.sucursalId}`}
                   className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white text-sm font-semibold cursor-pointer transition-colors shadow-sm"
                 >
                   <span>Ver perfil del negocio</span>
@@ -350,7 +415,7 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
                 </a>
               </>
             ) : (
-              <p className="text-xs text-gray-500 text-center py-2">No se pudo cargar la información</p>
+              <p className="text-xs text-white/40 lg:text-gray-500 text-center py-2">No se pudo cargar la información</p>
             )}
           </div>
         )}
@@ -358,39 +423,50 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
         {/* ════ VISTA 3: Negocio → Cliente ════ */}
         {tipoVista === 'cliente' && (
           <div className="px-4 py-4 flex flex-col gap-3">
-            {cargando ? (
+            {cargando && !clienteEfectivo ? (
               <div className="flex justify-center py-4">
                 <div className="w-5 h-5 border-2 border-white/30 border-t-blue-500 rounded-full animate-spin" />
               </div>
-            ) : cliente ? (
+            ) : clienteEfectivo ? (
               <>
-                <div className="bg-white/90 shadow-sm rounded-xl p-3.5 flex flex-col gap-3">
-                  <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Cliente registrado</p>
+                {/* Encabezado sección */}
+                <p className="text-[11px] lg:text-[11px] font-bold text-white/40 lg:text-gray-400 uppercase tracking-wider px-1">Billetera en tu negocio</p>
 
-                  <div className="flex items-center gap-2.5">
-                    <Award className={`w-4 h-4 shrink-0 ${nivelColor(cliente.nivelActual)}`} />
-                    <span className={`text-sm font-bold ${nivelColor(cliente.nivelActual)}`}>
-                      {nivelEmoji(cliente.nivelActual)}{' '}
-                      {cliente.nivelActual.charAt(0).toUpperCase() + cliente.nivelActual.slice(1)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <Coins className="w-4 h-4 text-amber-500 shrink-0" />
+                {/* Card nivel + puntos */}
+                <div className="bg-white/10 lg:bg-white rounded-2xl shadow-sm border border-white/10 lg:border-gray-100 overflow-hidden">
+                  {/* Fila nivel */}
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 lg:border-gray-50">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/15 lg:bg-amber-50 flex items-center justify-center shrink-0">
+                      <Award className={`w-4 h-4 ${nivelColor(clienteEfectivo.nivelActual)}`} />
+                    </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold text-gray-800">
-                        {cliente.puntosDisponibles.toLocaleString('es-MX')} pts
+                      <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Nivel</span>
+                      <span className={`text-sm lg:text-sm font-bold ${nivelColor(clienteEfectivo.nivelActual)}`}>
+                        {nivelEmoji(clienteEfectivo.nivelActual)} {clienteEfectivo.nivelActual.charAt(0).toUpperCase() + clienteEfectivo.nivelActual.slice(1)}
                       </span>
-                      <span className="text-xs text-gray-500">disponibles</span>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+                  {/* Fila puntos */}
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 lg:border-gray-50">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/15 lg:bg-amber-50 flex items-center justify-center shrink-0">
+                      <Coins className="w-4 h-4 text-amber-500" />
+                    </div>
                     <div className="flex flex-col">
-                      <span className="text-xs text-gray-500">Última compra</span>
-                      <span className="text-sm font-semibold text-gray-700">
-                        {formatFecha(cliente.ultimaActividad)}
+                      <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Puntos disponibles</span>
+                      <span className="text-sm lg:text-sm font-bold text-white lg:text-gray-800">
+                        {clienteEfectivo.puntosDisponibles.toLocaleString('es-MX')} pts
+                      </span>
+                    </div>
+                  </div>
+                  {/* Fila última compra */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-500/15 lg:bg-blue-50 flex items-center justify-center shrink-0">
+                      <Calendar className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Última compra</span>
+                      <span className="text-sm lg:text-sm font-semibold text-white/70 lg:text-gray-700">
+                        {formatFecha(clienteEfectivo.ultimaActividad)}
                       </span>
                     </div>
                   </div>
@@ -404,17 +480,19 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
                       );
                     }
                   }}
-                  className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white text-sm font-semibold cursor-pointer transition-colors shadow-sm"
+                  className="flex items-center justify-between w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white text-sm font-semibold cursor-pointer transition-colors shadow-sm"
                 >
                   <span>Ver detalle del cliente</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-2 py-6 text-center">
-                <User className="w-9 h-9 text-gray-400/60" />
-                <p className="text-sm text-gray-600 font-medium">Sin billetera en tu negocio</p>
-                <p className="text-xs text-gray-500">Este usuario aún no ha comprado aquí</p>
+              <div className="bg-white/10 lg:bg-white rounded-2xl shadow-sm border border-white/10 lg:border-gray-100 flex flex-col items-center gap-2 py-6 px-4 text-center">
+                <div className="w-12 h-12 rounded-full bg-white/10 lg:bg-gray-50 flex items-center justify-center mb-1">
+                  <User className="w-6 h-6 text-white/30 lg:text-gray-300" />
+                </div>
+                <p className="text-sm font-bold text-white/70 lg:text-gray-600">Sin billetera aquí</p>
+                <p className="text-xs text-white/40 lg:text-gray-400 leading-relaxed">Este usuario aún no ha realizado compras en tu negocio</p>
               </div>
             )}
           </div>
@@ -426,16 +504,16 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
       </div>
 
       {/* ── Acciones comunes ── */}
-      <div className="border-t border-white/20 px-4 py-3 flex flex-col gap-1 shrink-0">
+      <div className="px-4 py-3 flex flex-col gap-1 shrink-0">
         <button
           onClick={handleSilenciar}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-black/8 text-gray-600 cursor-pointer transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-white/10 lg:hover:bg-black/8 text-white/70 lg:text-gray-600 cursor-pointer transition-colors"
         >
           {conversacion.silenciada
-            ? <Bell className="w-4 h-4 text-gray-500 shrink-0" />
-            : <BellOff className="w-4 h-4 text-gray-500 shrink-0" />
+            ? <Bell className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
+            : <BellOff className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
           }
-          <span className="text-sm">
+          <span className="text-[15px] lg:text-sm">
             {conversacion.silenciada ? 'Activar notificaciones' : 'Silenciar notificaciones'}
           </span>
         </button>
@@ -443,19 +521,19 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
         {!esModoComercial && (
           <button
             onClick={handleBloquear}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-100/60 text-red-500 cursor-pointer transition-colors"
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-500/15 lg:hover:bg-red-100/60 text-red-400 lg:text-red-500 cursor-pointer transition-colors"
           >
-            <ShieldBan className="w-4 h-4 shrink-0" />
-            <span className="text-sm font-medium">Bloquear</span>
+            <ShieldBan className="w-5 h-5 lg:w-4 lg:h-4 shrink-0" />
+            <span className="text-[15px] lg:text-sm font-medium">Bloquear</span>
           </button>
         )}
 
         <button
           onClick={handleEliminar}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-100/60 text-red-500 cursor-pointer transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-500/15 lg:hover:bg-red-100/60 text-red-400 lg:text-red-500 cursor-pointer transition-colors"
         >
-          <Trash2 className="w-4 h-4 shrink-0" />
-          <span className="text-sm font-medium">Eliminar chat</span>
+          <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 shrink-0" />
+          <span className="text-[15px] lg:text-sm font-medium">Eliminar chat</span>
         </button>
       </div>
     </div>

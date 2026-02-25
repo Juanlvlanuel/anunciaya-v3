@@ -49,6 +49,7 @@ interface UsePWAInstallScanYAReturn {
 // =============================================================================
 
 const MANIFEST_ID = 'scanya-manifest';
+const ANUNCIAYA_MANIFEST_ID = 'anunciaya-manifest';
 const MANIFEST_URL = '/manifest.scanya.json';
 const STORAGE_KEY = 'scanya-pwa-estado';
 
@@ -86,17 +87,24 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (esRutaScanYA) {
-      // Inyectar manifest si no existe
-      // let manifestLink = document.getElementById(MANIFEST_ID) as HTMLLinkElement | null;
+      // --- Ocultar manifest de AnunciaYA ---
+      const anunciaManifest = document.getElementById(ANUNCIAYA_MANIFEST_ID) as HTMLLinkElement | null;
+      if (anunciaManifest) {
+        anunciaManifest.removeAttribute('href');
+        console.log('[PWA ScanYA] Manifest AnunciaYA ocultado');
+      }
 
-      // if (!manifestLink) {
-      //   manifestLink = document.createElement('link');
-      //   manifestLink.id = MANIFEST_ID;
-      //   manifestLink.rel = 'manifest';
-      //   manifestLink.href = MANIFEST_URL;
-      //   document.head.appendChild(manifestLink);
-      //   console.log('[PWA ScanYA] Manifest inyectado');
-      // }
+      // --- Inyectar manifest de ScanYA si no existe ---
+      let manifestLink = document.getElementById(MANIFEST_ID) as HTMLLinkElement | null;
+
+      if (!manifestLink) {
+        manifestLink = document.createElement('link');
+        manifestLink.id = MANIFEST_ID;
+        manifestLink.rel = 'manifest';
+        manifestLink.href = MANIFEST_URL;
+        document.head.appendChild(manifestLink);
+        console.log('[PWA ScanYA] Manifest ScanYA inyectado');
+      }
 
       // Deshabilitar pinch-to-zoom para que se sienta como app nativa
       const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
@@ -105,17 +113,19 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
         viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
         console.log('[PWA ScanYA] Pinch-to-zoom deshabilitado');
       }
-
-      // Deshabilitar pull-to-refresh (overscroll) para que se sienta como app nativa
-      document.body.style.overscrollBehavior = 'none';
-      document.documentElement.style.overscrollBehavior = 'none';
-      console.log('[PWA ScanYA] Pull-to-refresh deshabilitado');
     } else {
-      // Quitar manifest si existe y no estamos en ScanYA
+      // --- Quitar manifest de ScanYA ---
       const manifestLink = document.getElementById(MANIFEST_ID);
       if (manifestLink) {
         manifestLink.remove();
-        console.log('[PWA ScanYA] Manifest removido');
+        console.log('[PWA ScanYA] Manifest ScanYA removido');
+      }
+
+      // --- Restaurar manifest de AnunciaYA ---
+      const anunciaManifest = document.getElementById(ANUNCIAYA_MANIFEST_ID) as HTMLLinkElement | null;
+      if (anunciaManifest && !anunciaManifest.href) {
+        anunciaManifest.href = '/manifest.json';
+        console.log('[PWA ScanYA] Manifest AnunciaYA restaurado');
       }
 
       // Restaurar viewport original (habilitar pinch-to-zoom)
@@ -127,11 +137,6 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
           console.log('[PWA ScanYA] Viewport restaurado (pinch-to-zoom habilitado)');
         }
       }
-
-      // Restaurar overscroll-behavior (habilitar pull-to-refresh)
-      document.body.style.overscrollBehavior = '';
-      document.documentElement.style.overscrollBehavior = '';
-      console.log('[PWA ScanYA] Pull-to-refresh habilitado');
     }
 
     // Cleanup al desmontar

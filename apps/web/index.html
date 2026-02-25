@@ -12,7 +12,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=block" rel="stylesheet">
   </noscript>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+
 
   <!-- SEO Básico -->
   <title>AnunciaYA - Tus compras ahora valen más</title>
@@ -44,22 +46,22 @@
   <meta name="theme-color" content="#000000" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
 
-  <!-- PWA - ScanYA Manifest (Se inyecta dinámicamente en /scanya/*) -->
-  <!-- El manifest se carga via usePWAInstallScanYA.ts -->
+  <!-- PWA - AnunciaYA Manifest (por defecto) -->
+  <!-- En rutas /scanya/* se reemplaza dinámicamente por manifest.scanya.json via usePWAInstallScanYA.ts -->
+  <link rel="manifest" href="/manifest.json" id="anunciaya-manifest" />
 
-  <!-- PWA - Meta Tags -->
+  <!-- PWA - Meta Tags (AnunciaYA por defecto) -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="ScanYA" />
+  <meta name="apple-mobile-web-app-title" content="AnunciaYA" />
 
-  <!-- Apple Touch Icons - ScanYA -->
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon-scanya.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-scanya.png" />
+  <!-- Apple Touch Icons - AnunciaYA -->
+  <link rel="apple-touch-icon" href="/favicon.png" />
 
-  <!-- MS Tiles - ScanYA -->
-  <meta name="msapplication-TileImage" content="/icons/scanya-512.png" />
-  <meta name="msapplication-TileColor" content="#0A0A0A" />
+  <!-- MS Tiles - AnunciaYA -->
+  <meta name="msapplication-TileImage" content="/favicon.png" />
+  <meta name="msapplication-TileColor" content="#000000" />
 
   <!-- CSS: Fondo gradiente ScanYA en móvil -->
   <style>

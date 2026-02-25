@@ -13,7 +13,7 @@
  * UBICACIÓN: apps/web/src/components/chatya/BurbujaMensaje.tsx
  */
 
-import { useRef, useCallback, useState, useEffect } from 'react';
+import { memo, useRef, useCallback, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, CheckCheck, Store, SmilePlus, AlertCircle, ChevronDown } from 'lucide-react';
 import type { Mensaje } from '../../types/chatya';
@@ -27,7 +27,7 @@ import { analizarEmojis, tamañoEmojiSolo } from './emojiUtils';
 // =============================================================================
 
 /** Tiempo en ms para considerar long press en móvil */
-const LONG_PRESS_MS = 500;
+const LONG_PRESS_MS = 300;
 
 /** Emojis rápidos para reaccionar */
 const EMOJIS_RAPIDOS = ['👍', '❤️', '😂', '😮', '😢'];
@@ -70,7 +70,7 @@ function formatearHora(fecha: string): string {
 // COMPONENTE
 // =============================================================================
 
-export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId }: BurbujaMensajeProps) {
+export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId, miId }: BurbujaMensajeProps) {
   const hora = formatearHora(mensaje.createdAt);
   const esNegocio = !esMisNotas && !!mensaje.emisorSucursalId;
   const esFallido = mensaje.estado === 'fallido';
@@ -79,6 +79,11 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
   const infoEmoji = !mensaje.eliminado ? analizarEmojis(mensaje.contenido) : { soloEmojis: false, cantidad: 0 };
   const esSoloEmojis = infoEmoji.soloEmojis && !mensaje.respuestaA;
 
+  /** Emoji con el que ya reaccioné a este mensaje (si existe) */
+  const miReaccionActual = mensaje.reacciones?.find((r) =>
+    (r.usuarios as string[])?.includes(miId || '')
+  )?.emoji;
+
   /** Picker de emojis abierto (hover en desktop) */
   const [emojiPickerAbierto, setEmojiPickerAbierto] = useState(false);
   /** Animación de salida en curso */
@@ -86,7 +91,7 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
   /** Ref del botón SmilePlus para calcular posición del portal */
   const smileBtnRef = useRef<HTMLButtonElement>(null);
   /** Posición calculada del popup (portal) */
-  const [popupPos, setPopupPos] = useState<{ x: number; y: number } | null>(null);
+  const [popupPos, setPopupPos] = useState<{ x: number; y: number; abajo?: boolean } | null>(null);
   /** Picker completo de emojis (botón +) */
   const [pickerCompletoAbierto, setPickerCompletoAbierto] = useState(false);
   const [pickerCompletoSaliendo, setPickerCompletoSaliendo] = useState(false);
@@ -143,15 +148,20 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
   // ---------------------------------------------------------------------------
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchMovedRef = useRef(false);
+  /** Evita doble disparo: si el long press ya abrió el menú, el contextmenu nativo no debe volver a disparar */
+  const longPressFiredRef = useRef(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!onMenuContextual) return;
     touchMovedRef.current = false;
+    longPressFiredRef.current = false;
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
     timerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
       // Vibración háptica si está disponible
-      if (navigator.vibrate) navigator.vibrate(30);
-      const touch = e.touches[0];
-      onMenuContextual(mensaje, { x: touch.clientX, y: touch.clientY });
+      if (navigator.vibrate) navigator.vibrate(80);
+      onMenuContextual(mensaje, { x: touchX, y: touchY });
     }, LONG_PRESS_MS);
   }, [mensaje, onMenuContextual]);
 
@@ -173,6 +183,11 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     if (!onMenuContextual) return;
     e.preventDefault();
+    // Si el long press ya disparó, no volver a llamar (evita toggle que cierra)
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
     onMenuContextual(mensaje, { x: e.clientX, y: e.clientY });
   }, [mensaje, onMenuContextual]);
 
@@ -183,7 +198,7 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
 
   return (
     <div
-      className={`group flex ${esMio ? 'justify-end' : 'justify-start'}`}
+      className={`group flex select-none lg:select-auto ${esMio ? 'justify-end' : 'justify-start'}`}
       onMouseLeave={() => {
         if (emojiPickerAbierto && !emojiPickerSaliendo) {
           emojiCloseTimerRef.current = setTimeout(() => cerrarEmojiPicker(), 400);
@@ -209,12 +224,16 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
                     if (emojiPickerAbierto) {
                       cerrarEmojiPicker();
                     } else {
-                      // Calcular posición del portal centrado en el botón
                       const rect = smileBtnRef.current?.getBoundingClientRect();
                       if (rect) {
+                        const scrollContainer = smileBtnRef.current?.closest('[data-scroll-container]') as HTMLElement | null;
+                        const containerTop = scrollContainer?.getBoundingClientRect().top ?? 0;
+                        const espacioArriba = rect.top - containerTop;
+                        const abajo = espacioArriba < 60;
                         setPopupPos({
                           x: rect.left + rect.width / 2,
-                          y: rect.top,
+                          y: abajo ? rect.bottom : rect.top,
+                          abajo,
                         });
                       }
                       setEmojiPickerAbierto(true);
@@ -267,13 +286,13 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
               className="fixed z-9999"
               style={{
                 left: popupPos.x,
-                top: popupPos.y - 8,
-                transform: 'translate(-50%, -100%)',
+                top: popupPos.abajo ? popupPos.y + 8 : popupPos.y - 8,
+                transform: popupPos.abajo ? 'translate(-50%, 0%)' : 'translate(-50%, -100%)',
               }}
             >
               <div
                 className={`flex items-center gap-0.5 px-1.5 py-1 bg-white rounded-full shadow-[0_2px_16px_rgba(0,0,0,0.16)] border border-gray-200 ${emojiPickerSaliendo ? 'emoji-popup-out' : 'emoji-popup-in'}`}
-                style={{ transformOrigin: 'center bottom' }}
+                style={{ transformOrigin: popupPos.abajo ? 'center top' : 'center bottom' }}
               >
                 {EMOJIS_RAPIDOS.map((emoji, i) => (
                   <button
@@ -282,7 +301,7 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
                       onReaccionar(mensaje.id, emoji);
                       cerrarEmojiPicker();
                     }}
-                    className={`w-9 h-9 flex items-center justify-center hover:scale-125 active:scale-140 cursor-pointer ${emojiPickerSaliendo ? '' : 'emoji-item-entrada'}`}
+                    className={`w-9 h-9 flex items-center justify-center hover:scale-125 active:scale-140 cursor-pointer ${emojiPickerSaliendo ? '' : 'emoji-item-entrada'} ${miReaccionActual === emoji ? 'bg-blue-100 rounded-full ring-2 ring-blue-400' : ''}`}
                     style={!emojiPickerSaliendo ? { animationDelay: `${(EMOJIS_RAPIDOS.length - i) * 35}ms` } : undefined}
                   >
                     <EmojiNoto emoji={emoji} tamaño={26} />
@@ -427,7 +446,7 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
 
         {/* Pills de reacciones visibles */}
         {mensaje.reacciones && mensaje.reacciones.length > 0 && (
-          <div className={`flex flex-wrap gap-1 -mt-2 relative z-10 ${esMio ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
+          <div className={`flex flex-wrap gap-1 -mt-1 relative z-10 ${esMio ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
             {mensaje.reacciones.map((r) => {
               return (
                 <button
@@ -452,46 +471,48 @@ export function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado =
 
         {/* Burbuja de emojis flotante (móvil, cuando este mensaje tiene menú activo) */}
         {menuActivoId === mensaje.id && !mensaje.eliminado && !esMisNotas && onReaccionar && (
-          <div className={`absolute z-20 ${esMio ? 'right-0' : 'left-0'} -bottom-14`}>
-            <div className="bg-white rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.12)] border border-gray-200 flex items-center gap-1 px-2.5 py-1.5">
-              {EMOJIS_RAPIDOS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => onReaccionar(mensaje.id, emoji)}
-                  className="w-11 h-11 flex items-center justify-center rounded-full active:scale-125 active:bg-gray-100 cursor-pointer"
-                >
-                  <EmojiNoto emoji={emoji} tamaño={28} />
-                </button>
-              ))}
-              <button
-                onClick={() => setPickerCompletoAbierto(true)}
-                className="w-11 h-11 text-xl flex items-center justify-center rounded-full active:scale-110 active:bg-gray-100 cursor-pointer text-gray-400"
+            <div className={`absolute z-20 ${esMio ? 'right-0' : 'left-0'} -top-14`}>
+              <div
+                className="bg-white rounded-full shadow-[0_2px_16px_rgba(0,0,0,0.16)] border border-gray-200 flex items-center px-0.5 py-0.5 emoji-popup-in"
+                style={{ transformOrigin: esMio ? 'bottom right' : 'bottom left' }}
               >
-                +
-              </button>
+                {EMOJIS_RAPIDOS.map((emoji, i) => (
+                  <button
+                    key={emoji}
+                    onClick={() => onReaccionar(mensaje.id, emoji)}
+                    className={`w-11 h-11 flex items-center justify-center rounded-full active:scale-125 cursor-pointer emoji-item-entrada active:bg-gray-100`}
+                    style={{ animationDelay: `${(EMOJIS_RAPIDOS.length - i) * 35}ms` }}
+                  >
+                    <span className={`w-9 h-9 flex items-center justify-center rounded-full ${miReaccionActual === emoji ? 'bg-blue-100 ring-2 ring-blue-400' : ''}`}>
+                      <EmojiNoto emoji={emoji} tamaño={32} />
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
         )}
 
-        {/* Picker completo de emojis (móvil) */}
-        {pickerCompletoAbierto && menuActivoId === mensaje.id && onReaccionar && (
-          <div className={`fixed inset-x-0 bottom-0 z-50 pb-safe`}>
-            <SelectorEmojis
-              onSeleccionar={(emoji) => {
-                onReaccionar(mensaje.id, emoji);
-                setPickerCompletoAbierto(false);
-              }}
-              onCerrar={() => setPickerCompletoAbierto(false)}
-              posicion="abajo-izq"
-              ancho={window.innerWidth}
-              alto={350}
-            />
-          </div>
-        )}
       </div>
     </div>
   );
-}
+}, (prev, next) => {
+  // Comparación personalizada: solo re-renderizar si cambia algo visible
+  const p = prev.mensaje;
+  const n = next.mensaje;
+  return (
+    p.id === n.id &&
+    p.contenido === n.contenido &&
+    p.estado === n.estado &&
+    p.editado === n.editado &&
+    p.eliminado === n.eliminado &&
+    p.reacciones === n.reacciones &&
+    prev.esMio === next.esMio &&
+    prev.esMisNotas === next.esMisNotas &&
+    prev.resaltado === next.resaltado &&
+    prev.menuActivoId === next.menuActivoId &&
+    prev.miId === next.miId
+  );
+});
 
 // =============================================================================
 // SUBCOMPONENTE: Palomitas de estado

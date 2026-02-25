@@ -261,7 +261,7 @@ export function InputMensaje({
   const puedeEnviar = texto.trim().length > 0 && !enviandoMensaje && !bloqueado;
 
   return (
-    <div className="shrink-0 px-3 pb-3 pt-1">
+    <div className="shrink-0 px-0.5 lg:px-3 pb-3 pt-1 bg-[#050d1a]/80 lg:bg-transparent">
       {/* ── Barra de edición ── */}
       {mensajeEditando && (
         <div className="flex items-center gap-2.5 mb-2 mr-4 ml-4 px-6 py-1.5 bg-white/70 backdrop-blur-sm border border-amber-300 rounded-full shadow-sm">
@@ -317,10 +317,10 @@ export function InputMensaje({
       )}
 
       {/* ── Input + botón enviar ── */}
-      <div className="flex items-center gap-2.5 px-4 py-1 pb-0">
+      <div className="flex items-center gap-2 lg:gap-2.5 px-0 lg:px-4 py-1 pb-0">
 
         {/* Pill: emoji + input */}
-        <div className="flex-1 flex items-center gap-1 px-3 py-2.5 bg-gray-200 border border-gray-300 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.25)] focus-within:shadow-[0_4px_22px_rgba(0,0,0,0.45)] transition-shadow duration-150">
+        <div className="flex-1 flex items-center gap-1 px-3 py-2 bg-white/10 border border-white/15 lg:bg-gray-200 lg:border-gray-300 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.25)] focus-within:shadow-[0_4px_22px_rgba(0,0,0,0.45)] transition-shadow duration-150">
 
           {/* Botón emoji (solo desktop) */}
           <button
@@ -359,8 +359,13 @@ export function InputMensaje({
             disabled={bloqueado}
             placeholder={bloqueado ? 'No puedes enviar mensajes a este contacto' : mensajeEditando ? 'Editar mensaje...' : mensajeRespondiendo ? 'Escribir respuesta...' : 'Escribe un mensaje...'}
             maxLength={5000}
+            autoComplete="one-time-code"
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck={false}
+            enterKeyHint="send"
             style={{ fontFamily: 'Inter, "Noto Color Emoji", sans-serif' }}
-            className="flex-1 px-2 bg-transparent border-none outline-none text-[15px] font-medium text-gray-800 placeholder:text-gray-500 disabled:text-gray-400 disabled:cursor-not-allowed"
+            className="flex-1 px-2 bg-transparent border-none outline-none text-[17px] lg:text-[15px] font-medium text-white/90 lg:text-gray-800 placeholder:text-white/40 lg:placeholder:text-gray-500 disabled:text-white/30 lg:disabled:text-gray-400 disabled:cursor-not-allowed"
           />
         </div>
 
@@ -404,7 +409,7 @@ export function InputMensaje({
               ? mensajeEditando
                 ? 'bg-linear-to-br from-amber-500 to-amber-400 text-white shadow-[0_3px_10px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95 cursor-pointer'
                 : 'bg-linear-to-br from-blue-600 to-blue-500 text-white shadow-[0_3px_10px_rgba(37,99,235,0.3)] hover:shadow-[0_4px_14px_rgba(37,99,235,0.4)] hover:scale-105 active:scale-95 cursor-pointer'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-white/10 text-white/30 lg:bg-gray-300 lg:text-gray-500 cursor-not-allowed'
             }
           `}
         >

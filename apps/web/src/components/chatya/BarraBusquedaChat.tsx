@@ -20,8 +20,9 @@
  */
 
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { X, ChevronUp, ChevronDown, Search, Loader2 } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, Search, Loader2, ArrowLeft } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 // =============================================================================
 // TIPOS
@@ -59,6 +60,7 @@ export function BarraBusquedaChat({
   // ---------------------------------------------------------------------------
   const [texto, setTexto] = useState('');
   const [indiceActual, setIndiceActual] = useState(0);
+  const { esMobile } = useBreakpoint();
 
   const inputRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -168,9 +170,21 @@ export function BarraBusquedaChat({
   // ---------------------------------------------------------------------------
   return (
     <div className="flex-1 flex items-center gap-2 min-w-0">
+      {/* Flecha atrás — solo móvil (reemplaza la X) */}
+      {esMobile && (
+        <button
+          onClick={onCerrar}
+          className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 text-gray-500 shrink-0"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+      )}
+
       {/* Input con fondo sutil */}
-      <div className="flex-1 flex items-center gap-2 px-3 h-10 rounded-full bg-white/60 border border-slate-300 min-w-0">
-        <Search className="w-4 h-4 text-slate-500 shrink-0" />
+      <div className={`flex-1 flex items-center gap-2 px-3 ${esMobile ? 'h-11' : 'h-10'} rounded-full bg-white/60 border border-slate-300 min-w-0`}>
+        {/* Lupa — solo desktop */}
+        {!esMobile && <Search className="w-4 h-4 text-slate-500 shrink-0" />}
+
         <input
           ref={inputRef}
           type="text"
@@ -178,7 +192,7 @@ export function BarraBusquedaChat({
           onChange={(e) => handleCambioTexto(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Buscar en la conversación..."
-          className="flex-1 text-sm text-gray-700 bg-transparent outline-none placeholder:text-slate-400 min-w-0"
+          className={`flex-1 ${esMobile ? 'text-[15px]' : 'text-sm'} text-gray-700 bg-transparent outline-none placeholder:text-slate-400 min-w-0`}
         />
 
         {/* Spinner de carga */}
@@ -213,14 +227,16 @@ export function BarraBusquedaChat({
           </>
         )}
 
-        {/* Botón cerrar búsqueda */}
-        <button
-          onClick={onCerrar}
-          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-400 cursor-pointer"
-          title="Cerrar búsqueda (ESC)"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {/* Botón cerrar búsqueda — solo desktop (en móvil la flecha atrás lo reemplaza) */}
+        {!esMobile && (
+          <button
+            onClick={onCerrar}
+            className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-400 cursor-pointer"
+            title="Cerrar búsqueda (ESC)"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );

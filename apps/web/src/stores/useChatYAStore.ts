@@ -30,6 +30,7 @@ import * as chatyaService from '../services/chatyaService';
 import { useAuthStore } from './useAuthStore';
 import { escucharEvento } from '../services/socketService';
 import { notificar } from '../utils/notificaciones';
+import { diagInicio, diagMarca } from '../utils/diagnosticoChatYA';
 import type {
   Conversacion,
   Mensaje,
@@ -142,6 +143,12 @@ interface ChatYAState {
   /** Borradores de texto por conversación — persisten al cambiar de chat */
   borradores: Record<string, string>;
 
+  // ─── Caché de mensajes ─────────────────────────────────────────────
+  /** Mensajes cacheados por conversación — persisten al cerrar ChatYA */
+  cacheMensajes: Record<string, Mensaje[]>;
+  cacheTotalMensajes: Record<string, number>;
+  cacheHayMas: Record<string, boolean>;
+
   // ─── Chat Temporal (lazy creation) ───────────────────────────────────
   chatTemporal: ChatTemporal | null;
 
@@ -171,6 +178,10 @@ interface ChatYAState {
   cargarMensajes: (conversacionId: string, offset?: number) => Promise<void>;
   cargarMensajesAntiguos: () => Promise<void>;
   enviarMensaje: (datos: EnviarMensajeInput) => Promise<Mensaje | null>;
+  /** Refresco silencioso para actualizar mensajes cacheados sin mostrar loading */
+  refrescarMensajesSilencioso: (conversacionId: string) => Promise<void>;
+  /** Pre-carga mensajes de las primeras N conversaciones en segundo plano */
+  precargarMensajes: () => void;
   editarMensaje: (mensajeId: string, datos: EditarMensajeInput) => Promise<boolean>;
   eliminarMensaje: (mensajeId: string) => Promise<boolean>;
   reenviarMensaje: (mensajeId: string, datos: ReenviarMensajeInput) => Promise<boolean>;
@@ -184,6 +195,7 @@ interface ChatYAState {
   cargarContactos: (tipo?: 'personal' | 'comercial') => Promise<void>;
   agregarContacto: (datos: AgregarContactoInput, display?: ContactoDisplay) => Promise<Contacto | null>;
   eliminarContacto: (id: string) => Promise<boolean>;
+  editarAliasContacto: (id: string, alias: string | null) => Promise<boolean>;
 
   // ─── ACCIONES: Bloqueo (Sprint 5) ─────────────────────────────────────
   cargarBloqueados: () => Promise<void>;
@@ -259,6 +271,9 @@ const ESTADO_INICIAL = {
   enviandoMensaje: false,
   chatTemporal: null as ChatTemporal | null,
   error: null as string | null,
+  cacheMensajes: {} as Record<string, Mensaje[]>,
+  cacheTotalMensajes: {} as Record<string, number>,
+  cacheHayMas: {} as Record<string, boolean>,
 };
 
 // =============================================================================
@@ -279,25 +294,76 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   /**
    * Abre una conversación: cambia a vista chat, carga mensajes,
    * marca como leído automáticamente.
+   * CON CACHÉ: si hay mensajes cacheados, los muestra al instante
+   * y refresca silenciosamente desde el servidor.
    */
   abrirConversacion: (conversacionId: string) => {
     // Si ya es la conversación activa, no recargar
     if (get().conversacionActivaId === conversacionId) return;
-    set({
-      vistaActiva: 'chat',
+
+    // ── DIAGNÓSTICO ──
+    diagInicio();
+    diagMarca('1. abrirConversacion: inicio');
+
+    // Leer TODO del estado actual en UNA sola lectura
+    const {
+      conversacionActivaId: prevId,
+      mensajes: prevMensajes,
+      totalMensajes: prevTotal,
+      hayMasMensajes: prevHayMas,
+      cacheMensajes,
+      cacheTotalMensajes,
+      cacheHayMas: cacheHayMasMap,
+    } = get();
+
+    const cache = cacheMensajes[conversacionId];
+    const cacheTotal = cacheTotalMensajes[conversacionId];
+    const cacheHayMas = cacheHayMasMap[conversacionId];
+    const tieneCache = !!(cache && cache.length > 0);
+    const guardarPrevio = !!(prevId && prevMensajes.length > 0);
+
+    diagMarca('2. estado leído');
+
+    // ── UN solo set() atómico: guardar caché anterior + cargar nuevo chat ──
+    set((state) => ({
+      // Guardar caché del chat anterior (solo si había mensajes)
+      ...(guardarPrevio ? {
+        cacheMensajes: { ...state.cacheMensajes, [prevId]: prevMensajes },
+        cacheTotalMensajes: { ...state.cacheTotalMensajes, [prevId]: prevTotal },
+        cacheHayMas: { ...state.cacheHayMas, [prevId]: prevHayMas },
+      } : {}),
+      // Cargar nuevo chat
+      vistaActiva: 'chat' as const,
       conversacionActivaId: conversacionId,
       chatTemporal: null,
-      mensajes: [],
-      totalMensajes: 0,
-      hayMasMensajes: false,
+      mensajes: tieneCache ? cache : [],
+      totalMensajes: tieneCache ? (cacheTotal || 0) : 0,
+      hayMasMensajes: tieneCache ? (cacheHayMas || false) : false,
       escribiendo: null,
-      cargandoMensajes: true,
-    });
+      cargandoMensajes: !tieneCache,
+    }));
 
-    // Cargar mensajes y marcar como leído en paralelo
-    get().cargarMensajes(conversacionId);
-    get().cargarMensajesFijados(conversacionId);
-    get().marcarComoLeido(conversacionId);
+    diagMarca('3. set() atómico' + (tieneCache ? ' (caché)' : ' (loading)'));
+
+    // Sin caché: cargar mensajes inmediatamente (el usuario necesita verlos)
+    if (!tieneCache) {
+      get().cargarMensajes(conversacionId);
+    }
+
+    diagMarca('4. abrirConversacion: fin');
+
+    // ── Diferir operaciones secundarias hasta DESPUÉS del primer paint ──
+    // Cada una de estas llama set() al completar, lo que causa re-renders.
+    // Si las ejecutamos inmediatamente, se apilan 6-8 re-renders antes de que
+    // Virtuoso pueda pintar una sola burbuja.
+    // Con setTimeout(0), dejamos que React pinte primero y luego actualizamos.
+    setTimeout(() => {
+      if (tieneCache) {
+        get().refrescarMensajesSilencioso(conversacionId);
+      }
+      get().cargarMensajesFijados(conversacionId);
+      get().marcarComoLeido(conversacionId);
+    }, 0);
   },
 
   /**
@@ -329,20 +395,41 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     });
   },
 
-  /** Vuelve a la lista de conversaciones y limpia el estado del chat activo */
+  /** Vuelve a la lista de conversaciones, guardando mensajes en caché */
   volverALista: () => {
-    set({
-      vistaActiva: 'lista',
-      conversacionActivaId: null,
-      chatTemporal: null,
-      mensajes: [],
-      totalMensajes: 0,
-      hayMasMensajes: false,
-      escribiendo: null,
-      resultadosBusqueda: [],
-      totalResultadosBusqueda: 0,
-      mensajesFijados: [],
-    });
+    const { conversacionActivaId, mensajes, totalMensajes, hayMasMensajes } = get();
+
+    // Guardar mensajes en caché antes de volver a la lista
+    if (conversacionActivaId && mensajes.length > 0) {
+      set((state) => ({
+        vistaActiva: 'lista' as const,
+        conversacionActivaId: null,
+        chatTemporal: null,
+        mensajes: [],
+        totalMensajes: 0,
+        hayMasMensajes: false,
+        escribiendo: null,
+        resultadosBusqueda: [],
+        totalResultadosBusqueda: 0,
+        mensajesFijados: [],
+        cacheMensajes: { ...state.cacheMensajes, [conversacionActivaId]: mensajes },
+        cacheTotalMensajes: { ...state.cacheTotalMensajes, [conversacionActivaId]: totalMensajes },
+        cacheHayMas: { ...state.cacheHayMas, [conversacionActivaId]: hayMasMensajes },
+      }));
+    } else {
+      set({
+        vistaActiva: 'lista',
+        conversacionActivaId: null,
+        chatTemporal: null,
+        mensajes: [],
+        totalMensajes: 0,
+        hayMasMensajes: false,
+        escribiendo: null,
+        resultadosBusqueda: [],
+        totalResultadosBusqueda: 0,
+        mensajesFijados: [],
+      });
+    }
   },
 
   // ===========================================================================
@@ -579,12 +666,22 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       const respuesta = await chatyaService.getMensajes(conversacionId, 30, offset);
       if (respuesta.success && respuesta.data) {
         const data = respuesta.data as ListaPaginada<Mensaje>;
-        set((state) => ({
-          mensajes: offset === 0
-            ? data.items
-            : [...state.mensajes, ...data.items],
+        const nuevosMensajes = offset === 0
+          ? data.items
+          : [...get().mensajes, ...data.items];
+        const hayMas = offset + data.items.length < data.total;
+
+        set({
+          mensajes: nuevosMensajes,
           totalMensajes: data.total,
-          hayMasMensajes: offset + data.items.length < data.total,
+          hayMasMensajes: hayMas,
+        });
+
+        // Actualizar caché
+        set((state) => ({
+          cacheMensajes: { ...state.cacheMensajes, [conversacionId]: nuevosMensajes },
+          cacheTotalMensajes: { ...state.cacheTotalMensajes, [conversacionId]: data.total },
+          cacheHayMas: { ...state.cacheHayMas, [conversacionId]: hayMas },
         }));
       }
     } catch (error) {
@@ -600,6 +697,73 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     if (!conversacionActivaId || cargandoMensajesAntiguos || !hayMasMensajes) return;
 
     await get().cargarMensajes(conversacionActivaId, mensajes.length);
+  },
+
+  /**
+   * Refresco silencioso: trae mensajes recientes del servidor sin mostrar loading.
+   * Se usa cuando abrimos una conversación cacheada — los mensajes cacheados se muestran
+   * al instante y este refresco trae cualquier mensaje nuevo que haya llegado.
+   */
+  refrescarMensajesSilencioso: async (conversacionId: string) => {
+    try {
+      const respuesta = await chatyaService.getMensajes(conversacionId, 30, 0);
+      if (respuesta.success && respuesta.data) {
+        const data = respuesta.data as ListaPaginada<Mensaje>;
+        const sigueActiva = get().conversacionActivaId === conversacionId;
+
+        if (sigueActiva) {
+          // Solo actualizar si realmente hay cambios (evita re-render innecesario)
+          const actuales = get().mensajes;
+          const hayCambios =
+            actuales.length !== data.items.length ||
+            actuales[0]?.id !== data.items[0]?.id;
+
+          if (hayCambios) {
+            set({
+              mensajes: data.items,
+              totalMensajes: data.total,
+              hayMasMensajes: data.items.length < data.total,
+            });
+          }
+        }
+        // Siempre actualizar caché
+        set((state) => ({
+          cacheMensajes: { ...state.cacheMensajes, [conversacionId]: data.items },
+          cacheTotalMensajes: { ...state.cacheTotalMensajes, [conversacionId]: data.total },
+          cacheHayMas: { ...state.cacheHayMas, [conversacionId]: data.items.length < data.total },
+        }));
+      }
+    } catch (error) {
+      console.error('Error refrescando mensajes silencioso:', error);
+    }
+  },
+
+  /**
+   * Pre-carga mensajes de las primeras N conversaciones en segundo plano.
+   * Se ejecuta después de cargar la lista de conversaciones.
+   * Fire-and-forget: no bloquea la UI.
+   */
+  precargarMensajes: () => {
+    const { conversaciones, cacheMensajes } = get();
+    // Solo pre-cargar las primeras 5 que NO estén ya cacheadas
+    const sinCache = conversaciones
+      .filter((c) => !cacheMensajes[c.id])
+      .slice(0, 5);
+
+    for (const conv of sinCache) {
+      chatyaService.getMensajes(conv.id, 30, 0)
+        .then((resp) => {
+          if (resp.success && resp.data) {
+            const data = resp.data as ListaPaginada<Mensaje>;
+            useChatYAStore.setState((state) => ({
+              cacheMensajes: { ...state.cacheMensajes, [conv.id]: data.items },
+              cacheTotalMensajes: { ...state.cacheTotalMensajes, [conv.id]: data.total },
+              cacheHayMas: { ...state.cacheHayMas, [conv.id]: data.items.length < data.total },
+            }));
+          }
+        })
+        .catch(() => { /* silencioso */ });
+    }
   },
 
   /**
@@ -859,7 +1023,6 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
 
     // Optimista: agregar inmediatamente
     set((state) => ({ contactos: [...state.contactos, contactoOptimista] }));
-    notificar.exito('Contacto agregado');
 
     try {
       const respuesta = await chatyaService.agregarContacto(datos);
@@ -889,7 +1052,6 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
 
     // Optimista
     set({ contactos: contactos.filter((c) => c.id !== id) });
-    notificar.exito('Contacto eliminado');
 
     try {
       const respuesta = await chatyaService.eliminarContacto(id);
@@ -902,6 +1064,33 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     } catch {
       set({ contactos: contactosAnterior });
       notificar.error('Error al eliminar contacto');
+      return false;
+    }
+  },
+
+  editarAliasContacto: async (id: string, alias: string | null) => {
+    const { contactos } = get();
+    const contactosAnterior = [...contactos];
+
+    // Optimista: actualizar alias en la lista
+    set({
+      contactos: contactos.map((c) =>
+        c.id === id ? { ...c, alias: alias?.trim() || null } : c
+      ),
+    });
+
+    try {
+      const respuesta = await chatyaService.editarAliasContacto(id, alias);
+      if (respuesta.success) {
+        notificar.exito('Alias actualizado');
+        return true;
+      }
+      set({ contactos: contactosAnterior });
+      notificar.error('No se pudo actualizar el alias');
+      return false;
+    } catch {
+      set({ contactos: contactosAnterior });
+      notificar.error('Error al actualizar el alias');
       return false;
     }
   },
@@ -1022,21 +1211,54 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   },
 
   fijarMensaje: async (conversacionId: string, mensajeId: string) => {
+    const { mensajes, mensajesFijados } = get();
+    const msg = mensajes.find((m) => m.id === mensajeId);
+
+    // Optimista: crear entrada temporal
+    const fijadoTemporal: MensajeFijado = {
+      id: `temp-${Date.now()}`,
+      mensajeId,
+      fijadoPor: useAuthStore.getState().usuario?.id || '',
+      createdAt: new Date().toISOString(),
+      mensaje: {
+        id: mensajeId,
+        contenido: msg?.contenido || '',
+        tipo: msg?.tipo || 'texto',
+        emisorId: msg?.emisorId || null,
+        createdAt: msg?.createdAt || new Date().toISOString(),
+      },
+    };
+    const fijadosAnterior = [...mensajesFijados];
+    set({ mensajesFijados: [fijadoTemporal, ...mensajesFijados] });
+
     try {
       const respuesta = await chatyaService.fijarMensaje(conversacionId, mensajeId);
       if (respuesta.success && respuesta.data) {
+        // Reemplazar temporal con dato real, preservando campos críticos si el servidor no los devuelve
         set((state) => ({
-          mensajesFijados: [respuesta.data!, ...state.mensajesFijados],
+          mensajesFijados: state.mensajesFijados.map((f) =>
+            f.id === fijadoTemporal.id
+              ? {
+                  ...fijadoTemporal,
+                  ...respuesta.data!,
+                  mensajeId: respuesta.data!.mensajeId || fijadoTemporal.mensajeId,
+                  mensaje: respuesta.data!.mensaje || fijadoTemporal.mensaje,
+                }
+              : f
+          ),
         }));
         return true;
       }
+      set({ mensajesFijados: fijadosAnterior });
       return false;
     } catch {
+      set({ mensajesFijados: fijadosAnterior });
       return false;
     }
   },
 
   desfijarMensaje: async (conversacionId: string, mensajeId: string) => {
+    if (!mensajeId || !conversacionId) return false;
     const { mensajesFijados } = get();
     const fijadosAnterior = [...mensajesFijados];
 
@@ -1223,6 +1445,8 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       get().cargarNoLeidos(modo),
       get().cargarNoLeidosArchivados(modo),
     ]);
+    // Pre-cargar mensajes de las primeras conversaciones en segundo plano
+    get().precargarMensajes();
   },
 
   limpiar: () => {
@@ -1255,10 +1479,17 @@ export const selectConversacionActiva = (state: ChatYAState) =>
 escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, mensaje }) => {
   const state = useChatYAStore.getState();
 
-  // Ignorar mensajes propios: ya fueron agregados por enviarMensaje() (optimistic UI)
+  // Ignorar mensajes propios SOLO si ya existen localmente (actualización optimista del mismo dispositivo)
   const usuario = JSON.parse(localStorage.getItem('ay_usuario') || '{}');
   const miId = usuario?.id;
-  if (mensaje.emisorId === miId) return;
+  if (mensaje.emisorId === miId) {
+    // Verificar si ya existe por ID real O si hay un mensaje temporal pendiente del mismo contenido
+    const yaExiste = state.mensajes.some((m) =>
+      m.id === mensaje.id ||
+      (m.id.startsWith('temp_') && m.conversacionId === conversacionId && m.contenido === mensaje.contenido)
+    );
+    if (yaExiste) return;
+  }
 
   // Verificar si la conversación pertenece a la sucursal activa (modo comercial)
   // Si la lista ya está filtrada por sucursal, solo las conversaciones ahí son relevantes
@@ -1272,25 +1503,39 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
 
   // Si estamos viendo esta conversación Y la pestaña es visible, agregar y marcar leído
   const pestanaVisible = typeof document !== 'undefined' && document.visibilityState === 'visible';
+  const esMensajePropio = mensaje.emisorId === miId;
 
   if (state.conversacionActivaId === conversacionId && pestanaVisible) {
     useChatYAStore.setState((prev) => ({
       mensajes: [mensaje, ...prev.mensajes],
     }));
-    chatyaService.marcarComoLeido(conversacionId).catch(() => { });
+    if (!esMensajePropio) chatyaService.marcarComoLeido(conversacionId).catch(() => { });
   } else if (state.conversacionActivaId === conversacionId && !pestanaVisible) {
     // Conversación abierta pero pestaña no visible
     useChatYAStore.setState((prev) => ({
       mensajes: [mensaje, ...prev.mensajes],
-      totalNoLeidos: esConversacionConocida ? prev.totalNoLeidos + 1 : prev.totalNoLeidos,
+      totalNoLeidos: esConversacionConocida && !esMensajePropio ? prev.totalNoLeidos + 1 : prev.totalNoLeidos,
     }));
-  } else if (esConversacionConocida) {
+  } else if (esConversacionConocida && !esMensajePropio) {
     // Conversación en la lista (pertenece a la sucursal activa): incrementar badge
     useChatYAStore.setState((prev) => ({
       totalNoLeidos: prev.totalNoLeidos + 1,
     }));
   }
   // Si NO es conocida y es modo comercial → es de otra sucursal, no incrementar badge
+
+  // ✅ Actualizar caché si la conversación NO está activa pero sí cacheada
+  if (state.conversacionActivaId !== conversacionId) {
+    const cached = state.cacheMensajes[conversacionId];
+    if (cached) {
+      useChatYAStore.setState((prev) => ({
+        cacheMensajes: {
+          ...prev.cacheMensajes,
+          [conversacionId]: [mensaje, ...cached],
+        },
+      }));
+    }
+  }
 
   // Actualizar preview o agregar conversación nueva
   if (esConversacionConocida) {
@@ -1311,7 +1556,7 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
             ultimoMensajeEmisorId: mensaje.emisorId,
             noLeidos: prev.conversacionActivaId === conversacionId
               ? 0
-              : c.noLeidos + 1,
+              : esMensajePropio ? c.noLeidos : c.noLeidos + 1,
           }
           : c
       ),
@@ -1330,7 +1575,7 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
             ultimoMensajeEmisorId: mensaje.emisorId,
             noLeidos: prev.conversacionActivaId === conversacionId
               ? 0
-              : c.noLeidos + 1,
+              : esMensajePropio ? c.noLeidos : c.noLeidos + 1,
           }
           : c
       ),
@@ -1343,8 +1588,8 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
         useChatYAStore.setState((prev) => {
           if (prev.conversaciones.some((c) => c.id === conversacionId)) return prev;
           return {
-            conversaciones: [{ ...nuevaConv, noLeidos: 1 }, ...prev.conversaciones],
-            totalNoLeidos: prev.totalNoLeidos + 1,
+            conversaciones: [{ ...nuevaConv, noLeidos: esMensajePropio ? 0 : 1 }, ...prev.conversaciones],
+            totalNoLeidos: esMensajePropio ? prev.totalNoLeidos : prev.totalNoLeidos + 1,
           };
         });
       }
@@ -1365,8 +1610,8 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
           useChatYAStore.setState((prev) => {
             if (prev.conversaciones.some((c) => c.id === conversacionId)) return prev;
             return {
-              conversaciones: [{ ...nuevaConv, noLeidos: 1 }, ...prev.conversaciones],
-              totalNoLeidos: prev.totalNoLeidos + 1,
+              conversaciones: [{ ...nuevaConv, noLeidos: esMensajePropio ? 0 : 1 }, ...prev.conversaciones],
+              totalNoLeidos: esMensajePropio ? prev.totalNoLeidos : prev.totalNoLeidos + 1,
             };
           });
         }
@@ -1387,10 +1632,23 @@ escucharEvento<EventoMensajeEditado>('chatya:mensaje-editado', ({ conversacionId
       ),
     }));
   }
+
+  // ✅ Actualizar caché si no es la conversación activa
+  if (state.conversacionActivaId !== conversacionId) {
+    const cached = state.cacheMensajes[conversacionId];
+    if (cached) {
+      useChatYAStore.setState((prev) => ({
+        cacheMensajes: {
+          ...prev.cacheMensajes,
+          [conversacionId]: cached.map((m) => m.id === mensaje.id ? mensaje : m),
+        },
+      }));
+    }
+  }
 });
 
 /** chatya:mensaje-eliminado — Mensaje eliminado en tiempo real */
-escucharEvento<EventoMensajeEliminado>('chatya:mensaje-eliminado', ({ conversacionId, mensajeId }) => {
+escucharEvento<EventoMensajeEliminado>('chatya:mensaje-eliminado', ({ conversacionId, mensajeId, eraUltimoMensaje }) => {
   const state = useChatYAStore.getState();
 
   if (state.conversacionActivaId === conversacionId) {
@@ -1399,6 +1657,39 @@ escucharEvento<EventoMensajeEliminado>('chatya:mensaje-eliminado', ({ conversaci
         m.id === mensajeId
           ? { ...m, eliminado: true, contenido: 'Se eliminó este mensaje' }
           : m
+      ),
+    }));
+  }
+
+  // ✅ Actualizar caché si no es la conversación activa
+  if (state.conversacionActivaId !== conversacionId) {
+    const cached = state.cacheMensajes[conversacionId];
+    if (cached) {
+      useChatYAStore.setState((prev) => ({
+        cacheMensajes: {
+          ...prev.cacheMensajes,
+          [conversacionId]: cached.map((m) =>
+            m.id === mensajeId
+              ? { ...m, eliminado: true, contenido: 'Se eliminó este mensaje' }
+              : m
+          ),
+        },
+      }));
+    }
+  }
+
+  // Si era el último mensaje, actualizar el preview en la lista
+  if (eraUltimoMensaje) {
+    useChatYAStore.setState((prev) => ({
+      conversaciones: prev.conversaciones.map((c) =>
+        c.id === conversacionId
+          ? { ...c, ultimoMensajeTexto: 'Se eliminó este mensaje' }
+          : c
+      ),
+      conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
+        c.id === conversacionId
+          ? { ...c, ultimoMensajeTexto: 'Se eliminó este mensaje' }
+          : c
       ),
     }));
   }
@@ -1420,6 +1711,23 @@ escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoPor, leidoAt
           : m
       ),
     }));
+  }
+
+  // ✅ Actualizar caché si no es la conversación activa
+  if (state.conversacionActivaId !== conversacionId) {
+    const cached = state.cacheMensajes[conversacionId];
+    if (cached) {
+      useChatYAStore.setState((prev) => ({
+        cacheMensajes: {
+          ...prev.cacheMensajes,
+          [conversacionId]: cached.map((m) =>
+            m.emisorId !== leidoPor && m.estado !== 'leido'
+              ? { ...m, estado: 'leido' as const, leidoAt }
+              : m
+          ),
+        },
+      }));
+    }
   }
 
   // Actualizar estado del último mensaje en la lista de conversaciones
@@ -1510,16 +1818,22 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
         if (accion === 'agregada') {
           const existente = reacciones.find((r) => r.emoji === emoji);
           if (existente) {
-            existente.cantidad += 1;
-            (existente.usuarios as string[]).push(usuarioId);
+            // Idempotente: solo agregar si el usuario no está ya en la lista
+            if (!(existente.usuarios as string[]).includes(usuarioId)) {
+              existente.cantidad += 1;
+              (existente.usuarios as string[]).push(usuarioId);
+            }
           } else {
             reacciones.push({ emoji, cantidad: 1, usuarios: [usuarioId] });
           }
         } else {
           const existente = reacciones.find((r) => r.emoji === emoji);
           if (existente) {
-            existente.cantidad -= 1;
-            existente.usuarios = (existente.usuarios as string[]).filter((id) => id !== usuarioId);
+            // Idempotente: solo remover si el usuario todavía está en la lista
+            if ((existente.usuarios as string[]).includes(usuarioId)) {
+              existente.cantidad -= 1;
+              existente.usuarios = (existente.usuarios as string[]).filter((id) => id !== usuarioId);
+            }
             if (existente.cantidad <= 0) {
               const idx = reacciones.indexOf(existente);
               reacciones.splice(idx, 1);
@@ -1561,12 +1875,15 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
 });
 
 /** chatya:mensaje-fijado — Mensaje fijado en tiempo real */
-escucharEvento<EventoMensajeFijado>('chatya:mensaje-fijado', ({ conversacionId, mensajeId: _mensajeId, fijadoPor: _fijadoPor }) => {
+escucharEvento<EventoMensajeFijado>('chatya:mensaje-fijado', ({ conversacionId, mensajeId, fijadoPor: _fijadoPor }) => {
   const state = useChatYAStore.getState();
 
-  // Recargar la lista de fijados si estamos en esa conversación
+  // Recargar solo si estamos en esa conversación Y el mensaje no está ya en la lista (optimista)
   if (state.conversacionActivaId === conversacionId) {
-    state.cargarMensajesFijados(conversacionId);
+    const yaExiste = state.mensajesFijados.some((f) => f.mensajeId === mensajeId);
+    if (!yaExiste) {
+      state.cargarMensajesFijados(conversacionId);
+    }
   }
 });
 
@@ -1610,3 +1927,15 @@ if (typeof document !== 'undefined') {
     chatyaService.marcarComoLeido(conversacionActivaId).catch(() => { });
   });
 }
+
+// =============================================================================
+// SUSCRIPCIÓN: Cerrar chat al hacer logout
+// Cuando el usuario cierra sesión, limpiar la conversación activa para que
+// al iniciar sesión de nuevo el chat aparezca cerrado.
+// =============================================================================
+useAuthStore.subscribe((state, prev) => {
+  // Detectar cuando el usuario pasa de autenticado a no autenticado (logout)
+  if (prev.usuario !== null && state.usuario === null) {
+    useChatYAStore.setState({ conversacionActivaId: null });
+  }
+});

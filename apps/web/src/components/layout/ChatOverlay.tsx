@@ -20,12 +20,13 @@
  * UBICACIÓN: apps/web/src/components/layout/ChatOverlay.tsx
  */
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { X, StickyNote } from 'lucide-react';
+import { X, StickyNote, Pin, BellOff, Archive, Trash2, ArrowLeft, ShieldBan, ShieldOff, UserPlus, UserMinus } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 // Componentes del chat
 import { ListaConversaciones } from '../chatya/ListaConversaciones';
@@ -80,6 +81,89 @@ export function ChatOverlay() {
   const [dragStartY, setDragStartY] = useState<number | null>(null);
   const [dragCurrentY, setDragCurrentY] = useState(0);
 
+  // Selección múltiple estilo WhatsApp (solo móvil)
+  const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
+  const modoSeleccion = seleccionadas.size > 0;
+  const { esMobile } = useBreakpoint();
+
+  // Store actions para acciones en lote
+  const toggleFijar = useChatYAStore((s) => s.toggleFijar);
+  const toggleSilenciar = useChatYAStore((s) => s.toggleSilenciar);
+  const toggleArchivar = useChatYAStore((s) => s.toggleArchivar);
+  const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
+  const bloquearUsuario = useChatYAStore((s) => s.bloquearUsuario);
+  const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
+  const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
+  const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
+  const bloqueados = useChatYAStore((s) => s.bloqueados);
+  const contactos = useChatYAStore((s) => s.contactos);
+  const conversaciones = useChatYAStore((s) => s.conversaciones);
+
+  const handleLongPressSeleccion = useCallback((conversacionId: string) => {
+    setSeleccionadas(new Set([conversacionId]));
+  }, []);
+
+  const handleToggleSeleccion = useCallback((conversacionId: string) => {
+    setSeleccionadas((prev) => {
+      const next = new Set(prev);
+      if (next.has(conversacionId)) next.delete(conversacionId);
+      else next.add(conversacionId);
+      return next;
+    });
+  }, []);
+
+  const cancelarSeleccion = useCallback(() => setSeleccionadas(new Set()), []);
+
+  // Estado de la primera seleccionada → determina icono de contacto y bloqueo
+  const primeraSeleccionada = useMemo(() => {
+    if (seleccionadas.size === 0) return null;
+    const primerId = Array.from(seleccionadas)[0];
+    return conversaciones.find((c) => c.id === primerId) || null;
+  }, [seleccionadas, conversaciones]);
+
+  const primerOtroId = primeraSeleccionada?.otroParticipante?.id;
+  const yaEsContacto = !!(primerOtroId && contactos.find((c) => c.contactoId === primerOtroId && c.tipo === modoActivo));
+  const yaEstaBloqueado = !!(primerOtroId && bloqueados.some((b) => b.bloqueadoId === primerOtroId));
+
+  // Limpiar selección al cerrar ChatYA o al abrir un chat
+  useEffect(() => {
+    if (!chatYAAbierto || conversacionActivaId) {
+      setSeleccionadas(new Set());
+    }
+  }, [chatYAAbierto, conversacionActivaId]);
+
+  const accionEnLote = useCallback(async (accion: 'fijar' | 'silenciar' | 'archivar' | 'eliminar' | 'bloquear' | 'contacto') => {
+    const ids = Array.from(seleccionadas);
+    cancelarSeleccion();
+    for (const id of ids) {
+      const conv = conversaciones.find((c) => c.id === id);
+      const otroId = conv?.otroParticipante?.id;
+      switch (accion) {
+        case 'fijar': await toggleFijar(id); break;
+        case 'silenciar': await toggleSilenciar(id); break;
+        case 'archivar': await toggleArchivar(id); break;
+        case 'eliminar': await eliminarConversacion(id); break;
+        case 'bloquear': {
+          if (!otroId) break;
+          const estaBloqueado = bloqueados.some((b) => b.bloqueadoId === otroId);
+          if (estaBloqueado) await desbloquearUsuario(otroId);
+          else await bloquearUsuario({ bloqueadoId: otroId });
+          break;
+        }
+        case 'contacto': {
+          if (!otroId) break;
+          const contactoExistente = contactos.find((c) => c.contactoId === otroId && c.tipo === modoActivo);
+          if (contactoExistente) {
+            await eliminarContactoStore(contactoExistente.id);
+          } else {
+            await agregarContactoStore({ contactoId: otroId, tipo: modoActivo, negocioId: null, sucursalId: null });
+          }
+          break;
+        }
+      }
+    }
+  }, [seleccionadas, cancelarSeleccion, conversaciones, bloqueados, contactos, modoActivo, toggleFijar, toggleSilenciar, toggleArchivar, eliminarConversacion, bloquearUsuario, desbloquearUsuario, agregarContactoStore, eliminarContactoStore]);
+
   // ---------------------------------------------------------------------------
   // Effect: Detectar si es desktop
   // ---------------------------------------------------------------------------
@@ -88,6 +172,8 @@ export function ChatOverlay() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+
 
   // ---------------------------------------------------------------------------
   // Effect: Limpiar conversación activa al cerrar/minimizar ChatYA
@@ -122,9 +208,9 @@ export function ChatOverlay() {
       }
 
       if (modoActivo === 'comercial') {
-        // Limpiar todo — NO cargar nada aquí
-        // El effect de sucursal recargará cuando sucursalActiva esté lista
-        useChatYAStore.setState({ conversaciones: [], conversacionesArchivadas: [], totalNoLeidos: 0 });
+        // NO limpiar la lista aquí — causa parpadeo al dejar el array vacío.
+        // El effect de sucursal hará cargarConversaciones(..., true) que reemplaza
+        // silenciosamente sin vaciar primero.
       } else {
         // Modo personal: recargar directo (no necesita sucursal)
         if (chatYAAbierto) {
@@ -201,18 +287,24 @@ export function ChatOverlay() {
       top: body.style.top,
       width: body.style.width,
       overflow: body.style.overflow,
+      background: body.style.background,
+      htmlBackground: document.documentElement.style.background,
     };
 
     body.style.position = 'fixed';
     body.style.top = `-${scrollY}px`;
     body.style.width = '100%';
     body.style.overflow = 'hidden';
+    body.style.background = '#ffffff';
+    document.documentElement.style.background = '#ffffff';
 
     return () => {
       body.style.position = prev.position;
       body.style.top = prev.top;
       body.style.width = prev.width;
       body.style.overflow = prev.overflow;
+      body.style.background = prev.background;
+      document.documentElement.style.background = prev.htmlBackground;
       window.scrollTo(0, scrollY);
     };
   }, [chatYAAbierto, chatYAMinimizado, esDesktop]);
@@ -328,6 +420,11 @@ export function ChatOverlay() {
   // ---------------------------------------------------------------------------
   const seAbrioPreviamente = useRef(false);
   if (chatYAAbierto) seAbrioPreviamente.current = true;
+
+  // Montar VentanaChat solo después de haber abierto un chat al menos una vez
+  // Después se mantiene montado con CSS hidden para preservar Virtuoso y caché
+  const seAbrioChatRef = useRef(false);
+
   if (!seAbrioPreviamente.current) return null;
 
   // ---------------------------------------------------------------------------
@@ -335,15 +432,12 @@ export function ChatOverlay() {
   // ---------------------------------------------------------------------------
   const enChat = vistaActiva === 'chat' && conversacionActivaId;
 
+  if (enChat) seAbrioChatRef.current = true;
+  const ventanaChatMontada = seAbrioChatRef.current;
+
   return (
     <div className={!chatYAAbierto ? 'hidden' : ''}>
-      {/* Overlay oscuro — solo móvil */}
-      {!esDesktop && (
-        <div
-          className="fixed inset-0 bg-black/50 z-38 backdrop-blur-[2px]"
-          onClick={cerrarChatYA}
-        />
-      )}
+      {/* Sin overlay oscuro en móvil — el chat es fullscreen */}
 
       {/* Panel principal */}
       {/* X flotante esquina superior derecha — solo desktop y sin chat activo */}
@@ -358,85 +452,125 @@ export function ChatOverlay() {
 
       <div
         ref={panelRef}
-        style={{
-          transform: !esDesktop ? `translateY(${dragCurrentY}px)` : undefined,
-          transition: dragStartY !== null ? 'none' : undefined,
-        }}
         className={`
-          fixed z-39 bg-white overflow-hidden flex
+          fixed bg-white overflow-hidden flex
           ${esDesktop
-            ? `top-[83px] bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
-            : `bottom-0 left-0 right-0 h-[90vh] rounded-t-[22px] shadow-[0_-10px_50px_rgba(15,29,58,0.25)] flex-col`
+            ? `z-41 top-[83px] bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
+            : `z-50 inset-0 flex-col`
           }
         `}
       >
-        {/* ═══ MÓVIL: Handle + Header ═══ */}
+        {/* ═══ MÓVIL: Header ═══ */}
         {!esDesktop && (
           <>
-            {/* Zona oscura unificada: Handle + Header + Modo */}
-            <div className="shrink-0 bg-linear-to-br from-[#0a1628] via-[#0f1d3a] to-[#1a3058] rounded-t-[22px]">
-              {/* Handle de arrastre */}
-              <div
-                ref={handleRef}
-                className="flex items-center justify-center py-1 cursor-grab active:cursor-grabbing"
-              >
-                <div className="w-10 h-1 bg-white/25 rounded-full" />
-              </div>
+            {/* Zona oscura unificada — solo visible en la lista, NO dentro de un chat */}
+            {!enChat && (
+              <div className="shrink-0 bg-linear-to-br from-[#0a1628] via-[#0f1d3a] to-[#1a3058] select-none"
+                style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
 
-              {/* Header móvil */}
-              <div className="flex items-center justify-between px-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <img
-                      src="/ChatYA.webp"
-                      alt="ChatYA"
-                      className="h-10 w-auto object-contain"
-                    />
-                    {totalNoLeidos > 0 && (
-                      <span className="min-w-5 h-5 px-1.5 bg-amber-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center shadow-sm">
-                        {totalNoLeidos > 99 ? '99+' : totalNoLeidos}
-                      </span>
-                    )}
+                {modoSeleccion && !enChat ? (
+                  /* ── TOOLBAR SELECCIÓN (reemplaza header + modo) ── */
+                  <div className="flex items-center justify-between px-3 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <button onClick={cancelarSeleccion} className="p-2 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
+                        <ArrowLeft className="w-5 h-5 text-white/80" />
+                      </button>
+                      <span className="text-base font-bold text-white">{seleccionadas.size}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => accionEnLote('fijar')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
+                        <Pin className="w-5 h-5 text-white/70" />
+                      </button>
+                      <button onClick={() => accionEnLote('silenciar')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
+                        <BellOff className="w-5 h-5 text-white/70" />
+                      </button>
+                      <button onClick={() => accionEnLote('archivar')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
+                        <Archive className="w-5 h-5 text-white/70" />
+                      </button>
+                      <button onClick={() => accionEnLote('contacto')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
+                        {yaEsContacto
+                          ? <UserMinus className="w-5 h-5 text-white/70" />
+                          : <UserPlus className="w-5 h-5 text-white/70" />
+                        }
+                      </button>
+                      <button onClick={() => accionEnLote('bloquear')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
+                        {yaEstaBloqueado
+                          ? <ShieldOff className="w-5 h-5 text-green-400/80" />
+                          : <ShieldBan className="w-5 h-5 text-red-400/80" />
+                        }
+                      </button>
+                      <button onClick={() => accionEnLote('eliminar')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
+                        <Trash2 className="w-5 h-5 text-red-400/80" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <button
-                  onClick={cerrarChatYA}
-                  className="p-1.5 hover:bg-white/10 rounded-lg cursor-pointer"
-                >
-                  <X className="w-5 h-5 text-white/70" />
-                </button>
-              </div>
+                ) : (
+                  /* ── HEADER NORMAL (logo + modo + Mis Notas) ── */
+                  <>
+                    <div className="flex items-center justify-between px-4 py-1">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <img
+                            src="/ChatYA.webp"
+                            alt="ChatYA"
+                            className="h-10 w-auto object-contain"
+                          />
+                          {totalNoLeidos > 0 && (
+                            <span className="min-w-5 h-5 px-1.5 bg-amber-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                              {totalNoLeidos > 99 ? '99+' : totalNoLeidos}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={cerrarChatYA}
+                        className="p-2.5 hover:bg-white/10 rounded-lg cursor-pointer"
+                      >
+                        <X className="w-5 h-5 text-white/70" />
+                      </button>
+                    </div>
 
-              {/* Indicador de modo + Mis Notas */}
-              <div className="flex items-center justify-between px-4 pb-1">
-                <div className="flex items-center gap-1.5">
-                  <div className={`w-2 h-2 rounded-full ${modoActivo === 'comercial' ? 'bg-amber-500' : 'bg-blue-400'}`} />
-                  <span className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                    Modo {modoActivo === 'comercial' ? 'Comercial' : 'Personal'}
-                  </span>
-                </div>
-                {misNotasId && (
-                  <button
-                    onClick={() => abrirConversacion(misNotasId)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer ${conversacionActivaId === misNotasId
-                      ? 'bg-white/15 text-white'
-                      : 'hover:bg-white/10 text-white/60 hover:text-white'
-                      }`}
-                  >
-                    <StickyNote className="w-5 h-5" />
-                    Mis Notas
-                  </button>
+                    {/* Indicador de modo + Mis Notas (solo en lista, no en chat) */}
+                    {!enChat && (
+                      <div className="flex items-center justify-between px-4 pb-1 pt-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-2 h-2 rounded-full ${modoActivo === 'comercial' ? 'bg-amber-500' : 'bg-blue-400'}`} />
+                          <span className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                            Modo {modoActivo === 'comercial' ? 'Comercial' : 'Personal'}
+                          </span>
+                        </div>
+                        {misNotasId && (
+                          <button
+                            onClick={() => abrirConversacion(misNotasId)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer ${conversacionActivaId === misNotasId
+                              ? 'bg-white/15 text-white'
+                              : 'hover:bg-white/10 text-white/60 hover:text-white'
+                              }`}
+                          >
+                            <StickyNote className="w-5 h-5" />
+                            Mis Notas
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
-            </div>
+            )}
 
-            {/* Contenido móvil: una vista a la vez */}
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-              {enChat ? (
-                <VentanaChat />
-              ) : (
-                <ListaConversaciones />
-              )}
+            {/* Contenido móvil: ambas vistas montadas, visibilidad por CSS */}
+            <div className={`flex-1 overflow-hidden flex flex-col min-h-0 ${enChat ? 'bg-white' : 'bg-linear-to-b from-[#0B358F] to-black'}`}>
+              <div className={enChat ? 'hidden' : 'flex flex-col flex-1 min-h-0'}>
+                <ListaConversaciones
+                  seleccionadas={seleccionadas}
+                  modoSeleccion={modoSeleccion}
+                  onLongPressSeleccion={esMobile ? handleLongPressSeleccion : undefined}
+                  onToggleSeleccion={handleToggleSeleccion}
+                />
+              </div>
+              <div className={enChat ? 'flex flex-col flex-1 min-h-0' : 'hidden'}>
+                {ventanaChatMontada && <VentanaChat />}
+              </div>
             </div>
           </>
         )}
@@ -492,10 +626,8 @@ export function ChatOverlay() {
 
             {/* Panel derecho: Ventana de chat */}
             <div className="flex-1 flex flex-col min-w-0 bg-linear-to-b from-gray-100/70 to-gray-200/50">
-              {enChat ? (
-                <VentanaChat />
-              ) : (
-                /* Estado vacío: ningún chat seleccionado */
+              <div className={enChat ? 'hidden' : 'flex-1 flex flex-col'}>
+                {/* Estado vacío: ningún chat seleccionado */}
                 <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden bg-linear-to-br from-blue-200/80 via-indigo-200/60 to-sky-200/70">
                   {/* Burbujas decorativas animadas */}
                   <div className="absolute inset-0 pointer-events-none">
@@ -527,7 +659,10 @@ export function ChatOverlay() {
                     }
                   `}</style>
                 </div>
-              )}
+              </div>
+              <div className={enChat ? 'flex flex-col flex-1 min-h-0' : 'hidden'}>
+                {ventanaChatMontada && <VentanaChat />}
+              </div>
             </div>
           </>
         )}

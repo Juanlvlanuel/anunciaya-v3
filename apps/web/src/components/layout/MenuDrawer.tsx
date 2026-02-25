@@ -67,6 +67,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   const ciudadData = useGpsStore((state) => state.ciudad);
 
   const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
+  const cerrarTodo = useUiStore((state) => state.cerrarTodo);
 
   // ---------------------------------------------------------------------------
   // Hooks
@@ -114,7 +115,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   };
 
   const handleCerrarSesion = () => {
-    onClose();
+    cerrarTodo();
     navigate('/');
     logout();
   };

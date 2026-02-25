@@ -332,6 +332,7 @@ export interface EventoMensajeEditado {
 export interface EventoMensajeEliminado {
   conversacionId: string;
   mensajeId: string;
+  eraUltimoMensaje?: boolean;
 }
 
 /** chatya:leido */
