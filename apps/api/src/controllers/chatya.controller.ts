@@ -26,6 +26,7 @@ import {
   listarContactos,
   agregarContacto,
   eliminarContacto,
+  editarAliasContacto,
   listarBloqueados,
   bloquearUsuario,
   desbloquearUsuario,
@@ -648,6 +649,28 @@ export async function eliminarContactoController(req: Request, res: Response) {
     return res.status(200).json({ success: true, message: resultado.message });
   } catch (error) {
     console.error('Error en eliminarContactoController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+/**
+ * PATCH /api/chatya/contactos/:id/alias
+ */
+export async function editarAliasContactoController(req: Request, res: Response) {
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const contactoId = req.params.id;
+    const { alias } = req.body as { alias: string | null };
+
+    const resultado = await editarAliasContacto(contactoId, usuarioId, alias);
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
+    }
+
+    return res.status(200).json({ success: true, message: resultado.message });
+  } catch (error) {
+    console.error('Error en editarAliasContactoController:', error);
     return res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 }

@@ -47,6 +47,7 @@ import {
   listarContactosController,
   agregarContactoController,
   eliminarContactoController,
+  editarAliasContactoController,
   listarBloqueadosController,
   bloquearUsuarioController,
   desbloquearUsuarioController,
@@ -140,6 +141,9 @@ router.post('/contactos', agregarContactoController);
 
 /** DELETE /api/chatya/contactos/:id */
 router.delete('/contactos/:id', eliminarContactoController);
+
+/** PATCH /api/chatya/contactos/:id/alias */
+router.patch('/contactos/:id/alias', editarAliasContactoController);
 
 // =============================================================================
 // BLOQUEADOS

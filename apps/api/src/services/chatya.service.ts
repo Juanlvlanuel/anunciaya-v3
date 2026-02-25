@@ -20,7 +20,7 @@ import {
     chatContactos,
     ofertas,
 } from '../db/schemas/schema.js';
-import { eq, and, or, desc, sql, ne } from 'drizzle-orm';
+import { eq, and, or, desc, sql, ne, count } from 'drizzle-orm';
 import { emitirAUsuario } from '../socket.js';
 import type {
     ModoChatYA,
@@ -176,8 +176,17 @@ async function obtenerDatosParticipante(
                 .limit(1);
 
             if (sucursal) {
-                datos.sucursalNombre = sucursal.nombre;
                 datos.negocioLogo = sucursal.fotoPerfil ?? undefined;
+
+                // Solo mostrar nombre de sucursal si el negocio tiene más de una
+                const [{ total }] = await db
+                    .select({ total: count() })
+                    .from(negocioSucursales)
+                    .where(eq(negocioSucursales.negocioId, usuario.negocioId!));
+
+                if (total > 1) {
+                    datos.sucursalNombre = sucursal.nombre;
+                }
             }
         }
     }
@@ -1270,6 +1279,33 @@ export async function eliminarMensaje(
             })
             .where(eq(chatMensajes.id, mensajeId));
 
+        // Verificar si el mensaje eliminado era el último de la conversación.
+        // La query corre DESPUÉS del soft-delete, así que el mensaje borrado ya tiene
+        // eliminado=true y no aparece. Por eso comparamos fechas: si el último mensaje
+        // vivo es más antiguo que el borrado, el borrado era el más reciente.
+        const [ultimoMsgVivo] = await db
+            .select({ id: chatMensajes.id, createdAt: chatMensajes.createdAt })
+            .from(chatMensajes)
+            .where(
+                and(
+                    eq(chatMensajes.conversacionId, msg.conversacionId),
+                    eq(chatMensajes.eliminado, false)
+                )
+            )
+            .orderBy(desc(chatMensajes.createdAt))
+            .limit(1);
+
+        const eraUltimoMensaje = !ultimoMsgVivo ||
+            new Date(ultimoMsgVivo.createdAt ?? 0) < new Date(msg.createdAt ?? 0);
+
+        // Si era el último, actualizar el preview de la conversación
+        if (eraUltimoMensaje) {
+            await db
+                .update(chatConversaciones)
+                .set({ ultimoMensajeTexto: 'Se eliminó este mensaje' })
+                .where(eq(chatConversaciones.id, msg.conversacionId));
+        }
+
         // Emitir por Socket.io
         const [conv] = await db
             .select()
@@ -1285,6 +1321,7 @@ export async function eliminarMensaje(
             const payload = {
                 conversacionId: msg.conversacionId,
                 mensajeId,
+                eraUltimoMensaje,
             };
 
             emitirAUsuario(otroId, 'chatya:mensaje-eliminado', payload);
@@ -1531,9 +1568,20 @@ export async function listarContactos(
                         .limit(1);
 
                     if (sucursal) {
-                        resp.sucursalNombre = sucursal.nombre;
                         if (sucursal.fotoPerfil) {
                             resp.negocioLogo = sucursal.fotoPerfil;
+                        }
+
+                        // Solo mostrar nombre de sucursal si el negocio tiene más de una
+                        if (c.negocioId) {
+                            const [{ total }] = await db
+                                .select({ total: count() })
+                                .from(negocioSucursales)
+                                .where(eq(negocioSucursales.negocioId, c.negocioId));
+
+                            if (total > 1) {
+                                resp.sucursalNombre = sucursal.nombre;
+                            }
                         }
                     }
                 }
@@ -1652,7 +1700,41 @@ export async function eliminarContacto(
 }
 
 // =============================================================================
-// 17. LISTAR BLOQUEADOS
+// 16B. EDITAR ALIAS DE CONTACTO
+// =============================================================================
+
+export async function editarAliasContacto(
+    contactoId: string,
+    usuarioId: string,
+    alias: string | null
+): Promise<RespuestaServicio> {
+    try {
+        const [contacto] = await db
+            .select({ id: chatContactos.id })
+            .from(chatContactos)
+            .where(
+                and(
+                    eq(chatContactos.id, contactoId),
+                    eq(chatContactos.usuarioId, usuarioId)
+                )
+            )
+            .limit(1);
+
+        if (!contacto) {
+            return { success: false, message: 'Contacto no encontrado', code: 404 };
+        }
+
+        await db
+            .update(chatContactos)
+            .set({ alias: alias?.trim() || null })
+            .where(eq(chatContactos.id, contactoId));
+
+        return { success: true, message: 'Alias actualizado' };
+    } catch (error) {
+        console.error('Error en editarAliasContacto:', error);
+        return { success: false, message: 'Error al editar alias', code: 500 };
+    }
+}
 // =============================================================================
 
 export async function listarBloqueados(
@@ -1798,7 +1880,7 @@ export async function toggleReaccion(
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
 
-        // Verificar si ya existe la reacción
+        // Verificar si ya existe la misma reacción (mismo emoji)
         const [existente] = await db
             .select({ id: chatReacciones.id })
             .from(chatReacciones)
@@ -1814,11 +1896,42 @@ export async function toggleReaccion(
         let accion: 'agregada' | 'eliminada';
 
         if (existente) {
-            // Quitar reacción
+            // Mismo emoji → quitar reacción (toggle off)
             await db.delete(chatReacciones).where(eq(chatReacciones.id, existente.id));
             accion = 'eliminada';
         } else {
-            // Agregar reacción
+            // Emoji diferente o ninguno → eliminar reacción previa si existe, luego agregar nueva
+            const [reaccionPrevia] = await db
+                .select({ id: chatReacciones.id, emoji: chatReacciones.emoji })
+                .from(chatReacciones)
+                .where(
+                    and(
+                        eq(chatReacciones.mensajeId, mensajeId),
+                        eq(chatReacciones.usuarioId, usuarioId)
+                    )
+                )
+                .limit(1);
+
+            if (reaccionPrevia) {
+                // Eliminar reacción previa y emitir evento de eliminación
+                await db.delete(chatReacciones).where(eq(chatReacciones.id, reaccionPrevia.id));
+
+                const otroIdPrev = conv.participante1Id === usuarioId
+                    ? conv.participante2Id
+                    : conv.participante1Id;
+
+                const payloadPrev = {
+                    conversacionId: msg.conversacionId,
+                    mensajeId,
+                    emoji: reaccionPrevia.emoji,
+                    usuarioId,
+                    accion: 'eliminada' as const,
+                };
+                emitirAUsuario(otroIdPrev, 'chatya:reaccion', payloadPrev);
+                emitirAUsuario(usuarioId, 'chatya:reaccion', payloadPrev);
+            }
+
+            // Agregar nueva reacción
             await db.insert(chatReacciones).values({
                 mensajeId,
                 usuarioId,
