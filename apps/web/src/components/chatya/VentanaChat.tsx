@@ -93,7 +93,8 @@ const AreaMensajes = memo(function AreaMensajes({
         atBottomStateChange={(atBottom) => {
           mostrarScrollAbajoRef.current = !atBottom;
           if (scrollBtnRef.current) {
-            scrollBtnRef.current.style.display = atBottom ? 'none' : 'flex';
+            // No mostrar hasta que Virtuoso esté visible (evita flash durante montaje)
+            scrollBtnRef.current.style.display = (!atBottom && virtuosoListoRef.current) ? 'flex' : 'none';
           }
         }}
         atBottomThreshold={300}
@@ -111,9 +112,12 @@ const AreaMensajes = memo(function AreaMensajes({
             if (!virtuosoListoRef.current) {
               virtuosoListoRef.current = true;
               requestAnimationFrame(() => {
-                if (virtuosoWrapperRef.current) {
-                  virtuosoWrapperRef.current.style.opacity = '1';
-                }
+                virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+                requestAnimationFrame(() => {
+                  if (virtuosoWrapperRef.current) {
+                    virtuosoWrapperRef.current.style.opacity = '1';
+                  }
+                });
               });
             }
           }
@@ -238,10 +242,10 @@ function VentanaChatInner() {
   // Verificar si el otro participante ya es contacto
   const contactoExistente = !esMisNotas && otro
     ? contactos.find((c) =>
-        c.contactoId === otro.id &&
-        c.tipo === modoActivo &&
-        c.sucursalId === otroSucursalId
-      )
+      c.contactoId === otro.id &&
+      c.tipo === modoActivo &&
+      c.sucursalId === otroSucursalId
+    )
     : undefined;
 
   const estaEscribiendo = !esMisNotas && escribiendo?.conversacionId === conversacionActivaId;
@@ -714,22 +718,21 @@ function VentanaChatInner() {
                   )}
                   {/* Agregar/quitar contacto — solo desktop (en móvil está en menú contextual) */}
                   {!esMobile && (
-                  <Tooltip text={contactoExistente ? 'Quitar de contactos' : 'Agregar a contactos'}>
-                    <button
-                      onClick={handleToggleContacto}
-                      className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${
-                        contactoExistente
+                    <Tooltip text={contactoExistente ? 'Quitar de contactos' : 'Agregar a contactos'}>
+                      <button
+                        onClick={handleToggleContacto}
+                        className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${contactoExistente
                           ? 'hover:bg-red-100 text-green-600 hover:text-red-500'
                           : 'hover:bg-slate-200 text-gray-500 hover:text-blue-500'
-                      }`}
-                    >
-                      {contactoExistente ? (
-                        <UserMinus className="w-5 h-5" />
-                      ) : (
-                        <UserPlus className="w-5 h-5" />
-                      )}
-                    </button>
-                  </Tooltip>
+                          }`}
+                      >
+                        {contactoExistente ? (
+                          <UserMinus className="w-5 h-5" />
+                        ) : (
+                          <UserPlus className="w-5 h-5" />
+                        )}
+                      </button>
+                    </Tooltip>
                   )}
                   <div className="relative">
                     {!esTemporal && (
@@ -757,12 +760,12 @@ function VentanaChatInner() {
               )}
               {/* X cerrar — solo desktop (en móvil la flecha atrás lo reemplaza) */}
               {!esMobile && (
-              <button
-                onClick={cerrarChatYA}
-                className="w-9 h-9 rounded-lg hover:bg-slate-200 flex items-center justify-center text-gray-500 hover:text-red-400 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+                <button
+                  onClick={cerrarChatYA}
+                  className="w-9 h-9 rounded-lg hover:bg-slate-200 flex items-center justify-center text-gray-500 hover:text-red-400 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               )}
             </div>
           )}
@@ -895,6 +898,7 @@ function VentanaChatInner() {
         >
           {!cargandoMensajes && mensajesConSeparadores.length > 0 && (
             <AreaMensajes
+              key={conversacionActivaId}
               datos={mensajesConSeparadores}
               firstItemIndex={firstItemIndexRef.current}
               virtuosoRef={virtuosoRef}

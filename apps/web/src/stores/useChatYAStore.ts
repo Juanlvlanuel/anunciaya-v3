@@ -356,8 +356,10 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       if (tieneCache) {
         get().refrescarMensajesSilencioso(conversacionId);
       }
-      // Refrescar fijados silenciosamente (sin causar re-render si no cambiaron)
-      get().cargarMensajesFijados(conversacionId);
+      // Solo fetch fijados si no hay caché — los socket events los mantienen sincronizados
+      if (fijadosCache.length === 0) {
+        get().cargarMensajesFijados(conversacionId);
+      }
       get().marcarComoLeido(conversacionId);
     }, 0);
   },
@@ -709,13 +711,15 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         const sigueActiva = get().conversacionActivaId === conversacionId;
 
         if (sigueActiva) {
-          // Solo actualizar si realmente hay cambios (evita re-render innecesario)
           const actuales = get().mensajes;
-          const hayCambios =
-            actuales.length !== data.items.length ||
-            actuales[0]?.id !== data.items[0]?.id;
+          // Solo actualizar si llegaron mensajes NUEVOS (el más reciente cambió).
+          // Los cambios de estado (palomitas, editado, eliminado) ya los manejan
+          // los socket events en tiempo real — no necesitamos re-render aquí.
+          const mensajeNuevoLlego =
+            data.items.length > 0 &&
+            (actuales.length === 0 || data.items[0]?.id !== actuales[0]?.id);
 
-          if (hayCambios) {
+          if (mensajeNuevoLlego) {
             set({
               mensajes: data.items,
               totalMensajes: data.total,
@@ -723,7 +727,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
             });
           }
         }
-        // Siempre actualizar caché
+        // Siempre actualizar caché (no causa re-render de VentanaChat)
         set((state) => ({
           cacheMensajes: { ...state.cacheMensajes, [conversacionId]: data.items },
           cacheTotalMensajes: { ...state.cacheTotalMensajes, [conversacionId]: data.total },
@@ -1198,9 +1202,11 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         const nuevos = respuesta.data;
         const actuales = get().mensajesFijados;
 
-        // Evitar re-render si los fijados no cambiaron
-        const mismos = nuevos.length === actuales.length &&
-          nuevos.every((n, i) => n.id === actuales[i]?.id);
+        // Comparar por mensajeId (estable) e independiente del orden
+        const idsActuales = new Set(actuales.map((f) => f.mensajeId));
+        const idsNuevos = new Set(nuevos.map((f) => f.mensajeId));
+        const mismos = idsActuales.size === idsNuevos.size &&
+          [...idsNuevos].every((id) => idsActuales.has(id));
 
         if (!mismos) {
           set({ mensajesFijados: nuevos });
