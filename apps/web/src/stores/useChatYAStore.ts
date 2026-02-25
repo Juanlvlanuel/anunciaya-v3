@@ -11,7 +11,6 @@
  *   - Gestionar contactos y bloqueados
  *   - Controlar badge de no leídos (total y por conversación)
  *   - Controlar la vista activa del ChatOverlay
- *   - Manejar cola de mensajes offline
  *   - Manejar indicador "escribiendo..."
  *   - Escuchar eventos Socket.io para tiempo real
  *
@@ -46,7 +45,6 @@ import type {
   UsuarioBloqueado,
   BloquearUsuarioInput,
   MensajeFijado,
-  MensajeOffline,
   EstadoEscribiendo,
   ListaPaginada,
   EventoMensajeNuevo,
@@ -63,9 +61,6 @@ import type {
 // =============================================================================
 // CONSTANTES
 // =============================================================================
-
-/** Máximo de mensajes en cola offline */
-const MAX_COLA_OFFLINE = 50;
 
 // =============================================================================
 // TIPOS DEL STORE
@@ -121,9 +116,6 @@ interface ChatYAState {
   // ─── Escribiendo ──────────────────────────────────────────────────────
   escribiendo: EstadoEscribiendo | null;
 
-  // ─── Cola offline ─────────────────────────────────────────────────────
-  colaOffline: MensajeOffline[];
-
   // ─── Contactos (Sprint 5) ─────────────────────────────────────────────
   contactos: Contacto[];
   cargandoContactos: boolean;
@@ -148,6 +140,8 @@ interface ChatYAState {
   cacheMensajes: Record<string, Mensaje[]>;
   cacheTotalMensajes: Record<string, number>;
   cacheHayMas: Record<string, boolean>;
+  /** Mensajes fijados cacheados por conversación — evita fetch HTTP al cambiar de chat */
+  cacheFijados: Record<string, MensajeFijado[]>;
 
   // ─── Chat Temporal (lazy creation) ───────────────────────────────────
   chatTemporal: ChatTemporal | null;
@@ -216,10 +210,6 @@ interface ChatYAState {
   guardarBorrador: (conversacionId: string, texto: string) => void;
   limpiarBorrador: (conversacionId: string) => void;
 
-  // ─── ACCIONES: Cola offline ───────────────────────────────────────────
-  agregarAColaOffline: (mensaje: MensajeOffline) => void;
-  enviarColaOffline: () => Promise<void>;
-
   // ─── ACCIONES: Escribiendo ────────────────────────────────────────────
   setEscribiendo: (estado: EstadoEscribiendo | null) => void;
 
@@ -252,7 +242,6 @@ const ESTADO_INICIAL = {
   archivadosVersion: 0,
   conversacionesArchivadas: [] as Conversacion[],
   escribiendo: null as EstadoEscribiendo | null,
-  colaOffline: [] as MensajeOffline[],
   contactos: [] as Contacto[],
   cargandoContactos: false,
   bloqueados: [] as UsuarioBloqueado[],
@@ -274,6 +263,7 @@ const ESTADO_INICIAL = {
   cacheMensajes: {} as Record<string, Mensaje[]>,
   cacheTotalMensajes: {} as Record<string, number>,
   cacheHayMas: {} as Record<string, boolean>,
+  cacheFijados: {} as Record<string, MensajeFijado[]>,
 };
 
 // =============================================================================
@@ -309,17 +299,20 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     const {
       conversacionActivaId: prevId,
       mensajes: prevMensajes,
+      mensajesFijados: prevFijados,
       totalMensajes: prevTotal,
       hayMasMensajes: prevHayMas,
       cacheMensajes,
       cacheTotalMensajes,
       cacheHayMas: cacheHayMasMap,
+      cacheFijados,
     } = get();
 
     const cache = cacheMensajes[conversacionId];
     const cacheTotal = cacheTotalMensajes[conversacionId];
     const cacheHayMas = cacheHayMasMap[conversacionId];
     const tieneCache = !!(cache && cache.length > 0);
+    const fijadosCache = cacheFijados[conversacionId] || [];
     const guardarPrevio = !!(prevId && prevMensajes.length > 0);
 
     diagMarca('2. estado leído');
@@ -331,14 +324,16 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         cacheMensajes: { ...state.cacheMensajes, [prevId]: prevMensajes },
         cacheTotalMensajes: { ...state.cacheTotalMensajes, [prevId]: prevTotal },
         cacheHayMas: { ...state.cacheHayMas, [prevId]: prevHayMas },
+        cacheFijados: { ...state.cacheFijados, [prevId]: prevFijados },
       } : {}),
-      // Cargar nuevo chat
+      // Cargar nuevo chat (mensajes + fijados desde caché = 0 fetches)
       vistaActiva: 'chat' as const,
       conversacionActivaId: conversacionId,
       chatTemporal: null,
       mensajes: tieneCache ? cache : [],
       totalMensajes: tieneCache ? (cacheTotal || 0) : 0,
       hayMasMensajes: tieneCache ? (cacheHayMas || false) : false,
+      mensajesFijados: fijadosCache,
       escribiendo: null,
       cargandoMensajes: !tieneCache,
     }));
@@ -361,6 +356,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       if (tieneCache) {
         get().refrescarMensajesSilencioso(conversacionId);
       }
+      // Refrescar fijados silenciosamente (sin causar re-render si no cambiaron)
       get().cargarMensajesFijados(conversacionId);
       get().marcarComoLeido(conversacionId);
     }, 0);
@@ -395,11 +391,11 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     });
   },
 
-  /** Vuelve a la lista de conversaciones, guardando mensajes en caché */
+  /** Vuelve a la lista de conversaciones, guardando mensajes y fijados en caché */
   volverALista: () => {
-    const { conversacionActivaId, mensajes, totalMensajes, hayMasMensajes } = get();
+    const { conversacionActivaId, mensajes, totalMensajes, hayMasMensajes, mensajesFijados } = get();
 
-    // Guardar mensajes en caché antes de volver a la lista
+    // Guardar mensajes + fijados en caché antes de volver a la lista
     if (conversacionActivaId && mensajes.length > 0) {
       set((state) => ({
         vistaActiva: 'lista' as const,
@@ -415,6 +411,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         cacheMensajes: { ...state.cacheMensajes, [conversacionActivaId]: mensajes },
         cacheTotalMensajes: { ...state.cacheTotalMensajes, [conversacionActivaId]: totalMensajes },
         cacheHayMas: { ...state.cacheHayMas, [conversacionActivaId]: hayMasMensajes },
+        cacheFijados: { ...state.cacheFijados, [conversacionActivaId]: mensajesFijados },
       }));
     } else {
       set({
@@ -772,7 +769,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
    * 2. Lo inserta al inicio del array (más reciente primero)
    * 3. Envía al backend
    * 4. Reemplaza ID temporal con el real
-   * 5. Si falla → rollback o mover a cola offline
+   * 5. Si falla → marcar como fallido
    */
   enviarMensaje: async (datos: EnviarMensajeInput) => {
     const { conversacionActivaId, mensajes, conversaciones } = get();
@@ -850,22 +847,12 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         return null;
       }
     } catch {
-      // Si hay error de red, mover a cola offline
+      // Si hay error de red, marcar como fallido
       set((state) => ({
         mensajes: state.mensajes.map((m) =>
-          m.id === idTemporal ? { ...m, estado: 'enviado' as const } : m
+          m.id === idTemporal ? { ...m, estado: 'fallido' as const } : m
         ),
       }));
-
-      get().agregarAColaOffline({
-        idTemporal,
-        conversacionId: conversacionActivaId,
-        contenido: datos.contenido,
-        tipo: datos.tipo || 'texto',
-        respuestaAId: datos.respuestaAId,
-        creadoLocalAt: new Date().toISOString(),
-        reintentos: 0,
-      });
 
       return null;
     } finally {
@@ -1196,17 +1183,40 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   // ===========================================================================
 
   cargarMensajesFijados: async (conversacionId: string) => {
-    set({ cargandoFijados: true });
+    // Solo mostrar loading si NO hay fijados en pantalla (primera carga)
+    const tieneFijadosVisibles = get().mensajesFijados.length > 0;
+    if (!tieneFijadosVisibles) {
+      set({ cargandoFijados: true });
+    }
 
     try {
       const respuesta = await chatyaService.getMensajesFijados(conversacionId);
       if (respuesta.success && respuesta.data) {
-        set({ mensajesFijados: respuesta.data });
+        // Verificar que seguimos en la misma conversación (el usuario pudo cambiar)
+        if (get().conversacionActivaId !== conversacionId) return;
+
+        const nuevos = respuesta.data;
+        const actuales = get().mensajesFijados;
+
+        // Evitar re-render si los fijados no cambiaron
+        const mismos = nuevos.length === actuales.length &&
+          nuevos.every((n, i) => n.id === actuales[i]?.id);
+
+        if (!mismos) {
+          set({ mensajesFijados: nuevos });
+        }
+
+        // Actualizar caché siempre (es barato, no causa re-render)
+        set((state) => ({
+          cacheFijados: { ...state.cacheFijados, [conversacionId]: nuevos },
+        }));
       }
     } catch (error) {
       console.error('Error cargando mensajes fijados:', error);
     } finally {
-      set({ cargandoFijados: false });
+      if (!tieneFijadosVisibles) {
+        set({ cargandoFijados: false });
+      }
     }
   },
 
@@ -1235,8 +1245,8 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       const respuesta = await chatyaService.fijarMensaje(conversacionId, mensajeId);
       if (respuesta.success && respuesta.data) {
         // Reemplazar temporal con dato real, preservando campos críticos si el servidor no los devuelve
-        set((state) => ({
-          mensajesFijados: state.mensajesFijados.map((f) =>
+        set((state) => {
+          const fijadosActualizados = state.mensajesFijados.map((f) =>
             f.id === fijadoTemporal.id
               ? {
                   ...fijadoTemporal,
@@ -1245,14 +1255,24 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
                   mensaje: respuesta.data!.mensaje || fijadoTemporal.mensaje,
                 }
               : f
-          ),
-        }));
+          );
+          return {
+            mensajesFijados: fijadosActualizados,
+            cacheFijados: { ...state.cacheFijados, [conversacionId]: fijadosActualizados },
+          };
+        });
         return true;
       }
-      set({ mensajesFijados: fijadosAnterior });
+      set((state) => ({
+        mensajesFijados: fijadosAnterior,
+        cacheFijados: { ...state.cacheFijados, [conversacionId]: fijadosAnterior },
+      }));
       return false;
     } catch {
-      set({ mensajesFijados: fijadosAnterior });
+      set((state) => ({
+        mensajesFijados: fijadosAnterior,
+        cacheFijados: { ...state.cacheFijados, [conversacionId]: fijadosAnterior },
+      }));
       return false;
     }
   },
@@ -1261,21 +1281,30 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     if (!mensajeId || !conversacionId) return false;
     const { mensajesFijados } = get();
     const fijadosAnterior = [...mensajesFijados];
+    const fijadosFiltrados = mensajesFijados.filter((f) => f.mensajeId !== mensajeId);
 
-    // Optimista
-    set({
-      mensajesFijados: mensajesFijados.filter((f) => f.mensajeId !== mensajeId),
-    });
+    // Optimista: actualizar estado + caché
+    set((state) => ({
+      mensajesFijados: fijadosFiltrados,
+      cacheFijados: { ...state.cacheFijados, [conversacionId]: fijadosFiltrados },
+    }));
 
     try {
       const respuesta = await chatyaService.desfijarMensaje(conversacionId, mensajeId);
       if (respuesta.success) {
         return true;
       }
-      set({ mensajesFijados: fijadosAnterior });
+      // Rollback
+      set((state) => ({
+        mensajesFijados: fijadosAnterior,
+        cacheFijados: { ...state.cacheFijados, [conversacionId]: fijadosAnterior },
+      }));
       return false;
     } catch {
-      set({ mensajesFijados: fijadosAnterior });
+      set((state) => ({
+        mensajesFijados: fijadosAnterior,
+        cacheFijados: { ...state.cacheFijados, [conversacionId]: fijadosAnterior },
+      }));
       return false;
     }
   },
@@ -1328,61 +1357,6 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       try { localStorage.setItem('chatya_borradores', JSON.stringify(nuevos)); } catch { /* sin acceso a localStorage */ }
       return { borradores: nuevos };
     });
-  },
-
-  // ===========================================================================
-  // ACCIONES: Cola offline
-  // ===========================================================================
-
-  agregarAColaOffline: (mensaje: MensajeOffline) => {
-    set((state) => {
-      let cola = [...state.colaOffline, mensaje];
-      // Si excede el máximo, descartar los más antiguos
-      if (cola.length > MAX_COLA_OFFLINE) {
-        cola = cola.slice(cola.length - MAX_COLA_OFFLINE);
-      }
-      return { colaOffline: cola };
-    });
-  },
-
-  /** Envía todos los mensajes de la cola offline al reconectar */
-  enviarColaOffline: async () => {
-    const { colaOffline } = get();
-    if (colaOffline.length === 0) return;
-
-    const colaActual = [...colaOffline];
-    set({ colaOffline: [] });
-
-    for (const mensajePendiente of colaActual) {
-      try {
-        const respuesta = await chatyaService.enviarMensaje(
-          mensajePendiente.conversacionId,
-          {
-            contenido: mensajePendiente.contenido,
-            tipo: mensajePendiente.tipo,
-            respuestaAId: mensajePendiente.respuestaAId,
-          }
-        );
-
-        if (respuesta.success && respuesta.data) {
-          // Reemplazar mensaje temporal con el real
-          set((state) => ({
-            mensajes: state.mensajes.map((m) =>
-              m.id === mensajePendiente.idTemporal ? respuesta.data! : m
-            ),
-          }));
-        }
-      } catch {
-        // Si falla de nuevo, re-encolar con +1 reintento
-        if (mensajePendiente.reintentos < 3) {
-          get().agregarAColaOffline({
-            ...mensajePendiente,
-            reintentos: mensajePendiente.reintentos + 1,
-          });
-        }
-        // Si ya reintentó 3 veces, se descarta
-      }
-    }
   },
 
   // ===========================================================================
@@ -1892,9 +1866,13 @@ escucharEvento<EventoMensajeDesfijado>('chatya:mensaje-desfijado', ({ conversaci
   const state = useChatYAStore.getState();
 
   if (state.conversacionActivaId === conversacionId) {
-    useChatYAStore.setState((prev) => ({
-      mensajesFijados: prev.mensajesFijados.filter((f) => f.mensajeId !== mensajeId),
-    }));
+    useChatYAStore.setState((prev) => {
+      const fijadosActualizados = prev.mensajesFijados.filter((f) => f.mensajeId !== mensajeId);
+      return {
+        mensajesFijados: fijadosActualizados,
+        cacheFijados: { ...prev.cacheFijados, [conversacionId]: fijadosActualizados },
+      };
+    });
   }
 });
 

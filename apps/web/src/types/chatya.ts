@@ -8,11 +8,11 @@
  * ALINEADO CON: apps/api/src/types/chatya.types.ts
  *
  * Todos los tipos reflejan EXACTAMENTE lo que retorna el backend.
- * Los tipos adicionales para UI (cola offline, vistas, estados visuales)
+ * Los tipos adicionales para UI (vistas, estados visuales)
  * se derivan de los tipos base sin duplicar campos.
  *
  * SPRINTS:
- *   - Sprint 4 (Frontend Core): Conversaciones, Mensajes, Paginación, Cola offline
+ *   - Sprint 4 (Frontend Core): Conversaciones, Mensajes, Paginación
  *   - Sprint 5 (Frontend Complementario): Contactos, Bloqueo, Reacciones, Fijados, Búsqueda
  *   - Sprint 6 (Multimedia): Imágenes, Audio, Documentos, Ubicación
  */
@@ -381,28 +381,6 @@ export interface EventoMensajeFijado {
 export interface EventoMensajeDesfijado {
   conversacionId: string;
   mensajeId: string;
-}
-
-// =============================================================================
-// COLA OFFLINE — Mensajes pendientes por enviar
-// =============================================================================
-
-/**
- * Mensaje encolado mientras el usuario está sin conexión.
- * Se guarda en el store y se envía al reconectar Socket.io.
- * Máximo 50 mensajes en cola.
- */
-export interface MensajeOffline {
-  /** ID temporal local (para identificar en la UI) */
-  idTemporal: string;
-  conversacionId: string;
-  contenido: string;
-  tipo: TipoMensaje;
-  respuestaAId?: string | null;
-  /** Timestamp local para ordenar y mostrar en la UI */
-  creadoLocalAt: string;
-  /** Número de reintentos fallidos */
-  reintentos: number;
 }
 
 // =============================================================================
