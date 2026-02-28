@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 30 Enero 2026  
-**Versión:** 1.0 (Completamente Verificado)
+**Última actualización:** 12 Febrero 2026  
+**Versión:** 1.1 (Completamente Verificado)
 
 ---
 
@@ -55,7 +55,7 @@ Business Studio es el **centro de administración completo** para negocios regis
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 4 de 15 módulos completados (27%)
+**Progreso actual:** 5 de 15 módulos completados (33%)
 
 ---
 
@@ -199,7 +199,7 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 9 | Puntos | `/business-studio/puntos` | Coins | ⏳ Pendiente |
+| 9 | Puntos | `/business-studio/puntos` | Coins | ✅ 100% |
 | 10 | Rifas | `/business-studio/rifas` | Gift | ⏳ Pendiente |
 
 #### 4. Recursos Humanos (2 módulos)
@@ -219,7 +219,7 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ✅ Módulos Completados (4/15)
+## ✅ Módulos Completados (5/15)
 
 ### 1. Dashboard ✅
 
@@ -368,9 +368,53 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ⏳ Módulos Pendientes (11/15)
+### 5. Puntos ✅
 
-### 5. Transacciones ⏳
+**Ruta:** `/business-studio/puntos`  
+**Completado:** 5 Febrero 2026 (Fase 5.6)
+
+**Funcionalidad:**
+- Configurar valor del punto ("Por cada $X gana Y puntos")
+- Configurar expiración de puntos (días o nunca expiran)
+- Configurar expiración de vouchers
+- Sistema de niveles activable:
+  - 3 niveles: Bronce, Plata, Oro
+  - Rangos de puntos configurables
+  - Multiplicadores configurables (1.0x, 1.2x, 1.5x)
+- CRUD completo de recompensas:
+  - Imagen, nombre, descripción
+  - Puntos requeridos
+  - Stock (limitado o ilimitado)
+  - Activo/inactivo
+
+**Endpoints:**
+
+| Método | Endpoint | Propósito |
+|--------|----------|-----------|
+| GET | `/api/puntos/configuracion` | Obtener config actual |
+| PUT | `/api/puntos/configuracion` | Actualizar config |
+| GET | `/api/puntos/recompensas` | Listar recompensas |
+| POST | `/api/puntos/recompensas` | Crear recompensa |
+| PUT | `/api/puntos/recompensas/:id` | Actualizar recompensa |
+| DELETE | `/api/puntos/recompensas/:id` | Eliminar recompensa |
+
+**Componentes:**
+- `PaginaPuntos.tsx` - Página principal con 3 secciones
+- `SistemaNiveles.tsx` - Sistema de niveles CardYA
+- `CardRecompensa.tsx` - Tarjeta de recompensa
+- `ModalRecompensa.tsx` - Crear/editar recompensa
+
+**Sistema de Expiración:**
+- Expiración en tiempo real (sin cron jobs)
+- Puntos expiran al final del día local del negocio
+- Vouchers vencidos devuelven puntos automáticamente
+- Zona horaria del negocio respetada
+
+---
+
+## ⏳ Módulos Pendientes (10/15)
+
+### 6. Transacciones ⏳
 
 **Dependencias:** ScanYA (Fase 5.5)  
 **Tiempo estimado:** ~1 día  
@@ -384,7 +428,7 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### 6. Clientes ⏳
+### 7. Clientes ⏳
 
 **Dependencias:** ScanYA (Fase 5.5)  
 **Tiempo estimado:** ~2 días  
@@ -398,7 +442,7 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### 7. Opiniones ⏳
+### 8. Opiniones ⏳
 
 **Dependencias:** Transacciones + Clientes  
 **Tiempo estimado:** ~3 días  
@@ -412,7 +456,7 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### 8. Alertas ⏳
+### 9. Alertas ⏳
 
 **Dependencias:** Ninguna  
 **Tiempo estimado:** ~1-2 días  
@@ -426,7 +470,7 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### 9-15. Otros Módulos Pendientes
+### 10-15. Otros Módulos Pendientes
 
 Los módulos restantes están documentados en el RoadMap con sus dependencias y tiempos estimados:
 - **Cupones** - Fase 5.11
@@ -916,35 +960,40 @@ export async function actualizarInfoGeneral() { ... }
 
 ## ✅ Verificación
 
-**Última verificación:** 30 Enero 2026
+**Última verificación:** 12 Febrero 2026
 
-**Archivos backend verificados:** 6/6 ✅
+**Archivos backend verificados:** 8/8 ✅
 - `dashboard.routes.ts` (101 líneas)
 - `dashboard.controller.ts` (255 líneas)
 - `negocios.routes.ts` (427 líneas)
 - `articulos.routes.ts` (165 líneas)
 - `ofertas.routes.ts` (175 líneas)
 - `negocioManagement.service.ts` (941 líneas - 20 funciones)
+- `puntos.routes.ts` (~150 líneas)
+- `puntos.service.ts` (~400 líneas)
 
-**Archivos frontend verificados:** 3/3 ✅
+**Archivos frontend verificados:** 4/4 ✅
 - `router/index.tsx` (15 rutas Business Studio)
 - `MenuBusinessStudio.tsx` (15 opciones organizadas)
 - `PanelPreviewNegocio.tsx` (2 tabs preview)
+- `PaginaPuntos.tsx` (página completa con 3 secciones)
 
 **Endpoints totales documentados:**
 - Dashboard: 7 endpoints
 - Negocios (Perfil): 6 endpoints principales
 - Artículos (Catálogo): 6 endpoints principales
 - Ofertas: 6 endpoints principales
-- **TOTAL:** 25 endpoints principales ✅
+- Puntos: 6 endpoints principales
+- **TOTAL:** 31 endpoints principales ✅
 
-**Módulos verificados:** 4/4 completados ✅
+**Módulos verificados:** 5/5 completados ✅
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
 - Ofertas (16/01/2026)
+- Puntos (05/02/2026)
 
-**Progreso:** 4/15 módulos = 26.67% (redondeado 27%)
+**Progreso:** 5/15 módulos = 33.33% (redondeado 33%)
 
 **Métodos de verificación:**
 1. Comparación con RoadMap oficial
@@ -955,6 +1004,6 @@ export async function actualizarInfoGeneral() { ... }
 
 ---
 
-**Última actualización:** 30 Enero 2026  
+**Última actualización:** 12 Febrero 2026  
 **Autor:** Equipo AnunciaYA  
-**Versión:** 1.0 (100% Verificado contra código real)
+**Versión:** 1.1 (100% Verificado contra código real)

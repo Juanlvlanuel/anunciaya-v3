@@ -552,3 +552,65 @@ export async function buscarNegocios(
 export async function getMisNotas() {
   return get<Conversacion>('/chatya/mis-notas');
 }
+
+// =============================================================================
+// MULTIMEDIA: Presigned URL para subir imagen a R2
+// =============================================================================
+
+/**
+ * Pide una URL pre-firmada al backend para subir imagen directo a R2.
+ * POST /api/chatya/upload-imagen
+ */
+export async function obtenerPresignedUrlImagen(
+  nombreArchivo: string,
+  contentType: string
+): Promise<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }> {
+  const resultado = await post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>('/chatya/upload-imagen', { nombreArchivo, contentType });
+  if (!resultado.success || !resultado.data) {
+    throw new Error(resultado.message || 'Error al obtener URL de subida');
+  }
+  return resultado.data;
+}
+
+/**
+ * Sube un archivo directamente a R2 usando la presigned URL.
+ * Hace PUT con el contenido del archivo al uploadUrl.
+ */
+export async function subirArchivoAR2(
+  uploadUrl: string,
+  archivo: File | Blob,
+  contentType: string
+): Promise<void> {
+  const respuesta = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: archivo,
+  });
+
+  if (!respuesta.ok) {
+    throw new Error(`Error al subir a R2: ${respuesta.status} ${respuesta.statusText}`);
+  }
+}
+
+// =============================================================================
+// MULTIMEDIA: Presigned URL para subir documento a R2
+// =============================================================================
+
+/**
+ * Pide una URL pre-firmada al backend para subir documento directo a R2.
+ * POST /api/chatya/upload-documento
+ */
+export async function obtenerPresignedUrlDocumento(
+  nombreArchivo: string,
+  contentType: string,
+  tamano: number
+): Promise<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }> {
+  const resultado = await post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>(
+    '/chatya/upload-documento',
+    { nombreArchivo, contentType, tamano }
+  );
+  if (!resultado.success || !resultado.data) {
+    throw new Error(resultado.message || 'Error al obtener URL de subida de documento');
+  }
+  return resultado.data;
+}

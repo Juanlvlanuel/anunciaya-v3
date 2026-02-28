@@ -138,13 +138,66 @@ export function MenuContextualMensaje({
 
   /** Copiar texto al portapapeles (selección parcial o mensaje completo) */
   const handleCopiar = useCallback(() => {
-    onCerrar();
     const seleccion = window.getSelection()?.toString().trim();
     const textoCopiar = seleccion || mensaje.contenido;
     if (textoCopiar) {
-      navigator.clipboard.writeText(textoCopiar);
+      // Copiar ANTES de cerrar (mantiene la cadena de user gesture)
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(textoCopiar).catch(() => {
+          const ta = document.createElement('textarea');
+          ta.value = textoCopiar;
+          ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        });
+      }
     }
-  }, [mensaje.contenido, onCerrar]);
+    onCerrar();
+
+    // Tooltip "Copiado" — delay para que el menú se desmonte
+    if (textoCopiar) {
+      setTimeout(() => {
+        const tooltip = document.createElement('div');
+        tooltip.textContent = '✓ Copiado';
+
+        const msgEl = document.getElementById(`msg-${mensaje.id}`);
+        const rect = msgEl?.getBoundingClientRect();
+
+        // Desktop: al lado de la burbuja / Móvil o fallback: centrado
+        const esDesktop = window.innerWidth >= 1024;
+        const posCSS = esDesktop && rect
+          ? `${esMio ? `right:${window.innerWidth - rect.left + 8}px` : `left:${rect.right + 8}px`};top:${rect.top + rect.height / 2 - 16}px;`
+          : rect
+            ? `left:50%;top:${rect.top + rect.height / 2 - 16}px;`
+            : `left:50%;top:40%;`;
+
+        const transformBase = !esDesktop || !rect ? 'translateX(-50%) ' : '';
+
+        tooltip.style.cssText = `
+          position:fixed;${posCSS}
+          background:rgba(15,23,42,0.88);color:#fff;
+          padding:6px 14px;border-radius:10px;
+          font-size:13px;font-weight:600;letter-spacing:0.01em;
+          z-index:9999;pointer-events:none;opacity:0;
+          transform:${transformBase}scale(0.85) translateY(2px);
+          transition:opacity 0.15s ease-out,transform 0.15s ease-out;
+          backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);
+        `;
+        document.body.appendChild(tooltip);
+        requestAnimationFrame(() => {
+          tooltip.style.opacity = '1';
+          tooltip.style.transform = `${transformBase}scale(1) translateY(0)`;
+        });
+        setTimeout(() => {
+          tooltip.style.opacity = '0';
+          tooltip.style.transform = `${transformBase}scale(0.85) translateY(2px)`;
+          setTimeout(() => tooltip.remove(), 150);
+        }, 1200);
+      }, 50);
+    }
+  }, [mensaje.id, mensaje.contenido, onCerrar, esMio]);
 
   /** Responder al mensaje */
   const handleResponder = useCallback(() => {
@@ -180,6 +233,32 @@ export function MenuContextualMensaje({
   const handleEliminar = useCallback(async () => {
     onCerrar();
     await useChatYAStore.getState().eliminarMensaje(mensaje.id);
+
+    // Tooltip "Mensaje eliminado" — justo arriba del input
+    setTimeout(() => {
+      const tooltip = document.createElement('div');
+      tooltip.textContent = '🗑 Mensaje eliminado';
+      tooltip.style.cssText = `
+        position:fixed;left:50%;bottom:72px;
+        transform:translateX(-50%) scale(0.85) translateY(4px);
+        background:rgba(15,23,42,0.88);color:#fff;
+        padding:7px 16px;border-radius:10px;
+        font-size:13px;font-weight:600;letter-spacing:0.01em;
+        z-index:9999;pointer-events:none;opacity:0;
+        transition:opacity 0.15s ease-out,transform 0.15s ease-out;
+        backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);
+      `;
+      document.body.appendChild(tooltip);
+      requestAnimationFrame(() => {
+        tooltip.style.opacity = '1';
+        tooltip.style.transform = 'translateX(-50%) scale(1) translateY(0)';
+      });
+      setTimeout(() => {
+        tooltip.style.opacity = '0';
+        tooltip.style.transform = 'translateX(-50%) scale(0.85) translateY(4px)';
+        setTimeout(() => tooltip.remove(), 150);
+      }, 1800);
+    }, 50);
   }, [mensaje.id, onCerrar]);
 
   // ---------------------------------------------------------------------------
@@ -252,7 +331,7 @@ export function MenuContextualMensaje({
               <button
                 key={opcion.label}
                 onClick={opcion.onClick}
-                className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 active:bg-gray-100 cursor-pointer"
+                className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-100 active:bg-gray-200 cursor-pointer"
               >
                 <opcion.icono className={`w-5 h-5 ${opcion.color || 'text-gray-500'}`} />
                 <span className={`text-sm font-medium ${opcion.color || 'text-gray-700'}`}>
@@ -272,19 +351,19 @@ export function MenuContextualMensaje({
   return (
     <div
       ref={menuRef}
-      className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border border-gray-200 overflow-hidden min-w-36"
+      className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border border-gray-200 overflow-hidden w-48"
       style={{ left: posicion.x, top: posicion.y }}
     >
       {/* Opciones */}
-      <div className="py-1">
+      <div className="py-1.5">
         {opciones.map((opcion) => (
           <button
             key={opcion.label}
             onClick={opcion.onClick}
-            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-100 active:bg-gray-200 cursor-pointer"
           >
-            <opcion.icono className={`w-4 h-4 ${opcion.color || 'text-gray-500'}`} />
-            <span className={`text-xs font-medium ${opcion.color || 'text-gray-700'}`}>
+            <opcion.icono className={`w-[18px] h-[18px] shrink-0 ${opcion.color || 'text-gray-400'}`} />
+            <span className={`text-sm font-medium ${opcion.color || 'text-gray-700'}`}>
               {opcion.label}
             </span>
           </button>

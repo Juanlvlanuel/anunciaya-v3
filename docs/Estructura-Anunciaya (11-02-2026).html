@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estructura AnunciaYA v3 - Diagrama Interactivo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e4e4e7;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2rem;
+            background: linear-gradient(90deg, #4ade80, #22d3ee);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; font-size: 0.9rem; }
+        .stats { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px 25px;
+            text-align: center;
+        }
+        .stat-number { font-size: 1.8rem; font-weight: bold; color: #4ade80; }
+        .stat-label { font-size: 0.8rem; color: #94a3b8; }
+        .tree {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .folder, .file {
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .folder:hover, .file:hover { background: rgba(255,255,255,0.05); }
+        .folder-icon { font-size: 1.1rem; }
+        .folder-name { font-weight: 600; color: #fbbf24; }
+        .file-name { color: #94a3b8; }
+        .file-ext { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+        .ext-ts { background: #3178c6; color: white; }
+        .ext-tsx { background: #61dafb; color: #1a1a2e; }
+        .ext-json { background: #f59e0b; color: #1a1a2e; }
+        .ext-yaml { background: #cb3837; color: white; }
+        .ext-js { background: #f7df1e; color: #1a1a2e; }
+        .ext-css { background: #264de4; color: white; }
+        .ext-html { background: #e34c26; color: white; }
+        .ext-config { background: #6366f1; color: white; }
+        .ext-sql { background: #f97316; color: white; }
+        .ext-webp { background: #ec4899; color: white; }
+        .ext-md { background: #083fa1; color: white; }
+        .ext-pdf { background: #dc2626; color: white; }
+        .ext-png { background: #22c55e; color: white; }
+        .children {
+            margin-left: 20px;
+            padding-left: 15px;
+            border-left: 2px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .collapsed > .children { max-height: 0; opacity: 0; }
+        .expanded > .children { max-height: none; opacity: 1; }
+        .toggle {
+            width: 18px; height: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; color: #64748b;
+            transition: transform 0.2s;
+        }
+        .expanded > .folder > .toggle { transform: rotate(90deg); }
+        .module-badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+        .badge-api { background: #22c55e; color: #052e16; }
+        .badge-web { background: #3b82f6; color: white; }
+        .badge-shared { background: #a855f7; color: white; }
+        .badge-docs { background: #f59e0b; color: #1a1a2e; }
+        .badge-new { background: #ef4444; color: white; font-size: 0.6rem; }
+        .legend { display: flex; justify-content: center; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: #94a3b8; }
+        .legend-color { width: 12px; height: 12px; border-radius: 3px; }
+        .controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #e4e4e7;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: rgba(255,255,255,0.1); border-color: #4ade80; }
+        .path-display {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.75rem;
+            color: #64748b;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 AnunciaYA</h1>
+        <p class="subtitle">Estructura del proyecto - Febrero 2026</p>
+        <div class="stats">
+            <div class="stat-card"><div class="stat-number">2</div><div class="stat-label">Apps</div></div>
+            <div class="stat-card"><div class="stat-number">1</div><div class="stat-label">Package compartido</div></div>
+            <div class="stat-card"><div class="stat-number">353</div><div class="stat-label">Archivos fuente</div></div>
+            <div class="stat-card"><div class="stat-number">48</div><div class="stat-label">Docs</div></div>
+        </div>
+        <div class="controls">
+            <button class="btn" onclick="expandAll()">➕ Expandir todo</button>
+            <button class="btn" onclick="collapseAll()">➖ Colapsar todo</button>
+        </div>
+        <div class="tree" id="tree"></div>
+        <div class="path-display">📍 E:\AnunciaYA\anunciaya</div>
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color ext-ts"></div> TypeScript</div>
+            <div class="legend-item"><div class="legend-color ext-tsx"></div> React TSX</div>
+            <div class="legend-item"><div class="legend-color ext-js"></div> JavaScript</div>
+            <div class="legend-item"><div class="legend-color ext-json"></div> JSON</div>
+            <div class="legend-item"><div class="legend-color ext-yaml"></div> YAML</div>
+            <div class="legend-item"><div class="legend-color ext-md"></div> Markdown</div>
+            <div class="legend-item"><div class="legend-color ext-sql"></div> SQL</div>
+            <div class="legend-item"><div class="legend-color ext-webp"></div> Imágenes</div>
+        </div>
+    </div>
+    <script>
+        const structure = {
+            name: "anunciaya",
+            type: "folder",
+            expanded: true,
+            children: [
+                { name: ".env", type: "file", ext: "config" },
+                { name: ".gitignore", type: "file", ext: "config" },
+                { name: ".prettierignore", type: "file", ext: "config" },
+                { name: ".prettierrc", type: "file", ext: "config" },
+                { name: "docker-compose.yml", type: "file", ext: "yaml" },
+                { name: "eslint.config.js", type: "file", ext: "js" },
+                { name: "package.json", type: "file", ext: "json" },
+                { name: "pnpm-lock.yaml", type: "file", ext: "yaml" },
+                { name: "pnpm-workspace.yaml", type: "file", ext: "yaml" },
+                { name: "tsconfig.base.json", type: "file", ext: "json" },
+                { name: "vercel.json", type: "file", ext: "json" },
+                {
+                    name: ".vscode", type: "folder", expanded: true,
+                    children: [{ name: "tasks.json", type: "file", ext: "json" }]
+                },
+                {
+                    name: "apps", type: "folder", expanded: true,
+                    children: [
+                        {
+                            name: "api", type: "folder", badge: "Backend", badgeClass: "badge-api", expanded: true,
+                            children: [
+                                { name: ".env", type: "file", ext: "config" },
+                                { name: "drizzle.config.ts", type: "file", ext: "ts" },
+                                { name: "package.json", type: "file", ext: "json" },
+                                { name: "tsconfig.json", type: "file", ext: "json" },
+                                { name: "reports", type: "folder", expanded: false, children: [
+                                    { name: "db-comparison-2026-01-27T02-39.md", type: "file", ext: "md" }
+                                ]},
+                                { name: "scripts", type: "folder", expanded: false, children: [
+                                    { name: "compare-databases.ts", type: "file", ext: "ts" }
+                                ]},
+                                {
+                                    name: "src", type: "folder", expanded: true,
+                                    children: [
+                                        { name: "app.ts", type: "file", ext: "ts" },
+                                        { name: "index.ts", type: "file", ext: "ts" },
+                                        { name: "socket.ts", type: "file", ext: "ts" },
+                                        { name: "config", type: "folder", expanded: true, children: [
+                                            { name: "cloudinary.ts", type: "file", ext: "ts" },
+                                            { name: "env.ts", type: "file", ext: "ts" },
+                                            { name: "r2.ts", type: "file", ext: "ts" },
+                                            { name: "stripe.ts", type: "file", ext: "ts" }
+                                        ]},
+                                        { name: "controllers", type: "folder", expanded: false, children: [
+                                            { name: "articulos.controller.ts", type: "file", ext: "ts" },
+                                            { name: "auth.controller.ts", type: "file", ext: "ts" },
+                                            { name: "cardya.controller.ts", type: "file", ext: "ts" },
+                                            { name: "categorias.controller.ts", type: "file", ext: "ts" },
+                                            { name: "clientes.controller.ts", type: "file", ext: "ts" },
+                                            { name: "cloudinary.controller.ts", type: "file", ext: "ts" },
+                                            { name: "dashboard.controller.ts", type: "file", ext: "ts" },
+                                            { name: "guardados.controller.ts", type: "file", ext: "ts" },
+                                            { name: "metricas.controller.ts", type: "file", ext: "ts" },
+                                            { name: "negocios.controller.ts", type: "file", ext: "ts" },
+                                            { name: "notificaciones.controller.ts", type: "file", ext: "ts" },
+                                            { name: "ofertas.controller.ts", type: "file", ext: "ts" },
+                                            { name: "onboarding.controller.ts", type: "file", ext: "ts" },
+                                            { name: "pago.controller.ts", type: "file", ext: "ts" },
+                                            { name: "puntos.controller.ts", type: "file", ext: "ts" },
+                                            { name: "resenas.controller.ts", type: "file", ext: "ts" },
+                                            { name: "scanya.controller.ts", type: "file", ext: "ts" },
+                                            { name: "transacciones.controller.ts", type: "file", ext: "ts" },
+                                            { name: "votos.controller.ts", type: "file", ext: "ts" }
+                                        ]},
+                                        { name: "db", type: "folder", expanded: true, children: [
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "mongo.ts", type: "file", ext: "ts" },
+                                            { name: "redis.ts", type: "file", ext: "ts" },
+                                            { name: "models", type: "folder", expanded: false, children: [
+                                                { name: "Chat.ts", type: "file", ext: "ts" },
+                                                { name: "Contacto.ts", type: "file", ext: "ts" },
+                                                { name: "Index.ts", type: "file", ext: "ts" },
+                                                { name: "Interaccion.ts", type: "file", ext: "ts" },
+                                                { name: "Mensaje.ts", type: "file", ext: "ts" },
+                                                { name: "PhoneOtp.ts", type: "file", ext: "ts" }
+                                            ]},
+                                            { name: "schemas", type: "folder", expanded: false, children: [
+                                                { name: "0000_little_mongu.sql", type: "file", ext: "sql" },
+                                                { name: "0001_orange_peter_parker.sql", type: "file", ext: "sql" },
+                                                { name: "relations.ts", type: "file", ext: "ts" },
+                                                { name: "schema.ts", type: "file", ext: "ts" },
+                                                { name: "meta", type: "folder", children: [
+                                                    { name: "0000_snapshot.json", type: "file", ext: "json" },
+                                                    { name: "0001_snapshot.json", type: "file", ext: "json" },
+                                                    { name: "_journal.json", type: "file", ext: "json" }
+                                                ]}
+                                            ]}
+                                        ]},
+                                        { name: "middleware", type: "folder", expanded: false, children: [
+                                            { name: "auth.ts", type: "file", ext: "ts" },
+                                            { name: "authOpcional.middleware.ts", type: "file", ext: "ts" },
+                                            { name: "cors.ts", type: "file", ext: "ts" },
+                                            { name: "errorHandler.ts", type: "file", ext: "ts" },
+                                            { name: "helmet.ts", type: "file", ext: "ts" },
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "negocio.middleware.ts", type: "file", ext: "ts" },
+                                            { name: "rateLimiter.ts", type: "file", ext: "ts" },
+                                            { name: "scanyaAuth.middleware.ts", type: "file", ext: "ts" },
+                                            { name: "sucursal.middleware.ts", type: "file", ext: "ts" },
+                                            { name: "transformResponse.middleware.ts", type: "file", ext: "ts" },
+                                            { name: "validarModo.ts", type: "file", ext: "ts" }
+                                        ]},
+                                        { name: "routes", type: "folder", expanded: false, children: [
+                                            { name: "articulos.routes.ts", type: "file", ext: "ts" },
+                                            { name: "auth.routes.ts", type: "file", ext: "ts" },
+                                            { name: "cardya.routes.ts", type: "file", ext: "ts" },
+                                            { name: "categorias.routes.ts", type: "file", ext: "ts" },
+                                            { name: "clientes.routes.ts", type: "file", ext: "ts" },
+                                            { name: "cloudinary.routes.ts", type: "file", ext: "ts" },
+                                            { name: "dashboard.routes.ts", type: "file", ext: "ts" },
+                                            { name: "guardados.routes.ts", type: "file", ext: "ts" },
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "metricas.routes.ts", type: "file", ext: "ts" },
+                                            { name: "negocios.routes.ts", type: "file", ext: "ts" },
+                                            { name: "notificaciones.routes.ts", type: "file", ext: "ts" },
+                                            { name: "ofertas.routes.ts", type: "file", ext: "ts" },
+                                            { name: "onboarding.routes.ts", type: "file", ext: "ts" },
+                                            { name: "pago.routes.ts", type: "file", ext: "ts" },
+                                            { name: "puntos.routes.ts", type: "file", ext: "ts" },
+                                            { name: "resenas.routes.ts", type: "file", ext: "ts" },
+                                            { name: "scanya.routes.ts", type: "file", ext: "ts" },
+                                            { name: "transacciones.routes.ts", type: "file", ext: "ts" },
+                                            { name: "votos.routes.ts", type: "file", ext: "ts" }
+                                        ]},
+                                        { name: "services", type: "folder", expanded: false, children: [
+                                            { name: "articulos.service.ts", type: "file", ext: "ts" },
+                                            { name: "auth.service.ts", type: "file", ext: "ts" },
+                                            { name: "cardya.service.ts", type: "file", ext: "ts" },
+                                            { name: "categorias.service.ts", type: "file", ext: "ts" },
+                                            { name: "cloudinary.service.ts", type: "file", ext: "ts" },
+                                            { name: "dashboard.service.ts", type: "file", ext: "ts" },
+                                            { name: "guardados.service.ts", type: "file", ext: "ts" },
+                                            { name: "metricas.service.ts", type: "file", ext: "ts" },
+                                            { name: "negocioManagement.service.ts", type: "file", ext: "ts" },
+                                            { name: "negocios.service.ts", type: "file", ext: "ts" },
+                                            { name: "notificaciones.service.ts", type: "file", ext: "ts" },
+                                            { name: "ofertas.service.ts", type: "file", ext: "ts" },
+                                            { name: "onboarding.service.ts", type: "file", ext: "ts" },
+                                            { name: "pago.service.ts", type: "file", ext: "ts" },
+                                            { name: "puntos.service.ts", type: "file", ext: "ts" },
+                                            { name: "r2.service.ts", type: "file", ext: "ts" },
+                                            { name: "resenas.service.ts", type: "file", ext: "ts" },
+                                            { name: "scanya.service.ts", type: "file", ext: "ts" },
+                                            { name: "votos.service.ts", type: "file", ext: "ts" }
+                                        ]},
+                                        { name: "types", type: "folder", expanded: true, children: [
+                                            { name: "articulos.types.ts", type: "file", ext: "ts" },
+                                            { name: "cardya.types.ts", type: "file", ext: "ts" },
+                                            { name: "negocios.types.ts", type: "file", ext: "ts" },
+                                            { name: "notificaciones.types.ts", type: "file", ext: "ts" },
+                                            { name: "ofertas.types.ts", type: "file", ext: "ts" },
+                                            { name: "puntos.types.ts", type: "file", ext: "ts" }
+                                        ]},
+                                        { name: "utils", type: "folder", expanded: true, children: [
+                                            { name: "email.ts", type: "file", ext: "ts" },
+                                            { name: "jwt.ts", type: "file", ext: "ts" },
+                                            { name: "jwtScanYA.ts", type: "file", ext: "ts" },
+                                            { name: "tokenStore.ts", type: "file", ext: "ts" }
+                                        ]},
+                                        { name: "validations", type: "folder", expanded: true, children: [
+                                            { name: "articulos.schema.ts", type: "file", ext: "ts" },
+                                            { name: "auth.schema.ts", type: "file", ext: "ts" },
+                                            { name: "cardya.schema.ts", type: "file", ext: "ts" },
+                                            { name: "ofertas.schema.ts", type: "file", ext: "ts" },
+                                            { name: "onboarding.schema.ts", type: "file", ext: "ts" },
+                                            { name: "puntos.schema.ts", type: "file", ext: "ts" },
+                                            { name: "resenas.schema.ts", type: "file", ext: "ts" },
+                                            { name: "scanya.schema.ts", type: "file", ext: "ts" }
+                                        ]}
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            name: "web", type: "folder", badge: "Frontend", badgeClass: "badge-web", expanded: true,
+                            children: [
+                                { name: ".env", type: "file", ext: "config" },
+                                { name: "index.html", type: "file", ext: "html" },
+                                { name: "package.json", type: "file", ext: "json" },
+                                { name: "postcss.config.js", type: "file", ext: "js" },
+                                { name: "tailwind.config.js", type: "file", ext: "js" },
+                                { name: "tsconfig.json", type: "file", ext: "json" },
+                                { name: "tsconfig.tsbuildinfo", type: "file", ext: "config" },
+                                { name: "vercel.json", type: "file", ext: "json" },
+                                { name: "vite.config.ts", type: "file", ext: "ts" },
+                                { name: "api", type: "folder", expanded: true, children: [
+                                    { name: "og.ts", type: "file", ext: "ts" }
+                                ]},
+                                { name: "public", type: "folder", expanded: false, children: [
+                                    { name: "BusinessStudio.webp", type: "file", ext: "webp" },
+                                    { name: "CardYA.webp", type: "file", ext: "webp" },
+                                    { name: "CardYABlanco.webp", type: "file", ext: "webp" },
+                                    { name: "ChatYA.webp", type: "file", ext: "webp" },
+                                    { name: "facebook.webp", type: "file", ext: "webp" },
+                                    { name: "favicon.png", type: "file", ext: "png" },
+                                    { name: "IconoBS.webp", type: "file", ext: "webp" },
+                                    { name: "IconoChatYA.webp", type: "file", ext: "webp" },
+                                    { name: "IconoRojoChatYA.webp", type: "file", ext: "webp" },
+                                    { name: "IconoScanYA.webp", type: "file", ext: "webp" },
+                                    { name: "instagram.webp", type: "file", ext: "webp" },
+                                    { name: "logo-anunciaya-azul.webp", type: "file", ext: "webp" },
+                                    { name: "logo-anunciaya-blanco.webp", type: "file", ext: "webp" },
+                                    { name: "logo-anunciaya.webp", type: "file", ext: "webp" },
+                                    { name: "logo-ChatYA-blanco.webp", type: "file", ext: "webp" },
+                                    { name: "logo-scanya.webp", type: "file", ext: "webp" },
+                                    { name: "manifest.scanya.json", type: "file", ext: "json" },
+                                    { name: "og-image.webp", type: "file", ext: "webp" },
+                                    { name: "ScanYA-Blanco.webp", type: "file", ext: "webp" },
+                                    { name: "ScanYA.webp", type: "file", ext: "webp" },
+                                    { name: "sw-scanya.js", type: "file", ext: "js" },
+                                    { name: "tiktok.webp", type: "file", ext: "webp" },
+                                    { name: "twitter.webp", type: "file", ext: "webp" },
+                                    { name: "whatsapp.webp", type: "file", ext: "webp" },
+                                    { name: "icons", type: "folder", children: [
+                                        { name: "apple-touch-icon-scanya.webp", type: "file", ext: "webp" },
+                                        { name: "scanya-192.webp", type: "file", ext: "webp" },
+                                        { name: "scanya-512.webp", type: "file", ext: "webp" },
+                                        { name: "scanya-badge.webp", type: "file", ext: "webp" },
+                                        { name: "scanya-maskable-192.webp", type: "file", ext: "webp" },
+                                        { name: "scanya-maskable-512.webp", type: "file", ext: "webp" },
+                                        { name: "shortcut-venta.webp", type: "file", ext: "webp" }
+                                    ]},
+                                    { name: "images", type: "folder", children: [
+                                        { name: "registro-hero.webp", type: "file", ext: "webp" },
+                                        { name: "onboarding", type: "folder", children: [
+                                            { name: "comunidad.webp", type: "file", ext: "webp" },
+                                            { name: "marketplace.webp", type: "file", ext: "webp" },
+                                            { name: "puntos.webp", type: "file", ext: "webp" },
+                                            { name: "sorteos.webp", type: "file", ext: "webp" },
+                                            { name: "tarjeta.webp", type: "file", ext: "webp" }
+                                        ]},
+                                        { name: "secciones", type: "folder", children: [
+                                            { name: "dinamicas.webp", type: "file", ext: "webp" },
+                                            { name: "marketplace.webp", type: "file", ext: "webp" },
+                                            { name: "negocios-locales.webp", type: "file", ext: "webp" },
+                                            { name: "ofertas.webp", type: "file", ext: "webp" }
+                                        ]}
+                                    ]}
+                                ]},
+                                { name: "src", type: "folder", expanded: true, children: [
+                                    { name: "App.tsx", type: "file", ext: "tsx" },
+                                    { name: "index.css", type: "file", ext: "css" },
+                                    { name: "main.tsx", type: "file", ext: "tsx" },
+                                    { name: "vite-env.d.ts", type: "file", ext: "ts" },
+                                    { name: "components", type: "folder", expanded: true, children: [
+                                        { name: "auth", type: "folder", expanded: false, children: [
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "ModalInactividad.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalLogin.tsx", type: "file", ext: "tsx" },
+                                            { name: "registro", type: "folder", children: [
+                                                { name: "BrandingColumn.tsx", type: "file", ext: "tsx" },
+                                                { name: "FormularioRegistro.tsx", type: "file", ext: "tsx" },
+                                                { name: "index.ts", type: "file", ext: "ts" },
+                                                { name: "ModalBienvenida.tsx", type: "file", ext: "tsx" },
+                                                { name: "ModalVerificacionEmail.tsx", type: "file", ext: "tsx" }
+                                            ]},
+                                            { name: "vistas", type: "folder", children: [
+                                                { name: "Vista2FA.tsx", type: "file", ext: "tsx" },
+                                                { name: "VistaLogin.tsx", type: "file", ext: "tsx" },
+                                                { name: "VistaRecuperar.tsx", type: "file", ext: "tsx" }
+                                            ]}
+                                        ]},
+                                        { name: "compartir", type: "folder", expanded: true, children: [
+                                            { name: "DropdownCompartir.tsx", type: "file", ext: "tsx" },
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "ModalAuthRequerido.tsx", type: "file", ext: "tsx" }
+                                        ]},
+                                        { name: "layout", type: "folder", expanded: false, children: [
+                                            { name: "BottomNav.tsx", type: "file", ext: "tsx" },
+                                            { name: "ChatOverlay.tsx", type: "file", ext: "tsx" },
+                                            { name: "ColumnaDerecha.tsx", type: "file", ext: "tsx" },
+                                            { name: "ColumnaIzquierda.tsx", type: "file", ext: "tsx" },
+                                            { name: "DrawerBusinessStudio.tsx", type: "file", ext: "tsx" },
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "LayoutPublico.tsx", type: "file", ext: "tsx" },
+                                            { name: "MainLayout.tsx", type: "file", ext: "tsx" },
+                                            { name: "MenuBusinessStudio.tsx", type: "file", ext: "tsx" },
+                                            { name: "MenuDrawer.tsx", type: "file", ext: "tsx" },
+                                            { name: "MobileHeader.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalUbicacion.tsx", type: "file", ext: "tsx" },
+                                            { name: "Navbar.tsx", type: "file", ext: "tsx" },
+                                            { name: "PanelNotificaciones.tsx", type: "file", ext: "tsx" },
+                                            { name: "PanelPreviewNegocio.tsx", type: "file", ext: "tsx" },
+                                            { name: "SelectorSucursalesInline.tsx", type: "file", ext: "tsx" },
+                                            { name: "WidgetCardYA.tsx", type: "file", ext: "tsx" }
+                                        ]},
+                                        { name: "negocios", type: "folder", expanded: false, children: [
+                                            { name: "CardNegocio.tsx", type: "file", ext: "tsx" },
+                                            { name: "CardNegocioDetallado.tsx", type: "file", ext: "tsx" },
+                                            { name: "ChipsFiltros.tsx", type: "file", ext: "tsx" },
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "ModalCatalogo.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalDetalleItem.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalEscribirResena.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalHorarios.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalOfertaDetalle.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalOfertas.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalResenas.tsx", type: "file", ext: "tsx" },
+                                            { name: "OfertaCard.tsx", type: "file", ext: "tsx" },
+                                            { name: "SeccionCatalogo.tsx", type: "file", ext: "tsx" },
+                                            { name: "SeccionOfertas.tsx", type: "file", ext: "tsx" },
+                                            { name: "SeccionResenas.tsx", type: "file", ext: "tsx" }
+                                        ]},
+                                        { name: "scanya", type: "folder", expanded: false, children: [
+                                            { name: "BotonInstalarScanYA.tsx", type: "file", ext: "tsx" },
+                                            { name: "HeaderScanYA.tsx", type: "file", ext: "tsx" },
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "IndicadoresRapidos.tsx", type: "file", ext: "tsx" },
+                                            { name: "IndicadorOffline.tsx", type: "file", ext: "tsx" },
+                                            { name: "InfoNegocioBar.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalCanjearVoucher.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalCerrarTurno.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalHistorial.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalRecordatorios.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalRegistrarVenta.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalVouchers.tsx", type: "file", ext: "tsx" },
+                                            { name: "ResumenTurno.tsx", type: "file", ext: "tsx" },
+                                            { name: "SplashScreenScanYA.tsx", type: "file", ext: "tsx" },
+                                            { name: "TarjetaRecordatorio.tsx", type: "file", ext: "tsx" },
+                                            { name: "TarjetaTransaccion.tsx", type: "file", ext: "tsx" },
+                                            { name: "TarjetaVoucher.tsx", type: "file", ext: "tsx" },
+                                            { name: "TecladoNumerico.tsx", type: "file", ext: "tsx" }
+                                        ]},
+                                        { name: "ui", type: "folder", expanded: false, children: [
+                                            { name: "Boton.tsx", type: "file", ext: "tsx" },
+                                            { name: "DatePicker.tsx", type: "file", ext: "tsx" },
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "Input.tsx", type: "file", ext: "tsx" },
+                                            { name: "Modal.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalAdaptativo.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalBottom.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalCambiarModo.tsx", type: "file", ext: "tsx" },
+                                            { name: "ModalImagenes.tsx", type: "file", ext: "tsx" },
+                                            { name: "SelectorIdioma.tsx", type: "file", ext: "tsx" },
+                                            { name: "Spinner.tsx", type: "file", ext: "tsx" },
+                                            { name: "ToggleModoUsuario.tsx", type: "file", ext: "tsx" },
+                                            { name: "Tooltip.tsx", type: "file", ext: "tsx" }
+                                        ]}
+                                    ]},
+                                    { name: "config", type: "folder", expanded: true, children: [
+                                        { name: "i18n.ts", type: "file", ext: "ts" }
+                                    ]},
+                                    { name: "data", type: "folder", expanded: true, children: [
+                                        { name: "ciudadesPopulares.ts", type: "file", ext: "ts" },
+                                        { name: "index.ts", type: "file", ext: "ts" }
+                                    ]},
+                                    { name: "hooks", type: "folder", expanded: false, children: [
+                                        { name: "useArticulos.ts", type: "file", ext: "ts" },
+                                        { name: "useAutoFitText.ts", type: "file", ext: "ts" },
+                                        { name: "useBreakpoint.ts", type: "file", ext: "ts" },
+                                        { name: "useCategorias.ts", type: "file", ext: "ts" },
+                                        { name: "useCollapsibleBanner.ts", type: "file", ext: "ts" },
+                                        { name: "useGuardados.ts", type: "file", ext: "ts" },
+                                        { name: "useHideOnScroll.ts", type: "file", ext: "ts" },
+                                        { name: "useHorariosNegocio.ts", type: "file", ext: "ts" },
+                                        { name: "useListaNegocios.ts", type: "file", ext: "ts" },
+                                        { name: "useLockScroll.ts", type: "file", ext: "ts" },
+                                        { name: "useOfertas.ts", type: "file", ext: "ts" },
+                                        { name: "useOnlineStatus.ts", type: "file", ext: "ts" },
+                                        { name: "useOpenGraph.ts", type: "file", ext: "ts" },
+                                        { name: "useOptimisticUpload.ts", type: "file", ext: "ts" },
+                                        { name: "usePerfilNegocio.ts", type: "file", ext: "ts" },
+                                        { name: "usePWAInstallScanYA.ts", type: "file", ext: "ts" },
+                                        { name: "useScrollDirection.ts", type: "file", ext: "ts" },
+                                        { name: "useSubcategorias.ts", type: "file", ext: "ts" },
+                                        { name: "useTituloDinamico.ts", type: "file", ext: "ts" },
+                                        { name: "useTituloPagina.ts", type: "file", ext: "ts" },
+                                        { name: "useVotos.ts", type: "file", ext: "ts" },
+                                        { name: "useZonaHoraria.ts", type: "file", ext: "ts" }
+                                    ]},
+                                    { name: "locales", type: "folder", expanded: false, children: [
+                                        { name: "en", type: "folder", children: [
+                                            { name: "auth.json", type: "file", ext: "json" },
+                                            { name: "common.json", type: "file", ext: "json" },
+                                            { name: "landing.json", type: "file", ext: "json" }
+                                        ]},
+                                        { name: "es", type: "folder", children: [
+                                            { name: "auth.json", type: "file", ext: "json" },
+                                            { name: "common.json", type: "file", ext: "json" },
+                                            { name: "landing.json", type: "file", ext: "json" }
+                                        ]}
+                                    ]},
+                                    { name: "pages", type: "folder", expanded: true, children: [
+                                        { name: "private", type: "folder", expanded: true, children: [
+                                            { name: "PaginaInicio.tsx", type: "file", ext: "tsx" },
+                                            { name: "business", type: "folder", expanded: false, children: [
+                                                { name: "onboarding", type: "folder", children: [
+                                                    { name: "PaginaOnboarding.tsx", type: "file", ext: "tsx" },
+                                                    { name: "componentes", type: "folder", children: [
+                                                        { name: "BotonesNavegacion.tsx", type: "file", ext: "tsx" },
+                                                        { name: "index.ts", type: "file", ext: "ts" },
+                                                        { name: "IndicadorPasos.tsx", type: "file", ext: "tsx" },
+                                                        { name: "LayoutOnboarding.tsx", type: "file", ext: "tsx" },
+                                                        { name: "ModalAgregarProducto.tsx", type: "file", ext: "tsx" },
+                                                        { name: "ModalPausar.tsx", type: "file", ext: "tsx" }
+                                                    ]},
+                                                    { name: "pasos", type: "folder", children: [
+                                                        { name: "index.ts", type: "file", ext: "ts" },
+                                                        { name: "PasoCategoria.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PasoContacto.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PasoHorarios.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PasoImagenes.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PasoMetodosPago.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PasoProductos.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PasoPuntos.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PasoUbicacion.tsx", type: "file", ext: "tsx" }
+                                                    ]}
+                                                ]}
+                                            ]},
+                                            { name: "business-studio", type: "folder", expanded: false, children: [
+                                                { name: "catalogo", type: "folder", children: [
+                                                    { name: "CardArticulo.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalArticulo.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalDuplicar.tsx", type: "file", ext: "tsx" },
+                                                    { name: "PaginaCatalogo.tsx", type: "file", ext: "tsx" }
+                                                ]},
+                                                { name: "clientes", type: "folder", children: [
+                                                    { name: "PaginaClientes.tsx", type: "file", ext: "tsx" }
+                                                ]},
+                                                { name: "dashboard", type: "folder", children: [
+                                                    { name: "PaginaDashboard.tsx", type: "file", ext: "tsx" },
+                                                    { name: "componentes", type: "folder", children: [
+                                                        { name: "BannerAlertasUrgentes.tsx", type: "file", ext: "tsx" },
+                                                        { name: "FooterAcciones.tsx", type: "file", ext: "tsx" },
+                                                        { name: "GraficaColapsable.tsx", type: "file", ext: "tsx" },
+                                                        { name: "GraficaVentas.tsx", type: "file", ext: "tsx" },
+                                                        { name: "HeaderDashboard.tsx", type: "file", ext: "tsx" },
+                                                        { name: "index.ts", type: "file", ext: "ts" },
+                                                        { name: "KPIPrincipal.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PanelAlertas.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PanelCampanas.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PanelInteracciones.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PanelMetricasSecundarias.tsx", type: "file", ext: "tsx" },
+                                                        { name: "PanelOpiniones.tsx", type: "file", ext: "tsx" }
+                                                    ]}
+                                                ]},
+                                                { name: "ofertas", type: "folder", children: [
+                                                    { name: "CardOferta.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalDuplicarOferta.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalOferta.tsx", type: "file", ext: "tsx" },
+                                                    { name: "PaginaOfertas.tsx", type: "file", ext: "tsx" }
+                                                ]},
+                                                { name: "perfil", type: "folder", children: [
+                                                    { name: "PaginaPerfil.tsx", type: "file", ext: "tsx" },
+                                                    { name: "components", type: "folder", children: [
+                                                        { name: "CardYA.tsx", type: "file", ext: "tsx" },
+                                                        { name: "index.ts", type: "file", ext: "ts" },
+                                                        { name: "SelectorCategoria.tsx", type: "file", ext: "tsx" },
+                                                        { name: "TabContacto.tsx", type: "file", ext: "tsx" },
+                                                        { name: "TabHorarios.tsx", type: "file", ext: "tsx" },
+                                                        { name: "TabImagenes.tsx", type: "file", ext: "tsx" },
+                                                        { name: "TabInformacion.tsx", type: "file", ext: "tsx" },
+                                                        { name: "TabOperacion.tsx", type: "file", ext: "tsx" },
+                                                        { name: "TabUbicacion.tsx", type: "file", ext: "tsx" }
+                                                    ]},
+                                                    { name: "hooks", type: "folder", children: [
+                                                        { name: "usePerfil.ts", type: "file", ext: "ts" }
+                                                    ]}
+                                                ]},
+                                                { name: "puntos", type: "folder", children: [
+                                                    { name: "PaginaPuntos.tsx", type: "file", ext: "tsx" },
+                                                    { name: "componentes", type: "folder", children: [
+                                                        { name: "CardRecompensa.tsx", type: "file", ext: "tsx" },
+                                                        { name: "ModalRecompensa.tsx", type: "file", ext: "tsx" },
+                                                        { name: "SistemaNiveles.tsx", type: "file", ext: "tsx" }
+                                                    ]}
+                                                ]},
+                                                { name: "transacciones", type: "folder", children: [
+                                                    { name: "PaginaTransacciones.tsx", type: "file", ext: "tsx" }
+                                                ]}
+                                            ]},
+                                            { name: "cardya", type: "folder", expanded: false, children: [
+                                                { name: "PaginaCardYA.tsx", type: "file", ext: "tsx" },
+                                                { name: "componentes", type: "folder", children: [
+                                                    { name: "CardBilletera.tsx", type: "file", ext: "tsx" },
+                                                    { name: "CardRecompensaCliente.tsx", type: "file", ext: "tsx" },
+                                                    { name: "DropdownNegocio.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalConfirmarCanje.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalDetalleBilletera.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalDetalleTransaccion.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalDetalleVoucher.tsx", type: "file", ext: "tsx" },
+                                                    { name: "ModalVoucherGenerado.tsx", type: "file", ext: "tsx" },
+                                                    { name: "TablaHistorialCompras.tsx", type: "file", ext: "tsx" },
+                                                    { name: "TablaHistorialVouchers.tsx", type: "file", ext: "tsx" }
+                                                ]}
+                                            ]},
+                                            { name: "cupones", type: "folder", children: [
+                                                { name: "PaginaMisCupones.tsx", type: "file", ext: "tsx" }
+                                            ]},
+                                            { name: "guardados", type: "folder", children: [
+                                                { name: "PaginaGuardados.tsx", type: "file", ext: "tsx" }
+                                            ]},
+                                            { name: "negocios", type: "folder", children: [
+                                                { name: "index.ts", type: "file", ext: "ts" },
+                                                { name: "PaginaNegocios.tsx", type: "file", ext: "tsx" },
+                                                { name: "PaginaPerfilNegocio.tsx", type: "file", ext: "tsx" }
+                                            ]},
+                                            { name: "publicaciones", type: "folder", children: [
+                                                { name: "PaginaMisPublicaciones.tsx", type: "file", ext: "tsx" }
+                                            ]},
+                                            { name: "scanya", type: "folder", children: [
+                                                { name: "PaginaLoginScanYA.tsx", type: "file", ext: "tsx" },
+                                                { name: "PaginaScanYA.tsx", type: "file", ext: "tsx" }
+                                            ]}
+                                        ]},
+                                        { name: "public", type: "folder", expanded: true, children: [
+                                            { name: "PaginaArticuloPublico.tsx", type: "file", ext: "tsx" },
+                                            { name: "PaginaLanding.tsx", type: "file", ext: "tsx" },
+                                            { name: "PaginaOfertaPublico.tsx", type: "file", ext: "tsx" },
+                                            { name: "PaginaRegistro.tsx", type: "file", ext: "tsx" },
+                                            { name: "PaginaRegistroExito.tsx", type: "file", ext: "tsx" }
+                                        ]}
+                                    ]},
+                                    { name: "router", type: "folder", expanded: true, children: [
+                                        { name: "index.tsx", type: "file", ext: "tsx" },
+                                        { name: "RootLayout.tsx", type: "file", ext: "tsx" },
+                                        { name: "RutaPrivada.tsx", type: "file", ext: "tsx" },
+                                        { name: "RutaPublica.tsx", type: "file", ext: "tsx" },
+                                        { name: "guards", type: "folder", children: [
+                                            { name: "index.ts", type: "file", ext: "ts" },
+                                            { name: "ModoGuard.tsx", type: "file", ext: "tsx" }
+                                        ]}
+                                    ]},
+                                    { name: "services", type: "folder", expanded: false, children: [
+                                        { name: "api.ts", type: "file", ext: "ts" },
+                                        { name: "articulosService.ts", type: "file", ext: "ts" },
+                                        { name: "authService.ts", type: "file", ext: "ts" },
+                                        { name: "cardyaService.ts", type: "file", ext: "ts" },
+                                        { name: "clientesService.ts", type: "file", ext: "ts" },
+                                        { name: "dashboardService.ts", type: "file", ext: "ts" },
+                                        { name: "negociosService.ts", type: "file", ext: "ts" },
+                                        { name: "notificacionesService.ts", type: "file", ext: "ts" },
+                                        { name: "ofertasService.ts", type: "file", ext: "ts" },
+                                        { name: "pagoService.ts", type: "file", ext: "ts" },
+                                        { name: "puntosService.ts", type: "file", ext: "ts" },
+                                        { name: "scanyaService.ts", type: "file", ext: "ts" },
+                                        { name: "socketService.ts", type: "file", ext: "ts" },
+                                        { name: "transaccionesService.ts", type: "file", ext: "ts" }
+                                    ]},
+                                    { name: "stores", type: "folder", expanded: false, children: [
+                                        { name: "useArticulosStore.ts", type: "file", ext: "ts" },
+                                        { name: "useAuthStore.ts", type: "file", ext: "ts" },
+                                        { name: "useCardyaStore.ts", type: "file", ext: "ts" },
+                                        { name: "useClientesStore.ts", type: "file", ext: "ts" },
+                                        { name: "useDashboardStore.ts", type: "file", ext: "ts" },
+                                        { name: "useFiltrosNegociosStore.ts", type: "file", ext: "ts" },
+                                        { name: "useGpsStore.ts", type: "file", ext: "ts" },
+                                        { name: "useMainScrollStore.ts", type: "file", ext: "ts" },
+                                        { name: "useNegociosCacheStore.ts", type: "file", ext: "ts" },
+                                        { name: "useNotificacionesStore.ts", type: "file", ext: "ts" },
+                                        { name: "useOfertasStore.ts", type: "file", ext: "ts" },
+                                        { name: "useOnboardingStore.ts", type: "file", ext: "ts" },
+                                        { name: "usePuntosStore.ts", type: "file", ext: "ts" },
+                                        { name: "useScanYAStore.ts", type: "file", ext: "ts" },
+                                        { name: "useSearchStore.ts", type: "file", ext: "ts" },
+                                        { name: "useTransaccionesStore.ts", type: "file", ext: "ts" },
+                                        { name: "useUiStore.ts", type: "file", ext: "ts" }
+                                    ]},
+                                    { name: "types", type: "folder", expanded: true, children: [
+                                        { name: "articulos.ts", type: "file", ext: "ts" },
+                                        { name: "cardya.ts", type: "file", ext: "ts" },
+                                        { name: "negocios.ts", type: "file", ext: "ts" },
+                                        { name: "notificaciones.ts", type: "file", ext: "ts" },
+                                        { name: "ofertas.ts", type: "file", ext: "ts" },
+                                        { name: "puntos.ts", type: "file", ext: "ts" },
+                                        { name: "scanya.ts", type: "file", ext: "ts" }
+                                    ]},
+                                    { name: "utils", type: "folder", expanded: true, children: [
+                                        { name: "cloudinary.ts", type: "file", ext: "ts" },
+                                        { name: "notificaciones.tsx", type: "file", ext: "tsx" },
+                                        { name: "tokenUtils.ts", type: "file", ext: "ts" },
+                                        { name: "zonaHoraria.ts", type: "file", ext: "ts" }
+                                    ]}
+                                ]}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    name: "docs", type: "folder", badge: "Documentación", badgeClass: "badge-docs", expanded: false,
+                    children: [
+                        { name: "README.md", type: "file", ext: "md" },
+                        { name: "01_Arquitectura", type: "folder", children: [
+                            { name: "01_Vision_General.md", type: "file", ext: "md" },
+                            { name: "02_Stack_Tecnologico.md", type: "file", ext: "md" },
+                            { name: "03_Estructura_Carpetas.md", type: "file", ext: "md" },
+                            { name: "04_Decisiones_Arquitectonicas.md", type: "file", ext: "md" }
+                        ]},
+                        { name: "02_Base_de_Datos", type: "folder", children: [
+                            { name: "01_Arquitectura_Datos.md", type: "file", ext: "md" },
+                            { name: "02_Schemas_PostgreSQL.md", type: "file", ext: "md" },
+                            { name: "03_Schemas_MongoDB.md", type: "file", ext: "md" },
+                            { name: "04_Redis_y_Queries.md", type: "file", ext: "md" }
+                        ]},
+                        { name: "03_API", type: "folder", children: [
+                            { name: "01_Estructura_API.md", type: "file", ext: "md" },
+                            { name: "02_Autenticacion.md", type: "file", ext: "md" },
+                            { name: "03_Middlewares.md", type: "file", ext: "md" },
+                            { name: "04_Endpoints_Referencia.md", type: "file", ext: "md" }
+                        ]},
+                        { name: "Reporte y RoadMap AnunciaYA", type: "folder", children: [
+                            { name: "01_AnunciaYA_Vision_General.md", type: "file", ext: "md" },
+                            { name: "02_AnunciaYA_Stack_Tecnologico.md", type: "file", ext: "md" },
+                            { name: "03_AnunciaYA_Fase1_Monorepo.md", type: "file", ext: "md" },
+                            { name: "04_AnunciaYA_Fase2_Base_de_Datos.md", type: "file", ext: "md" },
+                            { name: "05_AnunciaYA_Fase3_Backend_Auth.md", type: "file", ext: "md" },
+                            { name: "06_AnunciaYA_Fase4_Frontend.md", type: "file", ext: "md" },
+                            { name: "07_AnunciaYA_Pagos_Stripe.md", type: "file", ext: "md" },
+                            { name: "08_AnunciaYA_Arquitectura_Navegacion.md", type: "file", ext: "md" },
+                            { name: "09_AnunciaYA_Entorno_Desarrollo.md", type: "file", ext: "md" },
+                            { name: "10_AnunciaYA_Estado_Actual.md", type: "file", ext: "md" },
+                            { name: "11_AnunciaYA_Flujos_Operativos_Seguridad.md", type: "file", ext: "md" },
+                            { name: "Sistema de Transformación Automática snake_case ↔ camelCase.md", type: "file", ext: "md" },
+                            { name: "Documentos-Chats Nuevos", type: "folder", children: [
+                                { name: "Criterios de Uso de Modales.md", type: "file", ext: "md" },
+                                { name: "Guia_Responsive_Laptop_AnunciaYA.md", type: "file", ext: "md" },
+                                { name: "INSTRUCCIONES_TRABAJO_ANUNCIAYA_v2.md", type: "file", ext: "md" },
+                                { name: "Patron_Scroll_Lateral_AnunciaYA.md", type: "file", ext: "md" },
+                                { name: "REGLAS_ESTILO_CODIGO.md", type: "file", ext: "md" },
+                                { name: "REGLAS_MANEJO_ARCHIVOS.md", type: "file", ext: "md" }
+                            ]},
+                            { name: "Nueva Documentacion AnunciaYA", type: "folder", children: [
+                                { name: "AnunciaYA - RoadMap 29-01-2026.md", type: "file", ext: "md" },
+                                { name: "CHANGELOG.md", type: "file", ext: "md" },
+                                { name: "ROADMAP.md", type: "file", ext: "md" },
+                                { name: "Sistema PWA ScanYA con Redirección Automática.md", type: "file", ext: "md" },
+                                { name: "ARQUITECTURA", type: "folder", children: [
+                                    { name: "ARQUITECTURA  Base de Datos.md", type: "file", ext: "md" },
+                                    { name: "ARQUITECTURA  del Sistema.md", type: "file", ext: "md" },
+                                    { name: "ARQUITECTURA Business Studio - Panel de Control Comercial.md", type: "file", ext: "md" },
+                                    { name: "ARQUITECTURA Mis Guardados - Colección Personal .md", type: "file", ext: "md" },
+                                    { name: "ARQUITECTURA Negocios - Directorio Geolocalizado.md", type: "file", ext: "md" },
+                                    { name: "ARQUITECTURA Onboarding - Registro de Negocio.md", type: "file", ext: "md" },
+                                    { name: "ARQUITECTURA ScanYA - Sistema de Punto de Venta.md", type: "file", ext: "md" },
+                                    { name: "ARQUITECTURA Sistema de Autenticación.md", type: "file", ext: "md" }
+                                ]}
+                            ]}
+                        ]},
+                        { name: "sesiones", type: "folder", children: [
+                            { name: "2026-01-10_Fase5.4_Ofertas_Imagenes_Implementacion.md", type: "file", ext: "md" },
+                            { name: "2026-01-10_Fase5.4_Ofertas_UI_Polish.md", type: "file", ext: "md" }
+                        ]},
+                        { name: "templates", type: "folder", children: [
+                            { name: "README_TEMPLATES.md", type: "file", ext: "md" },
+                            { name: "TEMPLATE_Checkpoints.md", type: "file", ext: "md" }
+                        ]}
+                    ]
+                },
+                {
+                    name: "packages", type: "folder", expanded: true,
+                    children: [
+                        {
+                            name: "shared", type: "folder", badge: "Compartido", badgeClass: "badge-shared", expanded: true,
+                            children: [
+                                { name: "package.json", type: "file", ext: "json" },
+                                { name: "tsconfig.json", type: "file", ext: "json" },
+                                { name: "tsconfig.tsbuildinfo", type: "file", ext: "config" },
+                                { name: "src", type: "folder", expanded: true, children: [
+                                    { name: "index.ts", type: "file", ext: "ts" },
+                                    { name: "data", type: "folder", expanded: true, children: [
+                                        { name: "ciudadesPopulares.ts", type: "file", ext: "ts" },
+                                        { name: "index.ts", type: "file", ext: "ts" }
+                                    ]},
+                                    { name: "schemas", type: "folder", expanded: true, children: [
+                                        { name: "index.ts", type: "file", ext: "ts" }
+                                    ]},
+                                    { name: "types", type: "folder", expanded: true, children: [
+                                        { name: "index.ts", type: "file", ext: "ts" }
+                                    ]}
+                                ]}
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        function getExtClass(ext) {
+            const map = {
+                'ts': 'ext-ts', 'tsx': 'ext-tsx', 'json': 'ext-json', 'yaml': 'ext-yaml',
+                'yml': 'ext-yaml', 'js': 'ext-js', 'css': 'ext-css', 'html': 'ext-html',
+                'config': 'ext-config', 'sql': 'ext-sql', 'webp': 'ext-webp', 'md': 'ext-md', 
+                'pdf': 'ext-pdf', 'png': 'ext-png'
+            };
+            return map[ext] || 'ext-config';
+        }
+
+        function renderItem(item) {
+            if (item.type === 'file') {
+                const ext = item.ext || item.name.split('.').pop();
+                return `<div class="file"><span>📄</span><span class="file-name">${item.name}</span><span class="file-ext ${getExtClass(ext)}">${ext}</span></div>`;
+            }
+            const hasChildren = item.children && item.children.length > 0;
+            const expandedClass = item.expanded ? 'expanded' : 'collapsed';
+            let badge = item.badge ? `<span class="module-badge ${item.badgeClass}">${item.badge}</span>` : '';
+            return `
+                <div class="${expandedClass}" data-folder>
+                    <div class="folder" onclick="toggleFolder(this.parentElement)">
+                        <span class="toggle">${hasChildren ? '▶' : ''}</span>
+                        <span class="folder-icon">📁</span>
+                        <span class="folder-name">${item.name}/</span>
+                        ${badge}
+                    </div>
+                    ${hasChildren ? `<div class="children">${item.children.map(child => renderItem(child)).join('')}</div>` : ''}
+                </div>`;
+        }
+
+        function toggleFolder(el) {
+            el.classList.toggle('expanded');
+            el.classList.toggle('collapsed');
+        }
+
+        function expandAll() {
+            document.querySelectorAll('[data-folder]').forEach(el => {
+                el.classList.remove('collapsed');
+                el.classList.add('expanded');
+            });
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('[data-folder]').forEach(el => {
+                el.classList.remove('expanded');
+                el.classList.add('collapsed');
+            });
+            document.querySelector('[data-folder]').classList.remove('collapsed');
+            document.querySelector('[data-folder]').classList.add('expanded');
+        }
+
+        document.getElementById('tree').innerHTML = renderItem(structure);
+    </script>
+</body>
+</html>

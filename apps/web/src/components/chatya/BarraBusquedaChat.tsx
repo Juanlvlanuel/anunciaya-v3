@@ -169,19 +169,19 @@ export function BarraBusquedaChat({
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex-1 flex items-center gap-2 min-w-0">
+    <div className="flex-1 flex items-center gap-0 min-w-0">
       {/* Flecha atrás — solo móvil (reemplaza la X) */}
       {esMobile && (
         <button
           onClick={onCerrar}
-          className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 text-gray-500 shrink-0"
+          className="w-7 h-8 -ml-2 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 text-white/70 shrink-0"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
       )}
 
       {/* Input con fondo sutil */}
-      <div className={`flex-1 flex items-center gap-2 px-3 ${esMobile ? 'h-11' : 'h-10'} rounded-full bg-white/60 border border-slate-300 min-w-0`}>
+      <div className={`flex-1 flex items-center gap-2 px-3 ${esMobile ? 'h-11 bg-white/10 border-white/15' : 'h-10 bg-white/60 border-slate-300'} rounded-full border min-w-0`}>
         {/* Lupa — solo desktop */}
         {!esMobile && <Search className="w-4 h-4 text-slate-500 shrink-0" />}
 
@@ -192,7 +192,7 @@ export function BarraBusquedaChat({
           onChange={(e) => handleCambioTexto(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Buscar en la conversación..."
-          className={`flex-1 ${esMobile ? 'text-[15px]' : 'text-sm'} text-gray-700 bg-transparent outline-none placeholder:text-slate-400 min-w-0`}
+          className={`flex-1 text-[16px] font-medium bg-transparent outline-none min-w-0 ${esMobile ? 'text-white placeholder:text-white/40' : 'text-gray-700 placeholder:text-slate-400'}`}
         />
 
         {/* Spinner de carga */}
@@ -202,7 +202,7 @@ export function BarraBusquedaChat({
 
         {/* Contador de resultados */}
         {textoContador && (
-          <span className="text-xs text-slate-500 whitespace-nowrap shrink-0">
+          <span className={`text-xs whitespace-nowrap shrink-0 ${esMobile ? 'text-white/50' : 'text-slate-500'}`}>
             {textoContador}
           </span>
         )}
@@ -212,19 +212,29 @@ export function BarraBusquedaChat({
           <>
             <button
               onClick={irAnterior}
-              className="w-6 h-6 rounded flex items-center justify-center text-gray-500 hover:text-blue-500 cursor-pointer"
+              className={`w-6 h-6 rounded flex items-center justify-center cursor-pointer ${esMobile ? 'text-white/50 hover:text-white active:text-blue-400 active:bg-white/10' : 'text-gray-500 hover:text-blue-500'}`}
               title="Anterior (Shift+Enter)"
             >
               <ChevronUp className="w-4 h-4" />
             </button>
             <button
               onClick={irSiguiente}
-              className="w-6 h-6 rounded flex items-center justify-center text-gray-500 hover:text-blue-500 cursor-pointer"
+              className={`w-6 h-6 rounded flex items-center justify-center cursor-pointer ${esMobile ? 'text-white/50 hover:text-white active:text-blue-400 active:bg-white/10' : 'text-gray-500 hover:text-blue-500'}`}
               title="Siguiente (Enter)"
             >
               <ChevronDown className="w-4 h-4" />
             </button>
           </>
+        )}
+
+        {/* Botón limpiar texto — solo móvil cuando hay texto */}
+        {esMobile && texto.length > 0 && (
+          <button
+            onClick={() => handleCambioTexto('')}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-white/40 hover:text-white cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         )}
 
         {/* Botón cerrar búsqueda — solo desktop (en móvil la flecha atrás lo reemplaza) */}

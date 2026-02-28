@@ -90,6 +90,7 @@ function calcularAbierto(horarios: NegocioCompleto['horarios']): boolean {
 
 interface PanelInfoContactoProps {
   conversacion: Conversacion;
+  esTemporal?: boolean;
   onCerrar: () => void;
   onAbrirImagen: (url: string) => void;
 }
@@ -98,7 +99,7 @@ interface PanelInfoContactoProps {
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: PanelInfoContactoProps) {
+export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirImagen }: PanelInfoContactoProps) {
   // ---------------------------------------------------------------------------
   // Stores
   // ---------------------------------------------------------------------------
@@ -503,39 +504,41 @@ export function PanelInfoContacto({ conversacion, onCerrar, onAbrirImagen }: Pan
 
       </div>
 
-      {/* ── Acciones comunes ── */}
-      <div className="px-4 py-3 flex flex-col gap-1 shrink-0">
-        <button
-          onClick={handleSilenciar}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-white/10 lg:hover:bg-black/8 text-white/70 lg:text-gray-600 cursor-pointer transition-colors"
-        >
-          {conversacion.silenciada
-            ? <Bell className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
-            : <BellOff className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
-          }
-          <span className="text-[15px] lg:text-sm">
-            {conversacion.silenciada ? 'Activar notificaciones' : 'Silenciar notificaciones'}
-          </span>
-        </button>
-
-        {!esModoComercial && (
+      {/* ── Acciones comunes (solo si el chat ya existe en el servidor) ── */}
+      {!esTemporal && (
+        <div className="px-4 py-3 flex flex-col gap-1 shrink-0">
           <button
-            onClick={handleBloquear}
+            onClick={handleSilenciar}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-white/10 lg:hover:bg-black/8 text-white/70 lg:text-gray-600 cursor-pointer transition-colors"
+          >
+            {conversacion.silenciada
+              ? <Bell className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
+              : <BellOff className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
+            }
+            <span className="text-[15px] lg:text-sm">
+              {conversacion.silenciada ? 'Activar notificaciones' : 'Silenciar notificaciones'}
+            </span>
+          </button>
+
+          {!esModoComercial && (
+            <button
+              onClick={handleBloquear}
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-500/15 lg:hover:bg-red-100/60 text-red-400 lg:text-red-500 cursor-pointer transition-colors"
+            >
+              <ShieldBan className="w-5 h-5 lg:w-4 lg:h-4 shrink-0" />
+              <span className="text-[15px] lg:text-sm font-medium">Bloquear</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleEliminar}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-500/15 lg:hover:bg-red-100/60 text-red-400 lg:text-red-500 cursor-pointer transition-colors"
           >
-            <ShieldBan className="w-5 h-5 lg:w-4 lg:h-4 shrink-0" />
-            <span className="text-[15px] lg:text-sm font-medium">Bloquear</span>
+            <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 shrink-0" />
+            <span className="text-[15px] lg:text-sm font-medium">Eliminar chat</span>
           </button>
-        )}
-
-        <button
-          onClick={handleEliminar}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-500/15 lg:hover:bg-red-100/60 text-red-400 lg:text-red-500 cursor-pointer transition-colors"
-        >
-          <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 shrink-0" />
-          <span className="text-[15px] lg:text-sm font-medium">Eliminar chat</span>
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

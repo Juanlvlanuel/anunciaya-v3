@@ -91,7 +91,7 @@ interface ModalAdaptativoProps {
 
   /** Fuerza Modal centrado sin importar dispositivo (ej: modal sobre modal) */
   centrado?: boolean;
-  /** Clase de z-index para el wrapper (default: 'z-50'). Usar z-90 para modales sobre ChatYA */
+  /** Clase de z-index para el wrapper (default: 'z-52'). Usar z-90 para modales sobre ChatYA */
   zIndice?: string;
 }
 

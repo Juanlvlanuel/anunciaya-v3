@@ -15,8 +15,8 @@
 
 import { memo, useRef, useCallback, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, CheckCheck, Store, SmilePlus, AlertCircle, ChevronDown } from 'lucide-react';
-import type { Mensaje } from '../../types/chatya';
+import { Check, CheckCheck, Store, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Forward } from 'lucide-react';
+import type { Mensaje, ContenidoImagen } from '../../types/chatya';
 import { SelectorEmojis } from './SelectorEmojis';
 import { EmojiNoto } from './EmojiNoto';
 import { TextoConEmojis } from './TextoConEmojis';
@@ -50,6 +50,10 @@ interface BurbujaMensajeProps {
   menuActivoId?: string | null;
   /** ID del usuario actual (para resaltar mis reacciones) */
   miId?: string;
+  /** Callback al hacer click en imagen para abrir visor fullscreen */
+  onImagenClick?: (mensajeId: string) => void;
+  /** Callback al hacer click en botón reenviar (imagen/documento) */
+  onReenviar?: (mensaje: Mensaje) => void;
 }
 
 // =============================================================================
@@ -69,10 +73,220 @@ function formatearHora(fecha: string): string {
 }
 
 // =============================================================================
+// HELPERS IMAGEN
+// =============================================================================
+
+/**
+ * Parsea el campo `contenido` de un mensaje tipo 'imagen'.
+ * El contenido es un JSON string con: url, ancho, alto, miniatura, caption.
+ */
+function parsearContenidoImagen(contenidoRaw: string): ContenidoImagen | null {
+  try {
+    const datos = JSON.parse(contenidoRaw);
+    if (datos && datos.url && datos.ancho && datos.alto) {
+      return datos as ContenidoImagen;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Componente interno para renderizar imagen con pipeline zero-flicker.
+ *
+ * TÉCNICA (3 pilares):
+ * 1. Contenedor con aspect ratio fijo desde el inicio → sin layout shift
+ * 2. Micro-thumbnail LQIP base64 con blur → placeholder instantáneo
+ * 3. Imagen real precargada, se muestra con opacity → sin parpadeo
+ */
+function ImagenBurbuja({
+  contenidoRaw,
+  esMio,
+  onClick,
+}: {
+  contenidoRaw: string;
+  esMio: boolean;
+  onClick?: () => void;
+}) {
+  const datos = parsearContenidoImagen(contenidoRaw);
+  const [cargada, setCargada] = useState(false);
+
+  if (!datos) {
+    return (
+      <div className="flex items-center gap-2 text-sm opacity-60 py-2">
+        <ImageIcon className="w-4 h-4" />
+        <span>Imagen no disponible</span>
+      </div>
+    );
+  }
+
+  // Calcular dimensiones del contenedor (max 280px ancho en móvil, 320px en desktop)
+  const maxAncho = 280;
+  const ratio = Math.min(maxAncho / datos.ancho, 1);
+  const anchoFinal = Math.round(datos.ancho * ratio);
+  const altoFinal = Math.round(datos.alto * ratio);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-lg cursor-pointer"
+      style={{ width: anchoFinal, height: altoFinal }}
+      onClick={onClick}
+    >
+      {/* Capa 1: LQIP micro-thumbnail con blur (instantáneo, ~400 bytes en base64) */}
+      {datos.miniatura && (
+        <img
+          src={datos.miniatura}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
+          draggable={false}
+        />
+      )}
+
+      {/* Capa 2: Imagen real — opacity 0 hasta que carga, luego 1 sin transición */}
+      <img
+        src={datos.url}
+        alt={datos.caption || 'Imagen'}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ opacity: cargada ? 1 : 0 }}
+        onLoad={() => setCargada(true)}
+        draggable={false}
+      />
+
+      {/* Spinner sutil mientras carga (solo si tarda) */}
+      {!cargada && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className={`w-6 h-6 border-2 rounded-full animate-spin ${esMio ? 'border-white/30 border-t-white/80' : 'border-gray-300 border-t-gray-600'}`} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// DOCUMENTO: Parser + Burbuja (Sprint 6)
+// =============================================================================
+
+/** Estructura del JSON que viene en mensaje.contenido para tipo 'documento' */
+interface ContenidoDocumento {
+  url: string;
+  nombre: string;
+  tamano: number;
+  tipoArchivo: string;
+  extension: string;
+}
+
+/**
+ * Parsea el campo `contenido` de un mensaje tipo 'documento'.
+ * El contenido es un JSON string con: url, nombre, tamano, tipoArchivo, extension.
+ */
+function parsearContenidoDocumento(contenidoRaw: string): ContenidoDocumento | null {
+  try {
+    const datos = JSON.parse(contenidoRaw);
+    if (datos && datos.url && datos.nombre) {
+      return datos as ContenidoDocumento;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Formatea bytes a string legible (ej: "2.4 MB", "340 KB") */
+function formatearTamanoDoc(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Color de fondo e ícono según extensión del documento */
+function colorDocumento(ext: string): { bg: string; texto: string } {
+  switch (ext) {
+    case 'pdf': return { bg: 'bg-red-100', texto: 'text-red-600' };
+    case 'doc': case 'docx': return { bg: 'bg-blue-100', texto: 'text-blue-600' };
+    case 'xls': case 'xlsx': case 'csv': return { bg: 'bg-green-100', texto: 'text-green-600' };
+    case 'ppt': case 'pptx': return { bg: 'bg-orange-100', texto: 'text-orange-600' };
+    default: return { bg: 'bg-gray-100', texto: 'text-gray-600' };
+  }
+}
+
+/**
+ * Componente interno para renderizar documento adjunto.
+ * Muestra: icono según extensión, nombre, tamaño, botón de descarga.
+ */
+function DocumentoBurbuja({
+  contenidoRaw,
+  esMio,
+}: {
+  contenidoRaw: string;
+  esMio: boolean;
+}) {
+  const datos = parsearContenidoDocumento(contenidoRaw);
+
+  if (!datos) {
+    return (
+      <div className="flex items-center gap-2 text-sm opacity-60 py-2">
+        <FileText className="w-4 h-4" />
+        <span>Documento no disponible</span>
+      </div>
+    );
+  }
+
+  const color = colorDocumento(datos.extension);
+
+  /** Descargar: fetch blob → enlace temporal (evita abrir en pestaña nueva) */
+  const handleDescargar = async () => {
+    try {
+      const respuesta = await fetch(datos.url);
+      const blob = await respuesta.blob();
+      const urlBlob = URL.createObjectURL(blob);
+      const enlace = document.createElement('a');
+      enlace.href = urlBlob;
+      enlace.download = datos.nombre;
+      document.body.appendChild(enlace);
+      enlace.click();
+      document.body.removeChild(enlace);
+      URL.revokeObjectURL(urlBlob);
+    } catch {
+      // Fallback: abrir en pestaña nueva
+      window.open(datos.url, '_blank');
+    }
+  };
+
+  return (
+    <div
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer min-w-[200px] max-w-[280px] ${
+        esMio ? 'bg-white/10 hover:bg-white/15' : 'bg-gray-50 hover:bg-gray-100'
+      }`}
+      onClick={handleDescargar}
+    >
+      {/* Icono según extensión */}
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${color.bg} ${color.texto}`}>
+        <FileText className="w-5 h-5" />
+      </div>
+
+      {/* Nombre + tamaño */}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium truncate ${esMio ? 'text-white' : 'text-gray-800'}`}>
+          {datos.nombre}
+        </p>
+        <p className={`text-xs ${esMio ? 'text-white/60' : 'text-gray-500'}`}>
+          {formatearTamanoDoc(datos.tamano)} · {datos.extension.toUpperCase()}
+        </p>
+      </div>
+
+      {/* Icono descarga */}
+      <Download className={`w-4 h-4 shrink-0 ${esMio ? 'text-white/60' : 'text-gray-400'}`} />
+    </div>
+  );
+}
+
+// =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId, miId }: BurbujaMensajeProps) {
+export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId, miId, onImagenClick, onReenviar }: BurbujaMensajeProps) {
   const hora = formatearHora(mensaje.createdAt);
   const esNegocio = !esMisNotas && !!mensaje.emisorSucursalId;
   const esFallido = mensaje.estado === 'fallido';
@@ -216,40 +430,60 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
       <div className={`relative max-w-[84%] select-none lg:select-text`}>
         {/* Wrapper relativo solo para burbuja + botón emoji (centrado ignora reacciones) */}
         <div className="relative">
-          {/* Botón emoji hover (solo desktop, no eliminados, no Mis Notas) */}
-          {!mensaje.eliminado && !esMisNotas && onReaccionar && (
-            <div className={`absolute top-1/2 -translate-y-1/2 z-10 ${emojiPickerAbierto || pickerCompletoAbierto || pickerCompletoSaliendo ? 'flex' : 'hidden lg:group-hover:flex'} ${esMio ? '-left-9' : '-right-9'}`}>
-              <div className="relative">
-                <button
-                  ref={smileBtnRef}
-                  onClick={() => {
-                    if (emojiPickerAbierto) {
-                      cerrarEmojiPicker();
-                    } else {
-                      const rect = smileBtnRef.current?.getBoundingClientRect();
-                      if (rect) {
-                        const scrollContainer = smileBtnRef.current?.closest('[data-scroll-container]') as HTMLElement | null;
-                        const containerTop = scrollContainer?.getBoundingClientRect().top ?? 0;
-                        const espacioArriba = rect.top - containerTop;
-                        const abajo = espacioArriba < 60;
-                        setPopupPos({
-                          x: rect.left + rect.width / 2,
-                          y: abajo ? rect.bottom : rect.top,
-                          abajo,
-                        });
-                      }
-                      setEmojiPickerAbierto(true);
-                    }
-                  }}
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
-                >
-                  <SmilePlus className="w-[18px] h-[18px]" />
-                </button>
-
-                {/* Picker completo ahora es portal — ver abajo */}
-              </div>
+          {/* Botón reenviar siempre visible (solo multimedia, desktop, no Mis Notas) */}
+          {!mensaje.eliminado && !esMisNotas && onReenviar && (mensaje.tipo === 'imagen' || mensaje.tipo === 'documento') && (
+            <div className={`absolute top-1/2 -translate-y-1/2 z-10 flex ${esMio ? '-left-9' : '-right-9'}`}>
+              <button
+                onClick={(e) => { e.stopPropagation(); onReenviar(mensaje); }}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+              >
+                <Forward className="w-[18px] h-[18px]" />
+              </button>
             </div>
           )}
+
+          {/* Botón emoji hover (solo desktop, no eliminados, no Mis Notas) */}
+          {!mensaje.eliminado && !esMisNotas && onReaccionar && (() => {
+            const tieneReenviarVisible = (mensaje.tipo === 'imagen' || mensaje.tipo === 'documento') && !!onReenviar;
+            // Si hay botón reenviar visible, el emoji se posiciona más afuera
+            const offset = esMio
+              ? (tieneReenviarVisible ? '-left-[68px]' : '-left-9')
+              : (tieneReenviarVisible ? '-right-[68px]' : '-right-9');
+
+            return (
+              <div className={`absolute top-1/2 -translate-y-1/2 z-10 ${emojiPickerAbierto || pickerCompletoAbierto || pickerCompletoSaliendo ? 'flex' : 'hidden lg:group-hover:flex'} ${offset}`}>
+                <div className="relative">
+                  <button
+                    ref={smileBtnRef}
+                    onClick={() => {
+                      if (emojiPickerAbierto) {
+                        cerrarEmojiPicker();
+                      } else {
+                        const rect = smileBtnRef.current?.getBoundingClientRect();
+                        if (rect) {
+                          const scrollContainer = smileBtnRef.current?.closest('[data-scroll-container]') as HTMLElement | null;
+                          const containerTop = scrollContainer?.getBoundingClientRect().top ?? 0;
+                          const espacioArriba = rect.top - containerTop;
+                          const abajo = espacioArriba < 60;
+                          setPopupPos({
+                            x: rect.left + rect.width / 2,
+                            y: abajo ? rect.bottom : rect.top,
+                            abajo,
+                          });
+                        }
+                        setEmojiPickerAbierto(true);
+                      }
+                    }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <SmilePlus className="w-[18px] h-[18px]" />
+                  </button>
+
+                  {/* Picker completo ahora es portal — ver abajo */}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Portal: Picker completo de emojis (botón +) — centrado en SmilePlus */}
           {(pickerCompletoAbierto || pickerCompletoSaliendo) && onReaccionar && pickerCompletoPos && createPortal(
@@ -343,13 +577,13 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
             className={`
           ${esSoloEmojis
                 ? 'relative'
-                : `px-2.5 py-1.5 rounded-[14px] relative
+                : `${mensaje.tipo === 'imagen' ? 'p-1' : 'px-2.5 py-1.5'} rounded-[14px] relative
           ${esMio
                   ? 'bg-linear-to-br from-[#3b82f6] to-[#1d4ed8] text-white rounded-br-[5px] shadow-[0_2px_8px_rgba(37,99,235,0.25)]'
                   : 'bg-white text-gray-800 rounded-bl-[5px] shadow-[0_1px_4px_rgba(15,29,58,0.08)] border border-gray-100'
                 }`
               }
-          ${resaltado ? 'ring-2 ring-amber-400' : ''}
+          ${resaltado ? 'ring-2 ring-blue-400 animate-[resaltadoPulso_0.8s_ease-in-out_2]' : ''}
           ${menuActivoId === mensaje.id ? 'ring-2 ring-blue-400 scale-[1.02]' : ''}
           ${esFallido ? 'opacity-60' : ''}
         `}
@@ -361,7 +595,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                 onClick={(e) => {
                   e.stopPropagation();
                   const rect = e.currentTarget.getBoundingClientRect();
-                  onMenuContextual(mensaje, { x: esMio ? rect.right - 144 : rect.left, y: rect.bottom + 4 });
+                  onMenuContextual(mensaje, { x: esMio ? rect.right - 192 : rect.left, y: rect.bottom + 4 });
                 }}
                 className={`absolute top-0.5 right-0.5 z-10 flex w-6 h-5 items-center justify-center rounded cursor-pointer opacity-0 lg:group-hover:opacity-100 ${esSoloEmojis
                   ? 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
@@ -404,8 +638,61 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
               </div>
             )}
 
-            {/* Contenido + hora */}
-            {esSoloEmojis ? (
+            {/* Contenido de imagen (tipo === 'imagen') */}
+            {mensaje.tipo === 'imagen' && !mensaje.eliminado && (
+              <>
+                <ImagenBurbuja
+                  contenidoRaw={mensaje.contenido}
+                  esMio={esMio}
+                  onClick={() => onImagenClick?.(mensaje.id)}
+                />
+                {/* Hora flotante sobre imagen (sin caption) o debajo (con caption) */}
+                {(() => {
+                  const datos = parsearContenidoImagen(mensaje.contenido);
+                  const tieneCaption = datos?.caption && datos.caption.trim().length > 0;
+                  if (tieneCaption) {
+                    return (
+                      <p className="text-[15px] lg:text-[14px] leading-relaxed wrap-break-word whitespace-pre-wrap font-medium mt-1">
+                        <TextoConEmojis texto={datos!.caption!} tamañoEmoji={26} />
+                        <span className={`inline-flex items-center gap-0.5 align-bottom ml-1.5 translate-y-[5px] text-[10px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-gray-500'}`}>
+                          {mensaje.editado && <span className="italic">editado</span>}
+                          <span>{hora}</span>
+                          {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
+                        </span>
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className={`absolute bottom-1.5 right-2 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] lg:text-[11px] ${esMio ? 'bg-black/40 text-white/90' : 'bg-black/40 text-white/90'}`}>
+                      {mensaje.editado && <span className="italic">editado</span>}
+                      <span>{hora}</span>
+                      {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+
+            {/* Contenido de documento (tipo === 'documento') */}
+            {mensaje.tipo === 'documento' && !mensaje.eliminado && (
+              <>
+                <DocumentoBurbuja
+                  contenidoRaw={mensaje.contenido}
+                  esMio={esMio}
+                />
+                {/* Hora debajo del documento */}
+                <div className={`flex ${esMio ? 'justify-end' : 'justify-start'} mt-0.5`}>
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-gray-500'}`}>
+                    {mensaje.editado && <span className="italic">editado</span>}
+                    <span>{hora}</span>
+                    {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* Contenido + hora (texto normal) */}
+            {mensaje.tipo !== 'imagen' && mensaje.tipo !== 'documento' && (esSoloEmojis ? (
               <>
                 {/* Emojis grandes sin burbuja */}
                 <p className={`leading-none ${infoEmoji.cantidad === 1 ? 'py-1' : 'py-0.5'}`}>
@@ -433,7 +720,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                   {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
                 </span>
               </p>
-            )}
+            ))}
           </div>
           {/* Cierre del wrapper relativo burbuja + botón emoji */}
         </div>

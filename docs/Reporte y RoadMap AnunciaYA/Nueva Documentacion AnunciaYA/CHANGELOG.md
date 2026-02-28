@@ -7,6 +7,125 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [6-12 Febrero 2026] - Sprint CardYA + Socket.io + Notificaciones + Reseñas
+
+### ✨ Agregado
+
+**CardYA - Sistema de Lealtad para Clientes (Fase 5.7)**
+- 8 endpoints backend REST completos:
+  - `GET /api/cardya/mis-puntos` - Billeteras del usuario
+  - `GET /api/cardya/negocio/:id` - Detalle billetera por negocio
+  - `GET /api/cardya/recompensas` - Recompensas disponibles
+  - `POST /api/cardya/canjear` - Canjear recompensa → genera voucher
+  - `GET /api/cardya/vouchers` - Vouchers del usuario
+  - `DELETE /api/cardya/vouchers/:id` - Cancelar voucher (devuelve puntos)
+  - `GET /api/cardya/historial/compras` - Historial de compras
+  - `GET /api/cardya/historial/canjes` - Historial de canjes
+- 10 componentes frontend React:
+  - `PaginaCardYA.tsx` - Página principal con tabs (Billeteras/Recompensas/Vouchers/Historial)
+  - `CardBilletera.tsx` - Card de billetera por negocio
+  - `CardRecompensaCliente.tsx` - Card de recompensa canjeable con efecto glow
+  - `DropdownNegocio.tsx` - Filtro por negocio
+  - `TablaHistorialCompras.tsx` - Historial de compras responsive
+  - `TablaHistorialVouchers.tsx` - Historial de vouchers
+  - `ModalDetalleBilletera.tsx` - Detalle de billetera + nivel + progreso
+  - `ModalDetalleTransaccion.tsx` - Detalle de una compra
+  - `ModalConfirmarCanje.tsx` - Confirmación antes de canjear
+  - `ModalVoucherGenerado.tsx` - Voucher recién canjeado con QR
+- Store Zustand `useCardyaStore.ts` con optimistic updates
+- Service API `cardyaService.ts` con tipos TypeScript
+- Widget `WidgetCardYA.tsx` en columna izquierda con datos reales
+- Sistema de niveles Bronce/Plata/Oro por negocio (no global)
+
+**Socket.io - Infraestructura Tiempo Real**
+- Backend `socket.ts` con funciones: `inicializarSocket`, `emitirEvento`, `emitirAUsuario`
+- Rooms personales por usuario (`usuario:{id}`)
+- Frontend `socketService.ts` con reconexión automática y re-registro de listeners
+- Integración con `useAuthStore` (conectar al login, desconectar al logout)
+
+**Sistema de Notificaciones Tiempo Real**
+- Tabla `notificaciones` en PostgreSQL con campo `sucursal_id`
+- Types: 14 tipos de notificación, 9 tipos de referencia
+- Service `notificaciones.service.ts` con CRUD completo
+- Controller y routes REST (`/api/notificaciones`)
+- 7 tipos de notificación activos:
+  - `puntos_ganados` - Cliente recibe puntos por compra
+  - `voucher_generado` - Cliente canjea recompensa
+  - `voucher_cobrado` - Cliente usa voucher en tienda
+  - `voucher_pendiente` - Dueño recibe voucher para entregar
+  - `nueva_oferta` - Clientes con billetera reciben ofertas
+  - `nueva_recompensa` - Clientes con billetera reciben recompensas
+  - `stock_bajo` - Dueño alertado cuando recompensa tiene <5 stock
+- Store `useNotificacionesStore.ts` con filtrado por modo (personal/comercial)
+- Service `notificacionesService.ts` frontend
+- Componente `PanelNotificaciones.tsx` con badge "9+" y deep linking
+- Integración en `MobileHeader.tsx` y `Navbar.tsx`
+
+**Navegación desde Notificaciones (Deep Linking)**
+- `PanelNotificaciones.tsx` → función `obtenerRutaDestino()` según `referenciaTipo`
+- `PaginaCardYA.tsx` → `useSearchParams` para abrir tabs y modales específicos
+- `PaginaPerfilNegocio.tsx` → `?ofertaId=xxx` abre modal oferta
+- Efecto glow en recompensas destacadas (CSS keyframes)
+
+**Sistema de Reseñas Verificadas**
+- Schema Zod `resenas.schema.ts` (sucursalId, rating 1-5, texto max 500)
+- Service `resenas.service.ts` con verificación compra últimos 90 días
+- Controller y routes REST (`/api/resenas`)
+- Endpoints:
+  - `GET /api/resenas/sucursal/:sucursalId` - Reseñas públicas
+  - `GET /api/resenas/sucursal/:sucursalId/promedio` - Promedio
+  - `GET /api/resenas/puede-resenar/:sucursalId` - Verificar permiso
+  - `POST /api/resenas` - Crear reseña
+- Métricas UPSERT en `metricas_entidad` (conteo real, no incrementos)
+- Notificación al dueño cuando recibe reseña
+- `ModalEscribirResena.tsx` con estrellas interactivas
+- Integración en `PaginaPerfilNegocio.tsx` con datos reales
+
+**Contadores en ScanYA**
+- Badge vouchers pendientes en botón "Vouchers"
+- Polling cada 30 segundos (empleados no reciben Socket.io)
+- Endpoint `obtenerContadores()` incluye `vouchersPendientes`
+
+### 🛠 Corregido
+
+**Bug Crítico #1: cardya_controller.ts obtenerUsuarioId()**
+- Síntoma: Todos los endpoints de CardYA retornaban arrays vacíos
+- Causa: `req.usuarioId` no existe, el middleware pone datos en `req.usuario`
+- Solución: Cambiar a `(req as RequestConAuth).usuario?.id`
+
+**Bug #2: Notificaciones duplicadas por Socket.io**
+- Causa: `escucharEvento()` se llamaba múltiples veces acumulando listeners
+- Solución: Flag `listenerRegistrado` + `socket.off()` antes de `socket.on()`
+
+**Bug #3: Reseñas generaban 2 notificaciones al dueño**
+- Causa: `crearNotificacion()` + `notificarSucursal()` encontraba al mismo usuario
+- Solución: Eliminar llamada a `notificarSucursal()` de `crearResena()`
+
+**Bug #4: Parpadeo Modal Vouchers en ScanYA**
+- Causa 1: `yaCargo` nunca se reseteaba al reabrir
+- Causa 2: `setCargando(true)` vaciaba lista visualmente
+- Solución: Recargar siempre + loading condicional si no hay datos previos
+
+### 📊 Métricas del Sprint
+
+**Duración:** 7 días (6-12 febrero)
+
+**Código:**
+- Backend: ~2,500 líneas (16 archivos nuevos/modificados)
+- Frontend: ~3,000 líneas (14 archivos nuevos/modificados)
+- Total: **~5,500 líneas**
+
+**Archivos creados/modificados:**
+- Backend: 16 archivos (socket.ts, notificaciones.*, resenas.*, cardya.*, etc.)
+- Frontend: 14 archivos (stores, services, componentes CardYA, etc.)
+
+### 📝 Documentación
+
+- `SESION_CardYA_Integracion_Frontend_Backend.md` - 18 archivos documentados
+- `Socket_io_Sistema_Notificaciones_Completo.md` - Arquitectura completa
+
+---
+
 ## [29 Enero - 5 Febrero 2026] - Sprint Config Puntos + Expiración
 
 ### ✨ Agregado
@@ -626,4 +745,4 @@ Durante este sprint se generaron **8 documentos técnicos** con ~27,420 líneas 
 
 ---
 
-**Última actualización:** 5 Febrero 2026
+**Última actualización:** 12 Febrero 2026

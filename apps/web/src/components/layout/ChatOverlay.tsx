@@ -287,24 +287,18 @@ export function ChatOverlay() {
       top: body.style.top,
       width: body.style.width,
       overflow: body.style.overflow,
-      background: body.style.background,
-      htmlBackground: document.documentElement.style.background,
     };
 
     body.style.position = 'fixed';
     body.style.top = `-${scrollY}px`;
     body.style.width = '100%';
     body.style.overflow = 'hidden';
-    body.style.background = '#ffffff';
-    document.documentElement.style.background = '#ffffff';
 
     return () => {
       body.style.position = prev.position;
       body.style.top = prev.top;
       body.style.width = prev.width;
       body.style.overflow = prev.overflow;
-      body.style.background = prev.background;
-      document.documentElement.style.background = prev.htmlBackground;
       window.scrollTo(0, scrollY);
     };
   }, [chatYAAbierto, chatYAMinimizado, esDesktop]);
@@ -374,43 +368,87 @@ export function ChatOverlay() {
 
   // ---------------------------------------------------------------------------
   // Effect: Flecha nativa al abrir ChatOverlay → cerrar desde la lista
+  // Push al abrir, cleanup al cerrar (por cualquier vía: X, botón, etc.)
   // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (!chatYAAbierto) return;
+  const overlayHistoryRef = useRef(false);
+  const overlayHandlerRef = useRef<(() => void) | null>(null);
 
-    window.history.pushState({ chatyaOverlay: true }, '');
+  useEffect(() => {
+    if (!chatYAAbierto) {
+      // ChatYA se cerró por otra vía (botón X, etc.) → limpiar entrada fantasma
+      if (overlayHistoryRef.current) {
+        overlayHistoryRef.current = false;
+        if (overlayHandlerRef.current) {
+          window.removeEventListener('popstate', overlayHandlerRef.current);
+          overlayHandlerRef.current = null;
+        }
+        history.back();
+      }
+      return;
+    }
+
+    if (!overlayHistoryRef.current) {
+      window.history.pushState({ chatyaOverlay: true }, '');
+      overlayHistoryRef.current = true;
+    }
 
     const handlePopStateOverlay = () => {
-      // Si hay un chat abierto, el listener del chat lo maneja
+      if (!overlayHistoryRef.current) return;
       if (useChatYAStore.getState().conversacionActivaId) return;
+      if (history.state?.chatyaOverlay) return;
+      overlayHistoryRef.current = false;
+      overlayHandlerRef.current = null;
       cerrarChatYA();
     };
 
+    overlayHandlerRef.current = handlePopStateOverlay;
     window.addEventListener('popstate', handlePopStateOverlay);
     return () => {
       window.removeEventListener('popstate', handlePopStateOverlay);
+      overlayHandlerRef.current = null;
     };
   }, [chatYAAbierto, cerrarChatYA]);
 
   // ---------------------------------------------------------------------------
   // Effect: Flecha nativa del celular → volver a lista de chats
-  // Cuando se abre un chat, se empuja un estado al historial del navegador.
-  // Al presionar "atrás" en el celular, se captura el evento popstate y se
-  // regresa a la lista sin navegar fuera de la app.
+  // Push al abrir un chat, cleanup al cerrar (por cualquier vía: flecha
+  // del header, acción del store, botón atrás del celular, etc.)
   // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (!conversacionActivaId) return;
+  const chatHistoryRef = useRef(false);
+  const chatHandlerRef = useRef<(() => void) | null>(null);
 
-    // Empujar estado al historial cuando se abre un chat
-    window.history.pushState({ chatya: true }, '');
+  useEffect(() => {
+    if (!conversacionActivaId) {
+      // Chat se cerró por otra vía (flecha del header, etc.) → limpiar entrada fantasma
+      if (chatHistoryRef.current) {
+        chatHistoryRef.current = false;
+        if (chatHandlerRef.current) {
+          window.removeEventListener('popstate', chatHandlerRef.current);
+          chatHandlerRef.current = null;
+        }
+        history.back();
+      }
+      return;
+    }
+
+    if (!chatHistoryRef.current) {
+      window.history.pushState({ chatya: true }, '');
+      chatHistoryRef.current = true;
+    }
 
     const handlePopState = () => {
+      if (!chatHistoryRef.current) return;
+      if (history.state?.chatya) return;
+      chatHistoryRef.current = false;
+      chatHandlerRef.current = null;
       volverALista();
     };
 
+    chatHandlerRef.current = handlePopState;
     window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      chatHandlerRef.current = null;
     };
   }, [conversacionActivaId, volverALista]);
 
@@ -453,10 +491,10 @@ export function ChatOverlay() {
       <div
         ref={panelRef}
         className={`
-          fixed bg-white overflow-hidden flex
+          fixed bg-black lg:bg-white overflow-hidden flex
           ${esDesktop
             ? `z-41 top-[83px] bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
-            : `z-50 inset-0 flex-col`
+            : `z-50 top-0 left-0 w-full h-dvh flex-col`
           }
         `}
       >
@@ -559,7 +597,7 @@ export function ChatOverlay() {
             )}
 
             {/* Contenido móvil: ambas vistas montadas, visibilidad por CSS */}
-            <div className={`flex-1 overflow-hidden flex flex-col min-h-0 ${enChat ? 'bg-white' : 'bg-linear-to-b from-[#0B358F] to-black'}`}>
+            <div className={`flex-1 overflow-hidden flex flex-col min-h-0 ${enChat ? 'bg-black' : 'bg-linear-to-b from-[#0B358F] to-black'}`}>
               <div className={enChat ? 'hidden' : 'flex flex-col flex-1 min-h-0'}>
                 <ListaConversaciones
                   seleccionadas={seleccionadas}

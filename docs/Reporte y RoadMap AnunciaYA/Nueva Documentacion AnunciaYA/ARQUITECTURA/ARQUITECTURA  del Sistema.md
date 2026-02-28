@@ -1,7 +1,7 @@
 # 🏗️ AnunciaYA v3.0 - Arquitectura del Sistema
 
-**Última actualización:** 30 enero 2026  
-**Versión:** 8.0
+**Última actualización:** 12 Febrero 2026  
+**Versión:** 9.0
 
 Este documento describe la arquitectura técnica base, decisiones de diseño fundamentales y requisitos transversales del sistema.
 
@@ -470,7 +470,181 @@ Si reactiva suscripción → negocio vuelve a aparecer
 
 ---
 
-# ☁️ PARTE 4: INFRAESTRUCTURA Y SERVICIOS CLOUD
+# 🔔 PARTE 2: SISTEMA DE NOTIFICACIONES EN TIEMPO REAL
+
+> **Estado:** ✅ IMPLEMENTADO (12 Febrero 2026)
+
+---
+
+## 2.1 Socket.io - Infraestructura Base
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    BACKEND (Express)                        │
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │
+│  │   HTTP      │    │  Socket.io  │    │   Rooms     │    │
+│  │   Server    │───▶│   Server    │───▶│  usuario:X  │    │
+│  └─────────────┘    └─────────────┘    └─────────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    FRONTEND (React)                         │
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │
+│  │  Socket.io  │───▶│   Zustand   │───▶│    UI       │    │
+│  │   Client    │    │   Store     │    │  (Badge)    │    │
+│  └─────────────┘    └─────────────┘    └─────────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Backend: `apps/api/src/socket.ts`
+
+**Funciones exportadas:**
+- `inicializarSocket(httpServer)` - Se llama UNA vez al arrancar
+- `emitirEvento(evento, datos)` - Broadcast a TODOS los clientes
+- `emitirAUsuario(usuarioId, evento, datos)` - Emite a room específico
+
+**Rooms personales:**
+```typescript
+socket.on('unirse', (usuarioId: string) => {
+  if (usuarioId) {
+    socket.join(`usuario:${usuarioId}`);
+  }
+});
+```
+
+### Frontend: `apps/web/src/services/socketService.ts`
+
+**Funciones exportadas:**
+- `conectarSocket()` - Se llama desde useAuthStore al login
+- `escucharEvento<T>(evento, callback)` - Registra listener
+- `desconectarSocket()` - Limpia al cerrar sesión
+
+**Auto-unión al room:**
+Al conectar, lee `ay_usuario` de localStorage y emite `'unirse'` con el id.
+
+---
+
+## 2.2 Sistema de Notificaciones
+
+### Tabla: `notificaciones`
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | UUID PK | Identificador único |
+| `usuario_id` | UUID FK | Destinatario |
+| `modo` | VARCHAR(15) | 'personal' o 'comercial' |
+| `tipo` | VARCHAR(30) | Tipo de notificación (14 tipos) |
+| `titulo` | VARCHAR(200) | Título corto |
+| `mensaje` | VARCHAR(500) | Descripción |
+| `negocio_id` | UUID FK NULL | Negocio relacionado |
+| `sucursal_id` | UUID FK NULL | Sucursal relacionada |
+| `referencia_id` | VARCHAR(100) | ID del recurso |
+| `referencia_tipo` | VARCHAR(30) | Tipo del recurso |
+| `icono` | VARCHAR(20) | Emoji |
+| `leida` | BOOLEAN | Default false |
+| `leida_at` | TIMESTAMP NULL | Cuándo se leyó |
+| `created_at` | TIMESTAMP | Auto |
+
+### Tipos de Notificación (14)
+
+| Tipo | Modo | Descripción |
+|------|------|-------------|
+| `puntos_ganados` | personal | Cliente recibió puntos |
+| `voucher_generado` | personal | Cliente canjeó recompensa |
+| `voucher_cobrado` | personal | Voucher usado en tienda |
+| `voucher_pendiente` | comercial | Dueño recibe voucher para entregar |
+| `nueva_oferta` | personal | Nueva oferta del negocio |
+| `nueva_recompensa` | personal | Nueva recompensa disponible |
+| `nuevo_cupon` | personal | Cupón disponible |
+| `nuevo_cliente` | comercial | Nuevo cliente registrado |
+| `stock_bajo` | comercial | Recompensa con <5 stock |
+| `nueva_resena` | comercial | Cliente dejó reseña |
+| `sistema` | ambos | Notificación del sistema |
+| `nuevo_marketplace` | personal | Nuevo item en marketplace |
+| `nueva_dinamica` | personal | Nueva rifa/dinámica |
+| `nuevo_empleo` | personal | Nueva vacante |
+
+### Flujo de Notificación
+
+```
+1. Evento ocurre (venta, canje, reseña, etc.)
+         ↓
+2. Service llama crearNotificacion() (sin await, con .catch())
+         ↓
+3. crearNotificacion():
+   - INSERT en tabla notificaciones
+   - Llama emitirAUsuario(usuarioId, 'notificacion:nueva', data)
+         ↓
+4. Socket.io emite solo al room `usuario:{id}`
+         ↓
+5. Frontend escucha 'notificacion:nueva'
+         ↓
+6. Store actualiza notificaciones + badge
+         ↓
+7. UI muestra badge "9+" si hay más de 9
+```
+
+### API Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/notificaciones` | Lista paginada (filtrada por modo) |
+| POST | `/api/notificaciones/:id/leer` | Marcar como leída |
+| POST | `/api/notificaciones/leer-todas` | Marcar todas como leídas |
+| GET | `/api/notificaciones/no-leidas` | Contar no leídas |
+
+### Deep Linking desde Notificaciones
+
+| referenciaTipo | Destino |
+|----------------|---------|
+| `transaccion` | `/cardya?tab=historial&id={referenciaId}` |
+| `voucher` | `/cardya?tab=vouchers&id={referenciaId}` |
+| `oferta` | `/negocios/{sucursalId}?ofertaId={referenciaId}` |
+| `recompensa` | `/cardya?tab=recompensas&id={referenciaId}` (con glow) |
+| `resena` | `/business-studio/opiniones` |
+| `stock_bajo` | `/business-studio/puntos` |
+
+### Frontend Components
+
+- `useNotificacionesStore.ts` - Zustand store con filtrado por modo
+- `notificacionesService.ts` - API service
+- `PanelNotificaciones.tsx` - Panel con lista + badge
+- Integración en `Navbar.tsx` y `MobileHeader.tsx`
+
+---
+
+## 2.3 Separación por Modo
+
+Las notificaciones se filtran automáticamente según el modo activo del usuario:
+
+- **Modo Personal:** Ve `puntos_ganados`, `voucher_generado`, etc.
+- **Modo Comercial:** Ve `voucher_pendiente`, `nueva_resena`, `stock_bajo`, etc.
+
+Al cambiar de modo, el store recarga las notificaciones del nuevo modo.
+
+---
+
+## 2.4 Notas Técnicas Importantes
+
+**Empleados ScanYA NO reciben notificaciones por Socket.io:**
+- Los empleados no tienen cuenta en tabla `usuarios`
+- Acceden por Nick+PIN, no tienen sesión AnunciaYA
+- Se usa polling cada 30 segundos para actualizar contadores
+
+**Prevención de duplicados:**
+- Flag `listenerRegistrado` en store
+- `socket.off()` antes de `socket.on()` al reconectar
+
+---
+
+# ☁️ PARTE 3: INFRAESTRUCTURA Y SERVICIOS CLOUD
 
 ---
 
@@ -502,8 +676,11 @@ Usuario Final
     └─► Render (Backend API - Free Tier)
         └─► https://anunciaya-api.onrender.com
              │
+             ├─► Socket.io (Tiempo Real)
+             │   └─► Notificaciones push, rooms por usuario
+             │
              ├─► Supabase (PostgreSQL + PostGIS)
-             │   └─► 65 tablas, 500 MB, puerto 6543
+             │   └─► 66 tablas, 500 MB, puerto 6543
              │
              ├─► MongoDB Atlas (Chat - M0 Free)
              │   └─► 512 MB, 500 conexiones

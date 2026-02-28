@@ -22,4 +22,5 @@ export { PanelInfoContacto } from './PanelInfoContacto';
 export { SelectorEmojis } from './SelectorEmojis';
 export { EmojiNoto } from './EmojiNoto';
 export { TextoConEmojis } from './TextoConEmojis';
+export { TexturaDoodle } from './TexturaDoodle';
 

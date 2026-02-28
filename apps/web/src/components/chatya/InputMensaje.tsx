@@ -12,12 +12,14 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, X, Pencil, Reply, Smile } from 'lucide-react';
+import { Send, X, Pencil, Reply, Smile, Paperclip, Camera, Image as ImageIcon, FileText } from 'lucide-react';
 import { SelectorEmojis } from './SelectorEmojis';
 import { TextoConEmojis } from './TextoConEmojis';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { emitirEvento } from '../../services/socketService';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useImagenChat } from '../../hooks/useImagenChat';
+import { useDocumentoChat, ACCEPT_DOCUMENTOS, formatearTamano, esDocumentoPermitido } from '../../hooks/useDocumentoChat';
 import * as chatyaService from '../../services/chatyaService';
 import type { Mensaje } from '../../types/chatya';
 
@@ -47,6 +49,10 @@ interface InputMensajeProps {
   nombreContacto?: string;
   /** ID del usuario actual (para determinar "Tú" vs nombre del contacto) */
   miId?: string;
+  /** Archivos soltados desde drag & drop en VentanaChat (zona amplia) */
+  archivosDrop?: File[] | null;
+  /** Callback para limpiar archivosDrop después de procesarlos */
+  onArchivosDropProcesados?: () => void;
 }
 
 // =============================================================================
@@ -61,6 +67,8 @@ export function InputMensaje({
   bloqueado = false,
   nombreContacto = '',
   miId = '',
+  archivosDrop = null,
+  onArchivosDropProcesados,
 }: InputMensajeProps) {
   const enviarMensaje = useChatYAStore((s) => s.enviarMensaje);
   const enviandoMensaje = useChatYAStore((s) => s.enviandoMensaje);
@@ -80,6 +88,35 @@ export function InputMensaje({
   const smileBtnRef = useRef<HTMLButtonElement>(null);
   const escribiendoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const estaEscribiendoRef = useRef(false);
+
+  // Hook de procesamiento de imagen (pipeline zero-flicker) — soporta múltiples
+  const {
+    imagenesListas,
+    procesando: procesandoImagen,
+    error: errorImagen,
+    procesarImagen,
+    procesarImagenes,
+    removerImagen,
+    setCaption,
+    limpiar: limpiarImagen,
+    puedeAgregarMas,
+    maxImagenes,
+  } = useImagenChat();
+
+  // Hook de procesamiento de documento
+  const {
+    documentoListo,
+    error: errorDocumento,
+    procesarDocumento,
+    limpiar: limpiarDocumento,
+  } = useDocumentoChat();
+
+  // Refs para inputs de archivo ocultos
+  const inputArchivoRef = useRef<HTMLInputElement>(null);
+  const inputCamaraRef = useRef<HTMLInputElement>(null);
+
+  // Estado drag & drop
+  const [dragActivo, setDragActivo] = useState(false);
 
   // Focus automático al montar (solo en escritorio, en móvil evita abrir el teclado)
   const { esMobile } = useBreakpoint();
@@ -181,7 +218,11 @@ export function InputMensaje({
   // ---------------------------------------------------------------------------
   const handleEnviar = useCallback(async () => {
     const contenido = texto.trim();
-    if (!contenido || enviandoMensaje) return;
+    const tieneTexto = contenido.length > 0;
+    const tieneImagenes = imagenesListas.length > 0;
+    const tieneDocumento = !!documentoListo;
+
+    if ((!tieneTexto && !tieneImagenes && !tieneDocumento) || enviandoMensaje) return;
 
     // Limpiar input y borrador inmediatamente (optimista)
     setTexto('');
@@ -196,14 +237,101 @@ export function InputMensaje({
       estaEscribiendoRef.current = false;
     }
 
-    // ── MODO EDICIÓN: actualizar mensaje existente ──
+    // ── MODO EDICIÓN: actualizar mensaje existente (solo texto) ──
     if (mensajeEditando) {
       try {
         await chatyaService.editarMensaje(mensajeEditando.id, { contenido });
       } catch {
-        void 0; // Silencioso
+        void 0;
       }
       onCancelarEdicion?.();
+      inputRef.current?.focus();
+      return;
+    }
+
+    // ── ENVÍO DE IMÁGENES (una o múltiples) ──
+    if (tieneImagenes) {
+      // Copiar array y limpiar preview inmediatamente (optimista)
+      const loteImagenes = [...imagenesListas];
+      limpiarImagen();
+
+      try {
+        // 1. Pedir presigned URLs para todas las imágenes en paralelo
+        const presignedPromises = loteImagenes.map((img) =>
+          chatyaService.obtenerPresignedUrlImagen(img.archivo.name, img.archivo.type)
+        );
+        const presignedResults = await Promise.all(presignedPromises);
+
+        // 2. Subir todas a R2 en paralelo
+        const uploadPromises = loteImagenes.map((img, i) =>
+          chatyaService.subirArchivoAR2(presignedResults[i].uploadUrl, img.archivo, img.archivo.type)
+        );
+        await Promise.all(uploadPromises);
+
+        // 3. Enviar un mensaje por cada imagen (secuencial para mantener orden)
+        for (let i = 0; i < loteImagenes.length; i++) {
+          const img = loteImagenes[i];
+          const contenidoImagen = JSON.stringify({
+            url: presignedResults[i].publicUrl,
+            ancho: img.ancho,
+            alto: img.alto,
+            peso: img.peso,
+            miniatura: img.miniatura,
+            caption: i === 0 ? (img.caption || undefined) : undefined, // Caption solo en la primera
+          });
+
+          await enviarMensaje({ contenido: contenidoImagen, tipo: 'imagen' });
+        }
+
+        // Si también hay texto, enviar como mensaje separado al final
+        if (tieneTexto) {
+          await enviarMensaje({ contenido, tipo: 'texto' });
+        }
+      } catch (err) {
+        console.error('Error al enviar imágenes:', err);
+        // TODO: Mostrar toast de error
+      }
+
+      inputRef.current?.focus();
+      return;
+    }
+
+    // ── ENVÍO DE DOCUMENTO ──
+    if (tieneDocumento) {
+      const datosDoc = documentoListo;
+      limpiarDocumento(); // Limpiar preview inmediatamente (optimista)
+
+      try {
+        // 1. Pedir presigned URL
+        const { uploadUrl, publicUrl } = await chatyaService.obtenerPresignedUrlDocumento(
+          datosDoc.archivo.name,
+          datosDoc.tipoArchivo,
+          datosDoc.tamano
+        );
+
+        // 2. Subir a R2
+        await chatyaService.subirArchivoAR2(uploadUrl, datosDoc.archivo, datosDoc.tipoArchivo);
+
+        // 3. Construir contenido JSON de documento
+        const contenidoDocumento = JSON.stringify({
+          url: publicUrl,
+          nombre: datosDoc.nombre,
+          tamano: datosDoc.tamano,
+          tipoArchivo: datosDoc.tipoArchivo,
+          extension: datosDoc.extension,
+        });
+
+        // 4. Enviar mensaje tipo documento
+        await enviarMensaje({ contenido: contenidoDocumento, tipo: 'documento' });
+
+        // Si también hay texto, enviar como mensaje separado
+        if (tieneTexto) {
+          await enviarMensaje({ contenido, tipo: 'texto' });
+        }
+      } catch (err) {
+        console.error('Error al enviar documento:', err);
+      }
+
       inputRef.current?.focus();
       return;
     }
@@ -212,10 +340,9 @@ export function InputMensaje({
     if (chatTemporal && conversacionActivaId?.startsWith('temp_')) {
       const conv = await crearConversacion(chatTemporal.datosCreacion);
       if (!conv) {
-        setTexto(contenido); // Restaurar el texto si falla
+        setTexto(contenido);
         return;
       }
-      // Transicionar al ID real SIN resetear mensajes (preserva mensaje optimista)
       transicionarAConversacionReal(conv.id);
       await enviarMensaje({ contenido, tipo: 'texto' });
       inputRef.current?.focus();
@@ -233,7 +360,7 @@ export function InputMensaje({
     // ── ENVÍO NORMAL ──
     await enviarMensaje({ contenido, tipo: 'texto' });
     inputRef.current?.focus();
-  }, [texto, enviandoMensaje, enviarMensaje, conversacionActivaId, mensajeEditando, onCancelarEdicion, mensajeRespondiendo, onCancelarRespuesta]);
+  }, [texto, enviandoMensaje, enviarMensaje, conversacionActivaId, mensajeEditando, onCancelarEdicion, mensajeRespondiendo, onCancelarRespuesta, imagenesListas, limpiarImagen, documentoListo, limpiarDocumento]);
 
   // ---------------------------------------------------------------------------
   // Enter para enviar (Shift+Enter para nueva línea futuro)
@@ -256,12 +383,224 @@ export function InputMensaje({
   };
 
   // ---------------------------------------------------------------------------
+  // Selección de archivo (galería o cámara)
+  // ---------------------------------------------------------------------------
+  const handleSeleccionArchivo = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivos = e.target.files;
+    if (!archivos || archivos.length === 0) return;
+
+    // Separar imágenes de documentos
+    const imagenes: File[] = [];
+    const documentos: File[] = [];
+    Array.from(archivos).forEach((f) => {
+      if (f.type.startsWith('image/')) imagenes.push(f);
+      else if (esDocumentoPermitido(f.type)) documentos.push(f);
+    });
+
+    // Procesar imágenes (múltiples)
+    if (imagenes.length === 1) {
+      procesarImagen(imagenes[0]);
+    } else if (imagenes.length > 1) {
+      procesarImagenes(imagenes);
+    }
+
+    // Procesar documento (solo 1 a la vez)
+    if (documentos.length > 0) {
+      procesarDocumento(documentos[0]);
+    }
+
+    // Reset del input para poder seleccionar los mismos archivos
+    e.target.value = '';
+  }, [procesarImagen, procesarImagenes, procesarDocumento]);
+
+  // ---------------------------------------------------------------------------
+  // Drag & Drop
+  // ---------------------------------------------------------------------------
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (bloqueado) return;
+    setDragActivo(true);
+  }, [bloqueado]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActivo(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActivo(false);
+    if (bloqueado) return;
+
+    const archivos = Array.from(e.dataTransfer.files);
+    const imagenes = archivos.filter((f) => f.type.startsWith('image/'));
+    const documentos = archivos.filter((f) => esDocumentoPermitido(f.type));
+
+    if (imagenes.length === 1) {
+      procesarImagen(imagenes[0]);
+    } else if (imagenes.length > 1) {
+      procesarImagenes(imagenes);
+    }
+
+    if (documentos.length > 0) {
+      procesarDocumento(documentos[0]);
+    }
+  }, [bloqueado, procesarImagen, procesarImagenes, procesarDocumento]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: procesar imágenes recibidas via drag & drop desde VentanaChat
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (archivosDrop && archivosDrop.length > 0 && !bloqueado && !mensajeEditando) {
+      if (archivosDrop.length === 1) {
+        procesarImagen(archivosDrop[0]);
+      } else {
+        procesarImagenes(archivosDrop);
+      }
+      onArchivosDropProcesados?.();
+    }
+  }, [archivosDrop]);
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
-  const puedeEnviar = texto.trim().length > 0 && !enviandoMensaje && !bloqueado;
+  const puedeEnviar = (texto.trim().length > 0 || imagenesListas.length > 0 || !!documentoListo) && !enviandoMensaje && !bloqueado && !procesandoImagen;
 
   return (
-    <div className="shrink-0 px-0.5 lg:px-3 pb-3 pt-1 bg-[#050d1a]/80 lg:bg-transparent">
+    <div
+      className={`shrink-0 px-0.5 lg:px-3 pb-3 pt-1 bg-[#050d1a]/80 lg:bg-transparent relative ${dragActivo ? 'ring-2 ring-blue-400 ring-inset' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Overlay drag & drop */}
+      {dragActivo && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-blue-500/10 backdrop-blur-[2px] rounded-xl pointer-events-none">
+          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-lg">
+            <ImageIcon className="w-5 h-5 text-blue-500" />
+            <span className="text-sm font-medium text-blue-600">Suelta archivos aquí</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Error de imagen ── */}
+      {errorImagen && (
+        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
+          <X className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{errorImagen}</span>
+        </div>
+      )}
+
+      {/* ── Error de documento ── */}
+      {errorDocumento && (
+        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
+          <X className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{errorDocumento}</span>
+        </div>
+      )}
+
+      {/* ── Preview de imágenes seleccionadas (strip horizontal) ── */}
+      {imagenesListas.length > 0 && (
+        <div className="mx-4 mb-2 px-3 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-sm">
+          {/* Fila: thumbnails + badge + botón limpiar todo */}
+          <div className="flex items-center gap-2">
+            {/* Strip horizontal con scroll */}
+            <div className="flex-1 flex items-center gap-2 overflow-x-auto min-w-0" style={{ scrollbarWidth: 'none' }}>
+              {imagenesListas.map((img, i) => (
+                <div key={img.blobUrl} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-gray-100 group">
+                  <img
+                    src={img.blobUrl}
+                    alt={`Preview ${i + 1}`}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                  {/* Botón X individual por imagen */}
+                  <button
+                    onClick={() => removerImagen(i)}
+                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </div>
+              ))}
+
+              {/* Spinner si está procesando más imágenes */}
+              {procesandoImagen && (
+                <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* Botón "+" para agregar más (si caben) */}
+              {puedeAgregarMas && !procesandoImagen && (
+                <button
+                  onClick={() => inputArchivoRef.current?.click()}
+                  className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center shrink-0 cursor-pointer hover:bg-blue-50/50"
+                >
+                  <ImageIcon className="w-5 h-5 text-gray-400" />
+                </button>
+              )}
+            </div>
+
+            {/* Badge contador */}
+            {imagenesListas.length > 1 && (
+              <span className="text-xs font-semibold text-gray-500 shrink-0">
+                {imagenesListas.length}/{maxImagenes}
+              </span>
+            )}
+
+            {/* Botón limpiar todo */}
+            <button
+              onClick={limpiarImagen}
+              className="w-7 h-7 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 cursor-pointer shrink-0"
+            >
+              <X className="w-3.5 h-3.5 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Input caption global (debajo de los thumbnails) */}
+          <input
+            type="text"
+            value={imagenesListas[0]?.caption || ''}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Agregar pie de foto..."
+            maxLength={200}
+            className="w-full mt-1.5 bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-400"
+          />
+        </div>
+      )}
+
+      {/* ── Preview de documento seleccionado ── */}
+      {documentoListo && (
+        <div className="flex items-center gap-3 mx-4 mb-2 px-3 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-sm">
+          {/* Icono según extensión */}
+          <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
+            documentoListo.extension === 'pdf' ? 'bg-red-100 text-red-600' :
+            ['doc', 'docx'].includes(documentoListo.extension) ? 'bg-blue-100 text-blue-600' :
+            ['xls', 'xlsx', 'csv'].includes(documentoListo.extension) ? 'bg-green-100 text-green-600' :
+            ['ppt', 'pptx'].includes(documentoListo.extension) ? 'bg-orange-100 text-orange-600' :
+            'bg-gray-100 text-gray-600'
+          }`}>
+            <FileText className="w-5 h-5" />
+          </div>
+          {/* Nombre + tamaño */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-800 truncate">{documentoListo.nombre}</p>
+            <p className="text-xs text-gray-500">{formatearTamano(documentoListo.tamano)} · {documentoListo.extension.toUpperCase()}</p>
+          </div>
+          {/* Botón cancelar */}
+          <button
+            onClick={limpiarDocumento}
+            className="w-7 h-7 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 cursor-pointer shrink-0"
+          >
+            <X className="w-3.5 h-3.5 text-gray-500" />
+          </button>
+        </div>
+      )}
+
       {/* ── Barra de edición ── */}
       {mensajeEditando && (
         <div className="flex items-center gap-2.5 mb-2 mr-4 ml-4 px-6 py-1.5 bg-white/70 backdrop-blur-sm border border-amber-300 rounded-full shadow-sm">
@@ -318,6 +657,28 @@ export function InputMensaje({
 
       {/* ── Input + botón enviar ── */}
       <div className="flex items-center gap-2 lg:gap-2.5 px-0 lg:px-4 py-1 pb-0">
+
+        {/* Botón adjuntar imagen (galería) */}
+        <button
+          onClick={() => inputArchivoRef.current?.click()}
+          disabled={bloqueado || !!mensajeEditando}
+          className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-full cursor-pointer transition-transform duration-75 hover:scale-110 active:scale-95
+            ${bloqueado || mensajeEditando ? 'opacity-30 cursor-not-allowed' : 'text-white/60 hover:text-white/90 lg:text-gray-500 lg:hover:text-gray-700'}
+          `}
+        >
+          <Paperclip className="w-5 h-5" />
+        </button>
+
+        {/* Botón cámara (solo móvil) */}
+        <button
+          onClick={() => inputCamaraRef.current?.click()}
+          disabled={bloqueado || !!mensajeEditando}
+          className={`shrink-0 flex lg:hidden items-center justify-center w-9 h-9 rounded-full cursor-pointer transition-transform duration-75 hover:scale-110 active:scale-95
+            ${bloqueado || mensajeEditando ? 'opacity-30 cursor-not-allowed' : 'text-white/60 hover:text-white/90'}
+          `}
+        >
+          <Camera className="w-5 h-5" />
+        </button>
 
         {/* Pill: emoji + input */}
         <div className="flex-1 flex items-center gap-1 px-3 py-2 bg-white/10 border border-white/15 lg:bg-gray-200 lg:border-gray-300 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.25)] focus-within:shadow-[0_4px_22px_rgba(0,0,0,0.45)] transition-shadow duration-150">
@@ -416,6 +777,24 @@ export function InputMensaje({
           <Send className="w-5 h-5" />
         </button>
       </div>
+
+      {/* ── Inputs ocultos de archivo ── */}
+      <input
+        ref={inputArchivoRef}
+        type="file"
+        accept={`image/jpeg,image/png,image/webp,image/gif,${ACCEPT_DOCUMENTOS}`}
+        multiple
+        onChange={handleSeleccionArchivo}
+        className="hidden"
+      />
+      <input
+        ref={inputCamaraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleSeleccionArchivo}
+        className="hidden"
+      />
 
     </div>
   );

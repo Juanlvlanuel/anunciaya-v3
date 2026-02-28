@@ -897,28 +897,46 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   },
 
   eliminarMensaje: async (mensajeId: string) => {
-    const { mensajes } = get();
+    const { mensajes, mensajesFijados, conversacionActivaId } = get();
     const mensajesAnterior = [...mensajes];
+    const fijadosAnterior = [...mensajesFijados];
+    const nuevosFijados = mensajesFijados.filter((f) => f.mensajeId !== mensajeId);
 
-    // Optimista: marcar como eliminado
-    set({
+    // Optimista: marcar como eliminado + quitar de fijados (incluido caché)
+    set((state) => ({
       mensajes: mensajes.map((m) =>
         m.id === mensajeId
           ? { ...m, eliminado: true, contenido: 'Se eliminó este mensaje' }
           : m
       ),
-    });
+      mensajesFijados: nuevosFijados,
+      ...(conversacionActivaId ? {
+        cacheFijados: { ...state.cacheFijados, [conversacionActivaId]: nuevosFijados },
+      } : {}),
+    }));
 
     try {
       const respuesta = await chatyaService.eliminarMensaje(mensajeId);
       if (respuesta.success) {
         return true;
       } else {
-        set({ mensajes: mensajesAnterior });
+        set((state) => ({
+          mensajes: mensajesAnterior,
+          mensajesFijados: fijadosAnterior,
+          ...(conversacionActivaId ? {
+            cacheFijados: { ...state.cacheFijados, [conversacionActivaId]: fijadosAnterior },
+          } : {}),
+        }));
         return false;
       }
     } catch {
-      set({ mensajes: mensajesAnterior });
+      set((state) => ({
+        mensajes: mensajesAnterior,
+        mensajesFijados: fijadosAnterior,
+        ...(conversacionActivaId ? {
+          cacheFijados: { ...state.cacheFijados, [conversacionActivaId]: fijadosAnterior },
+        } : {}),
+      }));
       return false;
     }
   },
@@ -1132,7 +1150,6 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
             b.id === entradaOptimista.id ? { ...b, id: respuesta.data!.id } : b
           ),
         }));
-        notificar.exito('Usuario bloqueado');
         return true;
       }
       set({ bloqueados }); // revertir
@@ -1155,7 +1172,6 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     try {
       const respuesta = await chatyaService.desbloquearUsuario(bloqueadoId);
       if (respuesta.success) {
-        notificar.exito('Usuario desbloqueado');
         return true;
       }
       set({ bloqueados: bloqueadosAnterior });

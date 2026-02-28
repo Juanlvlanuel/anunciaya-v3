@@ -10,7 +10,7 @@
  */
 
 import { useRef, useEffect, useCallback, useState, useMemo, memo, type RefObject, type MutableRefObject } from 'react';
-import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronDown, UserPlus, UserMinus, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronsDown, UserPlus, UserMinus, ArrowLeft, MessageSquare } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
@@ -25,14 +25,16 @@ import { MenuContextualMensaje } from './MenuContextualMensaje';
 import { BarraBusquedaChat } from './BarraBusquedaChat';
 import { PanelInfoContacto, cachéNegocio, cachéCliente } from './PanelInfoContacto';
 import { ModalReenviar } from './ModalReenviar';
+import { VisorImagenesChat } from './VisorImagenesChat';
+import { TexturaDoodle } from './TexturaDoodle';
 import { ModalImagenes } from '../ui/ModalImagenes';
-import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+// Virtuoso eliminado — scroll nativo con IntersectionObserver para paginación
 import Tooltip from '../ui/Tooltip';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { Mensaje } from '../../types/chatya';
 import { obtenerPerfilSucursal } from '../../services/negociosService';
 import { getDetalleCliente } from '../../services/clientesService';
-import { diagMarca, diagSuscribir } from '../../utils/diagnosticoChatYA';
+
 
 // =============================================================================
 // TIPOS
@@ -40,21 +42,34 @@ import { diagMarca, diagSuscribir } from '../../utils/diagnosticoChatYA';
 type ItemChatYA = { tipo: 'separador'; fecha: string } | { tipo: 'mensaje'; mensaje: Mensaje };
 
 // =============================================================================
-// AreaMensajes — Componente aislado con React.memo
-// Virtuoso causa 2-3 re-renders internos al montar/posicionar. Sin memo, cada uno
-// re-renderiza TODO VentanaChat (~36ms × 3 = ~108ms desperdiciados).
-// Con memo, solo AreaMensajes se re-renderiza si sus props cambian.
+// HELPER: Formatear fecha para el sticky (misma lógica que SeparadorFecha)
+// =============================================================================
+function formatearFechaParaSticky(fechaStr: string): string {
+  const hoy = new Date();
+  const ayer = new Date(hoy);
+  ayer.setDate(ayer.getDate() - 1);
+  const hoyStr = hoy.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+  const ayerStr = ayer.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (fechaStr === hoyStr) return 'Hoy';
+  if (fechaStr === ayerStr) return 'Ayer';
+  return fechaStr;
+}
+
+// =============================================================================
+// (Snapshots de Virtuoso eliminados — ya no se necesitan con scroll nativo)
+// =============================================================================
+
+// =============================================================================
+// AreaMensajes — Scroll nativo con IntersectionObserver para paginación
+// Renderiza TODOS los mensajes en el DOM (60-200 mensajes es ligero).
+// IntersectionObserver detecta un "sentinel" invisible en el tope para cargar más.
 // =============================================================================
 interface AreaMensajesProps {
+  conversacionId: string | null;
   datos: ItemChatYA[];
-  firstItemIndex: number;
-  virtuosoRef: RefObject<VirtuosoHandle | null>;
-  virtuosoWrapperRef: RefObject<HTMLDivElement | null>;
-  virtuosoListoRef: MutableRefObject<boolean>;
-  scrollerRef: MutableRefObject<HTMLElement | null>;
+  scrollRef: RefObject<HTMLDivElement | null>;
   mostrarScrollAbajoRef: MutableRefObject<boolean>;
   scrollBtnRef: RefObject<HTMLButtonElement | null>;
-  diagItemCountRef: MutableRefObject<number>;
   cargandoMensajesAntiguos: boolean;
   estaEscribiendo: boolean;
   esMobile: boolean;
@@ -65,107 +80,228 @@ interface AreaMensajesProps {
   onStartReached: () => void;
   onMenuContextual: (msg: Mensaje, pos: { x: number; y: number }) => void;
   onReaccionar: (mensajeId: string, emoji: string) => Promise<void>;
+  fechaStickyRef: RefObject<HTMLDivElement | null>;
+  atBottomRef: MutableRefObject<boolean>;
+  hayMasMensajes: boolean;
+  onImagenClick: (mensajeId: string) => void;
+  onReenviar: (msg: Mensaje) => void;
 }
 
 const AreaMensajes = memo(function AreaMensajes({
-  datos, firstItemIndex,
-  virtuosoRef, virtuosoWrapperRef, virtuosoListoRef,
-  scrollerRef, mostrarScrollAbajoRef, scrollBtnRef, diagItemCountRef,
+  datos,
+  scrollRef, mostrarScrollAbajoRef, scrollBtnRef,
   cargandoMensajesAntiguos, estaEscribiendo,
   esMobile, esMisNotas, miId, mensajeResaltadoId, menuMensajeId,
   onStartReached, onMenuContextual, onReaccionar,
+  fechaStickyRef, atBottomRef, hayMasMensajes, onImagenClick, onReenviar,
 }: AreaMensajesProps) {
-  diagMarca('5b. AreaMensajes render');
 
-  return (
-    <div ref={virtuosoWrapperRef} style={{ position: 'absolute', inset: 0, opacity: 0 }}>
-      <Virtuoso
-        ref={virtuosoRef}
-        data={datos}
-        firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={datos.length - 1}
-        defaultItemHeight={68}
-        followOutput="auto"
-        alignToBottom
-        overscan={400}
-        increaseViewportBy={200}
-        startReached={onStartReached}
-        atBottomStateChange={(atBottom) => {
-          mostrarScrollAbajoRef.current = !atBottom;
-          if (scrollBtnRef.current) {
-            // No mostrar hasta que Virtuoso esté visible (evita flash durante montaje)
-            scrollBtnRef.current.style.display = (!atBottom && virtuosoListoRef.current) ? 'flex' : 'none';
-          }
-        }}
-        atBottomThreshold={300}
-        scrollerRef={(ref) => {
-          if (ref instanceof HTMLElement) {
-            ref.setAttribute('data-scroll-container', '');
-            scrollerRef.current = ref;
-            diagMarca('8. Virtuoso scrollerRef');
-          }
-        }}
-        itemContent={(_index, item) => {
-          diagItemCountRef.current++;
-          if (diagItemCountRef.current === 1) {
-            diagMarca('7. primer itemContent');
-            if (!virtuosoListoRef.current) {
-              virtuosoListoRef.current = true;
-              const yaVisible = virtuosoWrapperRef.current?.style.opacity === '1';
+  // Ref para el sentinel de paginación (IntersectionObserver)
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  /** Flag para evitar scroll al fondo durante carga de antiguos */
+  const cargandoAntiguosRef = useRef(false);
+  /** Guardar scrollHeight antes de insertar mensajes antiguos */
+  const prevScrollHeightRef = useRef(0);
+  const prevDatosLenRef = useRef(datos.length);
+  /** Ref fresco para acceso en scroll listener */
+  const datosRef = useRef(datos);
+  datosRef.current = datos;
 
-              if (yaVisible) {
-                // Caché: scroll directo con 1 solo rAF (ya está visible, no necesita reveal)
-                requestAnimationFrame(() => {
-                  virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
-                });
-              } else {
-                // Sin caché: scroll + reveal con 2 rAFs (esconder → posicionar → mostrar)
-                requestAnimationFrame(() => {
-                  virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
-                  requestAnimationFrame(() => {
-                    if (virtuosoWrapperRef.current) {
-                      virtuosoWrapperRef.current.style.opacity = '1';
-                    }
-                  });
-                });
+  // ── Scroll inicial al fondo cuando se monta ──
+  useEffect(() => {
+    if (scrollRef.current && datos.length > 0) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+    // Solo al montar (key={conversacionActivaId} ya causa remount)
+  }, []);
+
+  // ── Preservar posición al cargar mensajes antiguos ──
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    if (cargandoAntiguosRef.current && datos.length > prevDatosLenRef.current) {
+      // Mensajes antiguos insertados arriba → ajustar scroll para mantener posición
+      const nuevoScrollHeight = el.scrollHeight;
+      const diferencia = nuevoScrollHeight - prevScrollHeightRef.current;
+      el.scrollTop = diferencia;
+      cargandoAntiguosRef.current = false;
+    } else if (datos.length > prevDatosLenRef.current && prevDatosLenRef.current > 0) {
+      // Mensaje nuevo (no antiguos) → scroll al fondo si estábamos abajo
+      if (atBottomRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+
+    prevDatosLenRef.current = datos.length;
+  }, [datos.length, scrollRef, atBottomRef]);
+
+  // ── IntersectionObserver para cargar mensajes antiguos ──
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const container = scrollRef.current;
+    if (!sentinel || !container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hayMasMensajes && !cargandoAntiguosRef.current) {
+          // Guardar scrollHeight ANTES de que se inserten mensajes
+          prevScrollHeightRef.current = container.scrollHeight;
+          cargandoAntiguosRef.current = true;
+          onStartReached();
+        }
+      },
+      { root: container, rootMargin: '200px 0px 0px 0px', threshold: 0 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [scrollRef, hayMasMensajes, onStartReached]);
+
+  // ── Scroll listener: detectar si está al fondo + actualizar sticky ──
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let rafId = 0;
+    let stickyVisible = false;
+
+    const handleScroll = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        if (!el) return;
+
+        // ── Detectar si está al fondo ──
+        const distanciaAlFondo = el.scrollHeight - el.scrollTop - el.clientHeight;
+        const alFondo = distanciaAlFondo < 60;
+        atBottomRef.current = alFondo;
+        mostrarScrollAbajoRef.current = !alFondo;
+        if (scrollBtnRef.current) {
+          scrollBtnRef.current.style.display = !alFondo ? 'flex' : 'none';
+        }
+
+        // ── Actualizar fecha sticky ──
+        const stickyEl = fechaStickyRef.current;
+        if (!stickyEl) return;
+
+        if (distanciaAlFondo < 20) {
+          if (stickyVisible) { stickyEl.style.opacity = '0'; stickyVisible = false; }
+          return;
+        }
+        if (distanciaAlFondo < 60 && !stickyVisible) return; // zona muerta
+
+        // Buscar el separador de fecha visible más arriba
+        const separadores = el.querySelectorAll('[data-fecha]');
+        const containerTop = el.getBoundingClientRect().top;
+        let textoFinal = '';
+
+        for (let i = 0; i < separadores.length; i++) {
+          const sep = separadores[i];
+          const relativo = sep.getBoundingClientRect().top - containerTop;
+          const texto = sep.getAttribute('data-fecha') || '';
+          if (relativo <= 15) {
+            textoFinal = texto;
+          } else {
+            break;
+          }
+        }
+
+        // Si ningún separador ha llegado al top, buscar el anterior en el array
+        if (!textoFinal && separadores.length > 0) {
+          const primerSepTexto = separadores[0].getAttribute('data-fecha') || '';
+          const currentDatos = datosRef.current;
+          let encontroPrevio = false;
+          for (let i = currentDatos.length - 1; i >= 0; i--) {
+            const item = currentDatos[i];
+            if (item.tipo === 'separador' && formatearFechaParaSticky(item.fecha) === primerSepTexto) {
+              for (let k = i - 1; k >= 0; k--) {
+                const prevItem = currentDatos[k];
+                if (prevItem.tipo === 'separador') {
+                  textoFinal = formatearFechaParaSticky(prevItem.fecha);
+                  encontroPrevio = true;
+                  break;
+                }
               }
+              break;
             }
           }
-          return (
-            <div className="pb-1 px-3 lg:px-12 2xl:px-16">
-              {item.tipo === 'separador' ? (
-                <SeparadorFecha key={item.fecha} fecha={item.fecha} />
-              ) : (
-                <BurbujaMensaje
-                  key={item.mensaje.id}
-                  mensaje={item.mensaje}
-                  esMio={item.mensaje.emisorId === miId}
-                  esMisNotas={esMisNotas}
-                  miId={miId}
-                  resaltado={item.mensaje.id === mensajeResaltadoId}
-                  onMenuContextual={onMenuContextual}
-                  onReaccionar={onReaccionar}
-                  menuActivoId={esMobile ? menuMensajeId : null}
-                />
-              )}
-            </div>
-          );
-        }}
-        components={{
-          Header: () => cargandoMensajesAntiguos ? (
-            <div className="flex justify-center py-2">
-              <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-            </div>
-          ) : null,
-          Footer: () => estaEscribiendo ? <IndicadorEscribiendo /> : null,
-        }}
-        style={{
-          height: '100%',
-          scrollbarWidth: esMobile ? 'none' : 'auto',
-          scrollbarColor: '#A1B6C9 transparent',
-        }}
-        className="py-2"
-      />
+          if (!encontroPrevio) textoFinal = primerSepTexto;
+        }
+
+        if (textoFinal) {
+          if (stickyEl.textContent !== textoFinal) stickyEl.textContent = textoFinal;
+          if (!stickyVisible) { stickyEl.style.opacity = '1'; stickyVisible = true; }
+        } else if (el.scrollTop > 20 && stickyEl.textContent) {
+          if (!stickyVisible) { stickyEl.style.opacity = '1'; stickyVisible = true; }
+        } else {
+          if (stickyVisible) { stickyEl.style.opacity = '0'; stickyVisible = false; }
+        }
+      });
+    };
+
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [scrollRef, atBottomRef, mostrarScrollAbajoRef, scrollBtnRef, fechaStickyRef]);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="py-2"
+      style={{
+        position: 'absolute', inset: 0,
+        overflowY: 'auto',
+        scrollbarWidth: esMobile ? 'none' : 'auto',
+        scrollbarColor: '#A1B6C9 transparent',
+      }}
+    >
+      {/* Sentinel invisible para IntersectionObserver — carga de antiguos */}
+      {hayMasMensajes && <div ref={sentinelRef} style={{ height: 1 }} />}
+
+      {/* Spinner de carga de mensajes antiguos */}
+      {cargandoMensajesAntiguos && (
+        <div className="flex justify-center py-2">
+          <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* Todos los mensajes renderizados */}
+      {datos.map((item) => {
+        const itemKey = item.tipo === 'separador' ? `sep-${item.fecha}` : item.mensaje.id;
+        const itemId = item.tipo === 'mensaje' ? `msg-${item.mensaje.id}` : undefined;
+        return (
+        <div
+          key={itemKey}
+          id={itemId}
+          className={`pb-1 px-3 lg:px-12 2xl:px-16 ${
+            item.tipo === 'mensaje' && item.mensaje.id === mensajeResaltadoId
+              ? 'bg-blue-300/30'
+              : ''
+          }`}
+        >
+          {item.tipo === 'separador' ? (
+            <SeparadorFecha key={item.fecha} fecha={item.fecha} />
+          ) : (
+            <BurbujaMensaje
+              key={item.mensaje.id}
+              mensaje={item.mensaje}
+              esMio={item.mensaje.emisorId === miId}
+              esMisNotas={esMisNotas}
+              miId={miId}
+              resaltado={item.mensaje.id === mensajeResaltadoId}
+              onMenuContextual={onMenuContextual}
+              onReaccionar={onReaccionar}
+              menuActivoId={esMobile ? menuMensajeId : null}
+              onImagenClick={onImagenClick}
+              onReenviar={onReenviar}
+            />
+          )}
+        </div>
+        );
+      })}
+
+      {/* Indicador de escribiendo — al final del scroll */}
+      {estaEscribiendo && <IndicadorEscribiendo />}
     </div>
   );
 });
@@ -183,12 +319,14 @@ function VentanaChatInner() {
   const mensajes = useChatYAStore((s) => s.mensajes);
   const cargandoMensajes = useChatYAStore((s) => s.cargandoMensajes);
   const cargandoMensajesAntiguos = useChatYAStore((s) => s.cargandoMensajesAntiguos);
+  const hayMasMensajes = useChatYAStore((s) => s.hayMasMensajes);
   const escribiendo = useChatYAStore((s) => s.escribiendo);
   const misNotasId = useChatYAStore((s) => s.misNotasId);
   const bloqueados = useChatYAStore((s) => s.bloqueados);
   const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
   const mensajesFijados = useChatYAStore((s) => s.mensajesFijados);
   const desfijarMensaje = useChatYAStore((s) => s.desfijarMensaje);
+  const fijarMensaje = useChatYAStore((s) => s.fijarMensaje);
   const contactos = useChatYAStore((s) => s.contactos);
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
@@ -294,6 +432,21 @@ function VentanaChatInner() {
   const [modalAvatarUrl, setModalAvatarUrl] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
+  // Estado local: visor fullscreen de imágenes del chat
+  // ---------------------------------------------------------------------------
+  const [visorImagenMsgId, setVisorImagenMsgId] = useState<string | null>(null);
+  const handleImagenChatClick = useCallback((mensajeId: string) => {
+    setVisorImagenMsgId(mensajeId);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Estado local: drag & drop de imagen en toda la ventana
+  // ---------------------------------------------------------------------------
+  const [archivosDrop, setArchivosDrop] = useState<File[] | null>(null);
+  const [dragActivoVentana, setDragActivoVentana] = useState(false);
+  const dragContadorRef = useRef(0);
+
+  // ---------------------------------------------------------------------------
   // Estado local: menú contextual del header (tres puntos)
   // ---------------------------------------------------------------------------
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -326,53 +479,27 @@ function VentanaChatInner() {
   // ---------------------------------------------------------------------------
   const { esMobile } = useBreakpoint();
 
-  // ── DIAGNÓSTICO refs (el tracking se hace más abajo, después de todos los useState) ──
-  const diagItemCountRef = useRef(0);
-  const diagPrevRef = useRef<Record<string, unknown>>({});
-
   // ---------------------------------------------------------------------------
   // Estado local: búsqueda dentro del chat
   // ---------------------------------------------------------------------------
   const [busquedaAbierta, setBusquedaAbierta] = useState(false);
   const [mensajeResaltadoId, setMensajeResaltadoId] = useState<string | null>(null);
+  /** Timer ref: evita que clicks rápidos en fijados se pisen entre sí */
+  const resaltadoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Ref: controla visibilidad del botón scroll-abajo SIN causar re-render */
   const mostrarScrollAbajoRef = useRef(false);
   const scrollBtnRef = useRef<HTMLButtonElement>(null);
   const fijadosRef = useRef<HTMLDivElement>(null);
+  /** Ref: overlay de fecha sticky — se manipula imperativamente */
+  const fechaStickyRef = useRef<HTMLDivElement>(null);
+  /** Ref: si el scroll está al fondo — para ocultar sticky */
+  const atBottomRef = useRef(true);
   /** Índice del mensaje fijado visible actualmente en el banner */
   const [fijadoIndice, setFijadoIndice] = useState(0);
   /** Menú contextual del banner de fijados (long press) */
   const [menuFijadoPos, setMenuFijadoPos] = useState<{ x: number; y: number } | null>(null);
   const menuFijadoRef = useRef<HTMLDivElement>(null);
 
-  // ── DIAGNÓSTICO: Detectar QUÉ causa cada re-render ──
-  {
-    const current: Record<string, unknown> = {
-      // --- useChatYAStore ---
-      conversacionActivaId, chatTemporal, mensajes, cargandoMensajes,
-      cargandoMensajesAntiguos, escribiendo, misNotasId,
-      bloqueados, mensajesFijados, contactos,
-      conversacionEnStore, conversacionEnArchivados,
-      // --- useChatYAStore acciones ---
-      desbloquearUsuario, desfijarMensaje, agregarContactoStore,
-      eliminarContactoStore, volverALista,
-      // --- otros stores ---
-      usuario, cerrarChatYA, esMobile,
-      // --- useState local ---
-      conversacionRemota, panelAbierto, modalAvatarUrl,
-      menuAbierto, menuMensaje, mensajeEditando,
-      mensajeRespondiendo, mensajeReenviando,
-      busquedaAbierta, mensajeResaltadoId, fijadoIndice, menuFijadoPos,
-    };
-    const prev = diagPrevRef.current;
-    const cambios: string[] = [];
-    for (const key of Object.keys(current)) {
-      if (prev[key] !== current[key]) cambios.push(key);
-    }
-    diagMarca('5. VentanaChat render' + (cambios.length > 0 ? ' [' + cambios.join(', ') + ']' : ' [¿CONTEXTO?]'));
-    diagPrevRef.current = current;
-  }
-  diagItemCountRef.current = 0;
 
   // ---------------------------------------------------------------------------
   // Handler: agregar/eliminar contacto desde header
@@ -413,22 +540,28 @@ function VentanaChatInner() {
   // Handlers: Menú contextual de mensaje
   // ---------------------------------------------------------------------------
   const handleMenuContextualMensaje = useCallback((msg: Mensaje, pos: { x: number; y: number }) => {
-    setMenuMensaje({ mensaje: msg, posicion: pos });
-
-    // Auto-scroll para que el popup de emojis (-top-14 ≈ 56px) sea visible
-    requestAnimationFrame(() => {
-      const msgEl = document.getElementById(`msg-${msg.id}`);
-      const container = scrollerRef.current;
-      if (msgEl && container) {
-        const msgRect = msgEl.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        const espacioArriba = msgRect.top - containerRect.top;
-        if (espacioArriba < 80) {
-          container.scrollBy({ top: -(80 - espacioArriba), behavior: 'smooth' });
-        }
-      }
+    // Toggle: si el menú ya está abierto para este mensaje, cerrarlo
+    setMenuMensaje((prev) => {
+      if (prev && prev.mensaje.id === msg.id) return null;
+      return { mensaje: msg, posicion: pos };
     });
-  }, []);
+
+    // Auto-scroll para que el popup de emojis (-top-14 ≈ 56px) sea visible (solo móvil)
+    if (esMobile) {
+      requestAnimationFrame(() => {
+        const msgEl = document.getElementById(`msg-${msg.id}`);
+        const container = scrollRef.current;
+        if (msgEl && container) {
+          const msgRect = msgEl.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          const espacioArriba = msgRect.top - containerRect.top;
+          if (espacioArriba < 80) {
+            container.scrollBy({ top: -(80 - espacioArriba), behavior: 'smooth' });
+          }
+        }
+      });
+    }
+  }, [esMobile]);
 
   const handleCerrarMenuMensaje = useCallback(() => {
     setMenuMensaje(null);
@@ -455,68 +588,75 @@ function VentanaChatInner() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Refs — Virtuoso
+  // Refs — Scroll nativo
   // ---------------------------------------------------------------------------
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const scrollerRef = useRef<HTMLElement | null>(null);
-  /** Flag para distinguir carga de antiguos vs mensaje nuevo */
-  const cargandoAntiguosRef = useRef(false);
-  /** Índice virtual inicial (número alto, decrece al cargar mensajes antiguos) */
-  const VIRTUAL_START = 100000;
-  const firstItemIndexRef = useRef(VIRTUAL_START);
-  const prevDataCountRef = useRef(0);
-  /** Ocultar Virtuoso hasta que tenga items — ref + DOM directo, sin re-render */
-  const virtuosoListoRef = useRef(false);
-  const virtuosoWrapperRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // ---------------------------------------------------------------------------
   // Reseteo síncrono: detectar cambio de conversación DURANTE el render
-  // Todo via refs — CERO setState = CERO re-renders extras
   // ---------------------------------------------------------------------------
   const prevConvIdRef = useRef(conversacionActivaId);
   if (prevConvIdRef.current !== conversacionActivaId) {
     prevConvIdRef.current = conversacionActivaId;
-    firstItemIndexRef.current = VIRTUAL_START;
-    prevDataCountRef.current = 0;
 
-    // Si hay mensajes = viene de caché → no esconder (transición instantánea)
-    // Si no hay mensajes = carga desde servidor → esconder hasta que lleguen
-    const tieneCache = mensajes.length > 0;
-    virtuosoListoRef.current = false;
-    if (virtuosoWrapperRef.current) {
-      virtuosoWrapperRef.current.style.opacity = tieneCache ? '1' : '0';
+    // Reset del sticky: limpiar texto y ocultar al cambiar de chat
+    if (fechaStickyRef.current) {
+      fechaStickyRef.current.textContent = '';
+      fechaStickyRef.current.style.opacity = '0';
     }
   }
 
   // Datos: mensajes en orden cronológico con separadores de fecha intercalados
   const mensajesConSeparadores = useMemo(() => {
     const resultado = agruparPorFecha(mensajes);
-    diagMarca('6. agruparPorFecha (' + resultado.length + ' items)');
     return resultado;
   }, [mensajes]);
 
-  // ---------------------------------------------------------------------------
-  // Ajustar firstItemIndex al cargar mensajes antiguos (prepend) — SÍNCRONO
-  // Se ejecuta durante el render para que Virtuoso lea el valor correcto
-  // ---------------------------------------------------------------------------
-  const currentDataCount = mensajesConSeparadores.length;
-  if (cargandoAntiguosRef.current && currentDataCount > prevDataCountRef.current && prevDataCountRef.current > 0) {
-    const nuevos = currentDataCount - prevDataCountRef.current;
-    firstItemIndexRef.current -= nuevos;
-    cargandoAntiguosRef.current = false;
-  }
-  prevDataCountRef.current = currentDataCount;
+  // Visor de imágenes: array filtrado + índice calculado
+  const imagenesChat = useMemo(
+    () => mensajes.filter((m) => m.tipo === 'imagen' && !m.eliminado),
+    [mensajes]
+  );
+  const visorIndiceInicial = useMemo(() => {
+    if (!visorImagenMsgId) return 0;
+    const idx = imagenesChat.findIndex((m) => m.id === visorImagenMsgId);
+    return idx >= 0 ? idx : 0;
+  }, [visorImagenMsgId, imagenesChat]);
 
-  // ── DIAGNÓSTICO: Marcar cuándo el navegador termina de pintar ──
-  useEffect(() => {
-    if (!conversacionActivaId || mensajes.length === 0) return;
-    requestAnimationFrame(() => {
-      diagMarca('10. DOM commit (rAF1)');
-      requestAnimationFrame(() => {
-        diagMarca('11. PINTADO en pantalla (rAF2) — ' + diagItemCountRef.current + ' items');
-      });
-    });
-  }, [conversacionActivaId, mensajes.length]);
+  // IDs de mensajes fijados (para el visor)
+  const mensajesFijadosIds = useMemo(
+    () => mensajesFijados.map((f) => f.mensajeId),
+    [mensajesFijados]
+  );
+
+  // Handler: descargar imagen desde el visor (fetch → blob → link temporal)
+  const handleDescargarImagen = useCallback(async (url: string, nombre: string) => {
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = nombre;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, '_blank');
+    }
+  }, []);
+
+  // Handler: fijar/desfijar desde el visor
+  const handleFijarDesdeVisor = useCallback(async (mensajeId: string) => {
+    if (conversacionActivaId) await fijarMensaje(conversacionActivaId, mensajeId);
+  }, [conversacionActivaId, fijarMensaje]);
+
+  const handleDesfijarDesdeVisor = useCallback(async (mensajeId: string) => {
+    if (conversacionActivaId) await desfijarMensaje(conversacionActivaId, mensajeId);
+  }, [conversacionActivaId, desfijarMensaje]);
+
+  // (firstItemIndex eliminado — scroll nativo preserva posición en AreaMensajes)
 
   // ---------------------------------------------------------------------------
   // Effect: Scroll al mensaje resaltado por búsqueda
@@ -524,28 +664,98 @@ function VentanaChatInner() {
   useEffect(() => {
     if (!mensajeResaltadoId) return;
 
-    // Buscar el índice en la lista virtualizada
-    const index = mensajesConSeparadores.findIndex(
-      (item) => item.tipo === 'mensaje' && item.mensaje.id === mensajeResaltadoId
-    );
-
-    if (index !== -1 && virtuosoRef.current) {
-      virtuosoRef.current.scrollToIndex({ index, align: 'center', behavior: 'smooth' });
+    // Buscar el elemento DOM directamente por su id
+    const el = document.getElementById(`msg-${mensajeResaltadoId}`);
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
-  }, [mensajeResaltadoId, mensajesConSeparadores]);
+  }, [mensajeResaltadoId]);
 
   // ---------------------------------------------------------------------------
-  // Handler: Cargar mensajes antiguos cuando Virtuoso llega al tope
+  // Handler: Cargar mensajes antiguos cuando el scroll llega al tope
   // ---------------------------------------------------------------------------
   const handleStartReached = useCallback(() => {
     const state = useChatYAStore.getState();
     if (state.cargandoMensajesAntiguos || !state.hayMasMensajes) return;
-    cargandoAntiguosRef.current = true;
     state.cargarMensajesAntiguos();
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Helper: Scroll a un mensaje — si no está en DOM, cargar antiguos hasta encontrarlo
+  // Máximo 10 intentos (10 × 50 = 500 mensajes hacia atrás)
+  // ---------------------------------------------------------------------------
+  const scrollAMensajeOCargar = useCallback(async (mensajeId: string) => {
+    const MAX_INTENTOS = 10;
+
+    for (let intento = 0; intento < MAX_INTENTOS; intento++) {
+      // ¿Ya está en el DOM?
+      const el = document.getElementById(`msg-${mensajeId}`);
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return true;
+      }
+
+      // No está → cargar más mensajes antiguos
+      const state = useChatYAStore.getState();
+      if (!state.hayMasMensajes || state.cargandoMensajesAntiguos) {
+        // No hay más páginas o ya está cargando — no se puede encontrar
+        return false;
+      }
+
+      await state.cargarMensajesAntiguos();
+
+      // Esperar a que React renderice los nuevos mensajes
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    }
+
+    return false;
   }, []);
 
   /** Flag: mostrar acciones en header (móvil, cuando hay menú contextual activo) */
   const mostrarAccionesEnHeader = esMobile && menuMensaje !== null && !esMisNotas;
+
+  // ---------------------------------------------------------------------------
+  // Handlers: Drag & drop de imagen en toda la ventana del chat
+  // ---------------------------------------------------------------------------
+  const handleDragEnterVentana = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragContadorRef.current++;
+    if (dragContadorRef.current === 1) {
+      // Verificar que hay archivos de imagen en el drag
+      const tieneImagen = Array.from(e.dataTransfer.items).some(
+        (item) => item.kind === 'file' && item.type.startsWith('image/')
+      );
+      if (tieneImagen) setDragActivoVentana(true);
+    }
+  }, []);
+
+  const handleDragLeaveVentana = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragContadorRef.current--;
+    if (dragContadorRef.current <= 0) {
+      dragContadorRef.current = 0;
+      setDragActivoVentana(false);
+    }
+  }, []);
+
+  const handleDragOverVentana = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDropVentana = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragContadorRef.current = 0;
+    setDragActivoVentana(false);
+
+    const archivos = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+    if (archivos.length > 0) {
+      setArchivosDrop(archivos);
+    }
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Handler: Reaccionar desde hover (desktop) o burbuja flotante (móvil)
@@ -610,9 +820,11 @@ function VentanaChatInner() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden">
+    <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden bg-black lg:bg-transparent">
       {/* ── Área principal del chat ── */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-linear-to-b from-[#0B358F] to-[#050d1a] lg:bg-linear-to-br lg:from-blue-200/60 lg:via-indigo-200/50 lg:to-sky-200/60">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative isolate bg-linear-to-b from-[#0B358F] to-[#050d1a] lg:bg-linear-to-br lg:from-blue-200/60 lg:via-indigo-200/50 lg:to-sky-200/60">
+        {/* Textura doodle de fondo */}
+        <TexturaDoodle oscuro={esMobile} />
         {/* ═══ Header del chat ═══ */}
         <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 shrink-0 border-b border-white/10 bg-[#0a1628] lg:border-slate-200 lg:bg-linear-to-b lg:from-slate-100 lg:to-blue-50`}>
 
@@ -815,14 +1027,17 @@ function VentanaChatInner() {
             <>
               <div
                 ref={fijadosRef}
-                className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white/90 lg:bg-white/80 border-b border-gray-200 shrink-0 cursor-pointer active:bg-gray-50 select-none"
-                onClick={() => {
+                className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white/90 lg:bg-white border-b border-gray-200 shrink-0 cursor-pointer active:bg-gray-50 select-none"
+                onClick={async () => {
                   if (bannerLongPressed) { bannerLongPressed = false; return; }
-                  // Navegar al mensaje
-                  const el = document.getElementById(`msg-${fijadoActual.mensajeId}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  // Navegar al mensaje — carga antiguos si no está en DOM
+                  await scrollAMensajeOCargar(fijadoActual.mensajeId);
+                  // Cancelar timer anterior si existe (evita que clicks rápidos se pisen)
+                  if (resaltadoTimerRef.current) clearTimeout(resaltadoTimerRef.current);
+                  // Activar highlight inmediatamente (estará listo cuando llegue)
                   setMensajeResaltadoId(fijadoActual.mensajeId);
-                  setTimeout(() => setMensajeResaltadoId(null), 2000);
+                  // Timer largo: 3.5s para que el scroll termine + el usuario vea el highlight
+                  resaltadoTimerRef.current = setTimeout(() => setMensajeResaltadoId(null), 3500);
                   // Rotar al siguiente fijado
                   if (totalFijados > 1) {
                     setFijadoIndice((prev) => (prev + 1) % totalFijados);
@@ -868,12 +1083,12 @@ function VentanaChatInner() {
                   >
                     <div className="py-1">
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           setMenuFijadoPos(null);
-                          const el = document.getElementById(`msg-${fijadoActual.mensajeId}`);
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          await scrollAMensajeOCargar(fijadoActual.mensajeId);
+                          if (resaltadoTimerRef.current) clearTimeout(resaltadoTimerRef.current);
                           setMensajeResaltadoId(fijadoActual.mensajeId);
-                          setTimeout(() => setMensajeResaltadoId(null), 2000);
+                          resaltadoTimerRef.current = setTimeout(() => setMensajeResaltadoId(null), 3500);
                         }}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2.5 active:bg-gray-100 cursor-pointer"
                       >
@@ -900,7 +1115,7 @@ function VentanaChatInner() {
           );
         })()}
 
-        {/* ═══ Área de mensajes — Virtuoso (solo ~10-15 nodos en DOM) ═══ */}
+        {/* ═══ Área de mensajes — Scroll nativo (todos los nodos en DOM) ═══ */}
         <div
           className="flex-1 relative min-h-0"
           onClick={(e) => {
@@ -908,19 +1123,30 @@ function VentanaChatInner() {
               setMenuMensaje(null);
             }
           }}
+          onDragEnter={handleDragEnterVentana}
+          onDragLeave={handleDragLeaveVentana}
+          onDragOver={handleDragOverVentana}
+          onDrop={handleDropVentana}
         >
+          {/* Overlay drag & drop sobre toda el área de mensajes */}
+          {dragActivoVentana && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-blue-500/15 backdrop-blur-[2px] pointer-events-none">
+              <div className="flex items-center gap-2.5 px-5 py-3 bg-white rounded-2xl shadow-xl border border-blue-200">
+                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-semibold text-blue-600">Suelta la imagen aquí</span>
+              </div>
+            </div>
+          )}
           {!cargandoMensajes && mensajesConSeparadores.length > 0 && (
             <AreaMensajes
               key={conversacionActivaId}
+              conversacionId={conversacionActivaId}
               datos={mensajesConSeparadores}
-              firstItemIndex={firstItemIndexRef.current}
-              virtuosoRef={virtuosoRef}
-              virtuosoWrapperRef={virtuosoWrapperRef}
-              virtuosoListoRef={virtuosoListoRef}
-              scrollerRef={scrollerRef}
+              scrollRef={scrollRef}
               mostrarScrollAbajoRef={mostrarScrollAbajoRef}
               scrollBtnRef={scrollBtnRef}
-              diagItemCountRef={diagItemCountRef}
               cargandoMensajesAntiguos={cargandoMensajesAntiguos}
               estaEscribiendo={estaEscribiendo}
               esMobile={esMobile}
@@ -931,21 +1157,35 @@ function VentanaChatInner() {
               onStartReached={handleStartReached}
               onMenuContextual={handleMenuContextualMensaje}
               onReaccionar={handleReaccionar}
+              fechaStickyRef={fechaStickyRef}
+              atBottomRef={atBottomRef}
+              hayMasMensajes={hayMasMensajes}
+              onImagenClick={handleImagenChatClick}
+              onReenviar={handleReenviarMensaje}
             />
           )}
+
+          {/* Fecha sticky — overlay imperativo, cero re-renders */}
+          <div
+            ref={fechaStickyRef}
+            style={{ opacity: 0 }}
+            className="absolute top-2.5 left-1/2 -translate-x-1/2 lg:left-[783px] lg:-translate-x-1/2 z-10 text-[11px] font-semibold tracking-wide px-3.5 py-1 rounded-lg pointer-events-none bg-[#0a1628]/80 text-white/70 shadow-[0_1px_3px_rgba(0,0,0,0.2)] lg:bg-white/90 lg:text-gray-500 lg:shadow-[0_1px_3px_rgba(0,0,0,0.06)] lg:border lg:border-gray-200"
+          />
 
           {/* Botón scroll al fondo — siempre montado, visibilidad via ref */}
           <button
             ref={scrollBtnRef}
             style={{ display: 'none' }}
-            onClick={() => virtuosoRef.current?.scrollToIndex({ index: mensajesConSeparadores.length - 1, behavior: 'smooth' })}
-            className="absolute bottom-4 right-1 lg:right-0 2xl:right-5.5 w-11 h-11 rounded-full shadow-lg items-center justify-center cursor-pointer hover:shadow-xl z-10 bg-linear-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+            onClick={() => {
+              if (scrollRef.current) {
+                scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+              }
+            }}
+            className="absolute bottom-4 right-2 lg:bottom-4 lg:right-0 2xl:right-7.5 w-9 h-9 lg:w-10 lg:h-10 rounded-full shadow-lg items-center justify-center cursor-pointer hover:shadow-xl z-10 bg-linear-to-br from-slate-700 to-slate-900 lg:from-slate-600 lg:to-slate-500 lg:hover:from-slate-800 lg:hover:to-slate-600"
           >
-            <ChevronDown className="w-6 h-6 text-white" />
+            <ChevronsDown className="w-4.5 h-4.5 lg:w-6 lg:h-6 text-white" />
           </button>
 
-          {/* ── DIAGNÓSTICO: Overlay temporal ── */}
-          <OverlayDiagnostico />
         </div>
 
         {/* ═══ Input de mensaje / Barra de bloqueado ═══ */}
@@ -968,6 +1208,8 @@ function VentanaChatInner() {
             onCancelarRespuesta={handleCancelarRespuesta}
             nombreContacto={nombreMostrar}
             miId={miId}
+            archivosDrop={archivosDrop}
+            onArchivosDropProcesados={() => setArchivosDrop(null)}
           />
         )}
 
@@ -1005,6 +1247,34 @@ function VentanaChatInner() {
         onClose={() => setModalAvatarUrl(null)}
       />
 
+      {/* ═══ Visor fullscreen de imágenes del chat ═══ */}
+      {visorImagenMsgId && imagenesChat.length > 0 && (
+        <VisorImagenesChat
+          imagenesChat={imagenesChat}
+          indiceInicial={visorIndiceInicial}
+          miDatos={{
+            nombre: 'Tú',
+            avatarUrl: usuario?.avatarUrl || null,
+            iniciales: usuario ? `${usuario.nombre?.charAt(0) || ''}${usuario.apellidos?.charAt(0) || ''}`.toUpperCase() : '?',
+          }}
+          otroDatos={{
+            nombre: nombreMostrar,
+            avatarUrl,
+            iniciales,
+          }}
+          miId={miId}
+          mensajesFijadosIds={mensajesFijadosIds}
+          esMisNotas={esMisNotas}
+          onResponder={handleResponderMensaje}
+          onReenviar={handleReenviarMensaje}
+          onFijar={handleFijarDesdeVisor}
+          onDesfijar={handleDesfijarDesdeVisor}
+          onDescargar={handleDescargarImagen}
+          onReaccionar={handleReaccionar}
+          onCerrar={() => setVisorImagenMsgId(null)}
+        />
+      )}
+
       {/* ═══ Modal reenviar mensaje ═══ */}
       {mensajeReenviando && (
         <ModalReenviar
@@ -1021,6 +1291,17 @@ export const VentanaChat = memo(VentanaChatInner);
 // =============================================================================
 // SUBCOMPONENTE: Acciones en el header (móvil long press)
 // =============================================================================
+
+/** Fallback para copiar al portapapeles cuando clipboard API no está disponible */
+function copiarFallback(texto: string) {
+  const ta = document.createElement('textarea');
+  ta.value = texto;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  ta.remove();
+}
 
 function AccionesHeaderMobile({
   mensaje,
@@ -1058,7 +1339,18 @@ function AccionesHeaderMobile({
   acciones.push({
     icono: Copy,
     label: 'Copiar',
-    onClick: () => { onCerrar(); const sel = window.getSelection()?.toString().trim(); navigator.clipboard.writeText(sel || mensaje.contenido || ''); },
+    onClick: () => {
+      const sel = window.getSelection()?.toString().trim();
+      const texto = sel || mensaje.contenido || '';
+
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(texto).catch(() => copiarFallback(texto));
+      } else {
+        copiarFallback(texto);
+      }
+
+      onCerrar();
+    },
   });
 
   // Reenviar (no en Mis Notas, no si está eliminado)
@@ -1105,6 +1397,31 @@ function AccionesHeaderMobile({
       onClick: async () => {
         onCerrar();
         await useChatYAStore.getState().eliminarMensaje(mensaje.id);
+        // Toast "Mensaje eliminado" — justo arriba del input
+        setTimeout(() => {
+          const tooltip = document.createElement('div');
+          tooltip.textContent = '🗑 Mensaje eliminado';
+          tooltip.style.cssText = `
+            position:fixed;left:50%;bottom:72px;
+            transform:translateX(-50%) scale(0.85) translateY(4px);
+            background:rgba(15,23,42,0.88);color:#fff;
+            padding:7px 16px;border-radius:10px;
+            font-size:13px;font-weight:600;letter-spacing:0.01em;
+            z-index:9999;pointer-events:none;opacity:0;
+            transition:opacity 0.15s ease-out,transform 0.15s ease-out;
+            backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);
+          `;
+          document.body.appendChild(tooltip);
+          requestAnimationFrame(() => {
+            tooltip.style.opacity = '1';
+            tooltip.style.transform = 'translateX(-50%) scale(1) translateY(0)';
+          });
+          setTimeout(() => {
+            tooltip.style.opacity = '0';
+            tooltip.style.transform = 'translateX(-50%) scale(0.85) translateY(4px)';
+            setTimeout(() => tooltip.remove(), 150);
+          }, 1800);
+        }, 50);
       },
       color: 'text-red-500',
     });
@@ -1133,64 +1450,11 @@ function AccionesHeaderMobile({
   );
 }
 
-// =============================================================================
-// DIAGNÓSTICO: Overlay temporal — ELIMINAR DESPUÉS DE DIAGNOSTICAR
-// =============================================================================
 
-function OverlayDiagnostico() {
-  const [marcas, setMarcas] = useState<Array<{ nombre: string; tiempo: number }>>([]);
-
-  useEffect(() => {
-    return diagSuscribir((nuevasMarcas) => setMarcas(nuevasMarcas));
-  }, []);
-
-  if (marcas.length === 0) return null;
-
-  const total = marcas[marcas.length - 1]?.tiempo ?? 0;
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 8,
-        left: 8,
-        right: 8,
-        zIndex: 9999,
-        background: 'rgba(0,0,0,0.88)',
-        color: '#fff',
-        padding: '10px 12px',
-        borderRadius: 10,
-        fontSize: 11,
-        fontFamily: 'monospace',
-        lineHeight: 1.6,
-        pointerEvents: 'auto',
-        maxHeight: '60vh',
-        overflow: 'auto',
-        WebkitOverflowScrolling: 'touch',
-      }}
-    >
-      <div style={{ fontWeight: 'bold', marginBottom: 4, fontSize: 12, color: '#fbbf24' }}>
-        ⏱️ Diagnóstico ChatYA — Total: {total}ms
-      </div>
-      {marcas.map((m, i) => {
-        const delta = i === 0 ? m.tiempo : m.tiempo - marcas[i - 1].tiempo;
-        const esLento = delta > 30;
-        return (
-          <div key={i} style={{ color: esLento ? '#f87171' : '#86efac' }}>
-            {m.nombre} → {m.tiempo}ms {delta > 0 ? `(+${delta}ms)` : ''}
-            {esLento ? ' ⚠️ LENTO' : ''}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // =============================================================================
-// HELPER: Agrupar mensajes por fecha e intercalar separadores
+// HELPER: Formateador reutilizable — se crea UNA sola vez en memoria
 // =============================================================================
-
-// Formateador reutilizable — se crea UNA sola vez en memoria (fuera del componente)
 const formateadorFecha = new Intl.DateTimeFormat('es-MX', {
   day: 'numeric',
   month: 'long',

@@ -3,7 +3,7 @@
 apps
   api
     reports
-      db-comparison-2026-01-27T02-39.md
+      db-comparison-2026-02-15T23-23.md
     scripts
       compare-databases.ts
     src
@@ -15,13 +15,16 @@ apps
       controllers
         articulos.controller.ts
         auth.controller.ts
+        cardya.controller.ts
         categorias.controller.ts
+        chatya.controller.ts
         clientes.controller.ts
         cloudinary.controller.ts
         dashboard.controller.ts
         guardados.controller.ts
         metricas.controller.ts
         negocios.controller.ts
+        notificaciones.controller.ts
         ofertas.controller.ts
         onboarding.controller.ts
         pago.controller.ts
@@ -30,14 +33,9 @@ apps
         scanya.controller.ts
         transacciones.controller.ts
         votos.controller.ts
+      cron
+        chatya.cron.ts
       db
-        models
-          Chat.ts
-          Contacto.ts
-          Index.ts
-          Interaccion.ts
-          Mensaje.ts
-          PhoneOtp.ts
         schemas
           meta
             0000_snapshot.json
@@ -66,7 +64,9 @@ apps
       routes
         articulos.routes.ts
         auth.routes.ts
+        cardya.routes.ts
         categorias.routes.ts
+        chatya.routes.ts
         clientes.routes.ts
         cloudinary.routes.ts
         dashboard.routes.ts
@@ -74,6 +74,7 @@ apps
         index.ts
         metricas.routes.ts
         negocios.routes.ts
+        notificaciones.routes.ts
         ofertas.routes.ts
         onboarding.routes.ts
         pago.routes.ts
@@ -85,13 +86,17 @@ apps
       services
         articulos.service.ts
         auth.service.ts
+        cardya.service.ts
         categorias.service.ts
+        chatya.service.ts
+        clientes.service.ts
         cloudinary.service.ts
         dashboard.service.ts
         guardados.service.ts
         metricas.service.ts
         negocioManagement.service.ts
         negocios.service.ts
+        notificaciones.service.ts
         ofertas.service.ts
         onboarding.service.ts
         pago.service.ts
@@ -99,10 +104,14 @@ apps
         r2.service.ts
         resenas.service.ts
         scanya.service.ts
+        transacciones.service.ts
         votos.service.ts
       types
         articulos.types.ts
+        cardya.types.ts
+        chatya.types.ts
         negocios.types.ts
+        notificaciones.types.ts
         ofertas.types.ts
         puntos.types.ts
       utils
@@ -113,19 +122,26 @@ apps
       validations
         articulos.schema.ts
         auth.schema.ts
+        cardya.schema.ts
         ofertas.schema.ts
         onboarding.schema.ts
         puntos.schema.ts
+        resenas.schema.ts
         scanya.schema.ts
       app.ts
       index.ts
+      socket.ts
     .env
     drizzle.config.ts
     package.json
     tsconfig.json
   web
+    api
+      og.ts
     public
       icons
+        anunciaya-192.png
+        anunciaya-512.png
         apple-touch-icon-scanya.webp
         scanya-192.webp
         scanya-512.webp
@@ -148,11 +164,13 @@ apps
         registro-hero.webp
       BusinessStudio.webp
       CardYA.webp
+      CardYABlanco.webp
       ChatYA.webp
       facebook.webp
       favicon.png
       IconoBS.webp
       IconoChatYA.webp
+      IconoRojoChatYA.webp
       IconoScanYA.webp
       instagram.webp
       logo-anunciaya-azul.webp
@@ -160,10 +178,12 @@ apps
       logo-anunciaya.webp
       logo-ChatYA-blanco.webp
       logo-scanya.webp
+      manifest.json
       manifest.scanya.json
       og-image.webp
       ScanYA-Blanco.webp
       ScanYA.webp
+      sw-anunciaya.js
       sw-scanya.js
       tiktok.webp
       twitter.webp
@@ -173,6 +193,7 @@ apps
         auth
           registro
             BrandingColumn.tsx
+            FormularioCrearNegocio.tsx
             FormularioRegistro.tsx
             index.ts
             ModalBienvenida.tsx
@@ -184,6 +205,27 @@ apps
           index.ts
           ModalInactividad.tsx
           ModalLogin.tsx
+        chatya
+          BarraBusquedaChat.tsx
+          BurbujaMensaje.tsx
+          ConversacionItem.tsx
+          EmojiNoto.tsx
+          emojiUtils.ts
+          index.ts
+          IndicadorEscribiendo.tsx
+          InputMensaje.tsx
+          ListaConversaciones.tsx
+          MenuContextualChat.tsx
+          MenuContextualContacto.tsx
+          MenuContextualMensaje.tsx
+          ModalReenviar.tsx
+          PanelInfoContacto.tsx
+          SelectorEmojis.tsx
+          SeparadorFecha.tsx
+          TextoConEmojis.tsx
+          TexturaDoodle.tsx
+          VentanaChat.tsx
+          VisorImagenesChat.tsx
         compartir
           DropdownCompartir.tsx
           index.ts
@@ -204,11 +246,12 @@ apps
           Navbar.tsx
           PanelNotificaciones.tsx
           PanelPreviewNegocio.tsx
-          SearchPanel.tsx
           SelectorSucursalesInline.tsx
           WidgetCardYA.tsx
         negocios
+          CardNegocio.tsx
           CardNegocioDetallado.tsx
+          ChipsFiltros.tsx
           index.ts
           ModalCatalogo.tsx
           ModalDetalleItem.tsx
@@ -218,7 +261,6 @@ apps
           ModalOfertas.tsx
           ModalResenas.tsx
           OfertaCard.tsx
-          PanelFiltros.tsx
           SeccionCatalogo.tsx
           SeccionOfertas.tsx
           SeccionResenas.tsx
@@ -234,6 +276,7 @@ apps
           ModalHistorial.tsx
           ModalRecordatorios.tsx
           ModalRegistrarVenta.tsx
+          ModalResenas.tsx
           ModalVouchers.tsx
           ResumenTurno.tsx
           SplashScreenScanYA.tsx
@@ -247,6 +290,7 @@ apps
           index.ts
           Input.tsx
           Modal.tsx
+          ModalAdaptativo.tsx
           ModalBottom.tsx
           ModalCambiarModo.tsx
           ModalImagenes.tsx
@@ -264,8 +308,12 @@ apps
         useAutoFitText.ts
         useBreakpoint.ts
         useCategorias.ts
+        useCollapsibleBanner.ts
+        useDocumentoChat.ts
         useGuardados.ts
+        useHideOnScroll.ts
         useHorariosNegocio.ts
+        useImagenChat.ts
         useListaNegocios.ts
         useLockScroll.ts
         useOfertas.ts
@@ -318,6 +366,7 @@ apps
               ModalDuplicar.tsx
               PaginaCatalogo.tsx
             clientes
+              ModalDetalleCliente.tsx
               PaginaClientes.tsx
             dashboard
               componentes
@@ -339,6 +388,9 @@ apps
               ModalDuplicarOferta.tsx
               ModalOferta.tsx
               PaginaOfertas.tsx
+            opiniones
+              ModalResponder.tsx
+              PaginaOpiniones.tsx
             perfil
               components
                 CardYA.tsx
@@ -360,7 +412,22 @@ apps
                 SistemaNiveles.tsx
               PaginaPuntos.tsx
             transacciones
+              ModalDetalleCanjeBS.tsx
+              ModalDetalleTransaccionBS.tsx
               PaginaTransacciones.tsx
+          cardya
+            componentes
+              CardBilletera.tsx
+              CardRecompensaCliente.tsx
+              DropdownNegocio.tsx
+              ModalConfirmarCanje.tsx
+              ModalDetalleBilletera.tsx
+              ModalDetalleTransaccion.tsx
+              ModalDetalleVoucher.tsx
+              ModalVoucherGenerado.tsx
+              TablaHistorialCompras.tsx
+              TablaHistorialVouchers.tsx
+            PaginaCardYA.tsx
           cupones
             PaginaMisCupones.tsx
           guardados
@@ -374,6 +441,8 @@ apps
           scanya
             PaginaLoginScanYA.tsx
             PaginaScanYA.tsx
+          PaginaCrearNegocio.tsx
+          PaginaCrearNegocioExito.tsx
           PaginaInicio.tsx
         public
           PaginaArticuloPublico.tsx
@@ -393,37 +462,54 @@ apps
         api.ts
         articulosService.ts
         authService.ts
+        cardyaService.ts
+        chatyaService.ts
         clientesService.ts
         dashboardService.ts
         negociosService.ts
+        notificacionesService.ts
         ofertasService.ts
         pagoService.ts
         puntosService.ts
+        resenasService.ts
         scanyaService.ts
+        socketService.ts
         transaccionesService.ts
       stores
         useArticulosStore.ts
         useAuthStore.ts
+        useCardyaStore.ts
+        useChatYAStore.ts
         useClientesStore.ts
         useDashboardStore.ts
         useFiltrosNegociosStore.ts
         useGpsStore.ts
+        useMainScrollStore.ts
         useNegociosCacheStore.ts
         useNotificacionesStore.ts
         useOfertasStore.ts
         useOnboardingStore.ts
         usePuntosStore.ts
+        useResenasStore.ts
         useScanYAStore.ts
+        useSearchStore.ts
         useTransaccionesStore.ts
         useUiStore.ts
       types
         articulos.ts
+        cardya.ts
+        chatya.ts
+        clientes.ts
         negocios.ts
+        notificaciones.ts
         ofertas.ts
         puntos.ts
+        resenas.ts
         scanya.ts
+        transacciones.ts
       utils
         cloudinary.ts
+        diagnosticoChatYA.ts
         notificaciones.tsx
         tokenUtils.ts
         zonaHoraria.ts
@@ -468,12 +554,15 @@ docs
       ARQUITECTURA
         ARQUITECTURA  Base de Datos.md
         ARQUITECTURA  del Sistema.md
-        ARQUITECTURA Business Studio - Panel de Control Comercial.md
+        ARQUITECTURA Business Studio -Panel de Control Comercial.md
+        ARQUITECTURA CardYA -Sistema de Lealtad Cliente.md
         ARQUITECTURA Mis Guardados - Colección Personal .md
         ARQUITECTURA Negocios - Directorio Geolocalizado.md
         ARQUITECTURA Onboarding - Registro de Negocio.md
         ARQUITECTURA ScanYA - Sistema de Punto de Venta.md
         ARQUITECTURA Sistema de Autenticación.md
+      Documentacion Pendiente por separa en Secciones
+        Módulos Clientes y Transacciones.md
       AnunciaYA - RoadMap 29-01-2026.md
       CHANGELOG.md
       ROADMAP.md
@@ -496,6 +585,7 @@ docs
   templates
     README_TEMPLATES.md
     TEMPLATE_Checkpoints.md
+  Estructura-Anunciaya (11-02-2026).html
   README.md
 packages
   shared

@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 5 Febrero 2026  
-> **Progreso global:** 84% completado  
-> **Fase actual:** 5.7 CardYA (siguiente)
+> **Última actualización:** 12 Febrero 2026  
+> **Progreso global:** 87% completado  
+> **Fase actual:** 5.8 Clientes + Transacciones BS (siguiente)
 
 ---
 
@@ -14,7 +14,7 @@
 | **Backend + Negocios** (5.0-5.3) | ✅ 100% | - |
 | **Business Studio** (5.4) | ⏳ 33% (5/15 módulos) | ~24 días |
 | **ScanYA + PWA** (5.5) | ✅ 93.75% | Fase 14 pausada (ChatYA) |
-| **Sistema Lealtad** (5.6-5.11) | ⏳ 30% (Config Puntos ✅) | ~2 semanas |
+| **Sistema Lealtad** (5.6-5.7) | ✅ 100% (Puntos + CardYA + Notificaciones) | - |
 | **Secciones Públicas + BS** (6.x) | ⏳ 0% | ~3-4 semanas |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | ~1-2 semanas |
 
@@ -27,7 +27,9 @@
 - [x] Migración cloud $0/mes
 - [x] Business Studio Base (5/15 módulos)
 - [ ] Business Studio 80% completo (12/15 módulos)
-- [ ] Sistema CardYA completo
+- [x] Sistema CardYA completo ✅ (12 Feb 2026)
+- [x] Socket.io + Notificaciones tiempo real ✅ (12 Feb 2026)
+- [x] Reseñas verificadas en PaginaPerfilNegocio ✅ (12 Feb 2026)
 - [ ] ChatYA base operativo
 
 **Q2 (Abril-Junio):**
@@ -63,25 +65,37 @@
 
 ---
 
-### Sprint 2: 5.7.- CardYA - Tarjeta de Lealtad Digital (~5 días)
+### Sprint 2: 5.7.- CardYA + Socket.io + Notificaciones ✅ COMPLETADO (12 Feb 2026)
 
-**Objetivo:** Usuario puede ver sus puntos y generar QR para compras
+**Objetivo:** Sistema de lealtad completo para clientes + Notificaciones tiempo real
 
-**Features Core:**
-- QR dinámico personal (expira 2 min)
-- Ver puntos acumulados por negocio
-- Sistema niveles: Bronce/Plata/Oro
-- Historial de transacciones puntos
-- PWA instalable (iOS/Android/Desktop)
-- Modo offline (Service Worker)
+**CardYA Implementado:**
+- [x] 8 endpoints backend (billeteras, recompensas, vouchers, historial)
+- [x] 10 componentes frontend (página con tabs, cards, modales, tablas)
+- [x] Store Zustand + Service API con optimistic updates
+- [x] Sistema de niveles Bronce/Plata/Oro por negocio
+- [x] Canje de recompensas → genera voucher con QR
+- [x] Historial de compras y canjes paginado
+- [x] Widget CardYA en columna izquierda
+- [x] Bug crítico corregido en cardya_controller.ts (obtenerUsuarioId)
 
-**Criterios de Éxito:**
-- [ ] QR genera y expira correctamente
-- [ ] Puntos separados por negocio
-- [ ] Nivel global calcula bien
-- [ ] PWA instalable 3 plataformas
+**Socket.io + Notificaciones Implementado:**
+- [x] Socket.io backend con rooms personales por usuario
+- [x] 7 tipos de notificación activos (puntos, vouchers, ofertas, reseñas, stock)
+- [x] Panel notificaciones con badge "9+" y deep linking
+- [x] Navegación contextual desde notificaciones (sucursalId)
+- [x] Efecto glow en recompensas destacadas
 
-**Notas:** Puntos específicos por negocio, nivel global suma de todos
+**Reseñas en PaginaPerfilNegocio:**
+- [x] Backend completo (schema, service, controller, routes)
+- [x] Verificación compra últimos 90 días para reseñar
+- [x] Modal escribir reseña (estrellas 1-5 + texto 500 chars)
+- [x] Métricas UPSERT (promedio + total)
+- [x] Notificación al dueño cuando recibe reseña
+
+**Contadores ScanYA:**
+- [x] Polling 30s para vouchers pendientes (badge)
+- [x] Fix parpadeo modal vouchers
 
 ---
 
@@ -103,22 +117,26 @@
 
 ---
 
-### Sprint 4: 5.9.- Opiniones/Reseñas BS (~3 días)
+### Sprint 4: 5.9.- Opiniones/Reseñas BS (~2 días) - Backend ✅ Listo
 
 **Objetivo:** Gestionar reseñas de clientes desde BS y ScanYA
 
-**Features Core:**
-- Ver reseñas con calificación ⭐ 1-5
-- Responder desde BS (web) y ScanYA (móvil)
-- Dashboard métricas (promedio, total)
-- Templates respuesta pre-escritos
-- Validar compra antes de reseñar
-- Badge "Compra verificada"
+**Ya Implementado (12 Feb 2026):**
+- [x] Backend completo (schema, service, controller, routes)
+- [x] Validación compra últimos 90 días ✅
+- [x] Crear reseña desde PaginaPerfilNegocio ✅
+- [x] Métricas UPSERT automático ✅
+- [x] Notificación al dueño ✅
+
+**Pendiente:**
+- [ ] Ver reseñas con calificación ⭐ 1-5 en Business Studio
+- [ ] Responder desde BS (web) y ScanYA (móvil)
+- [ ] Dashboard métricas (promedio, total)
+- [ ] Templates respuesta pre-escritos
 
 **Criterios de Éxito:**
-- [ ] Validación compras operativa
+- [x] Validación compras operativa ✅
 - [ ] Respuestas desde ambos sistemas
-- [ ] Templates funcionan
 
 **Dependencia:** Requiere tabla `transacciones` de ScanYA
 
@@ -348,8 +366,8 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 
 ## 📅 Próxima Revisión
 
-**Fecha:** 15 Febrero 2026  
-**Alcance:** Re-evaluar después de Sprint 1-2
+**Fecha:** 20 Febrero 2026  
+**Alcance:** Re-evaluar después de Sprint 3-4 (Clientes/Transacciones + Opiniones BS)
 
 ---
 

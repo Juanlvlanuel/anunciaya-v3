@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalImagenesProps {
@@ -20,6 +20,17 @@ export const ModalImagenes = ({
 }: ModalImagenesProps) => {
   const [indiceActual, setIndiceActual] = useState(initialIndex);
   const scrollYRef = useRef(0);
+  const [cerrando, setCerrando] = useState(false);
+
+  /** Cerrar con animación de salida — todos los puntos de cierre pasan por aquí */
+  const cerrarConAnimacion = useCallback(() => {
+    if (cerrando) return;
+    setCerrando(true);
+    setTimeout(() => {
+      setCerrando(false);
+      onClose();
+    }, 180); // Duración de la animación de salida
+  }, [cerrando, onClose]);
 
   // Sincronizar índice actual cuando cambia initialIndex
   useEffect(() => {
@@ -73,7 +84,7 @@ export const ModalImagenes = ({
 
     const manejarTecla = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        cerrarConAnimacion();
       } else if (e.key === 'ArrowLeft' && images.length > 1) {
         imagenAnterior();
       } else if (e.key === 'ArrowRight' && images.length > 1) {
@@ -83,7 +94,7 @@ export const ModalImagenes = ({
 
     window.addEventListener('keydown', manejarTecla);
     return () => window.removeEventListener('keydown', manejarTecla);
-  }, [isOpen, images.length, indiceActual, onClose]);
+  }, [isOpen, images.length, indiceActual, cerrarConAnimacion]);
 
   const imagenAnterior = () => {
     setIndiceActual((prev) => (prev - 1 + images.length) % images.length);
@@ -93,37 +104,67 @@ export const ModalImagenes = ({
     setIndiceActual((prev) => (prev + 1) % images.length);
   };
 
+  // Descargar imagen (fetch + blob para URLs cross-origin como R2/Cloudinary)
+  const [descargando, setDescargando] = useState(false);
+  const descargarImagen = useCallback(async () => {
+    if (descargando) return;
+    setDescargando(true);
+    try {
+      const url = images[indiceActual];
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Extraer extensión del URL o usar .jpg por defecto
+      const extension = url.split('.').pop()?.split('?')[0] || 'jpg';
+      const nombre = `imagen_${Date.now()}.${extension}`;
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = nombre;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // Fallback: abrir en nueva pestaña
+      window.open(images[indiceActual], '_blank');
+    } finally {
+      setDescargando(false);
+    }
+  }, [images, indiceActual, descargando]);
+
   if (!isOpen) return null;
 
   const hayMultiplesImagenes = images.length > 1;
 
   return createPortal(
     <div className="fixed inset-0 z-9999">
-      {/* Overlay (50% opacidad) - Click fuera cierra */}
+      {/* Overlay — Click fuera cierra */}
       <div
-        onClick={onClose}
-        className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] animate-[fadeIn_0.2s_ease-in]"
+        onClick={cerrarConAnimacion}
+        className={`absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] ${cerrando ? 'animate-[fadeOut_0.18s_ease-out_forwards]' : 'animate-[fadeIn_0.2s_ease-in]'}`}
       />
 
       {/* Contenedor centrado */}
       <div className="relative w-full h-full flex items-center justify-center p-4 pointer-events-none">
         {/* Contenedor de imagen + controles */}
-        <div className="relative animate-[scaleIn_0.2s_ease-out] pointer-events-auto">
+        <div className={`relative pointer-events-auto overflow-hidden rounded-lg shadow-2xl ${cerrando ? 'animate-[scaleOut_0.18s_ease-in_forwards]' : 'animate-[scaleIn_0.2s_ease-out]'}`}>
           {/* Imagen principal */}
           <img
             src={images[indiceActual]}
             alt={`Imagen ${indiceActual + 1} de ${images.length}`}
-            className="max-w-[90vw] max-h-[60vh] lg:max-w-[70vw] lg:max-h-[50vh] 2xl:max-w-[90vw] 2xl:max-h-[65vh] object-contain rounded-lg shadow-2xl"
+            className="max-w-[85vw] max-h-[55vh] lg:max-w-[50vw] lg:max-h-[45vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh] object-contain"
           />
 
-          {/* Botón X (esquina superior derecha) */}
+          {/* Botón X (esquina superior derecha, dentro de la imagen) */}
           <button
-            onClick={onClose}
-            className="absolute -top-4 -right-4 lg:-top-3 lg:-right-3 2xl:-top-4 2xl:-right-4 w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 bg-white hover:bg-red-50 rounded-full shadow-lg flex items-center justify-center text-red-500 hover:text-red-600 transition-all duration-100 hover:scale-105 active:scale-95 z-10"
+            onClick={cerrarConAnimacion}
+            className="absolute top-2.5 right-2.5 lg:top-2 lg:right-2 2xl:top-2.5 2xl:right-2.5 w-9 h-9 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 bg-black/50 hover:bg-red-500 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-100 hover:scale-105 active:scale-95 cursor-pointer z-10"
             aria-label="Cerrar"
           >
             <svg
-              className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5"
+              className="w-4.5 h-4.5 lg:w-3.5 lg:h-3.5 2xl:w-4.5 2xl:h-4.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -137,11 +178,37 @@ export const ModalImagenes = ({
             </svg>
           </button>
 
+          {/* Botón Descargar (esquina inferior derecha, dentro de la imagen) */}
+          <button
+            onClick={descargarImagen}
+            disabled={descargando}
+            className="absolute bottom-3 right-3 lg:bottom-2.5 lg:right-2.5 2xl:bottom-3 2xl:right-3 w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 bg-green-500 hover:bg-green-600 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-100 hover:scale-105 active:scale-95 cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Descargar imagen"
+          >
+            {descargando ? (
+              <div className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg
+                className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                  d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"
+                />
+              </svg>
+            )}
+          </button>
+
           {/* Flecha Izquierda (solo si hay múltiples imágenes) */}
           {hayMultiplesImagenes && (
             <button
               onClick={imagenAnterior}
-              className="absolute left-2 lg:left-1 2xl:left-2 top-1/2 -translate-y-1/2 w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white hover:bg-gray-100 rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:text-gray-900 transition-all duration-100 hover:scale-105 active:scale-95"
+              className="absolute left-2 lg:left-1 2xl:left-2 top-1/2 -translate-y-1/2 w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white hover:bg-gray-100 rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:text-gray-900 transition-all duration-100 hover:scale-105 active:scale-95 cursor-pointer"
               aria-label="Imagen anterior"
             >
               <svg
@@ -164,7 +231,7 @@ export const ModalImagenes = ({
           {hayMultiplesImagenes && (
             <button
               onClick={imagenSiguiente}
-              className="absolute right-2 lg:right-1 2xl:right-2 top-1/2 -translate-y-1/2 w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white hover:bg-gray-100 rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:text-gray-900 transition-all duration-100 hover:scale-105 active:scale-95"
+              className="absolute right-2 lg:right-1 2xl:right-2 top-1/2 -translate-y-1/2 w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white hover:bg-gray-100 rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:text-gray-900 transition-all duration-100 hover:scale-105 active:scale-95 cursor-pointer"
               aria-label="Imagen siguiente"
             >
               <svg
@@ -192,26 +259,23 @@ export const ModalImagenes = ({
         </div>
       </div>
 
-      {/* Definir animaciones en el estilo del componente */}
+      {/* Animaciones de entrada y salida */}
       <style>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
-
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
         @keyframes scaleIn {
-          from {
-            transform: scale(0.95);
-            opacity: 0;
-          }
-          to {
-            transform: scale(1);
-            opacity: 1;
-          }
+          from { transform: scale(0.92); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes scaleOut {
+          from { transform: scale(1); opacity: 1; }
+          to { transform: scale(0.92); opacity: 0; }
         }
       `}</style>
     </div>,

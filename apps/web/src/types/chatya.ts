@@ -156,6 +156,48 @@ export interface Mensaje {
 }
 
 // =============================================================================
+// MULTIMEDIA — Estructura del contenido según tipo de mensaje
+// =============================================================================
+
+/**
+ * JSON parseado del campo `contenido` cuando tipo === 'imagen'.
+ *
+ * Se guarda como JSON.stringify en la DB y se parsea en el frontend.
+ * El campo `miniatura` es un LQIP (Low Quality Image Placeholder):
+ * una imagen WebP de ~16px codificada en base64 (~300-500 bytes)
+ * que se muestra con blur mientras la imagen real carga.
+ */
+export interface ContenidoImagen {
+  /** URL pública de la imagen en R2 */
+  url: string;
+  /** Ancho original en píxeles (después de optimización) */
+  ancho: number;
+  /** Alto original en píxeles (después de optimización) */
+  alto: number;
+  /** Peso del archivo en bytes */
+  peso: number;
+  /** LQIP: data:image/webp;base64,... (~400 bytes, 16px ancho) */
+  miniatura: string;
+  /** Texto opcional debajo de la imagen (pie de foto) */
+  caption?: string;
+}
+
+/**
+ * Respuesta del endpoint POST /api/chatya/upload-imagen
+ * Genera una presigned URL para subir directamente a R2.
+ */
+export interface PresignedUrlR2 {
+  /** URL pre-firmada para hacer PUT con el archivo */
+  uploadUrl: string;
+  /** URL pública final de la imagen (usar después del upload) */
+  publicUrl: string;
+  /** Key del archivo en R2 (para eliminación futura) */
+  key: string;
+  /** Segundos de validez de la URL */
+  expiresIn: number;
+}
+
+// =============================================================================
 // INPUTS — Lo que envía el frontend al backend
 // =============================================================================
 
@@ -409,6 +451,32 @@ export interface NegocioBusqueda {
   usuarioId: string;
   sucursalId: string;
   negocioId: string;
+}
+
+// =============================================================================
+// METADATOS IMAGEN — Lo que produce el hook useImagenChat
+// =============================================================================
+
+/**
+ * Metadatos completos de una imagen procesada por useImagenChat.
+ * Incluye todo lo necesario para el pipeline zero-flicker:
+ * dimensiones, LQIP, blob local, y archivo optimizado listo para subir.
+ */
+export interface MetadatosImagen {
+  /** Archivo optimizado (WebP, max 1920px) listo para subir a R2 */
+  archivo: File;
+  /** URL blob local para preview instantáneo */
+  blobUrl: string;
+  /** Ancho después de optimización */
+  ancho: number;
+  /** Alto después de optimización */
+  alto: number;
+  /** Peso del archivo optimizado en bytes */
+  peso: number;
+  /** LQIP base64: data:image/webp;base64,... (~400 bytes) */
+  miniatura: string;
+  /** Caption opcional del usuario */
+  caption?: string;
 }
 
 // =============================================================================

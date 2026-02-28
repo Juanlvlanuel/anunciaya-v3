@@ -1,8 +1,8 @@
 # 🏪 Negocios - Directorio Geolocalizado
 
-**Última actualización:** 30 Enero 2026  
-**Versión:** 2.0 (Completamente Verificado contra código real)  
-**Estado:** ✅ 100% Operacional (desde 02/01/2026)
+**Última actualización:** 12 Febrero 2026  
+**Versión:** 2.2 (Actualizado con implementación real UI)  
+**Estado:** ✅ 100% Operacional (UI con carrusel vertical implementado)
 
 ---
 
@@ -60,14 +60,15 @@ Este documento describe la **arquitectura del sistema de Negocios**:
 
 **Para Usuarios:**
 - Ver negocios cercanos en mapa interactivo
-- Scroll horizontal de tarjetas (carrusel auto-scroll)
-- Filtrar por distancia, categoría, CardYA, envío, métodos de pago
+- Scroll vertical de tarjetas (carrusel lateral)
+- Filtrar por distancia, categoría,Subcategoria, CardYA, envío
 - Dar like a negocios (❤️)
 - Seguir negocios (🔔) para guardar en "Mis Guardados"
-- Ver métricas públicas (likes, follows, visitas, rating)
+- Ver métricas públicas (likes, visitas, rating, distancia al negocio)
 - Acceder al perfil completo del negocio
 - Compartir negocios en redes sociales
 - Escribir reseñas verificadas (requiere compra con CardYA)
+- Contactar por ChatYA o WhatsApp
 
 **Ruta:** `/negocios`
 
@@ -83,38 +84,39 @@ Este documento describe la **arquitectura del sistema de Negocios**:
 ┌──────────────────────────────────────────────┐
 │ Header con Filtros                           │
 │ [🔍 Buscar] [📍 5km] [🍴 Cat] [🏷️] [📦]    │
-├──────────────────────────────────────────────┤
-│                                              │
-│            MAPA INTERACTIVO                  │
-│         (Leaflet con marcadores)             │
-│                                              │
-│         📍 📍 📍 (negocios)                   │
-│                                              │
-│              ~70% altura                     │
-│                                              │
-├──────────────────────────────────────────────┤
-│  ◀  [Tarjeta 1]  [Tarjeta 2]  [Tarjeta 3]  ▶│
-│      Carrusel horizontal scrolleable         │
-│         (auto-scroll + manual)               │
-└──────────────────────────────────────────────┘
+├────────────┬─────────────────────────────────┤
+│            │                                 │
+│  [Card 1]  │                                 │
+│  [Card 2]  │      MAPA INTERACTIVO           │
+│  [Card 3]  │   (Leaflet con marcadores)      │
+│  [Card 4]  │                                 │
+│     ↓      │        📍 📍 📍                  │
+│   scroll   │                                 │
+│  vertical  │        ~100% altura             │
+│            │                                 │
+│   ~30%     │          ~70% ancho             │
+│   ancho    │                                 │
+│            │                                 │
+└────────────┴─────────────────────────────────┘
 ```
 
 ### Características Clave
 
 **✅ Siempre visibles simultáneamente:**
-- Mapa arriba (~70% altura)
-- Carrusel abajo (~30% altura)
+- Carrusel vertical a la izquierda (~30% ancho)
+- Mapa a la derecha (~70% ancho)
 - NO hay toggle entre vistas
+- Ambos componentes ocupan 100% de la altura disponible
 
 **✅ Sincronización:**
-- Click en marcador del mapa → resalta tarjeta correspondiente
-- Click en tarjeta → centra mapa en ese negocio
-- Auto-scroll del carrusel cada 5 segundos
+- Click en marcador del mapa → resalta tarjeta correspondiente en el carrusel
+- Click en tarjeta → centra mapa en ese negocio y abre popup
+- Scroll suave entre tarjetas
 
 **✅ Navegación:**
-- Flechas < > para avanzar/retroceder
-- Swipe horizontal en móvil
-- Indicadores (dots) muestran posición actual
+- Scroll vertical en el carrusel (rueda del mouse o touch)
+- Click directo en tarjetas
+- Marcadores interactivos en el mapa
 
 ---
 
@@ -122,20 +124,28 @@ Este documento describe la **arquitectura del sistema de Negocios**:
 
 **Contenido por tarjeta:**
 - Imagen principal (con carrusel interno si tiene múltiples fotos)
-- Badge "● Abierto" o "Cerrado" (verde/rojo)
-- Logo del negocio
+- Badge "● Abierto" o "Cerrado" (verde/rojo) en esquina superior izquierda
+- Logo del negocio (circular, esquina inferior izquierda sobre la imagen)
 - Nombre del negocio
-- Categoría/subcategoría
-- Distancia (📍 3.3 km)
-- Botón ❤️ Like (esquina superior derecha)
-- Botón "Contactar"
-- Botón "Ver Perfil →"
-- Botón "💬 ChatYA"
+- Categoría con rating (⭐ 4.0)
+- Distancia (📍 1.5 km)
+- Botón ❤️ Like (esquina superior derecha de la imagen)
+- Botones de acción en footer:
+  - 💬 ChatYA (icono rojo)
+  - 📱 WhatsApp (icono verde)
+  - "Ver Perfil →" (botón azul)
 
 **Carrusel interno de imágenes:**
-- Navegación con flechas < >
+- Navegación con flechas < > si hay múltiples fotos
 - Indicadores (dots) si hay múltiples fotos
 - Transiciones suaves
+
+**Layout:**
+- Tarjetas apiladas verticalmente
+- Scroll vertical suave
+- Ancho fijo (ocupa ~30% del ancho disponible)
+- Altura automática por tarjeta
+- Espaciado consistente entre tarjetas
 
 ---
 
@@ -915,6 +925,8 @@ const useGuardados = () => {
 
 ## ⭐ Sistema de Reseñas Verificadas
 
+> **Estado:** ✅ IMPLEMENTADO (12 Febrero 2026)
+
 ### ¿Qué es?
 
 Sistema que permite a usuarios **escribir reseñas solo si han comprado** en el negocio usando CardYA.
@@ -923,22 +935,90 @@ Sistema que permite a usuarios **escribir reseñas solo si han comprado** en el 
 
 ---
 
-### Requisito para Escribir Reseña
+### Backend Implementado
+
+**Archivos:**
+- `apps/api/src/validations/resenas.schema.ts` - Validación Zod
+- `apps/api/src/services/resenas.service.ts` - Lógica de negocio
+- `apps/api/src/controllers/resenas.controller.ts` - Controladores
+- `apps/api/src/routes/resenas.routes.ts` - Endpoints
+
+**Endpoints:**
+
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| GET | `/api/resenas/sucursal/:sucursalId` | ❌ | Reseñas públicas de una sucursal |
+| GET | `/api/resenas/sucursal/:sucursalId/promedio` | ❌ | Promedio y total de reseñas |
+| GET | `/api/resenas/puede-resenar/:sucursalId` | ✅ | Verificar si usuario puede reseñar |
+| POST | `/api/resenas` | ✅ | Crear nueva reseña |
+
+**Funciones del Service:**
+- `obtenerResenasSucursal(sucursalId)` - Lista con datos del autor
+- `obtenerPromedioResenas(sucursalId)` - Promedio + total
+- `verificarPuedeResenar(usuarioId, sucursalId)` - Validación compra 90 días
+- `crearResena(autorId, datos)` - Inserta + métricas UPSERT + notifica dueño
+
+---
+
+### Validación de Compra Verificada
 
 ```sql
--- Validación backend
+-- Validación backend (últimos 90 días)
 SELECT COUNT(*) 
-FROM negocio_transacciones
+FROM puntos_transacciones
 WHERE usuario_id = $1
   AND negocio_id = $2
-  AND estado = 'completado'
   AND created_at >= NOW() - INTERVAL '90 days'
 ```
 
 **Condiciones:**
-- ✅ Usuario tiene transacción completada
+- ✅ Usuario tiene transacción con CardYA
 - ✅ En los últimos 90 días
 - ❌ Si no cumple → modal explicativo
+
+---
+
+### Métricas Automáticas
+
+Al crear una reseña, se actualiza automáticamente `metricas_entidad`:
+
+```typescript
+// UPSERT con conteo real (no incrementos)
+await db.execute(`
+  INSERT INTO metricas_entidad (entidad_tipo, entidad_id, total_resenas, calificacion_promedio)
+  SELECT 'sucursal', $1, COUNT(*), AVG(calificacion)
+  FROM resenas WHERE sucursal_id = $1
+  ON CONFLICT (entidad_tipo, entidad_id) 
+  DO UPDATE SET 
+    total_resenas = EXCLUDED.total_resenas,
+    calificacion_promedio = EXCLUDED.calificacion_promedio,
+    updated_at = NOW()
+`);
+```
+
+---
+
+### Notificaciones
+
+Al recibir una reseña, el dueño del negocio recibe notificación:
+- **Tipo:** `nueva_resena`
+- **Canal:** Socket.io (tiempo real)
+- **Destino:** Dueño del negocio (no empleados)
+
+---
+
+### Frontend Implementado
+
+**Componentes:**
+- `ModalEscribirResena.tsx` - Modal con estrellas interactivas + textarea
+- Integración en `PaginaPerfilNegocio.tsx`
+
+**Flujo UI:**
+1. Usuario en perfil del negocio
+2. Click en "Escribir reseña"
+3. Sistema verifica `GET /api/resenas/puede-resenar/:id`
+4. Si puede → Modal de reseña
+5. Si no puede → Modal explicativo
 
 ---
 
@@ -2563,7 +2643,8 @@ Usuario puede:
 | Negocios (privados) | 13 | ✅ |
 | Votos | 4 | ✅ |
 | Métricas | 6 | ✅ |
-| **TOTAL** | **29** | **✅** |
+| Reseñas | 4 | ✅ |
+| **TOTAL** | **33** | **✅** |
 
 ---
 
@@ -2591,9 +2672,38 @@ Usuario puede:
 
 ---
 
-**Última actualización:** 30 Enero 2026  
-**Autor:** Equipo AnunciaYA  
-**Versión:** 2.0 (100% Verificada contra código real)
+### Cambios Aplicados en v2.2 (12 Febrero 2026)
 
-**Progreso:** Fase 5.3 completada (100%)  
-**Próximo hito:** Fase 5.4 - Business Studio
+**Actualización UI - Carrusel Vertical:**
+1. ✅ Vista híbrida actualizada: Carrusel vertical (izquierda) + Mapa (derecha)
+2. ✅ Carrusel ocupa ~30% ancho, Mapa ~70% ancho
+3. ✅ Eliminado auto-scroll y flechas de navegación horizontal
+4. ✅ Scroll vertical en carrusel de tarjetas
+5. ✅ Tarjetas apiladas verticalmente con altura automática
+6. ✅ Actualizado diagrama ASCII de la estructura
+7. ✅ Actualizado comportamiento de sincronización mapa-tarjetas
+8. ✅ Actualizado layout de botones en tarjetas (ChatYA + WhatsApp + Ver Perfil)
+
+---
+
+### Cambios Aplicados en v2.1 (12 Febrero 2026)
+
+**Sistema de Reseñas Verificadas - IMPLEMENTADO:**
+1. ✅ Backend completo: schema, service, controller, routes
+2. ✅ 4 endpoints REST para reseñas
+3. ✅ Validación de compra últimos 90 días
+4. ✅ Métricas UPSERT automático (promedio + total)
+5. ✅ Notificación Socket.io al dueño
+6. ✅ Frontend: ModalEscribirResena + integración PaginaPerfilNegocio
+
+**Pendiente para completar sección:**
+- ❌ ChatYA para contactar negocio desde perfil
+
+---
+
+**Última actualización:** 12 Febrero 2026  
+**Autor:** Equipo AnunciaYA  
+**Versión:** 2.2 (UI actualizada con carrusel vertical)
+
+**Progreso:** Fase 5.3 completada (100%) + Reseñas implementadas + UI actualizada  
+**Próximo hito:** ChatYA para completar funcionalidad de contacto

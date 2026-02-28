@@ -55,7 +55,7 @@ interface ModalBottomProps {
   alturaMaxima?: 'sm' | 'md' | 'lg';
   /** Clases CSS adicionales para el contenedor */
   className?: string;
-  /** Clase de z-index para el wrapper (default: 'z-50'). Usar z-90 para modales sobre ChatYA */
+  /** Clase de z-index para el wrapper (default: 'z-52'). Usar z-90 para modales sobre ChatYA */
   zIndice?: string;
 }
 
@@ -93,7 +93,7 @@ export function ModalBottom({
   sinScrollInterno = false,
   alturaMaxima = 'lg',
   className = '',
-  zIndice = 'z-50',
+  zIndice = 'z-52',
 }: ModalBottomProps) {
   // ---------------------------------------------------------------------------
   // Estado
@@ -107,11 +107,27 @@ export function ModalBottom({
   const startYRef = useRef(0);
   const scrollYRef = useRef(0);
 
+  // Refs para manejo de historial (botón atrás Android)
+  const historyPushedRef = useRef(false);
+  const modalIdRef = useRef(`_mb_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+  const popStateHandlerRef = useRef<(() => void) | null>(null);
+
   // ---------------------------------------------------------------------------
   // Handlers de cierre
   // ---------------------------------------------------------------------------
 
   const handleCerrar = useCallback(() => {
+    // Limpiar entrada del historial si fue empujada por nosotros
+    if (historyPushedRef.current) {
+      historyPushedRef.current = false;
+      // Remover nuestro listener ANTES de history.back() para que
+      // no escuche el popstate que nosotros mismos provocamos
+      if (popStateHandlerRef.current) {
+        window.removeEventListener('popstate', popStateHandlerRef.current);
+        popStateHandlerRef.current = null;
+      }
+      history.back();
+    }
     setCerrando(true);
     setTimeout(() => {
       setCerrando(false);
@@ -209,6 +225,45 @@ export function ModalBottom({
   // ---------------------------------------------------------------------------
   // Efectos
   // ---------------------------------------------------------------------------
+
+  // Interceptar botón "atrás" de Android para cerrar el modal
+  const handleCerrarRef = useRef(handleCerrar);
+  handleCerrarRef.current = handleCerrar;
+
+  useEffect(() => {
+    if (!abierto) {
+      historyPushedRef.current = false;
+      popStateHandlerRef.current = null;
+      return;
+    }
+
+    const id = modalIdRef.current;
+
+    // Solo pushState una vez (guard contra StrictMode double-mount)
+    if (!historyPushedRef.current) {
+      const prevState = history.state ?? {};
+      history.pushState({ ...prevState, _modalBottom: id }, '', window.location.href);
+      historyPushedRef.current = true;
+    }
+
+    const onPopState = () => {
+      // Si ya se limpió (handleCerrar ya corrió), ignorar
+      if (!historyPushedRef.current) return;
+      // Si nuestra entrada fue consumida por el back del navegador
+      if (history.state?._modalBottom !== id) {
+        historyPushedRef.current = false;
+        popStateHandlerRef.current = null;
+        handleCerrarRef.current();
+      }
+    };
+
+    popStateHandlerRef.current = onPopState;
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      popStateHandlerRef.current = null;
+    };
+  }, [abierto]);
 
   // Bloquear scroll y escuchar eventos
   useEffect(() => {

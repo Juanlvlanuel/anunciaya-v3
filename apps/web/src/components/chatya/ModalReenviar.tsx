@@ -117,11 +117,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [busqueda, estaBuscando, ciudad, latitud, longitud]);
 
-  // Focus automático
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 200);
-    return () => clearTimeout(t);
-  }, []);
+
 
   // ---------------------------------------------------------------------------
   // Preview
@@ -281,7 +277,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
       alturaMaxima="lg"
       zIndice="z-90"
     >
-      <div className="flex flex-col max-h-[65vh] lg:max-h-[55vh]">
+      <div className="flex flex-col h-[65vh] lg:h-[50vh]">
 
         {/* ── Preview del mensaje ── */}
         <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 shrink-0 flex items-center gap-2">
@@ -323,14 +319,14 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar persona o negocio..."
-              className="w-full pl-9 pr-3 py-2 text-sm bg-slate-100 border border-slate-300 rounded-xl outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 placeholder:text-slate-400 text-slate-800"
+              className="w-full pl-9 pr-3 py-2.5 lg:py-2 text-base lg:text-sm bg-slate-100 border border-slate-300 rounded-xl outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 placeholder:text-slate-400 text-slate-800"
             />
             {busqueda && (
               <button
                 onClick={() => setBusqueda('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-300 hover:bg-gray-400 flex items-center justify-center cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 lg:w-5 lg:h-5 rounded-full bg-gray-300 hover:bg-gray-400 flex items-center justify-center cursor-pointer"
               >
-                <X className="w-3 h-3 text-white" />
+                <X className="w-4 h-4 lg:w-3 lg:h-3 text-white" />
               </button>
             )}
           </div>
@@ -346,7 +342,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
           )}
 
           {buscandoBackend && (
-            <div className="flex justify-center py-4">
+            <div className="absolute inset-x-0 top-0 z-5 flex justify-center py-4 pointer-events-none">
               <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
             </div>
           )}
