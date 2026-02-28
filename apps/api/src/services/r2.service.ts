@@ -57,13 +57,15 @@ interface RespuestaDelete {
  * @param nombreArchivo - Nombre original del archivo
  * @param contentType - Tipo MIME del archivo (ej: 'image/jpeg')
  * @param expiresIn - Segundos de validez de la URL (default: 300 = 5 min)
+ * @param tiposPermitidos - Array de MIME types permitidos. Si se pasa, valida contra ellos. Si no, acepta cualquier tipo (el caller valida).
  * @returns URL pre-firmada + URL pública final
  */
 export async function generarPresignedUrl(
     carpeta: string,
     nombreArchivo: string,
     contentType: string,
-    expiresIn: number = 300
+    expiresIn: number = 300,
+    tiposPermitidos?: string[]
 ): Promise<RespuestaPresignedUrl> {
     try {
         // Validar configuración
@@ -75,9 +77,8 @@ export async function generarPresignedUrl(
             };
         }
 
-        // Validar tipo de contenido (solo imágenes)
-        const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-        if (!tiposPermitidos.includes(contentType)) {
+        // Validar tipo de contenido (solo si se proporcionan tipos permitidos)
+        if (tiposPermitidos && !tiposPermitidos.includes(contentType)) {
             return {
                 success: false,
                 message: `Tipo de archivo no permitido. Permitidos: ${tiposPermitidos.join(', ')}`,

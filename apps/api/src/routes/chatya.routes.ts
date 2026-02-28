@@ -61,6 +61,8 @@ import {
   buscarPersonasController,
   buscarNegociosController,
   misNotasController,
+  uploadImagenChatController,
+  uploadDocumentoChatController,
 } from '../controllers/chatya.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 
@@ -194,6 +196,16 @@ router.get('/conversaciones/:id/buscar', buscarMensajesController);
 
 /** GET /api/chatya/no-leidos?modo=personal */
 router.get('/no-leidos', contarNoLeidosController);
+
+// =============================================================================
+// MULTIMEDIA (Sprint 6)
+// =============================================================================
+
+/** POST /api/chatya/upload-imagen - Presigned URL para subir imagen a R2 */
+router.post('/upload-imagen', uploadImagenChatController);
+
+/** POST /api/chatya/upload-documento - Presigned URL para subir documento a R2 */
+router.post('/upload-documento', uploadDocumentoChatController);
 
 // =============================================================================
 // BÚSQUEDA DE PERSONAS Y NEGOCIOS (Sprint 5)

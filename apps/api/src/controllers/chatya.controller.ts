@@ -39,6 +39,8 @@ import {
   contarTotalNoLeidos,
   buscarPersonas,
   buscarNegocios,
+  generarUrlUploadImagenChat,
+  generarUrlUploadDocumentoChat,
 } from '../services/chatya.service.js';
 import type { ModoChatYA, ContextoTipo } from '../types/chatya.types.js';
 
@@ -1001,5 +1003,83 @@ export async function buscarNegociosController(req: Request, res: Response) {
   } catch (error) {
     console.error('Error en buscarNegociosController:', error);
     return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+// =============================================================================
+// MULTIMEDIA: Upload de imagen (presigned URL)
+// =============================================================================
+
+/**
+ * POST /api/chatya/upload-imagen
+ * Genera URL pre-firmada para subir imagen a R2.
+ * Body: { nombreArchivo: string, contentType: string }
+ */
+export async function uploadImagenChatController(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = obtenerUsuarioId(req);
+    const { nombreArchivo, contentType } = req.body;
+
+    if (!nombreArchivo || !contentType) {
+      res.status(400).json({
+        success: false,
+        message: 'nombreArchivo y contentType son requeridos',
+      });
+      return;
+    }
+
+    const resultado = await generarUrlUploadImagenChat(userId, nombreArchivo, contentType);
+
+    res.status(resultado.code ?? 200).json({
+      success: resultado.success,
+      message: resultado.message,
+      data: resultado.data,
+    });
+
+  } catch (error) {
+    console.error('Error en uploadImagenChatController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+}
+
+// =============================================================================
+// MULTIMEDIA: Upload documento (Sprint 6)
+// =============================================================================
+
+/**
+ * POST /api/chatya/upload-documento
+ * Genera URL pre-firmada para subir documento a R2.
+ * Body: { nombreArchivo: string, contentType: string, tamano: number }
+ */
+export async function uploadDocumentoChatController(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = obtenerUsuarioId(req);
+    const { nombreArchivo, contentType, tamano } = req.body;
+
+    if (!nombreArchivo || !contentType || !tamano) {
+      res.status(400).json({
+        success: false,
+        message: 'nombreArchivo, contentType y tamano son requeridos',
+      });
+      return;
+    }
+
+    const resultado = await generarUrlUploadDocumentoChat(userId, nombreArchivo, contentType, tamano);
+
+    res.status(resultado.code ?? 200).json({
+      success: resultado.success,
+      message: resultado.message,
+      data: resultado.data,
+    });
+
+  } catch (error) {
+    console.error('Error en uploadDocumentoChatController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
   }
 }

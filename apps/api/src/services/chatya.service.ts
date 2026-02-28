@@ -46,6 +46,7 @@ import type {
     BuscarPersonasResponse,
     BuscarNegociosResponse,
 } from '../types/chatya.types.js';
+import { generarPresignedUrl } from './r2.service.js';
 
 
 // =============================================================================
@@ -1278,6 +1279,11 @@ export async function eliminarMensaje(
                 contenido: 'Se eliminó este mensaje', // Reemplazar contenido
             })
             .where(eq(chatMensajes.id, mensajeId));
+
+        // Limpiar de fijados si estaba fijado
+        await db
+            .delete(chatMensajesFijados)
+            .where(eq(chatMensajesFijados.mensajeId, mensajeId));
 
         // Verificar si el mensaje eliminado era el último de la conversación.
         // La query corre DESPUÉS del soft-delete, así que el mensaje borrado ya tiene
@@ -2549,5 +2555,177 @@ export async function buscarNegocios(
     } catch (error) {
         console.error('Error en buscarNegocios:', error);
         return { success: false, message: 'Error al buscar negocios', code: 500 };
+    }
+}
+
+// =============================================================================
+// FUNCIÓN: GENERAR PRESIGNED URL PARA IMAGEN DE CHAT
+// =============================================================================
+
+/**
+ * Genera una URL pre-firmada para que el frontend suba una imagen
+ * directamente a Cloudflare R2 sin pasar por nuestro servidor.
+ *
+ * La imagen se guarda en: chat/imagenes/{userId}/{timestamp}-{uuid}.webp
+ * Esto organiza por usuario para facilitar limpieza futura.
+ *
+ * @param userId - ID del usuario que sube la imagen
+ * @param nombreArchivo - Nombre original del archivo
+ * @param contentType - Tipo MIME (image/webp, image/jpeg, etc.)
+ * @returns Presigned URL + URL pública final
+ */
+export async function generarUrlUploadImagenChat(
+    userId: string,
+    nombreArchivo: string,
+    contentType: string
+): Promise<RespuestaServicio<{
+    uploadUrl: string;
+    publicUrl: string;
+    key: string;
+    expiresIn: number;
+}>> {
+    try {
+        // Validar tipo de contenido
+        const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+        if (!tiposPermitidos.includes(contentType)) {
+            return {
+                success: false,
+                message: `Tipo no permitido. Usar: ${tiposPermitidos.join(', ')}`,
+                code: 400,
+            };
+        }
+
+        // Carpeta organizada por usuario
+        const carpeta = `chat/imagenes/${userId}`;
+
+        const resultado = await generarPresignedUrl(
+            carpeta,
+            nombreArchivo,
+            contentType,
+            300, // 5 minutos de validez
+            tiposPermitidos
+        );
+
+        if (!resultado.success || !resultado.data) {
+            return {
+                success: false,
+                message: resultado.message,
+                code: resultado.code,
+            };
+        }
+
+        return {
+            success: true,
+            message: 'URL de subida generada',
+            data: resultado.data,
+            code: 200,
+        };
+
+    } catch (error) {
+        console.error('Error en generarUrlUploadImagenChat:', error);
+        return {
+            success: false,
+            message: 'Error interno al generar URL de subida',
+            code: 500,
+        };
+    }
+}
+
+// =============================================================================
+// MULTIMEDIA: Presigned URL para subir DOCUMENTO a R2 (Sprint 6)
+// =============================================================================
+
+/** Tipos MIME de documentos permitidos en ChatYA */
+const TIPOS_DOCUMENTO_PERMITIDOS = [
+    'application/pdf',
+    'application/msword',                                                          // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',      // .docx
+    'application/vnd.ms-excel',                                                    // .xls
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',            // .xlsx
+    'application/vnd.ms-powerpoint',                                               // .ppt
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',   // .pptx
+    'text/plain',                                                                  // .txt
+    'text/csv',                                                                    // .csv
+];
+
+/** Tamaño máximo de documento: 25 MB */
+const MAX_TAMANO_DOCUMENTO = 25 * 1024 * 1024;
+
+/**
+ * Genera una URL pre-firmada para que el frontend suba un documento
+ * directamente a Cloudflare R2.
+ *
+ * El documento se guarda en: chat/documentos/{userId}/{timestamp}-{uuid}.{ext}
+ *
+ * @param userId - ID del usuario que sube el documento
+ * @param nombreArchivo - Nombre original del archivo
+ * @param contentType - Tipo MIME del documento
+ * @param tamano - Tamaño del archivo en bytes (para validar límite)
+ * @returns Presigned URL + URL pública final
+ */
+export async function generarUrlUploadDocumentoChat(
+    userId: string,
+    nombreArchivo: string,
+    contentType: string,
+    tamano: number
+): Promise<RespuestaServicio<{
+    uploadUrl: string;
+    publicUrl: string;
+    key: string;
+    expiresIn: number;
+}>> {
+    try {
+        // Validar tipo de contenido
+        if (!TIPOS_DOCUMENTO_PERMITIDOS.includes(contentType)) {
+            return {
+                success: false,
+                message: `Tipo de documento no permitido. Permitidos: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV`,
+                code: 400,
+            };
+        }
+
+        // Validar tamaño
+        if (tamano > MAX_TAMANO_DOCUMENTO) {
+            const maxMB = (MAX_TAMANO_DOCUMENTO / (1024 * 1024)).toFixed(0);
+            return {
+                success: false,
+                message: `El documento no puede pesar más de ${maxMB}MB.`,
+                code: 400,
+            };
+        }
+
+        // Carpeta organizada por usuario
+        const carpeta = `chat/documentos/${userId}`;
+
+        const resultado = await generarPresignedUrl(
+            carpeta,
+            nombreArchivo,
+            contentType,
+            300, // 5 minutos de validez
+            TIPOS_DOCUMENTO_PERMITIDOS
+        );
+
+        if (!resultado.success || !resultado.data) {
+            return {
+                success: false,
+                message: resultado.message,
+                code: resultado.code,
+            };
+        }
+
+        return {
+            success: true,
+            message: 'URL de subida de documento generada',
+            data: resultado.data,
+            code: 200,
+        };
+
+    } catch (error) {
+        console.error('Error en generarUrlUploadDocumentoChat:', error);
+        return {
+            success: false,
+            message: 'Error interno al generar URL de subida de documento',
+            code: 500,
+        };
     }
 }
