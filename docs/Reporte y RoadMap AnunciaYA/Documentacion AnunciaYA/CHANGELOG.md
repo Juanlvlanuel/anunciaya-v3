@@ -7,6 +7,265 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [7 Marzo 2026] - Business Studio: Transacciones + Clientes + Opiniones ✅
+
+### ✨ Agregado
+
+**Módulo Transacciones BS**
+- Historial completo de ventas con filtros por fecha, sucursal y nivel CardYA
+- Exportar reportes CSV
+- `PaginaTransacciones.tsx`, `ModalDetalleTransaccionBS.tsx`
+
+**Módulo Clientes BS**
+- Lista de clientes que han comprado con detalle: visitas, puntos acumulados, nivel CardYA
+- Filtros por sucursal y nivel
+- `PaginaClientes.tsx`, `ModalDetalleCliente.tsx`
+
+**Módulo Opiniones BS**
+- Ver reseñas con calificación ⭐ 1-5, filtros por rating y estado (Todas / Pendientes / Respondidas)
+- Responder reseñas desde BS con edición posterior
+- Métricas en header: promedio, total, pendientes de respuesta
+- Badge "Pendientes" en tiempo real
+- `PaginaOpiniones.tsx`, `PanelOpiniones.tsx`, `ModalResponder.tsx`
+- Responder reseñas también disponible desde ScanYA (móvil) ✅
+
+### 📊 Métricas
+- Business Studio: 5/15 → **8/15 módulos completados**
+- Frontend: ~6 archivos nuevos
+
+---
+
+## [7 Marzo 2026] - ChatYA UX + Integración ScanYA + Integración Perfil Negocio
+
+### ✨ Agregado
+
+**ChatYA — Integración con ScanYA (Fase 14 ScanYA)**
+- Middleware `verificarTokenChatYA` en `auth.ts`: acepta token AnunciaYA (`ay_*`) y token ScanYA (`sy_*`). Mapea `negocioUsuarioId → usuarioId`, `modoActivo = 'comercial'`, `sucursalAsignada = sucursalId` del token ScanYA
+- Campo `negocioUsuarioId` agregado al payload de los 3 tipos de login ScanYA (dueño, gerente, empleado) en `jwtScanYA.ts` y `scanya_service.ts`
+- `chatya_routes.ts` usa `verificarTokenChatYA` en lugar de `verificarToken`
+- `PaginaScanYA.tsx` monta `<ChatOverlay />` directamente (no usa MainLayout) con ref guard anti-StrictMode
+- `PaginaScanYA.tsx` intercepta ruta `/scanya/chat` y abre ChatOverlay en lugar de navegar
+- `inicializarScanYA()` en `useChatYAStore.ts`: inicialización ligera para ScanYA — solo carga badge de no leídos, sin duplicar carga de conversaciones
+- Badge de mensajes no leídos en `IndicadoresRapidos` reactivo en tiempo real vía Socket.io
+- `socketService.ts`: fallback `ay_usuario → sy_usuario` para obtener userId en contexto ScanYA
+- `api.ts`: interceptor Axios agrega `?sucursalId=` automáticamente en llamadas a `/chatya` desde contexto ScanYA, garantizando filtrado correcto por sucursal
+
+**ChatYA — Integración con Perfil de Negocio**
+- Botón "💬 Enviar mensaje" en `PaginaPerfilNegocio.tsx` abre ChatOverlay con `contextoTipo = 'negocio'`
+- `ModalAuthRequerido` si el usuario no está logueado
+- Backend deduplica: si ya existe conversación con esa sucursal, la retoma
+
+**ChatYA — Perfil de negocio embebido en PanelInfoContacto**
+- `PaginaPerfilNegocio` acepta props opcionales `sucursalIdOverride` y `modoPreviewOverride` para funcionar sin router
+- `BreakpointOverride forzarMobile` + CSS `.perfil-embebido` / `.perfil-contenedor` fuerzan vista mobile dentro del panel estrecho
+- Desktop: panel se expande a 500px al abrir perfil. Mobile: sub-vista fullscreen con botón ← atrás
+- `history.pushState` para que el botón atrás nativo cierre la vista perfil
+
+### 🛠 Corregido
+
+**Bug: Conversaciones duplicadas en ScanYA**
+- Causa: interceptor Axios no enviaba `?sucursalId=` en rutas `/chatya` desde contexto ScanYA, devolviendo conversaciones de todas las sucursales del dueño
+- Solución: `api.ts` detecta `esScanYA` + `config.url.includes('/chatya')` y agrega `sucursalId` del store ScanYA
+
+**Bug: Carga duplicada de conversaciones al abrir ChatOverlay**
+- Causa: `ListaConversaciones.tsx` disparaba `cargarConversaciones` al montar, duplicando la carga que ya hizo `ChatOverlay` vía `inicializar()`
+- Solución: Guard `yaHayDatos` — si ya hay conversaciones cargadas, `ListaConversaciones` hace refresh silencioso en lugar de carga completa
+
+**UX: Etiqueta "Desde:" aparecía para ambos participantes**
+- Causa: Sin condición de receptor — todos veían el contexto de origen
+- Solución: Solo se muestra cuando `conversacion.participante1Id !== miId` (solo el receptor). Caso `contextoTipo = 'negocio'` solo en modo comercial
+
+**UX: Botón Bloquear oculto en modo comercial**
+- Causa: Condición `!esModoComercial` en `PanelInfoContacto.tsx` — originalmente intencional pero innecesariamente restrictiva
+- Solución: Botón visible en todos los modos. El bloqueo es solo de mensajería, no afecta la relación comercial
+
+### 📊 Métricas del Sprint
+
+**Duración:** 1 día (7 marzo)
+
+**Archivos modificados:**
+- Backend: `auth.ts`, `jwtScanYA.ts`, `scanya_service.ts`, `chatya_routes.ts` (4 archivos)
+- Frontend: `api.ts`, `socketService.ts`, `useChatYAStore.ts`, `PaginaScanYA.tsx`, `PaginaPerfilNegocio.tsx`, `ListaConversaciones.tsx`, `VentanaChat.tsx`, `PanelInfoContacto.tsx` (8 archivos)
+
+---
+
+
+## [6 Mar 2026] - ChatYA Sprint 7: Pulido (EN PROGRESO)
+
+### ✨ Agregado
+
+**ChatYA Sprint 7 — Pulido y detalles UX**
+- Indicador "Escribiendo..." — `InputMensaje` emite `chatya:escribiendo` / `chatya:dejar-escribir` con debounce 2s. Visible en header de VentanaChat y en preview de ConversacionItem (reemplaza el último mensaje en azul)
+- Palomitas "Entregado" (2 palomitas grises) — receptor emite `chatya:entregado` al recibir mensaje vía Socket.io. 3 estados: ✓ enviado, ✓✓ gris entregado, ✓✓ azul leído. Unificadas a `w-4 h-4 scale-y-[1.1]` en burbujas y ConversacionItem
+- Estados de usuario en tiempo real — conectado (green-600) / ausente 15 min (amber-400) / desconectado + "últ. vez hoy a la(s) 10:08 a.m." Componente `UltimaVezAnimada`: scroll horizontal con CSS `translateX` calculado via `useLayoutEffect`. Timer inactividad 15 min con throttle 30s (mousemove, keydown, touchstart, scroll) emite `ausente`/`conectado`. Visible en VentanaChat, PanelInfoContacto y lista archivos compartidos
+- Sonido de notificación + vibración háptica — suena cuando el mensaje NO es propio + conversación NO activa (o pestaña no visible). 5 tonos disponibles (`ay_tono_chat`). Vibración 300ms en móvil (`navigator.vibrate`). Preferencias en localStorage `ay_tono_chat` + `ay_sonido_chat`
+
+### 🔲 Pendiente Sprint 7
+- Preview de enlaces (Open Graph)
+- Testing end-to-end
+
+---
+
+## [26 Feb – 5 Mar 2026] - ChatYA Sprint 6: Multimedia ✅ COMPLETADO
+
+### ✨ Agregado
+
+**Imágenes**
+- Pipeline zero-flicker: LQIP 16px blur(20px) → imagen real con opacity transition 150ms
+- Presigned URL → upload paralelo a Cloudflare R2; múltiples imágenes a la vez (hasta 10, drag & drop)
+- Drag & drop en toda el área de VentanaChat + InputMensaje
+- Visor galería fullscreen con portal (`document.body`) y navegación entre imágenes
+
+**Audio**
+- Grabación inline con waveform en vivo (50 barras normalizadas 0-1)
+- Hold-to-record: deslizar hacia arriba para cancelar (`touchAction: none` en botón mic)
+- Presigned URL + upload a R2; reproductor AudioBurbuja con Howler.js (Web Audio API)
+- Fade-in 150ms anti-artefacto, AudioContext pre-warm, seek arrastrable
+- Avatar ↔ velocidad dinámica 1×/1.5×/2×; cleanup al cambiar chat
+- Duración máx 5 min, 5 MB, detección formato MediaRecorder cross-browser
+
+**Documentos**
+- 9 tipos MIME (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV), máx 25 MB
+- Ícono coloreado por tipo, descarga vía blob
+
+**Archivos compartidos en PanelInfoContacto**
+- Preview grid 3×2; galería fullscreen 3 tabs: Multimedia / Documentos / Enlaces
+- Agrupado por mes con sticky headers; scroll infinito
+- Caché 3 niveles (módulo) con invalidación en tiempo real al enviar/recibir multimedia
+
+**Ubicación**
+- `ModalUbicacionChat.tsx`: GPS automático + mapa Leaflet con pin arrastrable + reverse geocoding Nominatim
+- `UbicacionBurbuja`: `MapContainer` sin controles + botón Google Maps
+- Botón clip convertido en menú: Galería / Cámara / Documento / Ubicación (portal)
+
+**Rendimiento y UX**
+- Scroll nativo con IntersectionObserver — preservación de posición al cargar mensajes antiguos
+- Caché de mensajes por conversación + pre-carga de las primeras 5 conversaciones
+- Montaje persistente de VentanaChat (nunca se desmonta una vez abierta)
+- `content-visibility: auto`, `LIMITE_INICIAL=30`, detección caché imágenes
+- Back button nativo: sistema 4 capas popstate en ChatOverlay (cierra visor → panel info → minimiza → cierra)
+- Input reestructurado estilo WhatsApp: iconos dentro del pill, botón dinámico micrófono/enviar
+- Quote rediseñado: thumbnail a altura completa, borde izquierdo de color
+- Banner mensajes fijados con preview de imágenes
+- Íconos tipo mensaje en lista conversaciones (📷 🎤 📄)
+- Eliminación de mensajes: preview recalcula último mensaje vivo (backend genera `textoPreview`, socket envía `nuevoPreview`)
+
+### 📊 Métricas del Sprint
+- **Duración:** ~8 días (26 Feb – 5 Mar)
+- Backend: `r2_service.ts`, endpoints presigned URL, ubicación (4 archivos)
+- Frontend: `useImagenChat.ts`, `useDocumentoChat.ts`, `VisorImagenesChat.tsx`, `AudioBurbuja`, `UbicacionBurbuja`, `ModalUbicacionChat.tsx`, actualizaciones en `BurbujaMensaje.tsx`, `VentanaChat.tsx`, `InputMensaje.tsx`, `PanelInfoContacto.tsx` (~12 archivos)
+
+---
+
+## [23–25 Feb 2026] - ChatYA Sprint 5: Frontend Complementario ✅ COMPLETADO
+
+### ✨ Agregado
+- Buscador inteligente: 3 secciones en un input (conversaciones locales + negocios API + personas API) con debounce 300ms y GPS integrado para distancia
+- Mis Notas — conversación del usuario consigo mismo
+- Vista Archivados con badge verde de no leídos
+- Búsqueda full-text dentro del chat con navegación entre resultados
+- Menú contextual mensajes: popup flotante desktop (click derecho) / long press en móvil (500ms + vibración) con acciones distribuidas en header
+- Responder (quote/reply) con scroll al original y resaltado; ESC cancela
+- Editar mensajes propios sin límite de tiempo — barra ámbar, ESC cancela
+- Eliminar mensajes (soft delete, desaparecen del chat)
+- Reenviar mensaje — `ModalReenviar.tsx` con `zIndice="z-90"`
+- Fijar mensajes; copiar texto completo o selección parcial (`window.getSelection()`)
+- Reacciones con emojis — pills persistentes visibles; preview en lista "Reaccionaste con ❤️ a..."
+- Sistema de emojis Google Noto completo (`EmojiNoto`, `SelectorEmojis`)
+- Burbujas solo-emoji estilo WhatsApp (font más grande)
+- Hora inline estilo WhatsApp — hora + editado + palomitas como `<span inline-flex>` dentro del párrafo
+- Panel lateral `PanelInfoContacto` con 3 vistas dinámicas
+- Sistema de contactos a nivel sucursal con Optimistic UI (`ContactoDisplay`, `id: temp_${Date.now()}`)
+- Borradores persistentes por conversación
+- Montaje persistente con CSS hidden (4 componentes: ChatOverlay, VentanaChat, ListaConversaciones, PanelInfoContacto)
+- Menú contextual ⋮ con toggles optimistas (fijar, archivar, silenciar, eliminar conversación, bloquear)
+
+### 🛠 Corregido
+- Palomitas azules sincronizadas multi-dispositivo
+- Mensajes reaparecen tras edición
+- Sucursales mezcladas en modo comercial
+- Conversación nueva vía Socket.io: si no existe en lista → fetch + insert al inicio
+
+### 📊 Métricas del Sprint
+- **Duración:** 2-3 días
+- Frontend: ~15 archivos nuevos/modificados
+
+---
+
+## [20–22 Feb 2026] - ChatYA Sprint 4: Frontend Core ✅ COMPLETADO
+
+### ✨ Agregado
+- Store Zustand `useChatYAStore.ts` (~1,940 líneas) con 43 acciones
+- Service API `chatyaService.ts` (~615 líneas) + types `chatya.ts` (~500 líneas)
+- `ChatOverlay.tsx` v3.0 — 3 estados: cerrado / minimizado / abierto; persiste entre navegación
+- `ListaConversaciones.tsx` — tabs Todos/Personas/Negocios, ordenadas por reciente, fijadas arriba
+- `VentanaChat.tsx` — scroll infinito, optimistic updates, palomitas ✓✓, separadores de fecha
+- `BurbujaMensaje.tsx` — burbujas por tipo: texto, imagen placeholder, audio placeholder, documento
+- Enviar/recibir mensajes en tiempo real vía Socket.io
+- Responsive: móvil fullscreen, desktop split (lista 320px + chat expandible)
+- Modo dual personal/comercial — listas completamente separadas, filtradas por sucursal
+- Badges de no leídos en Navbar y BottomNav (total global)
+- `ConversacionItem.tsx` — avatar, preview último mensaje, badge, hora relativa
+
+### 📊 Métricas del Sprint
+- **Duración:** 3 días
+- Frontend: ~10 archivos nuevos
+
+---
+
+## [18–19 Feb 2026] - ChatYA Sprint 3: Backend Complementario ✅ COMPLETADO
+
+### ✨ Agregado
+- Contactos: CRUD completo a nivel sucursal; separados entre personal y comercial
+- Bloqueo: bloquear/desbloquear usuarios y negocios SPAM; lista de bloqueados
+- Reacciones: endpoint agregar/quitar reacción; actualiza preview conversación en tiempo real
+- Mensajes fijados: fijar/desfijar dentro de conversación; endpoint listar fijados
+- Búsqueda full-text en español — `to_tsvector('spanish', ...)` en PostgreSQL
+- Badge total no leídos para Navbar — endpoint `GET /api/chatya/no-leidos/total`
+- Cron job limpieza — elimina conversaciones inactivas > 6 meses (TTL configurable)
+- Archivado/silenciado de conversaciones
+
+### 📊 Métricas del Sprint
+- **Duración:** 2 días
+- Backend: ~6 archivos modificados
+
+---
+
+## [15–17 Feb 2026] - ChatYA Sprint 2: Backend Core ✅ COMPLETADO
+
+### ✨ Agregado
+- Types completos `chatya_types.ts`
+- Service `chatya_service.ts` — 13 funciones: crear conversación (dedup automático), enviar mensaje, cargar mensajes paginados, marcar leídos, editar, eliminar (soft), fijar, listar conversaciones, archivar, silenciar, listar fijados, listar contactos, reaccionar
+- Controller `chatya_controller.ts` — 13 handlers
+- Routes `chatya_routes.ts` — 13 endpoints REST
+- Socket.io — 11 eventos: `chatya:mensaje-nuevo`, `chatya:mensaje-editado`, `chatya:mensaje-eliminado`, `chatya:reaccion`, `chatya:escribiendo`, `chatya:dejar-escribir`, `chatya:leido`, `chatya:entregado`, `chatya:fijado`, `chatya:estado-usuario`, `chatya:consultar-estado`
+- Multi-dispositivo: palomitas azules sincronizadas en todos los dispositivos del usuario
+- `socket.data.usuarioId` + actualización `ultima_conexion` al disconnect
+- Soporte empleados ScanYA (`empleado_id` en mensajes)
+- Identidad por modo activo — en modo comercial, el emisor actúa como el negocio/sucursal
+
+### 📊 Métricas del Sprint
+- **Duración:** 3 días
+- Backend: ~4 archivos nuevos (~800 líneas)
+
+---
+
+## [13–14 Feb 2026] - ChatYA Sprint 1: Base de Datos ✅ COMPLETADO
+
+### ✨ Agregado
+- 6 tablas PostgreSQL: `chatya_conversaciones`, `chatya_mensajes`, `chatya_participantes`, `chatya_contactos`, `chatya_bloqueados`, `chatya_reacciones`
+- Columna `ultima_conexion` en tabla `usuarios`
+- Schema Drizzle con `AnyPgColumn` para auto-referencias (tabla mensajes referencia a sí misma para `mensajeRespondidoId`)
+- Relaciones Drizzle con `relationName` para diferenciar participante1 / participante2
+- Índices para búsqueda full-text y ordenamiento por fecha
+- ChatYA usa **PostgreSQL** (no MongoDB) — decisión arquitectónica confirmada
+
+### 📊 Métricas del Sprint
+- **Duración:** 2 días
+- BD: 6 tablas nuevas, 1 columna modificada
+
+---
+
 ## [6-12 Febrero 2026] - Sprint CardYA + Socket.io + Notificaciones + Reseñas
 
 ### ✨ Agregado
@@ -745,4 +1004,4 @@ Durante este sprint se generaron **8 documentos técnicos** con ~27,420 líneas 
 
 ---
 
-**Última actualización:** 12 Febrero 2026
+**Última actualización:** 7 Marzo 2026

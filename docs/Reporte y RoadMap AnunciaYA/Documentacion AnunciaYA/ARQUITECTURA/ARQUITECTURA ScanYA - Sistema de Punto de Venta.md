@@ -1,8 +1,8 @@
 # 📱 ScanYA - Sistema de Punto de Venta
 
-**Última actualización:** 30 Enero 2026  
-**Versión:** 1.0 (Completamente Verificado)  
-**Estado:** ✅ 93.75% Operativo (15/16 fases)
+**Última actualización:** 7 Marzo 2026  
+**Versión:** 1.2 (Incluye integración ChatYA)  
+**Estado:** ✅ 100% Operativo (16/16 fases)
 
 ---
 
@@ -414,7 +414,8 @@ Response: {
   refreshToken: "sy_...",
   usuario: {
     tipo: 'dueno' | 'gerente',
-    negocioId, sucursalId, nombreNegocio, nombreSucursal,
+    negocioId, sucursalId, negocioUsuarioId,  // negocioUsuarioId = usuarioId del dueño en AnunciaYA
+    nombreNegocio, nombreSucursal,
     logoNegocio, puedeElegirSucursal, puedeConfigurarNegocio
   }
 }
@@ -432,7 +433,7 @@ Response: {
   refreshToken: "sy_...",
   empleado: {
     tipo: 'empleado',
-    empleadoId, nombre, sucursalId,
+    empleadoId, nombre, sucursalId, negocioUsuarioId,  // negocioUsuarioId = usuarioId del dueño en AnunciaYA
     permisos: {
       registrarVentas, procesarCanjes, verHistorial,
       responderChat, responderResenas
@@ -654,8 +655,8 @@ Response: {
 GET /api/scanya/contadores
 Response: {
   recordatoriosPendientes: number,
-  resenasNuevas: number,        // Fase 14 pendiente
-  mensajesNoLeidos: number      // Fase 14 pendiente
+  resenasNuevas: number,        // ✅ Fase 14 implementada
+  mensajesNoLeidos: number      // ✅ Fase 14 implementada — badge reactivo vía Socket.io
 }
 ```
 
@@ -1616,7 +1617,7 @@ El servidor (Render) opera en UTC. Los negocios operan en zonas horarias de Méx
 
 ## 📊 Progreso del Proyecto
 
-### Estado Actual: 93.75% Completado
+### Estado Actual: 100% Completado
 
 **Fases completadas:** 15/16
 
@@ -1635,37 +1636,39 @@ El servidor (Render) opera en UTC. Los negocios operan en zonas horarias de Méx
 | 11 | Frontend - Otorgar Puntos | ✅ 100% | 21 Ene 2026 |
 | 12 | Frontend - Historial + Vouchers | ✅ 100% | 22 Ene 2026 |
 | 13 | Frontend - Recordatorios Offline | ✅ 100% | 23 Ene 2026 |
-| 14 | Frontend - Chat + Reseñas | ⏸️ PAUSADA | - |
+| 14 | Frontend - Chat + Reseñas | ✅ 100% | 7 Mar 2026 |
 | 15 | Business Studio - Config Puntos + Expiración | ✅ 100% | 5 Feb 2026 |
 | 16 | Sistema PWA | ✅ 100% | 27-28 Ene 2026 |
 
-**Progreso:** 15/16 = 93.75%
+**Progreso:** 16/16 = 100%
 
 ```
-[███████████████░] 93.75%
+[████████████████] 100%
 ```
 
 ---
 
 ### Fases Pendientes
 
-#### Fase 14: Chat + Reseñas ⏸️
+#### Fase 14: Chat + Reseñas ✅
 
-**Estado:** PAUSADA  
-**Razón:** Requiere ChatYA base (Socket.io + MongoDB)  
-**Tiempo estimado:** ~2 días (después de ChatYA 5.10)
+**Estado:** COMPLETADA  
+**Fecha:** 7 Mar 2026
 
-**Funcionalidad:**
-- Empleado puede chatear con cliente después de venta
-- Cliente puede dejar reseña de atención recibida
-- Historial de conversaciones por cliente
-- Notificaciones push cuando cliente responde
+**Implementado:**
+- ✅ Dueño, gerente y empleado pueden responder chats desde ScanYA como el negocio
+- ✅ Autenticación dual: `verificarTokenChatYA` acepta token ScanYA (`sy_access_token`) y lo mapea a formato ChatYA (`negocioUsuarioId → usuarioId`, `modoActivo = 'comercial'`)
+- ✅ `negocioUsuarioId` incluido en el payload del token para los 3 tipos de login
+- ✅ `ChatOverlay` montado directamente en `PaginaScanYA` (no usa MainLayout)
+- ✅ Interceptor Axios agrega `?sucursalId=` automáticamente en llamadas a `/chatya` desde contexto ScanYA
+- ✅ `inicializarScanYA()` en el store: carga solo el badge de no leídos al montar, sin duplicar carga de conversaciones
+- ✅ Socket.io: fallback `ay_usuario → sy_usuario` para obtener userId en contexto ScanYA
+- ✅ Badge de mensajes no leídos en `IndicadoresRapidos` reactivo en tiempo real
 
-**Requisitos:**
-1. ✅ ChatYA base implementado
-2. ✅ Socket.io configurado
-3. ✅ MongoDB para mensajes
-4. ✅ Sistema notificaciones
+**Arquitectura de auth:**  
+El token ScanYA lleva `negocioUsuarioId` (UUID del dueño del negocio). Al llegar a rutas `/chatya`, el middleware `verificarTokenChatYA` mapea ese campo como `usuarioId`, permitiendo que todos los roles operen como el negocio sin crear usuarios separados en AnunciaYA.
+
+**Nota:** El filtro por sucursal garantiza que cada sesión ScanYA solo vea las conversaciones de su sucursal activa.
 
 ---
 
@@ -1844,9 +1847,8 @@ El servidor (Render) opera en UTC. Los negocios operan en zonas horarias de Méx
 
 ---
 
-**Última actualización:** 5 Febrero 2026  
+**Última actualización:** 7 Marzo 2026  
 **Autor:** Equipo AnunciaYA  
-**Versión:** 1.1 (Incluye Sistema de Expiración)
+**Versión:** 1.2 (Incluye integración ChatYA)
 
-**Progreso:** 14/16 fases completadas (87.5%)  
-**Próximo hito:** Fase 14 - Chat + Reseñas (requiere ChatYA base)
+**Progreso:** 16/16 fases completadas (100%)

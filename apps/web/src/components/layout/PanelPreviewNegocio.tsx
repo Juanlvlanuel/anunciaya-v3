@@ -34,6 +34,7 @@ type TabActivo = 'card' | 'perfil';
 function mapearPerfilAResumen(data: Record<string, unknown>): NegocioResumen {
   return {
     negocioId: data.negocioId as string,
+    usuarioId: (data.usuarioId as string) ?? '',
     negocioNombre: data.negocioNombre as string,
     galeria: (data.galeria as NegocioResumen['galeria']) || [],
     logoUrl: (data.logoUrl as string | null) ?? null,
@@ -202,8 +203,8 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
         <button
           onClick={() => setTabActivo('card')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${tabActivo === 'card'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-white/80 hover:text-white hover:bg-white/10'
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-white/80 hover:text-white hover:bg-white/10'
             }`}
         >
           <CreditCard className="w-3.5 h-3.5" />
@@ -212,8 +213,8 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
         <button
           onClick={() => setTabActivo('perfil')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${tabActivo === 'perfil'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-white/80 hover:text-white hover:bg-white/10'
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-white/80 hover:text-white hover:bg-white/10'
             }`}
         >
           <User className="w-3.5 h-3.5" />

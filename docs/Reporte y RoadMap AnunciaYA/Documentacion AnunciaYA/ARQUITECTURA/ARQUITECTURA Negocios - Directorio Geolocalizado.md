@@ -1,8 +1,8 @@
 # 🏪 Negocios - Directorio Geolocalizado
 
-**Última actualización:** 12 Febrero 2026  
-**Versión:** 2.2 (Actualizado con implementación real UI)  
-**Estado:** ✅ 100% Operacional (UI con carrusel vertical implementado)
+**Última actualización:** 7 Marzo 2026  
+**Versión:** 2.3 (ChatYA integrado en perfil de negocio)  
+**Estado:** ✅ 100% Operacional
 
 ---
 
@@ -671,8 +671,12 @@ Modo Comercial → "Proveedores de tu giro"
    - Click en WhatsApp → abre chat
 
 4. **ChatYA**
-   - Botón "💬 Enviar mensaje"
-   - Abre chat directo con el negocio
+   - Botón "💬 Enviar mensaje" ✅ Implementado
+   - Abre `ChatOverlay` directamente vía `abrirChatTemporal()` del store
+   - Crea conversación con `contextoTipo = 'negocio'` y `sucursalId` de la sucursal vista
+   - Requiere login — muestra `ModalAuthRequerido` si no está autenticado
+   - Si ya existe una conversación con ese negocio/sucursal, la retoma (backend deduplicado)
+   - No visible en modo comercial (un negocio no se contacta a sí mismo por chat)
 
 5. **Redes Sociales**
    - Campo: `redesSociales` (JSONB)
@@ -2202,6 +2206,8 @@ apps/web/src/
 │   │   └── negocios/
 │   │       ├── PaginaNegocios.tsx        (Directorio principal)
 │   │       └── PaginaPerfilNegocio.tsx   (Perfil completo)
+│   │                                           Props opcionales: `sucursalIdOverride` (sin router),
+│   │                                           `modoPreviewOverride` (modo lectura embebido en ChatYA)
 │   │
 │   └── private/
 │       └── guardados/
@@ -2316,7 +2322,62 @@ Sistema:
 
 ---
 
-### Flujo 4: Filtrar Negocios
+### Flujo 4: Contactar Negocio por ChatYA
+
+```
+Usuario logueado en perfil de negocio
+  ↓
+Click en botón 💬 Enviar mensaje (sidebar desktop / botón mobile)
+  ↓
+Si NO está logueado:
+  → Muestra ModalAuthRequerido
+
+Si está logueado:
+  → abrirChatTemporal({ participante2Id, participante2Modo, sucursalId, contextoTipo: 'negocio' })
+  → ChatOverlay se abre con chat temporal
+  ↓
+Usuario escribe y envía primer mensaje
+  ↓
+Sistema:
+  - POST /api/chatya/conversaciones (crea o retoma existente)
+  - backend verifica si ya existe conversación con esa sucursal
+  - Si existe → retorna la existente
+  - Si no → crea nueva con contextoTipo = 'negocio'
+  ↓
+Chat activo — el negocio recibe notificación en tiempo real vía Socket.io
+  ↓
+En VentanaChat del negocio:
+  - Header muestra "Desde: Tu perfil" (contexto de origen)
+  - Solo visible al receptor (el negocio), no a quien inició
+```
+
+---
+
+### Flujo 5: Ver Perfil de Negocio Embebido desde ChatYA
+
+```
+Usuario en ChatYA → conversación con un negocio
+  ↓
+Click en header del chat (avatar/nombre del negocio)
+  ↓
+PanelInfoContacto se abre (Vista 2: Usuario → Negocio)
+  ↓
+Click en botón "Ver perfil"
+  ↓
+PaginaPerfilNegocio se monta como componente directo dentro del panel
+  - Props: sucursalIdOverride={sucursalId}, modoPreviewOverride=true
+  - BreakpointOverride fuerza vista mobile dentro del panel estrecho
+  - Sin iframe, misma instancia React
+  ↓
+Desktop: panel se expande a 500px
+Mobile: sub-vista fullscreen con botón ← atrás
+  ↓
+Botón atrás nativo cierra la vista perfil (history.pushState)
+```
+
+---
+
+### Flujo 6: Filtrar Negocios
 
 ```
 Usuario en /negocios
@@ -2340,7 +2401,7 @@ Sistema actualiza:
 
 ---
 
-### Flujo 5: Ver Perfil Completo
+### Flujo 7: Ver Perfil Completo
 
 ```
 Usuario en carrusel de /negocios
@@ -2370,7 +2431,7 @@ Usuario hace scroll vertical para ver todo
 
 ---
 
-### Flujo 6: Escribir Reseña (Con Compra Verificada)
+### Flujo 8: Escribir Reseña (Con Compra Verificada)
 
 ```
 Usuario logueado en perfil de negocio
@@ -2411,7 +2472,7 @@ Sistema:
 
 ---
 
-### Flujo 7: Escribir Reseña (Sin Compra)
+### Flujo 9: Escribir Reseña (Sin Compra)
 
 ```
 Usuario logueado en perfil de negocio
@@ -2445,7 +2506,7 @@ NO puede escribir reseña hasta tener compra verificada
 
 ---
 
-### Flujo 8: Compartir Negocio
+### Flujo 10: Compartir Negocio
 
 ```
 Usuario en perfil de negocio
@@ -2477,7 +2538,7 @@ Sistema registra: POST /api/metricas/public-view
 
 ---
 
-### Flujo 9: Ver Horarios
+### Flujo 11: Ver Horarios
 
 ```
 Usuario en perfil de negocio
@@ -2506,7 +2567,7 @@ Usuario cierra modal (click fuera o botón X)
 
 ---
 
-### Flujo 10: Acceder a Mis Guardados
+### Flujo 12: Acceder a Mis Guardados
 
 ```
 Usuario logueado
@@ -2696,14 +2757,13 @@ Usuario puede:
 5. ✅ Notificación Socket.io al dueño
 6. ✅ Frontend: ModalEscribirResena + integración PaginaPerfilNegocio
 
-**Pendiente para completar sección:**
-- ❌ ChatYA para contactar negocio desde perfil
+**Sección completada al 100%:**
+- ✅ ChatYA implementado en `PaginaPerfilNegocio` — botón abre ChatOverlay con contexto del negocio
 
 ---
 
-**Última actualización:** 12 Febrero 2026  
+**Última actualización:** 7 Marzo 2026  
 **Autor:** Equipo AnunciaYA  
-**Versión:** 2.2 (UI actualizada con carrusel vertical)
+**Versión:** 2.3 (ChatYA integrado en perfil de negocio)
 
-**Progreso:** Fase 5.3 completada (100%) + Reseñas implementadas + UI actualizada  
-**Próximo hito:** ChatYA para completar funcionalidad de contacto
+**Progreso:** Fase 5.3 completada (100%) + Reseñas implementadas + UI actualizada + ChatYA integrado
