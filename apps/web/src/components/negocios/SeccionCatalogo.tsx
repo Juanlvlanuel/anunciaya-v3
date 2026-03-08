@@ -49,6 +49,9 @@ interface SeccionCatalogoProps {
   catalogo: ItemCatalogo[];
   whatsapp?: string | null;
   nombreNegocio?: string;
+  negocioUsuarioId?: string | null;
+  sucursalId?: string | null;
+  negocioNombre?: string | null;
 }
 
 // =============================================================================
@@ -68,6 +71,9 @@ export function SeccionCatalogo({
   catalogo,
   whatsapp,
   nombreNegocio = 'Catálogo',
+  negocioUsuarioId,
+  sucursalId,
+  negocioNombre,
 }: SeccionCatalogoProps) {
   // ---------------------------------------------------------------------------
   // ESTADOS
@@ -234,6 +240,9 @@ export function SeccionCatalogo({
         catalogo={catalogo}
         whatsapp={whatsapp}
         nombreNegocio={nombreNegocio}
+        negocioUsuarioId={negocioUsuarioId}
+        sucursalId={sucursalId}
+        negocioNombre={negocioNombre}
       />
 
       {/* ============ MODAL DETALLE ITEM ============ */}
@@ -241,6 +250,9 @@ export function SeccionCatalogo({
         item={itemSeleccionado}
         onClose={() => setItemSeleccionado(null)}
         whatsapp={whatsapp}
+        negocioUsuarioId={negocioUsuarioId}
+        sucursalId={sucursalId}
+        negocioNombre={negocioNombre}
       />
     </>
   );

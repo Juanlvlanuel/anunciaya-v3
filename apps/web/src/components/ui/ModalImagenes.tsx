@@ -21,15 +21,27 @@ export const ModalImagenes = ({
   const [indiceActual, setIndiceActual] = useState(initialIndex);
   const scrollYRef = useRef(0);
   const [cerrando, setCerrando] = useState(false);
+  const historyPushedRef = useRef(false);
+  const popStateHandlerRef = useRef<(() => void) | null>(null);
+  const modalIdRef = useRef(`_mi_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
 
   /** Cerrar con animación de salida — todos los puntos de cierre pasan por aquí */
   const cerrarConAnimacion = useCallback(() => {
     if (cerrando) return;
+    // Limpiar entrada del historial
+    if (historyPushedRef.current) {
+      historyPushedRef.current = false;
+      if (popStateHandlerRef.current) {
+        window.removeEventListener('popstate', popStateHandlerRef.current);
+        popStateHandlerRef.current = null;
+      }
+      history.back();
+    }
     setCerrando(true);
     setTimeout(() => {
       setCerrando(false);
       onClose();
-    }, 180); // Duración de la animación de salida
+    }, 180);
   }, [cerrando, onClose]);
 
   // Sincronizar índice actual cuando cambia initialIndex
@@ -38,6 +50,47 @@ export const ModalImagenes = ({
       setIndiceActual(initialIndex);
     }
   }, [initialIndex, isOpen]);
+
+  // Botón atrás nativo: cerrar modal
+  const cerrarConAnimacionRef = useRef(cerrarConAnimacion);
+  cerrarConAnimacionRef.current = cerrarConAnimacion;
+
+  useEffect(() => {
+    if (!isOpen) {
+      historyPushedRef.current = false;
+      popStateHandlerRef.current = null;
+      return;
+    }
+
+    const id = modalIdRef.current;
+
+    if (!historyPushedRef.current) {
+      const prevState = history.state ?? {};
+      history.pushState({ ...prevState, _modalImagenes: id }, '', window.location.href);
+      historyPushedRef.current = true;
+    }
+
+    const onPopState = () => {
+      if (!historyPushedRef.current) return;
+      if (history.state?._modalImagenes !== id) {
+        historyPushedRef.current = false;
+        popStateHandlerRef.current = null;
+        // Cerrar sin history.back() porque ya se consumió
+        setCerrando(true);
+        setTimeout(() => {
+          setCerrando(false);
+          onClose();
+        }, 180);
+      }
+    };
+
+    popStateHandlerRef.current = onPopState;
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      popStateHandlerRef.current = null;
+    };
+  }, [isOpen, onClose]);
 
   // Bloquear scroll del body cuando el modal está abierto (solución robusta)
   useEffect(() => {

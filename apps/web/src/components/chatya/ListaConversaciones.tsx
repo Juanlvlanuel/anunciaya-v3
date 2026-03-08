@@ -95,7 +95,10 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   // Effect: Cargar conversaciones al montar y cuando cambia el modo
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    cargarConversaciones(modoActivo);
+    // Si ya hay conversaciones cargadas, solo refrescar silenciosamente.
+    // Evita duplicar la carga con ChatOverlay que también llama inicializar().
+    const yaHayDatos = useChatYAStore.getState().conversaciones.length > 0;
+    cargarConversaciones(modoActivo, 0, yaHayDatos);
     // NO limpiar contactos/archivados aquí — causa parpadeo al dejar arrays vacíos.
     // Las siguientes cargas son silenciosas y reemplazan los datos directamente.
     chatyaService.getContactos(modoActivo)
@@ -193,9 +196,14 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
       });
     }
 
-    // Separar fijadas arriba, luego el resto
-    const fijadas = lista.filter((c) => c.fijada);
-    const noFijadas = lista.filter((c) => !c.fijada);
+    // Separar fijadas arriba, luego el resto — ambas ordenadas por más reciente
+    const ordenarPorFecha = (a: Conversacion, b: Conversacion) => {
+      const fa = a.ultimoMensajeFecha ? new Date(a.ultimoMensajeFecha).getTime() : 0;
+      const fb = b.ultimoMensajeFecha ? new Date(b.ultimoMensajeFecha).getTime() : 0;
+      return fb - fa;
+    };
+    const fijadas = lista.filter((c) => c.fijada).sort(ordenarPorFecha);
+    const noFijadas = lista.filter((c) => !c.fijada).sort(ordenarPorFecha);
 
     return [...fijadas, ...noFijadas];
   }, [conversaciones, busqueda, estaBuscando, tabActivo, misNotasId]);

@@ -53,6 +53,7 @@ interface GuardadoOferta {
         nombre: string;
         whatsapp?: string | null;
         sucursalId: string;
+        usuarioId?: string | null;
     };
 }
 
@@ -60,8 +61,9 @@ interface NegocioSeguido {
     id: string;
     nombre: string;
     categoria: string;
-    imagen_perfil?: string;
+    imagenPerfil?: string;
     sucursalId: string;
+    usuarioId?: string;
     votanteSucursalId?: string | null; // Para saber cómo eliminar el follow
     // Propiedades opcionales para CardNegocioDetallado
     galeria?: Array<{ url: string; titulo?: string }>;
@@ -155,28 +157,25 @@ export function PaginaGuardados() {
     }
 
     /**
-     * Obtiene negocios seguidos (endpoint de votos)
-     * IMPORTANTE: Enviamos incluirTodosModos=true para obtener TODOS los seguidos
-     * (tanto personales como comerciales) en "Mis Guardados"
+     * Obtiene negocios seguidos filtrando por modo activo del usuario.
+     * El interceptor de Axios agrega votanteSucursalId automáticamente en modo comercial.
+     * En modo personal no agrega nada → el backend filtra votante_sucursal_id IS NULL.
      */
     async function fetchNegociosSeguidos() {
         try {
             setLoadingNegocios(true);
-            
-            // Construir params
-            const params: any = {
+
+            const params: Record<string, string | number> = {
                 entityType: 'sucursal',
                 pagina: 1,
                 limite: 50,
-                incluirTodosModos: 'true', // Parámetro especial para ignorar votanteSucursalId
             };
-            
-            // Agregar coordenadas GPS si están disponibles
+
             if (latitud && longitud) {
                 params.latitud = latitud;
                 params.longitud = longitud;
             }
-            
+
             const response = await api.get('/seguidos', { params });
 
             if (response.data.success) {
@@ -281,11 +280,19 @@ export function PaginaGuardados() {
                         return api.delete(`guardados/oferta/${guardado.entityId}`);
                     }
                 } else if (tabActivo === 'negocios') {
-                    // Para negocios seguidos: usar endpoint de votos
-                    // El interceptor agregará automáticamente votanteSucursalId si estamos en modo comercial
+                    // Usar el votanteSucursalId original del negocio seguido
+                    // para eliminar exactamente el voto con el que fue creado
                     const negocio = negociosOriginales.find(n => n.id === guardadoId);
                     if (negocio) {
-                        return api.delete(`votos/sucursal/${negocio.sucursalId}/follow`);
+                        const params: Record<string, string> = {};
+                        if (negocio.votanteSucursalId) {
+                            // Seguido en modo comercial: pasar UUID explícito (el interceptor no lo sobreescribirá)
+                            params.votanteSucursalId = negocio.votanteSucursalId;
+                        } else {
+                            // Seguido en modo personal: __skipVotante evita que el interceptor agregue sucursalId
+                            params.__skipVotante = 'true';
+                        }
+                        return api.delete(`votos/sucursal/${negocio.sucursalId}/follow`, { params });
                     }
                 }
                 return Promise.resolve(); // Si no se encuentra, resolver vacío
@@ -362,7 +369,7 @@ export function PaginaGuardados() {
                             <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
                                 <button
                                     onClick={() => setOrdenamiento('recientes')}
-                                    className={`px-4 lg:px-3 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 rounded-xl lg:rounded-lg 2xl:rounded-xl text-sm lg:text-xs 2xl:text-sm font-semibold transition-all ${
+                                    className={`px-4 lg:px-3 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 rounded-xl lg:rounded-lg 2xl:rounded-xl text-sm lg:text-xs 2xl:text-sm font-semibold transition-all lg:cursor-pointer ${
                                         ordenamiento === 'recientes'
                                             ? 'bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-orange-500/30'
                                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -372,7 +379,7 @@ export function PaginaGuardados() {
                                 </button>
                                 <button
                                     onClick={() => setOrdenamiento('antiguos')}
-                                    className={`px-4 lg:px-3 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 rounded-xl lg:rounded-lg 2xl:rounded-xl text-sm lg:text-xs 2xl:text-sm font-semibold transition-all ${
+                                    className={`px-4 lg:px-3 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 rounded-xl lg:rounded-lg 2xl:rounded-xl text-sm lg:text-xs 2xl:text-sm font-semibold transition-all lg:cursor-pointer ${
                                         ordenamiento === 'antiguos'
                                             ? 'bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-orange-500/30'
                                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -510,26 +517,26 @@ export function PaginaGuardados() {
                     <div className="h-5 w-px bg-gray-700"></div>
                     <button
                         onClick={seleccionarTodos}
-                        className="text-sm font-medium hover:text-amber-400 transition-colors"
+                        className="text-sm font-medium hover:text-amber-400 transition-colors lg:cursor-pointer"
                     >
                         Todos
                     </button>
                     <button
                         onClick={limpiarSeleccion}
-                        className="text-sm font-medium hover:text-amber-400 transition-colors"
+                        className="text-sm font-medium hover:text-amber-400 transition-colors lg:cursor-pointer"
                     >
                         Limpiar
                     </button>
                     <button
                         onClick={eliminarSeleccionados}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 rounded-full font-semibold transition-all shadow-lg shadow-red-500/30 text-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 rounded-full font-semibold transition-all shadow-lg shadow-red-500/30 text-sm lg:cursor-pointer"
                     >
                         <Trash2 className="w-4 h-4" />
                         Eliminar
                     </button>
                     <button
                         onClick={toggleModoSeleccion}
-                        className="text-gray-400 hover:text-white transition-colors"
+                        className="text-gray-400 hover:text-white transition-colors lg:cursor-pointer"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -545,6 +552,7 @@ export function PaginaGuardados() {
                     onClose={handleCloseModal}
                     whatsapp={ofertaSeleccionada.negocio?.whatsapp || undefined}
                     negocioNombre={ofertaSeleccionada.negocio?.nombre || undefined}
+                    negocioUsuarioId={ofertaSeleccionada.negocio?.usuarioId || undefined}
                 />
             )}
 
@@ -584,7 +592,7 @@ function TabButton({ activo, onClick, icon, badge, children }: TabButtonProps) {
     return (
         <button
             onClick={onClick}
-            className={`relative flex items-center gap-2 lg:gap-2 2xl:gap-2.5 px-4 lg:px-5 2xl:px-6 py-3 lg:py-3.5 2xl:py-4 text-sm lg:text-sm 2xl:text-base font-semibold transition-all ${
+            className={`relative flex items-center gap-2 lg:gap-2 2xl:gap-2.5 px-4 lg:px-5 2xl:px-6 py-3 lg:py-3.5 2xl:py-4 text-sm lg:text-sm 2xl:text-base font-semibold transition-all lg:cursor-pointer ${
                 activo
                     ? 'text-amber-600 border-b-3 border-amber-500'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -675,7 +683,7 @@ function ContenidoOfertas({
 
                 <button
                     onClick={() => navigate('/ofertas')}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
                     Ver Ofertas
                     <ChevronRight className="w-5 h-5" />
@@ -697,7 +705,7 @@ function ContenidoOfertas({
                     <div className="absolute top-2 left-2 z-10">
                         <button
                             onClick={(e) => onClickBookmark(guardado.id, e)}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all lg:cursor-pointer ${
                                 modoSeleccion && idsSeleccionados.has(guardado.id)
                                     ? 'bg-amber-500 border-2 border-amber-500'
                                     : 'bg-white/90 backdrop-blur border-2 border-white hover:bg-amber-50'
@@ -765,7 +773,7 @@ function ContenidoNegocios({
 
                 <button
                     onClick={() => navigate('/negocios')}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
                     Explorar Negocios
                     <ChevronRight className="w-5 h-5" />
@@ -783,7 +791,6 @@ function ContenidoNegocios({
                     key={negocio.id}
                     negocio={negocio}
                     onClick={() => onClickNegocio(negocio)}
-                    showLike={false}
                     showBookmark={true}
                     onClickBookmark={(e) => onClickBookmark(negocio.id, e)}
                     bookmarkSelected={modoSeleccion && idsSeleccionados.has(negocio.id)}

@@ -11,7 +11,6 @@ export { ConversacionItem } from './ConversacionItem';
 export { VentanaChat } from './VentanaChat';
 export { BurbujaMensaje } from './BurbujaMensaje';
 export { InputMensaje } from './InputMensaje';
-export { IndicadorEscribiendo } from './IndicadorEscribiendo';
 export { SeparadorFecha } from './SeparadorFecha';
 export { MenuContextualChat } from './MenuContextualChat';
 export { MenuContextualMensaje } from './MenuContextualMensaje';

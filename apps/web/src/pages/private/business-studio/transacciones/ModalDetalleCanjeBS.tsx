@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useChatYAStore } from '../../../../stores/useChatYAStore';
+import { useUiStore } from '../../../../stores/useUiStore';
 import type { VoucherCanje } from '../../../../types/transacciones';
 
 // =============================================================================
@@ -149,8 +151,30 @@ export default function ModalDetalleCanjeBS({
 }) {
   const totalSucursales = useAuthStore((s) => s.totalSucursales);
   const tieneSucursales = totalSucursales > 1;
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
   if (!abierto || !canje) return null;
+
+  const handleChatYA = () => {
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: canje.clienteId,
+        nombre: canje.clienteNombre || 'Cliente',
+        apellidos: '',
+        avatarUrl: canje.clienteAvatarUrl ?? null,
+      },
+      datosCreacion: {
+        participante2Id: canje.clienteId,
+        participante2Modo: 'personal',
+        participante2SucursalId: null,
+        contextoTipo: 'negocio',
+      },
+    });
+    abrirChatYA();
+    onCerrar();
+  };
 
   const gradiente = GRADIENTES_ESTADO[canje.estado];
 
@@ -221,7 +245,7 @@ export default function ModalDetalleCanjeBS({
           </div>
           {canje.clienteTelefono && (
             <button
-              onClick={() => {/* TODO: integrar ChatYA cuando esté listo */}}
+              onClick={handleChatYA}
               className="shrink-0 cursor-pointer"
               title="Contactar cliente por ChatYA"
             >

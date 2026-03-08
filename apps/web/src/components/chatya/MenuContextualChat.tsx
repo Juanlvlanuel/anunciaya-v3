@@ -11,7 +11,7 @@
  * UBICACIÓN: apps/web/src/components/chatya/MenuContextualChat.tsx
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff, UserPlus, UserMinus, Search } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -69,6 +69,21 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
         : undefined;
 
     const menuRef = useRef<HTMLDivElement>(null);
+    const [posAjustada, setPosAjustada] = useState(posicion);
+
+    // ---------------------------------------------------------------------------
+    // Autoposicionar: medir altura real y ajustar si no cabe abajo
+    // ---------------------------------------------------------------------------
+    useLayoutEffect(() => {
+        if (!posicion || !menuRef.current) { setPosAjustada(posicion); return; }
+        const rect = menuRef.current.getBoundingClientRect();
+        const alturaReal = rect.height;
+        const cabeAbajo = window.innerHeight - posicion.y >= alturaReal;
+        setPosAjustada({
+            x: posicion.x,
+            y: cabeAbajo ? posicion.y : posicion.y - alturaReal,
+        });
+    }, [posicion]);
 
     // ---------------------------------------------------------------------------
     // Cerrar al hacer click fuera del menú
@@ -76,6 +91,8 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
     useEffect(() => {
         function handleCierreExterno(e: Event) {
             const target = e.target as HTMLElement;
+            // Ignorar click derecho (abrirá nuevo menú contextual)
+            if (e instanceof PointerEvent && e.button === 2) return;
             // Ignorar clicks en el botón que abre/cierra el menú
             if (target.closest?.('[data-menu-trigger="true"]')) return;
             if (menuRef.current && !menuRef.current.contains(target)) {
@@ -160,42 +177,49 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
             texto: 'Buscar',
             onClick: onBuscar,
             destructivo: false,
+            colorIcono: 'text-blue-400 lg:text-blue-500',
         }] : []),
         {
             icono: conversacion.fijada ? PinOff : Pin,
             texto: conversacion.fijada ? 'Desfijar' : 'Fijar',
             onClick: handleFijar,
             destructivo: false,
+            colorIcono: 'text-amber-400 lg:text-amber-500',
         },
         {
             icono: conversacion.silenciada ? Bell : BellOff,
             texto: conversacion.silenciada ? 'Desilenciar' : 'Silenciar',
             onClick: handleSilenciar,
             destructivo: false,
+            colorIcono: 'text-purple-400 lg:text-purple-500',
         },
         {
             icono: conversacion.archivada ? ArchiveRestore : Archive,
             texto: conversacion.archivada ? 'Desarchivar' : 'Archivar',
             onClick: handleArchivar,
             destructivo: false,
+            colorIcono: 'text-cyan-400 lg:text-cyan-500',
         },
         {
             icono: contactoExistente ? UserMinus : UserPlus,
             texto: contactoExistente ? 'Quitar contacto' : 'Agregar contacto',
             onClick: handleToggleContacto,
             destructivo: false,
+            colorIcono: 'text-emerald-400 lg:text-emerald-500',
         },
         {
             icono: ShieldBan,
             texto: esBloqueado ? 'Desbloquear' : 'Bloquear',
             onClick: handleBloquear,
             destructivo: !esBloqueado,
+            colorIcono: esBloqueado ? 'text-emerald-400 lg:text-emerald-500' : 'text-red-400 lg:text-red-500',
         },
         {
             icono: Trash2,
             texto: 'Eliminar chat',
             onClick: handleEliminar,
             destructivo: true,
+            colorIcono: 'text-red-400 lg:text-red-500',
         },
     ];
 
@@ -205,22 +229,26 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
     return (
         <div
             ref={menuRef}
-            className={`${posicion ? 'fixed' : 'absolute right-2 top-full mt-1'} z-50 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 overflow-hidden`}
-            style={posicion ? { left: posicion.x, top: posicion.y } : undefined}
+            className={`${posicion ? 'fixed' : 'absolute right-2 top-full mt-1'} z-50 w-48 rounded-2xl lg:rounded-xl shadow-2xl lg:shadow-xl py-1.5 overflow-hidden`}
+            style={{
+                background: window.innerWidth >= 1024 ? '#ffffff' : '#0d1b2e',
+                border: window.innerWidth >= 1024 ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)',
+                ...(posAjustada ? { left: posAjustada.x, top: posAjustada.y } : {}),
+            }}
         >
             {opciones.map((opcion) => (
                 <button
                     key={opcion.texto}
                     onClick={opcion.onClick}
                     className={`
-            w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-medium cursor-pointer
+            w-full flex items-center gap-3 lg:gap-2.5 px-4 lg:px-3.5 py-3 lg:py-2.5 text-left text-[15px] lg:text-sm font-medium cursor-pointer
             ${opcion.destructivo
-                            ? 'text-red-500 hover:bg-red-50 active:bg-red-100'
-                            : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                            ? 'text-red-400 lg:text-red-500 hover:bg-white/5 lg:hover:bg-red-50 active:bg-white/10 lg:active:bg-red-100'
+                            : 'text-white/80 lg:text-gray-700 hover:bg-white/5 lg:hover:bg-gray-100 active:bg-white/10 lg:active:bg-gray-200'
                         }
           `}
                 >
-                    <opcion.icono className={`w-[18px] h-[18px] shrink-0 ${opcion.destructivo ? 'text-red-400' : 'text-gray-400'}`} />
+                    <opcion.icono className={`w-[18px] h-[18px] shrink-0 ${opcion.colorIcono}`} />
                     {opcion.texto}
                 </button>
             ))}

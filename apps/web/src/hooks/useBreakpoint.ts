@@ -25,7 +25,8 @@
  * Ubicación: apps/web/src/hooks/useBreakpoint.ts
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, createElement } from 'react';
+import type { ReactNode } from 'react';
 
 // =============================================================================
 // CONSTANTES - Breakpoints de Tailwind
@@ -35,6 +36,30 @@ const BREAKPOINTS = {
   lg: 1024,  // Laptop
   '2xl': 1536, // Desktop
 } as const;
+
+// =============================================================================
+// CONTEXT - Override para forzar breakpoint (ej: perfil embebido en ChatYA)
+// =============================================================================
+
+/**
+ * Cuando un componente se renderiza dentro de un contenedor estrecho
+ * (como el panel lateral de ChatYA), el viewport sigue siendo desktop
+ * pero necesitamos que useBreakpoint devuelva "mobile".
+ *
+ * Uso:
+ *   <BreakpointOverride forzarMobile>
+ *     <PaginaPerfilNegocio />
+ *   </BreakpointOverride>
+ */
+const BreakpointOverrideContext = createContext<'mobile' | null>(null);
+
+export function BreakpointOverride({ forzarMobile, children }: { forzarMobile?: boolean; children: ReactNode }) {
+  return createElement(
+    BreakpointOverrideContext.Provider,
+    { value: forzarMobile ? 'mobile' : null },
+    children
+  );
+}
 
 // =============================================================================
 // TIPOS
@@ -84,6 +109,9 @@ const calcularBreakpoint = (ancho: number): BreakpointInfo => {
 // =============================================================================
 
 export function useBreakpoint(): BreakpointInfo {
+  // Verificar si hay override de contexto (ej: perfil embebido en ChatYA)
+  const override = useContext(BreakpointOverrideContext);
+
   // Estado inicial - usar 0 para SSR, se actualiza en useEffect
   const [info, setInfo] = useState<BreakpointInfo>(() => {
     // Si estamos en el navegador, usar el ancho real
@@ -110,6 +138,11 @@ export function useBreakpoint(): BreakpointInfo {
       window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  // Si hay override, forzar mobile independientemente del viewport real
+  if (override === 'mobile') {
+    return calcularBreakpoint(0);
+  }
 
   return info;
 }

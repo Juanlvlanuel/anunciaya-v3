@@ -63,6 +63,12 @@ interface ModalCatalogoProps {
   whatsapp?: string | null;
   /** Nombre del negocio (para el título) */
   nombreNegocio?: string;
+  /** ID del usuario dueño del negocio (para ChatYA) */
+  negocioUsuarioId?: string | null;
+  /** ID de la sucursal activa (para ChatYA) */
+  sucursalId?: string | null;
+  /** Nombre del negocio para el chat temporal (para ChatYA) */
+  negocioNombre?: string | null;
 }
 
 // =============================================================================
@@ -414,6 +420,9 @@ export function ModalCatalogo({
   catalogo,
   whatsapp,
   nombreNegocio = 'Catálogo',
+  negocioUsuarioId,
+  sucursalId,
+  negocioNombre,
 }: ModalCatalogoProps) {
   const { esMobile } = useBreakpoint();
 
@@ -557,6 +566,9 @@ export function ModalCatalogo({
         <ModalDetalleItem
           item={itemSeleccionado}
           whatsapp={whatsapp}
+          negocioUsuarioId={negocioUsuarioId}
+          sucursalId={sucursalId}
+          negocioNombre={negocioNombre}
           onClose={() => setItemSeleccionado(null)}
           openedFromModal={true}
         />
@@ -597,6 +609,9 @@ export function ModalCatalogo({
       <ModalDetalleItem
         item={itemSeleccionado}
         whatsapp={whatsapp}
+        negocioUsuarioId={negocioUsuarioId}
+        sucursalId={sucursalId}
+        negocioNombre={negocioNombre}
         onClose={() => setItemSeleccionado(null)}
         openedFromModal={true}
       />

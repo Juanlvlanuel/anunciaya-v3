@@ -16,6 +16,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import { useScanYAStore, selectContadorRecordatorios } from '@/stores/useScanYAStore';
+import { useChatYAStore } from '@/stores/useChatYAStore';
+import { useUiStore } from '@/stores/useUiStore';
+import { conectarSocket } from '@/services/socketService';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useTituloPagina } from '@/hooks/useTituloPagina';
 import { notificar } from '@/utils/notificaciones';
@@ -35,6 +38,7 @@ import {
 } from '@/components/scanya';
 import type { RecordatorioScanYA } from '@/types/scanya';
 import type { TurnoScanYA, RespuestaTurnoActual } from '@/types/scanya';
+import { ChatOverlay } from '@/components/layout/ChatOverlay';
 
 
 // =============================================================================
@@ -50,6 +54,13 @@ export default function PaginaScanYA() {
   const online = useOnlineStatus();
   const contadorRecordatorios = useScanYAStore(selectContadorRecordatorios);
   const prevOnlineRef = useRef(online);
+  const chatYAInicializadoRef = useRef(false);
+
+  // ChatYA — badge real de mensajes no leídos
+  const totalNoLeidos = useChatYAStore((s) => s.totalNoLeidos);
+  const inicializarScanYA = useChatYAStore((s) => s.inicializarScanYA);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
 
   // Cambiar título de la página
   useTituloPagina('ScanYA - Puntos de Lealtad');
@@ -178,6 +189,16 @@ export default function PaginaScanYA() {
     return () => clearInterval(intervalo);
   }, []);
 
+  // Inicializar ChatYA (socket + conversaciones comerciales) una vez al montar
+  useEffect(() => {
+    if (chatYAInicializadoRef.current) return;
+    chatYAInicializadoRef.current = true;
+    // Conectar socket usando el userId del store ScanYA
+    conectarSocket();
+    // Cargar conversaciones comerciales del negocio
+    inicializarScanYA();
+  }, [inicializarScanYA]);
+
   /**
    * Carga el turno actual y los contadores
    */
@@ -211,6 +232,7 @@ export default function PaginaScanYA() {
           // NO sumar localStorage porque duplicaría el conteo
           recordatoriosPendientes: respuestaContadores.data.recordatoriosPendientes,
           vouchersPendientes: respuestaContadores.data.vouchersPendientes ?? 0,
+          mensajesSinLeer: 0, // Lo maneja totalNoLeidos del ChatYA store en tiempo real
         });
       }
     } catch (error) {
@@ -316,6 +338,11 @@ export default function PaginaScanYA() {
      * Navega a una ruta específica o abre modal
      */
   const handleNavigate = (ruta: string) => {
+    // Interceptar chat para abrir ChatOverlay en lugar de navegar
+    if (ruta === '/scanya/chat') {
+      abrirChatYA();
+      return;
+    }
     // Interceptar historial para abrir modal
     if (ruta === '/scanya/historial') {
       setModalActivo('historial');
@@ -642,7 +669,7 @@ export default function PaginaScanYA() {
 
                   {/* Indicadores Rápidos */}
                   <IndicadoresRapidos
-                    contadores={contadores}
+                    contadores={{ ...contadores, mensajesSinLeer: totalNoLeidos }}
                     onNavigate={handleNavigate}
                   />
 
@@ -809,6 +836,8 @@ export default function PaginaScanYA() {
          }
         `}</style>
       </div>
+      {/* ChatOverlay — montado aquí porque ScanYA no usa MainLayout */}
+      <ChatOverlay />
     </div>
   );
 }

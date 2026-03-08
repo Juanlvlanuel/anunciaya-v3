@@ -214,7 +214,7 @@ export function Vista2FA({
             disabled={!codigoTOTPValido || cargando}
             className={`w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-colors ${
               codigoTOTPValido && !cargando
-                ? 'bg-purple-500 hover:bg-purple-600'
+                ? 'bg-purple-500 hover:bg-purple-600 lg:cursor-pointer'
                 : 'bg-purple-300 cursor-not-allowed'
             }`}
           >
@@ -225,7 +225,7 @@ export function Vista2FA({
             <button
               type="button"
               onClick={() => setSubVista('respaldo')}
-              className="text-sm text-purple-500 hover:underline"
+              className="text-sm text-purple-500 hover:underline lg:cursor-pointer"
             >
               {t('dosFactor.usarRespaldo')}
             </button>
@@ -261,7 +261,7 @@ export function Vista2FA({
             disabled={!codigoRespaldoValido || cargando}
             className={`w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-colors ${
               codigoRespaldoValido && !cargando
-                ? 'bg-purple-500 hover:bg-purple-600'
+                ? 'bg-purple-500 hover:bg-purple-600 lg:cursor-pointer'
                 : 'bg-purple-300 cursor-not-allowed'
             }`}
           >
@@ -275,7 +275,7 @@ export function Vista2FA({
                 setSubVista('totp');
                 setCodigoRespaldo('');
               }}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-gray-500 hover:text-gray-700 lg:cursor-pointer"
             >
               ← {t('dosFactor.volverApp')}
             </button>

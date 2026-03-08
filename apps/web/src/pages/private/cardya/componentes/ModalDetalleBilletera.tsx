@@ -11,6 +11,8 @@ import { X, Store, TrendingUp, TrendingDown, Award, Clock, ChevronRight, Zap } f
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import type { DetalleNegocioBilletera } from '../../../../types/cardya';
+import { useChatYAStore } from '../../../../stores/useChatYAStore';
+import { useUiStore } from '../../../../stores/useUiStore';
 
 // Configuración de niveles
 const NIVELES_CONFIG = {
@@ -57,6 +59,31 @@ export default function ModalDetalleBilletera({
   if (!abierto || !billetera) return null;
 
   const nivel = NIVELES_CONFIG[billetera.nivelActual];
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+
+  const handleChatYA = () => {
+    if (!billetera.negocioUsuarioId) return;
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: billetera.negocioUsuarioId,
+        nombre: billetera.negocioNombre,
+        apellidos: '',
+        avatarUrl: billetera.negocioLogo,
+        negocioNombre: billetera.negocioNombre,
+        negocioLogo: billetera.negocioLogo ?? undefined,
+      },
+      datosCreacion: {
+        participante2Id: billetera.negocioUsuarioId,
+        participante2Modo: 'comercial',
+        participante2SucursalId: billetera.negocioSucursalId ?? '',
+        contextoTipo: 'negocio',
+      },
+    });
+    abrirChatYA();
+    onCerrar();
+  };
 
   const formatearFecha = (fechaISO: string) => {
     const fecha = new Date(fechaISO);
@@ -135,9 +162,7 @@ export default function ModalDetalleBilletera({
                       </a>
                     )}
                     <button
-                      onClick={() => {
-                        // TODO: Abrir ChatYA con este negocio
-                      }}
+                      onClick={handleChatYA}
                       className="w-9 h-9 flex items-center justify-center cursor-pointer shrink-0 active:scale-95 transition-transform"
                     >
                       <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-8 h-8 object-contain" />
@@ -186,9 +211,7 @@ export default function ModalDetalleBilletera({
               )}
               <Tooltip text="ChatYA" position="bottom">
                 <button
-                  onClick={() => {
-                    // TODO: Abrir ChatYA con este negocio
-                  }}
+                  onClick={handleChatYA}
                   className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center cursor-pointer shrink-0 hover:scale-110 transition-transform"
                 >
                   <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-6 h-6 2xl:w-7 2xl:h-7 object-contain" />

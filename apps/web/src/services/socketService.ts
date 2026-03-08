@@ -33,6 +33,66 @@ const SOCKET_URL = (() => {
   return apiUrl.replace('/api', '');
 })();
 
+// =============================================================================
+// TIMER DE INACTIVIDAD — Estado "ausente" (15 min)
+// =============================================================================
+const AUSENTE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutos
+let timerAusente: ReturnType<typeof setTimeout> | null = null;
+let estaAusente = false;
+let ultimoReset = 0;
+
+function resetearTimerAusente(): void {
+  // Throttle: máximo 1 reset cada 30 segundos (salvo si estaba ausente)
+  const ahora = Date.now();
+  if (!estaAusente && ahora - ultimoReset < 30000) return;
+  ultimoReset = ahora;
+
+  // Si estaba ausente, notificar que volvió
+  if (estaAusente && socket?.connected) {
+    estaAusente = false;
+    const usuarioAY = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
+    const usuarioSY = JSON.parse(localStorage.getItem('sy_usuario') || 'null');
+    const userId = usuarioAY?.id || usuarioSY?.usuarioId;
+    if (userId) {
+      socket.emit('chatya:estado', { usuarioId: userId, estado: 'conectado' });
+    }
+  }
+
+  if (timerAusente) clearTimeout(timerAusente);
+
+  timerAusente = setTimeout(() => {
+    if (socket?.connected) {
+      estaAusente = true;
+      const usuarioAY = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
+      const usuarioSY = JSON.parse(localStorage.getItem('sy_usuario') || 'null');
+      const userId = usuarioAY?.id || usuarioSY?.usuarioId;
+      if (userId) {
+        socket.emit('chatya:estado', { usuarioId: userId, estado: 'ausente' });
+      }
+    }
+  }, AUSENTE_TIMEOUT_MS);
+}
+
+function iniciarDeteccionInactividad(): void {
+  const eventos = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+  for (const evento of eventos) {
+    document.addEventListener(evento, resetearTimerAusente, { passive: true });
+  }
+  resetearTimerAusente();
+}
+
+function detenerDeteccionInactividad(): void {
+  const eventos = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+  for (const evento of eventos) {
+    document.removeEventListener(evento, resetearTimerAusente);
+  }
+  if (timerAusente) {
+    clearTimeout(timerAusente);
+    timerAusente = null;
+  }
+  estaAusente = false;
+}
+
 /**
  * Callbacks registrados por los módulos (ChatYA, notificaciones, CardYA, etc.)
  * Se aplican al socket cada vez que se crea uno nuevo.
@@ -76,10 +136,14 @@ export function conectarSocket(): void {
 
   // ─── 'connect': unirse al room del backend ────────────────────────────
   socket.on('connect', () => {
-    const usuario = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
-    if (usuario?.id) {
-      socket?.emit('unirse', usuario.id);
+    // Intentar con usuario AnunciaYA primero, luego ScanYA
+    const usuarioAY = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
+    const usuarioSY = JSON.parse(localStorage.getItem('sy_usuario') || 'null');
+    const userId = usuarioAY?.id || usuarioSY?.usuarioId;
+    if (userId) {
+      socket?.emit('unirse', userId);
     }
+    iniciarDeteccionInactividad();
   });
 
   socket.on('disconnect', () => { });
@@ -133,6 +197,7 @@ export function emitirEvento<T = unknown>(
  * Se llama al cerrar sesión (logout).
  */
 export function desconectarSocket(): void {
+  detenerDeteccionInactividad();
   if (socket) {
     socket.removeAllListeners();
     socket.disconnect();

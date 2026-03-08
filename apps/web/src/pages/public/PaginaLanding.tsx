@@ -226,7 +226,7 @@ function NavbarLanding({ iniciarLoginGoogle }: { iniciarLoginGoogle: () => void 
 
                                 <motion.button
                                     onClick={iniciarLoginGoogle}
-                                    className="flex items-center gap-2 2xl:gap-2.5 px-3 2xl:px-5 py-2 2xl:py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:border-gray-300 hover:bg-gray-50 font-medium text-sm 2xl:text-base transition-all duration-150 shadow-sm"
+                                    className="flex items-center gap-2 2xl:gap-2.5 px-3 2xl:px-5 py-2 2xl:py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:border-gray-300 hover:bg-gray-50 font-medium text-sm 2xl:text-base transition-all duration-150 shadow-sm cursor-pointer"
                                     whileHover={{ scale: 1.03 }}
                                     whileTap={{ scale: 0.98 }}
                                 >
@@ -243,7 +243,7 @@ function NavbarLanding({ iniciarLoginGoogle }: { iniciarLoginGoogle: () => void 
 
                                 <motion.button
                                     onClick={abrirModalLogin}
-                                    className="flex items-center gap-2 2xl:gap-2.5 px-3 2xl:px-5 py-2 2xl:py-3 bg-blue-50 text-blue-700 border-2 border-blue-200 hover:bg-blue-100 hover:border-blue-300 rounded-xl font-medium text-sm 2xl:text-base transition-all duration-150 shadow-sm"
+                                    className="flex items-center gap-2 2xl:gap-2.5 px-3 2xl:px-5 py-2 2xl:py-3 bg-blue-50 text-blue-700 border-2 border-blue-200 hover:bg-blue-100 hover:border-blue-300 rounded-xl font-medium text-sm 2xl:text-base transition-all duration-150 shadow-sm cursor-pointer"
                                     whileHover={{ scale: 1.03 }}
                                     whileTap={{ scale: 0.98 }}
                                 >
@@ -253,7 +253,7 @@ function NavbarLanding({ iniciarLoginGoogle }: { iniciarLoginGoogle: () => void 
 
                                 <motion.button
                                     onClick={() => navigate('/registro')}
-                                    className="flex items-center gap-2 2xl:gap-2.5 px-4 2xl:px-6 py-2 2xl:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm 2xl:text-base transition-all duration-150 shadow-md"
+                                    className="flex items-center gap-2 2xl:gap-2.5 px-4 2xl:px-6 py-2 2xl:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm 2xl:text-base transition-all duration-150 shadow-md cursor-pointer"
                                     whileHover={{ scale: 1.03 }}
                                     whileTap={{ scale: 0.98 }}
                                 >
@@ -297,7 +297,7 @@ function NavbarLanding({ iniciarLoginGoogle }: { iniciarLoginGoogle: () => void 
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0 }}
                         onClick={scrollToTop}
-                        className="fixed bottom-6 left-6 z-40 w-12 h-12 bg-linear-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow duration-150 flex items-center justify-center"
+                        className="fixed bottom-6 left-6 z-40 w-12 h-12 bg-linear-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow duration-150 flex items-center justify-center lg:cursor-pointer"
                     >
                         <ChevronUp className="w-6 h-6" />
                     </motion.button>
@@ -586,7 +586,7 @@ function HeroSection({ iniciarLoginGoogle }: { iniciarLoginGoogle: () => void })
                         >
                             <button
                                 onClick={() => navigate('/registro')}
-                                className="inline-flex items-center justify-center gap-2 2xl:gap-2.5 px-6 2xl:px-10 py-3 2xl:py-5 bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold text-base 2xl:text-xl shadow-lg hover:shadow-xl transition-all duration-150"
+                                className="inline-flex items-center justify-center gap-2 2xl:gap-2.5 px-6 2xl:px-10 py-3 2xl:py-5 bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold text-base 2xl:text-xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-pointer"
                             >
                                 <Sparkles className="w-5 h-5 2xl:w-6 2xl:h-6" />
                                 <span>{t('hero.botonPrimario')}</span>
@@ -961,7 +961,7 @@ function CtaFinal() {
                         {/* Button */}
                         <motion.button
                             onClick={() => navigate('/registro')}
-                            className="w-full py-3 2xl:py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-base 2xl:text-lg transition-colors relative z-10 overflow-hidden group/btn"
+                            className="w-full py-3 2xl:py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-base 2xl:text-lg transition-colors relative z-10 overflow-hidden group/btn cursor-pointer"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                         >
@@ -1043,7 +1043,7 @@ function CtaFinal() {
                         {/* Button */}
                         <motion.button
                             onClick={() => navigate('/registro?plan=comercial')}
-                            className="w-full py-3 2xl:py-3.5 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-semibold text-base 2xl:text-lg transition-all relative z-10"
+                            className="w-full py-3 2xl:py-3.5 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-semibold text-base 2xl:text-lg transition-all relative z-10 cursor-pointer"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                         >

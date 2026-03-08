@@ -77,6 +77,7 @@ export function SelectorIdioma({
                     border border-gray-300 rounded-lg 
                     font-medium ${s.text} text-gray-700 
                     transition-all duration-150
+                    lg:cursor-pointer
                     ${className}
                 `}
                 title={idiomaActual === 'es' ? 'Switch to English' : 'Cambiar a Español'}
@@ -94,7 +95,7 @@ export function SelectorIdioma({
                 <button
                     onClick={() => cambiarIdioma('es')}
                     className={`
-                        flex items-center gap-1 ${s.padding} rounded-lg transition-all duration-150
+                        flex items-center gap-1 ${s.padding} rounded-lg transition-all duration-150 lg:cursor-pointer
                         ${idiomaActual === 'es'
                             ? 'bg-blue-600 text-white font-semibold shadow-sm'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -108,7 +109,7 @@ export function SelectorIdioma({
                 <button
                     onClick={() => cambiarIdioma('en')}
                     className={`
-                        flex items-center gap-1 ${s.padding} rounded-lg transition-all duration-150
+                        flex items-center gap-1 ${s.padding} rounded-lg transition-all duration-150 lg:cursor-pointer
                         ${idiomaActual === 'en'
                             ? 'bg-blue-600 text-white font-semibold shadow-sm'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'

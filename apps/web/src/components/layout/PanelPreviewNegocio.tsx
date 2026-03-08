@@ -9,13 +9,17 @@
  * Ubicacion: apps/web/src/components/layout/PanelPreviewNegocio.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { X, Eye, Loader2, Store, CreditCard, User } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
+import { BreakpointOverride } from '../../hooks/useBreakpoint';
 import { get } from '../../services/api';
 import { CardNegocio } from '../negocios/CardNegocio';
 import type { NegocioResumen } from '../../types/negocios';
+
+// Lazy load — PaginaPerfilNegocio en su propio chunk
+const PaginaPerfilNegocio = lazy(() => import('../../pages/private/negocios/PaginaPerfilNegocio'));
 
 interface PanelPreviewNegocioProps {
   esMobile?: boolean;
@@ -60,39 +64,102 @@ function mapearPerfilAResumen(data: Record<string, unknown>): NegocioResumen {
 }
 
 // =============================================================================
+// CACHÉ EN MEMORIA (persiste mientras la app esté montada)
+// =============================================================================
+const cachéPreview = new Map<string, NegocioResumen>();
+
+/** Invalida caché (llamar después de editar perfil en Business Studio) */
+export function invalidarCachéPreview(sucursalId?: string) {
+  if (sucursalId) cachéPreview.delete(sucursalId);
+  else cachéPreview.clear();
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
 export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioProps) {
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [sucursalId, setSucursalId] = useState<string | null>(null);
-  const [tabActivo, setTabActivo] = useState<TabActivo>('card');
-  const [negocioPreview, setNegocioPreview] = useState<NegocioResumen | null>(null);
-
   const usuario = useAuthStore((state) => state.usuario);
   const cerrarPreviewNegocio = useUiStore((state) => state.cerrarPreviewNegocio);
+
+  // Inicializar desde caché para evitar parpadeo en reaperturas
+  const sucursalInicial = usuario?.sucursalActiva || null;
+  const cachedInicial = sucursalInicial ? cachéPreview.get(sucursalInicial) ?? null : null;
+
+  const [cargando, setCargando] = useState(!cachedInicial);
+  const [error, setError] = useState<string | null>(null);
+  const [sucursalId, setSucursalId] = useState<string | null>(sucursalInicial);
+  const [tabActivo, setTabActivo] = useState<TabActivo>('card');
+  const [negocioPreview, setNegocioPreview] = useState<NegocioResumen | null>(cachedInicial);
+
+  // Botón atrás nativo: cerrar preview
+  const previewHistoryRef = useRef(false);
+  const previewPopStateRef = useRef<(() => void) | null>(null);
+  const previewIdRef = useRef(`_preview_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+
+  const cerrarPreviewConHistory = useCallback(() => {
+    if (previewHistoryRef.current) {
+      previewHistoryRef.current = false;
+      if (previewPopStateRef.current) {
+        window.removeEventListener('popstate', previewPopStateRef.current);
+        previewPopStateRef.current = null;
+      }
+      history.back();
+    }
+    cerrarPreviewNegocio();
+  }, [cerrarPreviewNegocio]);
+
+  useEffect(() => {
+    const id = previewIdRef.current;
+
+    if (!previewHistoryRef.current) {
+      const prevState = history.state ?? {};
+      history.pushState({ ...prevState, _previewNegocio: id }, '', window.location.href);
+      previewHistoryRef.current = true;
+    }
+
+    const onPopState = () => {
+      if (!previewHistoryRef.current) return;
+      if (history.state?._previewNegocio === id) return;
+      previewHistoryRef.current = false;
+      previewPopStateRef.current = null;
+      cerrarPreviewNegocio();
+    };
+
+    previewPopStateRef.current = onPopState;
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      previewPopStateRef.current = null;
+    };
+  }, [cerrarPreviewNegocio]);
 
   // Obtener sucursalId del usuario
   useEffect(() => {
     if (!usuario?.negocioId) {
       setError('No se encontró el negocio');
-      setCargando(false);
       return;
     }
 
     if (!usuario?.sucursalActiva) {
       setError('No hay sucursal activa');
-      setCargando(false);
       return;
     }
 
     setSucursalId(usuario.sucursalActiva);
   }, [usuario?.negocioId, usuario?.sucursalActiva]);
 
-  // Fetch directo del negocio por sucursalId
+  // Fetch del negocio — usa caché si existe
   useEffect(() => {
     if (!sucursalId) return;
+
+    // Si está en caché, usar directamente (instantáneo)
+    const cached = cachéPreview.get(sucursalId);
+    if (cached) {
+      setNegocioPreview(cached);
+      setCargando(false);
+      return;
+    }
 
     let cancelado = false;
 
@@ -106,7 +173,9 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
         if (cancelado) return;
 
         if (resp.success && resp.data) {
-          setNegocioPreview(mapearPerfilAResumen(resp.data));
+          const mapeado = mapearPerfilAResumen(resp.data);
+          cachéPreview.set(sucursalId!, mapeado);
+          setNegocioPreview(mapeado);
         } else {
           setError('No se pudo cargar el negocio');
         }
@@ -161,7 +230,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
               <Eye className="w-5 h-5" />
               <span className="font-bold">Vista Previa</span>
             </div>
-            <button onClick={cerrarPreviewNegocio} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+            <button onClick={cerrarPreviewConHistory} className="p-2 hover:bg-white/20 rounded-full transition-colors cursor-pointer">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -198,7 +267,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
 
     if (esMobile) {
       return (
-        <div className="fixed inset-0 z-30 bg-white">
+        <div className="fixed inset-0 z-60 bg-white">
           {renderHeader()}
           <div className="h-[calc(100vh-100px)]">{contenido}</div>
         </div>
@@ -224,7 +293,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
 
     if (esMobile) {
       return (
-        <div className="fixed inset-0 z-30 bg-white">
+        <div className="fixed inset-0 z-60 bg-white">
           {renderHeader()}
           <div className="h-[calc(100vh-100px)]">{contenido}</div>
         </div>
@@ -238,9 +307,6 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
       </div>
     );
   }
-
-  // URL para iframe del perfil
-  const urlPerfil = '/negocios/' + sucursalId + '?preview=true';
 
   // Render del contenido según tab activo
   const renderContenido = () => {
@@ -268,12 +334,20 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
           )}
         </div>
 
-        {/* Tab Perfil - iframe precargado (se oculta con CSS, no se desmonta) */}
-        <iframe
-          src={urlPerfil}
-          className={`flex-1 w-full border-0 ${cardVisible ? 'hidden' : ''}`}
-          title="Preview del perfil"
-        />
+        {/* Tab Perfil - componente directo (sin iframe) */}
+        <div className={`perfil-contenedor flex-1 flex flex-col ${cardVisible ? 'hidden' : ''}`} style={{ minHeight: 0 }}>
+          <div className="perfil-embebido flex-1 overflow-y-auto bg-white" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <Suspense fallback={
+              <div className="flex-1 flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            }>
+              <BreakpointOverride forzarMobile>
+                <PaginaPerfilNegocio sucursalIdOverride={sucursalId!} modoPreviewOverride />
+              </BreakpointOverride>
+            </Suspense>
+          </div>
+        </div>
       </>
     );
   };
@@ -281,7 +355,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
   // Render principal
   if (esMobile) {
     return (
-      <div className="fixed inset-0 z-30 bg-white flex flex-col">
+      <div className="fixed inset-0 z-60 bg-white flex flex-col">
         {renderHeader()}
         {renderContenido()}
       </div>

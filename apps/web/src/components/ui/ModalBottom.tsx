@@ -334,7 +334,7 @@ export function ModalBottom({
         ref={modalRef}
         className={`
           relative w-full max-w-lg lg:max-w-md 2xl:max-w-lg
-          bg-white rounded-t-3xl lg:rounded-t-2xl 2xl:rounded-t-3xl
+          bg-slate-50 rounded-t-3xl lg:rounded-t-2xl 2xl:rounded-t-3xl
           shadow-2xl
           ${ALTURAS_MAXIMAS[alturaMaxima]}
           flex flex-col

@@ -46,6 +46,8 @@ import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
 import { useVotos } from '../../hooks/useVotos';
 import { ModalHorarios } from './ModalHorarios';
 import type { NegocioResumen } from '../../types/negocios';
+import { useChatYAStore } from '../../stores/useChatYAStore';
+import { useUiStore } from '../../stores/useUiStore';
 
 // =============================================================================
 // TIPOS
@@ -265,9 +267,38 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
     navigate(url);
   };
 
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+
   const handleChat = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implementar navegación a ChatYA
+    e.preventDefault();
+    console.log('🟡 handleChat disparado');
+    console.log('🟡 usuarioId:', negocio.usuarioId);
+    if (!negocio.usuarioId) {
+      console.log('❌ usuarioId es undefined — no abre chat');
+      return;
+    }
+    console.log('✅ Abriendo chat con:', negocio.negocioNombre);
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: negocio.usuarioId,
+        nombre: negocio.negocioNombre,
+        apellidos: '',
+        avatarUrl: negocio.logoUrl,
+        negocioNombre: negocio.negocioNombre,
+        negocioLogo: negocio.logoUrl || undefined,
+        sucursalNombre: negocio.sucursalNombre || undefined,
+      },
+      datosCreacion: {
+        participante2Id: negocio.usuarioId,
+        participante2Modo: 'comercial',
+        participante2SucursalId: negocio.sucursalId,
+        contextoTipo: 'negocio',
+      },
+    });
+    abrirChatYA();
   };
 
   const { liked, toggleLike } = useVotos({
@@ -483,7 +514,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
   // =========================================================================
   const renderCard = () => (
     <div
-      className="relative w-full h-60 2xl:h-[220px] rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
+      className="relative w-full h-60 2xl:h-[220px] rounded-2xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
       style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.06)' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -491,6 +522,8 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Wrapper de imágenes — overflow-hidden aquí para que las fotos respeten el rounded */}
+      <div className="absolute inset-0 rounded-2xl overflow-hidden z-0">
       {/* Crossfade images */}
       {renderImagen()}
 
@@ -513,6 +546,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
 
       {/* Heart button — pegado a esquina superior derecha */}
       {renderHeartButton('top-1.5 right-1.5 w-[38px] h-[38px]', 'w-5 h-5')}
+      </div>{/* fin wrapper overflow-hidden */}
 
       {/* Bottom content */}
       <div className="absolute bottom-[3px] left-0 right-0 z-10 px-3 pb-1.5">
@@ -572,7 +606,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
         <div className="flex items-center justify-between mt-1 bg-white/10 backdrop-blur-xl rounded-[14px] pl-3.5 pr-[5px] py-1.5 border border-white/12">
           {/* Contact icons */}
           <div className="flex items-center gap-3">
-            <button onClick={handleChat} className="cursor-pointer flex items-center gap-1.5 bg-transparent border-0 p-0 active:opacity-70 transition-opacity">
+            <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleChat(e); }} className="cursor-pointer flex items-center gap-1.5 bg-transparent border-0 p-0 active:opacity-70 transition-opacity">
               <img src="/ChatYA.webp" alt="ChatYA" className="h-7 w-auto" />
             </button>
             {negocio.whatsapp && (

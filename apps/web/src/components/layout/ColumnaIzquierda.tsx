@@ -705,34 +705,7 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
             </button>
           </div>
         </>
-      ) : (
-        /* ===== BANNER CARDYA DESACTIVADO ===== */
-        <div className="px-4 lg:px-3 2xl:px-4 py-6 lg:py-4 2xl:py-6 border-b-2 border-slate-200 bg-linear-to-br from-amber-50 to-orange-50">
-          <div className="flex flex-col items-center text-center">
-            {/* Icono */}
-            <div className="w-14 h-14 lg:w-11 lg:h-11 2xl:w-14 2xl:h-14 bg-linear-to-br from-amber-400 to-orange-500 rounded-2xl lg:rounded-xl 2xl:rounded-2xl flex items-center justify-center shadow-lg mb-3 lg:mb-2 2xl:mb-3">
-              <Lock className="w-7 h-7 lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-white" />
-            </div>
-            
-            {/* Texto */}
-            <h3 className="font-bold text-slate-800 text-base lg:text-sm 2xl:text-base mb-1">
-              CardYA Desactivado
-            </h3>
-            <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 mb-3 lg:mb-2 2xl:mb-3 leading-snug">
-              Activa CardYA para usar ScanYA y ver métricas de ventas
-            </p>
-            
-            {/* Botón */}
-            <button
-              onClick={() => navigate('/business-studio/perfil')}
-              className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 px-4 lg:px-3 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-sm lg:text-xs 2xl:text-sm rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md cursor-pointer transition-all"
-            >
-              Activar en Mi Perfil
-              <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* Espacio flexible - empuja acciones y tip hacia abajo */}
       <div className="flex-1" />

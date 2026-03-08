@@ -9,7 +9,7 @@
  */
 
 import { useRef, useCallback } from 'react';
-import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown } from 'lucide-react';
+import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText } from 'lucide-react';
 import type { Conversacion } from '../../types/chatya';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -95,6 +95,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
   const bloqueados = useChatYAStore((s) => s.bloqueados);
   const borradores = useChatYAStore((s) => s.borradores);
   const contactos = useChatYAStore((s) => s.contactos);
+  const escribiendo = useChatYAStore((s) => s.escribiendo);
   const borrador = borradores[conversacion.id] || null;
   const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otro?.id);
   const miId = useAuthStore((s) => s.usuario?.id);
@@ -184,6 +185,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
   const avatarUrl = otro?.negocioLogo || otro?.avatarUrl || null;
 
   const tieneNoLeidos = conversacion.noLeidos > 0;
+  const otroEstaEscribiendo = !!escribiendo[conversacion.id];
   const tiempo = formatearTiempo(conversacion.ultimoMensajeFecha);
 
   return (
@@ -195,7 +197,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
       onTouchEnd={handleTouchEnd}
       className={`
         w-full flex items-center gap-3 px-3 py-3 mx-0.5 text-left cursor-pointer select-none
-        rounded-r-lg border-l-[3px] transition-colors duration-75 group
+        rounded-r-lg border-l-[3px] group
         ${activa
           ? 'bg-white/12 border-l-amber-400'
           : seleccionada
@@ -242,8 +244,10 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
           </span>
         </div>
         <div className="flex items-center justify-between gap-1 mt-0.5 h-5">
-          <p className={`text-[13px] truncate ${tieneNoLeidos ? 'text-white/80 font-medium' : 'text-white/50'}`}>
-            {borrador ? (
+          <p className={`text-[13.5px] truncate ${otroEstaEscribiendo ? 'text-blue-400 font-semibold' : tieneNoLeidos ? 'text-white/80 font-medium' : 'text-white/50'}`}>
+            {otroEstaEscribiendo ? (
+              'Escribiendo...'
+            ) : borrador ? (
               <>
                 <span className="text-amber-400 font-semibold">Borrador: </span>
                 <span className="text-white/60">{borrador}</span>
@@ -252,13 +256,28 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
               <>
                 {ultimoEsMio && conversacion.ultimoMensajeEstado && (
                   conversacion.ultimoMensajeEstado === 'leido'
-                    ? <CheckCheck className="w-3.5 h-3.5 text-blue-500 shrink-0 inline align-[-3px] mr-0.5" />
+                    ? <CheckCheck className="w-4 h-4 scale-y-[1.1] text-blue-400 shrink-0 inline align-[-3px] mr-0.5" />
                     : conversacion.ultimoMensajeEstado === 'entregado'
-                      ? <CheckCheck className="w-3.5 h-3.5 text-gray-400 shrink-0 inline align-[-3px] mr-0.5" />
-                      : <Check className="w-3 h-3 text-gray-400 shrink-0 inline align-[-2px] mr-0.5" />
+                      ? <CheckCheck className="w-4 h-4 scale-y-[1.1] text-gray-400 shrink-0 inline align-[-3px] mr-0.5" />
+                      : <Check className="w-4 h-4 scale-y-[1.1] text-gray-400 shrink-0 inline align-[-3px] mr-0.5" />
                 )}
                 {conversacion.ultimoMensajeTexto
-                  ? <TextoConEmojis texto={conversacion.ultimoMensajeTexto} tamañoEmoji={22} />
+                  ? (() => {
+                    const tipo = conversacion.ultimoMensajeTipo;
+                    const texto = conversacion.ultimoMensajeTexto;
+                    if (tipo === 'imagen') {
+                      const label = texto.replace('📷 ', '').replace('📷', '').trim() || 'Imagen';
+                      return <><ImageIcon className="w-3.5 h-3.5 text-blue-400 shrink-0 inline align-[-3px] mr-0.5" />{label}</>;
+                    }
+                    if (tipo === 'audio') {
+                      return <><Mic className="w-3.5 h-3.5 text-blue-400 shrink-0 inline align-[-3px] mr-0.5" />Audio</>;
+                    }
+                    if (tipo === 'documento') {
+                      const label = texto.replace('📎 ', '').replace('📎', '').trim() || 'Documento';
+                      return <><FileText className="w-3.5 h-3.5 text-blue-400 shrink-0 inline align-[-3px] mr-0.5" />{label}</>;
+                    }
+                    return <TextoConEmojis texto={texto} tamañoEmoji={22} />;
+                  })()
                   : <span>Sin mensajes aún</span>
                 }
               </>
@@ -285,11 +304,11 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
               onClick={(e) => {
                 e.stopPropagation();
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                onMenuContextual?.(conversacion, { x: rect.right - 144, y: rect.bottom + 4 });
+                onMenuContextual?.(conversacion, { x: rect.right - 196, y: rect.bottom + 4 });
               }}
-              className="hidden lg:group-hover:flex w-5 h-5 items-center justify-center rounded hover:bg-white/15 cursor-pointer"
+              className="hidden lg:group-hover:flex w-6 h-6 items-center justify-center rounded hover:bg-white/15 cursor-pointer"
             >
-              <ChevronDown className="w-4 h-4 text-white/50" />
+              <ChevronDown className="w-5 h-5 text-white/50" />
             </div>
           </div>
         </div>

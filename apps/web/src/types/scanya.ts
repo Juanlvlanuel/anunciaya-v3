@@ -305,6 +305,7 @@ export interface TransaccionScanYA {
   clienteTelefono: string | null;
   clienteAvatarUrl: string | null;
   clienteNivel: string;
+  clienteId: string;
   // Montos
   montoTotal: number;
   montoEfectivo: number;

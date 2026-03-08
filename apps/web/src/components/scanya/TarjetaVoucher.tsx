@@ -24,6 +24,8 @@ import {
 import type { VoucherPendiente, VoucherCompleto } from '@/types/scanya';
 import Tooltip from '@/components/ui/Tooltip';
 import { ModalImagenes } from '@/components/ui/ModalImagenes';
+import { useChatYAStore } from '@/stores/useChatYAStore';
+import { useUiStore } from '@/stores/useUiStore';
 
 // =============================================================================
 // TIPOS
@@ -87,7 +89,16 @@ const obtenerAvatarUrl = (voucher: VoucherData): string | null => {
 };
 
 /**
- * Formatea la fecha de vencimiento
+ * Obtiene el usuarioId del cliente (solo disponible en VoucherCompleto)
+ */
+const obtenerUsuarioId = (voucher: VoucherData): string | null => {
+  if (esVoucherCompleto(voucher)) {
+    return voucher.usuarioId;
+  }
+  return null;
+};
+
+/**
  */
 const formatearFechaVencimiento = (
   fechaStr: string
@@ -182,20 +193,42 @@ const obtenerColorEstado = (
 export function TarjetaVoucher({
   voucher,
   onValidar,
-  onContactar,
   mostrarBotonValidar = false,
   mostrarSucursal = false,
   mostrarEstado = false,
   mostrarEmpleadoQueCanjeo = false,
 }: TarjetaVoucherProps) {
   const [modalAvatarAbierto, setModalAvatarAbierto] = useState(false);
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
   const nombreCliente = obtenerNombreCliente(voucher);
   const telefono = obtenerTelefono(voucher);
   const avatarUrl = obtenerAvatarUrl(voucher);
+  const usuarioId = obtenerUsuarioId(voucher);
   const fechaInfo = formatearFechaVencimiento(voucher.expiraAt);
   const esCompleto = esVoucherCompleto(voucher);
   const estado = esCompleto ? voucher.estado : 'pendiente';
   const colorEstado = obtenerColorEstado(estado);
+
+  const handleChatYA = () => {
+    if (!usuarioId) return;
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: usuarioId,
+        nombre: nombreCliente,
+        apellidos: '',
+        avatarUrl: avatarUrl,
+      },
+      datosCreacion: {
+        participante2Id: usuarioId,
+        participante2Modo: 'personal',
+        participante2SucursalId: null,
+        contextoTipo: 'negocio',
+      },
+    });
+    abrirChatYA();
+  };
 
   return (
     <div
@@ -249,8 +282,9 @@ export function TarjetaVoucher({
             </p>
             <Tooltip text="Contactar por ChatYA" position="top">
               <button
-                onClick={() => onContactar?.(telefono)}
-                className="cursor-pointer hover:scale-110 transition-all"
+                onClick={handleChatYA}
+                disabled={!usuarioId}
+                className={`transition-all ${usuarioId ? 'cursor-pointer hover:scale-110' : 'opacity-40 cursor-not-allowed'}`}
               >
                 <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-auto h-6 lg:w-auto lg:h-4 2xl:w-auto 2xl:h-7" />
               </button>

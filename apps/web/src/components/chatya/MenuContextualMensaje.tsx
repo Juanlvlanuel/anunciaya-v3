@@ -273,25 +273,25 @@ export function MenuContextualMensaje({
 
   // Responder (no en Mis Notas)
   if (!esMisNotas) {
-    opciones.push({ icono: Reply, label: 'Responder', onClick: handleResponder });
+    opciones.push({ icono: Reply, label: 'Responder', onClick: handleResponder, color: 'text-blue-500' });
   }
 
   // Copiar
-  opciones.push({ icono: Copy, label: 'Copiar texto', onClick: handleCopiar });
+  opciones.push({ icono: Copy, label: 'Copiar texto', onClick: handleCopiar, color: 'text-cyan-500' });
 
   // Reenviar (no en Mis Notas, no si está eliminado)
   if (!esMisNotas && !mensaje.eliminado) {
-    opciones.push({ icono: Forward, label: 'Reenviar', onClick: handleReenviar });
+    opciones.push({ icono: Forward, label: 'Reenviar', onClick: handleReenviar, color: 'text-emerald-500' });
   }
 
   // Fijar (no en Mis Notas)
   if (!esMisNotas) {
-    opciones.push({ icono: estaFijado ? PinOff : Pin, label: estaFijado ? 'Desfijar mensaje' : 'Fijar mensaje', onClick: handleFijar });
+    opciones.push({ icono: estaFijado ? PinOff : Pin, label: estaFijado ? 'Desfijar mensaje' : 'Fijar mensaje', onClick: handleFijar, color: 'text-amber-500' });
   }
 
   // Editar (solo mensajes propios de tipo texto)
   if (esMio && mensaje.tipo === 'texto' && !mensaje.eliminado) {
-    opciones.push({ icono: Pencil, label: 'Editar', onClick: handleEditar });
+    opciones.push({ icono: Pencil, label: 'Editar', onClick: handleEditar, color: 'text-purple-500' });
   }
 
   // Eliminar (solo mensajes propios)
@@ -334,7 +334,7 @@ export function MenuContextualMensaje({
                 className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-100 active:bg-gray-200 cursor-pointer"
               >
                 <opcion.icono className={`w-5 h-5 ${opcion.color || 'text-gray-500'}`} />
-                <span className={`text-sm font-medium ${opcion.color || 'text-gray-700'}`}>
+                <span className={`text-sm font-medium ${opcion.color === 'text-red-500' ? 'text-red-500' : 'text-gray-700'}`}>
                   {opcion.label}
                 </span>
               </button>
@@ -363,7 +363,7 @@ export function MenuContextualMensaje({
             className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-100 active:bg-gray-200 cursor-pointer"
           >
             <opcion.icono className={`w-[18px] h-[18px] shrink-0 ${opcion.color || 'text-gray-400'}`} />
-            <span className={`text-sm font-medium ${opcion.color || 'text-gray-700'}`}>
+            <span className={`text-sm font-medium ${opcion.color === 'text-red-500' ? 'text-red-500' : 'text-gray-700'}`}>
               {opcion.label}
             </span>
           </button>

@@ -50,7 +50,6 @@ const RUTAS_SIN_SUCURSAL = [
   '/negocios/publico/',
   '/articulos/publico/',
   '/guardados/',   // Guardados personales del usuario
-  '/seguidos/',    // Seguidos personales del usuario
   '/duplicar',     // Duplicar artículos usa sucursalesIds en el body, no en query params
 ];
 
@@ -155,7 +154,19 @@ api.interceptors.request.use(
       }
     }
 
-    // 2. Agregar sucursalId y votanteSucursalId automáticamente en modo comercial
+    // 2. Agregar sucursalId para rutas ChatYA desde ScanYA
+    // El backend usa sucursalId para filtrar conversaciones de la sucursal correcta
+    if (esScanYA && config.url?.includes('/chatya')) {
+      const sucursalId = useScanYAStore.getState().usuario?.sucursalId;
+      if (sucursalId) {
+        config.params = config.params || {};
+        if (!config.params.sucursalId) {
+          config.params.sucursalId = sucursalId;
+        }
+      }
+    }
+
+    // 3. Agregar sucursalId y votanteSucursalId automáticamente en modo comercial
     // (SOLO para rutas de AnunciaYA, ScanYA no usa este sistema)
     if (!esScanYA && usuario?.modoActivo === 'comercial') {
       const url = config.url || '';
@@ -196,8 +207,13 @@ api.interceptors.request.use(
         }
 
         // Agregar votanteSucursalId para likes/follows (distingue modo personal vs comercial)
-        if (sucursalId && !config.params.votanteSucursalId) {
+        // __skipVotante=true significa "este request ya sabe qué votanteSucursalId usar, no agregar"
+        if (sucursalId && !config.params.votanteSucursalId && !config.params.__skipVotante) {
           config.params.votanteSucursalId = sucursalId;
+        }
+        // Limpiar el flag interno antes de enviar
+        if (config.params.__skipVotante) {
+          delete config.params.__skipVotante;
         }
 
         if (!sucursalId) {

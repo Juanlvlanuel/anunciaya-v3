@@ -183,6 +183,21 @@ export interface ContenidoImagen {
 }
 
 /**
+ * Estructura del JSON que se guarda en mensaje.contenido cuando tipo === 'audio'.
+ * Se guarda como JSON.stringify en la DB y se parsea en el frontend.
+ */
+export interface ContenidoAudio {
+  /** URL pública del audio en R2 */
+  url: string;
+  /** Duración en segundos (ej: 12.5) */
+  duracion: number;
+  /** Peso del archivo en bytes */
+  tamano: number;
+  /** Array de ~50 valores 0-1 para la onda visual en la burbuja */
+  waveform: number[];
+}
+
+/**
  * Respuesta del endpoint POST /api/chatya/upload-imagen
  * Genera una presigned URL para subir directamente a R2.
  */
@@ -375,6 +390,13 @@ export interface EventoMensajeEliminado {
   conversacionId: string;
   mensajeId: string;
   eraUltimoMensaje?: boolean;
+  nuevoPreview?: {
+    ultimoMensajeTexto: string | null;
+    ultimoMensajeTipo: string | null;
+    ultimoMensajeFecha: string | null;
+    ultimoMensajeEstado: string | null;
+    ultimoMensajeEmisorId: string | null;
+  };
 }
 
 /** chatya:leido */
@@ -498,4 +520,27 @@ export interface EstadoEscribiendo {
   conversacionId: string;
   /** Timestamp para limpiar automáticamente si no llega dejar-escribir */
   timestamp: number;
+}
+
+// =============================================================================
+// ARCHIVOS COMPARTIDOS (PanelInfoContacto → GaleriaArchivos)
+// =============================================================================
+
+/** Categorías de archivos compartidos en una conversación */
+export type CategoriaArchivo = 'imagenes' | 'documentos' | 'enlaces';
+
+/** Item individual retornado por GET .../archivos-compartidos */
+export interface ArchivoCompartido {
+  id: string;
+  contenido: string;
+  createdAt: string;
+  emisorId: string | null;
+}
+
+/** Conteo de archivos por categoría (GET .../archivos-compartidos/conteo) */
+export interface ConteoArchivosCompartidos {
+  imagenes: number;
+  documentos: number;
+  enlaces: number;
+  total: number;
 }

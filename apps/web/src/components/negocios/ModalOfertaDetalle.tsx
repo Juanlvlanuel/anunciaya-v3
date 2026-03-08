@@ -25,6 +25,8 @@ import { api } from '@/services/api';
 import { DropdownCompartir } from '../compartir';
 import { Modal } from '../ui/Modal';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useChatYAStore } from '@/stores/useChatYAStore';
+import { useUiStore } from '@/stores/useUiStore';
 import { notificar } from '@/utils/notificaciones';
 
 // =============================================================================
@@ -34,6 +36,7 @@ import { notificar } from '@/utils/notificaciones';
 interface Oferta {
     id?: string;
     ofertaId?: string;
+    sucursalId?: string | null;
     titulo: string;
     descripcion?: string | null;
     imagen?: string | null;
@@ -51,8 +54,8 @@ interface ModalOfertaDetalleProps {
     oferta: Oferta | null;
     whatsapp?: string | null;
     negocioNombre?: string;
+    negocioUsuarioId?: string | null;
     onClose: () => void;
-    openedFromModal?: boolean; // Si se abrió desde otro modal (ModalOfertas)
 }
 
 // =============================================================================
@@ -219,8 +222,10 @@ const CONFIG_TIPO: Record<Oferta['tipo'], ConfigTipo> = {
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, openedFromModal = false }: ModalOfertaDetalleProps) {
+export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsuarioId, onClose }: ModalOfertaDetalleProps) {
     const { usuario } = useAuthStore();
+    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     // Hook de guardados
     const { guardado, toggleGuardado } = useGuardados({
@@ -280,8 +285,28 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, onClose, o
             notificar.error('Debes iniciar sesión para usar ChatYA');
             return;
         }
-        // TODO: Implementar apertura de ChatYA
-        notificar.info('ChatYA próximamente...');
+        if (!negocioUsuarioId) {
+            notificar.error('No se pudo identificar el negocio');
+            return;
+        }
+        abrirChatTemporal({
+            id: `temp_${Date.now()}`,
+            otroParticipante: {
+                id: negocioUsuarioId,
+                nombre: negocioNombre || 'Negocio',
+                apellidos: '',
+                avatarUrl: null,
+                negocioNombre: negocioNombre,
+            },
+            datosCreacion: {
+                participante2Id: negocioUsuarioId,
+                participante2Modo: 'comercial',
+                participante2SucursalId: oferta.sucursalId ?? '',
+                contextoTipo: 'negocio',
+            },
+        });
+        abrirChatYA();
+        onClose();
     };
 
     return (

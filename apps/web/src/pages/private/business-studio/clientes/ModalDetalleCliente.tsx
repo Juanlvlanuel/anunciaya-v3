@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useClientesStore } from '../../../../stores/useClientesStore';
+import { useChatYAStore } from '../../../../stores/useChatYAStore';
+import { useUiStore } from '../../../../stores/useUiStore';
 
 // =============================================================================
 // HELPERS
@@ -179,6 +181,8 @@ export default function ModalDetalleCliente({
     cargarHistorialCliente,
     limpiarDetalle,
   } = useClientesStore();
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
   // Cargar datos al abrir
   useEffect(() => {
@@ -202,10 +206,25 @@ export default function ModalDetalleCliente({
     }
   };
 
-  // Abrir ChatYA (placeholder)
+  // Abrir ChatYA con este cliente
   const handleContactar = () => {
-    // TODO: Implementar apertura de ChatYA con este cliente
-    console.log('Contactar cliente:', clienteDetalle?.telefono);
+    if (!clienteDetalle?.id) return;
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: clienteDetalle.id,
+        nombre: clienteDetalle.nombre,
+        apellidos: '',
+        avatarUrl: clienteDetalle.avatarUrl ?? null,
+      },
+      datosCreacion: {
+        participante2Id: clienteDetalle.id,
+        participante2Modo: 'personal',
+        contextoTipo: 'directo',
+      },
+    });
+    abrirChatYA();
+    handleCerrar();
   };
 
   if (!abierto) return null;
@@ -383,8 +402,8 @@ export default function ModalDetalleCliente({
                     <div
                       className={`h-full rounded-full transition-all ${
                         cliente.nivelActual?.toLowerCase() === 'plata'
-                          ? 'bg-gradient-to-r from-slate-500 to-slate-400'
-                          : 'bg-gradient-to-r from-amber-600 to-amber-500'
+                          ? 'bg-linear-to-r from-slate-500 to-slate-400'
+                          : 'bg-linear-to-r from-amber-600 to-amber-500'
                       }`}
                       style={{ width: `${progreso.porcentaje}%` }}
                     />
@@ -401,7 +420,7 @@ export default function ModalDetalleCliente({
                   </div>
                   <div className="h-2 lg:h-1.5 2xl:h-2 rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-yellow-400"
+                      className="h-full rounded-full bg-linear-to-r from-yellow-500 to-yellow-400"
                       style={{ width: '100%' }}
                     />
                   </div>

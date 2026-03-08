@@ -222,7 +222,7 @@ function ContenidoNotificaciones({
                 className={`
                   w-full flex items-start gap-3 lg:gap-2.5 2xl:gap-3 py-3 lg:py-2.5 2xl:py-3
                   hover:bg-linear-to-r hover:from-blue-50/50 hover:to-transparent
-                  transition-all duration-150 text-left
+                  transition-all duration-150 text-left lg:cursor-pointer
                   ${!notificacion.leida ? 'bg-blue-50/30' : ''}
                 `}
               >
@@ -296,7 +296,7 @@ function FooterNotificaciones({ cantidadNoLeidas, onMarcarTodasLeidas }: FooterN
     <div className="shrink-0 border-t border-gray-200 bg-linear-to-r from-blue-50/80 via-purple-50/80 to-pink-50/80 px-4 py-3 lg:px-3 lg:py-2.5 2xl:px-4 2xl:py-3">
       <button
         onClick={onMarcarTodasLeidas}
-        className="w-full py-3 lg:py-2.5 2xl:py-3 text-sm lg:text-xs 2xl:text-sm font-bold text-white bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
+        className="w-full py-3 lg:py-2.5 2xl:py-3 text-sm lg:text-xs 2xl:text-sm font-bold text-white bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98] lg:cursor-pointer"
       >
         <Sparkles className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
         <span>Marcar todas como leídas</span>
@@ -396,7 +396,7 @@ function DropdownDesktop({
 
         <button
           onClick={onClose}
-          className="p-1.5 lg:p-1 2xl:p-1.5 text-gray-500 hover:text-gray-900 hover:bg-white/50 rounded-lg transition-all"
+          className="p-1.5 lg:p-1 2xl:p-1.5 text-gray-500 hover:text-gray-900 hover:bg-white/50 rounded-lg transition-all cursor-pointer"
         >
           <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
         </button>

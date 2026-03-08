@@ -56,6 +56,8 @@ import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../co
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useNegociosCacheStore } from '../../../stores/useNegociosCacheStore';
+import { useChatYAStore } from '../../../stores/useChatYAStore';
+import { useUiStore } from '../../../stores/useUiStore';
 import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
 import { DropdownCompartir, ModalAuthRequerido } from '../../../components/compartir';
@@ -458,13 +460,25 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
 }
 
 // =============================================================================
+// PROPS OPCIONALES (para renderizar embebido sin router, ej: desde ChatYA)
+// =============================================================================
+
+interface PaginaPerfilNegocioProps {
+    sucursalIdOverride?: string;
+    modoPreviewOverride?: boolean;
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function PaginaPerfilNegocio() {
-    const { sucursalId } = useParams<{ sucursalId: string }>();
+export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }: PaginaPerfilNegocioProps) {
+    const { sucursalId: sucursalIdParam } = useParams<{ sucursalId: string }>();
+    const sucursalId = sucursalIdOverride || sucursalIdParam;
     const navigate = useNavigate();
     const { usuario } = useAuthStore();
+    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     // ✅ Store de caché para ofertas y catálogo
     const {
@@ -479,7 +493,7 @@ export function PaginaPerfilNegocio() {
     const [totalVisitas, setTotalVisitas] = useState<number | undefined>(undefined);
     const vistaRegistrada = useRef(false);
 
-    const esModoPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
+    const esModoPreview = modoPreviewOverride || new URLSearchParams(window.location.search).get('preview') === 'true';
 
     // Detección de login
     const estaLogueado = !!usuario;
@@ -776,7 +790,26 @@ export function PaginaPerfilNegocio() {
             setModalAuthAbierto(true);
             return;
         }
-        // TODO: Implementar lógica de chat cuando esté lista
+        if (!negocio) return;
+        abrirChatTemporal({
+            id: `temp_${Date.now()}`,
+            otroParticipante: {
+                id: negocio.usuarioId,
+                nombre: negocio.negocioNombre,
+                apellidos: '',
+                avatarUrl: negocio.logoUrl,
+                negocioNombre: negocio.negocioNombre,
+                negocioLogo: negocio.logoUrl || undefined,
+                sucursalNombre: negocio.sucursalNombre || undefined,
+            },
+            datosCreacion: {
+                participante2Id: negocio.usuarioId,
+                participante2Modo: 'comercial',
+                participante2SucursalId: negocio.sucursalId,
+                contextoTipo: 'negocio',
+            },
+        });
+        abrirChatYA();
     };
 
     // ✅ NUEVO: Handlers simplificados para ModalImagenes
@@ -1347,6 +1380,7 @@ export function PaginaPerfilNegocio() {
                                     ofertas={ofertas}
                                     whatsapp={negocio?.whatsapp}
                                     negocioNombre={negocio?.negocioNombre}
+                                    negocioUsuarioId={negocio?.usuarioId}
                                 />
                             </div>
                         )}
@@ -1357,6 +1391,9 @@ export function PaginaPerfilNegocio() {
                                 <SeccionCatalogo
                                     catalogo={catalogo}
                                     whatsapp={negocio?.whatsapp}
+                                    negocioUsuarioId={negocio?.usuarioId}
+                                    sucursalId={sucursalId}
+                                    negocioNombre={negocio?.negocioNombre}
                                 />
                             </div>
                         )}

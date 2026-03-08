@@ -183,7 +183,7 @@ export function VistaRecuperar({
       <button
         type="button"
         onClick={() => paso === 2 ? setPaso(1) : onCambiarVista('login')}
-        className="flex items-center gap-1.5 text-base text-gray-500 hover:text-gray-700 mb-3 font-medium"
+        className="flex items-center gap-1.5 text-base text-gray-500 hover:text-gray-700 mb-3 font-medium lg:cursor-pointer"
       >
         <ArrowLeft size={18} />
         {paso === 2 ? t('recuperar.volver') : t('recuperar.volverLogin')}
@@ -216,7 +216,7 @@ export function VistaRecuperar({
             type="submit"
             disabled={!formularioPaso1Valido || cargando}
             className={`w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-colors ${formularioPaso1Valido && !cargando
-              ? 'bg-blue-500 hover:bg-blue-600'
+              ? 'bg-blue-500 hover:bg-blue-600 lg:cursor-pointer'
               : 'bg-blue-300 cursor-not-allowed'
               }`}
           >
@@ -244,7 +244,7 @@ export function VistaRecuperar({
                 type="button"
                 onClick={handleReenviar}
                 disabled={cargando}
-                className="flex items-center gap-1.5 text-base text-blue-500 hover:underline font-medium"
+                className="flex items-center gap-1.5 text-base text-blue-500 hover:underline font-medium lg:cursor-pointer"
               >
                 <RefreshCw size={16} />
                 {t('recuperar.reenviar')}
@@ -281,7 +281,7 @@ export function VistaRecuperar({
               <button
                 type="button"
                 onClick={() => setMostrarPassword(!mostrarPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 lg:cursor-pointer"
                 tabIndex={-1}
               >
                 {mostrarPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -315,7 +315,7 @@ export function VistaRecuperar({
               <button
                 type="button"
                 onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 lg:cursor-pointer"
                 tabIndex={-1}
               >
                 {mostrarConfirmar ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -330,7 +330,7 @@ export function VistaRecuperar({
             type="submit"
             disabled={!formularioPaso2Valido || cargando}
             className={`w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-colors ${formularioPaso2Valido && !cargando
-              ? 'bg-green-500 hover:bg-green-600'
+              ? 'bg-green-500 hover:bg-green-600 lg:cursor-pointer'
               : 'bg-green-300 cursor-not-allowed'
               }`}
           >

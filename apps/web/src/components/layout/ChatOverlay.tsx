@@ -20,8 +20,8 @@
  * UBICACIÓN: apps/web/src/components/layout/ChatOverlay.tsx
  */
 
-import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { X, StickyNote, Pin, BellOff, Archive, Trash2, ArrowLeft, ShieldBan, ShieldOff, UserPlus, UserMinus } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
@@ -61,7 +61,9 @@ export function ChatOverlay() {
 
   // Cerrar al cambiar de ruta (después de que React Router ya navegó)
   const location = useLocation();
+  const navigate = useNavigate();
   const rutaInicialRef = useRef(location.pathname);
+  const navegandoExternoRef = useRef(false);
 
   const modoActivo = useAuthStore((s) => s.usuario?.modoActivo) || 'personal';
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva) || null;
@@ -93,11 +95,17 @@ export function ChatOverlay() {
   const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
   const bloquearUsuario = useChatYAStore((s) => s.bloquearUsuario);
   const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
+  const visorAbierto = useChatYAStore((s) => s.visorAbierto);
+  const setVisorAbierto = useChatYAStore((s) => s.setVisorAbierto);
+  const panelInfoAbierto = useChatYAStore((s) => s.panelInfoAbierto);
+  const setPanelInfoAbierto = useChatYAStore((s) => s.setPanelInfoAbierto);
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
   const bloqueados = useChatYAStore((s) => s.bloqueados);
   const contactos = useChatYAStore((s) => s.contactos);
   const conversaciones = useChatYAStore((s) => s.conversaciones);
+
+
 
   const handleLongPressSeleccion = useCallback((conversacionId: string) => {
     setSeleccionadas(new Set([conversacionId]));
@@ -132,6 +140,27 @@ export function ChatOverlay() {
     }
   }, [chatYAAbierto, conversacionActivaId]);
 
+  // ---------------------------------------------------------------------------
+  // Evento externo: navegar a otra ruta cerrando ChatYA sin history.back()
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ruta = (e as CustomEvent<string>).detail;
+      navegandoExternoRef.current = true;
+      // Limpiar todos los flags de history para que no disparen history.back()
+      overlayHistoryRef.current = false;
+      chatHistoryRef.current = false;
+      visorHistoryRef.current = false;
+      panelHistoryRef.current = false;
+      cerrarChatYA();
+      navigate(ruta);
+      // Resetear flag tras el ciclo
+      setTimeout(() => { navegandoExternoRef.current = false; }, 100);
+    };
+    window.addEventListener('chatya:navegar-externo', handler);
+    return () => window.removeEventListener('chatya:navegar-externo', handler);
+  }, [cerrarChatYA, navigate]);
+
   const accionEnLote = useCallback(async (accion: 'fijar' | 'silenciar' | 'archivar' | 'eliminar' | 'bloquear' | 'contacto') => {
     const ids = Array.from(seleccionadas);
     cancelarSeleccion();
@@ -163,6 +192,17 @@ export function ChatOverlay() {
       }
     }
   }, [seleccionadas, cancelarSeleccion, conversaciones, bloqueados, contactos, modoActivo, toggleFijar, toggleSilenciar, toggleArchivar, eliminarConversacion, bloquearUsuario, desbloquearUsuario, agregarContactoStore, eliminarContactoStore]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Cerrar ChatYA automáticamente al cerrar sesión
+  // Sin esto el overlay queda abierto aunque el usuario ya no esté autenticado
+  // ---------------------------------------------------------------------------
+  const usuario = useAuthStore((s) => s.usuario);
+  useEffect(() => {
+    if (!usuario && chatYAAbierto) {
+      cerrarChatYA();
+    }
+  }, [usuario, chatYAAbierto, cerrarChatYA]);
 
   // ---------------------------------------------------------------------------
   // Effect: Detectar si es desktop
@@ -372,6 +412,7 @@ export function ChatOverlay() {
   // ---------------------------------------------------------------------------
   const overlayHistoryRef = useRef(false);
   const overlayHandlerRef = useRef<(() => void) | null>(null);
+  const overlayPathnameRef = useRef(location.pathname);
 
   useEffect(() => {
     if (!chatYAAbierto) {
@@ -382,10 +423,16 @@ export function ChatOverlay() {
           window.removeEventListener('popstate', overlayHandlerRef.current);
           overlayHandlerRef.current = null;
         }
-        history.back();
+        // Solo hacer history.back() si seguimos en la misma ruta donde se abrió
+        // Si ya navegamos a otra página, no revertir la navegación
+        if (location.pathname === overlayPathnameRef.current) {
+          history.back();
+        }
       }
       return;
     }
+
+    overlayPathnameRef.current = location.pathname;
 
     if (!overlayHistoryRef.current) {
       window.history.pushState({ chatyaOverlay: true }, '');
@@ -395,7 +442,8 @@ export function ChatOverlay() {
     const handlePopStateOverlay = () => {
       if (!overlayHistoryRef.current) return;
       if (useChatYAStore.getState().conversacionActivaId) return;
-      if (history.state?.chatyaOverlay) return;
+      // Si el state actual pertenece a una capa superior, no cerrar el overlay
+      if (history.state?.chatyaOverlay || history.state?.chatya || history.state?.panelInfo || history.state?.visorImagenes || history.state?._vistaPerfilChat || history.state?._modalBottom || history.state?._modalImagenes || history.state?._previewNegocio) return;
       overlayHistoryRef.current = false;
       overlayHandlerRef.current = null;
       cerrarChatYA();
@@ -438,7 +486,8 @@ export function ChatOverlay() {
 
     const handlePopState = () => {
       if (!chatHistoryRef.current) return;
-      if (history.state?.chatya) return;
+      // Si el state actual pertenece a una capa superior, no cerrar el chat
+      if (history.state?.chatya || history.state?.panelInfo || history.state?.visorImagenes || history.state?._vistaPerfilChat || history.state?._modalBottom || history.state?._modalImagenes || history.state?._previewNegocio) return;
       chatHistoryRef.current = false;
       chatHandlerRef.current = null;
       volverALista();
@@ -451,6 +500,90 @@ export function ChatOverlay() {
       chatHandlerRef.current = null;
     };
   }, [conversacionActivaId, volverALista]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Flecha nativa → cerrar visor de imágenes (tercera capa)
+  // Push al abrir visor, cleanup al cerrar (por cualquier vía: X, botón back)
+  // ---------------------------------------------------------------------------
+  const visorHistoryRef = useRef(false);
+  const visorHandlerRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (!visorAbierto) {
+      // Visor se cerró por otra vía (X, Escape, etc.) → limpiar entrada fantasma
+      if (visorHistoryRef.current) {
+        visorHistoryRef.current = false;
+        if (visorHandlerRef.current) {
+          window.removeEventListener('popstate', visorHandlerRef.current);
+          visorHandlerRef.current = null;
+        }
+        history.back();
+      }
+      return;
+    }
+
+    if (!visorHistoryRef.current) {
+      window.history.pushState({ visorImagenes: true }, '');
+      visorHistoryRef.current = true;
+    }
+
+    const handlePopStateVisor = () => {
+      if (!visorHistoryRef.current) return;
+      if (history.state?.visorImagenes) return;
+      visorHistoryRef.current = false;
+      visorHandlerRef.current = null;
+      setVisorAbierto(false);
+    };
+
+    visorHandlerRef.current = handlePopStateVisor;
+    window.addEventListener('popstate', handlePopStateVisor);
+    return () => {
+      window.removeEventListener('popstate', handlePopStateVisor);
+      visorHandlerRef.current = null;
+    };
+  }, [visorAbierto, setVisorAbierto]);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Flecha nativa → cerrar panel info contacto (cuarta capa)
+  // Push al abrir panel, cleanup al cerrar (por cualquier vía: X, botón back)
+  // ---------------------------------------------------------------------------
+  const panelHistoryRef = useRef(false);
+  const panelHandlerRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (!panelInfoAbierto) {
+      if (panelHistoryRef.current) {
+        panelHistoryRef.current = false;
+        if (panelHandlerRef.current) {
+          window.removeEventListener('popstate', panelHandlerRef.current);
+          panelHandlerRef.current = null;
+        }
+        history.back();
+      }
+      return;
+    }
+
+    if (!panelHistoryRef.current) {
+      window.history.pushState({ panelInfo: true }, '');
+      panelHistoryRef.current = true;
+    }
+
+    const handlePopStatePanel = () => {
+      if (!panelHistoryRef.current) return;
+      // Si el state actual pertenece al visor (capa superior), no cerrar el panel
+      if (history.state?.panelInfo || history.state?.visorImagenes || history.state?._vistaPerfilChat || history.state?._modalBottom || history.state?._modalImagenes || history.state?._previewNegocio) return;
+      panelHistoryRef.current = false;
+      panelHandlerRef.current = null;
+      setPanelInfoAbierto(false);
+    };
+
+    panelHandlerRef.current = handlePopStatePanel;
+    window.addEventListener('popstate', handlePopStatePanel);
+    return () => {
+      window.removeEventListener('popstate', handlePopStatePanel);
+      panelHandlerRef.current = null;
+    };
+  }, [panelInfoAbierto, setPanelInfoAbierto]);
 
   // ---------------------------------------------------------------------------
   // No renderizar si nunca se ha abierto (optimización: no montar al inicio)
@@ -474,6 +607,7 @@ export function ChatOverlay() {
   const ventanaChatMontada = seAbrioChatRef.current;
 
   return (
+    <>
     <div className={!chatYAAbierto ? 'hidden' : ''}>
       {/* Sin overlay oscuro en móvil — el chat es fullscreen */}
 
@@ -491,7 +625,7 @@ export function ChatOverlay() {
       <div
         ref={panelRef}
         className={`
-          fixed bg-black lg:bg-white overflow-hidden flex
+          fixed bg-black lg:bg-blue-100 overflow-hidden flex
           ${esDesktop
             ? `z-41 top-[83px] bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
             : `z-50 top-0 left-0 w-full h-dvh flex-col`
@@ -667,6 +801,13 @@ export function ChatOverlay() {
               <div className={enChat ? 'hidden' : 'flex-1 flex flex-col'}>
                 {/* Estado vacío: ningún chat seleccionado */}
                 <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden bg-linear-to-br from-blue-200/80 via-indigo-200/60 to-sky-200/70">
+                  {/* Botón cerrar ChatYA — esquina superior derecha */}
+                  <button
+                    onClick={cerrarChatYA}
+                    className="absolute top-3 right-3 z-10 w-9 h-9 rounded-lg hover:bg-white/40 flex items-center justify-center text-gray-400 hover:text-red-400 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                   {/* Burbujas decorativas animadas */}
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute top-[15%] left-[12%] w-20 h-20 bg-blue-300/70 rounded-full animate-[float_6s_ease-in-out_infinite]" />
@@ -706,6 +847,9 @@ export function ChatOverlay() {
         )}
       </div>
     </div>
+
+
+    </>
   );
 }
 

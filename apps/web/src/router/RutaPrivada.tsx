@@ -68,11 +68,12 @@ export function RutaPrivada({ children }: RutaPrivadaProps) {
             navigate('/scanya/login', { replace: true });
           } else {
             // Rutas AnunciaYA → Redirigir a landing
-            // Solo guardar ruta pendiente si NO fue logout reciente
+            // Solo guardar ruta pendiente si NO fue logout reciente.
+            // IMPORTANTE: NO eliminar el flag aquí — este useEffect puede correr
+            // varias veces por re-renders. El flag se elimina en loginExitoso,
+            // cuando el usuario se autentica exitosamente.
             const fueLogoutReciente = sessionStorage.getItem('ay_logout_reciente');
-            if (fueLogoutReciente) {
-              sessionStorage.removeItem('ay_logout_reciente');
-            } else {
+            if (!fueLogoutReciente) {
               sessionStorage.setItem('ay_ruta_pendiente', location.pathname);
             }
             navigate('/', { replace: true });

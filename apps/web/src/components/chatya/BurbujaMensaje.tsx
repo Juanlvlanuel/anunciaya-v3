@@ -15,13 +15,15 @@
 
 import { memo, useRef, useCallback, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, CheckCheck, Store, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Forward } from 'lucide-react';
+import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic } from 'lucide-react';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import L from 'leaflet';
 import type { Mensaje, ContenidoImagen } from '../../types/chatya';
 import { SelectorEmojis } from './SelectorEmojis';
 import { EmojiNoto } from './EmojiNoto';
 import { TextoConEmojis } from './TextoConEmojis';
 import { analizarEmojis, tamañoEmojiSolo } from './emojiUtils';
-
+import { Howl, Howler } from 'howler';
 // =============================================================================
 // CONSTANTES
 // =============================================================================
@@ -32,9 +34,99 @@ const LONG_PRESS_MS = 300;
 /** Emojis rápidos para reaccionar */
 const EMOJIS_RAPIDOS = ['👍', '❤️', '😂', '😮', '😢'];
 
+// ── Swipe-to-reply (solo móvil) ──────────────────────────────────────────────
+/** Distancia mínima de movimiento para decidir si es swipe o scroll (px) */
+const SWIPE_DECISION_PX = 10;
+/** Distancia mínima para activar respuesta (px) */
+const SWIPE_THRESHOLD = 65;
+/** Desplazamiento máximo permitido (px) */
+const SWIPE_MAX = 100;
+
 // =============================================================================
 // TIPOS
 // =============================================================================
+
+// =============================================================================
+// COMPONENTE: UbicacionBurbuja
+// =============================================================================
+
+/** Estructura del JSON que viene en mensaje.contenido para tipo 'ubicacion' */
+interface ContenidoUbicacion {
+  latitud: number;
+  longitud: number;
+  direccion: string;
+}
+
+function parsearContenidoUbicacion(raw: string): ContenidoUbicacion | null {
+  try {
+    const datos = JSON.parse(raw);
+    if (typeof datos.latitud === 'number' && typeof datos.longitud === 'number') {
+      return datos as ContenidoUbicacion;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Pin para la burbuja de ubicación
+const iconoPinBurbuja = L.divIcon({
+  className: '',
+  html: `<div style="
+    width:28px;height:28px;
+    background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+    border-radius:50%;border:2.5px solid white;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 8px rgba(37,99,235,0.5)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+    </svg>
+  </div>`,
+  iconAnchor: [14, 28],
+  iconSize: [28, 28],
+});
+
+function UbicacionBurbuja({
+  contenidoRaw,
+}: {
+  contenidoRaw: string;
+}) {
+  const datos = parsearContenidoUbicacion(contenidoRaw);
+  if (!datos) return null;
+
+  const { latitud, longitud } = datos;
+  const googleMapsUrl = `https://www.google.com/maps?q=${latitud},${longitud}`;
+  const posicion: [number, number] = [latitud, longitud];
+
+  return (
+    <a
+      href={googleMapsUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="block overflow-hidden rounded-[10px] active:opacity-80 transition-opacity pointer-events-auto"
+      style={{ width: 260, height: 160 }}
+    >
+      <div className="w-full h-full pointer-events-none">
+        <MapContainer
+          center={posicion}
+          zoom={16}
+          style={{ height: '100%', width: '100%' }}
+          zoomControl={false}
+          dragging={false}
+          scrollWheelZoom={false}
+          doubleClickZoom={false}
+          touchZoom={false}
+          keyboard={false}
+          attributionControl={false}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <Marker position={posicion} icon={iconoPinBurbuja} />
+        </MapContainer>
+      </div>
+    </a>
+  );
+}
 
 interface BurbujaMensajeProps {
   mensaje: Mensaje;
@@ -54,6 +146,14 @@ interface BurbujaMensajeProps {
   onImagenClick?: (mensajeId: string) => void;
   /** Callback al hacer click en botón reenviar (imagen/documento) */
   onReenviar?: (mensaje: Mensaje) => void;
+  /** Callback al hacer click en la cita de respuesta para navegar al mensaje original */
+  onCitaClick?: (mensajeId: string) => void;
+  /** Callback al hacer swipe-to-reply (solo móvil) */
+  onResponder?: (mensaje: Mensaje) => void;
+  /** URL del avatar del emisor (para audio estilo WhatsApp) */
+  avatarEmisor?: string | null;
+  /** Iniciales del emisor (fallback cuando no hay avatar, para audio) */
+  inicialesEmisor?: string;
 }
 
 // =============================================================================
@@ -122,7 +222,7 @@ function ImagenBurbuja({
   }
 
   // Calcular dimensiones del contenedor (max 280px ancho en móvil, 320px en desktop)
-  const maxAncho = 280;
+  const maxAncho = 240;
   const ratio = Math.min(maxAncho / datos.ancho, 1);
   const anchoFinal = Math.round(datos.ancho * ratio);
   const altoFinal = Math.round(datos.alto * ratio);
@@ -257,7 +357,7 @@ function DocumentoBurbuja({
   return (
     <div
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer min-w-[200px] max-w-[280px] ${
-        esMio ? 'bg-white/10 hover:bg-white/15' : 'bg-gray-50 hover:bg-gray-100'
+        esMio ? 'bg-white/10 hover:bg-white/15' : 'hover:bg-white/10'
       }`}
       onClick={handleDescargar}
     >
@@ -268,16 +368,408 @@ function DocumentoBurbuja({
 
       {/* Nombre + tamaño */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${esMio ? 'text-white' : 'text-gray-800'}`}>
+        <p className={`text-sm font-medium truncate ${esMio ? 'text-white' : 'text-white/90'}`}>
           {datos.nombre}
         </p>
-        <p className={`text-xs ${esMio ? 'text-white/60' : 'text-gray-500'}`}>
+        <p className={`text-xs ${esMio ? 'text-white/60' : 'text-white/55'}`}>
           {formatearTamanoDoc(datos.tamano)} · {datos.extension.toUpperCase()}
         </p>
       </div>
 
       {/* Icono descarga */}
-      <Download className={`w-4 h-4 shrink-0 ${esMio ? 'text-white/60' : 'text-gray-400'}`} />
+      <Download className={`w-4 h-4 shrink-0 ${esMio ? 'text-white/60' : 'text-white/50'}`} />
+    </div>
+  );
+}
+
+// =============================================================================
+// AUDIO: Parser + Burbuja (Sprint 6)
+// =============================================================================
+
+/** Estructura del JSON que viene en mensaje.contenido para tipo 'audio' */
+interface ContenidoAudio {
+  url: string;
+  duracion: number;    // Segundos (ej: 12.5)
+  tamano: number;      // Bytes
+  waveform?: number[]; // ~50 valores 0-1 para la onda visual
+}
+
+/**
+ * Parsea el campo `contenido` de un mensaje tipo 'audio'.
+ */
+function parsearContenidoAudio(contenidoRaw: string): ContenidoAudio | null {
+  try {
+    const datos = JSON.parse(contenidoRaw);
+    if (datos && datos.url && typeof datos.duracion === 'number') {
+      return datos as ContenidoAudio;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Formatea segundos a mm:ss (ej: 72.3 → "1:12") */
+function formatearDuracionAudio(segundos: number): string {
+  const min = Math.floor(segundos / 60);
+  const seg = Math.floor(segundos % 60);
+  return `${min}:${seg.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Componente interno para renderizar audio estilo WhatsApp.
+ * Layout según emisor:
+ *   - esMio:   Avatar → Play → Waveform+hora
+ *   - !esMio:  Play → Waveform+hora → Avatar
+ */
+function AudioBurbuja({
+  contenidoRaw,
+  esMio,
+  avatarUrl,
+  iniciales,
+  hora,
+  editado,
+  estado,
+  esMisNotas,
+}: {
+  contenidoRaw: string;
+  esMio: boolean;
+  avatarUrl?: string | null;
+  iniciales: string;
+  hora: string;
+  editado: boolean;
+  estado: 'enviado' | 'entregado' | 'leido' | 'fallido';
+  esMisNotas?: boolean;
+}) {
+  const datos = parsearContenidoAudio(contenidoRaw);
+  const [reproduciendo, setReproduciendo] = useState(false);
+  const [progreso, setProgreso] = useState(0);
+  const [tiempoActual, setTiempoActual] = useState(0);
+  const [arrastrando, setArrastrando] = useState(false);
+  const [velocidad, setVelocidad] = useState(1);
+  const arrastrandoRef = useRef(false);
+  const estabaReproduciendoRef = useRef(false);
+  const audioRef = useRef<Howl | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const waveformContainerRef = useRef<HTMLDivElement>(null);
+
+  if (!datos) {
+    return (
+      <div className="flex items-center gap-2 text-sm opacity-60 py-2">
+        <Mic className="w-4 h-4" />
+        <span>Audio no disponible</span>
+      </div>
+    );
+  }
+
+  const waveform = datos.waveform && datos.waveform.length > 0
+    ? datos.waveform
+    : new Array(40).fill(0.3);
+
+  const actualizarProgreso = () => {
+    const sound = audioRef.current;
+    if (!sound) return;
+    if (!arrastrandoRef.current) {
+      const seekVal = sound.seek();
+      const seek = typeof seekVal === 'number' && isFinite(seekVal) ? seekVal : 0;
+      const rawDur = sound.duration();
+      const dur = (typeof rawDur === 'number' && isFinite(rawDur) && rawDur > 0) ? rawDur : datos.duracion;
+      if (dur > 0) {
+        setTiempoActual(seek);
+        setProgreso(seek / dur);
+      }
+    }
+    // Mantener el loop vivo mientras el sonido exista y esté reproduciéndose
+    if (sound.playing()) {
+      rafRef.current = requestAnimationFrame(actualizarProgreso);
+    }
+  };
+
+  const togglePlay = () => {
+    if (!audioRef.current) {
+      // Pre-calentar AudioContext antes de crear el Howl (evita beep inicial)
+      if (Howler.ctx && Howler.ctx.state === 'suspended') {
+        Howler.ctx.resume();
+      }
+
+      const sound = new Howl({
+        src: [datos.url],
+        format: ['webm', 'ogg', 'mp3', 'wav'],
+        volume: 0,
+        onload: () => {
+          // Audio decodificado y AudioContext listo — ahora sí reproducir
+          if (tiempoActual > 0) {
+            sound.seek(tiempoActual);
+          }
+          sound.play();
+        },
+        onplay: () => {
+          setReproduciendo(true);
+          if (sound.volume() === 0) {
+            sound.fade(0, 1, 150);
+          }
+          rafRef.current = requestAnimationFrame(actualizarProgreso);
+        },
+        onpause: () => {
+          setReproduciendo(false);
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        },
+        onend: () => {
+          setReproduciendo(false);
+          setProgreso(0);
+          setTiempoActual(0);
+          setVelocidad(1);
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          audioRef.current?.unload();
+          audioRef.current = null;
+        },
+        onloaderror: (_id: number, err: unknown) => {
+          console.error('[Howler] Error cargando audio:', err);
+          setReproduciendo(false);
+          audioRef.current = null;
+        },
+        onplayerror: () => {
+          setReproduciendo(false);
+          sound.once('unlock', () => sound.play());
+        },
+      });
+      audioRef.current = sound;
+      return;
+    }
+
+    if (reproduciendo) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+  };
+
+  // Cleanup: detener audio al desmontar (cambio de chat, etc.)
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.unload();
+        audioRef.current = null;
+      }
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const calcularProgresoDesdeEvento = (clientX: number): number => {
+    if (!waveformContainerRef.current) return 0;
+    const rect = waveformContainerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    return x / rect.width;
+  };
+
+  const aplicarSeek = (nuevoProgreso: number) => {
+    setProgreso(nuevoProgreso);
+    if (audioRef.current) {
+      const rawDur = audioRef.current.duration();
+      const dur = (typeof rawDur === 'number' && isFinite(rawDur) && rawDur > 0) ? rawDur : datos.duracion;
+      const nuevoTiempo = nuevoProgreso * dur;
+      audioRef.current.seek(nuevoTiempo);
+      setTiempoActual(nuevoTiempo);
+    } else {
+      setTiempoActual(nuevoProgreso * datos.duracion);
+    }
+  };
+
+  // ── POINTER EVENTS (unificado mouse + touch) ──
+  // Pointer Events NO son passive en React 18 → preventDefault() SÍ funciona.
+  // setPointerCapture() amarra todos los eventos al elemento aunque el dedo
+  // se mueva fuera del waveform → no necesita listeners en document.
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Capturar el pointer: todos los pointermove/pointerup van a ESTE elemento
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    setArrastrando(true);
+    arrastrandoRef.current = true;
+
+    if (audioRef.current && audioRef.current.playing()) {
+      estabaReproduciendoRef.current = true;
+      audioRef.current.pause();
+    } else {
+      estabaReproduciendoRef.current = false;
+    }
+
+    aplicarSeek(calcularProgresoDesdeEvento(e.clientX));
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!arrastrandoRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    aplicarSeek(calcularProgresoDesdeEvento(e.clientX));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!arrastrandoRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    setArrastrando(false);
+    arrastrandoRef.current = false;
+    aplicarSeek(calcularProgresoDesdeEvento(e.clientX));
+
+    // Reanudar reproducción si estaba sonando antes del drag
+    if (audioRef.current && estabaReproduciendoRef.current) {
+      audioRef.current.volume(0);
+      audioRef.current.play();
+      audioRef.current.fade(0, 1, 50);
+      rafRef.current = requestAnimationFrame(actualizarProgreso);
+    }
+  };
+
+  const ciclarVelocidad = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const siguiente = velocidad === 1 ? 1.5 : velocidad === 1.5 ? 2 : 1;
+    setVelocidad(siguiente);
+    if (audioRef.current) {
+      audioRef.current.rate(siguiente);
+    }
+  };
+
+  const duracionMostrada = reproduciendo || tiempoActual > 0
+    ? formatearDuracionAudio(tiempoActual)
+    : formatearDuracionAudio(datos.duracion);
+
+  // Posición del punto de seek clampeada (no se sale del contenedor)
+  const thumbLeft = Math.max(0, Math.min(progreso * 100, 97));
+
+  // ── Piezas reutilizables ──
+
+  const velocidadLabel = velocidad === 1 ? '1' : velocidad === 1.5 ? '1.5' : '2';
+
+  const avatarEl = reproduciendo ? (
+    <button
+      onClick={ciclarVelocidad}
+      className={`w-12 h-12 rounded-full shrink-0 flex items-center justify-center cursor-pointer active:scale-95 overflow-visible ${
+        esMio ? 'bg-white/25 hover:bg-white/35' : 'bg-blue-100 hover:bg-blue-200'
+      }`}
+    >
+      <span className={`font-bold select-none ${
+        esMio ? 'text-white' : 'text-blue-600'
+      } ${velocidad === 1.5 ? 'text-sm' : 'text-base'}`}>
+        {velocidadLabel}
+        <span className="text-[10px]">×</span>
+      </span>
+    </button>
+  ) : (
+    <div className={`w-12 h-12 rounded-full shrink-0 flex items-center justify-center overflow-hidden ${
+      esMio ? 'bg-white/25' : 'bg-blue-100'
+    }`}>
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+      ) : (
+        <span className={`text-base font-bold select-none ${esMio ? 'text-white/80' : 'text-blue-500'}`}>
+          {iniciales}
+        </span>
+      )}
+    </div>
+  );
+
+  const playBtnEl = (
+    <button
+      onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+      data-no-swipe
+      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 cursor-pointer active:scale-95 ${
+        esMio ? 'hover:bg-white/20' : 'hover:bg-blue-200'
+      }`}
+    >
+      {reproduciendo ? (
+        <Pause className={`w-5 h-5 lg:w-4 lg:h-4 ${esMio ? 'text-white' : 'text-blue-600'}`} fill={esMio ? 'white' : 'currentColor'} />
+      ) : (
+        <Play className={`w-5 h-5 lg:w-4 lg:h-4 ${esMio ? 'text-white' : 'text-blue-600'}`} fill={esMio ? 'white' : 'currentColor'} />
+      )}
+    </button>
+  );
+
+  const waveformEl = (
+    <div className="flex-1 min-w-0">
+      {/* Waveform con punto arrastrable */}
+      <div
+        ref={waveformContainerRef}
+        className="relative h-8 cursor-pointer select-none translate-y-1.5"
+        style={{ touchAction: 'none' }}
+        data-no-swipe
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <div className="flex items-center gap-0.5 h-full overflow-hidden">
+          {waveform.map((valor, i) => {
+            const barraProgreso = i / waveform.length;
+            const activa = barraProgreso <= progreso;
+            const altura = Math.max(12, valor * 100);
+
+            return (
+              <div
+                key={i}
+                className={`rounded-full pointer-events-none ${
+                  activa
+                    ? esMio ? 'bg-white' : 'bg-blue-500'
+                    : esMio ? 'bg-white/30' : 'bg-gray-300'
+                }`}
+                style={{
+                  width: '2.5px',
+                  height: `${altura}%`,
+                  minHeight: '3px',
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Punto grande arrastrable (seek thumb) */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 pointer-events-none z-10"
+          style={{ left: `${thumbLeft}%` }}
+        >
+          <div className={`w-3.5 h-3.5 rounded-full shadow-md -ml-1.5 ${
+            esMio ? 'bg-white' : 'bg-blue-500'
+          } ${arrastrando ? 'scale-125' : ''}`} />
+        </div>
+      </div>
+
+      {/* Duración (izq) + hora y palomitas (der) */}
+      <div className="flex items-center justify-between translate-y-2">
+        <span className={`text-[11px] tabular-nums ${
+          esMio ? 'text-white/60' : 'text-white/55'
+        }`}>
+          {duracionMostrada}
+        </span>
+        <span className={`inline-flex items-center gap-0.5 text-[11px] lg:text-[11px] ${esMio ? 'text-white/60' : 'text-white/55'}`}>
+          {editado && <span className="italic">editado</span>}
+          <span>{hora}</span>
+          {esMio && !esMisNotas && <Palomitas estado={estado} />}
+        </span>
+      </div>
+    </div>
+  );
+
+  // ── Layout según emisor ──
+  return (
+    <div className="flex items-center gap-2 w-full max-w-[280px] lg:max-w-80 py-0" style={{ paddingTop: '2px', paddingBottom: '2px' }}>
+      {esMio ? (
+        <>
+          {avatarEl}
+          {playBtnEl}
+          {waveformEl}
+        </>
+      ) : (
+        <>
+          {playBtnEl}
+          {waveformEl}
+          {avatarEl}
+        </>
+      )}
     </div>
   );
 }
@@ -286,9 +778,8 @@ function DocumentoBurbuja({
 // COMPONENTE
 // =============================================================================
 
-export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId, miId, onImagenClick, onReenviar }: BurbujaMensajeProps) {
+export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId, miId, onImagenClick, onReenviar, onCitaClick, onResponder, avatarEmisor, inicialesEmisor }: BurbujaMensajeProps) {
   const hora = formatearHora(mensaje.createdAt);
-  const esNegocio = !esMisNotas && !!mensaje.emisorSucursalId;
   const esFallido = mensaje.estado === 'fallido';
 
   // Detectar si el mensaje es solo emojis (para renderizar sin burbuja)
@@ -316,6 +807,23 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
   const [pickerDireccion, setPickerDireccion] = useState<'arriba' | 'abajo'>('arriba');
   const emojiCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const quickPickerRef = useRef<HTMLDivElement>(null);
+
+  // ── Swipe-to-reply state (solo móvil) ──
+  /** Desplazamiento actual en px durante el swipe */
+  const [swipeX, setSwipeX] = useState(0);
+  /** true mientras la burbuja regresa a su posición (animación spring-back) */
+  const [swipeReturning, setSwipeReturning] = useState(false);
+  const swipeStartXRef = useRef(0);
+  const swipeStartYRef = useRef(0);
+  /** true cuando el gesto fue identificado como swipe horizontal */
+  const swipingRef = useRef(false);
+  /** true cuando ya se decidió si es swipe o scroll (evita re-evaluar) */
+  const swipeDecidedRef = useRef(false);
+  /** Valor previo para detectar cruce del umbral (vibración háptica) */
+  const swipePrevXRef = useRef(0);
+  /** Timer para limpiar swipeReturning */
+  const swipeReturnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swipeTouchIniciadoRef = useRef(false);
 
   /** Cierra el picker rápido con animación funnel */
   const cerrarEmojiPicker = useCallback(() => {
@@ -368,6 +876,24 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
   const longPressFiredRef = useRef(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // ── Si el toque viene del waveform de audio, no iniciar swipe-to-reply ──
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-no-swipe]')) {
+      swipeTouchIniciadoRef.current = false;
+      return;
+    }
+
+    // ── Swipe-to-reply: registrar posición inicial ──
+    swipeTouchIniciadoRef.current = true;
+    swipeStartXRef.current = e.touches[0].clientX;
+    swipeStartYRef.current = e.touches[0].clientY;
+    swipingRef.current = false;
+    swipeDecidedRef.current = false;
+    swipePrevXRef.current = 0;
+    if (swipeReturnTimerRef.current) clearTimeout(swipeReturnTimerRef.current);
+    setSwipeReturning(false);
+
+    // ── Long press (lógica existente) ──
     if (!onMenuContextual) return;
     touchMovedRef.current = false;
     longPressFiredRef.current = false;
@@ -381,20 +907,84 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
     }, LONG_PRESS_MS);
   }, [mensaje, onMenuContextual]);
 
-  const handleTouchMove = useCallback(() => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!swipeTouchIniciadoRef.current) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - swipeStartXRef.current;
+    const deltaY = touch.clientY - swipeStartYRef.current;
+
+    // ── Fase de decisión: ¿swipe horizontal o scroll vertical? ──
+    if (!swipeDecidedRef.current) {
+      const absDx = Math.abs(deltaX);
+      const absDy = Math.abs(deltaY);
+
+      if (absDx >= SWIPE_DECISION_PX || absDy >= SWIPE_DECISION_PX) {
+        swipeDecidedRef.current = true;
+
+        if (absDx > absDy && deltaX > 0 && onResponder && !mensaje.eliminado && !esMisNotas) {
+          // → Swipe horizontal a la derecha detectado
+          swipingRef.current = true;
+        } else {
+          // → Scroll vertical (o swipe izquierdo) — no hacer nada especial
+          swipingRef.current = false;
+        }
+
+        // En ambos casos: cancelar long press
+        touchMovedRef.current = true;
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      }
+      return;
+    }
+
+    // ── Modo swipe activo: mover la burbuja ──
+    if (swipingRef.current) {
+      const prevX = swipePrevXRef.current;
+      const clampedX = Math.min(Math.max(deltaX, 0), SWIPE_MAX);
+      swipePrevXRef.current = clampedX;
+      setSwipeX(clampedX);
+
+      // Vibración háptica al cruzar el umbral (solo una vez)
+      if (clampedX >= SWIPE_THRESHOLD && prevX < SWIPE_THRESHOLD) {
+        if (navigator.vibrate) navigator.vibrate(25);
+      }
+      return;
+    }
+
+    // ── No es swipe: cancelar long press si el dedo se mueve (lógica existente) ──
     touchMovedRef.current = true;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-  }, []);
+  }, [mensaje.eliminado, esMisNotas, onResponder]);
 
   const handleTouchEnd = useCallback(() => {
+    // Limpiar long press timer
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-  }, []);
+
+    // ── Swipe-to-reply: evaluar resultado ──
+    if (swipingRef.current) {
+      if (swipePrevXRef.current >= SWIPE_THRESHOLD && onResponder) {
+        onResponder(mensaje);
+      }
+      // Spring-back: regresar burbuja a su posición
+      setSwipeReturning(true);
+      setSwipeX(0);
+      swipeReturnTimerRef.current = setTimeout(() => setSwipeReturning(false), 220);
+    }
+
+    // Reset refs
+    swipingRef.current = false;
+    swipeDecidedRef.current = false;
+    swipePrevXRef.current = 0;
+    swipeTouchIniciadoRef.current = false;
+  }, [mensaje, onResponder]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     if (!onMenuContextual) return;
@@ -414,7 +1004,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
 
   return (
     <div
-      className={`group flex select-none lg:select-auto ${esMio ? 'justify-end' : 'justify-start'}`}
+      className={`group relative flex select-none lg:select-auto ${esMio ? 'justify-end' : 'justify-start'}`}
       onMouseLeave={() => {
         if (emojiPickerAbierto && !emojiPickerSaliendo) {
           emojiCloseTimerRef.current = setTimeout(() => cerrarEmojiPicker(), 400);
@@ -427,28 +1017,56 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
         }
       }}
     >
-      <div className={`relative max-w-[84%] select-none lg:select-text`}>
+      {/* Ícono Reply — visible solo durante swipe-to-reply (móvil) */}
+      {swipeX > 0 && (
+        <div
+          className="absolute left-3 top-1/2 z-20 pointer-events-none"
+          style={{
+            opacity: Math.min(swipeX / SWIPE_THRESHOLD, 1),
+            transform: `translateY(-50%) scale(${Math.min(swipeX / SWIPE_THRESHOLD, 1)})`,
+          }}
+        >
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm ${
+            swipeX >= SWIPE_THRESHOLD ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+          }`}>
+            <Reply className="w-4 h-4 scale-x-[-1]" />
+          </div>
+        </div>
+      )}
+
+      <div
+        className={`relative max-w-[84%] select-none lg:select-text`}
+        style={{
+          transform: swipeX > 0 ? `translateX(${swipeX}px)` : undefined,
+          transition: swipeReturning ? 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)' : 'none',
+        }}
+      >
+
         {/* Wrapper relativo solo para burbuja + botón emoji (centrado ignora reacciones) */}
         <div className="relative">
           {/* Botón reenviar siempre visible (solo multimedia, desktop, no Mis Notas) */}
-          {!mensaje.eliminado && !esMisNotas && onReenviar && (mensaje.tipo === 'imagen' || mensaje.tipo === 'documento') && (
-            <div className={`absolute top-1/2 -translate-y-1/2 z-10 flex ${esMio ? '-left-9' : '-right-9'}`}>
+          {!mensaje.eliminado && !esMisNotas && onReenviar && (mensaje.tipo === 'imagen' || mensaje.tipo === 'documento' || mensaje.tipo === 'audio' || mensaje.tipo === 'ubicacion') && (
+            <div className={`absolute top-1/2 -translate-y-1/2 z-10 flex ${esMio ? '-left-8' : '-right-8'}`}>
               <button
                 onClick={(e) => { e.stopPropagation(); onReenviar(mensaje); }}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-200 cursor-pointer [&:hover_svg]:text-gray-900"
               >
-                <Forward className="w-[18px] h-[18px]" />
+                <span className="w-9 h-9 lg:w-7 lg:h-7 block opacity-50 lg:opacity-100">
+                  <svg width="100%" height="100%" viewBox="0 0 24 24" fill="currentColor" className="text-white lg:text-gray-400">
+                    <path d="M13 9V5.8L18.2 11 13 16.2V13H11c-3.3 0-5.6 1-7.3 3.2C4.3 13 6.5 9 13 9z"/>
+                  </svg>
+                </span>
               </button>
             </div>
           )}
 
           {/* Botón emoji hover (solo desktop, no eliminados, no Mis Notas) */}
           {!mensaje.eliminado && !esMisNotas && onReaccionar && (() => {
-            const tieneReenviarVisible = (mensaje.tipo === 'imagen' || mensaje.tipo === 'documento') && !!onReenviar;
+            const tieneReenviarVisible = (mensaje.tipo === 'imagen' || mensaje.tipo === 'documento' || mensaje.tipo === 'audio' || mensaje.tipo === 'ubicacion') && !!onReenviar;
             // Si hay botón reenviar visible, el emoji se posiciona más afuera
             const offset = esMio
-              ? (tieneReenviarVisible ? '-left-[68px]' : '-left-9')
-              : (tieneReenviarVisible ? '-right-[68px]' : '-right-9');
+              ? (tieneReenviarVisible ? '-left-[60px]' : '-left-7')
+              : (tieneReenviarVisible ? '-right-[60px]' : '-right-7');
 
             return (
               <div className={`absolute top-1/2 -translate-y-1/2 z-10 ${emojiPickerAbierto || pickerCompletoAbierto || pickerCompletoSaliendo ? 'flex' : 'hidden lg:group-hover:flex'} ${offset}`}>
@@ -474,7 +1092,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                         setEmojiPickerAbierto(true);
                       }
                     }}
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-200 cursor-pointer"
                   >
                     <SmilePlus className="w-[18px] h-[18px]" />
                   </button>
@@ -577,10 +1195,10 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
             className={`
           ${esSoloEmojis
                 ? 'relative'
-                : `${mensaje.tipo === 'imagen' ? 'p-1' : 'px-2.5 py-1.5'} rounded-[14px] relative
+                : `${mensaje.tipo === 'imagen' || mensaje.tipo === 'ubicacion' ? 'p-1' : 'px-2.5 py-1.5'} rounded-[14px] relative
           ${esMio
-                  ? 'bg-linear-to-br from-[#3b82f6] to-[#1d4ed8] text-white rounded-br-[5px] shadow-[0_2px_8px_rgba(37,99,235,0.25)]'
-                  : 'bg-white text-gray-800 rounded-bl-[5px] shadow-[0_1px_4px_rgba(15,29,58,0.08)] border border-gray-100'
+                  ? 'bg-linear-to-br from-[#2563eb] to-[#1d4ed8] text-white rounded-br-[5px] shadow-[0_2px_8px_rgba(37,99,235,0.25)]'
+                  : 'bg-[linear-gradient(135deg,#081540,#040d28)] lg:bg-[linear-gradient(135deg,#0f2a6b,#0a1d4e)] text-white rounded-bl-[5px] shadow-[0_2px_8px_rgba(10,25,80,0.4)]'
                 }`
               }
           ${resaltado ? 'ring-2 ring-blue-400 animate-[resaltadoPulso_0.8s_ease-in-out_2]' : ''}
@@ -597,77 +1215,94 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                   const rect = e.currentTarget.getBoundingClientRect();
                   onMenuContextual(mensaje, { x: esMio ? rect.right - 192 : rect.left, y: rect.bottom + 4 });
                 }}
-                className={`absolute top-0.5 right-0.5 z-10 flex w-6 h-5 items-center justify-center rounded cursor-pointer opacity-0 lg:group-hover:opacity-100 ${esSoloEmojis
-                  ? 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
-                  : esMio ? 'hover:bg-white/20 text-white/70 hover:text-white' : 'hover:bg-gray-100 text-gray-300 hover:text-gray-500'
+                className={`absolute top-0.5 right-0.5 flex w-6 h-5 items-center justify-center rounded cursor-pointer opacity-0 lg:group-hover:opacity-100 ${mensaje.tipo === 'ubicacion' || mensaje.tipo === 'imagen'
+                  ? 'z-1000 bg-black/40 text-white hover:bg-black/60'
+                  : esSoloEmojis
+                    ? 'z-50 hover:bg-gray-200 text-gray-700 hover:text-gray-700'
+                    : `z-50 ${esMio ? 'hover:bg-white/20 text-white/70 hover:text-white' : 'hover:bg-white/20 text-white/70 hover:text-white'}`
                   }`}
               >
                 <ChevronDown className="w-4 h-4" />
               </button>
             )}
 
-            {/* Tag de negocio (solo mensajes del otro que es negocio) */}
-            {!esMio && esNegocio && (
-              <div className="flex items-center gap-1 mb-0.5">
-                <Store className="w-3.5 lg:w-3 h-3.5 lg:h-3 text-amber-500" />
-                <span className="text-xs lg:text-[10px] font-bold text-amber-500">Negocio</span>
-              </div>
-            )}
 
-            {/* Quote del mensaje respondido */}
+            {/* Quote del mensaje respondido (estilo WhatsApp) */}
             {mensaje.respuestaA && !mensaje.eliminado && (
               <div
                 className={`
-            mb-1.5 px-2.5 py-1.5 rounded-lg border-l-[3px] cursor-pointer
+            mb-1.5 rounded-lg border-l-[3px] cursor-pointer overflow-hidden flex items-stretch
             ${esMio
                     ? 'bg-white/15 border-l-white/60'
-                    : 'bg-gray-100 border-l-blue-400'
+                    : 'bg-[rgba(10,29,78,0.6)] border-l-blue-400'
                   }
           `}
                 onClick={() => {
-                  const el = document.getElementById(`msg-${mensaje.respuestaA!.id}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  if (onCitaClick && mensaje.respuestaA!.id) {
+                    onCitaClick(mensaje.respuestaA!.id);
+                  } else {
+                    const el = document.getElementById(`msg-${mensaje.respuestaA!.id}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
                 }}
               >
-                <p className={`text-[13px] font-bold ${esMio ? 'text-white/95' : 'text-blue-500'}`}>
-                  {mensaje.respuestaA.emisorId === mensaje.emisorId ? 'Tú' : 'Mensaje'}
-                </p>
-                <p className={`text-[14px] truncate ${esMio ? 'text-white/85' : 'text-gray-500'}`}>
-                  <TextoConEmojis texto={mensaje.respuestaA.contenido} tamañoEmoji={22} />
-                </p>
+                {/* Texto */}
+                <div className="flex-1 min-w-0 px-2.5 py-1.5">
+                  <p className={`text-[13px] font-bold ${esMio ? 'text-white/95' : 'text-blue-500'}`}>
+                    {mensaje.respuestaA.emisorId === mensaje.emisorId ? 'Tú' : 'Mensaje'}
+                  </p>
+                  <p className={`text-[13px] truncate mt-0.5 ${esMio ? 'text-white/75' : 'text-white/60'}`}>
+                    {mensaje.respuestaA.tipo === 'imagen' ? (() => {
+                      let d: { caption?: string } = {};
+                      try { d = JSON.parse(mensaje.respuestaA!.contenido); } catch { /* ignore */ }
+                      return <>📷 {d.caption || 'Foto'}</>;
+                    })() : mensaje.respuestaA.tipo === 'audio' ? (
+                      '🎤 Audio'
+                    ) : mensaje.respuestaA.tipo === 'documento' ? (
+                      '📄 Documento'
+                    ) : (
+                      <TextoConEmojis texto={mensaje.respuestaA.contenido} tamañoEmoji={18} />
+                    )}
+                  </p>
+                </div>
+                {/* Thumbnail a la derecha, sin padding, altura completa */}
+                {mensaje.respuestaA.tipo === 'imagen' && (() => {
+                  let d: { url?: string } = {};
+                  try { d = JSON.parse(mensaje.respuestaA!.contenido); } catch { /* ignore */ }
+                  return d.url ? (
+                    <img src={d.url} alt="" className="w-12 object-cover shrink-0" loading="lazy" />
+                  ) : null;
+                })()}
               </div>
             )}
 
             {/* Contenido de imagen (tipo === 'imagen') */}
             {mensaje.tipo === 'imagen' && !mensaje.eliminado && (
               <>
-                <ImagenBurbuja
-                  contenidoRaw={mensaje.contenido}
-                  esMio={esMio}
-                  onClick={() => onImagenClick?.(mensaje.id)}
-                />
-                {/* Hora flotante sobre imagen (sin caption) o debajo (con caption) */}
+                {/* Hora flotante dentro de la imagen — siempre, con o sin caption */}
                 {(() => {
                   const datos = parsearContenidoImagen(mensaje.contenido);
                   const tieneCaption = datos?.caption && datos.caption.trim().length > 0;
-                  if (tieneCaption) {
-                    return (
-                      <p className="text-[15px] lg:text-[14px] leading-relaxed wrap-break-word whitespace-pre-wrap font-medium mt-1">
-                        <TextoConEmojis texto={datos!.caption!} tamañoEmoji={26} />
-                        <span className={`inline-flex items-center gap-0.5 align-bottom ml-1.5 translate-y-[5px] text-[10px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-gray-500'}`}>
+                  return (
+                    <>
+                      <div className="relative">
+                        <ImagenBurbuja
+                          contenidoRaw={mensaje.contenido}
+                          esMio={esMio}
+                          onClick={() => onImagenClick?.(mensaje.id)}
+                        />
+                        <div className={`absolute bottom-1.5 right-2 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] lg:text-[11px] ${esMio ? 'bg-black/40 text-white/90' : 'bg-black/40 text-white/90'}`}>
                           {mensaje.editado && <span className="italic">editado</span>}
                           <span>{hora}</span>
                           {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
-                        </span>
-                      </p>
-                    );
-                  }
-                  return (
-                    <div className={`absolute bottom-1.5 right-2 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] lg:text-[11px] ${esMio ? 'bg-black/40 text-white/90' : 'bg-black/40 text-white/90'}`}>
-                      {mensaje.editado && <span className="italic">editado</span>}
-                      <span>{hora}</span>
-                      {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
-                    </div>
+                        </div>
+                      </div>
+                      {tieneCaption && (
+                        <p className="text-[15px] lg:text-[14px] leading-relaxed wrap-break-word whitespace-pre-wrap font-medium mt-1 pb-0.5 text-center">
+                          <TextoConEmojis texto={datos!.caption!} tamañoEmoji={26} />
+                        </p>
+                      )}
+                    </>
                   );
                 })()}
               </>
@@ -682,7 +1317,37 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                 />
                 {/* Hora debajo del documento */}
                 <div className={`flex ${esMio ? 'justify-end' : 'justify-start'} mt-0.5`}>
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-gray-500'}`}>
+                  <span className={`inline-flex items-center gap-0.5 text-[11px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-white/55'}`}>
+                    {mensaje.editado && <span className="italic">editado</span>}
+                    <span>{hora}</span>
+                    {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* Contenido de audio (tipo === 'audio') */}
+            {mensaje.tipo === 'audio' && !mensaje.eliminado && (
+              <AudioBurbuja
+                contenidoRaw={mensaje.contenido}
+                esMio={esMio}
+                avatarUrl={avatarEmisor}
+                iniciales={inicialesEmisor || '?'}
+                hora={hora}
+                editado={mensaje.editado}
+                estado={mensaje.estado}
+                esMisNotas={esMisNotas}
+              />
+            )}
+
+            {/* Contenido de ubicación (tipo === 'ubicacion') */}
+            {mensaje.tipo === 'ubicacion' && !mensaje.eliminado && (
+              <>
+                <UbicacionBurbuja
+                  contenidoRaw={mensaje.contenido}
+                />
+                <div className="flex justify-end mt-0.5 px-0.5">
+                  <span className={`inline-flex items-center gap-0.5 text-[11px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-white/55'}`}>
                     {mensaje.editado && <span className="italic">editado</span>}
                     <span>{hora}</span>
                     {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
@@ -692,17 +1357,17 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
             )}
 
             {/* Contenido + hora (texto normal) */}
-            {mensaje.tipo !== 'imagen' && mensaje.tipo !== 'documento' && (esSoloEmojis ? (
+            {mensaje.tipo !== 'imagen' && mensaje.tipo !== 'documento' && mensaje.tipo !== 'audio' && mensaje.tipo !== 'ubicacion' && (esSoloEmojis ? (
               <>
                 {/* Emojis grandes sin burbuja */}
-                <p className={`leading-none ${infoEmoji.cantidad === 1 ? 'py-1' : 'py-0.5'}`}>
+                <p className={`leading-none lg:pr-7 ${esMio ? 'text-right' : 'text-left'} ${infoEmoji.cantidad === 1 ? 'py-1' : 'py-0.5'}`}>
                   <TextoConEmojis texto={mensaje.contenido} tamañoEmoji={tamañoEmojiSolo(infoEmoji.cantidad)} />
                 </p>
                 {/* Hora dentro de burbuja */}
                 <div className={`flex ${esMio ? 'justify-end' : 'justify-start'}`}>
                   <span className={`inline-flex items-center gap-0.5 text-[11px] mt-1 px-2 py-0.5 rounded-full ${esMio
                     ? 'bg-linear-to-br from-[#3b82f6] to-[#1d4ed8] text-white/70'
-                    : 'bg-white text-gray-500 shadow-[0_1px_4px_rgba(15,29,58,0.08)] border border-gray-100'
+                    : 'bg-[linear-gradient(135deg,#0f2a6b,#0a1d4e)] text-white/70 shadow-[0_1px_4px_rgba(10,25,80,0.3)]'
                   }`}>
                     {mensaje.editado && <span className="italic">editado</span>}
                     <span>{hora}</span>
@@ -711,15 +1376,27 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                 </div>
               </>
             ) : (
-              <p className="text-[15px] lg:text-[14px] leading-relaxed wrap-break-word whitespace-pre-wrap font-medium">
-                <TextoConEmojis texto={mensaje.contenido} tamañoEmoji={26} />
-                {/* Hora inline: spacer + metadata */}
-                <span className={`inline-flex items-center gap-0.5 align-bottom ml-1.5 translate-y-[5px] text-[10px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-gray-500'}`}>
-                  {mensaje.editado && <span className="italic">editado</span>}
-                  <span>{hora}</span>
-                  {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
-                </span>
-              </p>
+              <>
+                <div className="flex items-end justify-between gap-2">
+                  <p className="text-[15px] lg:text-[14px] leading-relaxed wrap-break-word whitespace-pre-wrap font-medium">
+                    <TextoConEmojis texto={mensaje.contenido} tamañoEmoji={26} />
+                    {!mensaje.respuestaA && (
+                      <span className={`inline-flex items-center gap-0.5 align-bottom ml-1.5 translate-y-[5px] text-[11px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-white/55'}`}>
+                        {mensaje.editado && <span className="italic">editado</span>}
+                        <span>{hora}</span>
+                        {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
+                      </span>
+                    )}
+                  </p>
+                  {mensaje.respuestaA && (
+                    <span className={`inline-flex items-center gap-0.5 shrink-0 text-[11px] lg:text-[11px] mb-0.5 ${esMio ? 'text-white/70' : 'text-white/55'}`}>
+                      {mensaje.editado && <span className="italic">editado</span>}
+                      <span>{hora}</span>
+                      {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
+                    </span>
+                  )}
+                </div>
+              </>
             ))}
           </div>
           {/* Cierre del wrapper relativo burbuja + botón emoji */}
@@ -743,7 +1420,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                   onClick={() => onReaccionar?.(mensaje.id, r.emoji)}
                   className={`inline-flex items-center justify-center rounded-full cursor-pointer hover:scale-110 shadow-sm border ${r.cantidad > 1 ? 'gap-0.5 px-1.5 h-7' : 'w-7 h-7'} ${esMio
                     ? 'bg-blue-50 border-blue-200'
-                    : 'bg-gray-50 border-gray-200'
+                    : 'bg-[linear-gradient(135deg,#0f2a6b,#0a1d4e)] border-blue-900/50'
                   }`}
                 >
                   <EmojiNoto emoji={r.emoji} tamaño={18} />
@@ -799,7 +1476,10 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
     prev.esMisNotas === next.esMisNotas &&
     prev.resaltado === next.resaltado &&
     prev.menuActivoId === next.menuActivoId &&
-    prev.miId === next.miId
+    prev.miId === next.miId &&
+    prev.onResponder === next.onResponder &&
+    prev.avatarEmisor === next.avatarEmisor &&
+    prev.inicialesEmisor === next.inicialesEmisor
   );
 });
 
@@ -809,16 +1489,17 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
 
 function Palomitas({ estado, variante = 'burbuja' }: { estado: 'enviado' | 'entregado' | 'leido' | 'fallido'; variante?: 'burbuja' | 'emoji' }) {
   const gris = variante === 'emoji';
+  const escala = 'scale-y-[1.1]';
   switch (estado) {
     case 'leido':
-      return <CheckCheck className={`w-4 h-4 ${gris ? 'text-sky-500' : 'text-sky-300'}`} />;
+      return <CheckCheck className={`w-4 h-4 ${escala} ${gris ? 'text-sky-500' : 'text-sky-300'}`} />;
     case 'entregado':
-      return <CheckCheck className={`w-4 h-4 ${gris ? 'text-gray-500' : 'text-white/55'}`} />;
+      return <CheckCheck className={`w-4 h-4 ${escala} ${gris ? 'text-gray-500' : 'text-white/55'}`} />;
     case 'fallido':
-      return <AlertCircle className={`w-3.5 h-3.5 ${gris ? 'text-red-500' : 'text-red-300'}`} />;
+      return <AlertCircle className={`w-4 h-4 ${escala} ${gris ? 'text-red-500' : 'text-red-300'}`} />;
     case 'enviado':
     default:
-      return <Check className={`w-3.5 h-3.5 ${gris ? 'text-gray-500' : 'text-white/55'}`} />;
+      return <Check className={`w-4 h-4 ${escala} ${gris ? 'text-gray-500' : 'text-white/55'}`} />;
   }
 }
 

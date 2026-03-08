@@ -41,6 +41,8 @@ import {
 import type { TransaccionScanYA } from '@/types/scanya';
 import Tooltip from '@/components/ui/Tooltip';
 import { ModalImagenes } from '@/components/ui/ModalImagenes';
+import { useChatYAStore } from '@/stores/useChatYAStore';
+import { useUiStore } from '@/stores/useUiStore';
 
 // =============================================================================
 // TIPOS
@@ -49,7 +51,6 @@ import { ModalImagenes } from '@/components/ui/ModalImagenes';
 interface TarjetaTransaccionProps {
   transaccion: TransaccionScanYA;
   onVerFoto?: (url: string) => void;
-  onContactarCliente?: (clienteTelefono: string, clienteNombre: string) => void;
 }
 
 // =============================================================================
@@ -230,9 +231,29 @@ function RegistradoPor({ transaccion }: { transaccion: TransaccionScanYA }) {
 export function TarjetaTransaccion({
   transaccion,
   onVerFoto,
-  onContactarCliente,
 }: TarjetaTransaccionProps) {
   const [modalAvatarAbierto, setModalAvatarAbierto] = useState(false);
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+
+  const handleContactarCliente = () => {
+    if (!transaccion.clienteId) return;
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: transaccion.clienteId,
+        nombre: transaccion.clienteNombre,
+        apellidos: '',
+        avatarUrl: transaccion.clienteAvatarUrl ?? null,
+      },
+      datosCreacion: {
+        participante2Id: transaccion.clienteId,
+        participante2Modo: 'personal',
+        contextoTipo: 'directo',
+      },
+    });
+    abrirChatYA();
+  };
 
   const esRevocada = transaccion.estado === 'cancelado';
 
@@ -275,10 +296,10 @@ export function TarjetaTransaccion({
                 <span className="text-[#94A3B8] text-sm lg:text-[11px] 2xl:text-sm">
                   {formatearTelefono(transaccion.clienteTelefono)}
                 </span>
-                {!esRevocada && (
+                {!esRevocada && transaccion.clienteId && (
                   <Tooltip text="Contactar por ChatYA" position="top">
                     <button
-                      onClick={() => onContactarCliente?.(transaccion.clienteTelefono!, transaccion.clienteNombre)}
+                      onClick={handleContactarCliente}
                       className="cursor-pointer hover:scale-110 transition-transform"
                     >
                       <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-auto h-6 lg:w-auto lg:h-4 2xl:w-auto 2xl:h-7" />

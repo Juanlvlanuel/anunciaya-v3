@@ -9,21 +9,21 @@
  * UBICACIÓN: apps/web/src/components/chatya/VentanaChat.tsx
  */
 
-import { useRef, useEffect, useCallback, useState, useMemo, memo, type RefObject, type MutableRefObject } from 'react';
-import { Search, MoreVertical, Store, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronsDown, UserPlus, UserMinus, ArrowLeft, MessageSquare } from 'lucide-react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, memo, type RefObject, type MutableRefObject } from 'react';
+import { Search, MoreVertical, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronsDown, UserPlus, UserMinus, ArrowLeft, MessageSquare, ImageIcon } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
 import * as chatyaService from '../../services/chatyaService';
-import type { Conversacion } from '../../types/chatya';
+import { emitirEvento } from '../../services/socketService';
+import type { Conversacion, Mensaje } from '../../types/chatya';
 import { BurbujaMensaje } from './BurbujaMensaje';
 import { InputMensaje } from './InputMensaje';
-import { IndicadorEscribiendo } from './IndicadorEscribiendo';
 import { SeparadorFecha } from './SeparadorFecha';
 import { MenuContextualChat } from './MenuContextualChat';
 import { MenuContextualMensaje } from './MenuContextualMensaje';
 import { BarraBusquedaChat } from './BarraBusquedaChat';
-import { PanelInfoContacto, cachéNegocio, cachéCliente } from './PanelInfoContacto';
+import { PanelInfoContacto, cachéNegocio, cachéCliente, invalidarCachéArchivos } from './PanelInfoContacto';
 import { ModalReenviar } from './ModalReenviar';
 import { VisorImagenesChat } from './VisorImagenesChat';
 import { TexturaDoodle } from './TexturaDoodle';
@@ -31,7 +31,6 @@ import { ModalImagenes } from '../ui/ModalImagenes';
 // Virtuoso eliminado — scroll nativo con IntersectionObserver para paginación
 import Tooltip from '../ui/Tooltip';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import type { Mensaje } from '../../types/chatya';
 import { obtenerPerfilSucursal } from '../../services/negociosService';
 import { getDetalleCliente } from '../../services/clientesService';
 
@@ -60,6 +59,66 @@ function formatearFechaParaSticky(fechaStr: string): string {
 // =============================================================================
 
 // =============================================================================
+// Helper: Formatear "última vez" relativo
+// =============================================================================
+// ─── Componente: anima el slide del texto "últ. vez..." dejando solo la hora ──
+function UltimaVezAnimada({ prefijo, hora }: { prefijo: string; hora: string }) {
+  const prefixRef = useRef<HTMLSpanElement>(null);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const [listo, setListo] = useState(false);
+
+  useLayoutEffect(() => {
+    setListo(false);
+    if (prefixRef.current && containerRef.current) {
+      const w = prefixRef.current.offsetWidth;
+      containerRef.current.style.setProperty('--prefix-w', `${w}px`);
+    }
+    // Pequeño frame para que el browser aplique la variable antes de la animación
+    const raf = requestAnimationFrame(() => setListo(true));
+    return () => cancelAnimationFrame(raf);
+  }, [prefijo, hora]);
+
+  return (
+    <span
+      ref={containerRef}
+      className={`inline-block font-semibold text-white/70 text-[13px] ${listo ? 'animate-[ultimaVezScroll_2.5s_ease-in-out_forwards]' : ''}`}
+    >
+      <span ref={prefixRef}>{prefijo}</span>{hora}
+    </span>
+  );
+}
+
+function formatearUltimaVez(timestamp: number): string {
+  const ahora = new Date();
+  const fecha = new Date(timestamp);
+  
+  const hora = fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  // Mismo día
+  if (fecha.toDateString() === ahora.toDateString()) {
+    return `últ. vez hoy a la(s) ${hora}`;
+  }
+
+  // Ayer
+  const ayer = new Date(ahora);
+  ayer.setDate(ayer.getDate() - 1);
+  if (fecha.toDateString() === ayer.toDateString()) {
+    return `últ. vez ayer a la(s) ${hora}`;
+  }
+
+  // Misma semana (últimos 7 días)
+  const diffDias = Math.floor((ahora.getTime() - fecha.getTime()) / 86400000);
+  if (diffDias < 7) {
+    const dia = fecha.toLocaleDateString('es-MX', { weekday: 'long' });
+    return `últ. vez el ${dia} a la(s) ${hora}`;
+  }
+
+  // Más de una semana
+  const fechaStr = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: fecha.getFullYear() !== ahora.getFullYear() ? 'numeric' : undefined });
+  return `últ. vez el ${fechaStr} a la(s) ${hora}`;
+}
+
+// =============================================================================
 // AreaMensajes — Scroll nativo con IntersectionObserver para paginación
 // Renderiza TODOS los mensajes en el DOM (60-200 mensajes es ligero).
 // IntersectionObserver detecta un "sentinel" invisible en el tope para cargar más.
@@ -71,7 +130,6 @@ interface AreaMensajesProps {
   mostrarScrollAbajoRef: MutableRefObject<boolean>;
   scrollBtnRef: RefObject<HTMLButtonElement | null>;
   cargandoMensajesAntiguos: boolean;
-  estaEscribiendo: boolean;
   esMobile: boolean;
   esMisNotas: boolean;
   miId: string;
@@ -85,15 +143,21 @@ interface AreaMensajesProps {
   hayMasMensajes: boolean;
   onImagenClick: (mensajeId: string) => void;
   onReenviar: (msg: Mensaje) => void;
+  onCitaClick: (mensajeId: string) => void;
+  onResponder: (msg: Mensaje) => void;
+  miAvatarUrl: string | null;
+  otroAvatarUrl: string | null;
+  misIniciales: string;
+  otroIniciales: string;
 }
 
 const AreaMensajes = memo(function AreaMensajes({
-  datos,
+  conversacionId, datos,
   scrollRef, mostrarScrollAbajoRef, scrollBtnRef,
-  cargandoMensajesAntiguos, estaEscribiendo,
+  cargandoMensajesAntiguos,
   esMobile, esMisNotas, miId, mensajeResaltadoId, menuMensajeId,
   onStartReached, onMenuContextual, onReaccionar,
-  fechaStickyRef, atBottomRef, hayMasMensajes, onImagenClick, onReenviar,
+  fechaStickyRef, atBottomRef, hayMasMensajes, onImagenClick, onReenviar, onCitaClick, onResponder, miAvatarUrl, otroAvatarUrl, misIniciales, otroIniciales,
 }: AreaMensajesProps) {
 
   // Ref para el sentinel de paginación (IntersectionObserver)
@@ -107,13 +171,51 @@ const AreaMensajes = memo(function AreaMensajes({
   const datosRef = useRef(datos);
   datosRef.current = datos;
 
-  // ── Scroll inicial al fondo cuando se monta ──
+  // ── Scroll al fondo + reset de refs al cambiar de conversación ──
+  const prevConvIdRef = useRef(conversacionId);
   useEffect(() => {
-    if (scrollRef.current && datos.length > 0) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    if (prevConvIdRef.current !== conversacionId) {
+      // Cambió la conversación: resetear refs y scroll al fondo
+      cargandoAntiguosRef.current = false;
+      prevScrollHeightRef.current = 0;
+      prevDatosLenRef.current = datos.length;
+      atBottomRef.current = true;
+      if (scrollBtnRef.current) scrollBtnRef.current.style.display = 'none';
+      if (fechaStickyRef.current) fechaStickyRef.current.style.opacity = '0';
+      prevConvIdRef.current = conversacionId;
     }
-    // Solo al montar (key={conversacionActivaId} ya causa remount)
-  }, []);
+
+    if (datos.length > 0) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [conversacionId]);
+
+  // ── Re-scroll al fondo cuando imágenes cargan y expanden el contenido ──
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !conversacionId) return;
+
+    // Solo actuar durante los primeros 3 segundos tras abrir el chat
+    let activo = true;
+    const timer = setTimeout(() => { activo = false; }, 3000);
+
+    const ro = new ResizeObserver(() => {
+      if (activo && atBottomRef.current && el.scrollHeight > el.clientHeight) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+
+    // Observar el contenedor (detecta cambios de altura por imágenes cargando)
+    ro.observe(el);
+
+    return () => {
+      clearTimeout(timer);
+      ro.disconnect();
+    };
+  }, [conversacionId]);
 
   // ── Preservar posición al cargar mensajes antiguos ──
   useEffect(() => {
@@ -127,9 +229,20 @@ const AreaMensajes = memo(function AreaMensajes({
       el.scrollTop = diferencia;
       cargandoAntiguosRef.current = false;
     } else if (datos.length > prevDatosLenRef.current && prevDatosLenRef.current > 0) {
-      // Mensaje nuevo (no antiguos) → scroll al fondo si estábamos abajo
-      if (atBottomRef.current) {
+      // Mensaje nuevo (no antiguos) → detectar si es mío para decidir auto-scroll
+      let ultimoMensajeMio = false;
+      for (let i = datos.length - 1; i >= 0; i--) {
+        const item = datos[i];
+        if (item.tipo === 'mensaje') {
+          ultimoMensajeMio = item.mensaje.emisorId === miId;
+          break;
+        }
+      }
+      // Mensaje propio → siempre scroll al fondo. Del otro → solo si estábamos abajo
+      if (ultimoMensajeMio || atBottomRef.current) {
         el.scrollTop = el.scrollHeight;
+        // Respaldo: burbujas de documento/imagen necesitan más tiempo de layout
+        setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
       }
     }
 
@@ -156,7 +269,7 @@ const AreaMensajes = memo(function AreaMensajes({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [scrollRef, hayMasMensajes, onStartReached]);
+  }, [scrollRef, hayMasMensajes, onStartReached, conversacionId]);
 
   // ── Scroll listener: detectar si está al fondo + actualizar sticky ──
   useEffect(() => {
@@ -251,6 +364,8 @@ const AreaMensajes = memo(function AreaMensajes({
       style={{
         position: 'absolute', inset: 0,
         overflowY: 'auto',
+        overflowX: 'hidden',
+        willChange: 'scroll-position',
         scrollbarWidth: esMobile ? 'none' : 'auto',
         scrollbarColor: '#A1B6C9 transparent',
       }}
@@ -266,14 +381,23 @@ const AreaMensajes = memo(function AreaMensajes({
       )}
 
       {/* Todos los mensajes renderizados */}
-      {datos.map((item) => {
+      {datos.map((item, idx) => {
         const itemKey = item.tipo === 'separador' ? `sep-${item.fecha}` : item.mensaje.id;
         const itemId = item.tipo === 'mensaje' ? `msg-${item.mensaje.id}` : undefined;
+        const prevItem = idx > 0 ? datos[idx - 1] : null;
+        const esMio = item.tipo === 'mensaje' && item.mensaje.emisorId === miId;
+        const prevEsMio = prevItem?.tipo === 'mensaje' && prevItem.mensaje.emisorId === miId;
+        const cambioEmisor = item.tipo === 'mensaje' && prevItem?.tipo === 'mensaje' && esMio !== prevEsMio;
         return (
         <div
           key={itemKey}
           id={itemId}
-          className={`pb-1 px-3 lg:px-12 2xl:px-16 ${
+          style={
+            item.tipo === 'mensaje' && esMobile && menuMensajeId === item.mensaje.id
+              ? undefined
+              : { contentVisibility: 'auto', containIntrinsicSize: 'auto 60px' }
+          }
+          className={`pb-1 px-3 lg:px-12 2xl:px-16 ${cambioEmisor ? 'mt-3 lg:mt-0' : ''} ${
             item.tipo === 'mensaje' && item.mensaje.id === mensajeResaltadoId
               ? 'bg-blue-300/30'
               : ''
@@ -294,14 +418,16 @@ const AreaMensajes = memo(function AreaMensajes({
               menuActivoId={esMobile ? menuMensajeId : null}
               onImagenClick={onImagenClick}
               onReenviar={onReenviar}
+              onCitaClick={onCitaClick}
+              onResponder={onResponder}
+              avatarEmisor={item.mensaje.emisorId === miId ? miAvatarUrl : otroAvatarUrl}
+              inicialesEmisor={item.mensaje.emisorId === miId ? misIniciales : otroIniciales}
             />
           )}
         </div>
         );
       })}
 
-      {/* Indicador de escribiendo — al final del scroll */}
-      {estaEscribiendo && <IndicadorEscribiendo />}
     </div>
   );
 });
@@ -321,6 +447,7 @@ function VentanaChatInner() {
   const cargandoMensajesAntiguos = useChatYAStore((s) => s.cargandoMensajesAntiguos);
   const hayMasMensajes = useChatYAStore((s) => s.hayMasMensajes);
   const escribiendo = useChatYAStore((s) => s.escribiendo);
+  const estadosUsuarios = useChatYAStore((s) => s.estadosUsuarios);
   const misNotasId = useChatYAStore((s) => s.misNotasId);
   const bloqueados = useChatYAStore((s) => s.bloqueados);
   const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
@@ -331,6 +458,8 @@ function VentanaChatInner() {
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
   const volverALista = useChatYAStore((s) => s.volverALista);
+  const setVisorAbierto = useChatYAStore((s) => s.setVisorAbierto);
+  const setPanelInfoAbiertoStore = useChatYAStore((s) => s.setPanelInfoAbierto);
 
   // ── Selectores DERIVADOS: solo re-renderizan si NUESTRA conversación cambia,
   //    NO cuando cambia el badge/preview/typing de OTRA conversación ──
@@ -366,6 +495,32 @@ function VentanaChatInner() {
 
   const conversacion = conversacionEnStore || conversacionEnArchivados || conversacionRemota; const esMisNotas = conversacionActivaId === misNotasId;
 
+  // Para chats temporales, construir objeto mínimo que PanelInfoContacto necesita
+  const conversacionParaPanel = conversacion ?? (esTemporal && chatTemporal ? {
+    id: chatTemporal.id,
+    participante1Id: usuario?.id || '',
+    participante1Modo: (usuario?.modoActivo || 'personal') as 'personal' | 'comercial',
+    participante1SucursalId: null,
+    participante2Id: chatTemporal.datosCreacion.participante2Id,
+    participante2Modo: (chatTemporal.datosCreacion.participante2Modo || 'personal') as 'personal' | 'comercial',
+    participante2SucursalId: chatTemporal.datosCreacion.participante2SucursalId || null,
+    contextoTipo: (chatTemporal.datosCreacion.contextoTipo || 'directo') as 'directo' | 'negocio' | 'oferta' | 'marketplace' | 'empleo' | 'dinamica' | 'notas',
+    contextoReferenciaId: null,
+    contextoNombre: null,
+    ultimoMensajeTexto: null,
+    ultimoMensajeFecha: null,
+    ultimoMensajeTipo: null,
+    ultimoMensajeEstado: null,
+    ultimoMensajeEmisorId: null,
+    noLeidos: 0,
+    fijada: false,
+    archivada: false,
+    silenciada: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    otroParticipante: chatTemporal.otroParticipante,
+  } : null);
+
   // Si es temporal, usar datos del chatTemporal; si no, los de la conversación real
   const otro = esTemporal ? chatTemporal?.otroParticipante : conversacion?.otroParticipante;
   const nombre = esMisNotas
@@ -396,7 +551,15 @@ function VentanaChatInner() {
     )
     : undefined;
 
-  const estaEscribiendo = !esMisNotas && escribiendo?.conversacionId === conversacionActivaId;
+  const estaEscribiendo = !esMisNotas && !!conversacionActivaId && !!escribiendo[conversacionActivaId];
+  const estadoOtro = otro?.id ? estadosUsuarios[otro.id] : null;
+
+  // Consultar estado del otro usuario al abrir conversación
+  useEffect(() => {
+    if (otro?.id && !esMisNotas) {
+      emitirEvento('chatya:consultar-estado', otro.id);
+    }
+  }, [otro?.id, esMisNotas]);
 
   // Alias del contacto tiene prioridad sobre el nombre real
   const nombreMostrar = contactoExistente?.alias?.trim() || nombre;
@@ -424,7 +587,38 @@ function VentanaChatInner() {
   // ---------------------------------------------------------------------------
   const [panelAbierto, setPanelAbierto] = useState(false);
   const panelMontado = useRef(false);
-  if (panelAbierto) panelMontado.current = true;
+  // Montar eager: el panel (y su iframe interno) precarga en background desde que
+  // abre la conversación, no al primer click — apertura instantánea en mobile y PC.
+  if ((conversacion || esTemporal) && !esMisNotas) panelMontado.current = true;
+  const panelInfoAbiertoStore = useChatYAStore((s) => s.panelInfoAbierto);
+
+  // Helper: toggle panel + sincronizar store
+  const togglePanel = useCallback(() => {
+    setPanelAbierto((v) => {
+      const nuevo = !v;
+      setPanelInfoAbiertoStore(nuevo);
+      return nuevo;
+    });
+  }, [setPanelInfoAbiertoStore]);
+
+  const cerrarPanel = useCallback(() => {
+    setPanelAbierto(false);
+    setPanelInfoAbiertoStore(false);
+  }, [setPanelInfoAbiertoStore]);
+
+  // Sincronizar: si ChatOverlay cierra el panel via popstate, cerrar localmente
+  useEffect(() => {
+    if (!panelInfoAbiertoStore && panelAbierto) {
+      setPanelAbierto(false);
+    }
+  }, [panelInfoAbiertoStore, panelAbierto]);
+
+  // Cerrar panel info al cambiar de conversación (desmontaje completo)
+  useEffect(() => {
+    setPanelAbierto(false);
+    setPanelInfoAbiertoStore(false);
+    panelMontado.current = false;
+  }, [conversacionActivaId]);
 
   // ---------------------------------------------------------------------------
   // Estado local: modal de imagen del avatar (vive fuera del panel para no desmontarse)
@@ -435,9 +629,85 @@ function VentanaChatInner() {
   // Estado local: visor fullscreen de imágenes del chat
   // ---------------------------------------------------------------------------
   const [visorImagenMsgId, setVisorImagenMsgId] = useState<string | null>(null);
+  const visorAbierto = useChatYAStore((s) => s.visorAbierto);
   const handleImagenChatClick = useCallback((mensajeId: string) => {
     setVisorImagenMsgId(mensajeId);
-  }, []);
+    setVisorAbierto(true);
+  }, [setVisorAbierto]);
+
+  // Visor desde archivos compartidos (PanelInfoContacto)
+  const [visorArchivos, setVisorArchivos] = useState<{ imagenes: Mensaje[]; indice: number } | null>(null);
+  const handleAbrirVisorArchivos = useCallback(async (archivoId: string) => {
+    if (!conversacionActivaId) return;
+    try {
+      // Cargar TODAS las imágenes de la conversación
+      const res = await chatyaService.getArchivosCompartidos(conversacionActivaId, 'imagenes', 200, 0);
+      if (!res.success || !res.data) return;
+
+      // Convertir ArchivoCompartido[] → Mensaje[] (campos mínimos para el visor)
+      const mensajesVisor: Mensaje[] = res.data.items
+        .filter((a) => {
+          try { JSON.parse(a.contenido); return true; } catch { return false; }
+        })
+        .map((a) => ({
+          id: a.id,
+          conversacionId: conversacionActivaId,
+          emisorId: a.emisorId,
+          emisorModo: null,
+          emisorSucursalId: null,
+          empleadoId: null,
+          tipo: 'imagen' as const,
+          contenido: a.contenido,
+          estado: 'leido' as const,
+          editado: false,
+          editadoAt: null,
+          eliminado: false,
+          eliminadoAt: null,
+          respuestaAId: null,
+          reenviadoDeId: null,
+          createdAt: a.createdAt,
+          entregadoAt: null,
+          leidoAt: null,
+        }));
+
+      if (mensajesVisor.length === 0) return;
+
+      // Encontrar índice de la imagen clickeada
+      const indice = mensajesVisor.findIndex((m) => m.id === archivoId);
+      setVisorArchivos({ imagenes: mensajesVisor, indice: indice >= 0 ? indice : 0 });
+      setVisorAbierto(true);
+    } catch {
+      // Si falla el fetch, silenciar
+    }
+  }, [conversacionActivaId]);
+
+  // Sincronizar: si ChatOverlay cierra el visor via popstate, cerrar localmente
+  useEffect(() => {
+    if (!visorAbierto) {
+      if (visorImagenMsgId) setVisorImagenMsgId(null);
+      if (visorArchivos) setVisorArchivos(null);
+    }
+  }, [visorAbierto, visorImagenMsgId, visorArchivos]);
+
+  // ---------------------------------------------------------------------------
+  // Invalidar caché de archivos compartidos al recibir/enviar imagen, documento o enlace
+  // ---------------------------------------------------------------------------
+  const prevMensajesCountRef = useRef(mensajes.length);
+  const [archivosKey, setArchivosKey] = useState(0);
+  useEffect(() => {
+    if (mensajes.length > prevMensajesCountRef.current && conversacionActivaId) {
+      const ultimo = mensajes[0]; // más reciente (orden desc)
+      if (ultimo) {
+        const tipoRelevante = ultimo.tipo === 'imagen' || ultimo.tipo === 'documento';
+        const textoConUrl = ultimo.tipo === 'texto' && /https?:\/\//.test(ultimo.contenido);
+        if (tipoRelevante || textoConUrl) {
+          invalidarCachéArchivos(conversacionActivaId);
+          setArchivosKey((n) => n + 1);
+        }
+      }
+    }
+    prevMensajesCountRef.current = mensajes.length;
+  }, [mensajes.length, conversacionActivaId]);
 
   // ---------------------------------------------------------------------------
   // Estado local: drag & drop de imagen en toda la ventana
@@ -545,23 +815,25 @@ function VentanaChatInner() {
       if (prev && prev.mensaje.id === msg.id) return null;
       return { mensaje: msg, posicion: pos };
     });
+  }, []);
 
-    // Auto-scroll para que el popup de emojis (-top-14 ≈ 56px) sea visible (solo móvil)
-    if (esMobile) {
-      requestAnimationFrame(() => {
-        const msgEl = document.getElementById(`msg-${msg.id}`);
-        const container = scrollRef.current;
-        if (msgEl && container) {
-          const msgRect = msgEl.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          const espacioArriba = msgRect.top - containerRect.top;
-          if (espacioArriba < 80) {
-            container.scrollBy({ top: -(80 - espacioArriba), behavior: 'smooth' });
-          }
-        }
-      });
-    }
-  }, [esMobile]);
+  // Auto-scroll para que la burbuja seleccionada + emojis rápidos (-top-14 ≈ 56px) se vean completos
+  useEffect(() => {
+    if (!esMobile || !menuMensaje) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const msgEl = document.getElementById(`msg-${menuMensaje.mensaje.id}`);
+      const container = scrollRef.current;
+      if (!msgEl || !container) return;
+      const msgRect = msgEl.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      // 80px = 56px emojis rápidos + padding
+      const espacioNecesario = 80;
+      const espacioArriba = msgRect.top - containerRect.top;
+      if (espacioArriba < espacioNecesario) {
+        container.scrollBy({ top: espacioArriba - espacioNecesario, behavior: 'smooth' });
+      }
+    }));
+  }, [menuMensaje, esMobile]);
 
   const handleCerrarMenuMensaje = useCallback(() => {
     setMenuMensaje(null);
@@ -591,6 +863,48 @@ function VentanaChatInner() {
   // Refs — Scroll nativo
   // ---------------------------------------------------------------------------
   const scrollRef = useRef<HTMLDivElement>(null);
+  /** Ref del contenedor flex-col principal — para ajustar altura con teclado móvil */
+  const chatColumnRef = useRef<HTMLDivElement>(null);
+
+  // ---------------------------------------------------------------------------
+  // Effect: Ajustar altura del chat cuando el teclado móvil abre/cierra
+  // visualViewport.height = altura real visible (descuenta el teclado)
+  // body.style.position='fixed' (ChatOverlay) impide que h-dvh se actualice.
+  // maxHeight restringe el flex item sin conflicto con flex-1.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!esMobile) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    let rafId = 0;
+
+    const handleResize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const col = chatColumnRef.current;
+        if (col) {
+          col.style.maxHeight = `${vv.height}px`;
+        }
+        const el = scrollRef.current;
+        if (el && atBottomRef.current) {
+          el.scrollTop = el.scrollHeight;
+        }
+      });
+    };
+
+    handleResize();
+
+    vv.addEventListener('resize', handleResize);
+    vv.addEventListener('scroll', handleResize);
+    return () => {
+      vv.removeEventListener('resize', handleResize);
+      vv.removeEventListener('scroll', handleResize);
+      if (rafId) cancelAnimationFrame(rafId);
+      const col = chatColumnRef.current;
+      if (col) col.style.maxHeight = '';
+    };
+  }, [esMobile]);
 
   // ---------------------------------------------------------------------------
   // Reseteo síncrono: detectar cambio de conversación DURANTE el render
@@ -711,22 +1025,30 @@ function VentanaChatInner() {
     return false;
   }, []);
 
+  /** Click en cita de respuesta — navegar + resaltar (mismo efecto que fijados) */
+  const handleCitaClick = useCallback(async (mensajeId: string) => {
+    await scrollAMensajeOCargar(mensajeId);
+    if (resaltadoTimerRef.current) clearTimeout(resaltadoTimerRef.current);
+    setMensajeResaltadoId(mensajeId);
+    resaltadoTimerRef.current = setTimeout(() => setMensajeResaltadoId(null), 3500);
+  }, [scrollAMensajeOCargar]);
+
   /** Flag: mostrar acciones en header (móvil, cuando hay menú contextual activo) */
   const mostrarAccionesEnHeader = esMobile && menuMensaje !== null && !esMisNotas;
 
   // ---------------------------------------------------------------------------
-  // Handlers: Drag & drop de imagen en toda la ventana del chat
+  // Handlers: Drag & drop de archivos en toda la ventana del chat
   // ---------------------------------------------------------------------------
   const handleDragEnterVentana = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragContadorRef.current++;
     if (dragContadorRef.current === 1) {
-      // Verificar que hay archivos de imagen en el drag
-      const tieneImagen = Array.from(e.dataTransfer.items).some(
-        (item) => item.kind === 'file' && item.type.startsWith('image/')
+      // Verificar que hay archivos válidos (imagen o documento) en el drag
+      const tieneArchivo = Array.from(e.dataTransfer.items).some(
+        (item) => item.kind === 'file'
       );
-      if (tieneImagen) setDragActivoVentana(true);
+      if (tieneArchivo) setDragActivoVentana(true);
     }
   }, []);
 
@@ -751,7 +1073,7 @@ function VentanaChatInner() {
     dragContadorRef.current = 0;
     setDragActivoVentana(false);
 
-    const archivos = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+    const archivos = Array.from(e.dataTransfer.files);
     if (archivos.length > 0) {
       setArchivosDrop(archivos);
     }
@@ -822,7 +1144,7 @@ function VentanaChatInner() {
   return (
     <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden bg-black lg:bg-transparent">
       {/* ── Área principal del chat ── */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative isolate bg-linear-to-b from-[#0B358F] to-[#050d1a] lg:bg-linear-to-br lg:from-blue-200/60 lg:via-indigo-200/50 lg:to-sky-200/60">
+      <div ref={chatColumnRef} className="flex-1 flex flex-col min-h-0 min-w-0 relative isolate bg-linear-to-b from-[#0B358F] to-[#050d1a] lg:bg-linear-to-br lg:from-blue-200/60 lg:via-indigo-200/50 lg:to-sky-200/60">
         {/* Textura doodle de fondo */}
         <TexturaDoodle oscuro={esMobile} />
         {/* ═══ Header del chat ═══ */}
@@ -869,7 +1191,7 @@ function VentanaChatInner() {
                   if (!esMisNotas && avatarUrl) {
                     setModalAvatarUrl(avatarUrl);
                   } else if (!esMisNotas) {
-                    setPanelAbierto((v) => !v);
+                    togglePanel();
                   }
                 }}
                 className={`w-10 h-10 rounded-full shrink-0 ${!esMisNotas ? 'cursor-pointer hover:opacity-80' : ''}`}
@@ -889,11 +1211,10 @@ function VentanaChatInner() {
 
               {/* Info — clickeable para abrir panel */}
               <button
-                onClick={() => !esMisNotas && setPanelAbierto((v) => !v)}
+                onClick={() => !esMisNotas && togglePanel()}
                 className={`flex-1 min-w-0 text-left ${!esMisNotas ? 'cursor-pointer' : ''}`}
               >
                 <div className="flex items-center gap-1.5">
-                  {esNegocio && <Store className="w-4 h-4 text-amber-500 shrink-0" />}
                   <p className="text-base font-bold text-white lg:text-gray-800 truncate leading-tight">{nombreMostrar}</p>
                 </div>
                 {esMisNotas ? (
@@ -904,16 +1225,44 @@ function VentanaChatInner() {
                     Bloqueado
                   </p>
                 ) : estaEscribiendo ? (
-                  <p className="text-xs text-green-500 font-semibold">Escribiendo...</p>
+                  <p className="text-[13px] text-blue-500 font-semibold">Escribiendo...</p>
                 ) : (
-                  <p className="text-xs font-medium flex items-center gap-1 truncate">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full shrink-0" />
-                    <span className="text-green-500">En línea</span>
-                    {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
+                  <p className="text-[13px] font-medium flex items-center gap-1 truncate">
+                    {estadoOtro?.estado === 'conectado' ? (
+                      <>
+                        <span className="w-1.5 h-1.5 bg-green-600 rounded-full shrink-0" />
+                        <span className="text-green-600 font-semibold">En línea</span>
+                      </>
+                    ) : estadoOtro?.estado === 'ausente' ? (
+                      <>
+                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0" />
+                        <span className="text-amber-400 font-semibold">Ausente</span>
+                      </>
+                    ) : estadoOtro?.estado === 'desconectado' ? (
+                      <>
+                        {/* Móvil: scroll animado que deja solo la hora visible */}
+                        <span className="overflow-hidden whitespace-nowrap block lg:hidden" key={`scroll-${conversacionActivaId}`}>
+                          {(() => {
+                            const texto = formatearUltimaVez(estadoOtro.timestamp);
+                            const match = texto.match(/(\d{1,2}:\d{2}\s[ap]\.m\.)$/);
+                            const prefijo = match ? texto.slice(0, texto.length - match[0].length) : '';
+                            const hora = match ? match[0] : texto;
+                            return (
+                              <UltimaVezAnimada prefijo={prefijo} hora={hora} />
+                            );
+                          })()}
+                        </span>
+                        {/* Desktop: texto estático completo */}
+                        <span className="hidden lg:inline text-gray-500 font-semibold text-[13px]">{formatearUltimaVez(estadoOtro.timestamp)}</span>
+                      </>
+                    ) : (
+                      <span className="text-white/30 lg:text-gray-400">...</span>
+                    )}
+                    {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && conversacion.participante1Id !== miId && (
                       <>
                         <span className="text-white/30 lg:text-gray-300">·</span>
                         <span className="text-white/40 lg:text-gray-400 truncate">
-                          {conversacion.contextoTipo === 'negocio' && 'Desde: Tu perfil'}
+                          {conversacion.contextoTipo === 'negocio' && modoActivo === 'comercial' && 'Desde: Tu perfil'}
                           {conversacion.contextoTipo === 'oferta' && `Desde oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
                           {conversacion.contextoTipo === 'marketplace' && `Desde publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
                           {conversacion.contextoTipo === 'empleo' && `Desde vacante: ${conversacion.contextoNombre || 'Empleos'}`}
@@ -963,6 +1312,7 @@ function VentanaChatInner() {
                     {!esTemporal && (
                       <>
                         <button
+                          data-menu-trigger="true"
                           onClick={() => setMenuAbierto((v) => !v)}
                           className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${menuAbierto
                             ? 'bg-white/20 lg:bg-gray-200 text-white lg:text-blue-500'
@@ -1027,7 +1377,7 @@ function VentanaChatInner() {
             <>
               <div
                 ref={fijadosRef}
-                className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white/90 lg:bg-white border-b border-gray-200 shrink-0 cursor-pointer active:bg-gray-50 select-none"
+                className="flex items-center gap-2.5 px-3.5 py-2.5 bg-black/40 lg:bg-white border-b border-white/10 lg:border-gray-200 shrink-0 cursor-pointer active:bg-black/50 lg:active:bg-gray-50 select-none overflow-hidden"
                 onClick={async () => {
                   if (bannerLongPressed) { bannerLongPressed = false; return; }
                   // Navegar al mensaje — carga antiguos si no está en DOM
@@ -1058,15 +1408,50 @@ function VentanaChatInner() {
               >
                 <Pin className="w-5 h-5 text-blue-500 rotate-45 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 font-medium truncate">
-                    {fijadoActual.mensaje.contenido}
+                  <p className="text-sm text-white lg:text-gray-800 font-medium truncate flex items-center gap-1.5">
+                    {(() => {
+                      const tipo = fijadoActual.mensaje.tipo;
+                      const contenido = fijadoActual.mensaje.contenido || '';
+                      if (tipo === 'imagen') {
+                        try {
+                          const data = JSON.parse(contenido);
+                          return data.caption
+                            ? <><ImageIcon className="w-4 h-4 text-blue-500 shrink-0" /><span>{data.caption}</span></>
+                            : <><ImageIcon className="w-4 h-4 text-blue-500 shrink-0" /><span>Imagen</span></>;
+                        } catch { return <><ImageIcon className="w-4 h-4 text-blue-500 shrink-0" /><span>Imagen</span></>; }
+                      }
+                      if (tipo === 'documento') {
+                        try {
+                          const data = JSON.parse(contenido);
+                          return `📎 ${data.nombre || 'Documento'}`;
+                        } catch { return '📎 Documento'; }
+                      }
+                      if (tipo === 'audio') return '🎤 Audio';
+                      if (tipo === 'ubicacion') return '📍 Ubicación';
+                      return contenido;
+                    })()}
                   </p>
                 </div>
                 {totalFijados > 1 && (
-                  <span className="text-xs text-gray-400 font-medium shrink-0">
+                  <span className="text-xs text-white/50 lg:text-gray-400 font-medium shrink-0">
                     {indiceSeguro + 1} de {totalFijados}
                   </span>
                 )}
+                {/* Preview de imagen flush al borde derecho */}
+                {fijadoActual.mensaje.tipo === 'imagen' && (() => {
+                  try {
+                    const data = JSON.parse(fijadoActual.mensaje.contenido || '');
+                    const imgSrc = data.url || data.miniatura;
+                    if (!imgSrc) return null;
+                    return (
+                      <img
+                        src={imgSrc}
+                        alt=""
+                        className="w-14 h-14 object-cover shrink-0 rounded-sm -my-2.5 -mr-3.5"
+                      />
+                    );
+                  } catch { return null; }
+                })()}
               </div>
 
               {/* Menú contextual: opciones del fijado (long press / click derecho) */}
@@ -1119,8 +1504,12 @@ function VentanaChatInner() {
         <div
           className="flex-1 relative min-h-0"
           onClick={(e) => {
-            if (menuMensaje && !(e.target as HTMLElement).closest('[id^="msg-"]')) {
-              setMenuMensaje(null);
+            if (menuMensaje) {
+              if (esMobile) {
+                setMenuMensaje(null);
+              } else if (!(e.target as HTMLElement).closest('[id^="msg-"]')) {
+                setMenuMensaje(null);
+              }
             }
           }}
           onDragEnter={handleDragEnterVentana}
@@ -1133,22 +1522,20 @@ function VentanaChatInner() {
             <div className="absolute inset-0 z-30 flex items-center justify-center bg-blue-500/15 backdrop-blur-[2px] pointer-events-none">
               <div className="flex items-center gap-2.5 px-5 py-3 bg-white rounded-2xl shadow-xl border border-blue-200">
                 <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                 </svg>
-                <span className="text-sm font-semibold text-blue-600">Suelta la imagen aquí</span>
+                <span className="text-sm font-semibold text-blue-600">Suelta el archivo aquí</span>
               </div>
             </div>
           )}
           {!cargandoMensajes && mensajesConSeparadores.length > 0 && (
             <AreaMensajes
-              key={conversacionActivaId}
               conversacionId={conversacionActivaId}
               datos={mensajesConSeparadores}
               scrollRef={scrollRef}
               mostrarScrollAbajoRef={mostrarScrollAbajoRef}
               scrollBtnRef={scrollBtnRef}
               cargandoMensajesAntiguos={cargandoMensajesAntiguos}
-              estaEscribiendo={estaEscribiendo}
               esMobile={esMobile}
               esMisNotas={esMisNotas}
               miId={miId}
@@ -1162,6 +1549,12 @@ function VentanaChatInner() {
               hayMasMensajes={hayMasMensajes}
               onImagenClick={handleImagenChatClick}
               onReenviar={handleReenviarMensaje}
+              onCitaClick={handleCitaClick}
+              onResponder={handleResponderMensaje}
+              miAvatarUrl={usuario?.avatarUrl || null}
+              otroAvatarUrl={avatarUrl}
+              misIniciales={usuario ? `${usuario.nombre?.charAt(0) || ''}${usuario.apellidos?.charAt(0) || ''}`.toUpperCase() : '?'}
+              otroIniciales={iniciales}
             />
           )}
 
@@ -1169,7 +1562,7 @@ function VentanaChatInner() {
           <div
             ref={fechaStickyRef}
             style={{ opacity: 0 }}
-            className="absolute top-2.5 left-1/2 -translate-x-1/2 lg:left-[783px] lg:-translate-x-1/2 z-10 text-[11px] font-semibold tracking-wide px-3.5 py-1 rounded-lg pointer-events-none bg-[#0a1628]/80 text-white/70 shadow-[0_1px_3px_rgba(0,0,0,0.2)] lg:bg-white/90 lg:text-gray-500 lg:shadow-[0_1px_3px_rgba(0,0,0,0.06)] lg:border lg:border-gray-200"
+            className="absolute top-2.5 left-1/2 -translate-x-1/2 lg:left-[calc(50%-6px)] z-10 text-[11px] font-semibold tracking-wide px-3.5 py-1 rounded-lg pointer-events-none bg-[#1a2d4a]/70 text-white/75 shadow-[0_1px_3px_rgba(0,0,0,0.15)] backdrop-blur-sm"
           />
 
           {/* Botón scroll al fondo — siempre montado, visibilidad via ref */}
@@ -1208,6 +1601,7 @@ function VentanaChatInner() {
             onCancelarRespuesta={handleCancelarRespuesta}
             nombreContacto={nombreMostrar}
             miId={miId}
+            destinatarioId={otro?.id || ''}
             archivosDrop={archivosDrop}
             onArchivosDropProcesados={() => setArchivosDrop(null)}
           />
@@ -1230,12 +1624,15 @@ function VentanaChatInner() {
       </div>{/* fin área principal */}
 
       {/* ═══ Panel lateral de información del contacto ═══ */}
-      {panelMontado.current && conversacion && !esMisNotas && (
+      {panelMontado.current && conversacionParaPanel && !esMisNotas && (
         <div className={`${panelAbierto ? '' : 'hidden'} ${esMobile ? 'fixed inset-0 z-60 bg-white' : ''}`}>
           <PanelInfoContacto
-            conversacion={conversacion}
-            onCerrar={() => setPanelAbierto(false)}
+            conversacion={conversacionParaPanel}
+            esTemporal={esTemporal}
+            onCerrar={cerrarPanel}
             onAbrirImagen={(url) => setModalAvatarUrl(url)}
+            onAbrirVisorArchivos={handleAbrirVisorArchivos}
+            archivosKey={archivosKey}
           />
         </div>
       )}
@@ -1271,7 +1668,35 @@ function VentanaChatInner() {
           onDesfijar={handleDesfijarDesdeVisor}
           onDescargar={handleDescargarImagen}
           onReaccionar={handleReaccionar}
-          onCerrar={() => setVisorImagenMsgId(null)}
+          onCerrar={() => { setVisorImagenMsgId(null); setVisorAbierto(false); }}
+        />
+      )}
+
+      {/* ═══ Visor fullscreen desde archivos compartidos (PanelInfoContacto) ═══ */}
+      {visorArchivos && visorArchivos.imagenes.length > 0 && (
+        <VisorImagenesChat
+          imagenesChat={visorArchivos.imagenes}
+          indiceInicial={visorArchivos.indice}
+          miDatos={{
+            nombre: 'Tú',
+            avatarUrl: usuario?.avatarUrl || null,
+            iniciales: usuario ? `${usuario.nombre?.charAt(0) || ''}${usuario.apellidos?.charAt(0) || ''}`.toUpperCase() : '?',
+          }}
+          otroDatos={{
+            nombre: nombreMostrar,
+            avatarUrl,
+            iniciales,
+          }}
+          miId={miId}
+          mensajesFijadosIds={[]}
+          esMisNotas={esMisNotas}
+          onResponder={() => {}}
+          onReenviar={() => {}}
+          onFijar={() => {}}
+          onDesfijar={() => {}}
+          onDescargar={handleDescargarImagen}
+          onReaccionar={async () => {}}
+          onCerrar={() => { setVisorArchivos(null); setVisorAbierto(false); }}
         />
       )}
 

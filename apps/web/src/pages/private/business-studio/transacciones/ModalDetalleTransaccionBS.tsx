@@ -37,6 +37,8 @@ import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { notificar } from '../../../../utils/notificaciones';
 import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useChatYAStore } from '../../../../stores/useChatYAStore';
+import { useUiStore } from '../../../../stores/useUiStore';
 import type { TransaccionPuntos } from '../../../../types/puntos';
 
 // =============================================================================
@@ -139,6 +141,29 @@ export default function ModalDetalleTransaccionBS({
   const revocarTransaccion = useTransaccionesStore((s) => s.revocarTransaccion);
   const totalSucursales = useAuthStore((s) => s.totalSucursales);
   const tieneSucursales = totalSucursales > 1;
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+
+  // ─── Handler ChatYA ───
+  const handleContactarCliente = () => {
+    if (!tx.clienteId) return;
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: tx.clienteId,
+        nombre: tx.clienteNombre || 'Cliente',
+        apellidos: '',
+        avatarUrl: tx.clienteAvatarUrl ?? null,
+      },
+      datosCreacion: {
+        participante2Id: tx.clienteId,
+        participante2Modo: 'personal',
+        contextoTipo: 'directo',
+      },
+    });
+    abrirChatYA();
+    handleCerrar();
+  };
 
   if (!abierto || !transaccion) return null;
 
@@ -237,10 +262,10 @@ export default function ModalDetalleTransaccionBS({
               </p>
             )}
           </div>
-          {tx.clienteTelefono && (
+          {tx.clienteId && (
             <button
-              onClick={() => {/* TODO: integrar ChatYA cuando esté listo */ }}
-              className="shrink-0 cursor-pointer"
+              onClick={handleContactarCliente}
+              className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               title="Contactar cliente por ChatYA"
             >
               <img src="/ChatYA.webp" alt="ChatYA" className="w-auto h-7 lg:w-auto lg:h-6 2xl:h-7 2xl:w-auto" />

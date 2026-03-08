@@ -372,7 +372,7 @@ export function FormularioRegistro({
         <div className="bg-blue-900 h-3" />
 
         {/* Contenido del header con gradiente */}
-        <div className="bg-gradient-to-br from-blue-700 to-blue-500 px-4 pt-4 pb-16">
+        <div className="bg-linear-to-br from-blue-700 to-blue-500 px-4 pt-4 pb-16">
           {/* Barra superior: Botón atrás + Logo - Izquierda */}
           <div className="flex items-center justify-center relative mb-8">
             <button
@@ -414,7 +414,7 @@ export function FormularioRegistro({
 
         {/* Header desktop - Alineado a la izquierda */}
         <div className="hidden lg:flex items-center gap-2 mb-2 2xl:mb-5">
-          <div className="flex items-center justify-center w-8 h-8 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg lg:rounded-xl shadow-lg shadow-blue-500/30">
+          <div className="flex items-center justify-center w-8 h-8 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg lg:rounded-xl shadow-lg shadow-blue-500/30">
             <User className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
           </div>
           <h2 className="text-base lg:text-lg 2xl:text-xl font-extrabold text-slate-900">Registra tu cuenta</h2>
@@ -427,8 +427,8 @@ export function FormularioRegistro({
           {/* Indicador deslizante - Azul para Personal, Naranja para Comercial */}
           <div
             className={`absolute top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-lg shadow-lg transition-all duration-300 ${tipoCuenta === 'comercial'
-              ? 'translate-x-[calc(100%+4px)] bg-gradient-to-r from-orange-500 to-orange-600'
-              : 'translate-x-0 bg-gradient-to-r from-blue-600 to-blue-700'
+              ? 'translate-x-[calc(100%+4px)] bg-linear-to-r from-orange-500 to-orange-600'
+              : 'translate-x-0 bg-linear-to-r from-blue-600 to-blue-700'
               }`}
           />
 
@@ -436,7 +436,7 @@ export function FormularioRegistro({
           <button
             type="button"
             onClick={() => setTipoCuenta('personal')}
-            className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-3 2xl:px-4 rounded-lg text-sm font-semibold z-10 transition-colors flex items-center justify-center gap-1.5 ${tipoCuenta === 'personal' ? 'text-white' : 'text-slate-500'
+            className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-3 2xl:px-4 rounded-lg text-sm font-semibold z-10 transition-colors flex items-center justify-center gap-1.5 lg:cursor-pointer ${tipoCuenta === 'personal' ? 'text-white' : 'text-slate-500'
               }`}
           >
             <User className="w-5 h-5" />
@@ -447,7 +447,7 @@ export function FormularioRegistro({
           <button
             type="button"
             onClick={() => setTipoCuenta('comercial')}
-            className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-3 2xl:px-4 rounded-lg text-sm font-semibold z-10 transition-colors flex items-center justify-center gap-1.5 ${tipoCuenta === 'comercial' ? 'text-white' : 'text-slate-500'
+            className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-3 2xl:px-4 rounded-lg text-sm font-semibold z-10 transition-colors flex items-center justify-center gap-1.5 lg:cursor-pointer ${tipoCuenta === 'comercial' ? 'text-white' : 'text-slate-500'
               }`}
           >
             <Building2 className="w-5 h-5" />
@@ -456,7 +456,7 @@ export function FormularioRegistro({
         </div>
 
         {tipoCuenta === 'comercial' && (
-          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-2 lg:p-2.5 2xl:p-3 mb-2 lg:mb-2.5 2xl:mb-4 relative overflow-hidden">
+          <div className="bg-linear-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-2 lg:p-2.5 2xl:p-3 mb-2 lg:mb-2.5 2xl:mb-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-16 h-16 lg:w-20 lg:h-20 bg-orange-200/30 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="flex items-center justify-between relative z-10">
               <div>
@@ -467,7 +467,7 @@ export function FormularioRegistro({
                 <p className="text-[11px] lg:text-xs text-orange-600">IVA incluido</p>
               </div>
               <div className="text-right">
-                <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-[11px] lg:text-xs font-bold px-2 lg:px-2.5 2xl:px-3 py-1 lg:py-1.5 rounded-full shadow-sm flex items-center gap-1">
+                <span className="bg-linear-to-r from-green-500 to-emerald-500 text-white text-[11px] lg:text-xs font-bold px-2 lg:px-2.5 2xl:px-3 py-1 lg:py-1.5 rounded-full shadow-sm flex items-center gap-1">
                   <Check className="w-3 h-3" />
                   7 días gratis
                 </span>
@@ -607,7 +607,7 @@ export function FormularioRegistro({
                     <button
                       type="button"
                       onClick={() => setMostrarContrasena(!mostrarContrasena)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 lg:cursor-pointer"
                     >
                       {mostrarContrasena ? (
                         <EyeOff className="w-4 h-4" />
@@ -637,7 +637,7 @@ export function FormularioRegistro({
                     <button
                       type="button"
                       onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 lg:cursor-pointer"
                     >
                       {mostrarConfirmar ? (
                         <EyeOff className="w-4 h-4" />
@@ -662,7 +662,7 @@ export function FormularioRegistro({
           {/* Badge Google (si viene de Google) */}
           {datosGoogle && (
             <div className="flex items-center gap-3 bg-green-50 border-2 border-green-200 rounded-xl p-3">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
                 <GoogleIcon />
               </div>
               <div className="flex-1">
@@ -672,7 +672,7 @@ export function FormularioRegistro({
               <button
                 type="button"
                 onClick={onDesconectarGoogle}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-100 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-100 transition-colors lg:cursor-pointer"
                 title="Cambiar cuenta"
               >
                 <X className="w-4 h-4 text-green-600" />
@@ -689,7 +689,7 @@ export function FormularioRegistro({
               }`}
           >
             <div
-              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${formulario.aceptaTerminos
+              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${formulario.aceptaTerminos
                 ? 'bg-blue-600 border-blue-600'
                 : 'border-slate-300 bg-white'
                 }`}
@@ -720,7 +720,7 @@ export function FormularioRegistro({
           <button
             type="submit"
             disabled={!esFormularioValido() || cargando}
-            className="w-full py-3 lg:py-2.5 2xl:py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-sm lg:text-sm rounded-lg lg:rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all"          >
+            className="w-full py-3 lg:py-2.5 2xl:py-3.5 bg-linear-to-r from-blue-600 to-blue-700 text-white font-bold text-sm lg:text-sm rounded-lg lg:rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all lg:cursor-pointer"          >
             {cargando ? (
               <span className="flex items-center justify-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -747,7 +747,7 @@ export function FormularioRegistro({
                 type="button"
                 onClick={onGoogleClick}
                 disabled={cargando}
-                className="w-full py-3 bg-white border-2 border-slate-200 rounded-xl font-semibold text-sm text-slate-700 flex items-center justify-center gap-2.5 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-all"
+                className="w-full py-3 bg-white border-2 border-slate-200 rounded-xl font-semibold text-sm text-slate-700 flex items-center justify-center gap-2.5 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-all lg:cursor-pointer"
               >
                 <GoogleIcon />
                 Google
@@ -761,7 +761,7 @@ export function FormularioRegistro({
             <button
               type="button"
               onClick={onAbrirLogin}
-              className="text-blue-600 font-semibold hover:underline"
+              className="text-blue-600 font-semibold hover:underline lg:cursor-pointer"
             >
               Inicia sesión
             </button>

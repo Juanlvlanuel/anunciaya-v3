@@ -174,14 +174,14 @@ export function BarraBusquedaChat({
       {esMobile && (
         <button
           onClick={onCerrar}
-          className="w-7 h-8 -ml-2 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 text-white/70 shrink-0"
+          className="w-8 h-9 -ml-2 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 text-white/70 shrink-0"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-6 h-6" />
         </button>
       )}
 
       {/* Input con fondo sutil */}
-      <div className={`flex-1 flex items-center gap-2 px-3 ${esMobile ? 'h-11 bg-white/10 border-white/15' : 'h-10 bg-white/60 border-slate-300'} rounded-full border min-w-0`}>
+      <div className={`flex-1 flex items-center gap-2 px-3 ${esMobile ? 'h-11 bg-white/10' : 'h-10 bg-white/60 border border-slate-300'} rounded-full min-w-0`}>
         {/* Lupa — solo desktop */}
         {!esMobile && <Search className="w-4 h-4 text-slate-500 shrink-0" />}
 

@@ -589,6 +589,15 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
   }
 }
 
+@keyframes ultimaVezScroll {
+  0%, 55% {
+    transform: translateX(0);
+  }
+  92%, 100% {
+    transform: translateX(calc(-1 * var(--prefix-w, 80px)));
+  }
+}
+
 /* ═══ Emoji Picker — Estilo WhatsApp ═══ */
 .selector-emojis .EmojiPickerReact {
   --epr-bg-color: #0a0a0a !important;
@@ -728,4 +737,83 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
 @keyframes resaltadoPulso {
   0%, 100% { box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.6); }
   50% { box-shadow: 0 0 12px 4px rgba(96, 165, 250, 0.35); }
+}
+
+/* ============================================= */
+/* PERFIL EMBEBIDO - Vista mobile forzada        */
+/* Usado en: PanelInfoContacto (ChatYA)          */
+/* Fuerza diseño mobile dentro del panel estrecho*/
+/* ============================================= */
+
+@media (min-width: 1024px) {
+  /* ── Mostrar bloques móviles (ocultos en desktop) ── */
+  .perfil-embebido .flex.lg\:hidden { display: flex !important; }
+  .perfil-embebido .inline-flex.lg\:hidden { display: inline-flex !important; }
+  .perfil-embebido .grid.lg\:hidden { display: grid !important; }
+  .perfil-embebido .lg\:hidden:not(.flex):not(.inline-flex):not(.grid) { display: block !important; }
+
+  /* ── Ocultar bloques desktop (visibles solo en lg+) ── */
+  .perfil-embebido .hidden.lg\:flex { display: none !important; }
+  .perfil-embebido .hidden.lg\:block { display: none !important; }
+  .perfil-embebido .hidden.lg\:inline { display: none !important; }
+  .perfil-embebido .hidden.lg\:inline-flex { display: none !important; }
+
+  /* ── Grids: forzar columnas mobile ── */
+  .perfil-embebido .lg\:grid-cols-\[1fr_240px\] { grid-template-columns: 1fr !important; }
+  .perfil-embebido .grid-cols-1.lg\:grid-cols-2 { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
+  .perfil-embebido .grid-cols-1.lg\:grid-cols-3 { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
+  .perfil-embebido .grid-cols-2.lg\:grid-cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+  /* ── Flex direction: mantener columna/fila mobile ── */
+  .perfil-embebido .lg\:flex-col { flex-direction: row !important; }
+  .perfil-embebido .lg\:flex-row { flex-direction: column !important; }
+
+  /* ── Hero: mantener bordes redondeados y márgenes mobile ── */
+  .perfil-embebido .lg\:h-50 { height: 15rem !important; }
+  .perfil-embebido .lg\:rounded-b-none { border-bottom-left-radius: 1.5rem !important; border-bottom-right-radius: 1.5rem !important; }
+  .perfil-embebido .lg\:rounded-br-\[3rem\] { border-bottom-right-radius: 1.5rem !important; }
+  .perfil-embebido .lg\:-mx-3\.5 { margin-left: 0 !important; margin-right: 0 !important; }
+
+  /* ── Iconos hero: mantener posición mobile ── */
+  .perfil-embebido .lg\:top-4 { top: 3.5rem !important; }
+  .perfil-embebido .lg\:px-16 { padding-left: 3rem !important; padding-right: 3rem !important; }
+
+  /* ── Espaciado mobile ── */
+  .perfil-embebido .lg\:py-0 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+  .perfil-embebido .lg\:mt-12 { margin-top: 0 !important; }
+  .perfil-embebido .lg\:pr-8 { padding-right: 0 !important; }
+  .perfil-embebido .lg\:px-0 { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
+  .perfil-embebido .lg\:px-4 { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
+
+  /* ── Modales: contener dentro del panel (no del viewport) ── */
+  .perfil-contenedor {
+    position: relative !important;
+    transform: translateZ(0); /* Crea containing block para hijos fixed */
+  }
+
+  /* Convertir fixed a absolute dentro del contenedor */
+  .perfil-contenedor .fixed.inset-0 {
+    position: absolute !important;
+  }
+
+  /* Bloquear scroll del perfil cuando hay un modal abierto */
+  .perfil-contenedor:has(.fixed.inset-0) .perfil-embebido {
+    overflow: hidden !important;
+  }
+  .perfil-embebido .lg\:overflow-x-visible { overflow-x: hidden !important; }
+}
+
+@media (min-width: 1536px) {
+  /* ── Ocultar bloques solo-2xl ── */
+  .perfil-embebido .hidden.\32xl\:flex { display: none !important; }
+  .perfil-embebido .hidden.\32xl\:block { display: none !important; }
+
+  /* ── Hero ── */
+  .perfil-embebido .\32xl\:h-72 { height: 15rem !important; }
+  .perfil-embebido .\32xl\:-mx-7\.5 { margin-left: 0 !important; margin-right: 0 !important; }
+
+  /* ── Grids ── */
+  .perfil-embebido .\32xl\:grid-cols-\[1fr_320px\] { grid-template-columns: 1fr !important; }
+  .perfil-embebido .grid-cols-1.\32xl\:grid-cols-3 { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
+  .perfil-embebido .grid-cols-2.\32xl\:grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 }

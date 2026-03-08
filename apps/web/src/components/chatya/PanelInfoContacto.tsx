@@ -12,26 +12,43 @@
  * UBICACIÓN: apps/web/src/components/chatya/PanelInfoContacto.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import {
   X, Store, Star, Clock, ExternalLink, Bell, BellOff,
   ShieldBan, Trash2, ChevronRight, Award, Coins, Calendar, User, UserPlus, UserMinus, ArrowLeft,
+  FileText, ArrowUpRight, MapPin,
 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { obtenerPerfilSucursal } from '../../services/negociosService';
 import { getDetalleCliente } from '../../services/clientesService';
-import type { Conversacion } from '../../types/chatya';
+import { getConteoArchivosCompartidos, getArchivosCompartidos } from '../../services/chatyaService';
+import type { Conversacion, ConteoArchivosCompartidos, ArchivoCompartido, ContenidoImagen } from '../../types/chatya';
 import type { NegocioCompleto } from '../../types/negocios';
 import type { ClienteDetalle } from '../../types/clientes';
 import Swal from 'sweetalert2';
-import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useBreakpoint, BreakpointOverride } from '../../hooks/useBreakpoint';
+import { GaleriaArchivosCompartidos, invalidarCachéGaleria } from './GaleriaArchivosCompartidos';
+import Tooltip from '../ui/Tooltip';
+import { ModalHorarios } from '../negocios/ModalHorarios';
+
+// Lazy load — mantiene PaginaPerfilNegocio en su propio chunk (code-split)
+const PaginaPerfilNegocio = lazy(() => import('../../pages/private/negocios/PaginaPerfilNegocio'));
 
 // =============================================================================
 // CACHÉ EN MEMORIA (persiste mientras la app esté montada)
 // =============================================================================
 export const cachéNegocio = new Map<string, NegocioCompleto>();
 export const cachéCliente = new Map<string, ClienteDetalle>();
+export const cachéConteoArchivos = new Map<string, ConteoArchivosCompartidos>();
+export const cachéArchivosRecientes = new Map<string, ArchivoCompartido[]>();
+
+/** Invalida caché de archivos compartidos (llamar al enviar imagen/documento/enlace) */
+export function invalidarCachéArchivos(conversacionId: string) {
+  cachéConteoArchivos.delete(conversacionId);
+  cachéArchivosRecientes.delete(conversacionId);
+  invalidarCachéGaleria(conversacionId);
+}
 
 // =============================================================================
 // HELPERS
@@ -58,6 +75,14 @@ function formatFecha(fecha: string | null) {
   });
 }
 
+/** Convierte "HH:MM" a formato 12hrs */
+function formatoHora12(hora24: string): string {
+  const [h, m] = hora24.split(':').map(Number);
+  const periodo = h >= 12 ? 'PM' : 'AM';
+  const hora12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hora12}:${m.toString().padStart(2, '0')} ${periodo}`;
+}
+
 /** Obtiene el horario de hoy en formato legible */
 function horarioHoy(horarios: NegocioCompleto['horarios']): string | null {
   if (!horarios?.length) return null;
@@ -66,7 +91,7 @@ function horarioHoy(horarios: NegocioCompleto['horarios']): string | null {
   if (!diaHoy || !diaHoy.abierto) return null;
   const apertura = diaHoy.horaApertura?.slice(0, 5) || '';
   const cierre = diaHoy.horaCierre?.slice(0, 5) || '';
-  return apertura && cierre ? `${apertura} - ${cierre}` : null;
+  return apertura && cierre ? `${formatoHora12(apertura)} - ${formatoHora12(cierre)}` : null;
 }
 
 /** Calcula si el negocio está abierto ahora según sus horarios */
@@ -93,13 +118,44 @@ interface PanelInfoContactoProps {
   esTemporal?: boolean;
   onCerrar: () => void;
   onAbrirImagen: (url: string) => void;
+  onAbrirVisorArchivos: (archivoId: string) => void;
+  archivosKey?: number;
+}
+
+// =============================================================================
+// Helper: Formatear "última vez" relativo
+// =============================================================================
+function formatearUltimaVez(timestamp: number): string {
+  const ahora = new Date();
+  const fecha = new Date(timestamp);
+
+  const hora = fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  if (fecha.toDateString() === ahora.toDateString()) {
+    return `últ. vez hoy a la(s) ${hora}`;
+  }
+
+  const ayer = new Date(ahora);
+  ayer.setDate(ayer.getDate() - 1);
+  if (fecha.toDateString() === ayer.toDateString()) {
+    return `últ. vez ayer a la(s) ${hora}`;
+  }
+
+  const diffDias = Math.floor((ahora.getTime() - fecha.getTime()) / 86400000);
+  if (diffDias < 7) {
+    const dia = fecha.toLocaleDateString('es-MX', { weekday: 'long' });
+    return `últ. vez el ${dia} a la(s) ${hora}`;
+  }
+
+  const fechaStr = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: fecha.getFullYear() !== ahora.getFullYear() ? 'numeric' : undefined });
+  return `últ. vez el ${fechaStr} a la(s) ${hora}`;
 }
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirImagen }: PanelInfoContactoProps) {
+export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirImagen, onAbrirVisorArchivos, archivosKey = 0 }: PanelInfoContactoProps) {
   // ---------------------------------------------------------------------------
   // Stores
   // ---------------------------------------------------------------------------
@@ -114,6 +170,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const contactos = useChatYAStore((s) => s.contactos);
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
+  const estadosUsuarios = useChatYAStore((s) => s.estadosUsuarios);
 
   // ---------------------------------------------------------------------------
   // Derivados de la conversación
@@ -121,6 +178,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const otro = conversacion.otroParticipante;
   const esNegocio = !!otro?.negocioNombre;
   const esModoComercial = modoActivo === 'comercial';
+  const estadoOtro = otro?.id ? estadosUsuarios[otro.id] : null;
 
   // Tipo de vista según contexto
   const tipoVista: 'usuario' | 'negocio' | 'cliente' =
@@ -175,10 +233,65 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   // ---------------------------------------------------------------------------
   const [, forzarRender] = useState(0);
   const [cargando, setCargando] = useState(false);
+  const [galeriaAbierta, setGaleriaAbierta] = useState(false);
+  const [vistaPerfilAbierta, setVistaPerfilAbierta] = useState(false);
+  const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false);
+  const vistaPerfilHistoryRef = useRef(false);
+  const popStatePerfilRef = useRef<(() => void) | null>(null);
+
+  /** Cerrar vista perfil limpiando historial (para botón UI y flecha header) */
+  const cerrarVistaPerfil = useCallback(() => {
+    if (vistaPerfilHistoryRef.current) {
+      vistaPerfilHistoryRef.current = false;
+      if (popStatePerfilRef.current) {
+        window.removeEventListener('popstate', popStatePerfilRef.current);
+        popStatePerfilRef.current = null;
+      }
+      history.back();
+    }
+    setVistaPerfilAbierta(false);
+  }, []);
+
+  // Botón atrás nativo: cerrar vista perfil
+  const vistaPerfilIdRef = useRef(`_vp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+
+  useEffect(() => {
+    if (!vistaPerfilAbierta) {
+      vistaPerfilHistoryRef.current = false;
+      popStatePerfilRef.current = null;
+      return;
+    }
+
+    const id = vistaPerfilIdRef.current;
+
+    if (!vistaPerfilHistoryRef.current) {
+      const prevState = history.state ?? {};
+      history.pushState({ ...prevState, _vistaPerfilChat: id }, '', window.location.href);
+      vistaPerfilHistoryRef.current = true;
+    }
+
+    const onPopState = () => {
+      if (!vistaPerfilHistoryRef.current) return;
+      // Solo cerrar si NUESTRA entrada fue la consumida
+      if (history.state?._vistaPerfilChat === id) return;
+      vistaPerfilHistoryRef.current = false;
+      popStatePerfilRef.current = null;
+      setVistaPerfilAbierta(false);
+    };
+
+    popStatePerfilRef.current = onPopState;
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      popStatePerfilRef.current = null;
+    };
+  }, [vistaPerfilAbierta]);
 
   // Leer siempre del caché por ID — nunca datos de un chat anterior
   const negocioEfectivo = sucursalIdNegocio ? cachéNegocio.get(sucursalIdNegocio) ?? null : null;
   const clienteEfectivo = otro ? cachéCliente.get(otro.id) ?? null : null;
+  const conteoArchivos = cachéConteoArchivos.get(conversacion.id) ?? null;
+  const archivosRecientes = cachéArchivosRecientes.get(conversacion.id) ?? null;
 
   // ---------------------------------------------------------------------------
   // Cargar datos según vista
@@ -215,6 +328,32 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   }, [otro?.id, tipoVista, sucursalIdNegocio]);
 
   // ---------------------------------------------------------------------------
+  // Cargar conteo + preview de archivos compartidos (caché por conversacionId)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (esTemporal) return; // conversaciones temporales no tienen archivos
+
+    const convId = conversacion.id;
+    if (cachéConteoArchivos.has(convId)) return; // ya está en caché
+
+    // Cargar conteo + últimas 6 imágenes en paralelo
+    Promise.all([
+      getConteoArchivosCompartidos(convId),
+      getArchivosCompartidos(convId, 'imagenes', 6, 0),
+    ])
+      .then(([conteoRes, imgRes]) => {
+        if (conteoRes.success && conteoRes.data) {
+          cachéConteoArchivos.set(convId, conteoRes.data);
+        }
+        if (imgRes.success && imgRes.data) {
+          cachéArchivosRecientes.set(convId, imgRes.data.items);
+        }
+        forzarRender((n) => n + 1);
+      })
+      .catch(() => void 0);
+  }, [conversacion.id, esTemporal, archivosKey]);
+
+  // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
   const handleSilenciar = () => toggleSilenciar(conversacion.id);
@@ -242,8 +381,13 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className={`${esMobile ? 'w-full h-full' : 'w-[320px] 2xl:w-[340px] min-w-[320px] 2xl:min-w-[340px] border-l border-gray-200'} flex flex-col ${esMobile ? 'bg-linear-to-b from-[#0B358F] to-[#050d1a]' : 'bg-linear-to-b from-slate-100 to-blue-50'} overflow-y-auto shrink-0`}>
+    <div className={`${esMobile ? 'w-full h-full' : vistaPerfilAbierta ? 'w-[500px] 2xl:w-[560px] min-w-[500px] 2xl:min-w-[560px] h-full border-l border-gray-200' : 'w-[320px] 2xl:w-[340px] min-w-[320px] 2xl:min-w-[340px] h-full border-l border-gray-200'} relative flex flex-col ${esMobile ? 'bg-linear-to-b from-[#0B358F] to-[#050d1a]' : 'bg-transparent'} overflow-hidden shrink-0`}>
 
+      {/* ─── Bloque A: Contenido principal + Galería — precargado, oculto con CSS cuando perfil abre ─── */}
+      <div className={`flex-1 flex flex-col ${vistaPerfilAbierta ? 'hidden' : ''}`} style={{ minHeight: 0 }}>
+      {!galeriaAbierta ? (
+        <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
+        <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(100,120,150,0.35) transparent' }}>
       {/* ── Botón cerrar flotante ── */}
       <div className="shrink-0 px-2 pt-2" style={esMobile ? { paddingTop: 'max(0.5rem, env(safe-area-inset-top))' } : undefined}>
         {esMobile ? (
@@ -265,25 +409,57 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
 
       {/* ── Avatar + Nombre ── */}
       <div className="flex flex-col items-center px-4 pt-2 pb-5 gap-3">
-        <div
-          role="button"
-          tabIndex={avatarUrl ? 0 : -1}
-          onClick={(e) => { e.stopPropagation(); if (avatarUrl) onAbrirImagen(avatarUrl); }}
-          onKeyDown={(e) => { if (e.key === 'Enter' && avatarUrl) onAbrirImagen(avatarUrl); }}
-          className={`w-24 h-24 rounded-full overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2)] shrink-0 ${avatarUrl ? 'cursor-pointer hover:opacity-90' : ''}`}
-        >
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={nombreMostrar} className="w-full h-full object-cover" />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center text-white text-2xl font-bold
-              ${tipoVista === 'negocio'
-                ? 'bg-linear-to-br from-amber-400 to-amber-600'
-                : 'bg-linear-to-br from-blue-500 to-blue-700'
-              }`}
-            >
-              {iniciales}
-            </div>
-          )}
+        {/* Avatar con botón contacto */}
+        <div className="relative">
+          <div
+            role="button"
+            tabIndex={avatarUrl ? 0 : -1}
+            onClick={(e) => { e.stopPropagation(); if (avatarUrl) onAbrirImagen(avatarUrl); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && avatarUrl) onAbrirImagen(avatarUrl); }}
+            className={`w-24 h-24 rounded-full overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2)] shrink-0 ${avatarUrl ? 'cursor-pointer hover:opacity-90' : ''}`}
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={nombreMostrar} className="w-full h-full object-cover" />
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center text-white text-2xl font-bold
+                ${tipoVista === 'negocio'
+                  ? 'bg-linear-to-br from-amber-400 to-amber-600'
+                  : 'bg-linear-to-br from-blue-500 to-blue-700'
+                }`}
+              >
+                {iniciales}
+              </div>
+            )}
+          </div>
+
+          {/* Botón contacto — círculo encimado en esquina inferior-derecha del avatar */}
+          <div className="absolute bottom-0 right-0">
+            {esMobile ? (
+              <button
+                onClick={handleToggleContacto}
+                className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all shadow-lg border-[2.5px] border-white hover:scale-110 active:scale-95 ${
+                  contactoExistente
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                }`}
+              >
+                {contactoExistente ? <UserMinus className="w-[15px] h-[15px]" /> : <UserPlus className="w-[15px] h-[15px]" />}
+              </button>
+            ) : (
+              <Tooltip text={contactoExistente ? 'Quitar de contactos' : 'Agregar a contactos'} position="bottom">
+                <button
+                  onClick={handleToggleContacto}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all shadow-lg border-[2.5px] border-white hover:scale-110 active:scale-95 ${
+                    contactoExistente
+                      ? 'bg-red-500 text-white hover:bg-red-600'
+                      : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                  }`}
+                >
+                  {contactoExistente ? <UserMinus className="w-[15px] h-[15px]" /> : <UserPlus className="w-[15px] h-[15px]" />}
+                </button>
+              </Tooltip>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-0.5 text-center">
@@ -328,12 +504,23 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
             </>
           )}
 
-          {tipoVista !== 'negocio' && (
-            <span className="flex items-center gap-1.5 text-xs text-green-400 lg:text-green-700 font-semibold bg-green-500/15 lg:bg-green-100/70 px-2.5 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-              En línea
-            </span>
-          )}
+          {estadoOtro?.estado === 'conectado' ? (
+              <span className="flex items-center gap-1.5 text-sm text-green-600 font-semibold">
+                <span className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+                En línea
+              </span>
+            ) : estadoOtro?.estado === 'ausente' ? (
+              <span className="flex items-center gap-1.5 text-sm text-amber-400 font-semibold">
+                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+                Ausente
+              </span>
+            ) : estadoOtro?.estado === 'desconectado' ? (
+              <span className="text-sm text-white/70 lg:text-gray-500 font-semibold">
+                {formatearUltimaVez(estadoOtro.timestamp)}
+              </span>
+            ) : (
+              <span className="text-sm text-white/30 lg:text-gray-400">...</span>
+            )}
           {conversacion.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
             <span className="text-xs text-white/40 lg:text-gray-500 font-medium mt-0.5">
               {conversacion.contextoTipo === 'negocio' && 'Contactó desde: Tu perfil'}
@@ -343,17 +530,6 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               {conversacion.contextoTipo === 'dinamica' && `Contactó por dinámica: ${conversacion.contextoNombre || 'Dinámicas'}`}
             </span>
           )}
-          <button
-            onClick={handleToggleContacto}
-            className={`flex items-center gap-1.5 text-sm lg:text-sm font-semibold px-3.5 py-1.5 rounded-full cursor-pointer transition-colors mt-1 ${
-              contactoExistente
-                ? 'bg-white/10 text-white/60 hover:bg-red-500/20 hover:text-red-400 lg:bg-gray-100 lg:text-gray-500 lg:hover:bg-red-50 lg:hover:text-red-500'
-                : 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 lg:bg-blue-50 lg:text-blue-600 lg:hover:bg-blue-100'
-            }`}
-          >
-            {contactoExistente ? <UserMinus className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-            {contactoExistente ? 'Quitar de contactos' : 'Agregar a contactos'}
-          </button>
         </div>
       </div>
 
@@ -369,51 +545,81 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               </div>
             ) : negocioEfectivo ? (
               <>
-                {/* Calificación */}
-                {parseFloat(negocioEfectivo.calificacionPromedio) > 0 && (
-                  <div className="flex items-center gap-2.5 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
-                    <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
-                    <span className="text-sm lg:text-sm font-bold text-white lg:text-gray-800">
-                      {parseFloat(negocioEfectivo.calificacionPromedio).toFixed(1)}
-                    </span>
-                    <span className="text-xs text-white/50 lg:text-gray-500">
-                      ({negocioEfectivo.totalCalificaciones} reseñas)
-                    </span>
-                  </div>
-                )}
-
-                {/* Categoría */}
-                {negocioEfectivo.categorias?.length > 0 && (
-                  <div className="flex items-center gap-2.5 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
-                    <Store className="w-4 h-4 text-white/50 lg:text-gray-500 shrink-0" />
-                    <span className="text-sm lg:text-sm text-white/80 lg:text-gray-700">
-                      {negocioEfectivo.categorias[0].categoria.nombre}
-                    </span>
-                  </div>
-                )}
-
-                {/* Horario + estado */}
+                {/* Rating + Categoría en un solo renglón */}
                 <div className="flex items-center gap-2.5 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5">
+                  {parseFloat(negocioEfectivo.calificacionPromedio) > 0 ? (
+                    <>
+                      <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+                      <span className="text-sm font-bold text-white lg:text-gray-800">
+                        {parseFloat(negocioEfectivo.calificacionPromedio).toFixed(1)}
+                      </span>
+                      <span className="text-xs text-white/50 lg:text-gray-500">
+                        ({negocioEfectivo.totalCalificaciones})
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Star className="w-4 h-4 text-white/20 lg:text-gray-300 shrink-0" />
+                      <span className="text-sm text-white/40 lg:text-gray-400">Sin reseñas aún</span>
+                    </>
+                  )}
+                  {negocioEfectivo.categorias?.length > 0 && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Store className="w-4 h-4 text-white/50 lg:text-gray-500 shrink-0" />
+                      <span className="text-sm text-white/80 lg:text-gray-700 truncate">
+                        {negocioEfectivo.categorias[0].categoria.nombre}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Horario + estado — clickeable para abrir modal */}
+                <button
+                  onClick={() => setModalHorariosAbierto(true)}
+                  className="flex items-center gap-2.5 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5 w-full cursor-pointer hover:bg-white/15 lg:hover:bg-blue-50 transition-colors"
+                >
                   <Clock className="w-4 h-4 text-white/50 lg:text-gray-500 shrink-0" />
-                  <div className="flex flex-col">
-                    <span className={`text-sm font-semibold ${calcularAbierto(negocioEfectivo.horarios) ? 'text-green-600' : 'text-red-500'}`}>
+                  <div className="flex flex-col flex-1 text-left">
+                    <span className={`text-base lg:text-sm font-semibold ${calcularAbierto(negocioEfectivo.horarios) ? 'text-green-600' : 'text-red-500'}`}>
                       {calcularAbierto(negocioEfectivo.horarios) ? 'Abierto ahora' : 'Cerrado'}
                     </span>
                     {(() => {
                       const h = horarioHoy(negocioEfectivo.horarios);
-                      return h ? <span className="text-xs text-white/40 lg:text-gray-500">{h}</span> : null;
+                      return h ? <span className="text-sm lg:text-xs text-white/40 lg:text-gray-500">{h}</span> : null;
                     })()}
                   </div>
-                </div>
+                  <ChevronRight className="w-5 h-5 text-white/30 lg:text-gray-400 shrink-0" />
+                </button>
 
-                {/* Ver perfil */}
-                <a
-                  href={`/negocios/${negocioEfectivo.sucursalId}`}
-                  className="flex items-center justify-between w-full px-3 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white text-sm font-semibold cursor-pointer transition-colors shadow-sm"
-                >
-                  <span>Ver perfil del negocio</span>
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+                {/* Modal de horarios */}
+                {modalHorariosAbierto && negocioEfectivo.horarios && (
+                  <ModalHorarios
+                    horarios={negocioEfectivo.horarios}
+                    onClose={() => setModalHorariosAbierto(false)}
+                  />
+                )}
+
+                {/* Ver perfil + Ubicación */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setVistaPerfilAbierta(true)}
+                    className="flex items-center gap-2 flex-1 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5 cursor-pointer hover:bg-white/15 lg:hover:bg-blue-50 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 text-blue-400 lg:text-blue-500 shrink-0" />
+                    <span className="text-sm font-semibold text-blue-400 lg:text-blue-600">Ver Perfil</span>
+                    <ArrowUpRight className="w-4.5 h-4.5 text-blue-400/60 lg:text-blue-400 shrink-0" />
+                  </button>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${negocioEfectivo.latitud},${negocioEfectivo.longitud}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 flex-1 bg-white/10 lg:bg-white/90 shadow-sm rounded-xl px-3 py-2.5 cursor-pointer hover:bg-white/15 lg:hover:bg-green-50 transition-colors"
+                  >
+                    <MapPin className="w-4 h-4 text-green-500 lg:text-green-600 shrink-0" />
+                    <span className="text-sm font-semibold text-green-500 lg:text-green-600">Ubicación</span>
+                    <ArrowUpRight className="w-4.5 h-4.5 text-green-400/60 lg:text-green-500 shrink-0" />
+                  </a>
+                </div>
               </>
             ) : (
               <p className="text-xs text-white/40 lg:text-gray-500 text-center py-2">No se pudo cargar la información</p>
@@ -489,7 +695,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               </>
             ) : (
               <div className="bg-white/10 lg:bg-white rounded-2xl shadow-sm border border-white/10 lg:border-gray-100 flex flex-col items-center gap-2 py-6 px-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-white/10 lg:bg-gray-50 flex items-center justify-center mb-1">
+                <div className="w-12 h-12 rounded-full bg-white/10 lg:bg-white/90 flex items-center justify-center mb-1">
                   <User className="w-6 h-6 text-white/30 lg:text-gray-300" />
                 </div>
                 <p className="text-sm font-bold text-white/70 lg:text-gray-600">Sin billetera aquí</p>
@@ -502,41 +708,147 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
         {/* ════ VISTA 1: Usuario → Usuario ════ */}
         {tipoVista === 'usuario' && <div className="px-4 py-3" />}
 
+        {/* ════ ARCHIVOS COMPARTIDOS (común a las 3 vistas) ════ */}
+        {!esTemporal && conteoArchivos && conteoArchivos.total > 0 && (
+          <div className="px-4 py-3">
+            {/* Barra título + total */}
+            <button
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-white/10 lg:hover:bg-black/5 cursor-pointer transition-colors"
+              onClick={() => setGaleriaAbierta(true)}
+            >
+              <FileText className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
+              <span className="text-[14px] lg:text-sm text-white/70 lg:text-gray-600 flex-1 text-left whitespace-nowrap">
+                Archivos, enlaces y documentos
+              </span>
+              <span className="text-[13px] lg:text-xs font-bold text-white/40 lg:text-gray-400">
+                {conteoArchivos.total}
+              </span>
+              <ChevronRight className="w-4 h-4 text-white/30 lg:text-gray-400 shrink-0" />
+            </button>
+
+            {/* Grid de imágenes recientes (3 cols x 2 filas) */}
+            {archivosRecientes && archivosRecientes.length > 0 && (
+              <div className="grid grid-cols-3 gap-1.5 mt-2 px-3">
+                {archivosRecientes.map((archivo) => {
+                  let imgUrl: string | null = null;
+                  let lqip: string | null = null;
+                  try {
+                    const parsed: ContenidoImagen = JSON.parse(archivo.contenido);
+                    imgUrl = parsed.url;
+                    lqip = parsed.miniatura || null;
+                  } catch {
+                    return null;
+                  }
+                  if (!imgUrl) return null;
+                  return (
+                    <div
+                      key={archivo.id}
+                      className="aspect-square rounded-lg overflow-hidden bg-white/10 lg:bg-gray-100 relative cursor-pointer"
+                      onClick={() => onAbrirVisorArchivos(archivo.id)}
+                    >
+                      {/* LQIP borroso como fondo mientras carga la real */}
+                      {lqip && (
+                        <img
+                          src={lqip}
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover blur-sm scale-110"
+                        />
+                      )}
+                      <img
+                        src={imgUrl}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover z-10"
+                        loading="lazy"
+                      />
+                    </div>
+                  );
+                })}
+
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
       </div>
 
       {/* ── Acciones comunes (solo si el chat ya existe en el servidor) ── */}
       {!esTemporal && (
-        <div className="px-4 py-3 flex flex-col gap-1 shrink-0">
+        <div className="px-4 py-3 lg:py-4 flex flex-row gap-2 shrink-0 lg:border-t lg:border-gray-200">
           <button
             onClick={handleSilenciar}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-white/10 lg:hover:bg-black/8 text-white/70 lg:text-gray-600 cursor-pointer transition-colors"
+            className="flex flex-col items-center justify-center gap-1.5 flex-1 px-2 py-3 lg:py-4 cursor-pointer group"
           >
             {conversacion.silenciada
-              ? <Bell className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
-              : <BellOff className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-gray-500 shrink-0" />
+              ? <Bell className="w-5 h-5 lg:w-5 lg:h-5 text-white/50 lg:text-gray-500 shrink-0 transition-transform group-hover:scale-125" />
+              : <BellOff className="w-5 h-5 lg:w-5 lg:h-5 text-white/50 lg:text-gray-500 shrink-0 transition-transform group-hover:scale-125" />
             }
-            <span className="text-[15px] lg:text-sm">
-              {conversacion.silenciada ? 'Activar notificaciones' : 'Silenciar notificaciones'}
+            <span className="text-[11px] lg:text-[12px] text-white/70 lg:text-gray-600 text-center leading-tight transition-transform group-hover:scale-110">
+              {conversacion.silenciada ? 'Activar' : 'Silenciar'}
             </span>
           </button>
 
-          {!esModoComercial && (
-            <button
-              onClick={handleBloquear}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-500/15 lg:hover:bg-red-100/60 text-red-400 lg:text-red-500 cursor-pointer transition-colors"
-            >
-              <ShieldBan className="w-5 h-5 lg:w-4 lg:h-4 shrink-0" />
-              <span className="text-[15px] lg:text-sm font-medium">Bloquear</span>
-            </button>
-          )}
+          <button
+            onClick={handleBloquear}
+            className="flex flex-col items-center justify-center gap-1.5 flex-1 px-2 py-3 lg:py-4 cursor-pointer group"
+          >
+            <ShieldBan className="w-5 h-5 lg:w-5 lg:h-5 text-red-400 lg:text-red-500 shrink-0 transition-transform group-hover:scale-125" />
+            <span className="text-[11px] lg:text-[12px] font-medium text-red-400 lg:text-red-500 transition-transform group-hover:scale-110">Bloquear</span>
+          </button>
 
           <button
             onClick={handleEliminar}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-500/15 lg:hover:bg-red-100/60 text-red-400 lg:text-red-500 cursor-pointer transition-colors"
+            className="flex flex-col items-center justify-center gap-1.5 flex-1 px-2 py-3 lg:py-4 cursor-pointer group"
           >
-            <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 shrink-0" />
-            <span className="text-[15px] lg:text-sm font-medium">Eliminar chat</span>
+            <Trash2 className="w-5 h-5 lg:w-5 lg:h-5 text-red-400 lg:text-red-500 shrink-0 transition-transform group-hover:scale-125" />
+            <span className="text-[11px] lg:text-[12px] font-medium text-red-400 lg:text-red-500 transition-transform group-hover:scale-110">Eliminar</span>
           </button>
+        </div>
+      )}
+
+      {/* ═══ Galería de archivos compartidos ═══ */}
+        </div>
+      ) : conteoArchivos ? (
+        <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
+          <GaleriaArchivosCompartidos
+            conversacionId={conversacion.id}
+            conteo={conteoArchivos}
+            onCerrar={() => setGaleriaAbierta(false)}
+            onAbrirVisorArchivos={onAbrirVisorArchivos}
+          />
+        </div>
+      ) : null}
+      </div>{/* fin Bloque A */}
+
+      {/* ─── Bloque B: Vista Perfil — siempre en DOM (precargado en background), show/hide con CSS ─── */}
+      {tipoVista === 'negocio' && sucursalIdNegocio && (
+        <div className={`perfil-contenedor flex-1 flex flex-col ${vistaPerfilAbierta ? '' : 'hidden'}`} style={{ minHeight: 0 }}>
+          {/* Header con flecha atrás — siempre estilo mobile azul */}
+          <div className="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-white/10 bg-[#0B358F]">
+            <button
+              onClick={cerrarVistaPerfil}
+              className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors shrink-0 hover:bg-white/10 text-white/80 cursor-pointer"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <Store className="w-5 h-5 shrink-0 text-white/60" />
+            <span className="text-base font-semibold truncate text-white/90">
+              {nombreMostrar}
+            </span>
+          </div>
+          {/* Componente directo — sin iframe, misma instancia React */}
+          <div className="perfil-embebido flex-1 overflow-y-auto bg-white" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <Suspense fallback={
+              <div className="flex-1 flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            }>
+              <BreakpointOverride forzarMobile>
+                <PaginaPerfilNegocio sucursalIdOverride={sucursalIdNegocio} modoPreviewOverride />
+              </BreakpointOverride>
+            </Suspense>
+          </div>
         </div>
       )}
     </div>

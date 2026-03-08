@@ -41,6 +41,7 @@ export interface CategoriaAsignada {
 export interface NegocioResumen {
   // Datos del negocio
   negocioId: string;
+  usuarioId: string;
   negocioNombre: string;
   galeria: ImagenGaleria[];
   logoUrl: string | null;
@@ -154,6 +155,7 @@ export interface Metricas {
 export interface NegocioCompleto {
   // Datos del negocio
   negocioId: string;
+  usuarioId: string;
   negocioNombre: string;
   negocioDescripcion: string | null;
   logoUrl: string | null;

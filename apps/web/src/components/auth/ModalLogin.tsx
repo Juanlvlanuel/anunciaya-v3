@@ -180,6 +180,7 @@ export function ModalLogin() {
             text-gray-400 hover:text-gray-600 
             rounded-lg hover:bg-gray-100 
             transition-colors z-10
+            lg:cursor-pointer
           "
           aria-label="Cerrar"
         >

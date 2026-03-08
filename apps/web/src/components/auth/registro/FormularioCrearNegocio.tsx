@@ -240,7 +240,7 @@ export function FormularioCrearNegocio({
             <button
               type="submit"
               disabled={!formularioValido || cargando}
-              className="w-full py-3 bg-linear-to-r from-orange-500 to-orange-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all"
+              className="w-full py-3 bg-linear-to-r from-orange-500 to-orange-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all lg:cursor-pointer"
             >
               {cargando ? (
                 <span className="flex items-center justify-center gap-2">

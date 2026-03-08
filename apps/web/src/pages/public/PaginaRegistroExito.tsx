@@ -251,7 +251,7 @@ export function PaginaRegistroExito() {
                     {/* Botón manual */}
                     <button
                         onClick={() => navigate('/registro')}
-                        className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
+                        className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors lg:cursor-pointer"
                     >
                         Volver al registro
                     </button>

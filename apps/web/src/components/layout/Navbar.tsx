@@ -179,7 +179,7 @@ function DropdownItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2 lg:px-2 lg:py-1.5 2xl:px-4 2xl:py-2.5 px-4 py-2.5 hover:bg-linear-to-r ${hoverGradient} hover:to-transparent group transition-all duration-150 hover:translate-x-1`}
+      className={`w-full flex items-center gap-2 lg:px-2 lg:py-1.5 2xl:px-4 2xl:py-2.5 px-4 py-2.5 hover:bg-linear-to-r ${hoverGradient} hover:to-transparent group transition-all duration-150 hover:translate-x-1 cursor-pointer`}
     >
       {/* Icono con background circular */}
       <div
@@ -504,6 +504,7 @@ export const Navbar = () => {
                     hover:text-white hover:bg-white/10 
                     rounded-lg 
                     transition-colors
+                    cursor-pointer
                     shrink-0
                   "
                 >
@@ -1042,7 +1043,7 @@ export const Navbar = () => {
                     <div className="lg:p-1.5 2xl:p-3 p-3 border-t border-gray-200 bg-linear-to-b from-transparent to-gray-50">
                       <button
                         onClick={handleCerrarSesion}
-                        className="w-full flex items-center justify-center gap-2 lg:py-1.5 2xl:py-3 py-3 bg-linear-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg transition-all duration-150 font-bold lg:text-[10px] 2xl:text-sm text-sm active:scale-95"
+                        className="w-full flex items-center justify-center gap-2 lg:py-1.5 2xl:py-3 py-3 bg-linear-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg transition-all duration-150 font-bold lg:text-[10px] 2xl:text-sm text-sm active:scale-95 cursor-pointer"
                       >
                         <LogOut className="lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 w-4 h-4" />
                         <span>Cerrar Sesión</span>

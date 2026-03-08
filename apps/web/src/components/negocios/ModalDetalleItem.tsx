@@ -17,6 +17,8 @@ import { DropdownCompartir } from '../compartir';
 import { useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import api from '../../services/api';
+import { useChatYAStore } from '@/stores/useChatYAStore';
+import { useUiStore } from '@/stores/useUiStore';
 
 // =============================================================================
 // TIPOS
@@ -40,15 +42,20 @@ interface ItemCatalogo {
 interface ModalDetalleItemProps {
     item: ItemCatalogo | null;
     whatsapp?: string | null;
+    negocioUsuarioId?: string | null;
+    sucursalId?: string | null;
+    negocioNombre?: string | null;
     onClose: () => void;
-    openedFromModal?: boolean; // Si se abrió desde otro modal (ModalCatalogo)
+    openedFromModal?: boolean;
 }
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalDetalleItem({ item, whatsapp, onClose, openedFromModal = false }: ModalDetalleItemProps) {
+export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId, negocioNombre, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
+    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
     // Registrar vista del artículo (con filtro de cooldown)
     useEffect(() => {
         if (!item) return;
@@ -99,8 +106,25 @@ export function ModalDetalleItem({ item, whatsapp, onClose, openedFromModal = fa
         window.open(`https://wa.me/${numeroLimpio}?text=${mensaje}`, '_blank');
     };
 
-    const abrirChatYA = () => {
-        // TODO: Implementar apertura de ChatYA
+    const handleChatYA = () => {
+        if (!negocioUsuarioId) return;
+        abrirChatTemporal({
+            id: `temp_${Date.now()}`,
+            otroParticipante: {
+                id: negocioUsuarioId,
+                nombre: negocioNombre ?? '',
+                apellidos: '',
+                avatarUrl: null,
+            },
+            datosCreacion: {
+                participante2Id: negocioUsuarioId,
+                participante2Modo: 'comercial',
+                participante2SucursalId: sucursalId ?? '',
+                contextoTipo: 'negocio',
+            },
+        });
+        abrirChatYA();
+        onClose();
     };
 
     return (
@@ -199,8 +223,9 @@ export function ModalDetalleItem({ item, whatsapp, onClose, openedFromModal = fa
                     {/* Botones de contacto con glow */}
                     <div className="flex gap-3 lg:gap-2 2xl:gap-3 pt-2 lg:pt-1 2xl:pt-2">
                         <button
-                            onClick={abrirChatYA}
-                            className="flex-1 flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 py-3 lg:py-2 2xl:py-3 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white font-medium shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 cursor-pointer"
+                            onClick={handleChatYA}
+                            disabled={!negocioUsuarioId}
+                            className={`flex-1 flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 py-3 lg:py-2 2xl:py-3 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white font-medium shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 ${negocioUsuarioId ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                         >
                             <img src="/ChatYA.webp" alt="ChatYA" className="h-6 lg:h-5 2xl:h-6 w-auto" />
                             <span className="text-sm lg:text-xs 2xl:text-sm">ChatYA</span>

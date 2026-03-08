@@ -13,6 +13,12 @@ import { useAuthStore } from '../../stores/useAuthStore';
 const esMobil = () => window.innerWidth < 640;
 const esDesktopHD = () => window.innerWidth >= 1920;
 
+// Tipo para el botón de SweetAlert2 con handlers de hover guardados
+interface BotonConHandlers extends HTMLElement {
+  _mouseEnterHandler?: EventListener;
+  _mouseLeaveHandler?: EventListener;
+}
+
 export function ModalInactividad() {
   const mostrarModal = useAuthStore((state) => state.mostrarModalInactividad);
   const tiempoRestante = useAuthStore((state) => state.tiempoRestante);
@@ -76,10 +82,11 @@ export function ModalInactividad() {
 
         // Actualizar estilos (sin remover eventos)
         confirmButton.style.background = 'linear-gradient(to right, #dc2626, #b91c1c)';
+        confirmButton.style.cursor = 'pointer';
 
         // Remover eventos anteriores de hover
-        const oldOnMouseEnter = (confirmButton as any)._mouseEnterHandler;
-        const oldOnMouseLeave = (confirmButton as any)._mouseLeaveHandler;
+        const oldOnMouseEnter = (confirmButton as BotonConHandlers)._mouseEnterHandler;
+        const oldOnMouseLeave = (confirmButton as BotonConHandlers)._mouseLeaveHandler;
 
         if (oldOnMouseEnter) {
           confirmButton.removeEventListener('mouseenter', oldOnMouseEnter);
@@ -100,8 +107,8 @@ export function ModalInactividad() {
         confirmButton.addEventListener('mouseleave', newMouseLeave);
 
         // Guardar referencias para limpieza posterior
-        (confirmButton as any)._mouseEnterHandler = newMouseEnter;
-        (confirmButton as any)._mouseLeaveHandler = newMouseLeave;
+        (confirmButton as BotonConHandlers)._mouseEnterHandler = newMouseEnter;
+        (confirmButton as BotonConHandlers)._mouseLeaveHandler = newMouseLeave;
       }
     }
   }, [tiempoRestante, mostrarModal]);
@@ -185,6 +192,11 @@ export function ModalInactividad() {
               .countdown-number {
                 font-size: 2.125rem !important;
               }
+            }
+
+            /* Cursor pointer en el botón de confirmación */
+            .swal2-confirm {
+              cursor: pointer !important;
             }
 
             /* LAPTOP y DESKTOP - sin cambios */
@@ -306,6 +318,7 @@ export function ModalInactividad() {
             confirmButton.style.color = 'white';
             confirmButton.style.width = '100%';
             confirmButton.style.borderRadius = '0.75rem';
+            confirmButton.style.cursor = 'pointer';
 
             const mouseEnter = () => {
               confirmButton.style.background = 'linear-gradient(to right, #f59e0b, #ea580c, #b91c1c)';
@@ -318,8 +331,8 @@ export function ModalInactividad() {
             confirmButton.addEventListener('mouseleave', mouseLeave);
 
             // Guardar referencias para limpieza posterior
-            (confirmButton as any)._mouseEnterHandler = mouseEnter;
-            (confirmButton as any)._mouseLeaveHandler = mouseLeave;
+            (confirmButton as BotonConHandlers)._mouseEnterHandler = mouseEnter;
+            (confirmButton as BotonConHandlers)._mouseLeaveHandler = mouseLeave;
           }
 
           const timerElement = document.getElementById('countdown-timer');

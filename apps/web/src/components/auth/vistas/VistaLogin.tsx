@@ -180,7 +180,7 @@ export function VistaLogin({
             <button
               type="button"
               onClick={() => setMostrarPassword(!mostrarPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 lg:cursor-pointer"
               tabIndex={-1}
             >
               {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -205,7 +205,7 @@ export function VistaLogin({
               onActualizarDatos({ email });
               onCambiarVista('recuperar');
             }}
-            className="text-sm text-blue-500 hover:underline"
+            className="text-sm text-blue-500 hover:underline lg:cursor-pointer"
           >
             {t('login.olvidaste')}
           </button>
@@ -216,7 +216,7 @@ export function VistaLogin({
           type="submit"
           disabled={!formularioValido || cargando}
           className={`w-full py-2.5 rounded-xl font-semibold text-white transition-colors text-sm ${formularioValido && !cargando
-            ? 'bg-blue-500 hover:bg-blue-600'
+            ? 'bg-blue-500 hover:bg-blue-600 lg:cursor-pointer'
             : 'bg-blue-300 cursor-not-allowed'
             }`}
         >
@@ -230,7 +230,7 @@ export function VistaLogin({
         <button
           type="button"
           onClick={handleIrARegistro}
-          className="font-semibold text-blue-500 hover:underline"
+          className="font-semibold text-blue-500 hover:underline lg:cursor-pointer"
         >
           {t('login.registrate')}
         </button>

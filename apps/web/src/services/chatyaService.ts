@@ -48,6 +48,9 @@ import type {
   MensajeFijado,
   PersonaBusqueda,
   NegocioBusqueda,
+  ArchivoCompartido,
+  ConteoArchivosCompartidos,
+  CategoriaArchivo,
 } from '../types/chatya';
 
 // =============================================================================
@@ -613,4 +616,71 @@ export async function obtenerPresignedUrlDocumento(
     throw new Error(resultado.message || 'Error al obtener URL de subida de documento');
   }
   return resultado.data;
+}
+
+// =============================================================================
+// MULTIMEDIA: Presigned URL para subir audio a R2
+// =============================================================================
+
+/**
+ * Pide una URL pre-firmada al backend para subir audio directo a R2.
+ * POST /api/chatya/upload-audio
+ */
+export async function obtenerPresignedUrlAudio(
+  nombreArchivo: string,
+  contentType: string,
+  tamano: number
+): Promise<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }> {
+  const resultado = await post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>(
+    '/chatya/upload-audio',
+    { nombreArchivo, contentType, tamano }
+  );
+  if (!resultado.success || !resultado.data) {
+    throw new Error(resultado.message || 'Error al obtener URL de subida de audio');
+  }
+  return resultado.data;
+}
+
+// =============================================================================
+// ARCHIVOS COMPARTIDOS (Endpoints 30-31)
+// =============================================================================
+
+/**
+ * 30. Lista archivos compartidos de una conversación por categoría.
+ * GET /api/chatya/conversaciones/:id/archivos-compartidos?categoria=imagenes&limit=30&offset=0
+ *
+ * @param conversacionId - UUID de la conversación
+ * @param categoria - 'imagenes' | 'documentos' | 'enlaces'
+ * @param limit - Máximo de resultados (default 30)
+ * @param offset - Desplazamiento para paginación
+ */
+export async function getArchivosCompartidos(
+  conversacionId: string,
+  categoria: CategoriaArchivo = 'imagenes',
+  limit = 30,
+  offset = 0
+) {
+  const params = new URLSearchParams();
+  params.append('categoria', categoria);
+  params.append('limit', limit.toString());
+  params.append('offset', offset.toString());
+
+  return get<ListaPaginada<ArchivoCompartido>>(
+    `/chatya/conversaciones/${conversacionId}/archivos-compartidos?${params}`
+  );
+}
+
+/**
+ * 31. Conteo total de archivos compartidos por categoría.
+ * GET /api/chatya/conversaciones/:id/archivos-compartidos/conteo
+ *
+ * Retorna { imagenes, documentos, enlaces, total } en una sola query.
+ * Se usa para la barra de preview en PanelInfoContacto.
+ *
+ * @param conversacionId - UUID de la conversación
+ */
+export async function getConteoArchivosCompartidos(conversacionId: string) {
+  return get<ConteoArchivosCompartidos>(
+    `/chatya/conversaciones/${conversacionId}/archivos-compartidos/conteo`
+  );
 }

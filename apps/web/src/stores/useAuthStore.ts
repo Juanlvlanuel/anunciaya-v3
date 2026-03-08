@@ -32,7 +32,7 @@ const STORAGE_KEYS = {
 
 // Tiempos de inactividad (en milisegundos) - ✅ VALORES DE PRODUCCIÓN
 const TIEMPO_INACTIVIDAD_TOTAL = 60 * 60 * 1000; // 60 minutos
-const TIEMPO_AVISO_ANTES = 5 * 60 * 1000; // 5 minutos antes
+const TIEMPO_AVISO_ANTES = 5 * 60 * 1000;         // 5 minutos antes
 const TIEMPO_HASTA_AVISO = TIEMPO_INACTIVIDAD_TOTAL - TIEMPO_AVISO_ANTES; // 55 minutos
 
 // =============================================================================
@@ -151,7 +151,6 @@ interface AuthState {
 let timerAviso: ReturnType<typeof setTimeout> | null = null;
 let timerLogout: ReturnType<typeof setTimeout> | null = null;
 let intervalContador: ReturnType<typeof setInterval> | null = null;
-let ultimaActividad: number = Date.now();
 
 // =============================================================================
 // HELPERS DE LOCALSTORAGE
@@ -256,6 +255,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // ACCIÓN: Login exitoso (actualiza todo de una vez)
   // ---------------------------------------------------------------------------
   loginExitoso: async (usuario: Usuario, accessToken: string, refreshToken: string) => {
+
+    // Consumir el flag de logout reciente → garantiza que al re-loguear
+    // siempre se vaya a /inicio, independiente de cuántos re-renders
+    // haya tenido RutaPrivada mientras la sesión estuvo cerrada
+    sessionStorage.removeItem('ay_logout_reciente');
 
     // Guardar tokens
     guardarEnStorage(STORAGE_KEYS.accessToken, accessToken);
@@ -500,7 +504,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // ---------------------------------------------------------------------------
   // ACCIÓN: Cerrar sesión
   // ---------------------------------------------------------------------------
-  logout: (razon: RazonLogout = 'manual') => {
+  logout: (_razon: RazonLogout = 'manual') => {
     // Limpiar timers
     get()._limpiarTimers();
 
@@ -513,6 +517,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Flag para que RutaPrivada NO guarde la ruta al detectar logout
     sessionStorage.setItem('ay_logout_reciente', 'true');
 
+    // Cerrar ChatYA si estaba abierto — CRÍTICO hacerlo aquí, ANTES de que
+    // usuario pase a null, porque RutaPrivada redirige a "/" y desmonta
+    // MainLayout+ChatOverlay antes de que cualquier useEffect pueda reaccionar.
+    // Sin esto, useUiStore queda con chatYAAbierto=true y al re-loguearse
+    // el overlay aparece abierto automáticamente.
+    import('./useUiStore').then(({ useUiStore }) => {
+      useUiStore.getState().cerrarChatYA();
+    });
+
     // Resetear estado
     set({
       usuario: null,
@@ -521,10 +534,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       cargando: false,
       mostrarModalInactividad: false,
       tiempoRestante: 300,
-      datosGooglePendiente: null, // ← También limpiar esto
+      datosGooglePendiente: null,
     });
-
-    // Log para debugging
 
     // TODO: Llamar al endpoint /api/auth/logout para invalidar en el servidor
     // Esto se hará desde el componente que llame a logout()
@@ -583,6 +594,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // ✅ VERIFICAR SI LOS TOKENS ESTÁN EXPIRADOS
       if (esTokenExpirado(accessToken) || esTokenExpirado(refreshToken)) {
         limpiarStorageAuth();
+        // Marcar como logout reciente → RutaPrivada NO guarda la ruta actual
+        // como pendiente, al re-loguear siempre irá a /inicio
+        sessionStorage.setItem('ay_logout_reciente', 'true');
         set({
           cargando: false,
           hidratado: true,
@@ -705,9 +719,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Si el modal está visible, no resetear (el usuario debe hacer clic en "Continuar")
     if (state.mostrarModalInactividad) return;
 
-    // Actualizar última actividad
-    ultimaActividad = Date.now();
-
     // Reiniciar timers
     state._iniciarTimerInactividad();
   },
@@ -718,9 +729,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   continuarSesion: () => {
     // Ocultar modal
     set({ mostrarModalInactividad: false, tiempoRestante: 300 });
-
-    // Actualizar última actividad
-    ultimaActividad = Date.now();
 
     // Reiniciar timers
     get()._iniciarTimerInactividad();
@@ -871,7 +879,7 @@ export function formatearTiempo(segundos: number): string {
 
 // 🧪 TEMPORAL: Exponer store para testing en consola
 if (typeof window !== 'undefined') {
-  (window as any).__AUTH_STORE__ = useAuthStore;
+  (window as unknown as Record<string, unknown>).__AUTH_STORE__ = useAuthStore;
 }
 // =============================================================================
 // SINCRONIZACIÓN DE TOKENS ENTRE PESTAÑAS
