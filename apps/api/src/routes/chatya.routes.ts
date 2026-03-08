@@ -63,8 +63,11 @@ import {
   misNotasController,
   uploadImagenChatController,
   uploadDocumentoChatController,
+  uploadAudioChatController,
+  listarArchivosCompartidosController,
+  contarArchivosCompartidosController,
 } from '../controllers/chatya.controller.js';
-import { verificarToken } from '../middleware/auth.js';
+import { verificarTokenChatYA } from '../middleware/auth.js';
 
 // =============================================================================
 // CREAR ROUTER
@@ -75,7 +78,7 @@ const router: RouterType = Router();
 // =============================================================================
 // MIDDLEWARE: Todas las rutas requieren autenticación
 // =============================================================================
-router.use(verificarToken);
+router.use(verificarTokenChatYA);
 
 // =============================================================================
 // CONVERSACIONES
@@ -207,6 +210,9 @@ router.post('/upload-imagen', uploadImagenChatController);
 /** POST /api/chatya/upload-documento - Presigned URL para subir documento a R2 */
 router.post('/upload-documento', uploadDocumentoChatController);
 
+/** POST /api/chatya/upload-audio - Presigned URL para subir audio a R2 */
+router.post('/upload-audio', uploadAudioChatController);
+
 // =============================================================================
 // BÚSQUEDA DE PERSONAS Y NEGOCIOS (Sprint 5)
 // =============================================================================
@@ -216,6 +222,16 @@ router.get('/buscar-personas', buscarPersonasController);
 
 /** GET /api/chatya/buscar-negocios?q=texto&ciudad=Ciudad de México&lat=19.43&lng=-99.13&limit=10 */
 router.get('/buscar-negocios', buscarNegociosController);
+
+// =============================================================================
+// ARCHIVOS COMPARTIDOS (PanelInfoContacto)
+// =============================================================================
+
+/** GET /api/chatya/conversaciones/:id/archivos-compartidos?categoria=imagenes&limit=30&offset=0 */
+router.get('/conversaciones/:id/archivos-compartidos', listarArchivosCompartidosController);
+
+/** GET /api/chatya/conversaciones/:id/archivos-compartidos/conteo */
+router.get('/conversaciones/:id/archivos-compartidos/conteo', contarArchivosCompartidosController);
 
 // =============================================================================
 // EXPORTAR ROUTER

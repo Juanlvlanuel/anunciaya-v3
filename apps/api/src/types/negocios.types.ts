@@ -21,6 +21,7 @@
 export interface PerfilSucursalRow {
     // Datos del negocio
     negocio_id: string;
+    usuario_id: string;
     negocio_nombre: string;
     negocio_descripcion: string | null;
     logo_url: string | null;
@@ -107,6 +108,7 @@ export interface PerfilSucursalRow {
 export interface SucursalResumenRow {
     // Datos del negocio
     negocio_id: string;
+    usuario_id: string;
     negocio_nombre: string;
     logo_url: string | null;
     acepta_cardya: boolean;

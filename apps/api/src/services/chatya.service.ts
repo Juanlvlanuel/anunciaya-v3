@@ -1290,7 +1290,14 @@ export async function eliminarMensaje(
         // eliminado=true y no aparece. Por eso comparamos fechas: si el último mensaje
         // vivo es más antiguo que el borrado, el borrado era el más reciente.
         const [ultimoMsgVivo] = await db
-            .select({ id: chatMensajes.id, createdAt: chatMensajes.createdAt })
+            .select({
+                id: chatMensajes.id,
+                createdAt: chatMensajes.createdAt,
+                contenido: chatMensajes.contenido,
+                tipo: chatMensajes.tipo,
+                estado: chatMensajes.estado,
+                emisorId: chatMensajes.emisorId,
+            })
             .from(chatMensajes)
             .where(
                 and(
@@ -1304,12 +1311,44 @@ export async function eliminarMensaje(
         const eraUltimoMensaje = !ultimoMsgVivo ||
             new Date(ultimoMsgVivo.createdAt ?? 0) < new Date(msg.createdAt ?? 0);
 
-        // Si era el último, actualizar el preview de la conversación
+        // Si era el último, actualizar el preview con el mensaje anterior vivo
         if (eraUltimoMensaje) {
-            await db
-                .update(chatConversaciones)
-                .set({ ultimoMensajeTexto: 'Se eliminó este mensaje' })
-                .where(eq(chatConversaciones.id, msg.conversacionId));
+            if (ultimoMsgVivo) {
+                // Generar texto de preview igual que al enviar
+                const tipoMsg = ultimoMsgVivo.tipo;
+                const textoPreview = tipoMsg === 'texto'
+                    ? (ultimoMsgVivo.contenido ?? '').substring(0, 100)
+                    : tipoMsg === 'imagen' ? '📷 Imagen'
+                        : tipoMsg === 'audio' ? '🎤 Audio'
+                            : tipoMsg === 'documento' ? '📎 Documento'
+                                : tipoMsg === 'ubicacion' ? '📍 Ubicación'
+                                    : tipoMsg === 'contacto' ? '👤 Contacto'
+                                        : tipoMsg === 'sistema' ? (ultimoMsgVivo.contenido ?? '').substring(0, 100)
+                                            : (ultimoMsgVivo.contenido ?? '').substring(0, 100);
+
+                await db
+                    .update(chatConversaciones)
+                    .set({
+                        ultimoMensajeTexto: textoPreview,
+                        ultimoMensajeTipo: ultimoMsgVivo.tipo,
+                        ultimoMensajeFecha: ultimoMsgVivo.createdAt,
+                        ultimoMensajeEstado: ultimoMsgVivo.estado,
+                        ultimoMensajeEmisorId: ultimoMsgVivo.emisorId,
+                    })
+                    .where(eq(chatConversaciones.id, msg.conversacionId));
+            } else {
+                // No quedan mensajes → limpiar preview
+                await db
+                    .update(chatConversaciones)
+                    .set({
+                        ultimoMensajeTexto: null,
+                        ultimoMensajeTipo: null,
+                        ultimoMensajeFecha: null,
+                        ultimoMensajeEstado: null,
+                        ultimoMensajeEmisorId: null,
+                    })
+                    .where(eq(chatConversaciones.id, msg.conversacionId));
+            }
         }
 
         // Emitir por Socket.io
@@ -1328,6 +1367,23 @@ export async function eliminarMensaje(
                 conversacionId: msg.conversacionId,
                 mensajeId,
                 eraUltimoMensaje,
+                // Enviar el nuevo preview para que el frontend actualice directo
+                ...(eraUltimoMensaje && ultimoMsgVivo ? {
+                    nuevoPreview: {
+                        ultimoMensajeTexto: ultimoMsgVivo.tipo === 'texto'
+                            ? (ultimoMsgVivo.contenido ?? '').substring(0, 100)
+                            : ultimoMsgVivo.tipo === 'imagen' ? '📷 Imagen'
+                                : ultimoMsgVivo.tipo === 'audio' ? '🎤 Audio'
+                                    : ultimoMsgVivo.tipo === 'documento' ? '📎 Documento'
+                                        : ultimoMsgVivo.tipo === 'ubicacion' ? '📍 Ubicación'
+                                            : ultimoMsgVivo.tipo === 'contacto' ? '👤 Contacto'
+                                                : (ultimoMsgVivo.contenido ?? '').substring(0, 100),
+                        ultimoMensajeTipo: ultimoMsgVivo.tipo,
+                        ultimoMensajeFecha: ultimoMsgVivo.createdAt,
+                        ultimoMensajeEstado: ultimoMsgVivo.estado,
+                        ultimoMensajeEmisorId: ultimoMsgVivo.emisorId,
+                    },
+                } : {}),
             };
 
             emitirAUsuario(otroId, 'chatya:mensaje-eliminado', payload);
@@ -2727,5 +2783,275 @@ export async function generarUrlUploadDocumentoChat(
             message: 'Error interno al generar URL de subida de documento',
             code: 500,
         };
+    }
+}
+
+// =============================================================================
+// MULTIMEDIA: Presigned URL para subir AUDIO a R2 (Sprint 6)
+// =============================================================================
+
+/** Tipos MIME de audio permitidos en ChatYA */
+const TIPOS_AUDIO_PERMITIDOS = [
+    'audio/webm',   // WebM/Opus — nativo de Chrome/Edge/Firefox (MediaRecorder)
+    'audio/ogg',    // OGG/Opus — fallback Firefox
+    'audio/mp4',    // AAC — fallback Safari/iOS
+    'audio/mpeg',   // MP3 — compatibilidad general
+];
+
+/** Tamaño máximo de audio: 5 MB (~5 min en WebM/Opus) */
+const MAX_TAMANO_AUDIO = 5 * 1024 * 1024;
+
+/**
+ * Genera una URL pre-firmada para que el frontend suba un audio
+ * directamente a Cloudflare R2.
+ *
+ * El audio se guarda en: chat/audio/{userId}/{timestamp}-{uuid}.{ext}
+ *
+ * @param userId - ID del usuario que sube el audio
+ * @param nombreArchivo - Nombre original del archivo (ej: "audio_1709395200.webm")
+ * @param contentType - Tipo MIME del audio
+ * @param tamano - Tamaño del archivo en bytes (para validar límite)
+ * @returns Presigned URL + URL pública final
+ */
+export async function generarUrlUploadAudioChat(
+    userId: string,
+    nombreArchivo: string,
+    contentType: string,
+    tamano: number
+): Promise<RespuestaServicio<{
+    uploadUrl: string;
+    publicUrl: string;
+    key: string;
+    expiresIn: number;
+}>> {
+    try {
+        // Validar tipo de contenido
+        if (!TIPOS_AUDIO_PERMITIDOS.includes(contentType)) {
+            return {
+                success: false,
+                message: `Tipo de audio no permitido. Permitidos: WebM, OGG, MP4, MP3`,
+                code: 400,
+            };
+        }
+
+        // Validar tamaño
+        if (tamano > MAX_TAMANO_AUDIO) {
+            const maxMB = (MAX_TAMANO_AUDIO / (1024 * 1024)).toFixed(0);
+            return {
+                success: false,
+                message: `El audio no puede pesar más de ${maxMB}MB.`,
+                code: 400,
+            };
+        }
+
+        // Carpeta organizada por usuario
+        const carpeta = `chat/audio/${userId}`;
+
+        const resultado = await generarPresignedUrl(
+            carpeta,
+            nombreArchivo,
+            contentType,
+            300, // 5 minutos de validez
+            TIPOS_AUDIO_PERMITIDOS
+        );
+
+        if (!resultado.success || !resultado.data) {
+            return {
+                success: false,
+                message: resultado.message,
+                code: resultado.code,
+            };
+        }
+
+        return {
+            success: true,
+            message: 'URL de subida de audio generada',
+            data: resultado.data,
+            code: 200,
+        };
+
+    } catch (error) {
+        console.error('Error en generarUrlUploadAudioChat:', error);
+        return {
+            success: false,
+            message: 'Error interno al generar URL de subida de audio',
+            code: 500,
+        };
+    }
+}
+
+// =============================================================================
+// ARCHIVOS COMPARTIDOS: Listar imágenes, documentos y enlaces de una conversación
+// =============================================================================
+
+/**
+ * Lista archivos multimedia, documentos y enlaces compartidos en una conversación.
+ *
+ * - Imágenes: mensajes tipo 'imagen' (JSON con url, miniatura, ancho, alto)
+ * - Documentos: mensajes tipo 'documento' (JSON con url, nombre, tamano, extension)
+ * - Enlaces: URLs extraídas de mensajes tipo 'texto'
+ *
+ * Respeta mensajesVisiblesDesde (si el usuario eliminó el chat, no ve archivos anteriores).
+ * Devuelve paginado por categoría con limit/offset independientes.
+ */
+export async function listarArchivosCompartidos(
+    conversacionId: string,
+    usuarioId: string,
+    categoria: 'imagenes' | 'documentos' | 'enlaces',
+    paginacion: PaginacionInput
+): Promise<RespuestaServicio<ListaPaginada<{
+    id: string;
+    contenido: string;
+    createdAt: string;
+    emisorId: string | null;
+}>>> {
+    try {
+        // 1. Verificar que el usuario es participante
+        const [conv] = await db
+            .select()
+            .from(chatConversaciones)
+            .where(eq(chatConversaciones.id, conversacionId))
+            .limit(1);
+
+        if (!conv) {
+            return { success: false, message: 'Conversación no encontrada', code: 404 };
+        }
+
+        const pos = determinarPosicion(conv, usuarioId);
+        if (!pos) {
+            return { success: false, message: 'No tienes acceso a esta conversación', code: 403 };
+        }
+
+        // 2. Determinar desde cuándo son visibles los mensajes
+        const visibleDesde = pos === 'p1'
+            ? conv.mensajesVisiblesDesdeP1
+            : conv.mensajesVisiblesDesdeP2;
+
+        // 3. Construir condiciones base
+        const condiciones = [
+            eq(chatMensajes.conversacionId, conversacionId),
+            eq(chatMensajes.eliminado, false),
+        ];
+
+        if (visibleDesde) {
+            condiciones.push(sql`${chatMensajes.createdAt} >= ${visibleDesde}`);
+        }
+
+        // 4. Filtrar según categoría
+        if (categoria === 'imagenes') {
+            condiciones.push(eq(chatMensajes.tipo, 'imagen'));
+        } else if (categoria === 'documentos') {
+            condiciones.push(eq(chatMensajes.tipo, 'documento'));
+        } else {
+            // Enlaces: mensajes de texto que contienen URLs
+            condiciones.push(eq(chatMensajes.tipo, 'texto'));
+            condiciones.push(sql`${chatMensajes.contenido} ~* 'https?://[^\\s]+'`);
+        }
+
+        const filtro = and(...condiciones);
+
+        // 5. Consultar
+        const mensajes = await db
+            .select({
+                id: chatMensajes.id,
+                contenido: chatMensajes.contenido,
+                createdAt: chatMensajes.createdAt,
+                emisorId: chatMensajes.emisorId,
+            })
+            .from(chatMensajes)
+            .where(filtro)
+            .orderBy(desc(chatMensajes.createdAt))
+            .limit(paginacion.limit)
+            .offset(paginacion.offset);
+
+        // 6. Contar total
+        const [countResult] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(chatMensajes)
+            .where(filtro);
+
+        const items = mensajes.map((msg) => ({
+            id: msg.id,
+            contenido: msg.contenido,
+            createdAt: msg.createdAt ?? '',
+            emisorId: msg.emisorId,
+        }));
+
+        return {
+            success: true,
+            message: `${countResult?.count || 0} archivos encontrados`,
+            data: {
+                items,
+                total: countResult?.count || 0,
+                limit: paginacion.limit,
+                offset: paginacion.offset,
+            },
+        };
+    } catch (error) {
+        console.error('Error en listarArchivosCompartidos:', error);
+        return { success: false, message: 'Error al listar archivos compartidos', code: 500 };
+    }
+}
+
+/**
+ * Cuenta el total de archivos compartidos en una conversación (las 3 categorías).
+ * Se usa para mostrar el número en la barra de preview del PanelInfoContacto.
+ * Una sola query con FILTER para las 3 categorías.
+ */
+export async function contarArchivosCompartidos(
+    conversacionId: string,
+    usuarioId: string
+): Promise<RespuestaServicio<{ imagenes: number; documentos: number; enlaces: number; total: number }>> {
+    try {
+        const [conv] = await db
+            .select()
+            .from(chatConversaciones)
+            .where(eq(chatConversaciones.id, conversacionId))
+            .limit(1);
+
+        if (!conv) {
+            return { success: false, message: 'Conversación no encontrada', code: 404 };
+        }
+
+        const pos = determinarPosicion(conv, usuarioId);
+        if (!pos) {
+            return { success: false, message: 'No tienes acceso', code: 403 };
+        }
+
+        const visibleDesde = pos === 'p1'
+            ? conv.mensajesVisiblesDesdeP1
+            : conv.mensajesVisiblesDesdeP2;
+
+        const condBase = [
+            eq(chatMensajes.conversacionId, conversacionId),
+            eq(chatMensajes.eliminado, false),
+        ];
+
+        if (visibleDesde) {
+            condBase.push(sql`${chatMensajes.createdAt} >= ${visibleDesde}`);
+        }
+
+        // Contar las 3 categorías en una sola query con FILTER
+        const [resultado] = await db
+            .select({
+                imagenes: sql<number>`count(*) FILTER (WHERE tipo = 'imagen')::int`,
+                documentos: sql<number>`count(*) FILTER (WHERE tipo = 'documento')::int`,
+                enlaces: sql<number>`count(*) FILTER (WHERE tipo = 'texto' AND contenido ~* 'https?://[^\\s]+')::int`,
+            })
+            .from(chatMensajes)
+            .where(and(...condBase));
+
+        const imagenes = resultado?.imagenes || 0;
+        const documentos = resultado?.documentos || 0;
+        const enlaces = resultado?.enlaces || 0;
+
+        return {
+            success: true,
+            message: 'Conteo obtenido',
+            data: { imagenes, documentos, enlaces, total: imagenes + documentos + enlaces },
+        };
+    } catch (error) {
+        console.error('Error en contarArchivosCompartidos:', error);
+        return { success: false, message: 'Error al contar archivos', code: 500 };
     }
 }

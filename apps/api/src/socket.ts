@@ -40,6 +40,12 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       if (usuarioId) {
         socket.join(`usuario:${usuarioId}`);
         socket.data.usuarioId = usuarioId;
+
+        // Notificar a todos que este usuario está conectado
+        socket.broadcast.emit('chatya:estado-usuario', {
+          usuarioId,
+          estado: 'conectado',
+        });
       }
     });
 
@@ -70,6 +76,35 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
         io!.to(`usuario:${data.emisorId}`).emit('chatya:entregado', {
           conversacionId: data.conversacionId,
           mensajeIds: data.mensajeIds,
+        });
+      }
+    });
+
+    // -----------------------------------------------------------------
+    // ChatYA: Consultar estado de un usuario (¿está conectado?)
+    // -----------------------------------------------------------------
+    socket.on('chatya:consultar-estado', async (usuarioId: string) => {
+      if (!usuarioId) return;
+      const room = io!.sockets.adapter.rooms.get(`usuario:${usuarioId}`);
+      const estaConectado = room && room.size > 0;
+
+      if (estaConectado) {
+        socket.emit('chatya:estado-usuario', {
+          usuarioId,
+          estado: 'conectado',
+        });
+      } else {
+        // Obtener última conexión de la BD
+        const [usuario] = await db
+          .select({ ultimaConexion: usuarios.ultimaConexion })
+          .from(usuarios)
+          .where(eq(usuarios.id, usuarioId))
+          .limit(1);
+
+        socket.emit('chatya:estado-usuario', {
+          usuarioId,
+          estado: 'desconectado',
+          ultimaConexion: usuario?.ultimaConexion || null,
         });
       }
     });

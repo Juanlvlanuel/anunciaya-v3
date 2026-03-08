@@ -40,6 +40,10 @@ export interface PayloadTokenScanYA {
   usuarioId?: string;
   correo?: string;
   nombreUsuario?: string;
+
+  // ID del dueño del negocio (presente en TODOS los roles)
+  // Permite a empleados/gerentes usar ChatYA como representantes del negocio
+  negocioUsuarioId?: string;
   
   // Si es empleado
   empleadoId?: string;

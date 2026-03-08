@@ -311,6 +311,7 @@ export async function obtenerSeguidos(
                     v.votante_sucursal_id,
                     v.created_at as seguido_desde,
                     n.id as negocio_id,
+                    n.usuario_id as usuario_id,
                     n.nombre as nombre,
                     s.nombre as sucursal_nombre,
                     s.direccion,
@@ -412,7 +413,7 @@ export async function obtenerSeguidos(
                 }
                 GROUP BY 
                     v.id, v.entity_id, v.votante_sucursal_id, v.created_at,
-                    n.id, n.nombre, n.logo_url,
+                    n.id, n.usuario_id, n.nombre, n.logo_url,
                     s.id, s.nombre, s.direccion, s.ciudad, s.telefono, s.whatsapp,
                     s.tiene_envio_domicilio, s.activa, s.ubicacion, s.zona_horaria,
                     m.total_likes, m.total_views, m.promedio_rating, m.total_resenas
@@ -427,6 +428,7 @@ export async function obtenerSeguidos(
             const seguidos = resultado.rows.map((row: any) => ({
                 id: row.voto_id.toString(),
                 sucursalId: row.sucursal_id,
+                usuarioId: row.usuario_id,
                 votanteSucursalId: row.votante_sucursal_id, // Para saber cómo eliminar
                 nombre: row.nombre,
                 categoria: row.subcategorias?.[0]?.nombre || 'Negocios',

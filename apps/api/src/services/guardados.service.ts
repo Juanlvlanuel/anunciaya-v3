@@ -26,7 +26,7 @@
 
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db';
-import { guardados, ofertas, negocioSucursales } from '../db/schemas/schema';
+import { guardados, ofertas, negocioSucursales, negocios } from '../db/schemas/schema';
 
 // =============================================================================
 // TIPOS
@@ -239,17 +239,23 @@ export async function obtenerGuardados(
                         createdAt: ofertas.createdAt,
                         updatedAt: ofertas.updatedAt,
                     },
-                    // ✅ NUEVO: Datos de la sucursal (whatsapp, nombre)
+                    // ✅ NUEVO: Datos de la sucursal (whatsapp, nombre) + usuarioId para ChatYA
                     negocio: {
                         nombre: negocioSucursales.nombre,
                         whatsapp: negocioSucursales.whatsapp,
                         sucursalId: negocioSucursales.id,
+                        usuarioId: negocios.usuarioId,
                     }
                 })
                 .from(guardados)
                 .leftJoin(ofertas, eq(guardados.entityId, ofertas.id))
                 .leftJoin(negocioSucursales, eq(ofertas.sucursalId, negocioSucursales.id))
-                .where(and(...condiciones))
+                .leftJoin(negocios, eq(negocioSucursales.negocioId, negocios.id))
+                .where(and(
+                    ...condiciones,
+                    eq(ofertas.activo, true),
+                    sql`(${ofertas.fechaFin} IS NULL OR ${ofertas.fechaFin} >= CURRENT_DATE)`
+                ))
                 .orderBy(sql`${guardados.createdAt} DESC`)
                 .limit(limite)
                 .offset(offset);

@@ -700,7 +700,13 @@ export async function eliminarOferta(
         throw new Error('Oferta no encontrada o no pertenece a esta sucursal');
       }
 
-      // 2. Eliminar oferta (CASCADE eliminará registros relacionados)
+      // 2. Limpiar guardados de esta oferta (no hay FK CASCADE hacia guardados)
+      await tx.execute(sql`
+        DELETE FROM guardados 
+        WHERE entity_type = 'oferta' AND entity_id = ${ofertaId}
+      `);
+
+      // 3. Eliminar oferta (CASCADE eliminará registros relacionados)
       await tx.delete(ofertas).where(eq(ofertas.id, ofertaId));
 
       return {

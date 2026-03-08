@@ -49,6 +49,7 @@ function mapearSucursalResumen(row: SucursalResumenRow) {
     return {
         // Datos del negocio
         negocioId: row.negocio_id,
+        usuarioId: row.usuario_id,
         negocioNombre: row.negocio_nombre,
         galeria: row.galeria || [],
         logoUrl: row.logo_url,
@@ -95,6 +96,7 @@ function mapearPerfilCompleto(row: PerfilSucursalRow) {
     return {
         // Datos del negocio
         negocioId: row.negocio_id,
+        usuarioId: row.usuario_id,
         negocioNombre: row.negocio_nombre,
         negocioDescripcion: row.negocio_descripcion,
         logoUrl: row.logo_url,
@@ -196,6 +198,7 @@ export async function listarSucursalesCercanas(
             SELECT 
                 -- Datos del negocio
                 n.id as negocio_id,
+                n.usuario_id as usuario_id,
                 n.nombre as negocio_nombre,
                 n.logo_url,
                 n.participa_puntos as acepta_cardya,
@@ -427,6 +430,7 @@ export async function obtenerPerfilSucursal(
             SELECT 
                 -- Datos del negocio
                 n.id as negocio_id,
+                n.usuario_id as usuario_id,
                 n.nombre as negocio_nombre,
                 n.descripcion as negocio_descripcion,
                 n.logo_url,

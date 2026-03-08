@@ -197,7 +197,7 @@ export async function loginDueno(
         // -------------------------------------------------------------------------
         let negocioId: string;
         let sucursalId: string;
-        let negocio: { id: string; nombre: string; logoUrl: string | null; onboardingCompletado: boolean };
+        let negocio: { id: string; nombre: string; logoUrl: string | null; onboardingCompletado: boolean; usuarioId: string };
         let sucursal: { id: string; nombre: string };
         const rol: 'dueno' | 'gerente' = esDueno ? 'dueno' : 'gerente';
 
@@ -211,6 +211,7 @@ export async function loginDueno(
                     logoUrl: negocios.logoUrl,
                     onboardingCompletado: negocios.onboardingCompletado,
                     participaPuntos: negocios.participaPuntos,
+                    usuarioId: negocios.usuarioId,
                 })
                 .from(negocios)
                 .where(eq(negocios.id, usuario.negocioId!))
@@ -331,6 +332,7 @@ export async function loginDueno(
                     nombre: negocios.nombre,
                     logoUrl: negocios.logoUrl,
                     onboardingCompletado: negocios.onboardingCompletado,
+                    usuarioId: negocios.usuarioId,
                 })
                 .from(negocios)
                 .where(eq(negocios.id, sucursalAsignada.negocioId))
@@ -387,6 +389,7 @@ export async function loginDueno(
             usuarioId: usuario.id,
             correo: usuario.correo,
             nombreUsuario: `${usuario.nombre} ${usuario.apellidos}`.trim(),
+            negocioUsuarioId: negocio.usuarioId, // ID del dueño del negocio (para ChatYA)
             permisos,
             puedeElegirSucursal,
             puedeConfigurarNegocio,
@@ -544,6 +547,7 @@ export async function loginEmpleado(
                 nombre: negocios.nombre,
                 logoUrl: negocios.logoUrl,
                 participaPuntos: negocios.participaPuntos,
+                usuarioId: negocios.usuarioId,
             })
             .from(negocios)
             .where(eq(negocios.id, sucursal.negocioId))
@@ -596,6 +600,7 @@ export async function loginEmpleado(
             empleadoId: empleado.id,
             nick: empleado.nick ?? undefined,
             nombreEmpleado: empleado.nombre,
+            negocioUsuarioId: negocio.usuarioId, // ID del dueño del negocio (para ChatYA)
             permisos,
             puedeElegirSucursal: false,
             puedeConfigurarNegocio: false,
@@ -1990,6 +1995,7 @@ export async function obtenerHistorial(
         clienteTelefono: string | null;
         clienteAvatarUrl: string | null;
         clienteNivel: string;
+        clienteId: string;
         // Montos
         montoTotal: number;
         montoEfectivo: number;
@@ -2325,6 +2331,8 @@ export async function obtenerHistorial(
                 cuponDescuento: cuponInfo?.descuento || null,
                 // Fecha
                 createdAt: t.createdAt || '',
+                // ID del cliente (para ChatYA)
+                clienteId: t.clienteId,
             };
         });
 

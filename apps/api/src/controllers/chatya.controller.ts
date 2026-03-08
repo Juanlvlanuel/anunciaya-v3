@@ -41,6 +41,9 @@ import {
   buscarNegocios,
   generarUrlUploadImagenChat,
   generarUrlUploadDocumentoChat,
+  generarUrlUploadAudioChat,
+  listarArchivosCompartidos,
+  contarArchivosCompartidos,
 } from '../services/chatya.service.js';
 import type { ModoChatYA, ContextoTipo } from '../types/chatya.types.js';
 
@@ -1082,4 +1085,86 @@ export async function uploadDocumentoChatController(req: Request, res: Response)
       message: 'Error interno del servidor',
     });
   }
+}
+
+// =============================================================================
+// MULTIMEDIA: Upload audio (Sprint 6)
+// =============================================================================
+
+/**
+ * POST /api/chatya/upload-audio
+ * Genera URL pre-firmada para subir audio a R2.
+ * Body: { nombreArchivo: string, contentType: string, tamano: number }
+ */
+export async function uploadAudioChatController(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = obtenerUsuarioId(req);
+    const { nombreArchivo, contentType, tamano } = req.body;
+
+    if (!nombreArchivo || !contentType || !tamano) {
+      res.status(400).json({
+        success: false,
+        message: 'nombreArchivo, contentType y tamano son requeridos',
+      });
+      return;
+    }
+
+    const resultado = await generarUrlUploadAudioChat(userId, nombreArchivo, contentType, tamano);
+
+    res.status(resultado.code ?? 200).json({
+      success: resultado.success,
+      message: resultado.message,
+      data: resultado.data,
+    });
+
+  } catch (error) {
+    console.error('Error en uploadAudioChatController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+}
+
+// =============================================================================
+// ARCHIVOS COMPARTIDOS (PanelInfoContacto)
+// =============================================================================
+
+/**
+ * GET /api/chatya/conversaciones/:id/archivos-compartidos?categoria=imagenes&limit=30&offset=0
+ * Lista archivos de una categoría específica, paginados.
+ */
+export async function listarArchivosCompartidosController(req: Request, res: Response) {
+  const usuarioId = obtenerUsuarioId(req);
+  const { id } = req.params;
+  const categoria = (req.query.categoria as string) || 'imagenes';
+  const limit = Math.min(parseInt(req.query.limit as string) || 30, 100);
+  const offset = parseInt(req.query.offset as string) || 0;
+
+  if (!['imagenes', 'documentos', 'enlaces'].includes(categoria)) {
+    res.status(400).json({ success: false, message: 'Categoría inválida. Usar: imagenes, documentos, enlaces' });
+    return;
+  }
+
+  const resultado = await listarArchivosCompartidos(
+    id,
+    usuarioId,
+    categoria as 'imagenes' | 'documentos' | 'enlaces',
+    { limit, offset }
+  );
+
+  res.status(resultado.code || (resultado.success ? 200 : 500)).json(resultado);
+}
+
+/**
+ * GET /api/chatya/conversaciones/:id/archivos-compartidos/conteo
+ * Cuenta totales de las 3 categorías en una sola query.
+ */
+export async function contarArchivosCompartidosController(req: Request, res: Response) {
+  const usuarioId = obtenerUsuarioId(req);
+  const { id } = req.params;
+
+  const resultado = await contarArchivosCompartidos(id, usuarioId);
+
+  res.status(resultado.code || (resultado.success ? 200 : 500)).json(resultado);
 }

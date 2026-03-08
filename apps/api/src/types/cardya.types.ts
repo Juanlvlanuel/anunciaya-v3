@@ -65,6 +65,8 @@ export interface DetalleNegocioBilletera extends BilleteraNegocio {
   ultimasTransacciones: TransaccionResumen[];
   telefonoContacto: string | null;
   whatsappContacto: string | null;
+  negocioUsuarioId: string | null;   // Para ChatYA
+  negocioSucursalId: string | null;  // Para ChatYA (sucursal principal)
 }
 
 /**

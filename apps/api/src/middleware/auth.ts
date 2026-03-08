@@ -8,6 +8,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { verificarAccessToken, type TokenDecodificado } from '../utils/jwt.js';
+import { verificarAccessTokenScanYA } from '../utils/jwtScanYA.js';
 
 // =============================================================================
 // EXTENDER TIPOS DE EXPRESS
@@ -137,4 +138,71 @@ export function verificarMembresia(nivelMinimo: number) {
 
     next();
   };
+}
+
+// =============================================================================
+// MIDDLEWARE: VERIFICAR TOKEN CHATYA (AnunciaYA + ScanYA)
+// =============================================================================
+
+/**
+ * Middleware especial para las rutas de ChatYA.
+ * Acepta tanto tokens de AnunciaYA como tokens de ScanYA.
+ *
+ * Cuando el token es de ScanYA, mapea los datos al formato TokenDecodificado:
+ *   - usuarioId  → negocioUsuarioId (siempre el dueño del negocio)
+ *   - modoActivo → 'comercial'
+ *   - sucursalAsignada → sucursalId del token ScanYA
+ *
+ * Esto permite que dueños, gerentes y empleados de ScanYA usen ChatYA
+ * respondiendo en nombre del negocio.
+ */
+export function verificarTokenChatYA(req: Request, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ success: false, message: 'Token de acceso requerido' });
+    return;
+  }
+
+  const token = authHeader.substring(7);
+
+  // 1. Intentar como token AnunciaYA
+  const resultadoAY = verificarAccessToken(token);
+  if (resultadoAY.valido && resultadoAY.payload) {
+    req.usuario = resultadoAY.payload;
+    next();
+    return;
+  }
+
+  // 2. Intentar como token ScanYA
+  const resultadoSY = verificarAccessTokenScanYA(token);
+  if (resultadoSY.valido && resultadoSY.payload) {
+    const sy = resultadoSY.payload;
+
+    // negocioUsuarioId es requerido para usar ChatYA
+    if (!sy.negocioUsuarioId) {
+      res.status(403).json({
+        success: false,
+        message: 'Token ScanYA sin acceso a ChatYA. Solicita re-login.',
+      });
+      return;
+    }
+
+    // Mapear token ScanYA al formato esperado por chatya_controller
+    req.usuario = {
+      usuarioId: sy.negocioUsuarioId,
+      correo: sy.correo || '',
+      perfil: 'comercial',
+      membresia: 1,
+      modoActivo: 'comercial',
+      sucursalAsignada: sy.sucursalId,
+      iat: sy.iat,
+      exp: sy.exp,
+    } as TokenDecodificado;
+
+    next();
+    return;
+  }
+
+  res.status(401).json({ success: false, message: 'Token inválido' });
 }

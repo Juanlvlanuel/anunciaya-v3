@@ -188,10 +188,18 @@ export async function obtenerSeguidosController(req: Request, res: Response) {
         const limite = parseInt(req.query.limite as string) || 20;
         const incluirTodosModos = req.query.incluirTodosModos === 'true';
 
-        // Si incluirTodosModos=true, NO usar votanteSucursalId (obtener TODOS)
-        const votanteSucursalId = incluirTodosModos
-            ? undefined
-            : (req.query.votanteSucursalId as string | undefined);
+        // Determinar votanteSucursalId para filtrar por modo:
+        // - incluirTodosModos=true → undefined (sin filtro, trae todos)
+        // - votanteSucursalId=UUID en query → ese UUID (modo comercial, lo agrega el interceptor)
+        // - sin parámetro → null (modo personal: filtra votante_sucursal_id IS NULL)
+        let votanteSucursalId: string | null | undefined;
+        if (incluirTodosModos) {
+            votanteSucursalId = undefined;
+        } else if (req.query.votanteSucursalId) {
+            votanteSucursalId = req.query.votanteSucursalId as string;
+        } else {
+            votanteSucursalId = null;
+        }
 
         // Parámetros de geolocalización (opcionales)
         const latitud = req.query.latitud ? parseFloat(req.query.latitud as string) : undefined;
