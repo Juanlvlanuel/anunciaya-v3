@@ -24,7 +24,14 @@ app.set('trust proxy', 1);
 // Middleware de seguridad
 app.use(configurarHelmet);
 app.use(configurarCors);
-app.use(limitadorGeneral);
+
+// Limitador general aplica a todas las rutas EXCEPTO /auth/
+// /auth/ tiene su propio limitadorLogin estricto (5 intentos / 15 min)
+// Esto evita que un usuario bloqueado por 429 tampoco pueda iniciar sesión
+app.use((req, res, next) => {
+  if (req.path.startsWith('/auth/')) return next();
+  return limitadorGeneral(req, res, next);
+});
 
 // ============================================================================
 // IMPORTANTE: Parser JSON con EXCEPCIÓN para webhook de Stripe
