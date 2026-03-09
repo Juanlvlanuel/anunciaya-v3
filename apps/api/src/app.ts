@@ -29,7 +29,7 @@ app.use(configurarCors);
 // /auth/ tiene su propio limitadorLogin estricto (5 intentos / 15 min)
 // Esto evita que un usuario bloqueado por 429 tampoco pueda iniciar sesión
 app.use((req, res, next) => {
-  if (req.path.startsWith('/auth/')) return next();
+  if (req.path.includes('/auth/')) return next();
   return limitadorGeneral(req, res, next);
 });
 

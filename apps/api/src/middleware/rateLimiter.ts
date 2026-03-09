@@ -6,7 +6,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 // Límite general: 10000 en desarrollo, 2500 en producción
 export const limitadorGeneral = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: isDev ? 10000 : 100,
+  max: isDev ? 10000 : 2000,
   message: {
     success: false,
     message: 'Demasiadas peticiones, intenta de nuevo en 15 minutos',
