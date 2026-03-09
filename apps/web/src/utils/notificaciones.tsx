@@ -422,6 +422,14 @@ export const NotificacionesProvider: React.FC<{ children: React.ReactNode }> = (
   const [confirmacion, setConfirmacion] = useState<ConfirmacionState | null>(null);
 
   const agregar = useCallback((tipo: TipoNotificacion, mensaje: string, titulo?: string) => {
+    // Si hay un rate limit activo (429), suprimir toasts de error
+    // El banner y modal de rate limit ya le informan al usuario lo que pasó
+    if (tipo === 'error') {
+      const hasta = localStorage.getItem('ay_rate_limit_hasta');
+      const rateLimitActivo = hasta && parseInt(hasta) > Date.now();
+      if (rateLimitActivo) return;
+    }
+
     const nuevaNotificacion: Notificacion = {
       id: `${Date.now()}-${Math.random()}`,
       tipo,

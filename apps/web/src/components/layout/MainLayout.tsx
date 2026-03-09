@@ -37,6 +37,7 @@ import { ColumnaIzquierda } from './ColumnaIzquierda';
 import { ColumnaDerecha } from './ColumnaDerecha';
 import { PanelNotificaciones } from './PanelNotificaciones';
 import { PanelPreviewNegocio } from './PanelPreviewNegocio';
+import { BannerRateLimit } from '../ui/Banner429';
 
 // =============================================================================
 // CONSTANTES
@@ -181,6 +182,8 @@ export function MainLayout() {
           {/* ===== HEADER ===== */}
           <div className="sticky top-0 z-50 lg:fixed lg:left-0 lg:right-0">
             {esDesktop ? <Navbar /> : !esCardYA && <div className="mobile-header-landscape-hide"><MobileHeader /></div>}
+            {/* Banner de rate limit — debajo del header, visible para el usuario */}
+            <BannerRateLimit />
           </div>
 
           {/* ===== CONTENIDO PRINCIPAL ===== */}

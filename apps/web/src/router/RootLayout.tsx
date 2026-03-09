@@ -10,7 +10,7 @@
 import { useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { ModalLogin, ModalInactividad } from '../components/auth';
-import { Banner429 } from '../components/ui/Banner429';
+import { ModalRateLimit } from '../components/ui/Banner429';
 import { useAuthStore, iniciarDeteccionActividad } from '../stores/useAuthStore';
 import { useScanYAStore } from '../stores/useScanYAStore';
 import { useGpsStore } from '../stores/useGpsStore';
@@ -110,8 +110,8 @@ export function RootLayout() {
 
   return (
     <>
-      {/* Banner global de rate limit (429) */}
-      <Banner429 />
+      {/* Modal global de rate limit (429) — aparece una sola vez */}
+      <ModalRateLimit />
 
       {/* Contenido de la ruta actual */}
       <Outlet />

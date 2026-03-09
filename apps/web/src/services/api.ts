@@ -251,12 +251,16 @@ api.interceptors.response.use(
     // =========================================================================
     // ERROR 429: DEMASIADAS PETICIONES
     // =========================================================================
-    // Guardar en localStorage la hora de expiración del bloqueo (15 minutos)
-    // El componente Banner429 lee esta clave y muestra el contador regresivo
-    // Persiste aunque el usuario cierre sesión, recargue o apague el dispositivo
+    // Solo guardar si NO hay ya un bloqueo activo — evita resetear el contador
+    // cada vez que falla una petición durante el período de bloqueo.
+    // El componente Banner429 / ModalRateLimit leen esta clave.
     if (error.response?.status === 429) {
-      const expira = Date.now() + 15 * 60 * 1000;
-      localStorage.setItem('ay_rate_limit_hasta', String(expira));
+      const existente = localStorage.getItem('ay_rate_limit_hasta');
+      const yaActivo = existente && parseInt(existente) > Date.now();
+      if (!yaActivo) {
+        const expira = Date.now() + 15 * 60 * 1000;
+        localStorage.setItem('ay_rate_limit_hasta', String(expira));
+      }
       return Promise.reject(error);
     }
 
