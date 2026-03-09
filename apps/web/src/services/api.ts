@@ -248,6 +248,18 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // =========================================================================
+    // ERROR 429: DEMASIADAS PETICIONES
+    // =========================================================================
+    // Guardar en localStorage la hora de expiración del bloqueo (15 minutos)
+    // El componente Banner429 lee esta clave y muestra el contador regresivo
+    // Persiste aunque el usuario cierre sesión, recargue o apague el dispositivo
+    if (error.response?.status === 429) {
+      const expira = Date.now() + 15 * 60 * 1000;
+      localStorage.setItem('ay_rate_limit_hasta', String(expira));
+      return Promise.reject(error);
+    }
+
     // Si es 401 y NO es un retry
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Si es la petición de refresh la que falló, hacer logout

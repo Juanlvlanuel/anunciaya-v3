@@ -19,8 +19,8 @@ export { SelectorIdioma } from './SelectorIdioma';
 export { Spinner } from './Spinner';
 export { ToggleModoUsuario } from './ToggleModoUsuario';
 export { DatePicker } from './DatePicker';
-export { ModalAdaptativo} from './ModalAdaptativo';
-
+export { ModalAdaptativo } from './ModalAdaptativo';
+export { Banner429 } from './Banner429';
 
 
 
