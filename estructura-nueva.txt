@@ -186,6 +186,11 @@ apps
       sw-anunciaya.js
       sw-scanya.js
       tiktok.webp
+      tono_mensaje_1.mp3
+      tono_mensaje_2.mp3
+      tono_mensaje_3.mp3
+      tono_mensaje_4.mp3
+      tono_mensaje_5.mp3
       twitter.webp
       whatsapp.webp
     src
@@ -211,14 +216,15 @@ apps
           ConversacionItem.tsx
           EmojiNoto.tsx
           emojiUtils.ts
+          GaleriaArchivosCompartidos.tsx
           index.ts
-          IndicadorEscribiendo.tsx
           InputMensaje.tsx
           ListaConversaciones.tsx
           MenuContextualChat.tsx
           MenuContextualContacto.tsx
           MenuContextualMensaje.tsx
           ModalReenviar.tsx
+          ModalUbicacionChat.tsx
           PanelInfoContacto.tsx
           SelectorEmojis.tsx
           SeparadorFecha.tsx
@@ -285,6 +291,7 @@ apps
           TarjetaVoucher.tsx
           TecladoNumerico.tsx
         ui
+          Banner429.tsx
           Boton.tsx
           DatePicker.tsx
           index.ts
@@ -305,6 +312,7 @@ apps
         index.ts
       hooks
         useArticulos.ts
+        useAudioChat.ts
         useAutoFitText.ts
         useBreakpoint.ts
         useCategorias.ts
@@ -543,14 +551,7 @@ docs
     03_Middlewares.md
     04_Endpoints_Referencia.md
   Reporte y RoadMap AnunciaYA
-    Documentos-Chats Nuevos
-      Criterios de Uso de Modales.md
-      Guia_Responsive_Laptop_AnunciaYA.md
-      INSTRUCCIONES_TRABAJO_ANUNCIAYA_v2.md
-      Patron_Scroll_Lateral_AnunciaYA.md
-      REGLAS_ESTILO_CODIGO.md
-      REGLAS_MANEJO_ARCHIVOS.md
-    Nueva Documentacion AnunciaYA
+    Documentacion AnunciaYA
       ARQUITECTURA
         ARQUITECTURA  Base de Datos.md
         ARQUITECTURA  del Sistema.md
@@ -563,10 +564,15 @@ docs
         ARQUITECTURA Sistema de Autenticación.md
       Documentacion Pendiente por separa en Secciones
         Módulos Clientes y Transacciones.md
-      AnunciaYA - RoadMap 29-01-2026.md
       CHANGELOG.md
       ROADMAP.md
-      Sistema PWA ScanYA con Redirección Automática.md
+    Documentos-Chats Nuevos
+      Criterios de Uso de Modales.md
+      Guia_Responsive_Laptop_AnunciaYA.md
+      INSTRUCCIONES_TRABAJO_ANUNCIAYA_v2.md
+      Patron_Scroll_Lateral_AnunciaYA.md
+      REGLAS_ESTILO_CODIGO.md
+      REGLAS_MANEJO_ARCHIVOS.md
     01_AnunciaYA_Vision_General.md
     02_AnunciaYA_Stack_Tecnologico.md
     03_AnunciaYA_Fase1_Monorepo.md
@@ -579,13 +585,6 @@ docs
     10_AnunciaYA_Estado_Actual.md
     11_AnunciaYA_Flujos_Operativos_Seguridad.md
     Sistema de Transformación Automática snake_case ↔ camelCase.md
-  sesiones
-    2026-01-10_Fase5.4_Ofertas_Imagenes_Implementacion.md
-    2026-01-10_Fase5.4_Ofertas_UI_Polish.md
-  templates
-    README_TEMPLATES.md
-    TEMPLATE_Checkpoints.md
-  Estructura-Anunciaya (11-02-2026).html
   README.md
 packages
   shared
