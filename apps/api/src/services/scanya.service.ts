@@ -3857,11 +3857,6 @@ export async function obtenerContadores(
         // Por ahora retornamos 0
         const mensajesSinLeer = 0;
 
-        // Nota: Cuando implementes ChatYA, necesitarás:
-        // - Acceder a MongoDB para contar mensajes
-        // - Filtrar por negocioId y estado 'no leÃ­do'
-        // - Considerar permisos del empleado (puedeResponderChat)
-
         return {
             success: true,
             message: 'Contadores obtenidos',

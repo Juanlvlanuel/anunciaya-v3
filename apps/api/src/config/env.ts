@@ -24,9 +24,6 @@ const esquemaEnv = z.object({
   
   DB_ENVIRONMENT: z.enum(['local', 'production']).default(isProduction ? 'production' : 'local'),
 
-  // -------- MongoDB --------
-  MONGODB_URI: z.string().min(1, 'MONGODB_URI es requerida'),
-
   // -------- Redis --------
   REDIS_URL: z.string().min(1, 'REDIS_URL es requerida'),
 
