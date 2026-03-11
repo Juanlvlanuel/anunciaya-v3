@@ -217,6 +217,7 @@ interface ChatYAState {
   // ─── ACCIONES: Búsqueda (Sprint 5) ────────────────────────────────────
   buscarMensajes: (conversacionId: string, texto: string, offset?: number) => Promise<void>;
   limpiarBusqueda: () => void;
+  cargarBorradores: () => void;
   guardarBorrador: (conversacionId: string, texto: string) => void;
   limpiarBorrador: (conversacionId: string) => void;
 
@@ -230,6 +231,18 @@ interface ChatYAState {
   inicializar: (modo?: ModoChatYA) => Promise<void>;
   inicializarScanYA: () => Promise<void>;
   limpiar: () => void;
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/** Clave de localStorage para borradores del usuario actual */
+function getBorradoresKey(): string | null {
+  try {
+    const usuario = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
+    return usuario?.id ? `chatya_borradores_${usuario.id}` : null;
+  } catch { return null; }
 }
 
 // =============================================================================
@@ -265,12 +278,7 @@ const ESTADO_INICIAL = {
   resultadosBusqueda: [] as Mensaje[],
   totalResultadosBusqueda: 0,
   cargandoBusqueda: false,
-  borradores: (() => {
-    try {
-      const saved = localStorage.getItem('chatya_borradores');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
-  })() as Record<string, string>,
+  borradores: {} as Record<string, string>,
   enviandoMensaje: false,
   chatTemporal: null as ChatTemporal | null,
   error: null as string | null,
@@ -1437,10 +1445,20 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   // ACCIONES: Borradores
   // ===========================================================================
 
+  cargarBorradores: () => {
+    const key = getBorradoresKey();
+    if (!key) return;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) set({ borradores: JSON.parse(saved) });
+    } catch { /* sin acceso a localStorage */ }
+  },
+
   guardarBorrador: (conversacionId: string, texto: string) => {
     set((state) => {
       const nuevos = { ...state.borradores, [conversacionId]: texto };
-      try { localStorage.setItem('chatya_borradores', JSON.stringify(nuevos)); } catch { /* sin acceso a localStorage */ }
+      const key = getBorradoresKey();
+      if (key) try { localStorage.setItem(key, JSON.stringify(nuevos)); } catch { /* sin acceso a localStorage */ }
       return { borradores: nuevos };
     });
   },
@@ -1449,7 +1467,8 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     set((state) => {
       const nuevos = { ...state.borradores };
       delete nuevos[conversacionId];
-      try { localStorage.setItem('chatya_borradores', JSON.stringify(nuevos)); } catch { /* sin acceso a localStorage */ }
+      const key = getBorradoresKey();
+      if (key) try { localStorage.setItem(key, JSON.stringify(nuevos)); } catch { /* sin acceso a localStorage */ }
       return { borradores: nuevos };
     });
   },
@@ -2058,7 +2077,7 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
     }));
   }
 
-  // Actualizar preview en la lista de conversaciones (solo al agregar)
+  // Actualizar preview en la lista de conversaciones
   if (accion === 'agregada') {
     const miId = useAuthStore.getState().usuario?.id;
     // Buscar contenido del mensaje reaccionado (si los mensajes están cargados)
@@ -2077,10 +2096,76 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
         if (c.id !== conversacionId) return c;
         return {
           ...c,
+          _previewAnteReaccion: c._previewAnteReaccion ?? {
+            texto: c.ultimoMensajeTexto,
+            fecha: c.ultimoMensajeFecha,
+            emisorId: c.ultimoMensajeEmisorId,
+          },
           ultimoMensajeTexto: textoPreview,
           ultimoMensajeFecha: new Date().toISOString(),
           ultimoMensajeEmisorId: usuarioId,
         };
+      }),
+    }));
+  } else {
+    // Reacción eliminada: restaurar preview solo si no quedan reacciones en el mensaje
+    const msgs = state.conversacionActivaId === conversacionId
+      ? state.mensajes
+      : state.cacheMensajes[conversacionId];
+
+    // Las reacciones del mensaje ya fueron actualizadas (líneas anteriores).
+    const msgActualizado = msgs?.find((m) => m.id === mensajeId);
+    const reaccionRestante = msgActualizado?.reacciones?.find((r) => r.cantidad > 0);
+
+    // Si aún quedan reacciones, actualizar preview con la reacción restante
+    if (reaccionRestante) {
+      const miId = useAuthStore.getState().usuario?.id;
+      const usuarioIds = reaccionRestante.usuarios as (string | { id: string })[];
+      const esMia = usuarioIds.some((u) => (typeof u === 'string' ? u : u.id) === miId);
+      const previewMsg = msgActualizado?.contenido
+        ? `"${msgActualizado.contenido.slice(0, 30)}${msgActualizado.contenido.length > 30 ? '...' : ''}"`
+        : '';
+      const textoReaccion = esMia
+        ? `Reaccionaste con ${reaccionRestante.emoji} a ${previewMsg}`.trim()
+        : `Reaccionó con ${reaccionRestante.emoji} a ${previewMsg}`.trim();
+
+      useChatYAStore.setState((prev) => ({
+        conversaciones: prev.conversaciones.map((c) =>
+          c.id !== conversacionId ? c : { ...c, ultimoMensajeTexto: textoReaccion },
+        ),
+      }));
+      return;
+    }
+
+    useChatYAStore.setState((prev) => ({
+      conversaciones: prev.conversaciones.map((c) => {
+        if (c.id !== conversacionId) return c;
+
+        // Fuente 1: preview guardado antes de la reacción
+        if (c._previewAnteReaccion != null) {
+          return {
+            ...c,
+            ultimoMensajeTexto: c._previewAnteReaccion.texto,
+            ultimoMensajeFecha: c._previewAnteReaccion.fecha,
+            ultimoMensajeEmisorId: c._previewAnteReaccion.emisorId,
+            _previewAnteReaccion: undefined,
+          };
+        }
+
+        // Fuente 2: último mensaje no eliminado cargado/en caché
+        const ultimo = msgs?.find((m) => !m.eliminado);
+        if (ultimo) {
+          return {
+            ...c,
+            ultimoMensajeTexto: ultimo.tipo === 'texto' || ultimo.tipo === 'sistema'
+              ? ultimo.contenido.substring(0, 100)
+              : `[${ultimo.tipo}]`,
+            ultimoMensajeFecha: ultimo.createdAt,
+            ultimoMensajeEmisorId: ultimo.emisorId,
+          };
+        }
+
+        return c;
       }),
     }));
   }

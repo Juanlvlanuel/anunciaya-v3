@@ -305,10 +305,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
     registrarListenerNotificaciones();
 
-    // Cargar badge de ChatYA (mensajes no leídos)
+    // Cargar badge de ChatYA (mensajes no leídos) y borradores del usuario
     const chatYAModule = await import('./useChatYAStore');
-    const { cargarNoLeidos: cargarNoLeidosChat } = chatYAModule.useChatYAStore.getState();
+    const { cargarNoLeidos: cargarNoLeidosChat, cargarBorradores } = chatYAModule.useChatYAStore.getState();
     cargarNoLeidosChat(usuario.modoActivo as 'personal' | 'comercial');
+    cargarBorradores();
 
     // ========================================================================
     // CARGAR TOTAL DE SUCURSALES EN BACKGROUND (modo comercial)
@@ -526,6 +527,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       useUiStore.getState().cerrarChatYA();
     });
 
+    // Limpiar estado y borradores de ChatYA
+    import('./useChatYAStore').then(({ useChatYAStore }) => {
+      useChatYAStore.getState().limpiar();
+    });
+
     // Resetear estado
     set({
       usuario: null,
@@ -657,10 +663,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
         registrarListenerNotificaciones();
 
-        // Cargar badge de ChatYA (mensajes no leídos)
+        // Cargar badge de ChatYA (mensajes no leídos) y borradores del usuario
         const chatYAMod = await import('./useChatYAStore');
-        const { cargarNoLeidos: cargarNoLeidosChat } = chatYAMod.useChatYAStore.getState();
+        const { cargarNoLeidos: cargarNoLeidosChat, cargarBorradores: cargarBorradoresChat } = chatYAMod.useChatYAStore.getState();
         cargarNoLeidosChat(usuarioHidratado.modoActivo as 'personal' | 'comercial');
+        cargarBorradoresChat();
 
         // Cargar total de sucursales (modo comercial)
         if (usuarioHidratado.modoActivo === 'comercial' && usuarioHidratado.negocioId) {

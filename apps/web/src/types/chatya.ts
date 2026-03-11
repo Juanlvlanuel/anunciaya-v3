@@ -113,6 +113,8 @@ export interface Conversacion {
   updatedAt: string;
   /** Datos del otro participante (nombre, avatar, negocio si aplica) */
   otroParticipante?: OtroParticipante;
+  /** Preview original guardado antes de sobreescribir con reacción (solo en memoria) */
+  _previewAnteReaccion?: { texto: string | null; fecha: string | null; emisorId: string | null } | null;
 }
 
 // =============================================================================
