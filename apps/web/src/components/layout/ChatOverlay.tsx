@@ -26,11 +26,13 @@ import { X, StickyNote, Pin, BellOff, Archive, Trash2, ArrowLeft, ShieldBan, Shi
 import { useUiStore } from '../../stores/useUiStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useTransaccionesStore } from '../../stores/useTransaccionesStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 // Componentes del chat
 import { ListaConversaciones } from '../chatya/ListaConversaciones';
 import { VentanaChat } from '../chatya/VentanaChat';
+import ModalDetalleCliente from '../../pages/private/business-studio/clientes/ModalDetalleCliente';
 
 // =============================================================================
 // CONSTANTES
@@ -87,6 +89,18 @@ export function ChatOverlay() {
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
   const modoSeleccion = seleccionadas.size > 0;
   const { esMobile } = useBreakpoint();
+
+  // Modal detalle cliente (disparado desde PanelInfoContacto vía CustomEvent)
+  const [clienteDetalleId, setClienteDetalleId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const clienteId = (e as CustomEvent<{ clienteId: string }>).detail?.clienteId;
+      if (clienteId) setClienteDetalleId(clienteId);
+    };
+    window.addEventListener('chatya:ver-cliente', handler);
+    return () => window.removeEventListener('chatya:ver-cliente', handler);
+  }, []);
 
   // Store actions para acciones en lote
   const toggleFijar = useChatYAStore((s) => s.toggleFijar);
@@ -849,6 +863,27 @@ export function ChatOverlay() {
     </div>
 
 
+      {/* Modal detalle cliente — disparado desde PanelInfoContacto */}
+      <ModalDetalleCliente
+        abierto={clienteDetalleId !== null}
+        clienteId={clienteDetalleId}
+        onCerrar={() => setClienteDetalleId(null)}
+        onVerHistorial={(nombre) => {
+          // Pre-fetch: iniciar carga filtrada ANTES de navegar.
+          // Mientras ChatYA se cierra (~300ms), la API ya está en vuelo.
+          // Cuando la página monte, los datos ya llegaron o están por llegar.
+          const txStore = useTransaccionesStore.getState();
+          useTransaccionesStore.setState({ historial: [], totalResultados: 0 });
+          txStore.setBusqueda(nombre);
+
+          setClienteDetalleId(null);
+          window.dispatchEvent(
+            new CustomEvent('chatya:navegar-externo', {
+              detail: `/business-studio/transacciones?busqueda=${encodeURIComponent(nombre)}`,
+            })
+          );
+        }}
+      />
     </>
   );
 }

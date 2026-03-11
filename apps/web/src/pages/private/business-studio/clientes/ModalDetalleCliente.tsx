@@ -166,10 +166,12 @@ export default function ModalDetalleCliente({
   abierto,
   onCerrar,
   clienteId,
+  onVerHistorial,
 }: {
   abierto: boolean;
   onCerrar: () => void;
   clienteId: string | null;
+  onVerHistorial?: (nombre: string) => void;
 }) {
   const navigate = useNavigate();
   const {
@@ -201,8 +203,12 @@ export default function ModalDetalleCliente({
   // Navegar a transacciones filtradas
   const handleVerHistorial = () => {
     if (clienteDetalle?.nombre) {
-      handleCerrar();
-      navigate(`/business-studio/transacciones?busqueda=${encodeURIComponent(clienteDetalle.nombre)}`);
+      if (onVerHistorial) {
+        onVerHistorial(clienteDetalle.nombre);
+      } else {
+        handleCerrar();
+        navigate(`/business-studio/transacciones?busqueda=${encodeURIComponent(clienteDetalle.nombre)}`);
+      }
     }
   };
 

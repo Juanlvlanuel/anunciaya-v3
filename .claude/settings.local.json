@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(find /e/AnunciaYA/anunciaya/apps/web/src/pages -type f -name *chat* -o -name *Chat*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(git -C /e/AnunciaYA/anunciaya log --oneline -20)",
+      "Bash(git -C /e/AnunciaYA/anunciaya branch -a)",
+      "Bash(ls /e/AnunciaYA/anunciaya/.commitlintrc*)",
+      "Bash(find /e/AnunciaYA/anunciaya -name *.test.ts -o -name *.spec.ts -o -name vitest.config*)",
+      "Bash(grep -rn \"sql\\\\`\" /e/AnunciaYA/anunciaya/apps/api/src/services/ --include=\"*.ts\")",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm type:check)",
+      "Bash(pnpm --filter api exec tsc --noEmit)",
+      "Bash(pnpm --filter web exec eslint .)"
     ]
   }
 }

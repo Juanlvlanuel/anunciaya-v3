@@ -1,9 +1,9 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v6.4 — Actualizado 2026-03-06
+> **Versión:** v6.6 — Actualizado 2026-03-11
 
-**Fecha:** 06 Marzo 2026  
-**Versión:** 6.5  
+**Fecha:** 11 Marzo 2026
+**Versión:** 6.6  
 **Proyecto:** AnunciaYA v3.0  
 **Chat de origen:** Chat Cerebro del Proyecto (Opus 4.6)  
 **Propósito:** Documento de referencia para implementar ChatYA en múltiples sesiones de chat. Contiene TODAS las decisiones, especificaciones, progreso y referencia técnica completa.
@@ -65,7 +65,7 @@
 | Parámetro | Valor | Notas |
 |-----------|-------|-------|
 | Texto por mensaje | 5,000 caracteres | ~800-1,000 palabras. Historial ilimitado |
-| Tamaño imágenes | 15 MB original | Con compresión automática Canvas → WebP calidad 0.85, max 1920px antes de subir a R2 |
+| Tamaño imágenes | 10 MB original | Con compresión automática Canvas → WebP calidad 0.85, max 1920px antes de subir a R2 |
 | Duración audio | 5 minutos | Grabación inline dentro del chat. Auto-stop al llegar al límite |
 | Tamaño audio | 5 MB | Formatos: WebM/Opus, OGG/Opus, MP4, MPEG. Bitrate 64kbps (~2.4 MB en 5 min) |
 | Tamaño documentos | 25 MB | PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV |
@@ -418,7 +418,7 @@ interface MetadatosImagen {
 - ✅ Click para ver imagen en visor fullscreen tipo WhatsApp — `VisorImagenesChat.tsx` con `createPortal`. Galería navegable con flechas ← →, swipe móvil, strip de thumbnails. Header: emisor dinámico + acciones
 - ✅ Compresión automática en frontend (canvas → WebP calidad 0.85, max 1920px) antes de subir a R2
 - ✅ Drag & drop en toda la VentanaChat — Overlay visual "Suelta la imagen aquí" con contador `dragContadorRef` para evitar parpadeo
-- ✅ Límite: 15 MB por imagen original
+- ✅ Límite: 10 MB por imagen original
 - ✅ Pipeline Zero-Flicker (3 pilares):
   - **Pilar 1 — Dimensiones fijas:** Se leen con `new Image()` antes de cualquier operación. Contenedor renderiza con aspect ratio exacto desde el primer frame → CLS = 0
   - **Pilar 2 — LQIP:** Micro-thumbnail 16px ancho, WebP base64 (~300-500 bytes), viaja con el JSON del mensaje. Se muestra con `filter: blur(20px)` como placeholder instantáneo
@@ -587,10 +587,12 @@ Visor tipo WhatsApp/Telegram. `VisorImagenesChat.tsx` con `createPortal(…, doc
 - ✅ Al cambiar de conversación, texto no enviado se guarda como borrador
 - ✅ Al regresar, borrador se restaura en el input
 - ✅ Al enviar, borrador se limpia
-- ✅ Persisten al refrescar y logout/login (localStorage `chatya_borradores`)
+- ✅ Persisten al refrescar la página (localStorage)
+- ✅ **Aislados por usuario:** clave `chatya_borradores_${userId}` — distintos usuarios en el mismo dispositivo no comparten borradores
+- ✅ **Se limpian al hacer logout:** `limpiar()` ejecuta `localStorage.removeItem(key)` al desconectarse
 - ✅ En lista de conversaciones: `Borrador: [texto]` en color amber
 
-**Implementación:** Store `borradores: Record<string, string>` + `guardarBorrador(id, texto)` / `limpiarBorrador(id)`. InputMensaje detecta cambio de conversación con `useEffect` + `conversacionAnteriorRef`.
+**Implementación:** Store `borradores: Record<string, string>` + `guardarBorrador(id, texto)` / `limpiarBorrador(id)`. InputMensaje detecta cambio de conversación con `useEffect` + `conversacionAnteriorRef`. `useAuthStore.logout()` llama `useChatYAStore.getState().limpiar()` para borrar estado y localStorage de ChatYA.
 
 ### 4.24 Pendientes por implementar
 
@@ -813,16 +815,17 @@ Se abre al hacer click en el header de la ventana del chat (nombre/avatar del co
 | Avatar del cliente | Imagen circular |
 | Nombre del cliente | Texto |
 | Estado | conectado / ausente / desconectado / últ. vez |
-| ¿Es cliente registrado? | "Tiene billetera en tu negocio: Sí/No" |
-| Nivel de lealtad | Bronce / Plata / Oro (solo si es cliente) |
-| Total de puntos acumulados | Número (solo si es cliente) |
-| Fecha de última compra | Fecha (solo si es cliente) |
-| Botón "Ver detalle" | Abre ModalDetalleCliente (CustomEvent) |
+| Billetera en tu negocio | Card con Nivel, Puntos disponibles y Última compra — **visible solo si `clienteDesde !== null`** (el cliente tiene billetera en este negocio) |
+| Nivel de lealtad | Bronce / Plata / Oro — `nivelActual` puede ser `null` si sin billetera |
+| Total de puntos acumulados | Número (solo si tiene billetera) |
+| Fecha de última compra | Fecha (solo si tiene billetera) |
+| Sin billetera | Card vacía "Sin billetera aquí" cuando `clienteDesde === null` |
+| Botón "Ver detalle del cliente" | **Visible solo si tiene billetera.** Despacha `chatya:ver-cliente` CustomEvent con `{ clienteId }` → ChatOverlay abre `ModalDetalleCliente` |
 | Archivos compartidos | ✅ Preview grid 3×2 + galería fullscreen con 3 tabs (Multimedia, Documentos, Enlaces) |
 | Silenciar notificaciones | Toggle |
 | Eliminar chat | Botón (ejecución directa sin confirmación) |
 
-**Datos:** Fetch `getDetalleCliente()`. **Valor diferenciador:** el comerciante ve el historial de lealtad del cliente directamente desde el chat.
+**Datos:** Fetch `getDetalleCliente()`. **Comportamiento sin billetera:** el endpoint nunca retorna 404 por falta de billetera — siempre retorna datos del usuario con campos de billetera en `null`/`0`. El 404 solo ocurre si el usuario no existe en la BD. **Valor diferenciador:** el comerciante ve el historial de lealtad del cliente directamente desde el chat.
 
 **NO incluyen las 3 vistas:** bio/info del usuario, mensajes fijados/destacados en panel lateral.
 
@@ -949,8 +952,8 @@ ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `
 
 | Componente | Archivo | Qué se reutiliza |
 |------------|---------|-------------------|
-| Socket.io backend | `apps/api/src/socket.ts` | `emitirAUsuario()`, `obtenerIO()`, rooms por usuario |
-| Socket.io frontend | `apps/web/src/services/socketService.ts` | `escucharEvento()`, `emitirEvento()`, reconexión automática, timer inactividad 15 min (ausente/conectado). Fallback `ay_usuario → sy_usuario` para obtener userId en contexto ScanYA |
+| Socket.io backend | `apps/api/src/socket.ts` | `emitirAUsuario()`, `obtenerIO()`, rooms por usuario. **Middleware JWT (`io.use()`):** valida token en el handshake antes de aceptar la conexión. `socket.data.usuarioId` es la fuente confiable — nunca se lee `usuarioId` de los payloads del cliente. |
+| Socket.io frontend | `apps/web/src/services/socketService.ts` | `escucharEvento()`, `emitirEvento()`, reconexión automática, timer inactividad 15 min (ausente/conectado). Fallback `ay_usuario → sy_usuario` para obtener userId en contexto ScanYA. **Autenticación JWT:** pasa `auth: { token: localStorage.getItem('anunciaya_access_token') }` al conectar. No conecta si no hay token. |
 | ChatOverlay | `apps/web/src/components/layout/ChatOverlay.tsx` | Integración con useUiStore se mantiene |
 | UI Store | `apps/web/src/stores/useUiStore.ts` | `chatYAAbierto`, `chatYAMinimizado`, `abrirChatYA`, `cerrarChatYA` |
 | R2 Service | `apps/api/src/services/r2.service.ts` | Subida de archivos con presigned URLs. Validación condicional con param `tiposPermitidos` |
@@ -999,13 +1002,13 @@ ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `
 | 27 | GET | `/buscar-personas` | Buscar usuarios por nombre/alias (`?q=texto`) |
 | 28 | GET | `/buscar-negocios` | Buscar negocios con distancia (`?q=texto&ciudad=X&lat=Y&lon=Z`) |
 | 29 | GET | `/mis-notas` | Obtener o crear conversación "Mis Notas" |
-| 30 | POST | `/upload-imagen` | Presigned URL para subir imagen a R2 |
+| 30 | POST | `/upload-imagen` | Presigned URL para subir imagen a R2. Body: `{ nombreArchivo, contentType, tamano }` — los 3 son requeridos. Valida 10 MB máx. |
 | 31 | POST | `/upload-documento` | Presigned URL para subir documento a R2 |
 | 32 | GET | `/conversaciones/:id/archivos-compartidos` | Lista archivos compartidos por categoría (`?categoria=imagenes&limit=30&offset=0`) |
 | 33 | GET | `/conversaciones/:id/archivos-compartidos/conteo` | Conteo agrupado de imágenes, documentos y enlaces |
 | 34 | POST | `/upload-audio` | Presigned URL para subir audio a R2 (`{ nombreArchivo, contentType, tamano }`) |
 
-### 9.2 Service — 31 funciones
+### 9.2 Service — 32 funciones
 
 | # | Función | Descripción |
 |---|---------|-------------|
@@ -1039,7 +1042,8 @@ ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `
 | 28 | `generarUrlUploadDocumentoChat()` | Presigned URL para documentos (9 tipos MIME, 25MB) |
 | 29 | `listarArchivosCompartidos()` | Lista archivos por categoría (imagenes/documentos/enlaces) con paginación. Filtra por `mensajesVisiblesDesde`. Enlaces extraídos con regex de mensajes tipo texto |
 | 30 | `contarArchivosCompartidos()` | Query única con `count(*) FILTER(WHERE ...)` para las 3 categorías. Retorna `{ imagenes, documentos, enlaces, total }` |
-| 31 | `generarUrlUploadAudioChat()` | Presigned URL para audio (4 tipos MIME, 5MB). Carpeta `chat/audio/${userId}/`, expiración 300s |
+| 31 | `generarUrlUploadImagenChat()` | Presigned URL para imagen (tipos MIME imagen/*, 10MB). Valida `{ nombreArchivo, contentType, tamano }`. Carpeta `chat/imagenes/${userId}/`, expiración 300s |
+| 32 | `generarUrlUploadAudioChat()` | Presigned URL para audio (4 tipos MIME, 5MB). Carpeta `chat/audio/${userId}/`, expiración 300s |
 
 ### 9.3 Helpers internos
 
@@ -1121,6 +1125,8 @@ ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `
 
 **44 acciones:** `inicializar`, `inicializarScanYA`, `setVistaActiva`, `abrirConversacion`, `abrirChatTemporal`, `transicionarAConversacionReal`, `volverALista`, `cargarConversaciones(silencioso?)`, `cargarArchivados`, `cargarMensajes`, `cargarMensajesAntiguos`, `cargarMensajesFijados`, `cargarContactos`, `cargarBloqueados`, `cargarMisNotas`, `cargarNoLeidos`, `cargarNoLeidosArchivados`, `crearConversacion`, `enviarMensaje`, `editarMensaje`, `eliminarMensaje`, `reenviarMensaje`, `marcarComoLeido`, `toggleFijar`, `toggleArchivar`, `toggleSilenciar`, `toggleReaccion`, `agregarContacto`, `eliminarContacto`, `editarAliasContacto`, `bloquearUsuario`, `desbloquearUsuario`, `fijarMensaje`, `desfijarMensaje`, `buscarMensajes`, `limpiarBusqueda`, `precargarMensajes`, `refrescarMensajesSilencioso`, `setEscribiendo`, `guardarBorrador`, `limpiarBorrador`, `limpiar`, `eliminarConversacion`
 
+**`limpiar()`:** Limpia TODO el estado de ChatYA incluyendo `localStorage.removeItem('chatya_borradores_${userId}')` y `borradores: {}`. Llamada desde `useAuthStore.logout()` para evitar que borradores de un usuario persistan para el siguiente.
+
 **Flag `silencioso` en `cargarConversaciones()`:** Cuando es `true`, no muestra skeleton de carga. Se usa al cambiar sucursal o modo Personal↔Comercial para evitar parpadeo visual. La lista se reemplaza silenciosamente en background.
 
 **Guards anti-flash:** `cargarConversaciones()` y `cargarNoLeidos()` NO ejecutan en modo comercial si `sucursalActiva` no está lista. Elimina flash de datos incorrectos al cambiar de modo/sucursal.
@@ -1178,6 +1184,8 @@ Componente principal. 3 estados: cerrado, minimizado (barra avatares 56px), expa
 
 **Guards:** `seAbrioPreviamente` (monta una vez, toggle hidden), `seAbrioChatRef` (VentanaChat lazy mount, nunca se desmonta), `inicializar` solo al abrir (ref guard).
 
+**Integración con ModalDetalleCliente:** ChatOverlay escucha el CustomEvent `chatya:ver-cliente` (despachado desde `PanelInfoContacto`) y mantiene estado `clienteDetalleId: string | null`. Al recibir el evento, monta `<ModalDetalleCliente>` directamente dentro del overlay. El prop `onVerHistorial` usa el evento `chatya:navegar-externo` (no `navigate()` directo) para navegar a la página de transacciones sin romper el sistema de historial de ChatYA.
+
 **Perfil de negocio embebido (sin iframe):** Anteriormente ChatOverlay renderizaba un iframe invisible para precargar el perfil. Esto fue reemplazado por renderizado directo de `PaginaPerfilNegocio` como componente dentro de `PanelInfoContacto`. Se usan dos mecanismos para forzar vista mobile en un panel estrecho: (1) `BreakpointOverride` context que hace que `useBreakpoint()` devuelva `esMobile: true` en todos los sub-componentes (SeccionOfertas, SeccionCatalogo, OfertaCard, etc.), y (2) CSS overrides en `index.css` con `.perfil-embebido` y `.perfil-contenedor` que neutralizan clases Tailwind `lg:`/`2xl:`. `.perfil-contenedor` usa `transform: translateZ(0)` para contener modales `fixed` dentro del panel. `PaginaPerfilNegocio` acepta props opcionales `sucursalIdOverride` y `modoPreviewOverride` para funcionar sin router.
 
 ### 10.5 Hooks Personalizados
@@ -1193,7 +1201,7 @@ Componente principal. 3 estados: cerrado, minimizado (barra avatares 56px), expa
 const MAX_ANCHO = 1920;
 const CALIDAD_WEBP = 0.85;
 const LQIP_ANCHO = 16;
-const MAX_TAMANO = 15_000_000; // 15 MB
+const MAX_TAMANO = 10_000_000; // 10 MB
 ```
 
 **Constantes del hook de audio:**
@@ -1696,23 +1704,53 @@ useEffect(() => {
 56. **`MapContainer` con todos los controles off para mapas de solo lectura** — En burbujas de ubicación (no interactivas) desactivar: `zoomControl={false}`, `dragging={false}`, `scrollWheelZoom={false}`, `doubleClickZoom={false}`, `touchZoom={false}`, `keyboard={false}`, `attributionControl={false}`. Evita que el usuario interactúe accidentalmente con el mapa dentro del chat y elimina la atribución OSM que ocupa espacio visual.
 57. **Reverse geocoding con Nominatim (sin API key)** — `GET https://nominatim.openstreetmap.org/reverse?lat=X&lon=Y&format=json&accept-language=es`. Parsear `address.road + address.house_number`, `address.suburb`, `address.city` en ese orden de prioridad. Llamar al soltar el pin (dragend), no durante el drag (evita flood de requests).
 
+### Seguridad
+
+58. **Socket.io JWT en `io.use()` (handshake), no en eventos** — Validar el token dentro de cada `socket.on()` es insuficiente: el socket ya está aceptado y el usuario puede emitir eventos antes de que cualquier verificación ocurra. El middleware `io.use()` rechaza la conexión completa si el token es inválido. `socket.data.usuarioId` se establece ahí y es la única fuente confiable — nunca leer `usuarioId` de los payloads enviados por el cliente (pueden ser manipulados). El frontend debe pasar el token en `auth: { token }` al conectar, no en headers.
+
+59. **Presence broadcast debe ser scoped por room, no global** — `socket.broadcast.emit('chatya:estado-usuario')` envía el evento a TODOS los usuarios conectados a la app. Correcto: emitir a los rooms relevantes (contactos que tienen conversaciones activas con ese usuario). Para ChatYA, emitir a `room:${usuarioId}` del usuario que cambió estado es suficiente, ya que cada usuario escucha su propio room para actualizaciones.
+
 ### Sprint 7: Pulido
 
-58. **Socket.io `emitirEvento` necesita `destinatarioId`** — El backend hace `if (data.destinatarioId)` antes de reenviar. Si el frontend solo envía `{ conversacionId }`, el evento se ignora silenciosamente. Siempre incluir `destinatarioId` en eventos punto-a-punto.
-59. **`escribiendo` como `Record<string, T>` > valor único** — Un solo `escribiendo: EstadoEscribiendo | null` se sobreescribe cuando múltiples personas escriben. Map por `conversacionId` permite que ConversacionItem muestre "Escribiendo..." en múltiples chats simultáneamente.
-60. **`delete nuevo[key]` > destructuración con `_`** — `const { [key]: _, ...resto }` causa warning de ESLint "assigned but never used". `const nuevo = { ...prev }; delete nuevo[key]` logra lo mismo sin warnings.
-61. **`chatya:consultar-estado` para estado inicial** — Sin esto, al abrir un chat el estado muestra "..." porque solo se actualiza por eventos en tiempo real. El nuevo evento consulta `io.sockets.adapter.rooms` para saber si el usuario tiene sockets activos, y `ultimaConexion` de la BD si está desconectado.
-62. **Timer inactividad con throttle** — `resetearTimerAusente` se dispara en cada `mousemove`. Sin throttle (30s) genera miles de `clearTimeout`/`setTimeout` por minuto. El throttle reduce a ~2 llamadas/minuto sin perder precisión.
-63. **`HTMLAudioElement` reutilizable para notificaciones** — Crear un `new Audio()` por cada mensaje es costoso. Un singleton con `.src` actualizado y `.play()` reutiliza el decodificador del browser.
-64. **Sonido solo si NO activa + NO silenciada + NO propia** — Triple validación: `!esMensajePropio && !esActiva && !convSilenciada`. Buscar `silenciada` en ambas listas (`conversaciones` + `conversacionesArchivadas`).
-65. **Leaflet z-index > z-50 para overlays sobre mapas** — `MapContainer` crea stacking contexts con z-index internos altos (~400). El ChevronDown del menú contextual necesita `z-[1000]` + `bg-black/40` para ser visible sobre el mapa. Mismo tratamiento para imágenes.
-66. **Contraste en fondos grises claros (slate-50/100) — valores mínimos recomendados** — Cuando el fondo del panel es `bg-slate-50` o similar, los textos necesitan al menos `text-gray-500`, los íconos `text-gray-400`, y los fondos de íconos `bg-gray-200`. `text-gray-300` e `text-gray-400` desaparecen sobre slate. Ajustar solo clases `lg:` para no afectar mobile (que tiene fondo oscuro).
-67. **CSS custom properties + `useLayoutEffect` para animaciones que dependen de dimensiones reales** — Para animar texto con ancho desconocido (como el prefijo de "últ. vez hoy a la(s)"), medir con `getBoundingClientRect()` en `useLayoutEffect`, asignar a `--variable-w` como CSS property, y referenciar en keyframe con `translateX(calc(-1 * var(--variable-w)))`. Sin `useLayoutEffect` la medición llega tarde y la animación arranca desde posición incorrecta. `requestAnimationFrame` garantiza un frame completo antes de iniciar.
-68. **Iframes invisibles en mobile browsers son suspendidos** — Un iframe con `opacity-0` fuera del viewport se precarga en PC pero en mobile el browser lo suspende → 18s de carga vs instantáneo. **Solución implementada:** Reemplazar iframe por renderizado directo del componente (`PaginaPerfilNegocio`) con props (`sucursalIdOverride`, `modoPreviewOverride`). Para forzar vista mobile en panel estrecho: (1) `BreakpointOverride` context provider que override `useBreakpoint()` a `esMobile: true`, (2) CSS con `.perfil-embebido` que neutraliza clases `lg:`/`2xl:` de Tailwind, (3) `.perfil-contenedor` con `transform: translateZ(0)` que contiene modales `fixed` dentro del panel. Mismo patrón aplicado en `PanelPreviewNegocio` (Business Studio).
-69. **`useMemo` antes de declaraciones que depende viola TS2448** — Si `useMemo` en línea 76 referencia una variable declarada en línea 123, TypeScript lanza "Block-scoped variable used before its declaration". Mover el `useMemo` después de la declaración de la variable que consume.
+60. **Socket.io `emitirEvento` necesita `destinatarioId`** — El backend hace `if (data.destinatarioId)` antes de reenviar. Si el frontend solo envía `{ conversacionId }`, el evento se ignora silenciosamente. Siempre incluir `destinatarioId` en eventos punto-a-punto.
+61. **`escribiendo` como `Record<string, T>` > valor único** — Un solo `escribiendo: EstadoEscribiendo | null` se sobreescribe cuando múltiples personas escriben. Map por `conversacionId` permite que ConversacionItem muestre "Escribiendo..." en múltiples chats simultáneamente.
+62. **`delete nuevo[key]` > destructuración con `_`** — `const { [key]: _, ...resto }` causa warning de ESLint "assigned but never used". `const nuevo = { ...prev }; delete nuevo[key]` logra lo mismo sin warnings.
+63. **`chatya:consultar-estado` para estado inicial** — Sin esto, al abrir un chat el estado muestra "..." porque solo se actualiza por eventos en tiempo real. El nuevo evento consulta `io.sockets.adapter.rooms` para saber si el usuario tiene sockets activos, y `ultimaConexion` de la BD si está desconectado.
+64. **Timer inactividad con throttle** — `resetearTimerAusente` se dispara en cada `mousemove`. Sin throttle (30s) genera miles de `clearTimeout`/`setTimeout` por minuto. El throttle reduce a ~2 llamadas/minuto sin perder precisión.
+65. **`HTMLAudioElement` reutilizable para notificaciones** — Crear un `new Audio()` por cada mensaje es costoso. Un singleton con `.src` actualizado y `.play()` reutiliza el decodificador del browser.
+66. **Sonido solo si NO activa + NO silenciada + NO propia** — Triple validación: `!esMensajePropio && !esActiva && !convSilenciada`. Buscar `silenciada` en ambas listas (`conversaciones` + `conversacionesArchivadas`).
+67. **Leaflet z-index > z-50 para overlays sobre mapas** — `MapContainer` crea stacking contexts con z-index internos altos (~400). El ChevronDown del menú contextual necesita `z-[1000]` + `bg-black/40` para ser visible sobre el mapa. Mismo tratamiento para imágenes.
+68. **Contraste en fondos grises claros (slate-50/100) — valores mínimos recomendados** — Cuando el fondo del panel es `bg-slate-50` o similar, los textos necesitan al menos `text-gray-500`, los íconos `text-gray-400`, y los fondos de íconos `bg-gray-200`. `text-gray-300` e `text-gray-400` desaparecen sobre slate. Ajustar solo clases `lg:` para no afectar mobile (que tiene fondo oscuro).
+69. **CSS custom properties + `useLayoutEffect` para animaciones que dependen de dimensiones reales** — Para animar texto con ancho desconocido (como el prefijo de "últ. vez hoy a la(s)"), medir con `getBoundingClientRect()` en `useLayoutEffect`, asignar a `--variable-w` como CSS property, y referenciar en keyframe con `translateX(calc(-1 * var(--variable-w)))`. Sin `useLayoutEffect` la medición llega tarde y la animación arranca desde posición incorrecta. `requestAnimationFrame` garantiza un frame completo antes de iniciar.
+70. **Iframes invisibles en mobile browsers son suspendidos** — Un iframe con `opacity-0` fuera del viewport se precarga en PC pero en mobile el browser lo suspende → 18s de carga vs instantáneo. **Solución implementada:** Reemplazar iframe por renderizado directo del componente (`PaginaPerfilNegocio`) con props (`sucursalIdOverride`, `modoPreviewOverride`). Para forzar vista mobile en panel estrecho: (1) `BreakpointOverride` context provider que override `useBreakpoint()` a `esMobile: true`, (2) CSS con `.perfil-embebido` que neutraliza clases `lg:`/`2xl:` de Tailwind, (3) `.perfil-contenedor` con `transform: translateZ(0)` que contiene modales `fixed` dentro del panel. Mismo patrón aplicado en `PanelPreviewNegocio` (Business Studio).
+71. **`useMemo` antes de declaraciones que depende viola TS2448** — Si `useMemo` en línea 76 referencia una variable declarada en línea 123, TypeScript lanza "Block-scoped variable used before its declaration". Mover el `useMemo` después de la declaración de la variable que consume.
+
+### Bug Fixes — Patrones recurrentes
+
+72. **React 18 + Zustand: nunca llamar `set()` dentro de un updater de `useState`** — En React 18, los updater functions de `setState(prev => ...)` pueden ejecutarse durante la fase de rendering (concurrent mode). Zustand notifica síncronamente a todos sus suscriptores al llamar `set()`. Si un suscriptor (ej. ChatOverlay) intenta actualizar su propio estado al recibir la notificación, React lanza "Cannot update a component while rendering a different component". Fix: capturar el valor actual con una variable antes del setter, y llamar ambos setters en secuencia directa (no anidada):
+    ```typescript
+    // ❌ Bug: set() de Zustand dentro del updater de React
+    const togglePanel = () => setPanelAbierto(v => {
+      const nuevo = !v;
+      setZustandStore(nuevo); // ← ejecuta durante render
+      return nuevo;
+    });
+    // ✅ Fix: lecturas + setters separados
+    const togglePanel = () => {
+      const nuevo = !panelAbierto;
+      setPanelAbierto(nuevo);
+      setZustandStore(nuevo);
+    };
+    ```
+
+73. **Navegación segura desde dentro de ChatOverlay — usar `chatya:navegar-externo`** — Llamar `navigate('/ruta')` directamente desde un modal dentro del overlay dispara el `useEffect` de `useLocation` en ChatOverlay, que detecta el cambio de ruta y llama `cerrarChatYA()`. Esta función limpia el historial de navegación con `history.back()` sucesivos, deshaciendo la navegación que se acaba de hacer. El evento `chatya:navegar-externo` fue diseñado para este caso: limpia todos los `historyRef` primero y cierra ChatYA antes de navegar, garantizando el orden correcto.
+
+74. **Preview de reacciones: siempre guardar el estado anterior antes de sobrescribir** — El listener `chatya:reaccion` sobrescribe `ultimoMensajeTexto` de la conversación con "Reaccionó con ❤️". Al eliminar la reacción, se necesita restaurar el texto previo. Problema: si el usuario B no tenía el chat abierto, no hay mensajes en caché para recalcular. Solución: guardar `_previewAnteReaccion` en el momento de sobrescribir (evento `agregada`), restaurar desde ahí en el evento `eliminada`. Casos adicionales: (1) filtrar mensajes eliminados (`!m.eliminado`) al buscar el último mensaje real, (2) verificar si quedan otras reacciones antes de restaurar (si quedan, el preview debe mostrar la reacción restante, no el texto original).
+
+75. **Endpoints que dependen de datos opcionales no deben retornar 404 por la parte opcional** — `GET /api/clientes/:id` retornaba 404 cuando el usuario no tenía billetera (`puntos_billetera` sin registro). Esto causaba que el panel de información del cliente fallara para usuarios legítimos sin historial de compras. La regla: el endpoint debe fallar solo si la entidad principal (el usuario) no existe. Los datos secundarios opcionales (billetera, nivel, puntos) se retornan como `null`/`0` con operadores `??`.
 
 ---
 
-**Estado actual:** Sprints 1-6 COMPLETADOS. Sprint 7 EN PROGRESO (4/6 features completadas).  
-**Backend:** 34 endpoints + 11 eventos Socket.io + 1 evento consulta estado + cron job activo.  
-**Última actualización:** 06 Marzo 2026
+**Estado actual:** Sprints 1-6 COMPLETADOS. Sprint 7 EN PROGRESO (4/6 features completadas).
+**Backend:** 34 endpoints + 11 eventos Socket.io + 1 evento consulta estado + cron job activo.
+**Última actualización:** 11 Marzo 2026

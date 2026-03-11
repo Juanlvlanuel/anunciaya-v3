@@ -594,12 +594,10 @@ function VentanaChatInner() {
 
   // Helper: toggle panel + sincronizar store
   const togglePanel = useCallback(() => {
-    setPanelAbierto((v) => {
-      const nuevo = !v;
-      setPanelInfoAbiertoStore(nuevo);
-      return nuevo;
-    });
-  }, [setPanelInfoAbiertoStore]);
+    const nuevo = !panelAbierto;
+    setPanelAbierto(nuevo);
+    setPanelInfoAbiertoStore(nuevo);
+  }, [panelAbierto, setPanelInfoAbiertoStore]);
 
   const cerrarPanel = useCallback(() => {
     setPanelAbierto(false);

@@ -430,20 +430,33 @@ export default function PaginaTransacciones() {
   const sentinelaCanjesRef = useRef<HTMLDivElement | null>(null);
 
   // ——— Carga inicial + recarga al cambiar sucursal ———
+  // Si hay búsqueda inicial (desde URL), setBusqueda llama cargarHistorial internamente.
+  // Así evitamos dos cargas paralelas que causan condición de carrera.
   useEffect(() => {
     cargarKPIs();
-    cargarHistorial();
     cargarOperadores();
+    if (busquedaInicial) {
+      const busquedaEnStore = useTransaccionesStore.getState().busqueda;
+      if (busquedaEnStore !== busquedaInicial) {
+        // Sin pre-fetch: limpiar historial y cargar con filtro
+        useTransaccionesStore.setState({ historial: [], totalResultados: 0 });
+        setBusqueda(busquedaInicial);
+      }
+      // Con pre-fetch activo (busqueda ya coincide): solo limpiar la URL,
+      // la carga ya está en vuelo desde ChatOverlay
+      setSearchParams({}, { replace: true });
+    } else {
+      cargarHistorial();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sucursalActiva]);
 
-  // ——— Aplicar búsqueda de URL al montar ———
+  // ——— Limpiar búsqueda al salir (sin disparar cargarHistorial) ———
   useEffect(() => {
-    if (busquedaInicial) {
-      setBusqueda(busquedaInicial);
-      // Limpiar parámetro de URL después de aplicarlo
-      setSearchParams({}, { replace: true });
-    }
-  }, []); // Solo al montar
+    return () => {
+      useTransaccionesStore.setState({ busqueda: '', offset: 0 });
+    };
+  }, []);
 
   // ——— Debounce: enviar búsqueda al backend después de 400ms sin escribir ———
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
