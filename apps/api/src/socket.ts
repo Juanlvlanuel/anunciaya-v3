@@ -16,6 +16,7 @@ import type { Server as HttpServer } from 'http';
 import { db } from './db/index.js';
 import { usuarios } from './db/schemas/schema.js';
 import { eq } from 'drizzle-orm';
+import { verificarAccessToken } from './utils/jwt.js';
 
 let io: SocketServer | null = null;
 
@@ -33,13 +34,26 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
     transports: ['websocket', 'polling'],
   });
 
+  // ─── Middleware: validar JWT antes de permitir la conexión ───────────
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token as string | undefined;
+    if (!token) {
+      return next(new Error('Token no proporcionado'));
+    }
+    const resultado = verificarAccessToken(token);
+    if (!resultado.valido || !resultado.payload) {
+      return next(new Error('Token inválido'));
+    }
+    socket.data.usuarioId = resultado.payload.usuarioId;
+    next();
+  });
+
   io.on('connection', (socket) => {
 
     // El cliente envía su usuarioId para unirse a su room personal
     socket.on('unirse', (usuarioId: string) => {
-      if (usuarioId) {
+      if (usuarioId && usuarioId === socket.data.usuarioId) {
         socket.join(`usuario:${usuarioId}`);
-        socket.data.usuarioId = usuarioId;
 
         // Notificar a todos que este usuario está conectado
         socket.broadcast.emit('chatya:estado-usuario', {
@@ -114,7 +128,7 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
     // -----------------------------------------------------------------
     socket.on('chatya:estado', (data: { usuarioId: string; estado: string }) => {
       socket.broadcast.emit('chatya:estado-usuario', {
-        usuarioId: data.usuarioId,
+        usuarioId: socket.data.usuarioId,
         estado: data.estado,
       });
     });

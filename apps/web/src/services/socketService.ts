@@ -119,8 +119,15 @@ export function conectarSocket(): void {
     socket = null;
   }
 
+  // No conectar si no hay token JWT
+  const token = localStorage.getItem('ay_access_token');
+  if (!token) {
+    return;
+  }
+
   // Crear socket nuevo
   socket = io(SOCKET_URL, {
+    auth: { token },
     transports: ['websocket', 'polling'],
     withCredentials: true,
     reconnectionAttempts: Infinity,

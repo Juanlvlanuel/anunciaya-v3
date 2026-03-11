@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /e/AnunciaYA/anunciaya/apps/web/src/pages -type f -name *chat* -o -name *Chat*)",
+      "Bash(xargs grep:*)"
+    ]
+  }
+}
