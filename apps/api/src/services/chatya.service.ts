@@ -2628,12 +2628,16 @@ export async function buscarNegocios(
  * @param userId - ID del usuario que sube la imagen
  * @param nombreArchivo - Nombre original del archivo
  * @param contentType - Tipo MIME (image/webp, image/jpeg, etc.)
+ * @param tamano - Tamaño del archivo en bytes
  * @returns Presigned URL + URL pública final
  */
+const MAX_TAMANO_IMAGEN = 10 * 1024 * 1024; // 10MB
+
 export async function generarUrlUploadImagenChat(
     userId: string,
     nombreArchivo: string,
-    contentType: string
+    contentType: string,
+    tamano: number
 ): Promise<RespuestaServicio<{
     uploadUrl: string;
     publicUrl: string;
@@ -2647,6 +2651,16 @@ export async function generarUrlUploadImagenChat(
             return {
                 success: false,
                 message: `Tipo no permitido. Usar: ${tiposPermitidos.join(', ')}`,
+                code: 400,
+            };
+        }
+
+        // Validar tamaño
+        if (tamano > MAX_TAMANO_IMAGEN) {
+            const maxMB = (MAX_TAMANO_IMAGEN / (1024 * 1024)).toFixed(0);
+            return {
+                success: false,
+                message: `La imagen no puede pesar más de ${maxMB}MB.`,
                 code: 400,
             };
         }

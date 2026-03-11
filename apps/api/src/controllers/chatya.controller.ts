@@ -1021,17 +1021,17 @@ export async function buscarNegociosController(req: Request, res: Response) {
 export async function uploadImagenChatController(req: Request, res: Response): Promise<void> {
   try {
     const userId = obtenerUsuarioId(req);
-    const { nombreArchivo, contentType } = req.body;
+    const { nombreArchivo, contentType, tamano } = req.body;
 
-    if (!nombreArchivo || !contentType) {
+    if (!nombreArchivo || !contentType || !tamano) {
       res.status(400).json({
         success: false,
-        message: 'nombreArchivo y contentType son requeridos',
+        message: 'nombreArchivo, contentType y tamano son requeridos',
       });
       return;
     }
 
-    const resultado = await generarUrlUploadImagenChat(userId, nombreArchivo, contentType);
+    const resultado = await generarUrlUploadImagenChat(userId, nombreArchivo, contentType, tamano);
 
     res.status(resultado.code ?? 200).json({
       success: resultado.success,

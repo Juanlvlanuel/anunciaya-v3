@@ -49,8 +49,8 @@ const LQIP_ANCHO = 16;
 /** Calidad del micro-thumbnail (baja, porque se muestra con blur) */
 const LQIP_CALIDAD = 0.2;
 
-/** Tamaño máximo permitido del archivo original: 15MB */
-const MAX_TAMANO_BYTES = 15 * 1024 * 1024;
+/** Tamaño máximo permitido del archivo original: 10MB (alineado con backend) */
+const MAX_TAMANO_BYTES = 10 * 1024 * 1024;
 
 /** Máximo de imágenes por envío */
 const MAX_IMAGENES = 10;
@@ -111,7 +111,7 @@ function leerDimensiones(archivo: File): Promise<{ ancho: number; alto: number }
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('No se pudo leer la imagen'));
+      reject(new Error('No pudimos procesar esta imagen. Intenta con otra.'));
     };
     img.src = url;
   });
@@ -154,7 +154,7 @@ function optimizarImagen(
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        reject(new Error('No se pudo crear canvas'));
+        reject(new Error('No pudimos procesar esta imagen. Intenta con otra.'));
         return;
       }
       ctx.drawImage(img, 0, 0, w, h);
@@ -163,7 +163,7 @@ function optimizarImagen(
       canvas.toBlob(
         (blob) => {
           if (!blob) {
-            reject(new Error('Error al comprimir imagen'));
+            reject(new Error('No pudimos comprimir la imagen. Intenta con una imagen más pequeña.'));
             return;
           }
 
@@ -179,7 +179,7 @@ function optimizarImagen(
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('Error al cargar imagen para optimizar'));
+      reject(new Error('No pudimos procesar esta imagen. Intenta con otra.'));
     };
 
     img.src = url;
@@ -220,7 +220,8 @@ function generarLQIP(
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        reject(new Error('No se pudo crear canvas para LQIP'));
+        console.error('No se pudo crear canvas para LQIP');
+        resolve('');
         return;
       }
       ctx.drawImage(img, 0, 0, w, h);
@@ -232,7 +233,8 @@ function generarLQIP(
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('Error al generar LQIP'));
+      console.error('Error al generar LQIP');
+      resolve('');
     };
 
     img.src = url;

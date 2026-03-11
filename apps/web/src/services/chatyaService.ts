@@ -566,9 +566,10 @@ export async function getMisNotas() {
  */
 export async function obtenerPresignedUrlImagen(
   nombreArchivo: string,
-  contentType: string
+  contentType: string,
+  tamano: number
 ): Promise<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }> {
-  const resultado = await post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>('/chatya/upload-imagen', { nombreArchivo, contentType });
+  const resultado = await post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>('/chatya/upload-imagen', { nombreArchivo, contentType, tamano });
   if (!resultado.success || !resultado.data) {
     throw new Error(resultado.message || 'Error al obtener URL de subida');
   }

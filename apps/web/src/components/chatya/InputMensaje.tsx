@@ -195,6 +195,7 @@ export function InputMensaje({
   const limpiarBorrador = useChatYAStore((s) => s.limpiarBorrador);
 
   const [texto, setTexto] = useState('');
+  const [errorUpload, setErrorUpload] = useState<string | null>(null);
   const [pickerAbierto, setPickerAbierto] = useState(false);
   const [pickerSaliendo, setPickerSaliendo] = useState(false);
   const [pickerPos, setPickerPos] = useState<{ x: number; y: number } | null>(null);
@@ -267,10 +268,14 @@ export function InputMensaje({
   const clipBtnRef = useRef<HTMLButtonElement>(null);
   const menuClipRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar menú clip al cambiar de conversación o cerrar chat
+  // Cerrar menú clip y limpiar errores al cambiar de conversación o cerrar chat
   useEffect(() => {
     setMenuClipAbierto(false);
     setMenuClipPos(null);
+    setErrorUpload(null);
+    limpiarImagen();
+    limpiarDocumento();
+    limpiarAudio();
   }, [conversacionActivaId]);
 
   // Cerrar menú clip al hacer click fuera (sin backdrop bloqueante)
@@ -433,7 +438,7 @@ export function InputMensaje({
       try {
         // 1. Pedir presigned URLs para todas las imágenes en paralelo
         const presignedPromises = loteImagenes.map((img) =>
-          chatyaService.obtenerPresignedUrlImagen(img.archivo.name, img.archivo.type)
+          chatyaService.obtenerPresignedUrlImagen(img.archivo.name, img.archivo.type, img.archivo.size)
         );
         const presignedResults = await Promise.all(presignedPromises);
 
@@ -464,7 +469,7 @@ export function InputMensaje({
         }
       } catch (err) {
         console.error('Error al enviar imágenes:', err);
-        // TODO: Mostrar toast de error
+        setErrorUpload('No se pudo enviar la imagen. Intenta de nuevo.');
       }
 
       inputRef.current?.focus();
@@ -543,6 +548,7 @@ export function InputMensaje({
         }
       } catch (err) {
         console.error('Error al enviar documento:', err);
+        setErrorUpload('No se pudo enviar el documento. Intenta de nuevo.');
         // Marcar como fallido
         useChatYAStore.setState((state) => ({
           mensajes: state.mensajes.map((m) =>
@@ -625,6 +631,7 @@ export function InputMensaje({
         await enviarMensaje({ contenido: contenidoAudio, tipo: 'audio' }, tempId);
       } catch (err) {
         console.error('Error al enviar audio:', err);
+        setErrorUpload('No se pudo enviar el audio. Intenta de nuevo.');
         // Marcar como fallido
         useChatYAStore.setState((state) => ({
           mensajes: state.mensajes.map((m) =>
@@ -951,7 +958,9 @@ export function InputMensaje({
       {/* ── Error de imagen ── */}
       {errorImagen && (
         <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
-          <X className="w-3.5 h-3.5 shrink-0" />
+          <button type="button" onClick={limpiarImagen} className="shrink-0 hover:text-red-800">
+            <X className="w-3.5 h-3.5" />
+          </button>
           <span className="truncate">{errorImagen}</span>
         </div>
       )}
@@ -959,7 +968,9 @@ export function InputMensaje({
       {/* ── Error de documento ── */}
       {errorDocumento && (
         <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
-          <X className="w-3.5 h-3.5 shrink-0" />
+          <button type="button" onClick={limpiarDocumento} className="shrink-0 hover:text-red-800">
+            <X className="w-3.5 h-3.5" />
+          </button>
           <span className="truncate">{errorDocumento}</span>
         </div>
       )}
@@ -967,8 +978,20 @@ export function InputMensaje({
       {/* ── Error de audio ── */}
       {errorAudio && (
         <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
-          <X className="w-3.5 h-3.5 shrink-0" />
+          <button type="button" onClick={limpiarAudio} className="shrink-0 hover:text-red-800">
+            <X className="w-3.5 h-3.5" />
+          </button>
           <span className="truncate">{errorAudio}</span>
+        </div>
+      )}
+
+      {/* ── Error de upload ── */}
+      {errorUpload && (
+        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
+          <button type="button" onClick={() => setErrorUpload(null)} className="shrink-0 hover:text-red-800">
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <span className="truncate">{errorUpload}</span>
         </div>
       )}
 
