@@ -340,14 +340,6 @@ export async function obtenerDetalleCliente(
                 )
             );
 
-        if (!billetera) {
-            return {
-                success: false,
-                message: 'Cliente no encontrado en este negocio',
-                code: 404,
-            };
-        }
-
         // Info del usuario
         const [usuario] = await db
             .select({
@@ -419,12 +411,12 @@ export async function obtenerDetalleCliente(
                 telefono: usuario.telefono,
                 correo: usuario.correo,
                 avatarUrl: usuario.avatarUrl,
-                puntosDisponibles: billetera.puntosDisponibles,
-                puntosAcumuladosTotal: billetera.puntosAcumuladosTotal,
-                puntosCanjeadosTotal: billetera.puntosCanjeadosTotal || 0,
-                nivelActual: billetera.nivelActual || 'bronce',
-                clienteDesde: billetera.createdAt,
-                ultimaActividad: billetera.ultimaActividad,
+                puntosDisponibles: billetera?.puntosDisponibles ?? 0,
+                puntosAcumuladosTotal: billetera?.puntosAcumuladosTotal ?? 0,
+                puntosCanjeadosTotal: billetera?.puntosCanjeadosTotal ?? 0,
+                nivelActual: billetera?.nivelActual ?? null,
+                clienteDesde: billetera?.createdAt ?? null,
+                ultimaActividad: billetera?.ultimaActividad ?? null,
                 totalVisitas: Number(stats.totalVisitas),
                 totalGastado: Number(stats.totalGastado),
                 promedioCompra: Number(Number(stats.promedioCompra).toFixed(2)),

@@ -636,62 +636,66 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               </div>
             ) : clienteEfectivo ? (
               <>
-                {/* Encabezado sección */}
-                <p className="text-[11px] lg:text-[11px] font-bold text-white/40 lg:text-gray-400 uppercase tracking-wider px-1">Billetera en tu negocio</p>
+                {clienteEfectivo.clienteDesde && (
+                  <>
+                    {/* Encabezado sección */}
+                    <p className="text-[11px] lg:text-[11px] font-bold text-white/40 lg:text-gray-400 uppercase tracking-wider px-1">Billetera en tu negocio</p>
 
-                {/* Card nivel + puntos */}
-                <div className="bg-white/10 lg:bg-white rounded-2xl shadow-sm border border-white/10 lg:border-gray-100 overflow-hidden">
-                  {/* Fila nivel */}
-                  <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 lg:border-gray-50">
-                    <div className="w-8 h-8 rounded-full bg-amber-500/15 lg:bg-amber-50 flex items-center justify-center shrink-0">
-                      <Award className={`w-4 h-4 ${nivelColor(clienteEfectivo.nivelActual)}`} />
+                    {/* Card nivel + puntos */}
+                    <div className="bg-white/10 lg:bg-white rounded-2xl shadow-sm border border-white/10 lg:border-gray-100 overflow-hidden">
+                      {/* Fila nivel */}
+                      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 lg:border-gray-50">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/15 lg:bg-amber-50 flex items-center justify-center shrink-0">
+                          <Award className={`w-4 h-4 ${nivelColor(clienteEfectivo.nivelActual ?? '')}`} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Nivel</span>
+                          <span className={`text-sm lg:text-sm font-bold ${nivelColor(clienteEfectivo.nivelActual ?? '')}`}>
+                            {nivelEmoji(clienteEfectivo.nivelActual ?? '')} {(clienteEfectivo.nivelActual ?? '').charAt(0).toUpperCase() + (clienteEfectivo.nivelActual ?? '').slice(1)}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Fila puntos */}
+                      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 lg:border-gray-50">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/15 lg:bg-amber-50 flex items-center justify-center shrink-0">
+                          <Coins className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Puntos disponibles</span>
+                          <span className="text-sm lg:text-sm font-bold text-white lg:text-gray-800">
+                            {clienteEfectivo.puntosDisponibles.toLocaleString('es-MX')} pts
+                          </span>
+                        </div>
+                      </div>
+                      {/* Fila última compra */}
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-500/15 lg:bg-blue-50 flex items-center justify-center shrink-0">
+                          <Calendar className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Última compra</span>
+                          <span className="text-sm lg:text-sm font-semibold text-white/70 lg:text-gray-700">
+                            {formatFecha(clienteEfectivo.ultimaActividad)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Nivel</span>
-                      <span className={`text-sm lg:text-sm font-bold ${nivelColor(clienteEfectivo.nivelActual)}`}>
-                        {nivelEmoji(clienteEfectivo.nivelActual)} {clienteEfectivo.nivelActual.charAt(0).toUpperCase() + clienteEfectivo.nivelActual.slice(1)}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Fila puntos */}
-                  <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 lg:border-gray-50">
-                    <div className="w-8 h-8 rounded-full bg-amber-500/15 lg:bg-amber-50 flex items-center justify-center shrink-0">
-                      <Coins className="w-4 h-4 text-amber-500" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Puntos disponibles</span>
-                      <span className="text-sm lg:text-sm font-bold text-white lg:text-gray-800">
-                        {clienteEfectivo.puntosDisponibles.toLocaleString('es-MX')} pts
-                      </span>
-                    </div>
-                  </div>
-                  {/* Fila última compra */}
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-500/15 lg:bg-blue-50 flex items-center justify-center shrink-0">
-                      <Calendar className="w-4 h-4 text-blue-400" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[11px] lg:text-[11px] text-white/40 lg:text-gray-400 font-medium">Última compra</span>
-                      <span className="text-sm lg:text-sm font-semibold text-white/70 lg:text-gray-700">
-                        {formatFecha(clienteEfectivo.ultimaActividad)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                <button
-                  onClick={() => {
-                    if (otro?.id) {
-                      window.dispatchEvent(
-                        new CustomEvent('chatya:ver-cliente', { detail: { clienteId: otro.id } })
-                      );
-                    }
-                  }}
-                  className="flex items-center justify-between w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white text-sm font-semibold cursor-pointer transition-colors shadow-sm"
-                >
-                  <span>Ver detalle del cliente</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                    <button
+                      onClick={() => {
+                        if (otro?.id) {
+                          window.dispatchEvent(
+                            new CustomEvent('chatya:ver-cliente', { detail: { clienteId: otro.id } })
+                          );
+                        }
+                      }}
+                      className="flex items-center justify-between w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white text-sm font-semibold cursor-pointer transition-colors shadow-sm"
+                    >
+                      <span>Ver detalle del cliente</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <div className="bg-white/10 lg:bg-white rounded-2xl shadow-sm border border-white/10 lg:border-gray-100 flex flex-col items-center gap-2 py-6 px-4 text-center">
