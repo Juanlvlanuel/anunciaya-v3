@@ -309,7 +309,7 @@ className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4"
 ### 4.5 Dropdowns
 ```jsx
 // Contenedor del dropdown
-className="fixed bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-lg w-[220px] lg:w-[160px] 2xl:w-[220px]"
+className="fixed bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-lg w-[220px] lg:w-40 2xl:w-[220px]"
 
 // Lista con scroll
 className="max-h-[300px] lg:max-h-[220px] 2xl:max-h-[300px] overflow-y-auto"
