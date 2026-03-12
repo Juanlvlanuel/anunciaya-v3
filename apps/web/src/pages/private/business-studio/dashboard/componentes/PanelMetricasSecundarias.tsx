@@ -61,11 +61,11 @@ function ItemMetrica({ metrica }: ItemMetricaProps) {
         <p className="text-2xl lg:text-xl 2xl:text-2xl font-bold text-slate-800 leading-none">
           {valorFormateado}
         </p>
-        <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-600 font-medium truncate mt-0.5">
+        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate mt-0.5">
           {metrica.titulo}
         </p>
         {metrica.subtitulo && (
-          <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-500 truncate">
+          <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate">
             {metrica.subtitulo}
           </p>
         )}

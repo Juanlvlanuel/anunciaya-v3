@@ -131,7 +131,7 @@ export default function KPIPrincipal({
 
       {/* Subtítulo abajo - Solo en laptop/desktop */}
       {subtitulo && (
-        <p className="hidden lg:block text-[10px] 2xl:text-xs text-slate-500 mt-0.5 2xl:mt-1 leading-tight truncate">{subtitulo}</p>
+        <p className="hidden lg:block text-[11px] 2xl:text-sm font-medium text-slate-600 mt-0.5 2xl:mt-1 leading-tight truncate">{subtitulo}</p>
       )}
 
       {/* Mini gráfica (si existe) - oculta en móvil */}

@@ -64,9 +64,9 @@ function getConfigSeveridad(severidad: string) {
       return {
         icon: Info,
         bg: 'bg-slate-50',
-        border: 'border-slate-200',
+        border: 'border-slate-300',
         text: 'text-slate-800',
-        iconColor: 'text-slate-500',
+        iconColor: 'text-slate-600',
         badge: 'bg-slate-500',
       };
   }
@@ -128,7 +128,7 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
             <p className={`text-sm font-bold ${config.text}`}>
               {alertas.length === 1 ? 'Alerta Pendiente' : `${alertas.length} Alertas Pendientes`}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-sm font-medium text-slate-600">
               {severidadMasAlta === 'alta' ? 'Requiere atención inmediata' : 'Revisa cuando puedas'}
             </p>
           </div>
@@ -137,7 +137,7 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
         {/* Botón Marcar Todas como Leídas */}
         <button
           onClick={handleMarcarTodasLeidas}
-          className="p-1.5 rounded-lg hover:bg-white/50 text-slate-500 hover:text-emerald-600 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-white/50 text-slate-600 hover:text-emerald-600 transition-colors"
           title="Marcar todas como leídas"
         >
           <Check className="w-4 h-4" />
@@ -153,11 +153,11 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
           return (
             <div
               key={alerta.id}
-              className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+              className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-300 hover:border-slate-400 transition-colors"
             >
               {/* Icono de la alerta */}
-              <div className={`w-6 h-6 rounded-md ${alertaConfig.bg} flex items-center justify-center shrink-0`}>
-                <AlertaIcono className={`w-3.5 h-3.5 ${alertaConfig.iconColor}`} />
+              <div className={`w-7 h-7 rounded-md ${alertaConfig.bg} flex items-center justify-center shrink-0`}>
+                <AlertaIcono className={`w-4 h-4 ${alertaConfig.iconColor}`} />
               </div>
 
               {/* Contenido */}
@@ -165,7 +165,7 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
                 <p className="text-sm font-medium text-slate-800 truncate">
                   {alerta.titulo}
                 </p>
-                <p className="text-xs text-slate-500 truncate">
+                <p className="text-sm font-medium text-slate-600 truncate">
                   {alerta.descripcion}
                 </p>
               </div>
@@ -173,7 +173,7 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
               {/* Botón Marcar como Leída */}
               <button
                 onClick={(e) => handleMarcarLeida(alerta.id, e)}
-                className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-500 transition-colors shrink-0"
+                className="p-1.5 rounded-lg hover:bg-emerald-100 text-slate-600 hover:text-emerald-500 transition-colors shrink-0"
                 title="Marcar como leída"
               >
                 <Check className="w-4 h-4" />

@@ -42,7 +42,7 @@ function RatingStars({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
-          className={`w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 ${
+          className={`w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 ${
             star <= rating
               ? 'text-amber-400 fill-amber-400'
               : 'text-slate-200'
@@ -76,19 +76,19 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
           className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center"
           style={{ background: 'linear-gradient(135deg, #fde68a, #fbbf24)', boxShadow: '0 2px 6px rgba(245,158,11,0.3)' }}
         >
-          <MessageSquare className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5 text-amber-800" />
+          <MessageSquare className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-amber-800" />
         </div>
         <div className="flex-1">
           <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800 leading-tight">Reseñas</h3>
-          <p className="text-[10px] lg:text-[9px] 2xl:text-[12px] text-slate-500">Opiniones recientes</p>
+          <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Opiniones recientes</p>
         </div>
         {/* Link "Ver todas →" */}
         <button
           onClick={() => navigate('/business-studio/opiniones')}
-          className="flex items-center gap-0.5 text-[11px] lg:text-[10px] 2xl:text-[11px] font-semibold text-amber-600 hover:text-amber-700 transition-colors cursor-pointer shrink-0"
+          className="flex items-center gap-0.5 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors cursor-pointer shrink-0"
         >
           Ver todas
-          <ChevronRight className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+          <ChevronRight className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
         </button>
       </div>
 
@@ -98,7 +98,7 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
           resenas.map((resena) => (
             <div
               key={resena.id}
-              className="p-2 lg:p-1.5 2xl:p-2 rounded-lg border border-amber-100 bg-amber-50/30 hover:bg-amber-50/60 transition-all"
+              className="p-2 lg:p-1.5 2xl:p-2 rounded-lg border border-amber-100 bg-amber-50/30 hover:bg-amber-100/60 transition-all"
             >
               {/* Header de reseña */}
               <div className="flex items-center justify-between mb-1">
@@ -112,16 +112,16 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
                     />
                   ) : (
                     <div className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded-full bg-slate-100 flex items-center justify-center">
-                      <User className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-slate-400" />
+                      <User className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-slate-600" />
                     </div>
                   )}
-                  <span className="text-xs lg:text-[10px] 2xl:text-xs font-medium text-slate-700">
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">
                     {resena.autor.nombre}
                   </span>
                   <RatingStars rating={resena.rating} />
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] lg:text-[9px] 2xl:text-[10px] text-slate-400">
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
                     {formatearFecha(resena.createdAt)}
                   </span>
                   <span className="text-sm lg:text-xs 2xl:text-sm">{getEmojiPorRating(resena.rating)}</span>
@@ -130,7 +130,7 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
 
               {/* Texto */}
               {resena.texto && (
-                <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-600 mt-1 line-clamp-2 italic">
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-1 line-clamp-2 italic">
                   "{resena.texto}"
                 </p>
               )}
@@ -138,9 +138,9 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
           ))
         ) : (
           /* Estado vacío - centrado */
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
             <MessageSquare className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 mb-1 opacity-50" />
-            <p className="text-sm lg:text-xs 2xl:text-sm">Sin Reseñas Recientes</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium">Sin Reseñas Recientes</p>
           </div>
         )}
       </div>

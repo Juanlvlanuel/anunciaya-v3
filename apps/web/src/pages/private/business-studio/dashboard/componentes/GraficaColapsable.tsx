@@ -40,7 +40,7 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
       {/* Header Colapsable - Siempre visible */}
       <button
         onClick={() => setExpandida(!expandida)}
-        className="w-full p-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+        className="w-full p-3 flex items-center justify-between hover:bg-slate-100 transition-colors"
       >
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -53,7 +53,7 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
           <div className="text-left mb-2">
             <h3 className="text-base lg:text-sm font-bold text-slate-800">Ventas del Periodo</h3>
             {estadisticas && (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm font-medium text-slate-600">
                 Promedio: ${estadisticas.promedioDiario.toLocaleString('es-MX')}/día
                 {' '}·{' '}
                 <span className={crecimientoPositivo ? 'text-emerald-600' : 'text-rose-600'}>
@@ -66,20 +66,20 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
 
         {/* Icono Expandir/Colapsar */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-slate-500">
+          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
             {expandida ? 'Ocultar' : 'Ver gráfica'}
           </span>
           {expandida ? (
-            <ChevronUp className="w-5 h-5 text-slate-400" />
+            <ChevronUp className="w-5 h-5 text-slate-600" />
           ) : (
-            <ChevronDown className="w-5 h-5 text-slate-400" />
+            <ChevronDown className="w-5 h-5 text-slate-600" />
           )}
         </div>
       </button>
 
       {/* Contenido Expandible - Gráfica */}
       {expandida && (
-        <div className="border-t-2 border-slate-200 animate-in slide-in-from-top duration-300">
+        <div className="border-t-2 border-slate-300 animate-in slide-in-from-top duration-300">
           <GraficaVentas datos={datos} embedded />
         </div>
       )}
@@ -88,11 +88,11 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
       {!expandida && estadisticas && (
         <div className="px-3 pb-3 grid grid-cols-3 gap-2 text-center">
           <div className="bg-slate-100 rounded-lg p-2">
-            <p className="text-xs text-slate-500">Mejor día</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Mejor día</p>
             <p className="text-sm font-bold text-slate-800">{estadisticas.diaPico}</p>
           </div>
           <div className="bg-slate-100 rounded-lg p-2">
-            <p className="text-xs text-slate-500">Promedio</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Promedio</p>
             <p className="text-sm font-bold text-slate-800">
               ${(estadisticas.promedioDiario / 1000).toFixed(1)}k
             </p>
@@ -100,7 +100,7 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
           <div className={`rounded-lg p-2 ${
             crecimientoPositivo ? 'bg-emerald-100' : 'bg-rose-100'
           }`}>
-            <p className="text-xs text-slate-500">Tendencia</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Tendencia</p>
             <p className={`text-sm font-bold ${
               crecimientoPositivo ? 'text-emerald-600' : 'text-rose-600'
             }`}>

@@ -228,7 +228,7 @@ export default function PaginaDashboard() {
                 onClick={() => setPeriodo(p.valor as Periodo)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${periodo === p.valor
                   ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-blue-50 border border-slate-200'
+                  : 'bg-white text-slate-600 hover:bg-blue-100 border border-slate-300'
                   }`}
               >
                 {p.label}
@@ -239,7 +239,7 @@ export default function PaginaDashboard() {
             <button
               onClick={handleRefresh}
               disabled={refrescando}
-              className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
+              className="p-1.5 rounded-lg bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-50"
               title="Actualizar"
             >
               <RefreshCw className={`w-5 h-5 ${refrescando ? 'animate-spin' : ''}`} />
@@ -279,22 +279,22 @@ export default function PaginaDashboard() {
               <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-2 rounded-full shrink-0">
                 <UserPlus className="w-4 h-4" />
                 <span className="font-bold text-sm">{kpis?.followers ?? 0}</span>
-                <span className="text-blue-500 text-sm">Followers</span>
+                <span className="text-blue-500 text-sm font-medium">Followers</span>
               </div>
               <div className="flex items-center gap-1.5 bg-pink-50 text-pink-700 px-3 py-2 rounded-full shrink-0">
                 <Heart className="w-4 h-4" />
                 <span className="font-bold text-sm">{kpis?.likes.valor ?? 0}</span>
-                <span className="text-pink-500 text-sm">Likes</span>
+                <span className="text-pink-500 text-sm font-medium">Likes</span>
               </div>
               <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-2 rounded-full shrink-0">
                 <Star className="w-4 h-4" />
                 <span className="font-bold text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
-                <span className="text-yellow-600 text-sm">Rating</span>
+                <span className="text-yellow-600 text-sm font-medium">Rating</span>
               </div>
               <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 px-3 py-2 rounded-full shrink-0">
                 <Eye className="w-4 h-4" />
                 <span className="font-bold text-sm">{kpis?.vistas.valor ?? 0}</span>
-                <span className="text-slate-500 text-sm">Vistas</span>
+                <span className="text-slate-600 text-sm font-medium">Vistas</span>
               </div>
             </div>
           </div>
@@ -359,24 +359,24 @@ export default function PaginaDashboard() {
               {/* 4 Mini Stats como Pills Horizontales */}
               <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
-                  <UserPlus className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                  <UserPlus className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
                   <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.followers ?? 0}</span>
-                  <span className="text-blue-500 text-sm lg:text-xs 2xl:text-base">Followers</span>
+                  <span className="text-blue-500 text-sm lg:text-xs 2xl:text-base font-medium">Followers</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-pink-50 text-pink-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
-                  <Heart className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                  <Heart className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
                   <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.likes.valor ?? 0}</span>
-                  <span className="text-pink-500 text-sm lg:text-xs 2xl:text-base">Likes</span>
+                  <span className="text-pink-500 text-sm lg:text-xs 2xl:text-base font-medium">Likes</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
-                  <Star className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                  <Star className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
                   <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
-                  <span className="text-yellow-600 text-sm lg:text-xs 2xl:text-base">Rating</span>
+                  <span className="text-yellow-600 text-sm lg:text-xs 2xl:text-base font-medium">Rating</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
-                  <Eye className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                  <Eye className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
                   <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.vistas.valor ?? 0}</span>
-                  <span className="text-blue-500 text-sm lg:text-xs 2xl:text-base">Vistas</span>
+                  <span className="text-blue-500 text-sm lg:text-xs 2xl:text-base font-medium">Vistas</span>
                 </div>
               </div>
 

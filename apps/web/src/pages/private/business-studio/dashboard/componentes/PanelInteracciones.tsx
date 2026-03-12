@@ -57,7 +57,7 @@ function getIconoInteraccion(tipo: Interaccion['tipo']) {
     case 'compartido':
       return { icon: Share2, bg: 'bg-purple-50', color: 'text-purple-500' };
     default:
-      return { icon: Users, bg: 'bg-slate-50', color: 'text-slate-500' };
+      return { icon: Users, bg: 'bg-slate-50', color: 'text-slate-600' };
   }
 }
 
@@ -71,7 +71,7 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
       {/* Header */}
       <div className="flex items-center gap-2 mb-3 lg:mb-2 2xl:mb-3">
         <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-          <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-indigo-600" />
+          <Users className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-indigo-600" />
         </div>
         <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800">Actividad Reciente</h3>
       </div>
@@ -85,7 +85,7 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
             return (
               <div
                 key={`${interaccion.tipo}-${interaccion.id}-${index}`}
-                className="flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 {/* Avatar o Icono */}
                 {interaccion.avatar ? (
@@ -97,9 +97,9 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
                 ) : (
                   <div className={`w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full ${bg} flex items-center justify-center shrink-0`}>
                     {interaccion.tipo === 'compartido' ? (
-                      <Icono className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 ${color}`} />
+                      <Icono className={`w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 ${color}`} />
                     ) : (
-                      <User className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" />
+                      <User className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-slate-600" />
                     )}
                   </div>
                 )}
@@ -109,17 +109,17 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
                   <p className="text-sm lg:text-xs 2xl:text-sm text-slate-800 font-semibold truncate">
                     {interaccion.titulo}
                   </p>
-                  <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-600 truncate">
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate">
                     {interaccion.descripcion}
                   </p>
                 </div>
 
                 {/* Icono tipo + Tiempo */}
                 <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 shrink-0">
-                  <div className={`w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-md ${bg} flex items-center justify-center`}>
-                    <Icono className={`w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 ${color}`} />
+                  <div className={`w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md ${bg} flex items-center justify-center`}>
+                    <Icono className={`w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 ${color}`} />
                   </div>
-                  <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500 font-medium whitespace-nowrap">
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium whitespace-nowrap">
                     {formatearTiempo(interaccion.createdAt)}
                   </span>
                 </div>
@@ -128,9 +128,9 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
           })
         ) : (
           /* Estado vacío */
-          <div className="flex-1 flex flex-col items-center justify-center py-6 text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center py-6 text-slate-600">
             <Users className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 mb-2 opacity-50" />
-            <p className="text-sm lg:text-xs 2xl:text-sm">Sin Actividad Reciente</p>
+            <p className="text-sm lg:text-xs 2xl:text-sm font-medium">Sin Actividad Reciente</p>
           </div>
         )}
       </div>

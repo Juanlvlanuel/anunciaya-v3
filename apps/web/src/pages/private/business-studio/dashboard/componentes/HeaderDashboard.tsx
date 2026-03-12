@@ -103,7 +103,7 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
               <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Dashboard
               </h1>
-              <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
+              <p className="text-sm lg:text-sm 2xl:text-base text-slate-600 mt-0.5 font-medium">
                 Métricas<span className="hidden lg:inline"> y actividad reciente</span>
               </p>
             </div>
@@ -113,21 +113,21 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
           <div className="flex items-center gap-2 lg:hidden">
             <button
               onClick={onNuevaOferta}
-              className="p-2 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 transition-all shadow-sm cursor-pointer"
+              className="p-2 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-600 transition-all shadow-sm cursor-pointer"
             >
               <Tag className="w-5 h-5" />
             </button>
 
             <button
               onClick={handleNuevoCupon}
-              className="p-2 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 transition-all shadow-sm cursor-pointer"
+              className="p-2 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-amber-100 hover:border-amber-300 hover:text-amber-600 transition-all shadow-sm cursor-pointer"
             >
               <Ticket className="w-5 h-5" />
             </button>
 
             <button
               onClick={onNuevoArticulo}
-              className="p-2 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm cursor-pointer"
+              className="p-2 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm cursor-pointer"
             >
               <Package className="w-5 h-5" />
             </button>
@@ -141,7 +141,7 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
             <Tooltip text="Nueva Oferta" position="bottom">
               <button
                 onClick={onNuevaOferta}
-                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
                 <Tag className="w-5 h-5" />
               </button>
@@ -150,7 +150,7 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
             <Tooltip text="Nuevo Cupón" position="bottom">
               <button
                 onClick={handleNuevoCupon}
-                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-amber-100 hover:border-amber-300 hover:text-amber-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
                 <Ticket className="w-5 h-5" />
               </button>
@@ -159,7 +159,7 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
             <Tooltip text="Nuevo Artículo" position="bottom">
               <button
                 onClick={onNuevoArticulo}
-                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
                 <Package className="w-5 h-5" />
               </button>

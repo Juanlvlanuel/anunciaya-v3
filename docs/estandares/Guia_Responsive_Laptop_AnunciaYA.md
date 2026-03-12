@@ -3,7 +3,7 @@
 
 Este documento detalla el patrón de diseño responsivo implementado en AnunciaYA para optimizar la experiencia en pantallas de laptop (1366x768) sin afectar las vistas de móvil ni PC FullHD (1920x1080).
 
-**ACTUALIZACIÓN:** Enero 13, 2026 - Incluye patrones específicos para modales
+**ACTUALIZACIÓN:** Marzo 12, 2026 - Alineado con `SISTEMA_TOKENS_DISENO.md`
 
 ---
 
@@ -50,17 +50,23 @@ className="text-lg lg:text-sm 2xl:text-lg p-4 lg:p-2 2xl:p-4 w-32 lg:w-24 2xl:w-
 | Título medio | text-xl | lg:text-base | 2xl:text-xl |
 | Título pequeño | text-lg | lg:text-sm | 2xl:text-lg |
 | Texto normal | text-base | lg:text-sm | 2xl:text-base |
-| Texto pequeño | text-sm | lg:text-xs | 2xl:text-sm |
-| Texto mínimo | text-xs | lg:text-xs | 2xl:text-xs |
+| Texto pequeño | text-sm | lg:text-[11px] | 2xl:text-sm |
+| Texto mínimo | text-sm | lg:text-[11px] | 2xl:text-sm |
+
+> **⚠️ MÍNIMOS ABSOLUTOS (ver `SISTEMA_TOKENS_DISENO.md`):**
+> - Móvil (base): `text-sm` (14px). Nunca `text-xs`.
+> - Laptop (lg:): `text-[11px]` (11px). Nunca `text-[10px]` ni `text-[9px]`.
+> - Desktop (2xl:): `text-sm` (14px). Nunca `text-xs`.
+> - Excepción: contadores en badges circulares ("9+").
 
 #### 🆕 Texto Ultra Pequeño (Para Modales)
 | Elemento | Base | lg: (laptop) | 2xl: (desktop) | Cuándo usar |
 |----------|------|--------------|----------------|-------------|
-| Badge/Pill | text-xs | lg:text-[10px] | 2xl:text-xs | Etiquetas pequeñas |
-| Texto compacto | text-xs | lg:text-[11px] | 2xl:text-xs | Items de lista en modales |
+| Badge/Pill | text-sm | lg:text-[11px] | 2xl:text-sm | Etiquetas pequeñas |
+| Texto compacto | text-sm | lg:text-[11px] | 2xl:text-sm | Items de lista en modales |
 | Subtítulos | text-sm | lg:text-[11px] | 2xl:text-sm | Descripciones cortas |
 
-**Nota:** `text-[11px]` es el **mínimo legible**. Solo usar `[10px]` para badges.
+**Nota:** `text-[11px]` es el **mínimo absoluto** en laptop. `text-[10px]` y `text-[9px]` están prohibidos.
 
 ---
 
@@ -211,12 +217,12 @@ className="text-lg lg:text-sm 2xl:text-lg p-4 lg:p-2 2xl:p-4 w-32 lg:w-24 2xl:w-
   <div className="flex-1 overflow-y-auto p-4 lg:p-2.5 2xl:p-4 space-y-4 lg:space-y-2 2xl:space-y-4">
     {/* Preview */}
     <div className="bg-slate-50 rounded-lg p-3 lg:p-1.5 2xl:p-3 border">
-      <p className="text-xs lg:text-[11px] 2xl:text-xs mb-2 lg:mb-1.5 2xl:mb-2">Preview:</p>
+      <p className="text-sm lg:text-[11px] 2xl:text-sm mb-2 lg:mb-1.5 2xl:mb-2">Preview:</p>
       <div className="flex items-center gap-3 lg:gap-1.5 2xl:gap-3">
         <img className="w-14 h-14 lg:w-8 lg:h-8 2xl:w-14 2xl:h-14 rounded-lg" />
         <div className="flex-1">
           <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-semibold">Nombre</h3>
-          <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500">Detalle</p>
+          <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600">Detalle</p>
         </div>
       </div>
     </div>
@@ -232,7 +238,7 @@ className="text-lg lg:text-sm 2xl:text-lg p-4 lg:p-2 2xl:p-4 w-32 lg:w-24 2xl:w-
           {/* Info */}
           <div className="flex-1">
             <h4 className="text-sm lg:text-[11px] 2xl:text-sm font-medium">Item</h4>
-            <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500">Detalle</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600">Detalle</p>
           </div>
         </div>
       </button>
@@ -434,11 +440,10 @@ className="2xl:desktop lg:laptop base"
 
 ### Tamaños de Texto Personalizados
 ```jsx
-lg:text-[10px]  // Para badges/pills (MÍNIMO absoluto)
-lg:text-[11px]  // Para texto compacto en listas (MÍNIMO legible)
+lg:text-[11px]  // Mínimo absoluto en laptop. Para badges, pills, texto compacto
 ```
 
-**Límite:** No usar tamaños menores a `[10px]` - son ilegibles.
+**Prohibidos:** `lg:text-[10px]`, `lg:text-[9px]` — ilegibles. Ver `SISTEMA_TOKENS_DISENO.md`.
 
 ### Dimensiones Fijas en Laptop
 ```jsx
@@ -473,9 +478,10 @@ className="p-4 lg:p-2"
 className="p-4 lg:p-2 2xl:p-4"
 ```
 
-### 3. Texto en `[11px]` es el mínimo legible
-- `[10px]` solo para badges/pills
-- Menor que eso es ilegible en cualquier pantalla
+### 3. Texto en `[11px]` es el mínimo absoluto en laptop
+- `[10px]` y `[9px]` están prohibidos (ver `SISTEMA_TOKENS_DISENO.md`)
+- En móvil y desktop el mínimo es `text-sm` (14px)
+- Excepción: contadores en badges circulares
 
 ### 4. Gaps de `0.5` (2px) funcionan en laptop
 - Visualmente aceptables
@@ -506,7 +512,7 @@ className="p-4 lg:p-2 2xl:p-4"
 - [ ] Gaps reducidos 50%+: `gap-2 lg:gap-0.5`
 - [ ] Imágenes reducidas 40-45%: `w-14 lg:w-8`
 - [ ] Checkboxes reducidos 40%: `w-5 lg:w-3`
-- [ ] Texto ultra pequeño: `lg:text-[11px]`, `lg:text-[10px]`
+- [ ] Texto ultra pequeño: `lg:text-[11px]` mínimo (nunca `[10px]` ni `[9px]`)
 - [ ] Items de lista: padding al 50%
 - [ ] Íconos internos proporcionales
 - [ ] **CRÍTICO:** Todos restaurados con `2xl:`
@@ -561,8 +567,9 @@ Base → lg: -40-50% → 2xl: restaurar
 1. ⚡ **SIEMPRE** usar patrón de 3 niveles: `base lg: 2xl:`
 2. Modales necesitan reducciones más agresivas que otros componentes
 3. Priorizar reducción vertical (altura limitada: 768px)
-4. Checkboxes mínimo `w-3`, texto mínimo `[11px]`
+4. Checkboxes mínimo `w-3`, texto mínimo `[11px]` en laptop, `text-sm` en móvil y desktop
 5. Sin `2xl:` → laptop afecta a PC ❌
+6. ⚡ **MÍNIMOS ABSOLUTOS** definidos en `SISTEMA_TOKENS_DISENO.md` — siempre consultar
 
 ---
 
@@ -581,7 +588,12 @@ Este patrón permite mantener **tres diseños optimizados**:
 
 ---
 
-**VERSIÓN:** 2.0 (Actualizada con patrones de modales)
-**FECHA:** Enero 13, 2026  
+**VERSIÓN:** 3.0 (Alineada con Sistema de Tokens de Diseño)
+**FECHA:** Marzo 12, 2026  
 **AUTOR:** Juan Manuel Valenzuela  
 **PROYECTO:** AnunciaYA v3.0
+
+**Cambios v3.0:**
+- Mínimos de texto actualizados: móvil `text-sm`, laptop `text-[11px]`, desktop `text-sm`
+- `text-[10px]` y `text-[9px]` prohibidos (antes permitidos para badges)
+- Referencia a `SISTEMA_TOKENS_DISENO.md` como fuente de verdad de mínimos absolutos

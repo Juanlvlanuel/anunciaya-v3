@@ -74,12 +74,12 @@ function TooltipPersonalizado({ active, payload, label }: TooltipProps) {
   if (!data) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border-2 border-slate-200 p-2.5 min-w-[120px]">
-      <p className="text-xs text-slate-500 mb-0.5">{data.diaSemana} {label}</p>
+    <div className="bg-white rounded-lg shadow-lg border-2 border-slate-300 p-2.5 min-w-[120px]">
+      <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mb-0.5">{data.diaSemana} {label}</p>
       <p className="text-lg font-black text-slate-800">
         ${data.total.toLocaleString('es-MX')}
       </p>
-      <p className="text-xs text-slate-400">
+      <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
         {data.transacciones} transacciones
       </p>
     </div>
@@ -127,6 +127,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
   });
 
   const breakpoint = useBreakpoint();
+  const tickFontSize = { mobile: 14, laptop: 11, desktop: 14 }[breakpoint];
 
   const altura = {
     mobile: 240,
@@ -154,24 +155,24 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
         <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-              <BarChart3 className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-4.5 2xl:h-4.5 text-blue-600" />
+              <BarChart3 className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-blue-600" />
             </div>
             <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Ventas del Periodo</h3>
           </div>
-          <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500">Evolución diaria</span>
+          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Evolución diaria</span>
         </div>
 
         {/* Estadísticas en fila compacta */}
         {estadisticas && (
-          <div className="flex items-center justify-between gap-2 mb-3 lg:mb-2 2xl:mb-3 pb-2 border-b border-slate-100">
+          <div className="flex items-center justify-between gap-2 mb-3 lg:mb-2 2xl:mb-3 pb-2 border-b border-slate-300">
             <div>
-              <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500">Prom/día</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Prom/día</p>
               <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
                 ${estadisticas.promedioDiario.toLocaleString('es-MX')}
               </p>
             </div>
             <div>
-              <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500">Mejor día</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Mejor día</p>
               <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
                 {mejorDiaFormateado}
               </p>
@@ -179,11 +180,11 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
             <div className={`flex items-center gap-0.5 px-2 py-1 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-1 rounded-full ${crecimientoPositivo ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
               }`}>
               {crecimientoPositivo ? (
-                <TrendingUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+                <TrendingUp className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
               ) : (
-                <TrendingDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+                <TrendingDown className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
               )}
-              <span className="text-xs lg:text-[11px] 2xl:text-xs font-bold">
+              <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold">
                 {crecimientoPositivo ? '+' : ''}{estadisticas.crecimiento}%
               </span>
             </div>
@@ -209,14 +210,14 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
                   dataKey="fecha"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }}
+                  tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 500 }}
                   dy={5}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }}
+                  tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 500 }}
                   tickFormatter={(value) => {
                     if (value >= 1000) {
                       return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
@@ -240,9 +241,9 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
           </div>
         ) : (
           /* Estado vacío */
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
             <Calendar className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 mb-2 opacity-50" />
-            <p className="text-xs lg:text-[10px] 2xl:text-xs text-center">No hay datos de ventas</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-center">No hay datos de ventas</p>
           </div>
         )}
       </div>
@@ -262,20 +263,20 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
       <div className="flex items-center justify-between mb-3 lg:mb-2 2xl:mb-3">
         <div>
           <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Ventas del Periodo</h3>
-          <p className="text-sm lg:text-xs 2xl:text-sm text-slate-500">Evolución diaria</p>
+          <p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">Evolución diaria</p>
         </div>
 
         {/* Estadísticas rápidas */}
         {estadisticas && (
           <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
             <div className="text-right">
-              <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-500">Promedio/día</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Promedio/día</p>
               <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
                 ${estadisticas.promedioDiario.toLocaleString('es-MX')}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-500">Mejor día</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Mejor día</p>
               <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
                 {mejorDiaFormateado}
               </p>
@@ -283,9 +284,9 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
             <div className={`flex items-center gap-1 px-2.5 py-1.5 lg:px-2 lg:py-1 2xl:px-2.5 2xl:py-1.5 rounded-full ${crecimientoPositivo ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
               }`}>
               {crecimientoPositivo ? (
-                <TrendingUp className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                <TrendingUp className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
               ) : (
-                <TrendingDown className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                <TrendingDown className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
               )}
               <span className="text-sm lg:text-xs 2xl:text-sm font-bold">
                 {crecimientoPositivo ? '+' : ''}{estadisticas.crecimiento}%
@@ -314,13 +315,15 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
                 dataKey="fecha"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
+                tick={{ fill: '#475569', fontSize: tickFontSize }}
                 dy={10}
+                interval="preserveStartEnd"
+                minTickGap={40}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
+                tick={{ fill: '#475569', fontSize: tickFontSize }}
                 tickFormatter={(value) => {
                   if (value >= 1000) {
                     return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
@@ -344,9 +347,9 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
         </div>
       ) : (
         /* Estado vacío */
-        <div className="h-[220px] flex flex-col items-center justify-center text-slate-400">
+        <div className="h-[220px] flex flex-col items-center justify-center text-slate-600">
           <Calendar className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 mb-2 opacity-50" />
-          <p className="text-sm lg:text-xs 2xl:text-sm">No hay datos de ventas para este periodo</p>
+          <p className="text-sm lg:text-xs 2xl:text-sm font-medium">No hay datos de ventas para este periodo</p>
         </div>
       )}
     </div>
