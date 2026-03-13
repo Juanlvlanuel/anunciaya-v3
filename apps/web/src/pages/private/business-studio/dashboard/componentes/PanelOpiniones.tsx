@@ -69,11 +69,11 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 max-h-[270px] lg:max-h-[230px] 2xl:max-h-[340px] flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200">
+    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 max-h-[270px] lg:max-h-[230px] 2xl:max-h-[340px] flex flex-col shadow-md">
       {/* Header */}
       <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
         <div
-          className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center"
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
           style={{ background: 'linear-gradient(135deg, #fde68a, #fbbf24)', boxShadow: '0 2px 6px rgba(245,158,11,0.3)' }}
         >
           <MessageSquare className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-amber-800" />
@@ -98,7 +98,7 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
           resenas.map((resena) => (
             <div
               key={resena.id}
-              className="p-2 lg:p-1.5 2xl:p-2 rounded-lg border border-amber-100 bg-amber-50/30 hover:bg-amber-100/60 transition-all"
+              className="p-2 lg:p-1.5 2xl:p-2 rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors"
             >
               {/* Header de reseña */}
               <div className="flex items-center justify-between mb-1">
@@ -124,7 +124,7 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
                   <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
                     {formatearFecha(resena.createdAt)}
                   </span>
-                  <span className="text-sm lg:text-xs 2xl:text-sm">{getEmojiPorRating(resena.rating)}</span>
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium">{getEmojiPorRating(resena.rating)}</span>
                 </div>
               </div>
 

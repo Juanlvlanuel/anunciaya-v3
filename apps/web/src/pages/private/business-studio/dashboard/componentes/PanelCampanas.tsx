@@ -206,7 +206,7 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
   return (
     <div
       onClick={onClick}
-      className="group flex gap-2 lg:gap-1.5 2xl:gap-2 p-1.5 lg:p-1 2xl:p-1.5 rounded-lg border-0  hover:border-blue-300 hover:bg-blue-100 transition-all cursor-pointer"
+      className="group flex gap-2 lg:gap-1.5 2xl:gap-2 p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-slate-200 transition-all cursor-pointer"
     >
       {/* Imagen o Placeholder */}
       <div className={`${vistaMobil ? 'w-14 h-14' : 'w-12 h-12'} lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-md overflow-hidden shrink-0`}>
@@ -285,16 +285,14 @@ export default function PanelCampanas({ campanas, onEditar, vistaMobil = false }
   };
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 lg:h-54 2xl:h-66 flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200">
+    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 lg:h-54 2xl:h-66 flex flex-col shadow-md">
       {/* Header - Título y contador en línea */}
-      <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-lg bg-rose-100 flex items-center justify-center">
-            <Tag className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-rose-600" />
-          </div>
-          <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Cupones y Ofertas</h3>
+      <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
+        <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center">
+          <Tag className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-rose-600" />
         </div>
-        <span className="text-sm lg:text-[11px] 2xl:text-sm text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">{total} Activas</span>
+        <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Cupones y Ofertas</h3>
+        <span className="text-sm lg:text-[11px] 2xl:text-sm text-emerald-600 bg-emerald-100 px-2 py-1 lg:py-0.5 2xl:py-1 rounded-full font-medium whitespace-nowrap">{total} Activas</span>
       </div>
 
       {/* Lista de campañas */}

@@ -41,28 +41,28 @@ function getConfigSeveridad(severidad: string) {
     case 'alta':
       return {
         icon: XCircle,
-        bg: 'bg-rose-50',
-        color: 'text-rose-500',
-        border: 'border-rose-100',
+        bg: 'bg-rose-100',
+        color: 'text-rose-600',
+        border: 'border-rose-200',
       };
     case 'media':
       return {
         icon: AlertTriangle,
-        bg: 'bg-amber-50',
-        color: 'text-amber-500',
-        border: 'border-amber-100',
+        bg: 'bg-amber-100',
+        color: 'text-amber-600',
+        border: 'border-amber-200',
       };
     case 'baja':
       return {
         icon: Info,
-        bg: 'bg-blue-50',
-        color: 'text-blue-500',
-        border: 'border-blue-100',
+        bg: 'bg-blue-100',
+        color: 'text-blue-600',
+        border: 'border-blue-200',
       };
     default:
       return {
         icon: Info,
-        bg: 'bg-slate-50',
+        bg: 'bg-slate-100',
         color: 'text-slate-600',
         border: 'border-slate-300',
       };
@@ -88,8 +88,8 @@ function ItemAlerta({ alerta }: { alerta: Alerta }) {
   return (
     <div
       className={`p-2 lg:p-1.5 2xl:p-2 rounded-lg border transition-colors ${alerta.leida
-          ? 'border-slate-300 bg-slate-50/50 opacity-60'
-          : `${config.border} hover:bg-slate-100`
+          ? 'border-slate-300 bg-slate-100/50 opacity-60'
+          : `${config.border} hover:bg-slate-200`
         }`}
     >
       <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
@@ -117,7 +117,7 @@ function ItemAlerta({ alerta }: { alerta: Alerta }) {
         {!alerta.leida && (
           <button
             onClick={handleMarcarLeida}
-            className="p-1 rounded-md hover:bg-emerald-100 text-slate-600 hover:text-emerald-500 transition-colors shrink-0"
+            className="p-1 rounded-md hover:bg-emerald-200 text-slate-600 hover:text-emerald-600 transition-colors shrink-0"
             title="Marcar como leída"
           >
             <Check className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
@@ -137,12 +137,12 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
   const noLeidas = alertas?.noLeidas ?? 0;
 
   return (
-    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 lg:h-54 2xl:h-66 flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200`}>
+    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 lg:h-54 2xl:h-66 flex flex-col shadow-md`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
         <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
-          <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-md bg-rose-100 flex items-center justify-center relative">
-            <Bell className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-rose-500" />
+          <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center relative">
+            <Bell className="w-4 h-4 text-rose-600" />
             {noLeidas > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 lg:w-4.5 lg:h-4.5 2xl:w-4 2xl:h-4 rounded-full bg-rose-500 text-white text-[10px] lg:text-[11px] 2xl:text-sm flex items-center justify-center font-medium">
                 {noLeidas > 9 ? '9+' : noLeidas}
@@ -154,7 +154,7 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
 
         {/* Badge estado */}
         {noLeidas === 0 && (
-          <div className="flex items-center gap-1 px-2 py-1 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-1 rounded-md bg-emerald-50 text-emerald-600">
+          <div className="flex items-center gap-1 px-2 py-1 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-1 rounded-full bg-emerald-100 text-emerald-600 whitespace-nowrap">
             <CheckCircle className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
             <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium">Todo bien</span>
           </div>

@@ -47,17 +47,17 @@ function formatearTiempo(fecha: string): string {
 function getIconoInteraccion(tipo: Interaccion['tipo']) {
   switch (tipo) {
     case 'venta':
-      return { icon: ShoppingCart, bg: 'bg-emerald-50', color: 'text-emerald-500' };
+      return { icon: ShoppingCart, bg: 'bg-emerald-100', color: 'text-emerald-600' };
     case 'cupon_canjeado':
-      return { icon: Ticket, bg: 'bg-amber-50', color: 'text-amber-500' };
+      return { icon: Ticket, bg: 'bg-amber-100', color: 'text-amber-600' };
     case 'like':
-      return { icon: Heart, bg: 'bg-rose-50', color: 'text-rose-500' };
+      return { icon: Heart, bg: 'bg-rose-100', color: 'text-rose-600' };
     case 'nuevo_seguidor':
-      return { icon: Bell, bg: 'bg-blue-50', color: 'text-blue-500' };
+      return { icon: Bell, bg: 'bg-blue-100', color: 'text-blue-600' };
     case 'compartido':
-      return { icon: Share2, bg: 'bg-purple-50', color: 'text-purple-500' };
+      return { icon: Share2, bg: 'bg-purple-100', color: 'text-purple-600' };
     default:
-      return { icon: Users, bg: 'bg-slate-50', color: 'text-slate-600' };
+      return { icon: Users, bg: 'bg-slate-100', color: 'text-slate-600' };
   }
 }
 
@@ -67,10 +67,10 @@ function getIconoInteraccion(tipo: Interaccion['tipo']) {
 
 export default function PanelInteracciones({ interacciones, vistaMobil = false }: PanelInteraccionesProps) {
   return (
-    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-4 lg:p-3 2xl:p-4 ${!vistaMobil ? 'max-h-[270px] lg:max-h-[230px] 2xl:max-h-[340px]' : ''} flex flex-col shadow-lg hover:shadow-2xl transition-all duration-200`}>
+    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-4 lg:p-3 2xl:p-4 ${!vistaMobil ? 'max-h-[270px] lg:max-h-[230px] 2xl:max-h-[340px]' : ''} flex flex-col shadow-md`}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-3 lg:mb-2 2xl:mb-3">
-        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
           <Users className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-indigo-600" />
         </div>
         <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800">Actividad Reciente</h3>
@@ -85,7 +85,7 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
             return (
               <div
                 key={`${interaccion.tipo}-${interaccion.id}-${index}`}
-                className="flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg hover:bg-slate-100 transition-colors"
+                className="flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg hover:bg-slate-200 transition-colors"
               >
                 {/* Avatar o Icono */}
                 {interaccion.avatar ? (

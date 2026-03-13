@@ -77,7 +77,7 @@ const ACCIONES = [
 
 export default function FooterAcciones() {
   return (
-    <div className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl border-2 border-slate-300 p-4 lg:p-3.5 2xl:p-4 shadow-lg">
+    <div className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl border-2 border-slate-300 p-4 lg:p-3.5 2xl:p-4 shadow-md">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-slate-800">Acciones Rápidas</h3>
@@ -88,7 +88,7 @@ export default function FooterAcciones() {
       </div>
 
       {/* Grid de acciones */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4 2xl:gap-5">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4 2xl:gap-5">
         {ACCIONES.map((accion) => {
           const Icono = accion.icono;
 
@@ -97,10 +97,10 @@ export default function FooterAcciones() {
               key={accion.id}
               className="group p-3 lg:p-2.5 2xl:p-3 rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 hover:border-slate-400 shadow-md hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.05] 2xl:hover:scale-[1.05] hover:-translate-y-1 transition-all duration-200 text-left"
             >
-              <div className={`w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-xl lg:rounded-lg 2xl:rounded-xl bg-linear-to-br ${accion.color} flex items-center justify-center mb-2.5 lg:mb-2 2xl:mb-2.5 shadow-lg group-hover:scale-110 transition-transform`}>
+              <div className={`w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-xl lg:rounded-lg 2xl:rounded-xl bg-linear-to-br ${accion.color} flex items-center justify-center mb-2.5 lg:mb-2 2xl:mb-2.5 shadow-md group-hover:scale-110 transition-transform`}>
                 <Icono className="w-4.5 h-4.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-white" />
               </div>
-              <p className="font-medium text-slate-800 text-sm lg:text-xs 2xl:text-sm">{accion.titulo}</p>
+              <p className="font-medium text-slate-800 text-sm lg:text-[11px] 2xl:text-sm">{accion.titulo}</p>
               <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">{accion.descripcion}</p>
             </button>
           );

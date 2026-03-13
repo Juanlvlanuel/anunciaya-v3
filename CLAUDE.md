@@ -262,7 +262,7 @@ Al terminar cualquier tarea, hacer un segundo pase de verificación: buscar si q
 
 ### 6. Tokens de Diseño
 
-Antes de modificar UI, leer `docs/estandares/SISTEMA_TOKENS_DISENO.md`. Aplicar las 5 reglas validadas a todo código que se toque.
+Antes de modificar UI, leer `docs/estandares/SISTEMA_TOKENS_DISENO.md`. Aplicar las 7 reglas validadas a todo código que se toque.
 
 ### 7. Commits
 

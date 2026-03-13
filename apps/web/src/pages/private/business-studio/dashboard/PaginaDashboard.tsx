@@ -215,13 +215,40 @@ export default function PaginaDashboard() {
         {/* LAYOUT MÓVIL - Optimizado */}
         {/* =================================================================== */}
         <div className="lg:hidden space-y-3">
+          {/* 4 Pills Secundarios en Carrusel Horizontal */}
+          <div className="overflow-x-auto pb-1">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-2 rounded-full shrink-0">
+                <UserPlus className="w-4 h-4" />
+                <span className="font-bold text-sm">{kpis?.followers ?? 0}</span>
+                <span className="text-blue-600 text-sm font-medium">Followers</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-pink-100 text-pink-700 px-3 py-2 rounded-full shrink-0">
+                <Heart className="w-4 h-4" />
+                <span className="font-bold text-sm">{kpis?.likes.valor ?? 0}</span>
+                <span className="text-pink-600 text-sm font-medium">Likes</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-yellow-100 text-yellow-700 px-3 py-2 rounded-full shrink-0">
+                <Star className="w-4 h-4" />
+                <span className="font-bold text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
+                <span className="text-yellow-600 text-sm font-medium">Rating</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-2 rounded-full shrink-0">
+                <Eye className="w-4 h-4" />
+                <span className="font-bold text-sm">{kpis?.vistas.valor ?? 0}</span>
+                <span className="text-slate-600 text-sm font-medium">Vistas</span>
+              </div>
+            </div>
+          </div>
+
           {/* Filtros de Período - SOLO MÓVIL - Discretos */}
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             {/* Filtros */}
             {[
               { valor: 'hoy', label: 'Hoy' },
               { valor: 'semana', label: '7 días' },
               { valor: 'mes', label: '30 días' },
+              { valor: 'trimestre', label: '90 días' },
             ].map((p) => (
               <button
                 key={p.valor}
@@ -246,69 +273,48 @@ export default function PaginaDashboard() {
             </button>
           </div>
 
-          {/* 3 KPIs Principales en una fila */}
-          <div className="grid grid-cols-3 gap-2">
-            <KPIPrincipal
-              titulo="Ventas"
-              valor={kpis?.ventas.valor ?? 0}
-              icono={DollarSign}
-              colorIcono="from-emerald-500 to-teal-600"
-              formato="moneda"
-              cargando={cargandoKpis}
-            />
-            <KPIPrincipal
-              titulo="Clientes"
-              valor={kpis?.clientes.valor ?? 0}
-              icono={Users}
-              colorIcono="from-blue-500 to-indigo-600"
-              subtitulo={`${kpis?.clientes.nuevos ?? 0} nuevos`}
-              cargando={cargandoKpis}
-            />
-            <KPIPrincipal
-              titulo="Transacciones"
-              valor={kpis?.transacciones.valor ?? 0}
-              icono={CreditCard}
-              colorIcono="from-violet-500 to-purple-600"
-              cargando={cargandoKpis}
-            />
-          </div>
-
-          {/* 4 Pills Secundarios en Carrusel Horizontal */}
-          <div className="overflow-x-auto pb-1">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-2 rounded-full shrink-0">
-                <UserPlus className="w-4 h-4" />
-                <span className="font-bold text-sm">{kpis?.followers ?? 0}</span>
-                <span className="text-blue-500 text-sm font-medium">Followers</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-pink-50 text-pink-700 px-3 py-2 rounded-full shrink-0">
-                <Heart className="w-4 h-4" />
-                <span className="font-bold text-sm">{kpis?.likes.valor ?? 0}</span>
-                <span className="text-pink-500 text-sm font-medium">Likes</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-2 rounded-full shrink-0">
-                <Star className="w-4 h-4" />
-                <span className="font-bold text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
-                <span className="text-yellow-600 text-sm font-medium">Rating</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 px-3 py-2 rounded-full shrink-0">
-                <Eye className="w-4 h-4" />
-                <span className="font-bold text-sm">{kpis?.vistas.valor ?? 0}</span>
-                <span className="text-slate-600 text-sm font-medium">Vistas</span>
-              </div>
+          {/* KPIs + Gráfica agrupados — ambos dependen de los filtros de período */}
+          <div className="space-y-2">
+            {/* 3 KPIs como filas en card unificada */}
+            <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden divide-y divide-slate-200">
+              <KPIPrincipal
+                titulo="Ventas"
+                valor={kpis?.ventas.valor ?? 0}
+                icono={DollarSign}
+                colorIcono="from-emerald-500 to-teal-600"
+                formato="moneda"
+                cargando={cargandoKpis}
+                filaMovil
+              />
+              <KPIPrincipal
+                titulo="Clientes"
+                valor={kpis?.clientes.valor ?? 0}
+                icono={Users}
+                colorIcono="from-blue-500 to-indigo-600"
+                cargando={cargandoKpis}
+                filaMovil
+              />
+              <KPIPrincipal
+                titulo="Transacciones"
+                valor={kpis?.transacciones.valor ?? 0}
+                icono={CreditCard}
+                colorIcono="from-violet-500 to-purple-600"
+                cargando={cargandoKpis}
+                filaMovil
+              />
             </div>
+
+            {/* Gráfica Colapsable — junto a KPIs, mismos filtros */}
+            <GraficaColapsable datos={ventas} />
           </div>
 
-          {/* Panel Campañas - Solo 2, más grandes */}
+          {/* Panel Campañas */}
           <PanelCampanas
-            campanas={campanasOrdenadas.slice(0, 2)}
+            campanas={campanasOrdenadas}
             totalActivas={kpis?.ofertasActivas ?? 0}
             onEditar={handleEditarOferta}
             vistaMobil={true}
           />
-
-          {/* Gráfica Colapsable */}
-          <GraficaColapsable datos={ventas} />
 
           {/* Interacciones - Simplificadas (solo últimas 3) */}
           <PanelInteracciones interacciones={interacciones.slice(0, 3)} vistaMobil={true} />
@@ -358,25 +364,25 @@ export default function PaginaDashboard() {
 
               {/* 4 Mini Stats como Pills Horizontales */}
               <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
+                <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
                   <UserPlus className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-                  <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.followers ?? 0}</span>
-                  <span className="text-blue-500 text-sm lg:text-xs 2xl:text-base font-medium">Followers</span>
+                  <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm">{kpis?.followers ?? 0}</span>
+                  <span className="text-blue-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">Followers</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-pink-50 text-pink-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
+                <div className="flex items-center gap-1.5 bg-pink-100 text-pink-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
                   <Heart className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-                  <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.likes.valor ?? 0}</span>
-                  <span className="text-pink-500 text-sm lg:text-xs 2xl:text-base font-medium">Likes</span>
+                  <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm">{kpis?.likes.valor ?? 0}</span>
+                  <span className="text-pink-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">Likes</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
+                <div className="flex items-center gap-1.5 bg-yellow-100 text-yellow-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
                   <Star className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-                  <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
-                  <span className="text-yellow-600 text-sm lg:text-xs 2xl:text-base font-medium">Rating</span>
+                  <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
+                  <span className="text-yellow-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">Rating</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
+                <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
                   <Eye className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-                  <span className="font-bold text-sm lg:text-xs 2xl:text-sm">{kpis?.vistas.valor ?? 0}</span>
-                  <span className="text-blue-500 text-sm lg:text-xs 2xl:text-base font-medium">Vistas</span>
+                  <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm">{kpis?.vistas.valor ?? 0}</span>
+                  <span className="text-blue-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">Vistas</span>
                 </div>
               </div>
 

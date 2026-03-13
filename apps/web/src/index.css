@@ -817,3 +817,23 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
   .perfil-embebido .grid-cols-1.\32xl\:grid-cols-3 { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
   .perfil-embebido .grid-cols-2.\32xl\:grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 }
+
+/* ============================================= */
+/* RECHARTS - Quitar outline al hacer click      */
+/* ============================================= */
+
+.recharts-responsive-container,
+.recharts-responsive-container *,
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-wrapper:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}

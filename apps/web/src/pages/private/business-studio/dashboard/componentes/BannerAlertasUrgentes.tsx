@@ -36,34 +36,34 @@ function getConfigSeveridad(severidad: string) {
     case 'alta':
       return {
         icon: XCircle,
-        bg: 'bg-rose-50',
+        bg: 'bg-rose-100',
         border: 'border-rose-200',
         text: 'text-rose-800',
-        iconColor: 'text-rose-500',
+        iconColor: 'text-rose-600',
         badge: 'bg-rose-500',
       };
     case 'media':
       return {
         icon: AlertTriangle,
-        bg: 'bg-amber-50',
+        bg: 'bg-amber-100',
         border: 'border-amber-200',
         text: 'text-amber-800',
-        iconColor: 'text-amber-500',
+        iconColor: 'text-amber-600',
         badge: 'bg-amber-500',
       };
     case 'baja':
       return {
         icon: Info,
-        bg: 'bg-blue-50',
+        bg: 'bg-blue-100',
         border: 'border-blue-200',
         text: 'text-blue-800',
-        iconColor: 'text-blue-500',
+        iconColor: 'text-blue-600',
         badge: 'bg-blue-500',
       };
     default:
       return {
         icon: Info,
-        bg: 'bg-slate-50',
+        bg: 'bg-slate-100',
         border: 'border-slate-300',
         text: 'text-slate-800',
         iconColor: 'text-slate-600',
@@ -112,7 +112,7 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
 
   return (
     <div 
-      className={`${config.bg} ${config.border} border-2 rounded-xl p-3 shadow-lg animate-in slide-in-from-top duration-300`}
+      className={`${config.bg} ${config.border} border-2 rounded-xl p-3 shadow-md animate-in slide-in-from-top duration-300`}
       role="alert"
     >
       {/* Header del Banner */}
@@ -173,7 +173,7 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
               {/* Botón Marcar como Leída */}
               <button
                 onClick={(e) => handleMarcarLeida(alerta.id, e)}
-                className="p-1.5 rounded-lg hover:bg-emerald-100 text-slate-600 hover:text-emerald-500 transition-colors shrink-0"
+                className="p-1.5 rounded-lg hover:bg-emerald-200 text-slate-600 hover:text-emerald-600 transition-colors shrink-0"
                 title="Marcar como leída"
               >
                 <Check className="w-4 h-4" />

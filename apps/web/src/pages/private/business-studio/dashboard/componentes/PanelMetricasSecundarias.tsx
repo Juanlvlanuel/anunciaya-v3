@@ -80,7 +80,7 @@ function ItemMetrica({ metrica }: ItemMetricaProps) {
 
 export default function PanelMetricasSecundarias({ metricas }: PanelMetricasSecundariasProps) {
   return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-4 lg:p-3 2xl:p-4 shadow-lg">
+    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-4 lg:p-3 2xl:p-4 shadow-md">
       {/* Grid de métricas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-3 lg:gap-2 2xl:gap-3">
         {metricas.map((metrica, index) => (

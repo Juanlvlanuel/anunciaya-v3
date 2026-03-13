@@ -141,27 +141,27 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
             <Tooltip text="Nueva Oferta" position="bottom">
               <button
                 onClick={onNuevaOferta}
-                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="p-2 2xl:p-2.5 rounded-lg 2xl:rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
-                <Tag className="w-5 h-5" />
+                <Tag className="w-4 h-4 2xl:w-5 2xl:h-5" />
               </button>
             </Tooltip>
 
             <Tooltip text="Nuevo Cupón" position="bottom">
               <button
                 onClick={handleNuevoCupon}
-                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-amber-100 hover:border-amber-300 hover:text-amber-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="p-2 2xl:p-2.5 rounded-lg 2xl:rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-amber-100 hover:border-amber-300 hover:text-amber-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
-                <Ticket className="w-5 h-5" />
+                <Ticket className="w-4 h-4 2xl:w-5 2xl:h-5" />
               </button>
             </Tooltip>
 
             <Tooltip text="Nuevo Artículo" position="bottom">
               <button
                 onClick={onNuevoArticulo}
-                className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="p-2 2xl:p-2.5 rounded-lg 2xl:rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
-                <Package className="w-5 h-5" />
+                <Package className="w-4 h-4 2xl:w-5 2xl:h-5" />
               </button>
             </Tooltip>
           </div>
@@ -189,10 +189,10 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
           <button
             onClick={handleRefresh}
             disabled={refrescando}
-            className="p-2.5 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
+            className="p-2 2xl:p-2.5 rounded-lg 2xl:rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
             title="Actualizar"
           >
-            <RefreshCw className={`w-5 h-5 ${refrescando ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 2xl:w-5 2xl:h-5 ${refrescando ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>

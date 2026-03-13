@@ -28,6 +28,7 @@ interface KPIPrincipalProps {
   formato?: 'numero' | 'moneda' | 'decimal';
   subtitulo?: string;
   cargando?: boolean;
+  filaMovil?: boolean;
 }
 
 // =============================================================================
@@ -90,35 +91,16 @@ export default function KPIPrincipal({
   formato = 'numero',
   subtitulo,
   cargando = false,
+  filaMovil = false,
 }: KPIPrincipalProps) {
 
-  return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2 lg:p-2 2xl:p-2.5 shadow-lg hover:shadow-2xl hover:scale-[1.02] lg:hover:scale-[1.03] hover:-translate-y-1 transition-all duration-200 h-full flex flex-col">
-      {/* MÓVIL: Icono + Título en la misma línea */}
-      <div className="flex items-center gap-2 mb-1 lg:hidden">
-        <div className={`w-7 h-7 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
-          <Icono className="w-4 h-4 text-white" />
-        </div>
-        <p className="text-sm font-bold text-slate-700 leading-tight truncate">{titulo}</p>
-      </div>
-
-      {/* MÓVIL: Valor solo abajo - CENTRADO */}
-      <div className="lg:hidden flex justify-center">
-        {cargando ? (
-          <div className="h-6 w-16 bg-slate-200 rounded animate-pulse" />
-        ) : (
-          <p className="text-xl font-black text-slate-800 leading-none">
-            {formatearValor(valor, formato)}
-          </p>
-        )}
-      </div>
-
-      {/* LAPTOP/DESKTOP: Layout original */}
+  // Contenido desktop — igual en ambos modos
+  const ContenidoDesktop = (
+    <>
       <p className="hidden lg:block text-sm 2xl:text-base font-bold text-slate-700 mb-1 2xl:mb-1.5">{titulo}</p>
-
       <div className="hidden lg:flex items-center gap-1.5 2xl:gap-2 flex-1">
-        <div className={`w-8 h-8 2xl:w-9 2xl:h-9 rounded-md 2xl:rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
-          <Icono className="w-4 h-4 2xl:w-4.5 2xl:h-4.5 text-white" />
+        <div className={`w-8 h-8 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
+          <Icono className="w-4 h-4 text-white" />
         </div>
         {cargando ? (
           <div className="h-6 2xl:h-7 w-12 2xl:w-14 bg-slate-200 rounded animate-pulse" />
@@ -128,18 +110,60 @@ export default function KPIPrincipal({
           </p>
         )}
       </div>
-
-      {/* Subtítulo abajo - Solo en laptop/desktop */}
       {subtitulo && (
         <p className="hidden lg:block text-[11px] 2xl:text-sm font-medium text-slate-600 mt-0.5 2xl:mt-1 leading-tight truncate">{subtitulo}</p>
       )}
-
-      {/* Mini gráfica (si existe) - oculta en móvil */}
       {miniGrafica && miniGrafica.length > 0 && (
         <div className="hidden lg:block mt-0.5 2xl:mt-1 text-emerald-500">
           <MiniGrafica datos={miniGrafica} />
         </div>
       )}
+    </>
+  );
+
+  // Modo fila: móvil sin card propia (el padre provee el contenedor)
+  if (filaMovil) {
+    return (
+      <>
+        {/* MÓVIL: fila horizontal transparente */}
+        <div className="lg:hidden flex items-center gap-3 px-3 py-2.5">
+          <div className={`w-8 h-8 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
+            <Icono className="w-4 h-4 text-white" />
+          </div>
+          <p className="text-sm font-bold text-slate-700 flex-1 leading-tight">{titulo}</p>
+          {cargando ? (
+            <div className="h-6 w-20 bg-slate-200 rounded animate-pulse" />
+          ) : (
+            <p className="text-base font-black text-slate-800 leading-none">{formatearValor(valor, formato)}</p>
+          )}
+        </div>
+        {/* DESKTOP: card completa */}
+        <div className="hidden lg:flex flex-col bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2 lg:p-2 2xl:p-2.5 shadow-md h-full">
+          {ContenidoDesktop}
+        </div>
+      </>
+    );
+  }
+
+  // Modo card: layout con card propia (móvil + desktop)
+  return (
+    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2 lg:p-2 2xl:p-2.5 shadow-md h-full flex flex-col">
+      {/* MÓVIL: Título arriba */}
+      <div className="lg:hidden mb-1">
+        <p className="text-sm font-bold text-slate-700 leading-tight">{titulo}</p>
+      </div>
+      {/* MÓVIL: Icono + Valor */}
+      <div className="lg:hidden flex items-center gap-1.5">
+        <div className={`w-7 h-7 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
+          <Icono className="w-4 h-4 text-white" />
+        </div>
+        {cargando ? (
+          <div className="h-6 w-12 bg-slate-200 rounded animate-pulse" />
+        ) : (
+          <p className="text-xl font-black text-slate-800 leading-none">{formatearValor(valor, formato)}</p>
+        )}
+      </div>
+      {ContenidoDesktop}
     </div>
   );
 }
