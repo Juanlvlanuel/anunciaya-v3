@@ -469,7 +469,7 @@ export function PaginaOpiniones() {
                                 <button
                                     type="button"
                                     onClick={() => setBusqueda('')}
-                                    className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer"
+                                    className="text-slate-600 hover:text-slate-800 cursor-pointer"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -631,7 +631,7 @@ export function PaginaOpiniones() {
                                                         </span>
                                                         <button
                                                             onClick={() => abrirResponder(resena)}
-                                                            className="inline-flex items-center gap-1 text-slate-300 text-sm lg:text-[10px] 2xl:text-sm font-semibold cursor-pointer hover:text-white transition-colors ml-auto"
+                                                            className="inline-flex items-center gap-1 text-slate-300 text-sm lg:text-[10px] 2xl:text-sm font-semibold cursor-pointer hover:text-white ml-auto"
                                                         >
                                                             <Pencil className="w-3 h-3" />
                                                             Editar
@@ -646,7 +646,7 @@ export function PaginaOpiniones() {
                                             <div className="flex justify-end">
                                                 <button
                                                     onClick={() => abrirResponder(resena)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1 lg:px-2.5 lg:py-0.5 2xl:px-3 2xl:py-1 rounded-xl text-sm lg:text-[11px] 2xl:text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-sm transition-colors cursor-pointer"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1 lg:px-2.5 lg:py-0.5 2xl:px-3 2xl:py-1 rounded-xl text-sm lg:text-[11px] 2xl:text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-sm cursor-pointer"
                                                 >
                                                     <Pencil className="w-3 h-3" />
                                                     Responder

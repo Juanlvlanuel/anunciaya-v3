@@ -63,7 +63,7 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
       {/* Header Colapsable - Siempre visible */}
       <button
         onClick={() => setExpandida(!expandida)}
-        className="w-full px-3 py-2.5 flex items-center gap-2.5 bg-white hover:bg-slate-200 active:bg-white transition-colors focus:outline-none focus:bg-white"
+        className="w-full px-3 py-2.5 flex items-center gap-2.5 bg-white hover:bg-slate-200 active:bg-white focus:outline-none focus:bg-white"
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">

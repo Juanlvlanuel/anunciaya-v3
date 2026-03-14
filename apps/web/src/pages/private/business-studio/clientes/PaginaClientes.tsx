@@ -554,7 +554,7 @@ export default function PaginaClientes() {
                     <button
                       type="button"
                       onClick={() => handleBusquedaChange('')}
-                      className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer"
+                      className="text-slate-600 hover:text-slate-800 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -652,7 +652,7 @@ export default function PaginaClientes() {
                     <button
                       key={c.id}
                       onClick={() => handleVerDetalle(c.id)}
-                      className={`grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_106px_125px_230px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 transition-colors cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
+                      className={`grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_106px_125px_230px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                         }`}
                     >
                       {/* Cliente */}
@@ -712,7 +712,7 @@ export default function PaginaClientes() {
                 <button
                   onClick={cargarMas}
                   disabled={cargandoMas}
-                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-100 transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-100 cursor-pointer disabled:opacity-50"
                 >
                   {cargandoMas ? 'Cargando...' : 'Cargar más clientes'}
                 </button>

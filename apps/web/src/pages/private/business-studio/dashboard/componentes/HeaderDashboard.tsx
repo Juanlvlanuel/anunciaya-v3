@@ -171,7 +171,7 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
               <button
                 key={p.valor}
                 onClick={() => setPeriodo(p.valor)}
-                className={`px-3 2xl:px-4 h-8 2xl:h-9 flex items-center rounded-md text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${periodo === p.valor
+                className={`px-3 2xl:px-4 h-8 2xl:h-9 flex items-center rounded-md text-sm font-semibold whitespace-nowrap cursor-pointer ${periodo === p.valor
                     ? 'text-white shadow-md'
                     : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
                   }`}

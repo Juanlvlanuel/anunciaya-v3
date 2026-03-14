@@ -85,7 +85,7 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
             return (
               <div
                 key={`${interaccion.tipo}-${interaccion.id}-${index}`}
-                className="flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg hover:bg-slate-200 transition-colors"
+                className="flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg"
               >
                 {/* Avatar o Icono */}
                 {interaccion.avatar ? (

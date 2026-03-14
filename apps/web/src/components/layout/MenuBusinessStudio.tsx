@@ -217,7 +217,7 @@ export function MenuBusinessStudio() {
               className={`
                 w-full flex items-center gap-3 lg:gap-2.5 2xl:gap-3
                 px-4 py-3 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3
-                border-l-2 transition-all duration-150
+                border-l-2
                 outline-none cursor-pointer
                 ${esActivo
                   ? 'bg-blue-500 text-white border-blue-300'

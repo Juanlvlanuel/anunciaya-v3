@@ -254,7 +254,7 @@ export default function PaginaDashboard() {
                 <button
                   key={p.valor}
                   onClick={() => setPeriodo(p.valor as Periodo)}
-                  className={`px-3 h-9 flex items-center rounded-md text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${periodo === p.valor
+                  className={`px-3 h-9 flex items-center rounded-md text-sm font-semibold whitespace-nowrap cursor-pointer ${periodo === p.valor
                     ? 'text-white shadow-md'
                     : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
                     }`}

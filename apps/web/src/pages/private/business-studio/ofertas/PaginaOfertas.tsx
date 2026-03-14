@@ -333,14 +333,14 @@ function FilaMovilOferta({
                         {esDueno && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onDuplicar(oferta); }}
-                                className="cursor-pointer text-emerald-600 transition-colors"
+                                className="cursor-pointer text-emerald-600"
                             >
                                 <Copy className="w-6 h-6" />
                             </button>
                         )}
                         <button
                             onClick={(e) => { e.stopPropagation(); onEliminar(oferta.id, oferta.titulo); }}
-                            className="cursor-pointer text-red-600 transition-colors"
+                            className="cursor-pointer text-red-600"
                         >
                             <Trash2 className="w-6 h-6" />
                         </button>
@@ -821,7 +821,7 @@ export function PaginaOfertas() {
                                             <button
                                                 key={value}
                                                 onClick={() => { setFiltros(prev => ({ ...prev, estado: value })); setDropdownEstadoAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold transition-colors cursor-pointer ${filtros.estado === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${filtros.estado === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                             >
                                                 <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.estado === value ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                     {filtros.estado === value && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
@@ -858,7 +858,7 @@ export function PaginaOfertas() {
                                     <div className="absolute top-full left-0 lg:left-auto lg:right-0 mt-1.5 w-full lg:w-48 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                                         <button
                                             onClick={() => { setFiltros(prev => ({ ...prev, tipo: 'todos' })); setDropdownTipoAbierto(false); }}
-                                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold transition-colors cursor-pointer ${filtros.tipo === 'todos' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${filtros.tipo === 'todos' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                         >
                                             <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.tipo === 'todos' ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                 {filtros.tipo === 'todos' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
@@ -876,7 +876,7 @@ export function PaginaOfertas() {
                                             <button
                                                 key={value}
                                                 onClick={() => { setFiltros(prev => ({ ...prev, tipo: value })); setDropdownTipoAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold transition-colors cursor-pointer ${filtros.tipo === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${filtros.tipo === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                             >
                                                 <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.tipo === value ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                     {filtros.tipo === value && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
@@ -907,7 +907,7 @@ export function PaginaOfertas() {
                                         <button
                                             type="button"
                                             onClick={() => setFiltros((prev) => ({ ...prev, busqueda: '' }))}
-                                            className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer"
+                                            className="text-slate-600 hover:text-slate-800 cursor-pointer"
                                         >
                                             <X className="w-4 h-4" />
                                         </button>
@@ -942,7 +942,7 @@ export function PaginaOfertas() {
                     {hayFiltrosActivos && (
                         <button
                             onClick={limpiarFiltros}
-                            className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-semibold hover:text-red-700 cursor-pointer transition-colors"
+                            className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-semibold hover:text-red-700 cursor-pointer"
                         >
                             Limpiar filtros
                         </button>
@@ -1009,7 +1009,7 @@ export function PaginaOfertas() {
                                         <div
                                             key={oferta.id}
                                             onClick={() => handleEditar(oferta)}
-                                            className={`grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 transition-colors cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
+                                            className={`grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
                                         >
                                             {/* Oferta: Imagen + Título + Valor */}
                                             <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
@@ -1085,7 +1085,7 @@ export function PaginaOfertas() {
                                                 <Tooltip text={oferta.activo ? 'Ocultar' : 'Mostrar'}>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleToggleActivo(oferta.id, !oferta.activo); }}
-                                                        className="p-1.5 rounded-lg cursor-pointer transition-colors hover:bg-green-100"
+                                                        className="p-1.5 rounded-lg cursor-pointer hover:bg-green-100"
                                                     >
                                                         {oferta.activo
                                                             ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-green-600" />
@@ -1096,7 +1096,7 @@ export function PaginaOfertas() {
                                                 <Tooltip text="Eliminar">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleEliminar(oferta.id, oferta.titulo); }}
-                                                        className="p-1.5 rounded-lg cursor-pointer text-red-600 transition-colors hover:bg-red-100"
+                                                        className="p-1.5 rounded-lg cursor-pointer text-red-600 hover:bg-red-100"
                                                     >
                                                         <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                                     </button>
@@ -1105,7 +1105,7 @@ export function PaginaOfertas() {
                                                     <Tooltip text="Duplicar">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleDuplicar(oferta); }}
-                                                            className="p-1.5 rounded-lg cursor-pointer text-emerald-600 transition-colors hover:bg-emerald-100"
+                                                            className="p-1.5 rounded-lg cursor-pointer text-emerald-600 hover:bg-emerald-100"
                                                         >
                                                             <Copy className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                                         </button>

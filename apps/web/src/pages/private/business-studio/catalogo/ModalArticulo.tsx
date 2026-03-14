@@ -345,13 +345,13 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                     <button
                       type="button"
                       onClick={() => imagen.reset()}
-                      className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 2xl:top-2 2xl:right-2 bg-red-500 text-white p-1 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-red-600 transition-colors cursor-pointer"
+                      className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 2xl:top-2 2xl:right-2 bg-red-500 text-white p-1 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-red-600 cursor-pointer"
                     >
                       <X className="w-5 h-5 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
                     </button>
                   </>
                 ) : (
-                  <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200/50 transition-colors">
+                  <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200/50">
                     <input
                       id="input-imagen-articulo"
                       name="input-imagen-articulo"
@@ -539,7 +539,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                             <button
                               type="button"
                               onClick={() => setMostrarInputNueva(true)}
-                              className="w-full flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-left text-sm lg:text-xs 2xl:text-sm text-blue-600 font-semibold cursor-pointer transition-colors whitespace-nowrap"
+                              className="w-full flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-left text-sm lg:text-xs 2xl:text-sm text-blue-600 font-semibold cursor-pointer whitespace-nowrap"
                             >
                               <Plus className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 shrink-0" />
                               Agregar nueva

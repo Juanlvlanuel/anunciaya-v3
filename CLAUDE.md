@@ -23,6 +23,7 @@ Super-app para comercio local en México. Conecta negocios físicos con consumid
 - **Archivos:** Cloudinary + Cloudflare R2
 - **Hosting:** Render (backend) + Vercel (frontend) + Supabase (BD) + Upstash (Redis)
 - **ORM:** Drizzle ORM + Zod (validación runtime)
+- **Pagos:** Stripe — suscripción comercial $449 MXN/mes
 
 ---
 
@@ -155,7 +156,13 @@ Siempre tipar con interfaces, types, o `unknown`. Ver `docs/estandares/REGLAS_ES
 
 ### Notificaciones
 
-Sistema custom: `notificar.exito()`, `notificar.error()`. NO SweetAlert2 directo en componentes nuevos.
+Sistema custom en `apps/web/src/utils/notificaciones.tsx`. Métodos disponibles:
+- `notificar.exito('mensaje')` — toast verde de confirmación
+- `notificar.error('mensaje')` — toast rojo de error
+- `notificar.info('mensaje')` — toast azul informativo
+- `notificar.advertencia('mensaje')` — toast amarillo de advertencia
+
+NO usar SweetAlert2 directo en componentes nuevos. Siempre usar `notificar.*`.
 
 ### ESLint
 
@@ -167,7 +174,9 @@ Sistema custom: `notificar.exito()`, `notificar.error()`. NO SweetAlert2 directo
 
 ## Sistema de Diseño — Tokens
 
-**Documento:** `docs/estandares/SISTEMA_TOKENS_DISENO.md`
+**Documentos:**
+- `docs/estandares/TOKENS_GLOBALES.md` — reglas obligatorias para toda auditoría
+- `docs/estandares/TOKENS_COMPONENTES.md` — patrones de componentes específicos
 
 ### Tamaños Mínimos de Texto
 
@@ -203,6 +212,10 @@ Laptop reduce ~30% vs móvil. Desktop restaura valores originales. SIEMPRE inclu
 
 Ver `docs/estandares/Guia_Responsive_Laptop_AnunciaYA.md` para tablas completas.
 
+### Patrones de Componentes
+
+Cuando se trabaje en dropdowns, modales, tablas, inputs, cards móvil o chips de orden, consultar `docs/estandares/TOKENS_COMPONENTES.md` para los patrones validados de cada tipo de componente.
+
 ---
 
 ## Documentación
@@ -212,7 +225,8 @@ docs/
 ├── CHANGELOG.md                → Historial de cambios
 ├── ROADMAP.md                  → Plan y progreso
 ├── estandares/                 → Reglas obligatorias
-│   ├── SISTEMA_TOKENS_DISENO.md
+│   ├── TOKENS_GLOBALES.md
+│   ├── TOKENS_COMPONENTES.md
 │   ├── Guia_Responsive_Laptop_AnunciaYA.md
 │   ├── REGLAS_ESTILO_CODIGO.md
 │   ├── REGLAS_MANEJO_ARCHIVOS.md
@@ -231,7 +245,8 @@ docs/
 │   ├── ScanYA.md
 │   ├── Guardados.md
 │   └── Clientes_Transacciones.md
-└── legacy/                     → Documentos históricos
+├── legacy/                     → Documentos históricos
+└── reportes/                   → Reportes de auditorías UX y tokens por módulo
 ```
 
 **Regla:** Antes de trabajar en un módulo, leer su documento de arquitectura y los estándares que apliquen.
@@ -264,7 +279,7 @@ Al terminar cualquier tarea, hacer un segundo pase de verificación: buscar si q
 
 ### 6. Tokens de Diseño
 
-Antes de modificar UI, leer `docs/estandares/SISTEMA_TOKENS_DISENO.md`. Aplicar las 7 reglas validadas a todo código que se toque.
+Antes de modificar UI, leer `docs/estandares/TOKENS_GLOBALES.md`. Para componentes específicos, consultar también `docs/estandares/TOKENS_COMPONENTES.md`. Aplicar las 10 reglas globales a todo código que se toque.
 
 ### 7. Commits
 
@@ -306,3 +321,5 @@ BS Alertas + Cupones
 - Login obligatorio — sin login solo accesible: landing, registro, login, OAuth
 - Scroll reset al navegar: `MainLayout` usa `<main>` con `overflow-y-auto` (no `window`). El scroll se resetea con `useLayoutEffect` en `RootLayout` usando `document.querySelectorAll('main').forEach(el => el.scrollTo(0, 0))`. Usar `useLayoutEffect` (no `useEffect`) para evitar flash visual
 - `useState(false)` para detección móvil causa flash de vista desktop en primer render. Usar `useState(() => window.innerWidth < 1024)` como lazy initializer
+- Elementos fijos en la parte inferior de la pantalla: usar `bottom-4` o `pb-safe` (safe area configurada globalmente para notch/barra de navegación móvil)
+- `ModalAdaptativo` renderiza `ModalBottom` (bottom sheet) en móvil y `Modal` (centrado) en desktop. Siempre usar `ModalAdaptativo` para modales de detalle — nunca `Modal` o `ModalBottom` directamente
