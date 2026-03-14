@@ -12,7 +12,7 @@
  * - Animación suave al expandir/colapsar
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
 import GraficaVentas from './GraficaVentas';
 import type { VentasData } from '../../../../../services/dashboardService';
@@ -31,12 +31,35 @@ interface GraficaColapsableProps {
 
 export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
   const [expandida, setExpandida] = useState(false);
-  
+  const contenedorRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll al expandir en móvil — muestra la gráfica completa descontando el bottomNav
+  useEffect(() => {
+    if (!expandida || window.innerWidth >= 1024) return;
+    const timer = setTimeout(() => {
+      const main = document.querySelector('main');
+      const contenedor = contenedorRef.current;
+      if (!main || !contenedor) return;
+
+      const bottomNav = document.querySelector('nav.fixed');
+      const alturaBottomNav = bottomNav ? bottomNav.getBoundingClientRect().height : 0;
+
+      const rect = contenedor.getBoundingClientRect();
+      const viewportDisponible = window.innerHeight - alturaBottomNav;
+      const bottomDesborde = rect.bottom - viewportDisponible;
+
+      if (bottomDesborde > 0) {
+        main.scrollBy({ top: bottomDesborde + 16, behavior: 'smooth' });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [expandida]);
+
   const estadisticas = datos?.estadisticas;
   const crecimientoPositivo = (estadisticas?.crecimiento ?? 0) >= 0;
 
   return (
-    <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-md transition-all duration-300">
+    <div ref={contenedorRef} className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-md transition-all duration-300">
       {/* Header Colapsable - Siempre visible */}
       <button
         onClick={() => setExpandida(!expandida)}

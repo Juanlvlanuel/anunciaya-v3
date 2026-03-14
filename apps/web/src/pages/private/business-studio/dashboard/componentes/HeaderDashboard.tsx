@@ -166,15 +166,16 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
           <div className="w-px h-8 bg-slate-200" />
 
           {/* Selector de periodo DESKTOP - 5 opciones */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
             {PERIODOS.map((p) => (
               <button
                 key={p.valor}
                 onClick={() => setPeriodo(p.valor)}
-                className={`px-3 2xl:px-4 h-9 2xl:h-10 flex items-center rounded-lg text-sm font-semibold whitespace-nowrap transition-colors cursor-pointer ${periodo === p.valor
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-blue-100'
+                className={`px-3 2xl:px-4 h-8 2xl:h-9 flex items-center rounded-md text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${periodo === p.valor
+                    ? 'text-white shadow-md'
+                    : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
                   }`}
+                style={periodo === p.valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
               >
                 {p.label}
               </button>

@@ -38,6 +38,7 @@ import {
     CheckCircle2,
     AlertCircle,
     Pencil,
+    X,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useResenasStore } from '../../../../stores/useResenasStore';
@@ -194,6 +195,11 @@ export function PaginaOpiniones() {
 
         cargarDatos();
     }, [hidratado, sucursalId, cargarDatos]);
+
+    // Limpiar búsqueda al desmontar (navegar fuera)
+    useEffect(() => {
+        return () => setBusqueda('');
+    }, []);
 
     // =========================================================================
     // FILTRADO LOCAL (todo en useMemo, sin ir al backend)
@@ -459,6 +465,15 @@ export function PaginaOpiniones() {
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
                             className="w-full text-sm lg:text-xs 2xl:text-sm"
+                            elementoDerecha={busqueda ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setBusqueda('')}
+                                    className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            ) : undefined}
                         />
                     </div>
 

@@ -8,7 +8,7 @@
  * UBICACIÓN: apps/web/src/components/ui/Tooltip.tsx
  */
 
-import { ReactNode, useState, useRef, useCallback } from 'react';
+import { ReactNode, useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 // =============================================================================
@@ -19,16 +19,26 @@ interface TooltipProps {
   children: ReactNode;
   text: string;
   position?: 'top' | 'bottom' | 'left' | 'right';
+  /** Tiempo en ms para ocultar automáticamente el tooltip */
+  autoHide?: number;
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export default function Tooltip({ children, text, position = 'bottom' }: TooltipProps) {
+export default function Tooltip({ children, text, position = 'bottom', autoHide }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
+  const autoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (visible && autoHide) {
+      autoHideRef.current = setTimeout(() => setVisible(false), autoHide);
+      return () => { if (autoHideRef.current) clearTimeout(autoHideRef.current); };
+    }
+  }, [visible, autoHide]);
 
   const calcularPosicion = useCallback(() => {
     if (!triggerRef.current) return;

@@ -206,8 +206,8 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
         {/* Contenido con scroll */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-3 2xl:p-4 space-y-4 lg:space-y-3 2xl:space-y-4">
           {/* Preview del artículo */}
-          <div className="bg-slate-50 rounded-lg p-3 lg:p-2 2xl:p-3 border border-slate-200">
-            <p className="text-sm lg:text-sm 2xl:text-sm text-slate-500 mb-2 lg:mb-1.5 2xl:mb-2 font-medium">Artículo a duplicar:</p>
+          <div className="bg-slate-50 rounded-lg p-3 lg:p-2 2xl:p-3 border-2 border-slate-300">
+            <p className="text-sm lg:text-sm 2xl:text-sm text-slate-600 mb-2 lg:mb-1.5 2xl:mb-2 font-medium">Artículo a duplicar:</p>
             <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
               {articulo.imagenPrincipal ? (
                 <img
@@ -229,7 +229,7 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
                 <h3 className="font-semibold text-slate-800 text-base lg:text-sm 2xl:text-base truncate">
                   {articulo.nombre}
                 </h3>
-                <p className="text-slate-500 text-sm lg:text-xs 2xl:text-sm">
+                <p className="text-slate-600 text-sm lg:text-xs 2xl:text-sm">
                   ${Number(articulo.precioBase).toFixed(2)} • <span className="capitalize">{articulo.tipo}</span>
                 </p>
               </div>
@@ -261,7 +261,7 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
                     className={`w-full p-3 lg:p-2 2xl:p-3 rounded-lg border-2 transition-all text-left cursor-pointer ${
                       seleccionada
                         ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
+                        : 'border-slate-300 bg-white hover:border-slate-400'
                     }`}
                   >
                     <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
@@ -282,7 +282,7 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
                         <p className="font-medium text-slate-800 text-base lg:text-sm 2xl:text-base truncate">
                           {sucursal.nombre}
                         </p>
-                        <div className="flex items-center gap-1 text-slate-500 text-sm lg:text-xs 2xl:text-sm">
+                        <div className="flex items-center gap-1 text-slate-600 text-sm lg:text-xs 2xl:text-sm">
                           <MapPin className="w-3 h-3 shrink-0" />
                           <span className="truncate">{sucursal.direccion}</span>
                         </div>
@@ -296,7 +296,7 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
         </div>
 
         {/* Footer con botones - FUERA del scroll */}
-        <div className="border-t border-slate-200 p-4 lg:p-3 2xl:p-4 bg-white">
+        <div className="border-t-2 border-slate-300 p-4 lg:p-3 2xl:p-4 bg-white">
           <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
             <Boton
               variante="secundario"

@@ -361,8 +361,8 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                       className="hidden"
                     />
                     <ImagePlus className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-10 2xl:h-10 text-slate-400 mb-1 lg:mb-1 2xl:mb-2" />
-                    <p className="text-xs lg:text-xs 2xl:text-sm text-slate-500 font-medium">Agregar imagen</p>
-                    <p className="text-[10px] lg:text-[10px] 2xl:text-xs text-slate-400 mt-0.5 lg:mt-0.5 2xl:mt-1">Click para subir</p>
+                    <p className="text-xs lg:text-xs 2xl:text-sm text-slate-600 font-medium">Agregar imagen</p>
+                    <p className="text-[11px] lg:text-[11px] 2xl:text-xs text-slate-600 mt-0.5 lg:mt-0.5 2xl:mt-1">Click para subir</p>
                   </label>
                 )}
               </div>

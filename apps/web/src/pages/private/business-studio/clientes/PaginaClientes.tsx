@@ -40,6 +40,7 @@ import {
   Phone,
   Eye,
   Download,
+  X,
 } from 'lucide-react';
 import { useClientesStore } from '../../../../stores/useClientesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
@@ -275,6 +276,14 @@ export default function PaginaClientes() {
     debounceRef.current = setTimeout(() => {
       setBusqueda(valor);
     }, 300);
+  }, [setBusqueda]);
+
+  // ─── Limpiar búsqueda al desmontar (navegar fuera) ───
+  useEffect(() => {
+    return () => {
+      setTextoBusqueda('');
+      setBusqueda('');
+    };
   }, [setBusqueda]);
 
   // ─── Infinite scroll mobile ───
@@ -541,6 +550,15 @@ export default function PaginaClientes() {
                   onChange={(e) => handleBusquedaChange(e.target.value)}
                   className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm"
                   icono={<Search className="w-4 h-4 text-slate-600" />}
+                  elementoDerecha={textoBusqueda ? (
+                    <button
+                      type="button"
+                      onClick={() => handleBusquedaChange('')}
+                      className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : undefined}
                 />
               </div>
               {/* Reporte: solo móvil */}
