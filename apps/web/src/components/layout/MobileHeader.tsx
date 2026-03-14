@@ -399,15 +399,15 @@ export function MobileHeader() {
 
         {/* Barra de info del negocio (solo en Business Studio) */}
         {esBusinessStudio && (
-          <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shadow-sm">
-            {/* Botón menú + Logo + Nombre del negocio */}
+          <div className="bg-white border-b border-slate-300 px-4 py-2 flex items-center justify-between shadow-sm">
+            {/* Botón menú + Logo */}
             <div className="flex items-center gap-2">
               {/* Botón para abrir drawer BS */}
               <button
                 onClick={() => setDrawerBsAbierto(true)}
-                className="p-1.5 -ml-1 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-2 -ml-1 rounded-xl hover:bg-slate-200 transition-colors"
               >
-                <ChevronDown className="w-5 h-5 text-gray-600" />
+                <ChevronDown className="w-5 h-5 text-slate-600" />
               </button>
               <div className="w-8 h-8 bg-linear-to-br from-orange-400 to-orange-500 rounded-lg flex items-center justify-center shadow-sm overflow-hidden">
                 {usuario?.logoNegocio ? (
@@ -420,35 +420,30 @@ export function MobileHeader() {
                   <Store className="w-4 h-4 text-white" />
                 )}
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-gray-800 truncate max-w-[140px]">
-                  {usuario?.nombreNegocio || 'Mi Negocio'}
-                </span>
-                {tieneMuchasSucursales && sucursalActual && (
-                  <div className="flex items-center gap-0.5">
-                    <span className="text-[11px] font-semibold text-blue-600 truncate max-w-[100px]">
-                      {sucursalActual.nombre}
-                    </span>
-                    <button
-                      onClick={irSucursalAnterior}
-                      disabled={indiceSucursalActual === 0}
-                      className={`p-0.5 rounded ${indiceSucursalActual === 0 ? 'text-gray-300' : 'text-blue-500 active:scale-95'}`}
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="text-[11px] text-gray-400">
-                      {indiceSucursalActual + 1}/{sucursalesMobile.length}
-                    </span>
-                    <button
-                      onClick={irSucursalSiguiente}
-                      disabled={indiceSucursalActual === sucursalesMobile.length - 1}
-                      className={`p-0.5 rounded ${indiceSucursalActual === sucursalesMobile.length - 1 ? 'text-gray-300' : 'text-blue-500 active:scale-95'}`}
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              {tieneMuchasSucursales && sucursalActual && (
+                <div className="flex items-center gap-0.5">
+                  <span className="text-base font-semibold text-blue-600 truncate max-w-[100px]">
+                    {sucursalActual.nombre}
+                  </span>
+                  <button
+                    onClick={irSucursalAnterior}
+                    disabled={indiceSucursalActual === 0}
+                    className={`p-0.5 rounded ${indiceSucursalActual === 0 ? 'text-slate-400' : 'text-blue-500 active:scale-95'}`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-base font-medium text-slate-600">
+                    {indiceSucursalActual + 1}/{sucursalesMobile.length}
+                  </span>
+                  <button
+                    onClick={irSucursalSiguiente}
+                    disabled={indiceSucursalActual === sucursalesMobile.length - 1}
+                    className={`p-0.5 rounded ${indiceSucursalActual === sucursalesMobile.length - 1 ? 'text-slate-400' : 'text-blue-500 active:scale-95'}`}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Navegación entre módulos */}
@@ -458,8 +453,8 @@ export function MobileHeader() {
                 onClick={navegarModuloAnterior}
                 disabled={!hayModuloAnterior}
                 className={`p-1 rounded transition-colors ${hayModuloAnterior
-                  ? 'text-blue-600 hover:bg-blue-50 active:scale-95'
-                  : 'text-gray-300 cursor-not-allowed'
+                  ? 'text-blue-600 hover:bg-blue-100 active:scale-95'
+                  : 'text-slate-400 cursor-not-allowed'
                   }`}
                 title={hayModuloAnterior ? 'Módulo anterior' : 'No hay módulo anterior'}
               >
@@ -467,7 +462,7 @@ export function MobileHeader() {
               </button>
 
               {/* Nombre del módulo actual */}
-              <span className="text-sm font-bold text-blue-600 min-w-20 text-center">
+              <span className="text-base font-bold text-blue-600 min-w-20 text-center">
                 {obtenerSeccionActual()}
               </span>
 
@@ -476,8 +471,8 @@ export function MobileHeader() {
                 onClick={navegarModuloSiguiente}
                 disabled={!hayModuloSiguiente}
                 className={`p-1 rounded transition-colors ${hayModuloSiguiente
-                  ? 'text-blue-600 hover:bg-blue-50 active:scale-95'
-                  : 'text-gray-300 cursor-not-allowed'
+                  ? 'text-blue-600 hover:bg-blue-100 active:scale-95'
+                  : 'text-slate-400 cursor-not-allowed'
                   }`}
                 title={hayModuloSiguiente ? 'Módulo siguiente' : 'No hay módulo siguiente'}
               >

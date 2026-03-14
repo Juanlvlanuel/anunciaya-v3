@@ -45,11 +45,13 @@ import {
   Hourglass,
   CheckCircle,
   AlertCircle,
+  Calendar,
 } from 'lucide-react';
 import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
+import Tooltip from '../../../../components/ui/Tooltip';
 import { descargarCSV } from '../../../../services/transaccionesService';
 import ModalDetalleTransaccionBS from './ModalDetalleTransaccionBS';
 import ModalDetalleCanjeBS from './ModalDetalleCanjeBS';
@@ -93,12 +95,12 @@ interface EstadoOrden {
 // =============================================================================
 
 const PERIODOS_CONFIG: { id: PeriodoEstadisticas; etiqueta: string }[] = [
+  { id: 'todo', etiqueta: 'Todo' },
   { id: 'hoy', etiqueta: 'Hoy' },
   { id: 'semana', etiqueta: 'Semana' },
   { id: 'mes', etiqueta: 'Mes' },
   { id: '3meses', etiqueta: '3 Meses' },
   { id: 'anio', etiqueta: 'Año' },
-  { id: 'todo', etiqueta: 'Todo' },
 ];
 
 // =============================================================================
@@ -170,24 +172,24 @@ const formatearExpiracion = (fechaISO: string | null) => {
 
 /** Color del badge de expiración según urgencia */
 const colorExpiracion = (fechaISO: string | null): string => {
-  if (!fechaISO) return 'text-slate-400';
+  if (!fechaISO) return 'text-slate-600 font-medium';
   const diffDias = Math.ceil((new Date(fechaISO).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (diffDias < 0) return 'text-red-500';
-  if (diffDias <= 3) return 'text-red-500 font-bold';
-  if (diffDias <= 7) return 'text-amber-500';
-  return 'text-slate-500';
+  if (diffDias < 0) return 'text-red-600 font-medium';
+  if (diffDias <= 3) return 'text-red-600 font-bold';
+  if (diffDias <= 7) return 'text-amber-600 font-medium';
+  return 'text-slate-600 font-medium';
 };
 
 /** Badge de estado para vouchers de canje */
 const BadgeEstadoCanje = ({ estado }: { estado: VoucherCanje['estado'] }) => {
   const config = {
-    pendiente: { texto: 'Pendiente', icono: Hourglass, border: 'border-amber-200', bg: 'bg-amber-50', color: 'text-amber-600' },
-    usado: { texto: 'Usado', icono: CheckCircle, border: 'border-green-200', bg: 'bg-green-50', color: 'text-green-600' },
-    expirado: { texto: 'Vencido', icono: AlertCircle, border: 'border-red-200', bg: 'bg-red-50', color: 'text-red-600' },
+    pendiente: { texto: 'Pendiente', icono: Hourglass, bg: 'bg-amber-100', color: 'text-amber-700' },
+    usado: { texto: 'Usado', icono: CheckCircle, bg: 'bg-green-100', color: 'text-green-700' },
+    expirado: { texto: 'Vencido', icono: AlertCircle, bg: 'bg-red-100', color: 'text-red-700' },
   }[estado];
   const Icono = config.icono;
   return (
-    <span className={`inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-[10px] lg:text-[9px] 2xl:text-[13px] font-bold border ${config.border} ${config.bg} ${config.color}`}>
+    <span className={`inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold ${config.bg} ${config.color}`}>
       <Icono className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" />
       {config.texto}
     </span>
@@ -199,10 +201,9 @@ const BadgeEstadoCanje = ({ estado }: { estado: VoucherCanje['estado'] }) => {
 // =============================================================================
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
-    check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
@@ -234,7 +235,7 @@ function HeaderOrdenable({
     >
       <span>{etiqueta}</span>
       {!activa && (
-        <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-slate-400 group-hover:text-amber-300" />
+        <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
       )}
       {activa && direccion === 'desc' && (
         <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
@@ -262,15 +263,15 @@ function FilaMovil({
   return (
     <button
       onClick={() => onVerDetalle(transaccion)}
-      className={`w-full flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer text-left ${esRevocada ? 'opacity-60' : ''
+      className={`w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer text-left ${esRevocada ? 'opacity-60' : ''
         }`}
     >
       {/* Avatar */}
-      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
         {transaccion.clienteAvatarUrl ? (
           <img src={transaccion.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="text-xs font-bold text-slate-500">
+          <span className="text-sm font-bold text-indigo-700">
             {obtenerIniciales(transaccion.clienteNombre)}
           </span>
         )}
@@ -284,28 +285,28 @@ function FilaMovil({
           </p>
           {/* Badge estado */}
           {esRevocada ? (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold border border-red-200 bg-red-50 text-red-600">
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm font-bold bg-red-100 text-red-700">
               <XCircle className="w-2.5 h-2.5" />
               Revocada
             </span>
           ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold border border-green-200 bg-green-50 text-green-600">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-sm font-bold bg-green-100 text-green-700">
               ✓
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
-          <span className={`font-bold ${esRevocada ? 'text-slate-400 line-through' : 'text-emerald-600'}`}>
+        <div className="flex items-center gap-3 mt-0.5 text-sm text-slate-600">
+          <span className={`font-bold ${esRevocada ? 'text-slate-600 line-through' : 'text-indigo-600'}`}>
             {formatearMonto(transaccion.montoCompra)}
           </span>
-          <span className={esRevocada ? 'line-through' : 'text-amber-600 font-medium'}>
+          <span className={esRevocada ? 'line-through font-medium' : 'text-amber-600 font-medium'}>
             +{transaccion.puntosOtorgados} pts
           </span>
-          <span>{formatearFechaCorta(transaccion.createdAt)}</span>
+          <span className="font-medium">{formatearFechaCorta(transaccion.createdAt)}</span>
         </div>
       </div>
 
-      <Eye className="w-4 h-4 text-slate-300 shrink-0" />
+      <Eye className="w-4 h-4 text-slate-600 shrink-0" />
     </button>
   );
 }
@@ -324,14 +325,14 @@ function FilaMovilCanje({
   return (
     <button
       onClick={() => onVerDetalle(canje)}
-      className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer text-left"
+      className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer text-left"
     >
       {/* Avatar */}
-      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
         {canje.clienteAvatarUrl ? (
           <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="text-xs font-bold text-slate-500">
+          <span className="text-sm font-bold text-indigo-700">
             {obtenerIniciales(canje.clienteNombre)}
           </span>
         )}
@@ -345,7 +346,7 @@ function FilaMovilCanje({
           </p>
           <BadgeEstadoCanje estado={canje.estado} />
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
+        <div className="flex items-center gap-3 mt-0.5 text-sm text-slate-600">
           <span className="font-medium text-purple-600 truncate max-w-[140px]">
             {canje.recompensaNombre}
           </span>
@@ -360,7 +361,7 @@ function FilaMovilCanje({
         </div>
       </div>
 
-      <Eye className="w-4 h-4 text-slate-300 shrink-0" />
+      <Eye className="w-4 h-4 text-slate-600 shrink-0" />
     </button>
   );
 }
@@ -425,6 +426,12 @@ export default function PaginaTransacciones() {
   const [textoBusquedaCanjes, setTextoBusquedaCanjes] = useState('');
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [periodoDropdownAbierto, setPeriodoDropdownAbierto] = useState(false);
+  const periodoDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [estadoDropdownAbierto, setEstadoDropdownAbierto] = useState(false);
+  const estadoDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [estadoCanjesDropdownAbierto, setEstadoCanjesDropdownAbierto] = useState(false);
+  const estadoCanjesDropdownRef = useRef<HTMLDivElement | null>(null);
   const isMobile = useIsMobile();
   const sentinelaRef = useRef<HTMLDivElement | null>(null);
   const sentinelaCanjesRef = useRef<HTMLDivElement | null>(null);
@@ -519,6 +526,42 @@ export default function PaginaTransacciones() {
     document.addEventListener('mousedown', handleClickFuera);
     return () => document.removeEventListener('mousedown', handleClickFuera);
   }, [dropdownAbierto]);
+
+  // ——— Cerrar dropdown período al hacer click fuera ———
+  useEffect(() => {
+    if (!periodoDropdownAbierto) return;
+    const handleClickFuera = (e: MouseEvent) => {
+      if (periodoDropdownRef.current && !periodoDropdownRef.current.contains(e.target as Node)) {
+        setPeriodoDropdownAbierto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickFuera);
+    return () => document.removeEventListener('mousedown', handleClickFuera);
+  }, [periodoDropdownAbierto]);
+
+  // ——— Cerrar dropdown estado ventas al hacer click fuera ———
+  useEffect(() => {
+    if (!estadoDropdownAbierto) return;
+    const handleClickFuera = (e: MouseEvent) => {
+      if (estadoDropdownRef.current && !estadoDropdownRef.current.contains(e.target as Node)) {
+        setEstadoDropdownAbierto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickFuera);
+    return () => document.removeEventListener('mousedown', handleClickFuera);
+  }, [estadoDropdownAbierto]);
+
+  // ——— Cerrar dropdown estado canjes al hacer click fuera ———
+  useEffect(() => {
+    if (!estadoCanjesDropdownAbierto) return;
+    const handleClickFuera = (e: MouseEvent) => {
+      if (estadoCanjesDropdownRef.current && !estadoCanjesDropdownRef.current.contains(e.target as Node)) {
+        setEstadoCanjesDropdownAbierto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickFuera);
+    return () => document.removeEventListener('mousedown', handleClickFuera);
+  }, [estadoCanjesDropdownAbierto]);
 
   // ——— Alternar orden ———
   const alternarOrden = useCallback((columna: ColumnaOrden) => {
@@ -637,7 +680,7 @@ export default function PaginaTransacciones() {
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
           {/* Header con icono animado */}
-          <div className="flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+          <div className="flex items-center gap-4 w-full lg:w-auto shrink-0 mb-3 lg:mb-0">
             <div
               className="flex items-center justify-center shrink-0"
               style={{
@@ -650,67 +693,79 @@ export default function PaginaTransacciones() {
                 <Receipt className="w-6 h-6 text-white" strokeWidth={2.5} />
               </div>
             </div>
-            <div>
-              <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Transacciones
-              </h1>
-              {/* Toggle móvil */}
-              <div className="lg:hidden mt-1">
-                <div className="flex items-center bg-slate-200/80 rounded-lg p-0.5 border border-slate-300/60 w-fit">
+            <div className="flex-1 flex items-center justify-between lg:block">
+              {/* Textos título + subtítulo */}
+              <div>
+                <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Transacciones
+                </h1>
+                <p className="lg:hidden text-base lg:text-xs 2xl:text-sm text-slate-600 -mt-1 font-medium">
+                  Ventas y Canjes
+                </p>
+                <p className="hidden lg:block text-sm lg:text-sm 2xl:text-base text-slate-600 mt-0.5 font-medium">
+                  {tabActivo === 'ventas' ? 'Historial de ventas y canjes' : 'Vouchers de recompensas'}
+                </p>
+              </div>
+              {/* Toggle móvil — centrado respecto al bloque título+subtítulo */}
+              <div className="lg:hidden flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
+                <Tooltip text="Historial de ventas" position="bottom">
                   <button
                     onClick={() => setTabActivo('ventas')}
-                    className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all cursor-pointer ${tabActivo === 'ventas'
+                    className={`h-10 w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabActivo === 'ventas'
                         ? 'text-white shadow-md'
-                        : 'text-slate-500 hover:text-slate-700'
+                        : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
                       }`}
                     style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
-                    Ventas
+                    <DollarSign className="w-5 h-5" />
                   </button>
+                </Tooltip>
+                <Tooltip text="Vouchers de recompensas" position="bottom">
                   <button
                     onClick={() => setTabActivo('canjes')}
-                    className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all cursor-pointer ${tabActivo === 'canjes'
+                    className={`h-10 w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabActivo === 'canjes'
                         ? 'text-white shadow-md'
-                        : 'text-slate-500 hover:text-slate-700'
+                        : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
                       }`}
                     style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
-                    Canjes
+                    <Gift className="w-5 h-5" />
                   </button>
-                </div>
+                </Tooltip>
               </div>
-              <p className="hidden lg:block text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
-                {tabActivo === 'ventas' ? 'Historial de ventas y puntos' : 'Vouchers de recompensas'}
-              </p>
             </div>
 
-            {/* Toggle Ventas/Canjes - Desktop (centrado respecto a título+subtítulo) */}
-            <div className="hidden lg:flex items-center bg-slate-200/80 rounded-lg p-0.5 border border-slate-300/60">
-              <button
-                onClick={() => setTabActivo('ventas')}
-                className={`px-4 2xl:px-5 py-1.5 2xl:py-2 text-xs 2xl:text-sm font-bold rounded-md transition-all cursor-pointer ${tabActivo === 'ventas'
-                    ? 'text-white shadow-md'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                  }`}
-                style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-              >
-                Ventas
-              </button>
-              <button
-                onClick={() => setTabActivo('canjes')}
-                className={`px-4 2xl:px-5 py-1.5 2xl:py-2 text-xs 2xl:text-sm font-bold rounded-md transition-all cursor-pointer ${tabActivo === 'canjes'
-                    ? 'text-white shadow-md'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                  }`}
-                style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-              >
-                Canjes
-              </button>
+            {/* Toggle Ventas/Canjes - Desktop */}
+            <div className="hidden lg:flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
+              <Tooltip text="Historial de ventas" position="bottom">
+                <button
+                  onClick={() => setTabActivo('ventas')}
+                  className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabActivo === 'ventas'
+                      ? 'text-white shadow-md'
+                      : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
+                    }`}
+                  style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                >
+                  <DollarSign className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                </button>
+              </Tooltip>
+              <Tooltip text="Vouchers de recompensas" position="bottom">
+                <button
+                  onClick={() => setTabActivo('canjes')}
+                  className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabActivo === 'canjes'
+                      ? 'text-white shadow-md'
+                      : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
+                    }`}
+                  style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                >
+                  <Gift className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                </button>
+              </Tooltip>
             </div>
           </div>
 
           {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
-          <div className="overflow-x-auto lg:overflow-visible lg:flex-1 tx-carousel">
+          <div className="mt-5 lg:mt-0 overflow-x-auto lg:overflow-visible lg:flex-1 tx-carousel">
             <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
 
               {/* ============ KPIs TAB VENTAS ============ */}
@@ -718,7 +773,7 @@ export default function PaginaTransacciones() {
                 <>
                   {/* Total Ventas */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #eff6ff, #fff)',
                       border: '2px solid #93c5fd',
@@ -735,13 +790,13 @@ export default function PaginaTransacciones() {
                       <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">
                         {cargandoKpis ? '...' : formatearMonto(kpis?.totalVentas ?? 0)}
                       </div>
-                      <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Ventas</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Ventas</div>
                     </div>
                   </div>
 
                   {/* # Transacciones */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #f0fdf4, #fff)',
                       border: '2px solid #86efac',
@@ -758,13 +813,13 @@ export default function PaginaTransacciones() {
                       <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">
                         {cargandoKpis ? '...' : fmt(kpis?.totalTransacciones ?? 0)}
                       </div>
-                      <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Transacciones</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Transacciones</div>
                     </div>
                   </div>
 
                   {/* Ticket Promedio */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fffbeb, #fff)',
                       border: '2px solid #fcd34d',
@@ -781,13 +836,13 @@ export default function PaginaTransacciones() {
                       <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">
                         {cargandoKpis ? '...' : formatearMonto(kpis?.ticketPromedio ?? 0)}
                       </div>
-                      <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Ticket Prom.</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Ticket Prom.</div>
                     </div>
                   </div>
 
                   {/* Revocadas */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fef2f2, #fff)',
                       border: '2px solid #fca5a5',
@@ -804,7 +859,7 @@ export default function PaginaTransacciones() {
                       <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">
                         {cargandoKpis ? '...' : fmt(kpis?.totalRevocadas ?? 0)}
                       </div>
-                      <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Revocadas</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Revocadas</div>
                     </div>
                   </div>
                 </>
@@ -815,7 +870,7 @@ export default function PaginaTransacciones() {
                 <>
                   {/* Pendientes */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fffbeb, #fff)',
                       border: '2px solid #fcd34d',
@@ -832,13 +887,13 @@ export default function PaginaTransacciones() {
                       <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">
                         {cargandoKpisCanjes ? '...' : fmt(kpisCanjes?.pendientes ?? 0)}
                       </div>
-                      <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Pendientes</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Pendientes</div>
                     </div>
                   </div>
 
                   {/* Usados */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #f0fdf4, #fff)',
                       border: '2px solid #86efac',
@@ -855,13 +910,13 @@ export default function PaginaTransacciones() {
                       <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">
                         {cargandoKpisCanjes ? '...' : fmt(kpisCanjes?.usados ?? 0)}
                       </div>
-                      <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Usados</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Usados</div>
                     </div>
                   </div>
 
                   {/* Vencidos */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fef2f2, #fff)',
                       border: '2px solid #fca5a5',
@@ -878,13 +933,13 @@ export default function PaginaTransacciones() {
                       <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">
                         {cargandoKpisCanjes ? '...' : fmt(kpisCanjes?.vencidos ?? 0)}
                       </div>
-                      <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Vencidos</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Vencidos</div>
                     </div>
                   </div>
 
                   {/* Total Canjes */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fdf4ff, #fff)',
                       border: '2px solid #e879f9',
@@ -901,7 +956,7 @@ export default function PaginaTransacciones() {
                       <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-purple-700">
                         {cargandoKpisCanjes ? '...' : fmt(kpisCanjes?.totalCanjes ?? 0)}
                       </div>
-                      <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Total</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Total</div>
                     </div>
                   </div>
                 </>
@@ -915,90 +970,133 @@ export default function PaginaTransacciones() {
         {/* FILTROS: Tabs Periodo + Búsqueda + Exportar CSV                   */}
         {/* ================================================================= */}
 
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border border-slate-200 p-4 lg:p-3 2xl:p-4 mt-2 lg:mt-7 2xl:mt-14">
+        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
           {/* ============ FILTROS TAB VENTAS ============ */}
           {tabActivo === 'ventas' && (
             <>
-              <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3 2xl:gap-4">
-                {/* Tabs periodo - scroll horizontal */}
-                <div className="flex gap-1.5 overflow-x-auto tx-carousel shrink-0 py-1 pr-1">
-                  {PERIODOS_CONFIG.map((p) => {
-                    const activo = periodo === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => handlePeriodo(p.id)}
-                        className={`px-4 lg:px-3 2xl:px-4 py-2 lg:py-1.5 2xl:py-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border transition-all shrink-0 cursor-pointer ${activo
-                            ? 'text-white border-slate-700 shadow-sm'
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                          }`}
-                        style={activo ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                      >
-                        {p.etiqueta}
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="flex flex-col gap-2 2xl:gap-3">
+                {/* Fila 1: Todos los filtros */}
+                <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
 
-                {/* Búsqueda - Filtrado en backend con debounce */}
-                <div className="flex-1 lg:max-w-sm 2xl:max-w-md relative">
-                  <Input
-                    placeholder="Nombre o Celular..."
-                    value={textoBusqueda}
-                    onChange={(e) => handleBusqueda(e.target.value)}
-                    className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm pr-8"
-                    icono={<Search className="w-4 h-4 text-slate-400" />}
-                  />
-                  {textoBusqueda && (
+                  {/* Dropdown Período */}
+                  <div className="shrink-0 relative" ref={periodoDropdownRef}>
                     <button
-                      onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); setTextoBusqueda(''); setBusqueda(''); }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                      onClick={() => setPeriodoDropdownAbierto(!periodoDropdownAbierto)}
+                      className={`flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer transition-colors ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
                     >
-                      <X className="w-4 h-4" />
+                      <Calendar className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
+                      <span className="truncate">{PERIODOS_CONFIG.find(p => p.id === periodo)?.etiqueta ?? 'Período'}</span>
+                      <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${periodoDropdownAbierto ? 'rotate-180' : ''}`} />
                     </button>
-                  )}
-                </div>
+                    {periodoDropdownAbierto && (
+                      <div className="absolute top-full left-0 mt-1.5 w-36 lg:w-40 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
+                        {PERIODOS_CONFIG.map((p) => {
+                          const activo = periodo === p.id;
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => { handlePeriodo(p.id); setPeriodoDropdownAbierto(false); }}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer transition-colors ${activo ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
+                            >
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                {activo && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span>{p.etiqueta}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
-                {/* Filtro operador + Exportar (móvil: misma fila) */}
-                <div className="flex items-center gap-2 lg:contents">
+                  {/* Chips estado — solo laptop */}
+                  <div className="hidden lg:flex shrink-0 items-center gap-1 2xl:gap-1.5">
+                    {[
+                      { id: '', etiqueta: 'Todas' },
+                      { id: 'confirmado', etiqueta: 'Válidas' },
+                      { id: 'cancelado', etiqueta: 'Revocadas' },
+                    ].map((e) => (
+                      <button
+                        key={e.id}
+                        onClick={() => setEstadoFiltro(e.id)}
+                        className={`px-3 2xl:px-4 h-9 2xl:h-10 flex items-center rounded-lg lg:text-xs 2xl:text-sm font-semibold border-2 cursor-pointer transition-colors ${estadoFiltro === e.id
+                            ? 'text-white border-slate-700 shadow-sm'
+                            : 'bg-slate-200 text-slate-600 border-transparent hover:bg-slate-300'
+                          }`}
+                        style={estadoFiltro === e.id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                      >
+                        {e.etiqueta}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Estado dropdown — solo móvil */}
+                  <div className="lg:hidden shrink-0 relative" ref={estadoDropdownRef}>
+                    <button
+                      onClick={() => setEstadoDropdownAbierto(!estadoDropdownAbierto)}
+                      className={`flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer transition-colors ${estadoFiltro
+                          ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                          : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                        }`}
+                    >
+                      <span className="truncate">{[{ id: '', etiqueta: 'Todas' }, { id: 'confirmado', etiqueta: 'Válidas' }, { id: 'cancelado', etiqueta: 'Revocadas' }].find(e => e.id === estadoFiltro)?.etiqueta ?? 'Todas'}</span>
+                      <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${estadoDropdownAbierto ? 'rotate-180' : ''}`} />
+                    </button>
+                    {estadoDropdownAbierto && (
+                      <div className="absolute top-full left-0 mt-1.5 w-36 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
+                        {[
+                          { id: '', etiqueta: 'Todas' },
+                          { id: 'confirmado', etiqueta: 'Válidas' },
+                          { id: 'cancelado', etiqueta: 'Revocadas' },
+                        ].map((e) => {
+                          const activo = estadoFiltro === e.id;
+                          return (
+                            <button
+                              key={e.id}
+                              onClick={() => { setEstadoFiltro(e.id); setEstadoDropdownAbierto(false); }}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer transition-colors ${activo ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
+                            >
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                {activo && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span>{e.etiqueta}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Operador */}
                   {operadores.length > 0 && (
-                    <div className="shrink-0 relative" ref={dropdownRef}>
+                    <div className="flex-1 min-w-0 lg:flex-none lg:shrink-0 relative" ref={dropdownRef}>
                       <button
                         onClick={() => setDropdownAbierto(!dropdownAbierto)}
-                        className={`flex items-center gap-2 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border text-sm lg:text-xs 2xl:text-sm font-medium cursor-pointer transition-colors ${operadorId
-                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        className={`w-full flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer transition-colors ${operadorId
+                            ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                            : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                           }`}
                       >
-                        <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0 opacity-60" />
-                        <span className="max-w-[120px] lg:max-w-[100px] 2xl:max-w-[120px] truncate">
+                        <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
+                        <span className="min-w-0 truncate">
                           {operadorId
                             ? operadores.find((o) => o.id === operadorId)?.nombre || 'Todos'
                             : 'Operador'}
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 shrink-0 opacity-50 transition-transform ${dropdownAbierto ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${dropdownAbierto ? 'rotate-180' : ''}`} />
                       </button>
-
-                      {/* Panel desplegable */}
                       {dropdownAbierto && (
-                        <div className="absolute top-full left-0 lg:left-auto lg:right-0 mt-1.5 w-56 bg-white rounded-xl border border-slate-200 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
-                          {/* Opción "Todos" */}
+                        <div className="absolute top-full right-0 mt-1.5 w-64 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                           <button
                             onClick={() => { setOperadorId(''); setDropdownAbierto(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm text-left cursor-pointer transition-colors ${!operadorId ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'
-                              }`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer transition-colors ${!operadorId ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
                           >
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!operadorId ? 'bg-indigo-500' : 'bg-slate-100'
-                              }`}>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!operadorId ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                               {!operadorId && <Check className="w-3 h-3 text-white" />}
                             </div>
                             <span>Todos los operadores</span>
                           </button>
-
-                          {/* Separador */}
-                          <div className="h-px bg-slate-100 my-1" />
-
-                          {/* Lista de operadores */}
+                          <div className="h-px bg-slate-200 my-1" />
                           <div className="max-h-48 overflow-y-auto">
                             {operadores.map((op) => {
                               const seleccionado = operadorId === op.id;
@@ -1006,19 +1104,17 @@ export default function PaginaTransacciones() {
                                 <button
                                   key={op.id}
                                   onClick={() => { setOperadorId(op.id); setDropdownAbierto(false); }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm text-left cursor-pointer transition-colors ${seleccionado ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
-                                    }`}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer transition-colors ${seleccionado ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-200'}`}
                                 >
-                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${seleccionado ? 'bg-indigo-500' : 'bg-slate-100'
-                                    }`}>
+                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${seleccionado ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                                     {seleccionado && <Check className="w-3 h-3 text-white" />}
                                   </div>
                                   <span className="truncate">{op.nombre}</span>
-                                  <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${op.tipo === 'empleado'
-                                      ? 'bg-blue-50 text-blue-500'
+                                  <span className={`ml-auto text-sm px-1.5 py-0.5 rounded-full shrink-0 ${op.tipo === 'empleado'
+                                      ? 'bg-blue-100 text-blue-600'
                                       : op.tipo === 'gerente'
-                                        ? 'bg-purple-50 text-purple-500'
-                                        : 'bg-amber-50 text-amber-600'
+                                        ? 'bg-purple-100 text-purple-600'
+                                        : 'bg-amber-100 text-amber-600'
                                     }`}>
                                     {op.tipo === 'empleado' ? 'Empleado' : op.tipo === 'gerente' ? 'Gerente' : 'Dueño'}
                                   </span>
@@ -1031,40 +1127,61 @@ export default function PaginaTransacciones() {
                     </div>
                   )}
 
-                  {/* Exportar CSV (móvil: junto a Operador) */}
-                  <button
-                    onClick={handleExportar}
-                    className="shrink-0 flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 px-3 lg:px-2.5 2xl:px-3 rounded-lg text-sm lg:text-xs 2xl:text-sm font-bold text-slate-600 cursor-pointer lg:order-last"
-                    style={{
-                      background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
-                      border: '1.5px solid #cbd5e1',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                    }}
-                  >
-                    <Download className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
-                    Reporte
-                  </button>
+                  {/* Reporte: solo laptop */}
+                  <div className="hidden lg:flex ml-auto shrink-0">
+                    <Tooltip text="Descargar CSV con los filtros activos" position="bottom">
+                      <button
+                        onClick={handleExportar}
+                        className="flex items-center gap-1.5 h-9 2xl:h-10 px-2.5 2xl:px-3 rounded-lg lg:text-xs 2xl:text-sm font-bold text-slate-600 cursor-pointer"
+                        style={{
+                          background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                          border: '1.5px solid #cbd5e1',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                        }}
+                      >
+                        <Download className="w-3 h-3 2xl:w-4 2xl:h-4" />
+                        Reporte
+                      </button>
+                    </Tooltip>
+                  </div>
                 </div>
 
-                {/* Filtro estado */}
-                <div className="shrink-0 flex items-center gap-1.5 lg:gap-1 2xl:gap-1.5">
-                  {[
-                    { id: '', etiqueta: 'Todas' },
-                    { id: 'confirmado', etiqueta: 'Válidas' },
-                    { id: 'cancelado', etiqueta: 'Revocadas' },
-                  ].map((e) => (
-                    <button
-                      key={e.id}
-                      onClick={() => setEstadoFiltro(e.id)}
-                      className={`px-3.5 lg:px-2.5 2xl:px-3.5 py-2 lg:py-1.5 2xl:py-2.5 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer transition-colors ${estadoFiltro === e.id
-                          ? 'text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      style={estadoFiltro === e.id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                    >
-                      {e.etiqueta}
-                    </button>
-                  ))}
+                {/* Fila 2: Búsqueda + Reporte (móvil) */}
+                <div className="flex items-center gap-2 w-full">
+                  <div className="flex-1 min-w-0 relative">
+                    <Input
+                      placeholder="Nombre o Celular..."
+                      value={textoBusqueda}
+                      onChange={(e) => handleBusqueda(e.target.value)}
+                      className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm pr-8"
+                      icono={<Search className="w-4 h-4 text-slate-600" />}
+                    />
+                    {textoBusqueda && (
+                      <button
+                        onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); setTextoBusqueda(''); setBusqueda(''); }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-600 hover:text-slate-800 hover:bg-slate-200 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {/* Reporte: solo móvil */}
+                  <div className="lg:hidden shrink-0">
+                    <Tooltip text="Descargar CSV con los filtros activos" position="top">
+                      <button
+                        onClick={handleExportar}
+                        className="flex items-center gap-1.5 h-10 px-3 rounded-lg text-sm font-bold text-slate-600 cursor-pointer"
+                        style={{
+                          background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                          border: '1.5px solid #cbd5e1',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                        }}
+                      >
+                        <Download className="w-4 h-4" />
+                        Reporte
+                      </button>
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
             </>
@@ -1072,66 +1189,119 @@ export default function PaginaTransacciones() {
 
           {/* ============ FILTROS TAB CANJES ============ */}
           {tabActivo === 'canjes' && (
-            <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3 2xl:gap-4">
-              {/* Tabs periodo - scroll horizontal */}
-              <div className="flex gap-1.5 overflow-x-auto tx-carousel shrink-0 py-1 pr-1">
-                {PERIODOS_CONFIG.map((p) => {
-                  const activo = periodo === p.id;
-                  return (
+            <div className="flex flex-col gap-2 2xl:gap-3">
+              {/* Fila 1: Todos los filtros */}
+              <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
+
+                {/* Dropdown Período */}
+                <div className="shrink-0 relative" ref={periodoDropdownRef}>
+                  <button
+                    onClick={() => setPeriodoDropdownAbierto(!periodoDropdownAbierto)}
+                    className={`flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer transition-colors ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
+                  >
+                    <Calendar className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
+                    <span className="truncate">{PERIODOS_CONFIG.find(p => p.id === periodo)?.etiqueta ?? 'Período'}</span>
+                    <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${periodoDropdownAbierto ? 'rotate-180' : ''}`} />
+                  </button>
+                  {periodoDropdownAbierto && (
+                    <div className="absolute top-full left-0 mt-1.5 w-36 lg:w-40 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
+                      {PERIODOS_CONFIG.map((p) => {
+                        const activo = periodo === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => { handlePeriodo(p.id); setPeriodoDropdownAbierto(false); }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer transition-colors ${activo ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
+                          >
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                              {activo && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span>{p.etiqueta}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Chips estado — solo laptop */}
+                <div className="hidden lg:flex shrink-0 items-center gap-1 2xl:gap-1.5">
+                  {[
+                    { id: '', etiqueta: 'Todos' },
+                    { id: 'pendiente', etiqueta: 'Pendientes' },
+                    { id: 'usado', etiqueta: 'Usados' },
+                    { id: 'expirado', etiqueta: 'Vencidos' },
+                  ].map((e) => (
                     <button
-                      key={p.id}
-                      onClick={() => handlePeriodo(p.id)}
-                      className={`px-4 lg:px-3 2xl:px-4 py-2 lg:py-1.5 2xl:py-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border transition-all shrink-0 cursor-pointer ${activo
+                      key={e.id}
+                      onClick={() => setEstadoFiltroCanjes(e.id)}
+                      className={`px-3 2xl:px-4 h-9 2xl:h-10 flex items-center rounded-lg lg:text-xs 2xl:text-sm font-semibold border-2 cursor-pointer transition-colors ${estadoFiltroCanjes === e.id
                           ? 'text-white border-slate-700 shadow-sm'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                          : 'bg-slate-200 text-slate-600 border-transparent hover:bg-slate-300'
                         }`}
-                      style={activo ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                      style={estadoFiltroCanjes === e.id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                     >
-                      {p.etiqueta}
+                      {e.etiqueta}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
+
+                {/* Estado dropdown — solo móvil */}
+                <div className="lg:hidden shrink-0 relative" ref={estadoCanjesDropdownRef}>
+                  <button
+                    onClick={() => setEstadoCanjesDropdownAbierto(!estadoCanjesDropdownAbierto)}
+                    className={`flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer transition-colors ${estadoFiltroCanjes
+                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                        : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                      }`}
+                  >
+                    <span className="truncate">{[{ id: '', etiqueta: 'Todos' }, { id: 'pendiente', etiqueta: 'Pendientes' }, { id: 'usado', etiqueta: 'Usados' }, { id: 'expirado', etiqueta: 'Vencidos' }].find(e => e.id === estadoFiltroCanjes)?.etiqueta ?? 'Todos'}</span>
+                    <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${estadoCanjesDropdownAbierto ? 'rotate-180' : ''}`} />
+                  </button>
+                  {estadoCanjesDropdownAbierto && (
+                    <div className="absolute top-full left-0 mt-1.5 w-36 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
+                      {[
+                        { id: '', etiqueta: 'Todos' },
+                        { id: 'pendiente', etiqueta: 'Pendientes' },
+                        { id: 'usado', etiqueta: 'Usados' },
+                        { id: 'expirado', etiqueta: 'Vencidos' },
+                      ].map((e) => {
+                        const activo = estadoFiltroCanjes === e.id;
+                        return (
+                          <button
+                            key={e.id}
+                            onClick={() => { setEstadoFiltroCanjes(e.id); setEstadoCanjesDropdownAbierto(false); }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer transition-colors ${activo ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
+                          >
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                              {activo && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span>{e.etiqueta}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Búsqueda canjes */}
-              <div className="flex-1 lg:max-w-sm 2xl:max-w-md relative">
+              {/* Fila 2: Solo búsqueda */}
+              <div className="relative w-full">
                 <Input
                   placeholder="Buscar cliente..."
                   value={textoBusquedaCanjes}
                   onChange={(e) => handleBusquedaCanjes(e.target.value)}
                   className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm pr-8"
-                  icono={<Search className="w-4 h-4 text-slate-400" />}
+                  icono={<Search className="w-4 h-4 text-slate-600" />}
                 />
                 {textoBusquedaCanjes && (
                   <button
                     onClick={() => { if (debounceCanjesRef.current) clearTimeout(debounceCanjesRef.current); setTextoBusquedaCanjes(''); setBusquedaCanjes(''); }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-600 hover:text-slate-800 hover:bg-slate-200 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 )}
-              </div>
-
-              {/* Filtro estado canjes */}
-              <div className="shrink-0 flex items-center gap-1.5 lg:gap-1 2xl:gap-1.5">
-                {[
-                  { id: '', etiqueta: 'Todos' },
-                  { id: 'pendiente', etiqueta: 'Pendientes' },
-                  { id: 'usado', etiqueta: 'Usados' },
-                  { id: 'expirado', etiqueta: 'Vencidos' },
-                ].map((e) => (
-                  <button
-                    key={e.id}
-                    onClick={() => setEstadoFiltroCanjes(e.id)}
-                    className={`px-3.5 lg:px-2.5 2xl:px-3.5 py-2 lg:py-1.5 2xl:py-2.5 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer transition-colors ${estadoFiltroCanjes === e.id
-                        ? 'text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    style={estadoFiltroCanjes === e.id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                  >
-                    {e.etiqueta}
-                  </button>
-                ))}
               </div>
             </div>
           )}
@@ -1139,7 +1309,7 @@ export default function PaginaTransacciones() {
 
         {/* Contador de resultados */}
         <div className="flex items-center justify-between px-1 mt-3 lg:mt-2 2xl:mt-3 mb-1">
-          <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400 font-medium">
+          <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
             {tabActivo === 'ventas' ? (
               historial.length < totalResultados
                 ? `${historial.length} de ${totalResultados} resultados`
@@ -1158,12 +1328,12 @@ export default function PaginaTransacciones() {
 
         {!isMobile && tabActivo === 'ventas' && (
           <div
-            className="rounded-xl overflow-hidden border border-slate-200 transition-opacity duration-150"
+            className="rounded-xl overflow-hidden border-2 border-slate-300 transition-opacity duration-150"
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_250px_100px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-[13px] font-semibold text-white/80 uppercase tracking-wider"
+              className="grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_250px_100px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -1185,7 +1355,7 @@ export default function PaginaTransacciones() {
               className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white"
             >
               {transaccionesOrdenadas.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                   <Inbox className="w-10 h-10 mb-2" />
                   <p className="text-sm font-medium">No se encontraron transacciones</p>
                 </div>
@@ -1196,16 +1366,16 @@ export default function PaginaTransacciones() {
                     <button
                       key={tx.id}
                       onClick={() => handleVerDetalle(tx)}
-                      className={`grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_210px_130px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                      className={`grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_210px_130px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 transition-colors cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                         } ${esRevocada ? 'opacity-60' : ''}`}
                     >
                       {/* Cliente */}
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
-                        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
                           {tx.clienteAvatarUrl ? (
                             <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-slate-500">
+                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-indigo-700">
                               {obtenerIniciales(tx.clienteNombre)}
                             </span>
                           )}
@@ -1215,7 +1385,7 @@ export default function PaginaTransacciones() {
                             {tx.clienteNombre}
                           </p>
                           {tx.clienteTelefono && (
-                            <p className="text-[11px] lg:text-[10px] 2xl:text-xs text-slate-400">
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
                               {formatearTelefono(tx.clienteTelefono)}
                             </p>
                           )}
@@ -1231,14 +1401,14 @@ export default function PaginaTransacciones() {
 
                       {/* Monto */}
                       <div className="flex items-center justify-end">
-                        <span className={`font-bold 2xl:text-[15px] ${esRevocada ? 'text-slate-400 line-through' : 'text-emerald-600'}`}>
+                        <span className={`font-bold 2xl:text-[15px] ${esRevocada ? 'text-slate-600 line-through' : 'text-indigo-600'}`}>
                           {formatearMonto(tx.montoCompra)}
                         </span>
                       </div>
 
                       {/* Puntos */}
                       <div className="flex items-center justify-end">
-                        <span className={`font-bold 2xl:text-[15px] ${esRevocada ? 'text-slate-400 line-through' : 'text-amber-600'}`}>
+                        <span className={`font-bold 2xl:text-[15px] ${esRevocada ? 'text-slate-600 line-through' : 'text-amber-600'}`}>
                           +{tx.puntosOtorgados}
                         </span>
                       </div>
@@ -1246,16 +1416,16 @@ export default function PaginaTransacciones() {
                       {/* Estado */}
                       <div className="flex items-center justify-center">
                         {esRevocada ? (
-                          <span className="inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-[10px] lg:text-[9px] 2xl:text-[13px] font-bold border border-red-200 bg-red-50 text-red-600">
+                          <span className="inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-red-100 text-red-700">
                             <XCircle className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" />
                             Revocada
                           </span>
                         ) : tx.estado === 'pendiente' ? (
-                          <span className="inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-[10px] lg:text-[9px] 2xl:text-[13px] font-bold border border-amber-200 bg-amber-50 text-amber-600">
+                          <span className="inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-amber-100 text-amber-700">
                             Pendiente
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-[10px] lg:text-[9px] 2xl:text-[13px] font-bold border border-green-200 bg-green-50 text-green-600">
+                          <span className="inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-green-100 text-green-700">
                             ✓ Válida
                           </span>
                         )}
@@ -1278,7 +1448,7 @@ export default function PaginaTransacciones() {
                 <button
                   onClick={cargarMas}
                   disabled={cargandoMas}
-                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-200 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {cargandoMas ? 'Cargando...' : 'Cargar más transacciones'}
                 </button>
@@ -1293,12 +1463,12 @@ export default function PaginaTransacciones() {
 
         {!isMobile && tabActivo === 'canjes' && (
           <div
-            className="rounded-xl overflow-hidden border border-slate-200 transition-opacity duration-150"
+            className="rounded-xl overflow-hidden border-2 border-slate-300 transition-opacity duration-150"
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             {/* Header dark - Canjes (6 columnas) */}
             <div
-              className="grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-[13px] font-semibold text-white/80 uppercase tracking-wider"
+              className="grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -1322,7 +1492,7 @@ export default function PaginaTransacciones() {
                   <Spinner />
                 </div>
               ) : canjesOrdenados.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                   <Inbox className="w-10 h-10 mb-2" />
                   <p className="text-sm font-medium">No se encontraron canjes</p>
                 </div>
@@ -1331,16 +1501,16 @@ export default function PaginaTransacciones() {
                   <button
                     key={canje.id}
                     onClick={() => handleVerDetalleCanje(canje)}
-                    className={`grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                    className={`grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 transition-colors cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                       }`}
                   >
                     {/* Cliente */}
                     <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
-                      <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                      <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
                         {canje.clienteAvatarUrl ? (
                           <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-slate-500">
+                          <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-indigo-700">
                             {obtenerIniciales(canje.clienteNombre)}
                           </span>
                         )}
@@ -1350,7 +1520,7 @@ export default function PaginaTransacciones() {
                           {canje.clienteNombre}
                         </p>
                         {canje.clienteTelefono && (
-                          <p className="text-[11px] lg:text-[10px] 2xl:text-xs text-slate-400">
+                          <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
                             {formatearTelefono(canje.clienteTelefono)}
                           </p>
                         )}
@@ -1394,12 +1564,12 @@ export default function PaginaTransacciones() {
                     {/* Canjeado (fecha de uso, solo si fue usado) */}
                     <div className="flex items-center justify-end">
                       {canje.usadoAt ? (
-                        <span className="flex items-center gap-1 font-bold 2xl:text-[15px] text-emerald-600">
+                        <span className="flex items-center gap-1 font-bold 2xl:text-[15px] text-indigo-600">
                           <CheckCircle className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
                           {formatearFechaCorta(canje.usadoAt)}
                         </span>
                       ) : (
-                        <span className="text-slate-300 text-xs">—</span>
+                        <span className="text-slate-600 text-sm">—</span>
                       )}
                     </div>
                   </button>
@@ -1411,7 +1581,7 @@ export default function PaginaTransacciones() {
                 <button
                   onClick={cargarMasCanjes}
                   disabled={cargandoMasCanjes}
-                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-200 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {cargandoMasCanjes ? 'Cargando...' : 'Cargar más canjes'}
                 </button>
@@ -1438,16 +1608,16 @@ export default function PaginaTransacciones() {
                   <button
                     key={col}
                     onClick={() => alternarOrden(col)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition-all shrink-0 cursor-pointer ${activa
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all shrink-0 cursor-pointer ${activa
                         ? 'text-white border-slate-700'
-                        : 'bg-white text-slate-500 border-slate-200'
+                        : 'bg-white text-slate-600 border-slate-300'
                       }`}
                     style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-400" />}
-                    {!activa && <ArrowUpDown className="w-4 h-4 text-slate-400" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-amber-400" />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-amber-400" />}
+                    {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
                   </button>
                 );
               })}
@@ -1455,7 +1625,7 @@ export default function PaginaTransacciones() {
 
             {/* Cards */}
             {transaccionesOrdenadas.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                 <Inbox className="w-10 h-10 mb-2" />
                 <p className="text-sm font-medium">No se encontraron transacciones</p>
               </div>
@@ -1493,16 +1663,16 @@ export default function PaginaTransacciones() {
                   <button
                     key={col}
                     onClick={() => alternarOrden(col)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition-all shrink-0 cursor-pointer ${activa
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all shrink-0 cursor-pointer ${activa
                         ? 'text-white border-slate-700'
-                        : 'bg-white text-slate-500 border-slate-200'
+                        : 'bg-white text-slate-600 border-slate-300'
                       }`}
                     style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-400" />}
-                    {!activa && <ArrowUpDown className="w-4 h-4 text-slate-400" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-amber-400" />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-amber-400" />}
+                    {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
                   </button>
                 );
               })}
@@ -1514,7 +1684,7 @@ export default function PaginaTransacciones() {
                 <Spinner />
               </div>
             ) : canjesOrdenados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                 <Inbox className="w-10 h-10 mb-2" />
                 <p className="text-sm font-medium">No se encontraron canjes</p>
               </div>

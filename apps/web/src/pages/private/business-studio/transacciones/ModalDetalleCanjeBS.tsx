@@ -115,19 +115,21 @@ function FilaDetalle({
   etiqueta,
   valor,
   valorColor,
+  colorFondo = 'bg-slate-200',
 }: {
   icono: React.ReactNode;
   etiqueta: string;
   valor: string | React.ReactNode;
   valorColor?: string;
+  colorFondo?: string;
 }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-100 last:border-0">
-      <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+    <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300 last:border-0">
+      <div className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg ${colorFondo} flex items-center justify-center shrink-0`}>
         {icono}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500 font-medium">{etiqueta}</p>
+        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">{etiqueta}</p>
         <p className={`text-sm lg:text-xs 2xl:text-sm font-semibold truncate ${valorColor || 'text-slate-800'}`}>
           {valor}
         </p>
@@ -157,6 +159,13 @@ export default function ModalDetalleCanjeBS({
   if (!abierto || !canje) return null;
 
   const handleChatYA = () => {
+    // Limpiar entrada huérfana de ModalBottom en el historial
+    if (history.state?._modalBottom) {
+      const estado = { ...history.state };
+      delete estado._modalBottom;
+      history.replaceState(estado, '');
+    }
+
     abrirChatTemporal({
       id: `temp_${Date.now()}`,
       otroParticipante: {
@@ -213,7 +222,7 @@ export default function ModalDetalleCanjeBS({
           </div>
           {/* Puntos prominentes */}
           <div className="text-right shrink-0">
-            <p className="text-white/60 text-xs font-medium">Puntos</p>
+            <p className="text-white/60 text-sm font-medium">Puntos</p>
             <p className="text-white font-extrabold text-lg lg:text-base 2xl:text-lg">
               -{canje.puntosUsados.toLocaleString()}
             </p>
@@ -225,12 +234,12 @@ export default function ModalDetalleCanjeBS({
       <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3">
 
         {/* Cliente + teléfono + ChatYA */}
-        <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-100">
-          <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+        <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
+          <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
             {canje.clienteAvatarUrl ? (
               <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
             ) : (
-              <User className="w-4 h-4 text-slate-500" />
+              <User className="w-4 h-4 text-indigo-700" />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -238,7 +247,7 @@ export default function ModalDetalleCanjeBS({
               {canje.clienteNombre || 'Sin nombre'}
             </p>
             {canje.clienteTelefono && (
-              <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400">
+              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                 {formatearTelefono(canje.clienteTelefono)}
               </p>
             )}
@@ -255,21 +264,21 @@ export default function ModalDetalleCanjeBS({
         </div>
 
         {/* Recompensa con imagen */}
-        <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-100">
-          <div className="w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+        <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
+          <div className="w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 rounded-lg bg-purple-100 flex items-center justify-center shrink-0 overflow-hidden">
             {canje.recompensaImagenUrl ? (
               <img src={canje.recompensaImagenUrl} alt="" className="w-full h-full object-cover" />
             ) : (
-              <Gift className="w-4 h-4 text-purple-500" />
+              <Gift className="w-4 h-4 text-purple-600" />
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500 font-medium">Recompensa canjeada</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Recompensa canjeada</p>
             <p className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate">
               {canje.recompensaNombre}
             </p>
             {canje.recompensaDescripcion && (
-              <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-400 mt-0.5 line-clamp-2">
+              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-0.5 line-clamp-2">
                 {canje.recompensaDescripcion}
               </p>
             )}
@@ -278,16 +287,17 @@ export default function ModalDetalleCanjeBS({
 
         {/* Puntos usados */}
         <FilaDetalle
-          icono={<Star className="w-4 h-4 text-amber-500" />}
+          icono={<Star className="w-4 h-4 text-amber-600" />}
           etiqueta="Puntos utilizados"
           valor={`-${canje.puntosUsados.toLocaleString()} pts`}
           valorColor="text-amber-600"
+          colorFondo="bg-amber-100"
         />
 
         {/* Fecha de solicitud */}
         {canje.createdAt && (
           <FilaDetalle
-            icono={<Calendar className="w-4 h-4 text-slate-400" />}
+            icono={<Calendar className="w-4 h-4 text-slate-600" />}
             etiqueta="Fecha de solicitud"
             valor={formatearFechaCompleta(canje.createdAt)}
           />
@@ -295,12 +305,12 @@ export default function ModalDetalleCanjeBS({
 
         {/* Expiración (solo si existe) */}
         {canje.expiraAt && (
-          <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-100">
-            <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
+            <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-amber-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500 font-medium">Expiración</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Expiración</p>
               <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800">
                 {formatearFechaCorta(canje.expiraAt)}
               </p>
@@ -308,7 +318,7 @@ export default function ModalDetalleCanjeBS({
               {canje.estado === 'pendiente' && (() => {
                 const { texto, urgente } = calcularDiasRestantes(canje.expiraAt!);
                 return (
-                  <p className={`text-xs mt-0.5 font-medium ${urgente ? 'text-red-500' : 'text-slate-400'}`}>
+                  <p className={`text-sm mt-0.5 font-medium ${urgente ? 'text-red-600' : 'text-slate-600'}`}>
                     {texto}
                   </p>
                 );
@@ -319,26 +329,26 @@ export default function ModalDetalleCanjeBS({
 
         {/* Operador + Sucursal (solo si fue usado) */}
         {canje.estado === 'usado' && (canje.usadoPorNombre || (tieneSucursales && canje.sucursalNombre)) && (
-          <div className="flex items-start gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-100">
+          <div className="flex items-start gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
             <div className={`flex-1 min-w-0 ${tieneSucursales && canje.sucursalNombre ? 'grid grid-cols-2 gap-x-3' : ''}`}>
               {canje.usadoPorNombre && (
                 <div className="flex items-start gap-2 min-w-0">
-                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                    <UserCheck className="w-4 h-4 text-blue-500" />
+                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                    <UserCheck className="w-4 h-4 text-blue-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500 font-medium">Validó canje</p>
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Validó canje</p>
                     <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{canje.usadoPorNombre}</p>
                   </div>
                 </div>
               )}
               {tieneSucursales && canje.sucursalNombre && (
                 <div className="flex items-start gap-2 min-w-0">
-                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4 text-purple-500" />
+                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4 text-purple-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500 font-medium">Sucursal</p>
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Sucursal</p>
                     <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{canje.sucursalNombre}</p>
                   </div>
                 </div>
@@ -350,10 +360,11 @@ export default function ModalDetalleCanjeBS({
         {/* Fecha de uso (solo si fue usado) */}
         {canje.estado === 'usado' && canje.usadoAt && (
           <FilaDetalle
-            icono={<CheckCircle className="w-4 h-4 text-emerald-500" />}
+            icono={<CheckCircle className="w-4 h-4 text-emerald-600" />}
             etiqueta="Canjeado el"
             valor={formatearFechaCompleta(canje.usadoAt)}
             valorColor="text-emerald-600"
+            colorFondo="bg-emerald-100"
           />
         )}
       </div>
@@ -361,36 +372,36 @@ export default function ModalDetalleCanjeBS({
       {/* ── Mensaje informativo según estado ── */}
       <div className="px-4 lg:px-3 2xl:px-4 pb-4 lg:pb-3 2xl:pb-4">
         {canje.estado === 'pendiente' && (
-          <div className="rounded-lg bg-blue-50 border border-blue-100 p-3">
+          <div className="rounded-lg bg-blue-100 border-2 border-blue-300 p-3">
             <div className="flex items-center gap-2">
-              <Hourglass className="w-4 h-4 text-blue-400 shrink-0" />
-              <p className="text-xs text-blue-600 font-semibold">Voucher pendiente de canje</p>
+              <Hourglass className="w-4 h-4 text-blue-600 shrink-0" />
+              <p className="text-sm text-blue-600 font-semibold">Voucher pendiente de canje</p>
             </div>
-            <p className="text-[12px] text-blue-500 mt-1.5 ml-6">
+            <p className="text-sm text-blue-600 font-medium mt-1.5 ml-6">
               El cliente puede presentar este voucher en cualquier sucursal para reclamar su recompensa.
             </p>
           </div>
         )}
 
         {canje.estado === 'usado' && (
-          <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3">
+          <div className="rounded-lg bg-emerald-100 border-2 border-emerald-300 p-3">
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-              <p className="text-xs text-emerald-600 font-semibold">Voucher canjeado exitosamente</p>
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              <p className="text-sm text-emerald-600 font-semibold">Voucher canjeado exitosamente</p>
             </div>
-            <p className="text-[12px] text-emerald-500 mt-1.5 ml-6">
+            <p className="text-sm text-emerald-600 font-medium mt-1.5 ml-6">
               La recompensa fue entregada al cliente.
             </p>
           </div>
         )}
 
         {canje.estado === 'expirado' && (
-          <div className="rounded-lg bg-red-50 border border-red-100 p-3">
+          <div className="rounded-lg bg-red-100 border-2 border-red-300 p-3">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              <p className="text-xs text-red-600 font-semibold">Voucher vencido</p>
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <p className="text-sm text-red-600 font-semibold">Voucher vencido</p>
             </div>
-            <p className="text-[12px] text-red-500 mt-1.5 ml-6">
+            <p className="text-sm text-red-600 font-medium mt-1.5 ml-6">
               Este voucher expiró sin ser canjeado. Los puntos fueron devueltos al saldo del cliente.
             </p>
           </div>

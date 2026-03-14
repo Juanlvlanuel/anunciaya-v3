@@ -116,7 +116,7 @@ function MetricaConTooltip({ icono: Icono, valor, tooltip, urgente = false }: Me
         ref={ref}
         onMouseEnter={mostrar}
         onMouseLeave={() => setVisible(false)}
-        className={`flex items-center gap-2 2xl:gap-3 cursor-pointer ${urgente ? 'text-rose-500' : 'text-slate-600'}`}
+        className={`flex items-center gap-2 2xl:gap-3 cursor-pointer ${urgente ? 'text-rose-600' : 'text-slate-600'}`}
       >
         <Icono className="w-4.5 h-4.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5" />
         <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium">{valor}</span>

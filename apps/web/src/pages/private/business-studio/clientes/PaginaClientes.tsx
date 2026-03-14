@@ -85,9 +85,9 @@ interface EstadoOrden {
 // =============================================================================
 
 const NIVELES: { valor: NivelCardYA; etiqueta: string; icono: React.ReactNode; color: string; bg: string }[] = [
-  { valor: 'bronce', etiqueta: 'Bronce', icono: <Shield className="w-3.5 h-3.5" />, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
-  { valor: 'plata', etiqueta: 'Plata', icono: <Medal className="w-3.5 h-3.5" />, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200' },
-  { valor: 'oro', etiqueta: 'Oro', icono: <Crown className="w-3.5 h-3.5" />, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' },
+  { valor: 'bronce', etiqueta: 'Bronce', icono: <Shield className="w-3.5 h-3.5" />, color: 'text-amber-700', bg: 'bg-amber-100 border-amber-300' },
+  { valor: 'plata', etiqueta: 'Plata', icono: <Medal className="w-3.5 h-3.5" />, color: 'text-slate-700', bg: 'bg-slate-200 border-slate-400' },
+  { valor: 'oro', etiqueta: 'Oro', icono: <Crown className="w-3.5 h-3.5" />, color: 'text-yellow-700', bg: 'bg-yellow-100 border-yellow-300' },
 ];
 
 // =============================================================================
@@ -110,10 +110,10 @@ const formatearFechaCorta = (fechaISO: string | null) => {
 
 const obtenerColorNivel = (nivel: string) => {
   switch (nivel?.toLowerCase()) {
-    case 'oro': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-    case 'plata': return 'text-slate-600 bg-slate-100 border-slate-300';
-    case 'bronce': return 'text-amber-700 bg-amber-50 border-amber-200';
-    default: return 'text-slate-500 bg-slate-50 border-slate-200';
+    case 'oro': return 'text-yellow-700 bg-yellow-100';
+    case 'plata': return 'text-slate-700 bg-slate-200';
+    case 'bronce': return 'text-amber-700 bg-amber-100';
+    default: return 'text-slate-700 bg-slate-200';
   }
 };
 
@@ -131,10 +131,9 @@ const obtenerIconoNivel = (nivel: string) => {
 // =============================================================================
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
-    check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
@@ -166,7 +165,7 @@ function HeaderOrdenable({
     >
       <span>{etiqueta}</span>
       {!activa && (
-        <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-slate-400 group-hover:text-amber-300" />
+        <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
       )}
       {activa && direccion === 'desc' && (
         <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
@@ -195,14 +194,14 @@ function FilaMovil({
   return (
     <button
       onClick={() => onVerDetalle(cliente.id)}
-      className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer text-left"
+      className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer text-left"
     >
       {/* Avatar */}
-      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
         {cliente.avatarUrl ? (
           <img src={cliente.avatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <Users className="w-5 h-5 text-slate-400" />
+          <Users className="w-5 h-5 text-indigo-700" />
         )}
       </div>
 
@@ -210,19 +209,19 @@ function FilaMovil({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-slate-800 truncate">{cliente.nombre}</p>
-          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold border ${colorNivel}`}>
+          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold ${colorNivel}`}>
             {iconoNivel}
             {cliente.nivelActual}
           </span>
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
+        <div className="flex items-center gap-3 mt-0.5 text-sm font-medium text-slate-600">
           <span className="font-medium text-amber-600">{cliente.puntosDisponibles.toLocaleString()} pts</span>
           <span>{cliente.totalVisitas} visitas</span>
           <span>{formatearFechaCorta(cliente.ultimaActividad)}</span>
         </div>
       </div>
 
-      <Eye className="w-4 h-4 text-slate-300 shrink-0" />
+      <Eye className="w-4 h-4 text-slate-600 shrink-0" />
     </button>
   );
 }
@@ -373,14 +372,14 @@ export default function PaginaClientes() {
               <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Clientes
               </h1>
-              <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
-                Registro de clientes 
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium">
+                Registro de clientes
               </p>
             </div>
           </div>
 
           {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
-          <div className="overflow-x-auto lg:overflow-visible lg:flex-1 cl-carousel">
+          <div className="mt-5 lg:mt-0 overflow-x-auto lg:overflow-visible lg:flex-1 cl-carousel">
             <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
               {/* Total Clientes */}
               <div
@@ -401,7 +400,7 @@ export default function PaginaClientes() {
                   <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">
                     {kpis?.totalClientes ?? '—'}
                   </div>
-                  <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Total</div>
+                  <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Total</div>
                 </div>
               </div>
 
@@ -424,7 +423,7 @@ export default function PaginaClientes() {
                   <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">
                     {kpis?.nuevosEsteMes ?? '—'}
                   </div>
-                  <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Nuevos</div>
+                  <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Nuevos</div>
                 </div>
               </div>
 
@@ -447,7 +446,7 @@ export default function PaginaClientes() {
                   <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">
                     {kpis?.inactivos30Dias ?? '—'}
                   </div>
-                  <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Inactivos</div>
+                  <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Inactivos</div>
                 </div>
               </div>
 
@@ -470,17 +469,17 @@ export default function PaginaClientes() {
                   <div className="text-left flex items-center gap-2 2xl:gap-3">
                     <div>
                       <div className="text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">{kpis.distribucionNivel.bronce}</div>
-                      <div className="text-[10px] 2xl:text-[12px] text-slate-500 font-semibold">Bron</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold">Bron</div>
                     </div>
                     <div className="w-px h-6 bg-slate-200" />
                     <div>
                       <div className="text-sm 2xl:text-base font-extrabold leading-tight text-slate-600">{kpis.distribucionNivel.plata}</div>
-                      <div className="text-[10px] 2xl:text-[12px] text-slate-500 font-semibold">Plata</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold">Plata</div>
                     </div>
                     <div className="w-px h-6 bg-slate-200" />
                     <div>
                       <div className="text-sm 2xl:text-base font-extrabold leading-tight text-yellow-600">{kpis.distribucionNivel.oro}</div>
-                      <div className="text-[10px] 2xl:text-[12px] text-slate-500 font-semibold">Oro</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold">Oro</div>
                     </div>
                   </div>
                 </div>
@@ -493,15 +492,15 @@ export default function PaginaClientes() {
         {/* FILTROS: Nivel (chips) + Búsqueda                                 */}
         {/* ================================================================= */}
 
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border border-slate-200 p-4 lg:p-3 2xl:p-4 mt-2 lg:mt-7 2xl:mt-14">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3 2xl:gap-4">
+        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
             {/* Chips de nivel */}
-            <div className="flex gap-1.5 overflow-x-auto cl-carousel shrink-0 py-1 pr-1">
+            <div className="flex flex-row gap-1 lg:gap-1.5 lg:shrink-0">
               <button
                 onClick={() => setNivelFiltro(null)}
-                className={`px-4 lg:px-3 2xl:px-4 py-2 lg:py-1.5 2xl:py-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border transition-all shrink-0 cursor-pointer ${!nivelFiltro
+                className={`flex-1 lg:flex-none flex items-center justify-center px-3 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${!nivelFiltro
                   ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                   }`}
               >
                 Todos
@@ -510,9 +509,9 @@ export default function PaginaClientes() {
                 <button
                   key={n.valor}
                   onClick={() => setNivelFiltro(nivelFiltro === n.valor ? null : n.valor)}
-                  className={`flex items-center gap-1 px-4 lg:px-3 2xl:px-4 py-2 lg:py-1.5 2xl:py-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border transition-all shrink-0 cursor-pointer ${nivelFiltro === n.valor
+                  className={`flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${nivelFiltro === n.valor
                     ? `${n.bg} ${n.color} ring-2 ring-offset-1 ring-current`
-                    : `bg-white text-slate-600 border-slate-200 hover:border-slate-300`
+                    : `bg-white text-slate-600 border-slate-300 hover:border-slate-400`
                     }`}
                 >
                   {n.icono}
@@ -522,13 +521,13 @@ export default function PaginaClientes() {
             </div>
 
             {/* Búsqueda */}
-            <div className="flex-1 lg:max-w-sm 2xl:max-w-md">
+            <div className="lg:flex-1 lg:max-w-sm 2xl:max-w-md">
               <Input
-                placeholder="Busca por Nombre o Celular del cliente..."
+                placeholder="Nombre o Celular..."
                 value={textoBusqueda}
                 onChange={(e) => handleBusquedaChange(e.target.value)}
                 className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm"
-                icono={<Search className="w-4 h-4 text-slate-400" />}
+                icono={<Search className="w-4 h-4 text-slate-600" />}
               />
             </div>
           </div>
@@ -540,12 +539,12 @@ export default function PaginaClientes() {
 
         {!isMobile && (
           <div
-            className="rounded-xl overflow-hidden border border-slate-200"
+            className="rounded-xl overflow-hidden border-2 border-slate-300"
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_120px_140px_200px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-[13px] font-semibold text-white/80 uppercase tracking-wider"
+              className="grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_120px_140px_200px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -564,7 +563,7 @@ export default function PaginaClientes() {
             {/* Body scrolleable */}
             <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white">
               {clientesOrdenados.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                   <Inbox className="w-10 h-10 mb-2" />
                   <p className="text-sm font-medium">No se encontraron clientes</p>
                 </div>
@@ -576,22 +575,22 @@ export default function PaginaClientes() {
                     <button
                       key={c.id}
                       onClick={() => handleVerDetalle(c.id)}
-                      className={`grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_106px_125px_230px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                      className={`grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_106px_125px_230px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 transition-colors cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                         }`}
                     >
                       {/* Cliente */}
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
-                        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
                           {c.avatarUrl ? (
                             <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4.5 2xl:h-4.5 text-slate-400" />
+                            <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4.5 2xl:h-4.5 text-indigo-700" />
                           )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-800 truncate 2xl:text-[15px]">{c.nombre}</p>
                           {c.telefono && (
-                            <p className="text-[11px] lg:text-[10px] 2xl:text-xs text-slate-400 flex items-center gap-1">
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium flex items-center gap-1">
                               <Phone className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" />
                               {c.telefono}
                             </p>
@@ -601,7 +600,7 @@ export default function PaginaClientes() {
 
                       {/* Nivel */}
                       <div className="flex items-center justify-center">
-                        <span className={`inline-flex items-center gap-1 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-[10px] lg:text-[9px] 2xl:text-[13px] font-bold border ${colorNivel}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold ${colorNivel}`}>
                           {iconoNivel}
                           {c.nivelActual}
                         </span>
@@ -636,7 +635,7 @@ export default function PaginaClientes() {
                 <button
                   onClick={cargarMas}
                   disabled={cargandoMas}
-                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-100 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {cargandoMas ? 'Cargando...' : 'Cargar más clientes'}
                 </button>
@@ -663,15 +662,15 @@ export default function PaginaClientes() {
                   <button
                     key={col}
                     onClick={() => alternarOrden(col)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all shrink-0 cursor-pointer ${activa
+                    className={`flex items-center gap-1 px-2.5 h-10 rounded-lg text-sm font-semibold border-2 transition-all shrink-0 cursor-pointer ${activa
                       ? 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-slate-500 border-slate-200'
+                      : 'bg-white text-slate-600 border-slate-300'
                       }`}
                   >
                     {etiqueta}
                     {activa && orden?.direccion === 'desc' && <ChevronDown className="w-3 h-3 text-amber-400" />}
                     {activa && orden?.direccion === 'asc' && <ChevronUp className="w-3 h-3 text-amber-400" />}
-                    {!activa && <ArrowUpDown className="w-3 h-3 text-slate-400" />}
+                    {!activa && <ArrowUpDown className="w-3 h-3 text-slate-600" />}
                   </button>
                 );
               })}
@@ -679,7 +678,7 @@ export default function PaginaClientes() {
 
             {/* Cards */}
             {clientesOrdenados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                 <Inbox className="w-10 h-10 mb-2" />
                 <p className="text-sm font-medium">No se encontraron clientes</p>
               </div>

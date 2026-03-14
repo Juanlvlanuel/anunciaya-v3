@@ -153,7 +153,7 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
           return (
             <div
               key={alerta.id}
-              className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-300 hover:border-slate-400 transition-colors"
+              className="flex items-center gap-2 p-2 bg-white rounded-lg border-2 border-slate-300 hover:border-slate-400 transition-colors"
             >
               {/* Icono de la alerta */}
               <div className={`w-7 h-7 rounded-md ${alertaConfig.bg} flex items-center justify-center shrink-0`}>

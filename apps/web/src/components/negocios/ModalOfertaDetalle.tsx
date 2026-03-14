@@ -289,6 +289,13 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
             notificar.error('No se pudo identificar el negocio');
             return;
         }
+        // Limpiar entrada huérfana de ModalBottom en el historial
+        if (history.state?._modalBottom) {
+            const estado = { ...history.state };
+            delete estado._modalBottom;
+            history.replaceState(estado, '');
+        }
+
         abrirChatTemporal({
             id: `temp_${Date.now()}`,
             otroParticipante: {

@@ -233,7 +233,7 @@ export default function PaginaDashboard() {
                 <span className="font-bold text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
                 <span className="text-yellow-600 text-sm font-medium">Rating</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-2 rounded-full shrink-0">
+              <div className="flex items-center gap-1.5 bg-slate-200 text-slate-700 px-3 py-2 rounded-full shrink-0">
                 <Eye className="w-4 h-4" />
                 <span className="font-bold text-sm">{kpis?.vistas.valor ?? 0}</span>
                 <span className="text-slate-600 text-sm font-medium">Vistas</span>
@@ -242,31 +242,33 @@ export default function PaginaDashboard() {
           </div>
 
           {/* Filtros de Período - SOLO MÓVIL - Discretos */}
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-between">
             {/* Filtros */}
-            {[
-              { valor: 'hoy', label: 'Hoy' },
-              { valor: 'semana', label: '7 días' },
-              { valor: 'mes', label: '30 días' },
-              { valor: 'trimestre', label: '90 días' },
-            ].map((p) => (
-              <button
-                key={p.valor}
-                onClick={() => setPeriodo(p.valor as Periodo)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${periodo === p.valor
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-blue-100 border border-slate-300'
-                  }`}
-              >
-                {p.label}
-              </button>
-            ))}
+            <div className="flex items-center gap-1">
+              {[
+                { valor: 'hoy', label: 'Hoy' },
+                { valor: 'semana', label: '7 días' },
+                { valor: 'mes', label: '30 días' },
+                { valor: 'trimestre', label: '90 días' },
+              ].map((p) => (
+                <button
+                  key={p.valor}
+                  onClick={() => setPeriodo(p.valor as Periodo)}
+                  className={`px-4 h-10 flex items-center rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${periodo === p.valor
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 hover:bg-blue-100 border-2 border-slate-300'
+                    }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
 
             {/* Botón refresh */}
             <button
               onClick={handleRefresh}
               disabled={refrescando}
-              className="p-1.5 rounded-lg bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-50"
+              className="p-2 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-indigo-100 hover:border-indigo-300 hover:text-indigo-600 transition-all disabled:opacity-50"
               title="Actualizar"
             >
               <RefreshCw className={`w-5 h-5 ${refrescando ? 'animate-spin' : ''}`} />

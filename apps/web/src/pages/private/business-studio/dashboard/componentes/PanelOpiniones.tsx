@@ -111,8 +111,8 @@ export default function PanelOpiniones({ resenas }: PanelOpinionesProps) {
                       className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded-full bg-slate-100 flex items-center justify-center">
-                      <User className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-slate-600" />
+                    <div className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded-full bg-indigo-100 flex items-center justify-center">
+                      <User className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-indigo-700" />
                     </div>
                   )}
                   <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">

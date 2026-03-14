@@ -57,7 +57,7 @@ function getIconoInteraccion(tipo: Interaccion['tipo']) {
     case 'compartido':
       return { icon: Share2, bg: 'bg-purple-100', color: 'text-purple-600' };
     default:
-      return { icon: Users, bg: 'bg-slate-100', color: 'text-slate-600' };
+      return { icon: Users, bg: 'bg-slate-200', color: 'text-slate-600' };
   }
 }
 
@@ -106,7 +106,7 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
 
                 {/* Contenido */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm lg:text-xs 2xl:text-sm text-slate-800 font-semibold truncate">
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-800 font-semibold truncate">
                     {interaccion.titulo}
                   </p>
                   <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate">
@@ -130,7 +130,7 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
           /* Estado vacío */
           <div className="flex-1 flex flex-col items-center justify-center py-6 text-slate-600">
             <Users className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 mb-2 opacity-50" />
-            <p className="text-sm lg:text-xs 2xl:text-sm font-medium">Sin Actividad Reciente</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium">Sin Actividad Reciente</p>
           </div>
         )}
       </div>

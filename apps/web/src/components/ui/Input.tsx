@@ -79,8 +79,8 @@ const tamaños = {
 };
 
 const tamañosLabel = {
-  sm: 'text-xs',
-  md: 'text-xs',
+  sm: 'text-sm',
+  md: 'text-sm',
   lg: 'text-sm',
 };
 
@@ -131,9 +131,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const getInputClasses = () => {
       const base = `
         w-full px-4 ${tamaños[tamaño]}
-        bg-slate-50 border-2 rounded-xl
+        bg-slate-100 border-2 rounded-xl
         font-medium
-        placeholder-slate-400
+        placeholder-slate-600
         transition-all duration-150
         focus:outline-none focus:bg-white
         disabled:opacity-50 disabled:cursor-not-allowed
@@ -145,18 +145,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       // Estilos según estado de validación
       let estadoClasses = '';
       if (isValid === null) {
-        estadoClasses = 'border-slate-200 focus:border-blue-500';
+        estadoClasses = 'border-slate-300 focus:border-blue-500';
       } else if (isValid === true) {
-        estadoClasses = 'border-green-500 bg-green-50';
+        estadoClasses = 'border-green-500 bg-green-100';
       } else {
-        estadoClasses = 'border-red-500 bg-red-50';
+        estadoClasses = 'border-red-500 bg-red-100';
       }
 
       return `${base} ${conIcono} ${conDerecha} ${estadoClasses} ${className}`.trim();
     };
 
     const getIconoClasses = () => {
-      if (isValid === null) return 'text-slate-400';
+      if (isValid === null) return 'text-slate-600';
       if (isValid === true) return 'text-green-500';
       return 'text-red-500';
     };
@@ -203,7 +203,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={() => setMostrarPassword(!mostrarPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-800 transition-colors"
               tabIndex={-1}
             >
               {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -220,12 +220,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         {/* Mensaje de error */}
         {isValid === false && error && (
-          <p className="mt-1 text-xs text-red-500">{error}</p>
+          <p className="mt-1 text-sm text-red-600">{error}</p>
         )}
 
         {/* Texto de ayuda (solo si no hay error) */}
         {ayuda && isValid !== false && (
-          <p className="mt-1 text-xs text-slate-500">{ayuda}</p>
+          <p className="mt-1 text-sm text-slate-600">{ayuda}</p>
         )}
       </div>
     );

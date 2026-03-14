@@ -255,7 +255,31 @@ export const useClientesStore = create<ClientesState>((set, get) => ({
   // ACCIÓN: Cargar detalle de un cliente (modal)
   // ---------------------------------------------------------------------------
   cargarDetalleCliente: async (id: string) => {
-    set({ cargandoDetalle: true, clienteDetalle: null });
+    const { clienteDetalle, clientes } = get();
+    const esNuevoCliente = clienteDetalle?.id !== id;
+
+    if (esNuevoCliente) {
+      // Pre-popular con datos de la tabla (apertura instantánea)
+      const enLista = clientes.find((c) => c.id === id);
+      if (enLista) {
+        set({
+          cargandoDetalle: false,
+          clienteDetalle: {
+            ...enLista,
+            correo: null,
+            puntosCanjeadosTotal: 0,
+            clienteDesde: null,
+            totalGastado: 0,
+            promedioCompra: 0,
+            totalVouchers: 0,
+            vouchersUsados: 0,
+            configNiveles: null,
+          },
+        });
+      } else {
+        set({ cargandoDetalle: true, clienteDetalle: null });
+      }
+    }
 
     try {
       const respuesta = await clientesService.getDetalleCliente(id);

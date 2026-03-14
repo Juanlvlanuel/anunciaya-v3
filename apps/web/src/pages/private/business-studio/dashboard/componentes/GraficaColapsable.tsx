@@ -40,7 +40,8 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
       {/* Header Colapsable - Siempre visible */}
       <button
         onClick={() => setExpandida(!expandida)}
-        className="w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-slate-100 transition-colors focus:outline-none"
+        className="w-full px-3 py-2.5 flex items-center gap-2.5 bg-white hover:bg-slate-200 active:bg-white transition-colors focus:outline-none focus:bg-white"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
           {crecimientoPositivo ? (
@@ -83,11 +84,11 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
       {/* Preview de Estadísticas cuando está colapsada — solo laptop/desktop */}
       {!expandida && estadisticas && (
         <div className="px-3 pb-3 hidden lg:grid grid-cols-3 gap-2 text-center">
-          <div className="bg-slate-100 rounded-lg p-2">
+          <div className="bg-slate-200 rounded-lg p-2">
             <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Mejor día</p>
             <p className="text-sm font-bold text-slate-800">{estadisticas.diaPico}</p>
           </div>
-          <div className="bg-slate-100 rounded-lg p-2">
+          <div className="bg-slate-200 rounded-lg p-2">
             <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Promedio</p>
             <p className="text-sm font-bold text-slate-800">
               {estadisticas.promedioDiario >= 1000

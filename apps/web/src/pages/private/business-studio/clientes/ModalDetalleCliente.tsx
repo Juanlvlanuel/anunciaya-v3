@@ -21,11 +21,9 @@ import {
   Crown,
   Medal,
   Shield,
-  Coins,
   TrendingUp,
   ShoppingBag,
   DollarSign,
-  BarChart3,
   Ticket,
   Clock,
   ChevronRight,
@@ -80,22 +78,22 @@ const formatearFechaTransaccion = (fechaISO: string) => {
 /** Badge de nivel con icono y color */
 function BadgeNivel({ nivel }: { nivel: string }) {
   const config: Record<string, { icono: React.ReactNode; color: string; bg: string }> = {
-    oro: { icono: <Crown className="w-4 h-4" />, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' },
-    plata: { icono: <Medal className="w-4 h-4" />, color: 'text-slate-500', bg: 'bg-slate-100 border-slate-300' },
-    bronce: { icono: <Shield className="w-4 h-4" />, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    oro: { icono: <Crown className="w-3.5 h-3.5" />, color: 'text-yellow-700', bg: 'bg-yellow-100' },
+    plata: { icono: <Medal className="w-3.5 h-3.5" />, color: 'text-slate-700', bg: 'bg-slate-200' },
+    bronce: { icono: <Shield className="w-3.5 h-3.5" />, color: 'text-amber-700', bg: 'bg-amber-100' },
   };
   const { icono, color, bg } = config[nivel?.toLowerCase()] || config.bronce;
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${bg} ${color}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold ${bg} ${color}`}>
       {icono}
       <span className="capitalize">{nivel}</span>
     </span>
   );
 }
 
-/** Card de estadística individual */
-function CardEstadistica({
+/** Celda de estadística compacta */
+function CeldaEstadistica({
   icono,
   etiqueta,
   valor,
@@ -107,13 +105,13 @@ function CardEstadistica({
   colorIcono: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5 p-3 lg:p-2 2xl:p-3 rounded-lg bg-slate-50 border border-slate-100">
-      <div className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center shrink-0 ${colorIcono}`}>
+    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
+      <div className={`w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0 ${colorIcono}`}>
         {icono}
       </div>
       <div className="min-w-0">
-        <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-500 font-medium uppercase tracking-wide">{etiqueta}</p>
-        <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 truncate">{valor}</p>
+        <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800 truncate">{valor}</p>
+        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium leading-tight">{etiqueta}</p>
       </div>
     </div>
   );
@@ -132,24 +130,24 @@ function FilaTransaccion({
   fecha: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5 py-2 lg:py-1.5 2xl:py-2 border-b border-slate-100 last:border-0">
-      <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
-        <ShoppingBag className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-emerald-500" />
+    <div className="flex items-center gap-2.5 py-2 lg:py-1.5 2xl:py-2 border-b border-slate-300 last:border-0">
+      <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+        <ShoppingBag className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-emerald-600" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800">
             {formatearMoneda(monto)}
           </span>
-          <span className="text-xs lg:text-[11px] 2xl:text-xs font-bold text-emerald-600">
+          <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-emerald-600">
             +{puntos.toLocaleString()} pts
           </span>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-500 truncate">
+          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 truncate">
             {concepto || 'Compra'}
           </span>
-          <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400 shrink-0">
+          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 shrink-0">
             {formatearFechaTransaccion(fecha)}
           </span>
         </div>
@@ -181,7 +179,6 @@ export default function ModalDetalleCliente({
     cargandoHistorial,
     cargarDetalleCliente,
     cargarHistorialCliente,
-    limpiarDetalle,
   } = useClientesStore();
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
   const abrirChatYA = useUiStore((s) => s.abrirChatYA);
@@ -194,9 +191,8 @@ export default function ModalDetalleCliente({
     }
   }, [abierto, clienteId]);
 
-  // Limpiar al cerrar
+  // Cerrar modal (no limpia datos para evitar flash al reabrir mismo cliente)
   const handleCerrar = () => {
-    limpiarDetalle();
     onCerrar();
   };
 
@@ -215,6 +211,14 @@ export default function ModalDetalleCliente({
   // Abrir ChatYA con este cliente
   const handleContactar = () => {
     if (!clienteDetalle?.id) return;
+
+    // Limpiar entrada huérfana de ModalBottom en el historial
+    if (history.state?._modalBottom) {
+      const estado = { ...history.state };
+      delete estado._modalBottom;
+      history.replaceState(estado, '');
+    }
+
     abrirChatTemporal({
       id: `temp_${Date.now()}`,
       otroParticipante: {
@@ -283,14 +287,15 @@ export default function ModalDetalleCliente({
       ancho="md"
       mostrarHeader={false}
       paddingContenido="none"
-      className="lg:max-w-md 2xl:max-w-lg"
+      sinScrollInterno
+      className="lg:max-w-md 2xl:max-w-lg max-lg:[background:linear-gradient(180deg,#1e40af_2.5rem,rgb(248,250,252)_2.5rem)]"
     >
       {/* ================================================================== */}
       {/* LOADING                                                           */}
       {/* ================================================================== */}
       {cargando && (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         </div>
       )}
 
@@ -301,7 +306,7 @@ export default function ModalDetalleCliente({
         <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
           {/* ── Header con gradiente (FIJO) ── */}
           <div
-            className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4 shrink-0"
+            className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
             style={{
               background: 'linear-gradient(135deg, #1e40af, #3b82f6)',
               boxShadow: '0 4px 16px rgba(59,130,246,0.3)',
@@ -311,157 +316,142 @@ export default function ModalDetalleCliente({
             <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/5" />
             <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-white/5" />
 
-            <div className="relative flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
-              {/* Avatar */}
-              <div className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 rounded-xl bg-white/20 flex items-center justify-center shrink-0 overflow-hidden">
-                {cliente.avatarUrl ? (
-                  <img src={cliente.avatarUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-white/80" />
-                )}
+            <div className="relative -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
+              {/* Línea 1: Nombre + ChatYA */}
+              <div className="flex items-center gap-2">
+                <User className="w-5 h-5 text-white shrink-0" />
+                <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
+                  {cliente.nombre}
+                </h3>
+                <button
+                  onClick={handleContactar}
+                  className="ml-auto shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <img src="/ChatYA.webp" alt="ChatYA" className="w-auto h-10 lg:h-8 2xl:h-10" />
+                </button>
               </div>
 
-              {/* Info cliente */}
-              <div className="flex-1 min-w-0">
-                {/* Línea 1: Nombre + Badge */}
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-lg lg:text-base 2xl:text-lg font-bold text-white truncate">
-                    {cliente.nombre}
-                  </h3>
-                  <BadgeNivel nivel={cliente.nivelActual} />
+              {/* Línea 2: Teléfono */}
+              {cliente.telefono && (
+                <div className="flex items-center gap-2">
+                  <Phone className="w-5 h-5 text-white shrink-0" />
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm text-white font-medium">
+                    {formatearTelefono(cliente.telefono)}
+                  </span>
                 </div>
+              )}
 
-                {/* Línea 2: Teléfono + ChatYA */}
-                {cliente.telefono && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Phone className="w-3.5 h-3.5 text-white/60 shrink-0" />
-                    <span className="text-sm lg:text-xs 2xl:text-sm text-white font-medium">
-                      {formatearTelefono(cliente.telefono)}
-                    </span>
-                    <button
-                      onClick={handleContactar}
-                      className="cursor-pointer hover:opacity-80 transition-opacity"
-                    >
-                      <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-6 lg:h-5 2xl:h-6" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Línea 3: Correo + Desde */}
-                <div className="flex items-center gap-2 mt-0.5 text-sm lg:text-xs 2xl:text-sm text-white/80">
+              {/* Línea 3: Correo + Desde */}
+              {(cliente.correo || cliente.clienteDesde) && (
+                <div className="flex items-center gap-2 text-sm lg:text-[11px] 2xl:text-sm text-white font-medium">
+                  <Mail className="w-5 h-5 text-white shrink-0" />
                   {cliente.correo && (
-                    <>
-                      <Mail className="w-3.5 h-3.5 text-white/60 shrink-0" />
-                      <span className="truncate">{cliente.correo}</span>
-                    </>
-                  )}
-                  {cliente.correo && cliente.clienteDesde && (
-                    <span className="text-white/40">•</span>
+                    <span className="truncate">{cliente.correo}</span>
                   )}
                   {cliente.clienteDesde && (
-                    <span className="shrink-0">Desde {formatearFechaCorta(cliente.clienteDesde)}</span>
+                    <span className="ml-auto shrink-0 font-medium text-right leading-tight">
+                      <span className="block">Miembro Desde</span>
+                      <span className="block">{formatearFechaCorta(cliente.clienteDesde)}</span>
+                    </span>
                   )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
           {/* ── Contenido con scroll ── */}
           <div className="flex-1 overflow-y-auto">
             {/* ── Sección Puntos ── */}
-            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 border-b border-slate-100">
-              <div className="flex items-center gap-2 mb-2.5 lg:mb-2 2xl:mb-2.5">
-                <Coins className="w-4 h-4 text-amber-500" />
-                <h4 className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700">Puntos</h4>
-              </div>
-
-              {/* 3 Cards de puntos */}
-              <div className="grid grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2">
-                <div className="text-center p-2.5 lg:p-2 2xl:p-2.5 rounded-lg bg-emerald-50 border border-emerald-100">
-                  <p className="text-lg lg:text-base 2xl:text-lg font-bold text-emerald-600">
+            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 border-b border-slate-300">
+              {/* 3 puntos en fila compacta */}
+              <div className="grid grid-cols-3 text-center">
+                <div>
+                  <p className="text-base lg:text-sm 2xl:text-base font-bold text-emerald-600">
                     {cliente.puntosDisponibles.toLocaleString()}
                   </p>
-                  <p className="text-xs lg:text-[11px] 2xl:text-xs text-emerald-600/70 font-medium">Disponibles</p>
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Disponibles</p>
                 </div>
-                <div className="text-center p-2.5 lg:p-2 2xl:p-2.5 rounded-lg bg-blue-50 border border-blue-100">
-                  <p className="text-lg lg:text-base 2xl:text-lg font-bold text-blue-600">
+                <div className="border-x border-slate-300">
+                  <p className="text-base lg:text-sm 2xl:text-base font-bold text-blue-600">
                     {cliente.puntosAcumuladosTotal.toLocaleString()}
                   </p>
-                  <p className="text-xs lg:text-[11px] 2xl:text-xs text-blue-600/70 font-medium">Acumulados</p>
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Acumulados</p>
                 </div>
-                <div className="text-center p-2.5 lg:p-2 2xl:p-2.5 rounded-lg bg-violet-50 border border-violet-100">
-                  <p className="text-lg lg:text-base 2xl:text-lg font-bold text-violet-600">
+                <div>
+                  <p className="text-base lg:text-sm 2xl:text-base font-bold text-violet-600">
                     {cliente.puntosCanjeadosTotal.toLocaleString()}
                   </p>
-                  <p className="text-xs lg:text-[11px] 2xl:text-xs text-violet-600/70 font-medium">Canjeados</p>
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Canjeados</p>
                 </div>
               </div>
 
-              {/* Barra de progreso */}
+              {/* Barra de progreso + Badges nivel */}
               {progreso.siguienteNivel ? (
                 <div className="mt-2.5 lg:mt-2 2xl:mt-2.5">
-                  <div className="flex items-center justify-between text-sm lg:text-xs 2xl:text-sm mb-1">
-                    <span className="text-slate-500">Progreso a {progreso.siguienteNivel}</span>
-                    <span className="font-semibold text-slate-700">{progreso.porcentaje.toFixed(2)}%</span>
+                  <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
+                    <BadgeNivel nivel={cliente.nivelActual} />
+                    <div className="flex-1 min-w-0">
+                      <div className="h-2.5 lg:h-2 2xl:h-2.5 rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            cliente.nivelActual?.toLowerCase() === 'plata'
+                              ? 'bg-linear-to-r from-slate-500 to-slate-400'
+                              : 'bg-linear-to-r from-amber-600 to-amber-500'
+                          }`}
+                          style={{ width: `${progreso.porcentaje}%` }}
+                        />
+                      </div>
+                    </div>
+                    <BadgeNivel nivel={progreso.siguienteNivel} />
                   </div>
-                  <div className="h-2 lg:h-1.5 2xl:h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        cliente.nivelActual?.toLowerCase() === 'plata'
-                          ? 'bg-linear-to-r from-slate-500 to-slate-400'
-                          : 'bg-linear-to-r from-amber-600 to-amber-500'
-                      }`}
-                      style={{ width: `${progreso.porcentaje}%` }}
-                    />
-                  </div>
-                  <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400 mt-1">
-                    Faltan {progreso.puntosFaltantes.toLocaleString()} pts para {progreso.siguienteNivel}
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-1 text-center">
+                    {progreso.porcentaje.toFixed(0)}% — Faltan {progreso.puntosFaltantes.toLocaleString()} pts para {progreso.siguienteNivel}
                   </p>
                 </div>
               ) : (
                 <div className="mt-2.5 lg:mt-2 2xl:mt-2.5">
-                  <div className="flex items-center justify-between text-sm lg:text-xs 2xl:text-sm mb-1">
-                    <span className="text-yellow-600 font-medium">¡Nivel máximo alcanzado!</span>
-                    <span className="font-semibold text-yellow-600">100%</span>
+                  <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
+                    <BadgeNivel nivel={cliente.nivelActual} />
+                    <div className="flex-1 min-w-0">
+                      <div className="h-2.5 lg:h-2 2xl:h-2.5 rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-linear-to-r from-yellow-500 to-yellow-400"
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-yellow-600">100%</span>
                   </div>
-                  <div className="h-2 lg:h-1.5 2xl:h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-linear-to-r from-yellow-500 to-yellow-400"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-yellow-600 mt-1 text-center">
+                    ¡Nivel máximo alcanzado!
+                  </p>
                 </div>
               )}
             </div>
 
             {/* ── Sección Estadísticas ── */}
-            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 border-b border-slate-100">
-              <div className="flex items-center gap-2 mb-2.5 lg:mb-2 2xl:mb-2.5">
-                <BarChart3 className="w-4 h-4 text-blue-500" />
-                <h4 className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700">Estadísticas</h4>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 lg:gap-1.5 2xl:gap-2">
-                <CardEstadistica
-                  icono={<DollarSign className="w-4 h-4 text-emerald-500" />}
+            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 border-b border-slate-300">
+              <div className="grid grid-cols-2 gap-y-3 gap-x-4 lg:gap-y-2.5 lg:gap-x-3 2xl:gap-y-3 2xl:gap-x-4">
+                <CeldaEstadistica
+                  icono={<DollarSign className="w-3.5 h-3.5 text-emerald-600" />}
                   etiqueta="Total gastado"
                   valor={formatearMoneda(cliente.totalGastado)}
                   colorIcono="bg-emerald-100"
                 />
-                <CardEstadistica
-                  icono={<TrendingUp className="w-4 h-4 text-blue-500" />}
-                  etiqueta="Promedio"
+                <CeldaEstadistica
+                  icono={<TrendingUp className="w-3.5 h-3.5 text-blue-600" />}
+                  etiqueta="Promedio compra"
                   valor={formatearMoneda(cliente.promedioCompra)}
                   colorIcono="bg-blue-100"
                 />
-                <CardEstadistica
-                  icono={<ShoppingBag className="w-4 h-4 text-violet-500" />}
+                <CeldaEstadistica
+                  icono={<ShoppingBag className="w-3.5 h-3.5 text-violet-600" />}
                   etiqueta="Visitas"
                   valor={cliente.totalVisitas}
                   colorIcono="bg-violet-100"
                 />
-                <CardEstadistica
-                  icono={<Ticket className="w-4 h-4 text-amber-500" />}
+                <CeldaEstadistica
+                  icono={<Ticket className="w-3.5 h-3.5 text-amber-600" />}
                   etiqueta="Vouchers"
                   valor={`${cliente.vouchersUsados}/${cliente.totalVouchers} usados`}
                   colorIcono="bg-amber-100"
@@ -473,11 +463,11 @@ export default function ModalDetalleCliente({
             <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3">
               <div className="flex items-center justify-between mb-2.5 lg:mb-2 2xl:mb-2.5">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-slate-500" />
+                  <Clock className="w-4 h-4 text-slate-600" />
                   <h4 className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700">Últimas transacciones</h4>
                 </div>
                 {historialCliente.length > 0 && (
-                  <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400">
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
                     {historialCliente.length} recientes
                   </span>
                 )}
@@ -486,15 +476,15 @@ export default function ModalDetalleCliente({
               {/* Loading historial */}
               {cargandoHistorial && (
                 <div className="flex justify-center py-4">
-                  <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-slate-600 animate-spin" />
                 </div>
               )}
 
               {/* Sin transacciones */}
               {!cargandoHistorial && historialCliente.length === 0 && (
                 <div className="text-center py-4">
-                  <ShoppingBag className="w-6 h-6 text-slate-300 mx-auto mb-1" />
-                  <p className="text-sm text-slate-400">Sin transacciones recientes</p>
+                  <ShoppingBag className="w-6 h-6 text-slate-600 mx-auto mb-1" />
+                  <p className="text-sm font-medium text-slate-600">Sin transacciones recientes</p>
                 </div>
               )}
 
@@ -517,7 +507,7 @@ export default function ModalDetalleCliente({
               {historialCliente.length > 0 && (
                 <button
                   onClick={handleVerHistorial}
-                  className="w-full mt-3 lg:mt-2 2xl:mt-3 py-2.5 lg:py-2 2xl:py-2.5 rounded-lg border border-slate-200 text-sm lg:text-xs 2xl:text-sm text-slate-600 font-semibold hover:bg-slate-50 cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full mt-3 lg:mt-2 2xl:mt-3 py-2.5 lg:py-2 2xl:py-2.5 rounded-lg border-2 border-slate-300 text-sm lg:text-xs 2xl:text-sm text-slate-600 font-semibold hover:bg-slate-200 cursor-pointer transition-colors flex items-center justify-center gap-1.5"
                 >
                   Ver historial completo
                   <ChevronRight className="w-4 h-4" />

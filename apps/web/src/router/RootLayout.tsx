@@ -7,8 +7,8 @@
  * Ubicación: apps/web/src/router/RootLayout.tsx
  */
 
-import { useEffect, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { ModalLogin, ModalInactividad } from '../components/auth';
 import { ModalRateLimit } from '../components/ui/Banner429';
 import { useAuthStore, iniciarDeteccionActividad } from '../stores/useAuthStore';
@@ -50,6 +50,14 @@ export function RootLayout() {
 
   // ✅ Cambiar título dinámicamente según la ruta
   useTituloDinamico();
+
+  // Scroll al tope al cambiar de ruta (antes del paint para evitar flash)
+  // El scroll vive en <main> con overflow-y-auto (MainLayout), no en window
+  const { pathname } = useLocation();
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+    document.querySelectorAll('main').forEach((el) => el.scrollTo(0, 0));
+  }, [pathname]);
 
   // Hidratar autenticación al cargar la app (AnunciaYA y ScanYA)
   // ⚠️ En preview: hidratarAuth hace early return sin llamar servidor ni escribir localStorage

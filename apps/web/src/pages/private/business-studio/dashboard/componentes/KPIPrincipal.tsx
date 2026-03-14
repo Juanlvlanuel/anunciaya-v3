@@ -130,7 +130,7 @@ export default function KPIPrincipal({
           <div className={`w-8 h-8 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
             <Icono className="w-4 h-4 text-white" />
           </div>
-          <p className="text-sm font-bold text-slate-700 flex-1 leading-tight">{titulo}</p>
+          <p className="text-base font-bold text-slate-800 flex-1 leading-tight">{titulo}</p>
           {cargando ? (
             <div className="h-6 w-20 bg-slate-200 rounded animate-pulse" />
           ) : (

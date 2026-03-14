@@ -1,7 +1,9 @@
 # CLAUDE.md — AnunciaYA v3.0
 
 > Claude Code debe leer este archivo al inicio de cada sesión.
-> Siempre responder en español, incluyendo análisis y pensamiento.
+> ⚠️ IDIOMA OBLIGATORIO: TODO en español — respuestas, razonamiento interno (thinking/extended thinking), análisis y comentarios. NUNCA pensar en inglés.
+
+IMPORTANTE: Piensa y razona en español, no en inglés.
 
 ---
 
@@ -302,3 +304,5 @@ BS Alertas + Cupones
 - Para ChatYA a escala: cursor-based pagination > offset-based; endpoint "jump to message" es prioridad alta
 - Negocios solo físicos — eliminado tipo "Online". Todos requieren ubicación. `tiene_servicio_domicilio` y `tiene_envio_domicilio` en sucursales
 - Login obligatorio — sin login solo accesible: landing, registro, login, OAuth
+- Scroll reset al navegar: `MainLayout` usa `<main>` con `overflow-y-auto` (no `window`). El scroll se resetea con `useLayoutEffect` en `RootLayout` usando `document.querySelectorAll('main').forEach(el => el.scrollTo(0, 0))`. Usar `useLayoutEffect` (no `useEffect`) para evitar flash visual
+- `useState(false)` para detección móvil causa flash de vista desktop en primer render. Usar `useState(() => window.innerWidth < 1024)` como lazy initializer

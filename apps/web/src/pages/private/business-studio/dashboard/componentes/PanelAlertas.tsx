@@ -101,7 +101,7 @@ function ItemAlerta({ alerta }: { alerta: Alerta }) {
         {/* Contenido */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className={`text-sm lg:text-xs 2xl:text-sm font-medium truncate ${alerta.leida ? 'text-slate-600' : 'text-slate-800'}`}>
+            <p className={`text-sm lg:text-[11px] 2xl:text-sm font-medium truncate ${alerta.leida ? 'text-slate-600' : 'text-slate-800'}`}>
               {alerta.titulo}
             </p>
             <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 shrink-0">
@@ -171,7 +171,7 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
           /* Estado vacío - centrado */
           <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
             <CheckCircle className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 mb-1 text-emerald-400" />
-            <p className="text-sm lg:text-xs 2xl:text-sm font-medium text-emerald-600">Sin Alertas Pendientes</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-emerald-600">Sin Alertas Pendientes</p>
           </div>
         )}
       </div>
