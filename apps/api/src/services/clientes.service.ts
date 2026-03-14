@@ -443,7 +443,149 @@ export async function obtenerDetalleCliente(
 }
 
 // =============================================================================
-// 4. OBTENER HISTORIAL DE TRANSACCIONES DE UN CLIENTE
+// 4. OBTENER CLIENTES PARA EXPORTACIÓN (Excel)
+// =============================================================================
+
+interface ClienteExportar {
+    id: string;
+    nombre: string;
+    telefono: string | null;
+    correo: string | null;
+    nivelActual: string;
+    puntosDisponibles: number;
+    puntosAcumuladosTotal: number;
+    puntosCanjeadosTotal: number;
+    totalGastado: number;
+    totalVisitas: number;
+    ultimaActividad: string | null;
+}
+
+/**
+ * Obtiene todos los clientes del negocio con los campos necesarios para
+ * generar el reporte Excel. Usa 2 queries (sin N+1):
+ * - Query 1: billetera + usuarios → datos personales + puntos (3 tipos)
+ * - Query 2: transacciones → visitas y total gastado por cliente
+ *
+ * Límite: 10,000 clientes máximo.
+ */
+export async function obtenerClientesParaExportar(
+    negocioId: string,
+    filtros: Omit<FiltrosClientes, 'limit' | 'offset'>
+): Promise<RespuestaServicio<ClienteExportar[]>> {
+    try {
+        const condiciones = [eq(puntosBilletera.negocioId, negocioId)];
+
+        if (filtros.nivel) {
+            condiciones.push(eq(puntosBilletera.nivelActual, filtros.nivel));
+        }
+
+        if (filtros.sucursalId) {
+            const clienteIds = await obtenerClienteIdsPorSucursal(negocioId, filtros.sucursalId);
+            if (clienteIds.length === 0) {
+                return { success: true, message: 'Clientes para exportar obtenidos', data: [], code: 200 };
+            }
+            condiciones.push(inArray(puntosBilletera.usuarioId, clienteIds));
+        }
+
+        if (filtros.busqueda) {
+            const busquedaLike = `%${filtros.busqueda}%`;
+            condiciones.push(
+                sql`(CONCAT(${usuarios.nombre}, ' ', COALESCE(${usuarios.apellidos}, '')) ILIKE ${busquedaLike}
+        OR ${usuarios.telefono} ILIKE ${busquedaLike})`
+            );
+        }
+
+        // Query 1: billetera + usuarios (incluye correo y puntosCanjeadosTotal)
+        const clientes = await db
+            .select({
+                id: puntosBilletera.usuarioId,
+                nombre: sql<string>`CONCAT(${usuarios.nombre}, ' ', COALESCE(${usuarios.apellidos}, ''))`,
+                telefono: usuarios.telefono,
+                correo: usuarios.correo,
+                puntosDisponibles: sql<number>`SUM(${puntosBilletera.puntosDisponibles})`,
+                puntosAcumuladosTotal: sql<number>`SUM(${puntosBilletera.puntosAcumuladosTotal})`,
+                puntosCanjeadosTotal: sql<number>`SUM(${puntosBilletera.puntosCanjeadosTotal})`,
+                nivelActual: sql<string>`CASE MAX(CASE ${puntosBilletera.nivelActual} WHEN 'oro' THEN 3 WHEN 'plata' THEN 2 ELSE 1 END)
+                    WHEN 3 THEN 'oro' WHEN 2 THEN 'plata' ELSE 'bronce' END`,
+                ultimaActividad: sql<string>`MAX(${puntosBilletera.ultimaActividad})`,
+            })
+            .from(puntosBilletera)
+            .innerJoin(usuarios, eq(puntosBilletera.usuarioId, usuarios.id))
+            .where(and(...condiciones))
+            .groupBy(
+                puntosBilletera.usuarioId,
+                usuarios.nombre,
+                usuarios.apellidos,
+                usuarios.telefono,
+                usuarios.avatarUrl,
+                usuarios.correo
+            )
+            .orderBy(sql`SUM(${puntosBilletera.puntosDisponibles}) DESC`)
+            .limit(10000);
+
+        if (clientes.length === 0) {
+            return { success: true, message: 'Clientes para exportar obtenidos', data: [], code: 200 };
+        }
+
+        const clienteIds = clientes.map(c => c.id);
+
+        // Query 2: visitas + totalGastado por cliente (solo transacciones confirmadas)
+        const condicionesVisitas = [
+            eq(puntosTransacciones.negocioId, negocioId),
+            inArray(puntosTransacciones.clienteId, clienteIds),
+            sql`${puntosTransacciones.estado} = 'confirmado'`,
+        ];
+        if (filtros.sucursalId) {
+            condicionesVisitas.push(eq(puntosTransacciones.sucursalId, filtros.sucursalId));
+        }
+
+        const estadisticas = await db
+            .select({
+                clienteId: puntosTransacciones.clienteId,
+                totalVisitas: sql<number>`COUNT(*)`,
+                totalGastado: sql<number>`COALESCE(SUM(${puntosTransacciones.montoCompra}), 0)`,
+            })
+            .from(puntosTransacciones)
+            .where(and(...condicionesVisitas))
+            .groupBy(puntosTransacciones.clienteId);
+
+        const estadisticasMap = new Map(estadisticas.map(e => [e.clienteId, e]));
+
+        const resultado: ClienteExportar[] = clientes.map(c => {
+            const stats = estadisticasMap.get(c.id);
+            return {
+                id: c.id,
+                nombre: c.nombre?.trim() || '',
+                telefono: c.telefono,
+                correo: c.correo,
+                nivelActual: c.nivelActual || 'bronce',
+                puntosDisponibles: Number(c.puntosDisponibles),
+                puntosAcumuladosTotal: Number(c.puntosAcumuladosTotal),
+                puntosCanjeadosTotal: Number(c.puntosCanjeadosTotal),
+                totalGastado: stats ? Number(stats.totalGastado) : 0,
+                totalVisitas: stats ? Number(stats.totalVisitas) : 0,
+                ultimaActividad: c.ultimaActividad,
+            };
+        });
+
+        return {
+            success: true,
+            message: 'Clientes para exportar obtenidos',
+            data: resultado,
+            code: 200,
+        };
+    } catch (error) {
+        console.error('Error al obtener clientes para exportar:', error);
+        return {
+            success: false,
+            message: 'Error al obtener clientes para exportar',
+            code: 500,
+        };
+    }
+}
+
+// =============================================================================
+// 5. OBTENER HISTORIAL DE TRANSACCIONES DE UN CLIENTE
 // =============================================================================
 
 /**

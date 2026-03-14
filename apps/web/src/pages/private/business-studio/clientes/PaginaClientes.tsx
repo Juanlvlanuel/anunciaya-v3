@@ -39,9 +39,12 @@ import {
   Clock,
   Phone,
   Eye,
+  Download,
 } from 'lucide-react';
 import { useClientesStore } from '../../../../stores/useClientesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { descargarExcel } from '../../../../services/clientesService';
+import Tooltip from '../../../../components/ui/Tooltip';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import type { ClienteCompleto } from '../../../../types/clientes';
@@ -334,6 +337,15 @@ export default function PaginaClientes() {
     setClienteSeleccionadoId(null);
   }, []);
 
+  // ─── Handler exportar Excel ───
+  const handleExportar = useCallback(async () => {
+    try {
+      await descargarExcel(busqueda || undefined, nivelFiltro || undefined);
+    } catch {
+      console.error('Error al exportar clientes');
+    }
+  }, [busqueda, nivelFiltro]);
+
   // ─── Loading inicial (solo la primera vez que se abre la página) ───
   if (!cargaInicialCompleta && cargandoClientes) {
     return (
@@ -520,15 +532,52 @@ export default function PaginaClientes() {
               ))}
             </div>
 
-            {/* Búsqueda */}
-            <div className="lg:flex-1 lg:max-w-sm 2xl:max-w-md">
-              <Input
-                placeholder="Nombre o Celular..."
-                value={textoBusqueda}
-                onChange={(e) => handleBusquedaChange(e.target.value)}
-                className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm"
-                icono={<Search className="w-4 h-4 text-slate-600" />}
-              />
+            {/* Búsqueda + Reporte móvil */}
+            <div className="flex items-center gap-2 lg:flex-1 min-w-0">
+              <div className="flex-1 min-w-0">
+                <Input
+                  placeholder="Nombre o Celular..."
+                  value={textoBusqueda}
+                  onChange={(e) => handleBusquedaChange(e.target.value)}
+                  className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm"
+                  icono={<Search className="w-4 h-4 text-slate-600" />}
+                />
+              </div>
+              {/* Reporte: solo móvil */}
+              <div className="lg:hidden shrink-0">
+                <Tooltip text="Descargar CSV con los filtros activos" position="top">
+                  <button
+                    onClick={handleExportar}
+                    className="flex items-center gap-1.5 h-10 px-3 rounded-lg text-sm font-bold text-slate-600 cursor-pointer"
+                    style={{
+                      background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                      border: '1.5px solid #cbd5e1',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    Reporte
+                  </button>
+                </Tooltip>
+              </div>
+            </div>
+
+            {/* Reporte: solo laptop/desktop */}
+            <div className="hidden lg:flex ml-auto shrink-0">
+              <Tooltip text="Descargar CSV con los filtros activos" position="bottom">
+                <button
+                  onClick={handleExportar}
+                  className="flex items-center gap-1.5 h-9 2xl:h-10 px-2.5 2xl:px-3 rounded-lg lg:text-xs 2xl:text-sm font-bold text-slate-600 cursor-pointer"
+                  style={{
+                    background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                    border: '1.5px solid #cbd5e1',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                  }}
+                >
+                  <Download className="w-3 h-3 2xl:w-4 2xl:h-4" />
+                  Reporte
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>

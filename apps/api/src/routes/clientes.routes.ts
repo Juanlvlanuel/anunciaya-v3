@@ -8,6 +8,7 @@
  * RUTAS:
  * GET    /api/clientes/top                     - Top clientes con puntos
  * GET    /api/clientes/kpis                    - KPIs para página Clientes BS
+ * GET    /api/clientes/exportar                - Exportar clientes a Excel
  * GET    /api/clientes/:id/historial           - Historial de transacciones de un cliente
  * GET    /api/clientes/:id                     - Detalle completo de un cliente
  * GET    /api/clientes                         - Lista de clientes con filtros
@@ -26,6 +27,7 @@ import {
   obtenerClientesController,
   obtenerDetalleClienteController,
   obtenerHistorialClienteController,
+  exportarClientesController,
 } from '../controllers/clientes.controller.js';
 
 // Importar middlewares
@@ -61,6 +63,13 @@ router.get('/top', obtenerTopClientesController);
  * Acceso: Dueños y Gerentes
  */
 router.get('/kpis', obtenerKPIsClientesController);
+
+/**
+ * GET /api/clientes/exportar?busqueda=xxx&nivel=oro
+ * Genera y descarga Excel con los clientes filtrados
+ * Acceso: Dueños y Gerentes
+ */
+router.get('/exportar', exportarClientesController);
 
 // =============================================================================
 // RUTAS CON PARÁMETROS (van después)

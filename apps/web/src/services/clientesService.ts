@@ -23,7 +23,7 @@
  * transacciones en esa sucursal y filtra las billeteras correspondientes.
  */
 
-import { get } from './api';
+import { get, api } from './api';
 import type { ClienteConPuntos, TransaccionPuntos } from '../types/puntos';
 import type { KPIsClientes, ClienteCompleto, ClienteDetalle, NivelCardYA } from '../types/clientes';
 
@@ -116,4 +116,41 @@ export async function getHistorialCliente(
   if (offset !== undefined) params.set('offset', offset.toString());
   const query = params.toString() ? `?${params.toString()}` : '';
   return get<TransaccionPuntos[]>(`/clientes/${id}/historial${query}`);
+}
+
+// =============================================================================
+// EXPORTAR CLIENTES A EXCEL
+// =============================================================================
+
+/**
+ * Descarga un archivo Excel con los clientes filtrados.
+ * GET /api/clientes/exportar?busqueda=xxx&nivel=oro
+ *
+ * Los filtros reflejan exactamente lo que el usuario ve en pantalla.
+ * El interceptor Axios agrega sucursalId automáticamente.
+ */
+export async function descargarExcel(
+  busqueda?: string,
+  nivel?: NivelCardYA
+): Promise<void> {
+  const params = new URLSearchParams();
+  if (busqueda) params.set('busqueda', busqueda);
+  if (nivel) params.set('nivel', nivel);
+  const query = params.toString() ? `?${params.toString()}` : '';
+
+  const respuesta = await api.get(`/clientes/exportar${query}`, {
+    responseType: 'blob',
+  });
+
+  const blob = new Blob([respuesta.data], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `clientes_${nivel || 'todos'}_${Date.now()}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
