@@ -88,9 +88,9 @@ interface EstadoOrden {
 // =============================================================================
 
 const NIVELES: { valor: NivelCardYA; etiqueta: string; icono: React.ReactNode; color: string; bg: string }[] = [
-  { valor: 'bronce', etiqueta: 'Bronce', icono: <Shield className="w-3.5 h-3.5" />, color: 'text-amber-700', bg: 'bg-amber-100 border-amber-300' },
-  { valor: 'plata', etiqueta: 'Plata', icono: <Medal className="w-3.5 h-3.5" />, color: 'text-slate-700', bg: 'bg-slate-200 border-slate-400' },
-  { valor: 'oro', etiqueta: 'Oro', icono: <Crown className="w-3.5 h-3.5" />, color: 'text-yellow-700', bg: 'bg-yellow-100 border-yellow-300' },
+  { valor: 'bronce', etiqueta: 'Bronce', icono: <Shield className="w-3.5 h-3.5 text-amber-700" />, color: 'text-amber-700', bg: 'bg-amber-100 border-amber-300' },
+  { valor: 'plata', etiqueta: 'Plata', icono: <Medal className="w-3.5 h-3.5 text-slate-500" />, color: 'text-slate-700', bg: 'bg-slate-200 border-slate-400' },
+  { valor: 'oro', etiqueta: 'Oro', icono: <Crown className="w-3.5 h-3.5 text-yellow-500" />, color: 'text-yellow-700', bg: 'bg-yellow-100 border-yellow-300' },
 ];
 
 // =============================================================================
@@ -522,8 +522,8 @@ export default function PaginaClientes() {
                   key={n.valor}
                   onClick={() => setNivelFiltro(nivelFiltro === n.valor ? null : n.valor)}
                   className={`flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${nivelFiltro === n.valor
-                    ? `${n.bg} ${n.color} ring-2 ring-offset-1 ring-current`
-                    : `bg-white text-slate-600 border-slate-300 hover:border-slate-400`
+                    ? `${n.bg} ${n.color}`
+                    : `bg-white ${n.color} border-slate-300 hover:border-slate-400`
                     }`}
                 >
                   {n.icono}
@@ -580,6 +580,16 @@ export default function PaginaClientes() {
               </Tooltip>
             </div>
           </div>
+        </div>
+
+        {/* Contador de resultados */}
+        <div className="flex items-center justify-between px-1 mt-3 lg:mt-2 2xl:mt-3 mb-1">
+          <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
+            {nivelFiltro || busqueda
+              ? `${clientesOrdenados.length} de ${kpis?.totalClientes ?? '—'} clientes`
+              : `${clientesOrdenados.length} clientes`
+            }
+          </span>
         </div>
 
         {/* ================================================================= */}
@@ -717,9 +727,9 @@ export default function PaginaClientes() {
                       }`}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-3 h-3 text-amber-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-3 h-3 text-amber-400" />}
-                    {!activa && <ArrowUpDown className="w-3 h-3 text-slate-600" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-amber-400" />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-amber-400" />}
+                    {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
                   </button>
                 );
               })}

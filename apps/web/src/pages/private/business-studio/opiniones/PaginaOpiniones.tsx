@@ -354,14 +354,14 @@ export function PaginaOpiniones() {
                             <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
                                 Opiniones
                             </h1>
-                            <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
+                            <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium">
                                 Reseñas de tus clientes
                             </p>
                         </div>
                     </div>
 
                     {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
-                    <div className="overflow-x-auto lg:overflow-visible lg:flex-1">
+                    <div className="mt-5 lg:mt-0 overflow-x-auto lg:overflow-visible lg:flex-1">
                         <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
 
                             {/* Promedio ⭐ */}
@@ -377,13 +377,13 @@ export function PaginaOpiniones() {
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #fde68a, #fbbf24)', boxShadow: '0 3px 8px rgba(245,158,11,0.25)' }}
                                 >
-                                    <Star className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-800 fill-amber-800" />
+                                    <Star className="w-4 h-4 text-amber-800 fill-amber-800" />
                                 </div>
                                 <div className="text-left">
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">
                                         {loading ? '—' : (kpis?.promedio?.toFixed(1) ?? '0.0')}
                                     </div>
-                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Promedio</div>
+                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Promedio</div>
                                 </div>
                             </div>
 
@@ -400,13 +400,13 @@ export function PaginaOpiniones() {
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
                                 >
-                                    <MessageSquare className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                    <MessageSquare className="w-4 h-4 text-blue-700" />
                                 </div>
                                 <div className="text-left">
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">
                                         {loading ? '—' : (kpis?.total ?? 0)}
                                     </div>
-                                    <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">Total</div>
+                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Total</div>
                                 </div>
                             </div>
 
@@ -428,13 +428,13 @@ export function PaginaOpiniones() {
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #fed7aa, #fdba74)', boxShadow: '0 3px 8px rgba(234,88,12,0.25)' }}
                                 >
-                                    <AlertCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-orange-800" />
+                                    <AlertCircle className="w-4 h-4 text-orange-800" />
                                 </div>
                                 <div className="text-left">
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-orange-800">
                                         {loading ? '—' : (kpis?.pendientes ?? 0)}
                                     </div>
-                                    <div className={`text-[12px] lg:text-[10px] 2xl:text-[14px] font-semibold mt-0.5 ${filtroEstado === 'pendientes' ? 'text-white' : 'text-slate-500'}`}>
+                                    <div className={`text-sm lg:text-[11px] 2xl:text-sm font-semibold mt-0.5 ${filtroEstado === 'pendientes' ? 'text-white' : 'text-slate-600'}`}>
                                         Pendientes
                                     </div>
                                 </div>
@@ -448,13 +448,13 @@ export function PaginaOpiniones() {
                 {/* CARD FILTROS (separado)                                        */}
                 {/* ============================================================= */}
 
-                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-lg border border-slate-300 p-3 lg:p-2 2xl:p-3 mt-4 lg:mt-7 2xl:mt-14">
+                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
                     {/* Búsqueda */}
                     <div className="mb-2 lg:mb-1.5 2xl:mb-2">
                         <Input
                             id="input-busqueda-resenas"
                             name="input-busqueda-resenas"
-                            icono={<Search className="w-5 h-5 lg:w-3 lg:h-3 2xl:w-5 2xl:h-5 text-slate-400" />}
+                            icono={<Search className="w-4 h-4 text-slate-600" />}
                             placeholder="Buscar por nombre o texto..."
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
@@ -463,14 +463,14 @@ export function PaginaOpiniones() {
                     </div>
 
                     {/* Chips: estado + estrellas */}
-                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 overflow-x-auto pt-2 border-t border-slate-200 pb-0.5">
+                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 overflow-x-auto pt-2 border-t border-slate-300 pb-0.5">
                         {/* Todas */}
                         <button
                             onClick={() => { setFiltroEstado('todas'); setFiltroEstrellas(null); }}
-                            className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-full text-sm lg:text-xs 2xl:text-sm font-bold transition-all cursor-pointer ${
+                            className={`shrink-0 inline-flex items-center gap-1.5 px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${
                                 filtroEstado === 'todas' && filtroEstrellas === null
-                                    ? 'bg-slate-900 text-white shadow-lg'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                                    ? 'bg-slate-800 text-white border-slate-800'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                             }`}
                         >
                             <MessageSquare className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
@@ -480,10 +480,10 @@ export function PaginaOpiniones() {
                         {/* Pendientes */}
                         <button
                             onClick={() => setFiltroEstado((prev) => prev === 'pendientes' ? 'todas' : 'pendientes')}
-                            className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-full text-sm lg:text-xs 2xl:text-sm font-bold transition-all cursor-pointer ${
+                            className={`shrink-0 inline-flex items-center gap-1.5 px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${
                                 filtroEstado === 'pendientes'
-                                    ? 'bg-orange-600 text-white shadow-lg'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                                    ? 'bg-slate-800 text-white border-slate-800'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                             }`}
                         >
                             <AlertCircle className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
@@ -501,15 +501,15 @@ export function PaginaOpiniones() {
                                 <button
                                     key={n}
                                     onClick={() => toggleFiltroEstrellas(n)}
-                                    className={`shrink-0 inline-flex items-center gap-1 px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 rounded-full text-sm lg:text-xs 2xl:text-sm font-bold transition-all cursor-pointer ${
+                                    className={`shrink-0 inline-flex items-center gap-1 px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${
                                         activo
-                                            ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300'
-                                            : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+                                            ? 'bg-amber-500 text-white border-amber-500'
+                                            : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                                     }`}
                                 >
                                     <Star className={`w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${activo ? 'fill-white text-white' : 'fill-amber-500 text-amber-500'}`} />
                                     {n}
-                                    <span className={`text-xs lg:text-[10px] 2xl:text-xs font-semibold ${activo ? 'text-amber-100' : 'text-amber-500'}`}>
+                                    <span className={`text-sm lg:text-[11px] 2xl:text-sm font-semibold ${activo ? 'text-amber-100' : 'text-amber-700'}`}>
                                         ({cantidad})
                                     </span>
                                 </button>
@@ -520,7 +520,7 @@ export function PaginaOpiniones() {
                         {hayFiltrosActivos && (
                             <button
                                 onClick={limpiarFiltros}
-                                className="shrink-0 inline-flex items-center gap-1 px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 rounded-full text-sm lg:text-xs 2xl:text-sm font-semibold text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                                className="shrink-0 inline-flex items-center gap-1 px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold text-red-600 border-2 border-slate-300 bg-white hover:border-red-300 hover:bg-red-100 transition-all cursor-pointer"
                             >
                                 ✕ Limpiar
                             </button>
@@ -537,138 +537,103 @@ export function PaginaOpiniones() {
                         <Spinner tamanio="lg" />
                     </div>
                 ) : resenasFiltradas.length === 0 ? (
-                    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-lg border border-slate-300 p-8 lg:p-6 2xl:p-8 text-center">
+                    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-8 lg:p-6 2xl:p-8 text-center">
                         <MessageSquare className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 text-slate-300 mx-auto mb-3" />
                         <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 mb-1">
                             {hayFiltrosActivos
                                 ? 'No hay reseñas con estos filtros'
                                 : 'No hay reseñas aún'}
                         </h3>
-                        <p className="text-sm lg:text-xs 2xl:text-sm text-slate-500">
+                        <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium">
                             {hayFiltrosActivos
                                 ? 'Intenta ajustar los filtros'
                                 : 'Tus clientes aún no han dejado opiniones'}
                         </p>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-lg border border-slate-300 overflow-hidden">
+                    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 overflow-hidden">
                         <div className="overflow-y-auto max-h-[50vh] lg:max-h-[42vh] 2xl:max-h-[61vh] p-3 lg:p-2.5 2xl:p-3">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 lg:gap-2 2xl:gap-2.5">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5 lg:gap-2 2xl:gap-2.5">
                                 {resenasFiltradas.map((resena) => (
                                     <div
                                         key={resena.id}
-                                        className={`bg-slate-50 rounded-xl lg:rounded-lg 2xl:rounded-xl p-4 lg:p-3 2xl:p-4 ${
+                                        className={`rounded-xl lg:rounded-lg 2xl:rounded-xl p-3 lg:p-2.5 2xl:p-3 ${
                                             resena.respuesta
-                                                ? 'border border-slate-300'
-                                                : 'border-2 border-orange-300 bg-orange-50/30'
+                                                ? 'bg-amber-50 border-2 border-slate-300'
+                                                : 'bg-amber-50 border-2 border-orange-300'
                                         }`}
                                     >
-                                        {/* Header: avatar + info + badge */}
-                                        <div className="flex items-center gap-3 lg:gap-2.5 2xl:gap-3 mb-2.5 lg:mb-2 2xl:mb-2.5">
+                                        {/* Header: avatar + nombre + estrellas + badge */}
+                                        <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
                                             {resena.autor.avatarUrl ? (
                                                 <img
                                                     src={resena.autor.avatarUrl}
                                                     alt={resena.autor.nombre}
-                                                    className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full object-cover shrink-0"
+                                                    className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full object-cover shrink-0"
                                                 />
                                             ) : (
-                                                <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                                                    <User className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500" />
+                                                <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+                                                    <User className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-600" />
                                                 </div>
                                             )}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-bold text-sm lg:text-xs 2xl:text-sm text-slate-900">
-                                                        {resena.autor.nombre}
-                                                    </span>
-                                                    <span
-                                                        className={`text-[11px] lg:text-[10px] 2xl:text-[11px] px-2 py-0.5 rounded-full font-bold ${
-                                                            resena.respuesta
-                                                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                                                : 'bg-orange-100 text-orange-800 border border-orange-300'
-                                                        }`}
-                                                    >
-                                                        {resena.respuesta ? (
-                                                            <span className="flex items-center gap-1">
-                                                                <CheckCircle2 className="w-3 h-3" />
-                                                                Respondida
-                                                            </span>
-                                                        ) : (
-                                                            <span className="flex items-center gap-1">
-                                                                <Clock className="w-3 h-3" />
-                                                                Pendiente
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <div className="flex gap-0.5">
-                                                        {[1, 2, 3, 4, 5].map((s) => (
-                                                            <Star
-                                                                key={s}
-                                                                className={`w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 ${
-                                                                    resena.rating && s <= resena.rating
-                                                                        ? 'text-amber-500 fill-amber-500'
-                                                                        : 'text-slate-300'
-                                                                }`}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                    {resena.sucursalNombre && (
-                                                        <>
-                                                            <span className="text-[10px] text-slate-300">·</span>
-                                                            <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-400">
-                                                                {resena.sucursalNombre}
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                    <span className="text-[10px] text-slate-300">·</span>
-                                                    <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] text-slate-400">
-                                                        {formatearFecha(resena.createdAt)}
-                                                    </span>
-                                                </div>
+                                            <span className="font-bold text-sm lg:text-xs 2xl:text-sm text-slate-900 truncate flex-1 min-w-0">
+                                                {resena.autor.nombre}
+                                            </span>
+                                            <div className="flex gap-0.5 shrink-0">
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <Star key={s} className={`w-3 h-3 ${resena.rating && s <= resena.rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
+                                                ))}
                                             </div>
+                                            <span className={`shrink-0 inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm px-1.5 py-0.5 rounded-full font-bold ${resena.respuesta ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                {resena.respuesta ? <><CheckCircle2 className="w-3 h-3" />Respondida</> : <><Clock className="w-3 h-3" />Pendiente</>}
+                                            </span>
                                         </div>
 
+                                        {/* Burbuja cliente (izquierda) */}
                                         {resena.texto && (
-                                            <p className="ml-13 lg:ml-10.5 2xl:ml-13 text-sm lg:text-xs 2xl:text-sm text-slate-700 italic leading-relaxed mb-2.5 lg:mb-2 2xl:mb-2.5">
-                                                "{resena.texto}"
-                                            </p>
-                                        )}
-
-                                        {resena.respuesta && (
-                                            <div className="ml-13 lg:ml-10.5 2xl:ml-13 p-3 lg:p-2.5 2xl:p-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-blue-100/70 border-l-3 border-blue-500">
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <div className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                                                        <span className="text-white text-[9px] lg:text-[8px] 2xl:text-[9px] font-bold">N</span>
-                                                    </div>
-                                                    <span className="text-xs lg:text-[11px] 2xl:text-xs font-bold text-blue-800">
-                                                        Tu respuesta
-                                                    </span>
-                                                    <button
-                                                        onClick={() => abrirResponder(resena)}
-                                                        className="flex items-center gap-1 text-blue-600 text-[11px] lg:text-[10px] 2xl:text-[11px] font-semibold cursor-pointer hover:text-blue-800 transition-colors"
-                                                    >
-                                                        <Pencil className="w-3 h-3" />
-                                                        Editar
-                                                    </button>
-                                                    <span className="text-[10px] lg:text-[9px] 2xl:text-[10px] text-blue-400 ml-auto">
-                                                        {formatearFecha(resena.respuesta.createdAt)}
-                                                    </span>
+                                            <div className="flex justify-start mb-2 lg:mb-1.5 2xl:mb-2">
+                                                <div className="max-w-[88%] bg-white border-2 border-slate-200 rounded-2xl rounded-tl-sm px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 shadow-sm">
+                                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700 italic leading-snug">
+                                                        "{resena.texto}"
+                                                    </p>
+                                                    <p className="text-sm lg:text-[10px] 2xl:text-sm font-medium text-slate-600 mt-0.5">
+                                                        {formatearFecha(resena.createdAt)}{resena.sucursalNombre && ` · ${resena.sucursalNombre}`}
+                                                    </p>
                                                 </div>
-                                                <p className="text-xs lg:text-[11px] 2xl:text-xs text-slate-700 leading-relaxed">
-                                                    {resena.respuesta.texto}
-                                                </p>
                                             </div>
                                         )}
 
+                                        {/* Burbuja negocio (derecha) */}
+                                        {resena.respuesta && (
+                                            <div className="flex justify-end">
+                                                <div className="max-w-[88%] bg-slate-800 rounded-2xl rounded-tr-sm px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 shadow-sm">
+                                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-white leading-snug">
+                                                        {resena.respuesta.texto}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-sm lg:text-[10px] 2xl:text-sm font-medium text-slate-400">
+                                                            {formatearFecha(resena.respuesta.createdAt)}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => abrirResponder(resena)}
+                                                            className="inline-flex items-center gap-1 text-slate-300 text-sm lg:text-[10px] 2xl:text-sm font-semibold cursor-pointer hover:text-white transition-colors ml-auto"
+                                                        >
+                                                            <Pencil className="w-3 h-3" />
+                                                            Editar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Botón responder */}
                                         {!resena.respuesta && (
-                                            <div className="ml-13 lg:ml-10.5 2xl:ml-13 mt-1">
+                                            <div className="flex justify-end">
                                                 <button
                                                     onClick={() => abrirResponder(resena)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-lg lg:rounded-md 2xl:rounded-lg text-xs lg:text-[11px] 2xl:text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-colors cursor-pointer"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1 lg:px-2.5 lg:py-0.5 2xl:px-3 2xl:py-1 rounded-xl text-sm lg:text-[11px] 2xl:text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-sm transition-colors cursor-pointer"
                                                 >
-                                                    <Pencil className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+                                                    <Pencil className="w-3 h-3" />
                                                     Responder
                                                 </button>
                                             </div>

@@ -65,8 +65,8 @@ export async function obtenerResenasSucursal(
                 r.texto,
                 r.created_at,
                 json_build_object(
-                    'id', u.id,
-                    'nombre', u.nombre,
+                    'id',        COALESCE(u.id::text, ''),
+                    'nombre',    COALESCE(u.nombre, 'Usuario anónimo'),
                     'avatarUrl', u.avatar_url
                 ) as autor,
                 CASE
@@ -80,7 +80,7 @@ export async function obtenerResenasSucursal(
                     ELSE NULL
                 END AS respuesta_negocio
             FROM resenas r
-            INNER JOIN usuarios u ON u.id = r.autor_id
+            LEFT JOIN usuarios u ON u.id = r.autor_id
             LEFT JOIN resenas resp
                 ON  resp.autor_tipo       = 'negocio'
                 AND resp.interaccion_tipo = 'scanya'
@@ -444,8 +444,8 @@ export async function obtenerResenasNegocio(
                 r.sucursal_id::text AS sucursal_id,
                 ns.nombre         AS sucursal_nombre,
                 json_build_object(
-                    'id',        u.id,
-                    'nombre',    u.nombre,
+                    'id',        COALESCE(u.id::text, ''),
+                    'nombre',    COALESCE(u.nombre, 'Usuario anónimo'),
                     'avatarUrl', u.avatar_url
                 ) AS autor,
                 CASE
@@ -458,7 +458,7 @@ export async function obtenerResenasNegocio(
                     ELSE NULL
                 END AS respuesta
             FROM resenas r
-            INNER JOIN usuarios u ON u.id = r.autor_id
+            LEFT JOIN usuarios u ON u.id = r.autor_id
             LEFT JOIN negocio_sucursales ns ON ns.id = r.sucursal_id
             LEFT JOIN resenas resp
                 ON  resp.autor_tipo       = 'negocio'
