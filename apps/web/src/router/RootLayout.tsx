@@ -76,6 +76,22 @@ export function RootLayout() {
     return limpiar;
   }, [esPreviewIframe]);
 
+  // Detectar regreso de suspensión/inactividad prolongada
+  useEffect(() => {
+    if (esPreviewIframe) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        useAuthStore.getState()._verificarInactividadAlRegresar();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [esPreviewIframe]);
+
   // Detectar ubicación automáticamente si no hay ciudad guardada
   // ⚠️ No necesario en preview (iframe solo renderiza vista del negocio)
   useEffect(() => {

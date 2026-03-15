@@ -10,6 +10,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 interface Categoria {
   id: number;
@@ -48,6 +49,38 @@ export default function SelectorCategoria({
     };
   }, [abierto]);
 
+  useEffect(() => {
+    if (!abierto || window.innerWidth >= 1024) return;
+
+    const main = document.querySelector('main');
+    if (!main) return;
+
+    const paddingOriginal = main.style.paddingBottom;
+
+    const timer = setTimeout(() => {
+      const el = contenedorRef.current;
+      if (!el) return;
+
+      let offsetTop = 0;
+      let current: HTMLElement | null = el;
+      while (current && current !== main) {
+        offsetTop += current.offsetTop;
+        current = current.offsetParent as HTMLElement | null;
+      }
+
+      const targetScroll = offsetTop + el.offsetHeight + 400 - main.clientHeight + 16;
+      const extraPadding = Math.max(0, targetScroll - (main.scrollHeight - main.clientHeight));
+      if (extraPadding > 0) main.style.paddingBottom = `${extraPadding}px`;
+
+      main.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+    }, 50);
+
+    return () => {
+      clearTimeout(timer);
+      main.style.paddingBottom = paddingOriginal;
+    };
+  }, [abierto]);
+
   const categoriaActual = categorias.find(c => c.id === categoriaSeleccionada);
 
   const handleSeleccionar = (id: number) => {
@@ -60,61 +93,53 @@ export default function SelectorCategoria({
       
       {/* Botón Principal */}
       <div
-        className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4 cursor-pointer"
-        style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+        className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 border-slate-300 hover:border-slate-400 cursor-pointer"
+        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
         onClick={() => setAbierto(!abierto)}
       >
         <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 flex-1">
           {categoriaActual ? (
-            <>
-              <span className="text-2xl lg:text-xl 2xl:text-2xl">{categoriaActual.icono}</span>
-              <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-800">{categoriaActual.nombre}</span>
-            </>
+            <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-800">{categoriaActual.nombre}</span>
           ) : (
-            <span className="text-lg lg:text-base 2xl:text-lg font-medium text-slate-400">Selecciona una categoría</span>
+            <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600">Selecciona una categoría</span>
           )}
         </div>
         
-        <svg 
-          className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-400 transition-transform ${abierto ? 'rotate-180' : ''}`}
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 shrink-0 transition-transform ${abierto ? 'rotate-180' : ''}`} />
       </div>
 
       {/* Dropdown */}
       {abierto && (
-        <div className="absolute z-50 mt-2 w-full bg-white rounded-lg shadow-2xl overflow-hidden" style={{ border: '2.5px solid #dde4ef' }}>
-          
+        <div className="absolute z-30 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
+
           {/* Lista de Categorías */}
-          <div className="max-h-[280px] lg:max-h-60 2xl:max-h-[280px] overflow-y-auto">
+          <div className="max-h-[400px] lg:max-h-80 2xl:max-h-[400px] overflow-y-auto py-1">
             {categorias.map((categoria) => {
               const esSeleccionada = categoria.id === categoriaSeleccionada;
-              
+
               return (
                 <button
                   key={categoria.id}
                   type="button"
                   onClick={() => handleSeleccionar(categoria.id)}
                   className={`
-                    w-full flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 text-left transition-all
+                    w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer
                     ${esSeleccionada
-                      ? 'bg-blue-50 text-blue-700 font-bold'
-                      : 'hover:bg-slate-50 text-slate-700 font-medium'
+                      ? 'bg-indigo-100 text-indigo-700 font-semibold'
+                      : 'hover:bg-slate-200 text-slate-600 font-medium'
                     }
                   `}
                 >
-                  <span className="text-2xl lg:text-xl 2xl:text-2xl">{categoria.icono}</span>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                    esSeleccionada ? 'bg-indigo-500' : 'bg-slate-200'
+                  }`}>
+                    {esSeleccionada && (
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
                   <span className="flex-1 text-base lg:text-sm 2xl:text-base">{categoria.nombre}</span>
-                  
-                  {esSeleccionada && (
-                    <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
                 </button>
               );
             })}

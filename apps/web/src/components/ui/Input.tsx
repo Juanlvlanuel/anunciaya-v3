@@ -73,9 +73,9 @@ const generarIdDesdeLabel = (label: string): string => {
 // =============================================================================
 
 const tamaños = {
-  sm: 'py-2 text-sm',
-  md: 'py-2.5 text-sm',
-  lg: 'py-3 text-base',
+  sm: 'py-2 text-base lg:text-sm 2xl:text-base',
+  md: 'py-2.5 text-base lg:text-sm 2xl:text-base',
+  lg: 'py-3 text-base lg:text-sm 2xl:text-base',
 };
 
 const tamañosLabel = {
@@ -132,8 +132,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       const base = `
         w-full px-4 ${tamaños[tamaño]}
         bg-slate-100 border-2 rounded-xl
-        font-medium
-        placeholder-slate-600
+        font-medium text-slate-800
+        placeholder:text-slate-500
         transition-all duration-150
         focus:outline-none focus:bg-white
         disabled:opacity-50 disabled:cursor-not-allowed

@@ -2,23 +2,20 @@
  * ============================================================================
  * PÁGINA: Mi Perfil - Business Studio
  * ============================================================================
- * 
+ *
  * UBICACIÓN: apps/web/src/pages/private/business-studio/perfil/PaginaPerfil.tsx
- * 
+ *
  * PROPÓSITO:
  * Página principal para editar el perfil del negocio/sucursal
  * Incluye sistema de tabs y gestión de estado
- * 
- * FEATURES:
- * - Tabs dinámicos según tipo de negocio (físico/online)
- * - Tab "Ubicación" oculto para negocios online
- * - Ancho reducido en laptop para mejor uso del espacio
- * - Header con icono animado (estilo unificado Business Studio)
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Save, User } from 'lucide-react';
+import {
+  Save, User, Building2, Phone, MapPin, Clock,
+  Image as ImageIcon, Settings2, Store, GitBranch,
+} from 'lucide-react';
 import { usePerfil } from './hooks/usePerfil';
 import { useUiStore } from '../../../../stores/useUiStore';
 import { Spinner } from '../../../../components/ui';
@@ -30,10 +27,10 @@ import TabImagenes from './components/TabImagenes';
 import TabOperacion from './components/TabOperacion';
 
 // =============================================================================
-// CSS — Animación del icono del header (estilo unificado)
+// CSS — Animación del icono + KPI carousel sin scrollbar
 // =============================================================================
 
-const ESTILO_ICONO_HEADER = `
+const ESTILOS = `
   @keyframes perfil-icon-bounce {
     0%, 100% { transform: translateY(0) rotate(0deg); }
     40%      { transform: translateY(-4px) rotate(-3deg); }
@@ -41,6 +38,13 @@ const ESTILO_ICONO_HEADER = `
   }
   .perfil-icon-bounce {
     animation: perfil-icon-bounce 2s ease-in-out infinite;
+  }
+  .perfil-kpi-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .perfil-kpi-scroll::-webkit-scrollbar {
+    display: none;
   }
 `;
 
@@ -51,6 +55,7 @@ const ESTILO_ICONO_HEADER = `
 type TabConfig = {
   key: string;
   label: string;
+  icono: React.ReactNode;
   renderizar: () => React.ReactElement;
 };
 
@@ -82,7 +87,8 @@ export default function PaginaPerfil() {
     if (!vistaComoGerente) {
       allTabs.push({
         key: 'informacion',
-        label: 'Datos del Negocio',
+        label: 'Negocio',
+        icono: <Building2 className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
         renderizar: () => (
           <TabInformacion
             datosInformacion={hookPerfil.datosInformacion}
@@ -95,7 +101,8 @@ export default function PaginaPerfil() {
     // Tab 2: Contacto / Datos de Sucursal
     allTabs.push({
       key: 'contacto',
-      label: vistaComoGerente ? 'Datos de Sucursal' : 'Contacto',
+      label: vistaComoGerente ? 'Sucursal' : 'Contacto',
+      icono: <Phone className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => <TabContacto {...hookPerfil} />,
     });
 
@@ -103,6 +110,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'ubicacion',
       label: 'Ubicación',
+      icono: <MapPin className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => (
         <TabUbicacion
           datosUbicacion={hookPerfil.datosUbicacion}
@@ -115,6 +123,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'horarios',
       label: 'Horarios',
+      icono: <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => <TabHorarios {...hookPerfil} />,
     });
 
@@ -122,6 +131,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'imagenes',
       label: 'Imágenes',
+      icono: <ImageIcon className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => <TabImagenes {...hookPerfil} />,
     });
 
@@ -129,6 +139,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'operacion',
       label: 'Operación',
+      icono: <Settings2 className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => <TabOperacion {...hookPerfil} />,
     });
 
@@ -145,7 +156,6 @@ export default function PaginaPerfil() {
   // =============================================================================
 
   const handleGuardar = () => {
-    // Guardar todos los cambios detectados en todos los tabs
     hookPerfil.guardarTodo();
   };
 
@@ -173,26 +183,35 @@ export default function PaginaPerfil() {
     );
   }
 
+  const mostrarKpiSucursal = datosInformacion.totalSucursales > 1;
+  const esPrincipal = datosInformacion.esPrincipal;
+
   // =============================================================================
   // RENDER
   // =============================================================================
 
   return (
     <div className="p-3 lg:p-1.5 2xl:p-3">
-      {/* Inyectar estilos de animación */}
-      <style dangerouslySetInnerHTML={{ __html: ESTILO_ICONO_HEADER }} />
+      {/* Inyectar estilos */}
+      <style dangerouslySetInnerHTML={{ __html: ESTILOS }} />
 
-      {/* CONTENEDOR CON ANCHO REDUCIDO EN LAPTOP */}
-      <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto">
+      {/* CONTENEDOR */}
+      <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-2 2xl:space-y-3">
 
         {/* ===================================================================== */}
-        {/* HEADER CON ICONO ANIMADO Y TABS */}
+        {/* HEADER */}
         {/* ===================================================================== */}
 
-        <div className="flex items-center justify-between gap-6 mb-3 lg:mb-7 2xl:mb-14">
-          {/* Contenedor del título e icono */}
-          <div className="flex items-center gap-4 shrink-0">
-            {/* Contenedor del icono con gradiente */}
+        {/* ================================================================= */}
+        {/* HEADER                                                           */}
+        {/* Desktop: título + tabs en la misma fila                         */}
+        {/* Mobile: solo título (tabs van abajo con espaciado propio)        */}
+        {/* ================================================================= */}
+
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+
+          {/* Icono + Título */}
+          <div className="flex items-center gap-3 shrink-0 mb-3 lg:mb-0">
             <div
               className="flex items-center justify-center shrink-0"
               style={{
@@ -201,76 +220,79 @@ export default function PaginaPerfil() {
                 boxShadow: '0 6px 20px rgba(59,130,246,0.4)',
               }}
             >
-              {/* User animado */}
               <div className="perfil-icon-bounce">
                 <User className="w-6 h-6 text-white" strokeWidth={2.5} />
               </div>
             </div>
             <div>
-              <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
                 Mi Perfil
               </h1>
-              <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
-                Información de tu negocio
-              </p>
+              <div className="flex items-center gap-2 flex-wrap lg:mt-0.5 -mt-0.5">
+                <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">
+                  Administra tu Información
+                </p>
+                {mostrarKpiSucursal && (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border-2 text-xs font-semibold ${
+                    esPrincipal
+                      ? 'bg-blue-100 border-blue-300 text-blue-700'
+                      : 'bg-amber-100 border-amber-300 text-amber-700'
+                  }`}>
+                    {esPrincipal
+                      ? <Store className="w-3 h-3 shrink-0" />
+                      : <GitBranch className="w-3 h-3 shrink-0" />
+                    }
+                    {esPrincipal ? 'Principal' : 'Sucursal'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* TABS INLINE A LA DERECHA */}
-          <div className="hidden lg:flex gap-1.5 2xl:gap-2 overflow-x-auto flex-1 justify-end">
-            {tabs.map((tab, index) => (
-              <button
-                key={tab.key}
-                onClick={() => setTabActivo(index)}
-                className={`
-                  px-2.5 py-2 2xl:px-5 2xl:py-2.5 text-xs 2xl:text-base font-bold whitespace-nowrap rounded-lg transition-all duration-200 cursor-pointer border-2 shrink-0
-                  ${tabActivo === index
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/30'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                  }
-                `}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* TABS MÓVIL (debajo del header en móvil) */}
-        <div className="lg:hidden flex gap-2 overflow-x-auto mb-3">
-          {tabs.map((tab, index) => (
-            <button
-              key={tab.key}
-              onClick={() => setTabActivo(index)}
-              className={`
-                px-4 py-2 text-sm font-bold whitespace-nowrap rounded-lg transition-all duration-200 cursor-pointer border-2
-                ${tabActivo === index
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/30'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                }
-              `}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ===================================================================== */}
-        {/* CARD PRINCIPAL CON CONTENIDO */}
-        {/* ===================================================================== */}
-
-        <div className="bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-
-          {/* CONTENIDO */}
-          <div className="px-3 pt-6 pb-3 lg:p-5 2xl:p-8">
-            {tabs[tabActivo]?.renderizar()}
+          {/* TABS — móvil debajo del título, desktop alineado a la derecha */}
+          <div className="mt-5 lg:mt-0 overflow-x-auto perfil-kpi-scroll">
+            <div className="flex items-center bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5 shadow-md w-fit">
+              {tabs.map((tab, index) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setTabActivo(index)}
+                  className={`
+                    flex items-center gap-1 lg:gap-1 2xl:gap-1.5
+                    px-4 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10
+                    rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold
+                    whitespace-nowrap shrink-0 cursor-pointer
+                    ${tabActivo === index
+                      ? 'text-white shadow-md'
+                      : 'text-slate-700 hover:bg-slate-300'
+                    }
+                  `}
+                  style={tabActivo === index ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                >
+                  {tab.icono}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
+        </div>
+
+        {/* ================================================================= */}
+        {/* CONTENIDO DEL TAB ACTIVO                                          */}
+        {/* Desktop: mt-7/mt-14 desde el header                              */}
+        {/* Mobile: space-y normal (pegado a los tabs de arriba)              */}
+        {/* ================================================================= */}
+
+        <div className="lg:mt-7 2xl:mt-14">
+          {tabs[tabActivo]?.renderizar()}
         </div>
 
       </div>
 
+      {/* ===================================================================== */}
       {/* FAB - FLOATING ACTION BUTTON */}
+      {/* ===================================================================== */}
+
       {createPortal(
         <div className={`fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-transform duration-75 ${previewNegocioAbierto
           ? 'lg:right-[375px] 2xl:translate-x-[510px]'

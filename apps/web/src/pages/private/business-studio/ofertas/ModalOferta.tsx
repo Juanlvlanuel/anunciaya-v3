@@ -604,7 +604,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     placeholder="Ej: 50% de descuento en pizzas"
                                     maxLength={150}
                                     disabled={guardando}
-                                    className={`w-full px-3 py-2 lg:py-2 2xl:py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm ${errores.titulo ? 'border-red-300' : 'border-slate-300'
+                                    className={`w-full px-3 py-2 lg:py-2 2xl:py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 ${errores.titulo ? 'border-red-300' : 'border-slate-300'
                                         }`}
                                 />
                                 {errores.titulo && <p className="text-xs text-red-500 mt-1">{errores.titulo}</p>}
@@ -624,7 +624,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     rows={2}
                                     maxLength={500}
                                     disabled={guardando}
-                                    className="w-full px-3 py-2 lg:py-2 2xl:py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm resize-none"
+                                    className="w-full px-3 py-2 lg:py-2 2xl:py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 resize-none"
                                 />
                             </div>
 
@@ -645,7 +645,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                         min="0"
                                         step="0.01"
                                         disabled={guardando}
-                                        className="w-full pl-6 pr-2 py-2 lg:py-2 2xl:py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
+                                        className="w-full pl-6 pr-2 py-2 lg:py-2 2xl:py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                                     />
                                 </div>
                             </div>

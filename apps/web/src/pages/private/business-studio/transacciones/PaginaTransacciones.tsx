@@ -238,10 +238,10 @@ function HeaderOrdenable({
         <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
       )}
       {activa && direccion === 'desc' && (
-        <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
+        <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />
       )}
       {activa && direccion === 'asc' && (
-        <ChevronUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
+        <ChevronUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />
       )}
     </button>
   );
@@ -979,14 +979,14 @@ export default function PaginaTransacciones() {
                 <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
 
                   {/* Dropdown Período */}
-                  <div className="shrink-0 relative" ref={periodoDropdownRef}>
+                  <div className="shrink-0 relative w-36 lg:w-40" ref={periodoDropdownRef}>
                     <button
                       onClick={() => setPeriodoDropdownAbierto(!periodoDropdownAbierto)}
-                      className={`flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
+                      className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
                     >
                       <Calendar className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
-                      <span className="truncate">{PERIODOS_CONFIG.find(p => p.id === periodo)?.etiqueta ?? 'Período'}</span>
-                      <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${periodoDropdownAbierto ? 'rotate-180' : ''}`} />
+                      <span className="flex-1 truncate text-left">{PERIODOS_CONFIG.find(p => p.id === periodo)?.etiqueta ?? 'Período'}</span>
+                      <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 ml-auto transition-transform ${periodoDropdownAbierto ? 'rotate-180' : ''}`} />
                     </button>
                     {periodoDropdownAbierto && (
                       <div className="absolute top-full left-0 mt-1.5 w-36 lg:w-40 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
@@ -1019,9 +1019,9 @@ export default function PaginaTransacciones() {
                       <button
                         key={e.id}
                         onClick={() => setEstadoFiltro(e.id)}
-                        className={`px-3 2xl:px-4 h-9 2xl:h-10 flex items-center rounded-lg lg:text-xs 2xl:text-sm font-semibold border-2 cursor-pointer ${estadoFiltro === e.id
+                        className={`px-3 2xl:px-4 h-10 2xl:h-11 flex items-center rounded-lg text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${estadoFiltro === e.id
                             ? 'text-white border-slate-700 shadow-sm'
-                            : 'bg-slate-200 text-slate-600 border-transparent hover:bg-slate-300'
+                            : 'bg-slate-200 text-slate-600 border-slate-300 hover:bg-slate-300'
                           }`}
                         style={estadoFiltro === e.id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                       >
@@ -1030,17 +1030,17 @@ export default function PaginaTransacciones() {
                     ))}
                   </div>
 
-                  {/* Estado dropdown — solo móvil */}
-                  <div className="lg:hidden shrink-0 relative" ref={estadoDropdownRef}>
+                  {/* Estado dropdown — oculto en móvil, visible en laptop via chips */}
+                  <div className="hidden shrink-0 relative" ref={estadoDropdownRef}>
                     <button
                       onClick={() => setEstadoDropdownAbierto(!estadoDropdownAbierto)}
-                      className={`flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${estadoFiltro
+                      className={`flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltro
                           ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
                           : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                         }`}
                     >
                       <span className="truncate">{[{ id: '', etiqueta: 'Todas' }, { id: 'confirmado', etiqueta: 'Válidas' }, { id: 'cancelado', etiqueta: 'Revocadas' }].find(e => e.id === estadoFiltro)?.etiqueta ?? 'Todas'}</span>
-                      <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${estadoDropdownAbierto ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${estadoDropdownAbierto ? 'rotate-180' : ''}`} />
                     </button>
                     {estadoDropdownAbierto && (
                       <div className="absolute top-full left-0 mt-1.5 w-36 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
@@ -1069,21 +1069,21 @@ export default function PaginaTransacciones() {
 
                   {/* Operador */}
                   {operadores.length > 0 && (
-                    <div className="flex-1 min-w-0 lg:flex-none lg:shrink-0 relative" ref={dropdownRef}>
+                    <div className="flex-1 min-w-0 lg:flex-none lg:w-64 relative" ref={dropdownRef}>
                       <button
                         onClick={() => setDropdownAbierto(!dropdownAbierto)}
-                        className={`w-full flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${operadorId
+                        className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${operadorId
                             ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
                             : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                           }`}
                       >
                         <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
-                        <span className="min-w-0 truncate">
+                        <span className="flex-1 min-w-0 truncate text-left">
                           {operadorId
                             ? operadores.find((o) => o.id === operadorId)?.nombre || 'Todos'
                             : 'Operador'}
                         </span>
-                        <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${dropdownAbierto ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${dropdownAbierto ? 'rotate-180' : ''}`} />
                       </button>
                       {dropdownAbierto && (
                         <div className="absolute top-full right-0 mt-1.5 w-64 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
@@ -1132,10 +1132,9 @@ export default function PaginaTransacciones() {
                     <Tooltip text="Descargar CSV con los filtros activos" position="bottom">
                       <button
                         onClick={handleExportar}
-                        className="flex items-center gap-1.5 h-9 2xl:h-10 px-2.5 2xl:px-3 rounded-lg lg:text-xs 2xl:text-sm font-bold text-slate-600 cursor-pointer"
+                        className="flex items-center gap-1.5 h-10 2xl:h-11 px-2.5 2xl:px-3 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
                         style={{
                           background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                          border: '1.5px solid #cbd5e1',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
                         }}
                       >
@@ -1153,7 +1152,7 @@ export default function PaginaTransacciones() {
                       placeholder="Nombre o Celular..."
                       value={textoBusqueda}
                       onChange={(e) => handleBusqueda(e.target.value)}
-                      className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm pr-8"
+                      className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base pr-8"
                       icono={<Search className="w-4 h-4 text-slate-600" />}
                     />
                     {textoBusqueda && (
@@ -1165,23 +1164,17 @@ export default function PaginaTransacciones() {
                       </button>
                     )}
                   </div>
-                  {/* Reporte: solo móvil */}
-                  <div className="lg:hidden shrink-0">
-                    <Tooltip text="Descargar CSV con los filtros activos" position="top">
-                      <button
-                        onClick={handleExportar}
-                        className="flex items-center gap-1.5 h-10 px-3 rounded-lg text-sm font-bold text-slate-600 cursor-pointer"
-                        style={{
-                          background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                          border: '1.5px solid #cbd5e1',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                        }}
-                      >
-                        <Download className="w-4 h-4" />
-                        Reporte
-                      </button>
-                    </Tooltip>
-                  </div>
+                  {/* Reporte: solo móvil — icon only */}
+                  <button
+                    onClick={handleExportar}
+                    className="lg:hidden shrink-0 flex items-center justify-center h-11 w-11 rounded-lg text-slate-600 border-2 border-slate-300 cursor-pointer"
+                    style={{
+                      background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <Download className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </>
@@ -1197,11 +1190,11 @@ export default function PaginaTransacciones() {
                 <div className="shrink-0 relative" ref={periodoDropdownRef}>
                   <button
                     onClick={() => setPeriodoDropdownAbierto(!periodoDropdownAbierto)}
-                    className={`flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
+                    className={`flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
                   >
                     <Calendar className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
                     <span className="truncate">{PERIODOS_CONFIG.find(p => p.id === periodo)?.etiqueta ?? 'Período'}</span>
-                    <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${periodoDropdownAbierto ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${periodoDropdownAbierto ? 'rotate-180' : ''}`} />
                   </button>
                   {periodoDropdownAbierto && (
                     <div className="absolute top-full left-0 mt-1.5 w-36 lg:w-40 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
@@ -1250,13 +1243,13 @@ export default function PaginaTransacciones() {
                 <div className="lg:hidden shrink-0 relative" ref={estadoCanjesDropdownRef}>
                   <button
                     onClick={() => setEstadoCanjesDropdownAbierto(!estadoCanjesDropdownAbierto)}
-                    className={`flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${estadoFiltroCanjes
+                    className={`flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltroCanjes
                         ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
                         : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                       }`}
                   >
                     <span className="truncate">{[{ id: '', etiqueta: 'Todos' }, { id: 'pendiente', etiqueta: 'Pendientes' }, { id: 'usado', etiqueta: 'Usados' }, { id: 'expirado', etiqueta: 'Vencidos' }].find(e => e.id === estadoFiltroCanjes)?.etiqueta ?? 'Todos'}</span>
-                    <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${estadoCanjesDropdownAbierto ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${estadoCanjesDropdownAbierto ? 'rotate-180' : ''}`} />
                   </button>
                   {estadoCanjesDropdownAbierto && (
                     <div className="absolute top-full left-0 mt-1.5 w-36 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
@@ -1291,7 +1284,7 @@ export default function PaginaTransacciones() {
                   placeholder="Buscar cliente..."
                   value={textoBusquedaCanjes}
                   onChange={(e) => handleBusquedaCanjes(e.target.value)}
-                  className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm pr-8"
+                  className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base pr-8"
                   icono={<Search className="w-4 h-4 text-slate-600" />}
                 />
                 {textoBusquedaCanjes && (
@@ -1597,7 +1590,7 @@ export default function PaginaTransacciones() {
         {isMobile && tabActivo === 'ventas' && (
           <div className="space-y-2">
             {/* Chips de orden (móvil) */}
-            <div className="flex gap-2 overflow-x-auto tx-carousel pb-1">
+            <div className="grid grid-cols-3 gap-2">
               {([
                 { col: 'monto' as ColumnaOrden, etiqueta: 'Monto' },
                 { col: 'puntos' as ColumnaOrden, etiqueta: 'Puntos' },
@@ -1608,15 +1601,15 @@ export default function PaginaTransacciones() {
                   <button
                     key={col}
                     onClick={() => alternarOrden(col)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all shrink-0 cursor-pointer ${activa
+                    className={`flex items-center justify-center gap-1.5 h-11 rounded-lg text-base font-semibold border-2 transition-all cursor-pointer ${activa
                         ? 'text-white border-slate-700'
                         : 'bg-white text-slate-600 border-slate-300'
                       }`}
                     style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-amber-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-amber-400" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 text-amber-400" />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 text-amber-400" />}
                     {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
                   </button>
                 );
@@ -1670,8 +1663,8 @@ export default function PaginaTransacciones() {
                     style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-amber-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-amber-400" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />}
                     {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
                   </button>
                 );

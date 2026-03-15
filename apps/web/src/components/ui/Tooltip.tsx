@@ -21,13 +21,15 @@ interface TooltipProps {
   position?: 'top' | 'bottom' | 'left' | 'right';
   /** Tiempo en ms para ocultar automáticamente el tooltip */
   autoHide?: number;
+  /** Clases CSS adicionales para el contenedor del tooltip (ej: '2xl:hidden') */
+  className?: string;
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export default function Tooltip({ children, text, position = 'bottom', autoHide }: TooltipProps) {
+export default function Tooltip({ children, text, position = 'bottom', autoHide, className = '' }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -127,7 +129,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide 
 
       {visible && createPortal(
         <div
-          className="fixed pointer-events-none"
+          className={`fixed pointer-events-none ${className}`}
           style={{
             top: coords.top,
             left: coords.left,

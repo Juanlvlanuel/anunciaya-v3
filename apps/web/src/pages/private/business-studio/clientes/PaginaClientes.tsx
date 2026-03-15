@@ -172,10 +172,10 @@ function HeaderOrdenable({
         <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
       )}
       {activa && direccion === 'desc' && (
-        <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
+        <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />
       )}
       {activa && direccion === 'asc' && (
-        <ChevronUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
+        <ChevronUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />
       )}
     </button>
   );
@@ -400,11 +400,11 @@ export default function PaginaClientes() {
           </div>
 
           {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
-          <div className="mt-5 lg:mt-0 overflow-x-auto lg:overflow-visible lg:flex-1 cl-carousel">
+          <div className="mt-5 lg:mt-0 lg:overflow-visible lg:flex-1 cl-carousel">
             <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
               {/* Total Clientes */}
               <div
-                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                 style={{
                   background: 'linear-gradient(135deg, #eff6ff, #fff)',
                   border: '2px solid #93c5fd',
@@ -427,7 +427,7 @@ export default function PaginaClientes() {
 
               {/* Nuevos este mes */}
               <div
-                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                 style={{
                   background: 'linear-gradient(135deg, #f0fdf4, #fff)',
                   border: '2px solid #86efac',
@@ -450,7 +450,7 @@ export default function PaginaClientes() {
 
               {/* Inactivos 30d */}
               <div
-                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                 style={{
                   background: 'linear-gradient(135deg, #fef2f2, #fff)',
                   border: '2px solid #fca5a5',
@@ -519,7 +519,7 @@ export default function PaginaClientes() {
             <div className="flex flex-row gap-1 lg:gap-1.5 lg:shrink-0">
               <button
                 onClick={() => setNivelFiltro(null)}
-                className={`flex-1 lg:flex-none flex items-center justify-center px-3 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${!nivelFiltro
+                className={`flex-1 lg:flex-none flex items-center justify-center px-3 lg:px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${!nivelFiltro
                   ? 'bg-slate-800 text-white border-slate-800'
                   : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                   }`}
@@ -530,7 +530,7 @@ export default function PaginaClientes() {
                 <button
                   key={n.valor}
                   onClick={() => setNivelFiltro(nivelFiltro === n.valor ? null : n.valor)}
-                  className={`flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${nivelFiltro === n.valor
+                  className={`flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 lg:px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${nivelFiltro === n.valor
                     ? `${n.bg} ${n.color}`
                     : `bg-white ${n.color} border-slate-300 hover:border-slate-400`
                     }`}
@@ -548,7 +548,7 @@ export default function PaginaClientes() {
                   placeholder="Nombre o Celular..."
                   value={textoBusqueda}
                   onChange={(e) => handleBusquedaChange(e.target.value)}
-                  className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm"
+                  className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base"
                   icono={<Search className="w-4 h-4 text-slate-600" />}
                   elementoDerecha={textoBusqueda ? (
                     <button
@@ -561,23 +561,17 @@ export default function PaginaClientes() {
                   ) : undefined}
                 />
               </div>
-              {/* Reporte: solo móvil */}
-              <div className="lg:hidden shrink-0">
-                <Tooltip text="Descargar CSV con los filtros activos" position="top">
-                  <button
-                    onClick={handleExportar}
-                    className="flex items-center gap-1.5 h-10 px-3 rounded-lg text-sm font-bold text-slate-600 cursor-pointer"
-                    style={{
-                      background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                      border: '1.5px solid #cbd5e1',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                    }}
-                  >
-                    <Download className="w-4 h-4" />
-                    Reporte
-                  </button>
-                </Tooltip>
-              </div>
+              {/* Reporte: solo móvil — icon only */}
+              <button
+                onClick={handleExportar}
+                className="lg:hidden shrink-0 flex items-center justify-center h-11 w-11 rounded-lg text-slate-600 border-2 border-slate-300 cursor-pointer"
+                style={{
+                  background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                }}
+              >
+                <Download className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Reporte: solo laptop/desktop */}
@@ -585,10 +579,9 @@ export default function PaginaClientes() {
               <Tooltip text="Descargar CSV con los filtros activos" position="bottom">
                 <button
                   onClick={handleExportar}
-                  className="flex items-center gap-1.5 h-9 2xl:h-10 px-2.5 2xl:px-3 rounded-lg lg:text-xs 2xl:text-sm font-bold text-slate-600 cursor-pointer"
+                  className="flex items-center gap-1.5 h-10 2xl:h-11 px-2.5 2xl:px-3 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
                   style={{
                     background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                    border: '1.5px solid #cbd5e1',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
                   }}
                 >
@@ -728,7 +721,7 @@ export default function PaginaClientes() {
         {isMobile && (
           <div className="space-y-2">
             {/* Chips de orden (móvil) */}
-            <div className="flex gap-1.5 overflow-x-auto cl-carousel pb-1">
+            <div className="grid grid-cols-3 gap-2">
               {([
                 { col: 'puntos' as ColumnaOrden, etiqueta: 'Puntos' },
                 { col: 'visitas' as ColumnaOrden, etiqueta: 'Visitas' },
@@ -739,14 +732,15 @@ export default function PaginaClientes() {
                   <button
                     key={col}
                     onClick={() => alternarOrden(col)}
-                    className={`flex items-center gap-1 px-2.5 h-10 rounded-lg text-sm font-semibold border-2 transition-all shrink-0 cursor-pointer ${activa
-                      ? 'bg-slate-800 text-white border-slate-800'
+                    className={`flex items-center justify-center gap-1.5 h-11 rounded-lg text-base font-semibold border-2 transition-all cursor-pointer ${activa
+                      ? 'text-white border-slate-700'
                       : 'bg-white text-slate-600 border-slate-300'
                       }`}
+                    style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-amber-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-amber-400" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 text-amber-400" />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 text-amber-400" />}
                     {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
                   </button>
                 );

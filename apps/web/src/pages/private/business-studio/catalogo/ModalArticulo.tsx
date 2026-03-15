@@ -442,7 +442,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                         {categoria || 'Selecciona una categoría'}
                       </span>
                     </div>
-                    <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-slate-400 transition-transform ${mostrarDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-400 transition-transform ${mostrarDropdown ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Dropdown menu */}
@@ -568,7 +568,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                       placeholder="0.00"
                       min="0"
                       step="0.01"
-                      className="w-full pl-6 lg:pl-5 2xl:pl-7 pr-2 lg:pr-2 2xl:pr-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
+                      className="w-full pl-6 lg:pl-5 2xl:pl-7 pr-2 lg:pr-2 2xl:pr-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800"
                     />
                   </div>
                 </div>
@@ -587,7 +587,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                   onChange={(e) => setNombre(e.target.value)}
                   placeholder={`Nombre del ${tipo}`}
                   maxLength={100}
-                  className="w-full px-2.5 lg:px-2.5 2xl:px-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-xs 2xl:text-sm"
+                  className="w-full px-2.5 lg:px-2.5 2xl:px-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                 />
               </div>
 
@@ -602,7 +602,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                   placeholder="Descripción breve..."
                   rows={2}
                   maxLength={500}
-                  className="w-full px-2.5 lg:px-2.5 2xl:px-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm lg:text-xs 2xl:text-sm"
+                  className="w-full px-2.5 lg:px-2.5 2xl:px-3 py-2 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                 />
               </div>
 

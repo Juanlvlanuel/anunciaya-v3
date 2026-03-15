@@ -7,13 +7,32 @@
 
 ## 1. Tamaños Mínimos de Texto
 
+### Texto de interfaz (labels, badges, botones, headers)
+
 | Dispositivo | Breakpoint | Tamaño mínimo | Notas |
 |-------------|------------|---------------|-------|
 | Móvil | base | `text-sm` (14px) | |
 | Laptop | lg: | `text-[11px]` (11px) | Nunca `text-[10px]` ni `text-[9px]` |
 | Desktop | 2xl: | `text-sm` (14px) | Nunca `text-xs` (12px) |
 
-### Excepciones — Texto por debajo del mínimo permitido
+### Texto dentro de inputs de formulario (contenido que el usuario escribe/lee)
+
+Los inputs de formulario usan tamaños mayores que el texto de interfaz. Razones:
+- **16px en mobile** evita el auto-zoom automático de iOS al hacer focus
+- El contenido escrito por el usuario requiere mayor legibilidad que las etiquetas de UI
+- En laptop no se reduce a `text-xs` — 14px es el mínimo para datos
+
+| Dispositivo | Breakpoint | Tamaño | Notas |
+|-------------|------------|--------|-------|
+| Móvil | base | `text-base` (16px) | Evita auto-zoom iOS |
+| Laptop | lg: | `text-sm` (14px) | No bajar de 14px en campos de datos |
+| Desktop | 2xl: | `text-base` (16px) | Restaura móvil |
+
+**Patrón Tailwind para texto de input:** `text-base lg:text-sm 2xl:text-base font-medium text-slate-800`
+
+**Patrón Tailwind para placeholder:** `placeholder:text-slate-500` — más visible que slate-400 pero distinguible del valor real.
+
+### Excepciones — Texto por debajo del mínimo de interfaz permitido
 
 Se permite usar texto menor al mínimo **únicamente** en estos casos:
 
@@ -277,7 +296,10 @@ Para elementos que aparecen dinámicamente en el DOM (panels, menús, expanders)
 - [x] Anatomía de dropdowns ✅
 - [x] Input de búsqueda ✅
 - [x] Padding horizontal de botones ✅
-- [x] Modales de detalle ✅
+- [x] Modales de detalle ✅ (TC-8 actualizado: `headerOscuro` prop reemplaza hack `max-lg:`)
+- [x] ModalBottom fondo personalizable y drag handle automático ✅ (TC-15)
+- [x] Botones icon-only en laptop + Tooltip responsivo ✅ (TC-16)
+- [x] `whitespace-nowrap` en títulos de celdas comprimidas ✅ (TC-17)
 - [x] Dark gradient de marca ✅
 - [x] Patrón tabla desktop ✅
 - [x] Botones de acción inline en tabla ✅

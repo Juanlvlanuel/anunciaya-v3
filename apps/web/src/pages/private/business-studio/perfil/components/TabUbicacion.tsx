@@ -126,9 +126,11 @@ export default function TabUbicacion({
   const { obtenerUbicacion } = useGpsStore();
 
   const [busquedaCiudad, setBusquedaCiudad] = useState('');
+  const [ciudadEnfocada, setCiudadEnfocada] = useState(false);
   const [resultadosCiudad, setResultadosCiudad] = useState<CiudadConNombreCompleto[]>([]);
   const [mostrarResultados, setMostrarResultados] = useState(false);
   const [busquedaEstado, setBusquedaEstado] = useState('');
+  const [estadoEnfocado, setEstadoEnfocado] = useState(false);
   const [resultadosEstado, setResultadosEstado] = useState<string[]>([]);
   const [mostrarResultadosEstado, setMostrarResultadosEstado] = useState(false);
   const [detectandoUbicacion, setDetectandoUbicacion] = useState(false);
@@ -305,218 +307,180 @@ export default function TabUbicacion({
   }, [datosUbicacion, setDatosUbicacion]);
 
   return (
-    <div className="space-y-5 lg:space-y-3 2xl:space-y-5">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-3 2xl:gap-4 lg:items-stretch">
 
-      {/* Calle y Colonia */}
-      <div>
-        <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2">
-          <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Calle y Colonia <span className="text-red-500">*</span>
+      {/* ================================================================ */}
+      {/* CARD: DIRECCIÓN */}
+      {/* ================================================================ */}
+
+      <div className="bg-white border-2 border-slate-300 rounded-xl"
+        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+
+        {/* Header */}
+        <div className="px-4 py-3 flex items-center gap-2.5 rounded-t-xl"
+          style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+          <MapPin className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+          <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Dirección</span>
         </div>
-        <div
-          className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
-          style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-        >
-          <input
-            type="text"
-            value={datosUbicacion.direccion}
-            onChange={(e) => setDatosUbicacion({ ...datosUbicacion, direccion: e.target.value })}
-            placeholder="Ej: Calle Benito Juárez #123, Col. Centro"
-            className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
-          />
+
+        <div className="p-4 lg:p-3 2xl:p-4 space-y-4 lg:space-y-3 2xl:space-y-4">
+
+          {/* Calle y Colonia */}
+          <div>
+            <div className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
+              <MapPin className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-600 shrink-0" />
+              Calle y Colonia <span className="text-red-500">*</span>
+            </div>
+            <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
+              style={{ border: '2px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+              <input
+                type="text"
+                value={datosUbicacion.direccion}
+                onChange={(e) => setDatosUbicacion({ ...datosUbicacion, direccion: e.target.value })}
+                placeholder="Ej: Calle Benito Juárez #123, Col. Centro"
+                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+              />
+            </div>
+          </div>
+
+          {/* Ciudad + Estado */}
+          <div ref={contenedorGeneralRef} className="space-y-4 lg:space-y-3 2xl:space-y-4">
+
+              {/* Ciudad */}
+              <div>
+                <div className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
+                  <MapPin className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-600 shrink-0" />
+                  Ciudad <span className="text-red-500">*</span>
+                </div>
+              <div ref={contenedorCiudadRef} className="relative w-full z-20">
+                <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
+                  style={{ border: '2px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                  <input
+                    type="text"
+                    value={ciudadEnfocada ? busquedaCiudad : (busquedaCiudad || datosUbicacion.ciudad)}
+                    onChange={(e) => handleBusquedaCiudad(e.target.value)}
+                    onFocus={() => { setCiudadEnfocada(true); setBusquedaCiudad(''); if (resultadosCiudad.length > 0) setMostrarResultados(true); }}
+                    onBlur={() => { setCiudadEnfocada(false); setTimeout(() => setMostrarResultados(false), 150); }}
+                    placeholder={datosUbicacion.ciudad || 'Buscar ciudad...'}
+                    className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                  />
+                  {busquedaCiudad && (
+                    <button type="button"
+                      onClick={() => { setBusquedaCiudad(''); setResultadosCiudad([]); setMostrarResultados(false); }}
+                      className="text-slate-400 hover:text-slate-600 ml-2 cursor-pointer">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                {mostrarResultados && resultadosCiudad.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl max-h-60 overflow-y-auto z-50"
+                    style={{ border: '2px solid #cbd5e1' }}>
+                    {resultadosCiudad.map((ciudad, index) => (
+                      <button key={index} type="button" onClick={() => handleSeleccionarCiudad(ciudad)}
+                        className="w-full px-4 py-2.5 text-left hover:bg-blue-100 flex items-center gap-2.5 border-b border-slate-300 last:border-0 cursor-pointer">
+                        <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{ciudad.nombre}</p>
+                          <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 truncate">{ciudad.estado}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              </div>
+
+              {/* Estado */}
+              <div>
+                <div className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
+                  <MapPin className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-600 shrink-0" />
+                  Estado <span className="text-red-500">*</span>
+                </div>
+              <div ref={contenedorEstadoRef} className="relative w-full z-10">
+                <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
+                  style={{
+                    border: !datosUbicacion.estado ? '2px solid #ef4444' : '2px solid #cbd5e1',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+                  }}>
+                  <input
+                    type="text"
+                    value={estadoEnfocado ? busquedaEstado : (busquedaEstado || datosUbicacion.estado || '')}
+                    onChange={(e) => handleBusquedaEstado(e.target.value)}
+                    onFocus={() => { setEstadoEnfocado(true); setBusquedaEstado(''); setResultadosEstado(estadosMexico); setMostrarResultadosEstado(true); }}
+                    onBlur={() => setEstadoEnfocado(false)}
+                    placeholder={datosUbicacion.estado || 'Estado...'}
+                    className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                  />
+                  {busquedaEstado && (
+                    <button type="button"
+                      onClick={() => { setBusquedaEstado(''); setResultadosEstado([]); setMostrarResultadosEstado(false); }}
+                      className="text-slate-400 hover:text-slate-600 ml-2 cursor-pointer">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                {mostrarResultadosEstado && resultadosEstado.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl max-h-60 overflow-y-auto z-50"
+                    style={{ border: '2px solid #cbd5e1' }}>
+                    {resultadosEstado.map((estado, index) => (
+                      <button key={index} type="button" onClick={() => handleSeleccionarEstado(estado)}
+                        className="w-full px-4 py-2.5 text-left hover:bg-blue-100 flex items-center gap-2.5 border-b border-slate-300 last:border-0 cursor-pointer">
+                        <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{estado}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!datosUbicacion.estado && (
+                  <p className="absolute -bottom-5 left-0 text-xs text-red-500 font-medium">Selecciona un estado</p>
+                )}
+              </div>
+              </div>
+
+          </div>
+
         </div>
       </div>
 
-      {/* Ciudad + Estado + GPS en una línea */}
-      <div ref={contenedorGeneralRef}>
-        {/* Labels */}
-        <div className="flex gap-2 mb-2">
-          <div className="w-1/2 flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
-            <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-            Ciudad <span className="text-red-500">*</span>
-          </div>
-          <div className="w-[30%] flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
-            <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-            Estado <span className="text-red-500">*</span>
-          </div>
-        </div>
+      {/* ================================================================ */}
+      {/* CARD: MAPA INTERACTIVO */}
+      {/* ================================================================ */}
 
-        {/* Inputs en una línea */}
-        <div className="flex gap-2">
-          {/* Input Ciudad - 50% */}
-          <div ref={contenedorCiudadRef} className="relative w-1/2 z-20">
-            <div
-              className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
-              style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-            >
-              <input
-                type="text"
-                value={busquedaCiudad || datosUbicacion.ciudad}
-                onChange={(e) => handleBusquedaCiudad(e.target.value)}
-                onFocus={() => {
-                  if (resultadosCiudad.length > 0) {
-                    setMostrarResultados(true);
-                  }
-                }}
-                placeholder="Buscar ciudad..."
-                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
-              />
+      <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden"
+        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
-              {/* Botón limpiar búsqueda */}
-              {busquedaCiudad && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBusquedaCiudad('');
-                    setResultadosCiudad([]);
-                    setMostrarResultados(false);
-                  }}
-                  className="text-slate-400 hover:text-slate-600 transition-colors ml-2 cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Dropdown de ciudades */}
-            {mostrarResultados && resultadosCiudad.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl max-h-60 overflow-y-auto z-50" style={{ border: '2.5px solid #dde4ef' }}>
-                {resultadosCiudad.map((ciudad, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => handleSeleccionarCiudad(ciudad)}
-                    className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors flex items-center gap-2.5 border-b border-slate-100 last:border-0 cursor-pointer"
-                  >
-                    <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">
-                        {ciudad.nombre}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {ciudad.estado}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Input Estado - 30% */}
-          <div ref={contenedorEstadoRef} className="relative w-[30%] z-10">
-            <div
-              className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
-              style={{ 
-                border: !datosUbicacion.estado ? '2.5px solid #ef4444' : '2.5px solid #dde4ef', 
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' 
-              }}
-            >
-              <input
-                type="text"
-                value={busquedaEstado || datosUbicacion.estado || ''}
-                onChange={(e) => handleBusquedaEstado(e.target.value)}
-                onFocus={() => {
-                  setResultadosEstado(estadosMexico);
-                  setMostrarResultadosEstado(true);
-                }}
-                placeholder="Estado..."
-                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
-              />
-
-              {/* Botón limpiar búsqueda estado */}
-              {busquedaEstado && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBusquedaEstado('');
-                    setResultadosEstado([]);
-                    setMostrarResultadosEstado(false);
-                  }}
-                  className="text-slate-400 hover:text-slate-600 transition-colors ml-2 cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Dropdown de estados */}
-            {mostrarResultadosEstado && resultadosEstado.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl max-h-60 overflow-y-auto z-50" style={{ border: '2.5px solid #dde4ef' }}>
-                {resultadosEstado.map((estado, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => handleSeleccionarEstado(estado)}
-                    className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors flex items-center gap-2.5 border-b border-slate-100 last:border-0 cursor-pointer"
-                  >
-                    <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span className="text-sm font-medium text-slate-900 truncate">
-                      {estado}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Mensaje de error cuando estado está vacío */}
-            {!datosUbicacion.estado && (
-              <p className="absolute -bottom-5 left-0 text-xs text-red-500 font-medium">
-                Selecciona un estado
-              </p>
-            )}
-          </div>
-
-          {/* Botón GPS - 20% */}
+        {/* Header */}
+        <div className="px-4 py-2.5 flex items-center gap-2.5"
+          style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+          <MapPin className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+          <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Ubicación en el Mapa</span>
+          <span className="text-red-400 ml-0.5">*</span>
+          <span className="hidden lg:block text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium mx-2">
+            Arrastra el marcador o haz clic para ajustar
+          </span>
           <button
             type="button"
             onClick={handleDetectarUbicacion}
             disabled={detectandoUbicacion}
-            className="shrink-0 w-[20%] h-12 lg:h-10 2xl:h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-semibold transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+            className="ml-auto flex items-center gap-1.5 h-7 px-2.5 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-lg text-xs font-semibold cursor-pointer disabled:cursor-not-allowed shrink-0"
           >
-            {detectandoUbicacion ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Navigation className="w-5 h-5" />
-            )}
-            <span className="hidden lg:inline text-sm">Usar GPS</span>
+            {detectandoUbicacion
+              ? <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+              : <Navigation className="w-3.5 h-3.5 shrink-0" />
+            }
+            Tu ubicación
           </button>
         </div>
-      </div>
 
-      {/* Mapa Interactivo */}
-      <div>
-        <div className="flex items-start lg:items-center justify-between mb-2 gap-2 lg:gap-4">
-          <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
-            <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-            Ubicación en el Mapa <span className="text-red-500">*</span>
-          </div>
-          
-          <p className="lg:hidden text-xs text-blue-700 text-right leading-tight">
-            <span className="font-bold">Tip:</span> Arrastra el marcador<br /> o haz clic en el mapa
-          </p>
-          
-          <p className="hidden lg:block text-xs 2xl:text-sm text-blue-700">
-            <span className="font-semibold">Tip:</span> Arrastra el marcador o haz clic en el mapa para ajustar la ubicación exacta
+        {/* Tip móvil */}
+        <div className="lg:hidden px-4 py-2 bg-blue-50 border-b border-slate-200">
+          <p className="text-sm text-blue-700 font-medium">
+            <span className="font-bold">Tip:</span> Arrastra el marcador o toca el mapa para ajustar la ubicación
           </p>
         </div>
 
-        {/* Contenedor del Mapa */}
-        <div className="relative w-full h-[360px] lg:h-96 2xl:h-[420px] rounded-lg overflow-hidden shadow-md z-0" style={{ border: '2.5px solid #dde4ef' }}>
-
-          {/* Botón Centrar Mapa - Flotante */}
-          <button
-            type="button"
-            onClick={() => setForzarCentrado(prev => prev + 1)}
-            className="absolute top-4 right-4 z-1000 bg-white hover:bg-blue-50 text-blue-600 p-2.5 rounded-lg shadow-lg transition-all cursor-pointer"
-            style={{ border: '2.5px solid #dde4ef' }}
-            title="Centrar mapa en la ubicación"
-          >
-            <MapPin className="w-5 h-5" />
-          </button>
+        {/* Mapa */}
+        <div className="relative w-full h-[360px] lg:h-[520px] 2xl:h-[580px] z-0">
 
           {mapaListo ? (
             <MapContainer
@@ -537,11 +501,12 @@ export default function TabUbicacion({
               <CentrarMapa lat={latitudActual} lng={longitudActual} forzar={forzarCentrado} />
             </MapContainer>
           ) : (
-            <div className="flex items-center justify-center h-full bg-slate-50">
+            <div className="flex items-center justify-center h-full bg-slate-100">
               <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
             </div>
           )}
         </div>
+
       </div>
 
     </div>

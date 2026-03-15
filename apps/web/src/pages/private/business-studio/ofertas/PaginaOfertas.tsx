@@ -656,14 +656,14 @@ export function PaginaOfertas() {
                         <div className="lg:hidden flex-1 flex justify-end">
                             <button
                                 onClick={handleCrear}
-                                className="shrink-0 flex items-center gap-1.5 h-10 px-3 rounded-lg text-sm font-bold text-white cursor-pointer"
+                                className="shrink-0 flex items-center gap-1 h-11 px-2 rounded-lg text-base font-bold text-slate-700 border-2 border-slate-400 cursor-pointer"
                                 style={{
-                                    background: 'linear-gradient(135deg, #1e293b, #334155)',
-                                    border: '1.5px solid #1e293b',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                    background: 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.12)',
                                 }}
                             >
-                                +Nueva Oferta
+                                <Plus className="w-4 h-4" />
+                                Nueva Oferta
                             </button>
                         </div>
                     </div>
@@ -791,7 +791,7 @@ export function PaginaOfertas() {
                             <div ref={dropdownEstadoRef} className="relative flex-1 lg:flex-none">
                                 <button
                                     onClick={() => setDropdownEstadoAbierto(prev => !prev)}
-                                    className={`flex items-center gap-1.5 w-full lg:w-40 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${filtros.estado !== 'todos'
+                                    className={`flex items-center gap-1.5 w-full lg:w-40 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.estado !== 'todos'
                                         ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
                                         : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                                     }`}
@@ -805,7 +805,7 @@ export function PaginaOfertas() {
                                     <span className="truncate">
                                         {filtros.estado === 'todos' ? 'Estado' : getBadgeEstado(filtros.estado as EstadoOferta).label}
                                     </span>
-                                    <ChevronDown className={`ml-auto w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 transition-transform shrink-0 ${dropdownEstadoAbierto ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`ml-auto w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 transition-transform shrink-0 ${dropdownEstadoAbierto ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 {dropdownEstadoAbierto && (
@@ -821,7 +821,7 @@ export function PaginaOfertas() {
                                             <button
                                                 key={value}
                                                 onClick={() => { setFiltros(prev => ({ ...prev, estado: value })); setDropdownEstadoAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${filtros.estado === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.estado === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                             >
                                                 <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.estado === value ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                     {filtros.estado === value && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
@@ -841,7 +841,7 @@ export function PaginaOfertas() {
                             <div ref={dropdownTipoRef} className="relative flex-1 lg:flex-none">
                                 <button
                                     onClick={() => setDropdownTipoAbierto(prev => !prev)}
-                                    className={`flex items-center gap-1.5 w-full lg:w-48 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${filtros.tipo !== 'todos'
+                                    className={`flex items-center gap-1.5 w-full lg:w-48 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo !== 'todos'
                                         ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
                                         : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                                     }`}
@@ -851,14 +851,14 @@ export function PaginaOfertas() {
                                         return <IconoActivo className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />;
                                     })() : <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />}
                                     <span className="truncate">{filtros.tipo === 'todos' ? 'Tipo' : getLabelTipo(filtros.tipo as TipoOferta)}</span>
-                                    <ChevronDown className={`ml-auto w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 transition-transform shrink-0 ${dropdownTipoAbierto ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`ml-auto w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 transition-transform shrink-0 ${dropdownTipoAbierto ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 {dropdownTipoAbierto && (
                                     <div className="absolute top-full left-0 lg:left-auto lg:right-0 mt-1.5 w-full lg:w-48 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                                         <button
                                             onClick={() => { setFiltros(prev => ({ ...prev, tipo: 'todos' })); setDropdownTipoAbierto(false); }}
-                                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${filtros.tipo === 'todos' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.tipo === 'todos' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                         >
                                             <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.tipo === 'todos' ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                 {filtros.tipo === 'todos' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
@@ -876,7 +876,7 @@ export function PaginaOfertas() {
                                             <button
                                                 key={value}
                                                 onClick={() => { setFiltros(prev => ({ ...prev, tipo: value })); setDropdownTipoAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${filtros.tipo === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.tipo === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                             >
                                                 <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.tipo === value ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                     {filtros.tipo === value && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
@@ -902,7 +902,7 @@ export function PaginaOfertas() {
                                     icono={<Search className="w-4 h-4 text-slate-600" />}
                                     value={filtros.busqueda}
                                     onChange={(e) => setFiltros(prev => ({ ...prev, busqueda: e.target.value }))}
-                                    className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm"
+                                    className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base"
                                     elementoDerecha={filtros.busqueda ? (
                                         <button
                                             type="button"
@@ -917,10 +917,9 @@ export function PaginaOfertas() {
                             {/* Nueva Oferta — desktop */}
                             <button
                                 onClick={handleCrear}
-                                className="hidden lg:flex shrink-0 items-center gap-1.5 h-9 2xl:h-10 px-4 2xl:px-5 rounded-lg text-xs 2xl:text-sm font-bold text-slate-600 cursor-pointer"
+                                className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-4 2xl:px-5 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
                                 style={{
                                     background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                                    border: '1.5px solid #cbd5e1',
                                     boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
                                 }}
                             >
@@ -1127,7 +1126,7 @@ export function PaginaOfertas() {
                 {isMobile && (
                     <div className="space-y-2">
                         {/* Chips de orden (móvil) */}
-                        <div className="flex gap-1.5 overflow-x-auto ofe-carousel pb-1">
+                        <div className="grid grid-cols-3 gap-2">
                             {([
                                 { col: 'vistas' as ColumnaOrden, etiqueta: 'Vistas' },
                                 { col: 'shares' as ColumnaOrden, etiqueta: 'Shares' },
@@ -1138,15 +1137,16 @@ export function PaginaOfertas() {
                                     <button
                                         key={col}
                                         onClick={() => alternarOrden(col)}
-                                        className={`flex items-center gap-1 px-2.5 h-10 rounded-lg text-sm font-semibold border-2 transition-all shrink-0 cursor-pointer ${activa
-                                            ? 'bg-slate-800 text-white border-slate-800'
+                                        className={`flex items-center justify-center gap-1.5 h-11 rounded-lg text-base font-semibold border-2 transition-all cursor-pointer ${activa
+                                            ? 'text-white border-slate-700'
                                             : 'bg-white text-slate-600 border-slate-300'
                                         }`}
+                                        style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                                     >
                                         {etiqueta}
-                                        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-amber-400" />}
-                                        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-amber-400" />}
-                                        {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
+                                        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />}
+                                        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />}
+                                        {!activa && <ArrowUpDown className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-600" />}
                                     </button>
                                 );
                             })}

@@ -57,6 +57,12 @@ interface ModalBottomProps {
   className?: string;
   /** Clase de z-index para el wrapper (default: 'z-52'). Usar z-90 para modales sobre ChatYA */
   zIndice?: string;
+  /** CSS background del modal completo (reemplaza bg-slate-50 por defecto) */
+  fondo?: string;
+  /** Adapta colores internos (handle, borde, botón X) para fondos de header oscuros */
+  headerOscuro?: boolean;
+  /** Color personalizado para la barra del drag handle (ej: '#ffffff40', 'rgba(255,255,255,0.3)') */
+  colorHandle?: string;
 }
 
 // =============================================================================
@@ -94,6 +100,9 @@ export function ModalBottom({
   alturaMaxima = 'lg',
   className = '',
   zIndice = 'z-52',
+  fondo,
+  headerOscuro = false,
+  colorHandle,
 }: ModalBottomProps) {
   // ---------------------------------------------------------------------------
   // Estado
@@ -334,8 +343,8 @@ export function ModalBottom({
         ref={modalRef}
         className={`
           relative w-full max-w-lg lg:max-w-md 2xl:max-w-lg
-          bg-slate-50 rounded-t-3xl lg:rounded-t-2xl 2xl:rounded-t-3xl
-          shadow-2xl
+          ${fondo ? '' : 'bg-slate-50'} rounded-t-3xl lg:rounded-t-2xl 2xl:rounded-t-3xl
+          shadow-2xl overflow-hidden
           ${ALTURAS_MAXIMAS[alturaMaxima]}
           flex flex-col
           ${isDragging ? '' : 'transition-transform duration-300'}
@@ -348,26 +357,30 @@ export function ModalBottom({
           animation: !cerrando && dragY === 0 && !isDragging
             ? 'slideUpBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
             : undefined,
+          ...(fondo ? { background: fondo } : {}),
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle de drag */}
+        {/* Handle de drag — absolute para que el contenido empiece desde y=0 */}
         <div
-          className="flex justify-center py-3 lg:py-2 2xl:py-3 cursor-grab active:cursor-grabbing select-none"
+          className="absolute top-0 inset-x-0 z-10 flex justify-center pt-3 pb-6 lg:pt-2 lg:pb-5 2xl:pt-3 2xl:pb-6 cursor-grab active:cursor-grabbing select-none"
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
         >
-          <div className="w-12 lg:w-10 2xl:w-12 h-1.5 lg:h-1 2xl:h-1.5 rounded-full bg-slate-300 hover:bg-slate-400 transition-colors" />
+          <div
+            className={`w-12 lg:w-10 2xl:w-12 h-1.5 lg:h-1 2xl:h-1.5 rounded-full transition-colors ${colorHandle ? '' : headerOscuro ? 'bg-white/40 hover:bg-white/55' : 'bg-slate-300 hover:bg-slate-400'}`}
+            style={colorHandle ? { backgroundColor: colorHandle } : undefined}
+          />
         </div>
 
         {/* Header */}
         {deberiasMostrarHeader && (
-          <div className="flex items-center justify-between px-4 lg:px-3 2xl:px-4 pb-3 lg:pb-2 2xl:pb-3 border-b border-slate-100">
+          <div className={`flex items-center justify-between px-4 lg:px-3 2xl:px-4 pt-11 lg:pt-8 2xl:pt-11 pb-3 lg:pb-2 2xl:pb-3 border-b ${headerOscuro ? 'border-white/10' : 'border-slate-100'}`}>
             {/* Título con icono */}
             {titulo && (
               <div className="flex items-center gap-2 lg:gap-2 2xl:gap-2.5">
                 {iconoTitulo}
-                <h2 className="text-lg lg:text-base 2xl:text-lg font-bold text-slate-800">
+                <h2 className={`text-lg lg:text-base 2xl:text-lg font-bold ${headerOscuro ? 'text-white' : 'text-slate-800'}`}>
                   {titulo}
                 </h2>
               </div>
@@ -379,7 +392,10 @@ export function ModalBottom({
             {mostrarBotonCerrar && (
               <button
                 onClick={handleCerrar}
-                className="p-1.5 lg:p-1 2xl:p-1.5 text-slate-400 hover:text-slate-600 rounded-full bg-slate-200 hover:bg-slate-300 lg:bg-transparent lg:hover:bg-slate-100 transition-colors cursor-pointer mr-2 lg:mr-0"
+                className={`p-1.5 lg:p-1 2xl:p-1.5 rounded-full transition-colors cursor-pointer mr-2 lg:mr-0 ${headerOscuro
+                  ? 'text-white/50 hover:text-white bg-white/10 hover:bg-white/20'
+                  : 'text-slate-400 hover:text-slate-600 bg-slate-200 hover:bg-slate-300 lg:bg-transparent lg:hover:bg-slate-100'
+                }`}
                 aria-label="Cerrar"
               >
                 <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
@@ -394,7 +410,9 @@ export function ModalBottom({
             flex-1 min-h-0
             ${sinScrollInterno
               ? 'overflow-hidden flex flex-col'
-              : 'overflow-y-auto p-4 lg:p-3 2xl:p-4'
+              : deberiasMostrarHeader
+                ? 'overflow-y-auto p-4 lg:p-3 2xl:p-4'
+                : 'overflow-y-auto px-4 lg:px-3 2xl:px-4 pb-4 lg:pb-3 2xl:pb-4 pt-11 lg:pt-8 2xl:pt-11'
             }
           `}
         >

@@ -34,6 +34,7 @@ const STORAGE_KEYS = {
 const TIEMPO_INACTIVIDAD_TOTAL = 60 * 60 * 1000; // 60 minutos
 const TIEMPO_AVISO_ANTES = 5 * 60 * 1000;         // 5 minutos antes
 const TIEMPO_HASTA_AVISO = TIEMPO_INACTIVIDAD_TOTAL - TIEMPO_AVISO_ANTES; // 55 minutos
+const STORAGE_KEY_ULTIMA_ACTIVIDAD = `${STORAGE_PREFIX}ultima_actividad`;
 
 // =============================================================================
 // TIPOS
@@ -142,6 +143,7 @@ interface AuthState {
   _iniciarTimerInactividad: () => void;
   _limpiarTimers: () => void;
   _actualizarTiempoRestante: () => void;
+  _verificarInactividadAlRegresar: () => void;
 }
 
 // =============================================================================
@@ -726,6 +728,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Si el modal está visible, no resetear (el usuario debe hacer clic en "Continuar")
     if (state.mostrarModalInactividad) return;
 
+    // Registrar timestamp de última actividad
+    guardarEnStorage(STORAGE_KEY_ULTIMA_ACTIVIDAD, String(Date.now()));
+
     // Reiniciar timers
     state._iniciarTimerInactividad();
   },
@@ -759,6 +764,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Solo si está autenticado
     if (!state.usuario || !state.accessToken) return;
+
+    // Registrar timestamp de última actividad
+    guardarEnStorage(STORAGE_KEY_ULTIMA_ACTIVIDAD, String(Date.now()));
 
     // Timer 1: Mostrar modal a los 55 minutos
     timerAviso = setTimeout(() => {
@@ -801,7 +809,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       clearInterval(intervalContador);
     }
 
-    // Actualizar cada segundo
+    // Actualizar cada segundo (1000ms)
     intervalContador = setInterval(() => {
       const state = get();
 
@@ -822,11 +830,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           clearInterval(intervalContador);
           intervalContador = null;
         }
-        // DESHABILITADO: get().cerrarPorInactividad(); - El modal se mantiene abierto
+        get().cerrarPorInactividad();
       } else {
         set({ tiempoRestante: nuevoTiempo });
       }
     }, 1000);
+  },
+
+  // ---------------------------------------------------------------------------
+  // ACCIÓN INTERNA: Verificar inactividad al regresar de suspensión
+  // ---------------------------------------------------------------------------
+  _verificarInactividadAlRegresar: () => {
+    const state = get();
+    if (!state.usuario || !state.accessToken) return;
+
+    const ultimaActividadStr = obtenerDeStorage(STORAGE_KEY_ULTIMA_ACTIVIDAD);
+    if (!ultimaActividadStr) return;
+
+    const ultimaActividad = parseInt(ultimaActividadStr, 10);
+    const ahora = Date.now();
+    const transcurrido = ahora - ultimaActividad;
+
+    if (transcurrido >= TIEMPO_INACTIVIDAD_TOTAL) {
+      // Pasó 1 hora o más → logout directo, sin modal
+      state._limpiarTimers();
+      get().logout('inactividad');
+    } else if (transcurrido >= TIEMPO_HASTA_AVISO) {
+      // Pasó más de 55 min → mostrar modal con tiempo real restante
+      state._limpiarTimers();
+      const tiempoRestanteReal = Math.floor((TIEMPO_INACTIVIDAD_TOTAL - transcurrido) / 1000);
+      set({ mostrarModalInactividad: true, tiempoRestante: tiempoRestanteReal });
+      get()._actualizarTiempoRestante();
+    } else {
+      // Menos de 55 min → reiniciar timers con el tiempo residual correcto
+      state._limpiarTimers();
+      const tiempoResidualhastAviso = TIEMPO_HASTA_AVISO - transcurrido;
+
+      timerAviso = setTimeout(() => {
+        set({ mostrarModalInactividad: true, tiempoRestante: 300 });
+        get()._actualizarTiempoRestante();
+      }, tiempoResidualhastAviso);
+    }
   },
 }));
 

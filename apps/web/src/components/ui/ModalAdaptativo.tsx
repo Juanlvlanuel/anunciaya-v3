@@ -87,6 +87,15 @@ interface ModalAdaptativoProps {
   /** Altura máxima en móvil: 'sm' | 'md' | 'lg' */
   alturaMaxima?: 'sm' | 'md' | 'lg';
 
+  // --- Props de fondo para ModalBottom (móvil) ---
+
+  /** CSS background del modal completo en móvil (reemplaza bg-slate-50) */
+  fondo?: string;
+  /** Adapta colores internos del handle/header para fondos oscuros */
+  headerOscuro?: boolean;
+  /** Color personalizado de la barra del drag handle */
+  colorHandle?: string;
+
   // --- Prop especial ---
 
   /** Fuerza Modal centrado sin importar dispositivo (ej: modal sobre modal) */
@@ -116,6 +125,10 @@ export function ModalAdaptativo({
   // Props ModalBottom (móvil)
   sinScrollInterno = false,
   alturaMaxima = 'lg',
+  // Fondo ModalBottom
+  fondo,
+  headerOscuro,
+  colorHandle,
   // Especial
   centrado = false,
   zIndice,
@@ -136,6 +149,9 @@ export function ModalAdaptativo({
         mostrarHeader={mostrarHeader}
         sinScrollInterno={sinScrollInterno}
         alturaMaxima={alturaMaxima}
+        fondo={fondo}
+        headerOscuro={headerOscuro}
+        colorHandle={colorHandle}
         zIndice={zIndice}
       >
         {children}

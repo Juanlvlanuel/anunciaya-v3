@@ -23,19 +23,19 @@ Ejemplo: `p-2 2xl:p-2.5 rounded-lg 2xl:rounded-xl` con icono `w-4 h-4 2xl:w-5 2x
 
 ## 2. Altura de Elementos Interactivos (Botones e Inputs)
 
-Altura estándar validada para botones, inputs y dropdowns en toda la app.
+Altura estándar validada para todos los elementos interactivos de la app: botones, inputs de búsqueda, inputs de formulario, dropdowns y chips.
 
 | Dispositivo | Breakpoint | Altura | px |
 |-------------|------------|--------|----|
-| Móvil | base | `h-10` | 40px |
-| Laptop | `lg:` | `h-9` | 36px |
-| Desktop | `2xl:` | `h-10` | 40px |
+| Móvil | base | `h-11` | 44px |
+| Laptop | `lg:` | `h-10` | 40px |
+| Desktop | `2xl:` | `h-11` | 44px |
 
-**Patrón Tailwind:** `h-10 lg:h-9 2xl:h-10`
+**Patrón Tailwind:** `h-11 lg:h-10 2xl:h-11`
 
-Aplica a: botones de acción, dropdowns, inputs de búsqueda/formulario, chips de filtro interactivos.
+44px es el estándar Apple HIG para touch targets. Se aplica igual en búsqueda, filtros, dropdowns y formularios — un solo patrón para toda la app.
 
-**Regla:** todo elemento interactivo debe respetar esta altura. No se permite `h-8` ni menor en ningún breakpoint.
+**Regla:** todo elemento interactivo respeta esta altura. No se permite `h-9` ni menor en ningún breakpoint.
 
 ---
 
@@ -60,14 +60,14 @@ Aplica a: botones de filtro (chips), botones de dropdown (Período, Estado, Oper
 | Propiedad | Valor | Notas |
 |-----------|-------|-------|
 | Peso | `font-semibold` (600) | Igual en las 3 resoluciones |
-| Tamaño móvil | `text-sm` (14px) | Mínimo R1 |
-| Tamaño laptop | `lg:text-xs` (12px) | Mínimo R1 laptop |
-| Tamaño desktop | `2xl:text-sm` (14px) | Restaura móvil |
+| Tamaño móvil | `text-base` (16px) | Mismo patrón que inputs |
+| Tamaño laptop | `lg:text-sm` (14px) | Mismo patrón que inputs |
+| Tamaño desktop | `2xl:text-base` (16px) | Mismo patrón que inputs |
 | Border | `border-2 rounded-lg` | Ver R6 |
 
-**Patrón Tailwind:** `font-semibold text-sm lg:text-xs 2xl:text-sm border-2 rounded-lg`
+**Patrón Tailwind:** `font-semibold text-base lg:text-sm 2xl:text-base border-2 rounded-lg`
 
-**Regla:** `font-medium` queda prohibido en botones de filtro y dropdown — solo `font-semibold` o superior.
+**Regla:** `font-medium` queda prohibido en botones de filtro y dropdown — solo `font-semibold` o superior. El tamaño de texto es el mismo que el de los inputs (TC-2) — un solo estándar para todos los elementos interactivos.
 
 ---
 
@@ -86,7 +86,7 @@ mt-1.5  ← separación fija del botón que lo abre
 
 ```
 w-full flex items-center gap-2.5 px-3 py-2
-text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer
+text-base lg:text-sm 2xl:text-base font-medium text-left cursor-pointer
 ```
 
 - Activo: `bg-slate-200 text-slate-800 font-semibold` (neutral) o `bg-indigo-100 text-indigo-700 font-semibold` (indigo)
@@ -105,7 +105,7 @@ Check interior: w-3 h-3 text-white  ← fijo
 ### Chevron en el botón
 
 ```
-w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0 transition-transform
+w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform
 rotate-180 cuando el panel está abierto
 ```
 
@@ -172,16 +172,67 @@ Todos los dropdowns usan la variante **indigo**:
 
 **Sin opacidad** en el ícono del botón — color heredado del botón padre.
 
+### Auto-scroll en móvil
+
+Cuando un dropdown abre en móvil, el panel (absolutamente posicionado) no agrega altura real al scroll container, por lo que puede quedar cortado fuera del viewport. Patrón obligatorio para cualquier dropdown dentro de un formulario en móvil:
+
+```tsx
+useEffect(() => {
+  if (!abierto || window.innerWidth >= 1024) return;
+
+  const main = document.querySelector('main');
+  if (!main) return;
+
+  const paddingOriginal = main.style.paddingBottom;
+
+  const timer = setTimeout(() => {
+    const el = ref.current; // ref al contenedor del dropdown
+    if (!el) return;
+
+    // Posición absoluta del elemento dentro del scroll container
+    let offsetTop = 0;
+    let current: HTMLElement | null = el;
+    while (current && current !== main) {
+      offsetTop += current.offsetTop;
+      current = current.offsetParent as HTMLElement | null;
+    }
+
+    // Scroll exacto para que botón + panel quepan en pantalla
+    // Ajustar PANEL_MAX_HEIGHT al max-h del panel específico (en px)
+    const PANEL_MAX_HEIGHT = 400;
+    const targetScroll = offsetTop + el.offsetHeight + PANEL_MAX_HEIGHT - main.clientHeight + 16;
+
+    // Solo agregar el padding mínimo necesario (evita espacio en blanco visible)
+    const extraPadding = Math.max(0, targetScroll - (main.scrollHeight - main.clientHeight));
+    if (extraPadding > 0) main.style.paddingBottom = `${extraPadding}px`;
+
+    main.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+  }, 50);
+
+  return () => {
+    clearTimeout(timer);
+    main.style.paddingBottom = paddingOriginal; // restaurar al cerrar
+  };
+}, [abierto]);
+```
+
+**Cómo ajustar:** cambia `PANEL_MAX_HEIGHT` al valor en px del `max-h` del panel:
+- `max-h-[400px]` → `400`
+- `max-h-80` → `320`
+- `max-h-[300px]` → `300`
+
+**Por qué funciona:** `offsetTop` acumulado da la posición absoluta real del botón dentro de `<main>`, independiente del scroll actual. El padding temporal solo se agrega si el contenido existente no alcanza para llegar al `targetScroll`.
+
 ---
 
 ## 6. Input de Búsqueda
 
-Patrón estándar para inputs de búsqueda en toda la app.
+Patrón estándar para inputs de búsqueda en toda la app. Usa el **Patrón A** de altura (TC-2).
 
 | Propiedad | Valor |
 |-----------|-------|
-| Altura | `h-10 lg:h-9 2xl:h-10` (ver R9) |
-| Texto | `text-sm lg:text-xs 2xl:text-sm` (ver R1) |
+| Altura | `h-11 lg:h-10 2xl:h-11` (ver TC-2) |
+| Texto | `text-base lg:text-sm 2xl:text-base font-medium text-slate-800` (ver R1 — texto de input) |
 | Ícono | `w-4 h-4 text-slate-600` fijo — sin variación responsive |
 | Padding derecho | `pr-8` — reservado para botón limpiar (X) |
 
@@ -226,13 +277,15 @@ ModalAdaptativo (sinScrollInterno, mostrarHeader=false, paddingContenido="none")
   mostrarHeader={false}
   paddingContenido="none"
   sinScrollInterno
-  className="lg:max-w-md 2xl:max-w-lg max-lg:[background:linear-gradient(180deg,#COLOR_2.5rem,rgb(248,250,252)_2.5rem)]"
+  headerOscuro          // ← adapta la pill del drag handle para fondos oscuros
 >
 ```
 
 - `sinScrollInterno` — solo afecta `ModalBottom` (móvil), no `Modal` (desktop)
-- `max-lg:[background:...]` — colorea el área del drag handle en móvil para que coincida con el header
-- El color del gradiente CSS debe coincidir con el color base del header
+- `headerOscuro` — cuando el primer hijo tiene fondo de color oscuro, la pill del drag handle cambia a `bg-white/40` para ser visible. **No** se necesita hack CSS adicional.
+- Ver TC-15 para la mecánica de cómo el drag handle hereda el color del contenido.
+
+> ⚠️ Patrón obsoleto eliminado: `max-lg:[background:linear-gradient(...)]` no funciona porque `ModalAdaptativo` no pasa `className` a `ModalBottom`. Usar `fondo` o `headerOscuro` props.
 
 ### Header gradiente
 
@@ -364,16 +417,17 @@ background: linear-gradient(135deg, #1e293b, #334155)
 
 ```tsx
 <button
-  className="shrink-0 flex items-center gap-1.5 h-10 px-3 rounded-lg text-sm font-bold text-white cursor-pointer"
+  className="shrink-0 flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 px-3 rounded-lg text-base lg:text-sm 2xl:text-base font-bold text-white border-2 border-slate-800 cursor-pointer"
   style={{
     background: 'linear-gradient(135deg, #1e293b, #334155)',
-    border: '1.5px solid #1e293b',
     boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
   }}
 >
   +Nueva X
 </button>
 ```
+
+**Excepción de texto:** los botones de toggle group usan `text-sm` fijo (sin responsive) porque viven dentro de un contenedor compacto, no son elementos interactivos standalone. El estándar `text-base lg:text-sm 2xl:text-base` aplica a elementos independientes (inputs, dropdowns, chips de filtro).
 
 **Regla:** el gradiente siempre se aplica con `style` inline (no Tailwind) para garantizar exactitud de los valores hexadecimales.
 
@@ -562,7 +616,7 @@ Cuando un módulo tiene una tabla desktop con columnas ordenables, la vista móv
     <button
       key={c.campo}
       onClick={() => toggleOrden(c.campo)}
-      className={`shrink-0 flex items-center gap-1.5 px-2.5 h-10 rounded-lg text-sm font-semibold border-2 whitespace-nowrap cursor-pointer ${
+      className={`shrink-0 flex items-center gap-1.5 px-2.5 h-11 rounded-lg text-base font-semibold border-2 whitespace-nowrap cursor-pointer ${
         orden.campo === c.campo
           ? 'text-white border-transparent shadow-sm'
           : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
@@ -583,3 +637,183 @@ Cuando un módulo tiene una tabla desktop con columnas ordenables, la vista móv
 Los criterios de orden son específicos de cada módulo y se definen en el momento de implementación. La regla es que deben coincidir exactamente con las columnas ordenables de la tabla desktop del mismo módulo.
 
 **Regla:** el estado activo siempre usa el dark gradient (R9). El scroll horizontal usa `cl-carousel` para ocultar la barra de scroll nativa.
+
+---
+
+## 14. Inputs de Formulario
+
+Patrón estándar para campos donde el usuario escribe o consulta datos (nombre, descripción, teléfono, dirección, etc.).
+
+Se diferencia del input de búsqueda (TC-6) en el tamaño de texto y ausencia de ícono de lupa — la altura es la misma (`h-11 lg:h-10 2xl:h-11`) para todos los elementos interactivos.
+
+### Especificaciones completas
+
+| Propiedad | Valor | Razón |
+|-----------|-------|-------|
+| Altura | `h-11 lg:h-10 2xl:h-11` | 44px = estándar Apple HIG para touch |
+| Texto | `text-base lg:text-sm 2xl:text-base` | 16px móvil evita auto-zoom iOS |
+| Peso | `font-medium` | Mínimo R3 |
+| Color texto | `text-slate-800` | Contraste sobre fondo slate-100 |
+| Placeholder | `placeholder:text-slate-500` | Visible pero distinguible del valor real |
+| Fondo | `bg-slate-100` | Excepción R2 para inputs |
+| Borde | `border-2 border-slate-300` | R6 — border-2 en interactivos |
+| Border radius | `rounded-lg` | Consistente con dropdowns |
+| Sombra interna | `style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}` | Profundidad sutil |
+| Padding horizontal | `px-4 lg:px-3 2xl:px-4` | Reduce en laptop, restaura en desktop |
+
+### Patrón Tailwind del wrapper
+
+```tsx
+<div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 border-slate-300"
+  style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+  <input
+    className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+  />
+</div>
+```
+
+### Labels de formulario
+
+Las etiquetas que acompañan a los inputs siguen el patrón de texto de interfaz (R1), no el de inputs:
+
+```
+text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5
+```
+
+Con ícono opcional: `flex items-center gap-2` + icono `w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0`
+
+### Input de teléfono con lada
+
+Cuando un campo de teléfono tiene selector de lada (prefijo de país), ambos comparten el mismo wrapper con altura y fondo unificados:
+
+```tsx
+<div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg border-2 border-slate-300"
+  style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+  {/* Lada */}
+  <input className="w-16 lg:w-14 2xl:w-16 px-3 lg:px-2.5 2xl:px-3 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 border-r-2 border-slate-300 shrink-0" />
+  {/* Número */}
+  <input className="flex-1 px-3 lg:px-2.5 2xl:px-3 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500" />
+</div>
+```
+
+**Regla:** el input de lada usa el mismo `font-medium text-slate-800` que el resto — nunca `font-bold` para no crear jerarquía visual dentro del mismo campo.
+
+---
+
+## 15. ModalBottom — Fondo Personalizable y Drag Handle
+
+`ModalBottom` (y `ModalAdaptativo` en móvil) soporta fondos personalizados con herencia automática del color en la zona del drag handle.
+
+### Cómo funciona la herencia de color
+
+El drag handle es `position: absolute` en la parte superior del modal. Esto permite que el primer hijo del contenido (por ejemplo, un header coloreado) se renderice desde `y=0` y **se vea a través** de la zona del drag handle — sin necesidad de ningún hack de CSS ni prop adicional.
+
+```
+┌──────────────────────────────┐  ← top del modal container
+│        [ pill ]              │  ← drag handle (absolute, z-10)
+│  ┌────────────────────────┐  │
+│  │  Header con color      │  │  ← primer hijo, empieza desde y=0
+│  │  (se extiende detrás   │  │     gracias a position:absolute del handle
+│  │   del drag handle)     │  │
+│  └────────────────────────┘  │
+│  Contenido scrolleable        │
+└──────────────────────────────┘
+```
+
+### Props disponibles
+
+| Prop | Tipo | Descripción |
+|------|------|-------------|
+| `fondo` | `string` (CSS) | Background del modal completo. Reemplaza `bg-slate-50`. Acepta gradientes, colores, etc. |
+| `headerOscuro` | `boolean` | Adapta pill (`bg-white/40`), borde del header (`border-white/10`) y botón X para fondos oscuros |
+| `colorHandle` | `string` (CSS color) | Color directo para la pill del drag handle. Sobreescribe `headerOscuro` |
+
+### Cuándo usar cada prop
+
+- **Fondo completo oscuro** (ej: menú de cámara): `fondo="linear-gradient(135deg, #000000, #0f172a)" headerOscuro`
+- **Header coloreado en modal normal** (ej: detalle de cliente): solo `headerOscuro` — el header del children se extiende automáticamente por detrás del handle
+- **Color de pill específico**: `colorHandle="#ffffff40"` — raro, preferir `headerOscuro`
+
+### Compensación de padding para sinScrollInterno
+
+Cuando `sinScrollInterno` es true, el contenido del children maneja su propio scroll. El primer hijo debe agregar `pt-11 lg:pt-8 2xl:pt-11` para no quedar tapado por el drag handle.
+
+```tsx
+<ModalBottom sinScrollInterno fondo="...">
+  <div className="pt-11 lg:pt-8 2xl:pt-11">  {/* compensación obligatoria */}
+    {/* contenido */}
+  </div>
+</ModalBottom>
+```
+
+> Los modales con `mostrarHeader={true}` (header interno de ModalBottom) ya incluyen este padding automáticamente en el header.
+
+---
+
+## 16. Botones Responsivos: Icon-Only en Laptop
+
+Cuando el espacio horizontal es limitado en resolución laptop (`lg:`), los botones con texto + icono pueden colapsar a solo el icono. El texto vuelve en desktop (`2xl:`).
+
+### Patrón de texto oculto
+
+```tsx
+<button className="flex items-center gap-1.5 lg:w-8 lg:px-0 2xl:w-auto 2xl:px-3">
+  <Camera className="w-3.5 h-3.5 shrink-0" />
+  <span className="lg:hidden 2xl:inline">Cambiar</span>
+</button>
+```
+
+- `lg:w-8 lg:px-0` — fija el ancho del botón para que solo quepa el icono en laptop
+- `2xl:w-auto 2xl:px-3` — restaura el ancho natural en desktop
+- `span lg:hidden 2xl:inline` — oculta el texto solo en laptop
+
+### Tooltip de apoyo en laptop
+
+Cuando el texto desaparece en laptop, agregar un `Tooltip` visible **únicamente en laptop** (no en desktop donde el texto ya está):
+
+```tsx
+import Tooltip from '../../../../../components/ui/Tooltip';
+
+<Tooltip text="Cambiar foto" position="bottom" className="2xl:hidden">
+  <button className="flex items-center gap-1.5 lg:w-8 lg:px-0 2xl:w-auto 2xl:px-3">
+    <Camera className="w-3.5 h-3.5 shrink-0" />
+    <span className="lg:hidden 2xl:inline">Cambiar</span>
+  </button>
+</Tooltip>
+```
+
+- `className="2xl:hidden"` en `Tooltip` — el portal del tooltip se renderiza pero queda invisible en `2xl:` gracias a esta clase en el contenedor
+- El `Tooltip` component soporta `className` que se aplica al div del portal, permitiendo breakpoints
+
+### Labels simplificados en desktop
+
+En desktop (`2xl:`), si el texto ya es visible, usar **labels cortos** en lugar de descriptivos largos. El usuario en PC tiene más contexto visual.
+
+| Móvil (base) | Desktop (2xl:) |
+|---|---|
+| "Cambiar Foto de Perfil" | "Cambiar" |
+| "Subir Imagen de Portada" | "Subir" |
+| "Eliminar artículo" | "Eliminar" |
+
+**Regla:** el label en desktop debe ser funcional y breve (1 palabra). La descripción completa se reserva para labels flotantes o modales de confirmación.
+
+---
+
+## 17. `whitespace-nowrap` en Títulos de Celdas Comprimidas
+
+Cuando un título de elemento (nombre de imagen, etiqueta de sección) está en una celda o columna con ancho limitado, agregar `whitespace-nowrap` para evitar que el texto se parta en dos líneas.
+
+```tsx
+<div className="whitespace-nowrap text-sm font-semibold text-slate-800">
+  Foto de Perfil
+</div>
+```
+
+**Cuándo aplicar:**
+- Títulos junto a botones en fila horizontal (`flex items-center`)
+- Encabezados de secciones dentro de grids con columnas angostas
+- Labels de campos en layout de 2 columnas en laptop
+
+**Cuándo no aplicar:**
+- Nombres de usuario o contenido variable (puede ser largo, debe recortarse con `truncate`)
+- Descripciones o párrafos

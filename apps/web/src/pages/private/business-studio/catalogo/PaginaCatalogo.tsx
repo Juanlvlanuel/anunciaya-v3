@@ -130,10 +130,10 @@ function HeaderOrdenable({
         >
             {etiqueta}
             {activa && ordenActual?.direccion === 'desc' && (
-                <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
+                <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />
             )}
             {activa && ordenActual?.direccion === 'asc' && (
-                <ChevronUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
+                <ChevronUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />
             )}
             {!activa && (
                 <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
@@ -199,7 +199,7 @@ function FilaMovil({
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-base font-bold text-slate-800 truncate">{articulo.nombre}</span>
-                        {articulo.destacado && <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />}
+                        {articulo.destacado && <Star className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400 fill-amber-400 shrink-0" />}
                     </div>
                     <span className="text-lg font-extrabold text-emerald-600 shrink-0">{precioFormateado}</span>
                 </div>
@@ -531,7 +531,7 @@ export function PaginaCatalogo() {
                                 <ShoppingBag className="w-6 h-6 text-white" strokeWidth={2.5} />
                             </div>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
                                 Catálogo
                             </h1>
@@ -541,7 +541,7 @@ export function PaginaCatalogo() {
                         </div>
 
                         {/* Switch tipo móvil — estilo Transacciones */}
-                        <div className="lg:hidden flex-1 flex justify-end">
+                        <div className="lg:hidden shrink-0 ml-auto flex justify-end">
                             <div className="flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
                                 <Tooltip text="Todos" position="bottom" autoHide={1500}>
                                     <button
@@ -704,7 +704,7 @@ export function PaginaCatalogo() {
                         <div className="hidden lg:flex flex-row gap-1.5 shrink-0">
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: 'todos' }))}
-                                className={`flex items-center justify-center px-3 2xl:px-4 h-9 2xl:h-10 rounded-lg text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'todos'
+                                className={`flex items-center justify-center px-3 2xl:px-4 h-10 2xl:h-11 rounded-lg text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'todos'
                                     ? 'bg-slate-800 text-white border-slate-800'
                                     : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                                 }`}
@@ -713,7 +713,7 @@ export function PaginaCatalogo() {
                             </button>
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
-                                className={`flex items-center justify-center gap-1 px-3 2xl:px-4 h-9 2xl:h-10 rounded-lg text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'producto'
+                                className={`flex items-center justify-center gap-1 px-3 2xl:px-4 h-10 2xl:h-11 rounded-lg text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'producto'
                                     ? 'bg-cyan-100 text-cyan-700 border-cyan-300'
                                     : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                                 }`}
@@ -723,7 +723,7 @@ export function PaginaCatalogo() {
                             </button>
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
-                                className={`flex items-center justify-center gap-1 px-3 2xl:px-4 h-9 2xl:h-10 rounded-lg text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'servicio'
+                                className={`flex items-center justify-center gap-1 px-3 2xl:px-4 h-10 2xl:h-11 rounded-lg text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'servicio'
                                     ? 'bg-purple-100 text-purple-700 border-purple-300'
                                     : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                                 }`}
@@ -739,10 +739,10 @@ export function PaginaCatalogo() {
                             {categoriasUnicas.length > 0 && (
                             <>
                                 <div className="hidden lg:block w-px h-6 bg-slate-300 shrink-0" />
-                                <div ref={dropdownCatRef} className="relative shrink-0">
+                                <div ref={dropdownCatRef} className="relative flex-1 min-w-0 lg:flex-none lg:shrink-0">
                                     <button
                                         onClick={() => setDropdownCatAbierto(prev => !prev)}
-                                        className={`flex items-center gap-1.5 w-44 lg:w-48 h-10 lg:h-9 2xl:h-10 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${filtros.categoria !== 'todas'
+                                        className={`flex items-center gap-1.5 w-full lg:w-48 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.categoria !== 'todas'
                                             ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
                                             : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                                         }`}
@@ -750,14 +750,14 @@ export function PaginaCatalogo() {
                                         <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                                         <span className="hidden lg:inline">{filtros.categoria === 'todas' ? 'Categoría' : filtros.categoria}</span>
                                         <span className="lg:hidden">{filtros.categoria === 'todas' ? 'Categoría' : filtros.categoria}</span>
-                                        <ChevronDown className={`ml-auto w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 transition-transform ${dropdownCatAbierto ? 'rotate-180' : ''}`} />
+                                        <ChevronDown className={`ml-auto w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 transition-transform ${dropdownCatAbierto ? 'rotate-180' : ''}`} />
                                     </button>
 
                                     {dropdownCatAbierto && (
                                         <div className="absolute top-full left-0 lg:left-auto lg:right-0 mt-1.5 w-44 lg:w-48 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                                             <button
                                                 onClick={() => { setFiltros(prev => ({ ...prev, categoria: 'todas' })); setDropdownCatAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${filtros.categoria === 'todas' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.categoria === 'todas' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                             >
                                                 <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.categoria === 'todas' ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                     {filtros.categoria === 'todas' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
@@ -768,7 +768,7 @@ export function PaginaCatalogo() {
                                                 <button
                                                     key={cat}
                                                     onClick={() => { setFiltros(prev => ({ ...prev, categoria: cat })); setDropdownCatAbierto(false); }}
-                                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${filtros.categoria === cat ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.categoria === cat ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                                 >
                                                     <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.categoria === cat ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                         {filtros.categoria === cat && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
@@ -782,16 +782,13 @@ export function PaginaCatalogo() {
                             </>
                         )}
 
-                            {/* Spacer móvil para empujar Nuevo a la derecha */}
-                            <div className="flex-1 lg:hidden" />
 
                             {/* Nuevo Artículo — móvil */}
                             <button
                                 onClick={handleCrear}
-                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-10 px-3 rounded-lg text-sm font-bold text-slate-600 cursor-pointer"
+                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-3 rounded-lg text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
                                 style={{
                                     background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                                    border: '1.5px solid #cbd5e1',
                                     boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
                                 }}
                             >
@@ -811,7 +808,7 @@ export function PaginaCatalogo() {
                                     icono={<Search className="w-4 h-4 text-slate-600" />}
                                     value={filtros.busqueda}
                                     onChange={(e) => setFiltros((prev) => ({ ...prev, busqueda: e.target.value }))}
-                                    className="h-10 lg:h-9 2xl:h-10 text-sm lg:text-xs 2xl:text-sm"
+                                    className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base"
                                     elementoDerecha={filtros.busqueda ? (
                                         <button
                                             type="button"
@@ -826,10 +823,9 @@ export function PaginaCatalogo() {
                             {/* Nuevo Artículo — desktop */}
                             <button
                                 onClick={handleCrear}
-                                className="hidden lg:flex shrink-0 items-center gap-1.5 h-9 2xl:h-10 px-4 2xl:px-5 rounded-lg text-xs 2xl:text-sm font-bold text-slate-600 cursor-pointer"
+                                className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-4 2xl:px-5 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
                                 style={{
                                     background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                                    border: '1.5px solid #cbd5e1',
                                     boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
                                 }}
                             >
@@ -1046,7 +1042,7 @@ export function PaginaCatalogo() {
                 {isMobile && (
                     <div className="space-y-2">
                         {/* Chips de orden (móvil) */}
-                        <div className="flex gap-1.5 overflow-x-auto cat-carousel pb-1">
+                        <div className="grid grid-cols-3 gap-2">
                             {([
                                 { col: 'precio' as ColumnaOrden, etiqueta: 'Precio' },
                                 { col: 'vistas' as ColumnaOrden, etiqueta: 'Vistas' },
@@ -1057,14 +1053,15 @@ export function PaginaCatalogo() {
                                     <button
                                         key={col}
                                         onClick={() => alternarOrden(col)}
-                                        className={`flex items-center gap-1 px-2.5 h-10 rounded-lg text-sm font-semibold border-2 transition-all shrink-0 cursor-pointer ${activa
-                                            ? 'bg-slate-800 text-white border-slate-800'
+                                        className={`flex items-center justify-center gap-1.5 h-11 rounded-lg text-base font-semibold border-2 transition-all cursor-pointer ${activa
+                                            ? 'text-white border-slate-700'
                                             : 'bg-white text-slate-600 border-slate-300'
                                         }`}
+                                        style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                                     >
                                         {etiqueta}
-                                        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-amber-400" />}
-                                        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-amber-400" />}
+                                        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 text-amber-400" />}
+                                        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 text-amber-400" />}
                                         {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
                                     </button>
                                 );

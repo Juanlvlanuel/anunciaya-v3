@@ -585,7 +585,7 @@ export default function PaginaPuntos() {
               <div className="flex items-center gap-1.5 lg:gap-2 flex-nowrap">
                 <span className="text-[13px] lg:text-xs 2xl:text-[13px] font-semibold text-slate-600 shrink-0">Por cada</span>
                 <div
-                  className="flex items-center h-10 lg:h-9 2xl:h-10 bg-slate-50 rounded-lg px-1.5 lg:px-2 flex-1 min-w-0"
+                  className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-50 rounded-lg px-1.5 lg:px-2 flex-1 min-w-0"
                   style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 >
                   <span className="text-[13px] lg:text-xs 2xl:text-[13px] font-bold text-slate-400 mr-0.5">$</span>
@@ -620,7 +620,7 @@ export default function PaginaPuntos() {
                 </div>
                 <span className="text-[12px] lg:text-[11px] 2xl:text-[12px] font-bold text-slate-500 shrink-0">gana</span>
                 <div
-                  className="flex items-center h-10 lg:h-9 2xl:h-10 bg-slate-50 rounded-lg px-1.5 lg:px-2 flex-1 min-w-0"
+                  className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-50 rounded-lg px-1.5 lg:px-2 flex-1 min-w-0"
                   style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 >
                   <input

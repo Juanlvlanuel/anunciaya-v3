@@ -2,18 +2,12 @@
  * ============================================================================
  * TAB: Información
  * ============================================================================
- * 
+ *
  * UBICACIÓN: apps/web/src/pages/private/business-studio/perfil/components/TabInformacion.tsx
- * 
- * PROPÓSITO:
- * Tab para editar información general del negocio (nombre, categorías, tipo, CardYA)
- * Solo visible para DUEÑOS
- * 
- * FEATURES:
- * - Campo Ciudad condicional para negocios Online
- * - Autocomplete de ciudades
  */
 
+import { useState, useRef, useEffect } from 'react';
+import { Building2, AlignLeft, Tag, MapPin, ChevronDown, Check } from 'lucide-react';
 import { useCategorias } from '../../../../../hooks/useCategorias';
 import { useSubcategorias } from '../../../../../hooks/useSubcategorias';
 import CardYA from './CardYA';
@@ -24,6 +18,145 @@ interface TabInformacionProps {
   datosInformacion: DatosInformacion;
   setDatosInformacion: (datos: DatosInformacion) => void;
 }
+
+const ESTILO_INPUT = { border: '2px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' } as const;
+
+// ============================================================================
+// COMPONENTE LOCAL: SelectorSubcategoria (dropdown multi-select)
+// ============================================================================
+
+interface SelectorSubcategoriaProps {
+  subcategorias: { id: number; nombre: string }[];
+  seleccionados: number[];
+  onToggle: (id: number) => void;
+  deshabilitado?: boolean;
+}
+
+function SelectorSubcategoria({ subcategorias, seleccionados, onToggle, deshabilitado }: SelectorSubcategoriaProps) {
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAbierto(false);
+      }
+    };
+    if (abierto) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [abierto]);
+
+
+  useEffect(() => {
+    if (!abierto || window.innerWidth >= 1024) return;
+
+    const main = document.querySelector('main');
+    if (!main) return;
+
+    const paddingOriginal = main.style.paddingBottom;
+
+    const timer = setTimeout(() => {
+      const el = ref.current;
+      if (!el) return;
+
+      let offsetTop = 0;
+      let current: HTMLElement | null = el;
+      while (current && current !== main) {
+        offsetTop += current.offsetTop;
+        current = current.offsetParent as HTMLElement | null;
+      }
+
+      const targetScroll = offsetTop + el.offsetHeight + 400 - main.clientHeight + 16;
+      const extraPadding = Math.max(0, targetScroll - (main.scrollHeight - main.clientHeight));
+      if (extraPadding > 0) main.style.paddingBottom = `${extraPadding}px`;
+
+      main.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+    }, 50);
+
+    return () => {
+      clearTimeout(timer);
+      main.style.paddingBottom = paddingOriginal;
+    };
+  }, [abierto]);
+
+  if (deshabilitado) {
+    return (
+      <div
+        className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 border-slate-300 opacity-50 cursor-not-allowed"
+      >
+        <span className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium flex-1">Elige categoría primero</span>
+        <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 shrink-0" />
+      </div>
+    );
+  }
+
+  const primerNombre = seleccionados.length > 0
+    ? subcategorias.find(s => s.id === seleccionados[0])?.nombre
+    : null;
+
+  return (
+    <div ref={ref} className="relative">
+      <div
+        onClick={() => setAbierto(!abierto)}
+        className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 border-slate-300 hover:border-slate-400 cursor-pointer gap-2"
+        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+      >
+        <div className="flex-1 flex items-center overflow-hidden min-w-0">
+          {seleccionados.length === 0 ? (
+            <span className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium truncate">Selecciona hasta 3</span>
+          ) : (
+            <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-800 truncate">{primerNombre}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`text-base lg:text-sm 2xl:text-base font-bold ${seleccionados.length >= 3 ? 'text-red-600' : 'text-slate-600'}`}>
+            {seleccionados.length}/3
+          </span>
+          <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 shrink-0 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+
+      {abierto && (
+        <div className="absolute z-30 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
+          <div className="max-h-[400px] lg:max-h-80 2xl:max-h-[400px] overflow-y-auto py-1">
+            {subcategorias.map(sub => {
+              const isSelected = seleccionados.includes(sub.id);
+              const canSelect = seleccionados.length < 3;
+              const disabled = !isSelected && !canSelect;
+
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onToggle(sub.id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer ${
+                    isSelected
+                      ? 'bg-indigo-100 text-indigo-700 font-semibold'
+                      : disabled
+                        ? 'opacity-40 cursor-not-allowed bg-white text-slate-600'
+                        : 'hover:bg-slate-200 text-slate-600 font-medium'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                    isSelected ? 'bg-indigo-500' : 'bg-slate-200'
+                  }`}>
+                    {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                  </div>
+                  <span className="text-base lg:text-sm 2xl:text-base">{sub.nombre}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
 
 export default function TabInformacion({
   datosInformacion,
@@ -38,185 +171,167 @@ export default function TabInformacion({
       ? datosInformacion.subcategoriasIds.filter(subId => subId !== id)
       : [...datosInformacion.subcategoriasIds, id];
 
-    // Máximo 3 subcategorías
     if (nuevasSubcategorias.length <= 3) {
-      setDatosInformacion({
-        ...datosInformacion,
-        subcategoriasIds: nuevasSubcategorias,
-      });
+      setDatosInformacion({ ...datosInformacion, subcategoriasIds: nuevasSubcategorias });
     }
   };
 
   return (
-    <div className="space-y-5 lg:space-y-3 2xl:space-y-4">
+    <div className="space-y-4 lg:space-y-3 2xl:space-y-4">
 
-      {/* LAYOUT PRINCIPAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-6 2xl:gap-8">
+      {/* ================================================================ */}
+      {/* FILA 1: Datos del Negocio + Categorización (2 columnas)         */}
+      {/* ================================================================ */}
 
-        {/* COLUMNA IZQUIERDA - FORMULARIO */}
-        <div className="lg:col-span-7 space-y-5 lg:space-y-5 2xl:space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-3 2xl:gap-4">
 
-          {/* Nombre del Negocio - Solo visible si tiene 1 sucursal O si tiene 2+ y la activa es principal */}
-          {(datosInformacion.totalSucursales === 1 || datosInformacion.esPrincipal) && (
+        {/* CARD: Datos del Negocio */}
+        <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden"
+          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+
+          <div className="px-4 py-3 flex items-center gap-2.5"
+            style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+            <Building2 className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+            <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Datos del Negocio</span>
+          </div>
+
+          <div className="p-4 lg:p-3 2xl:p-4 space-y-4 lg:space-y-3 2xl:space-y-4">
+
+            {/* Nombre del Negocio */}
+            {(datosInformacion.totalSucursales === 1 || datosInformacion.esPrincipal) && (
+              <div>
+                <label htmlFor="input-nombre-negocio"
+                  className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
+                  <Building2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                  Nombre del Negocio <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
+                  style={ESTILO_INPUT}>
+                  <input
+                    id="input-nombre-negocio"
+                    name="input-nombre-negocio"
+                    type="text"
+                    value={datosInformacion.nombre}
+                    onChange={(e) => setDatosInformacion({ ...datosInformacion, nombre: e.target.value })}
+                    className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Nombre de la Sucursal */}
+            {datosInformacion.totalSucursales > 1 && (
+              <div>
+                <label htmlFor="input-nombre-sucursal"
+                  className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
+                  <MapPin className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                  {datosInformacion.esPrincipal ? 'Nombre Sucursal Principal' : 'Nombre de la Sucursal'} <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
+                  style={ESTILO_INPUT}>
+                  <input
+                    id="input-nombre-sucursal"
+                    name="input-nombre-sucursal"
+                    type="text"
+                    value={datosInformacion.nombreSucursal}
+                    onChange={(e) => setDatosInformacion({ ...datosInformacion, nombreSucursal: e.target.value })}
+                    placeholder={datosInformacion.esPrincipal ? 'Ej: Mi Negocio Centro' : 'Ej: Mi Negocio Plaza Norte'}
+                    className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Descripción */}
             <div>
-              <label htmlFor="input-nombre-negocio" className="flex items-center gap-2.5 text-base 2xl:text-base lg:text-sm font-bold text-slate-700 mb-2 lg:mb-2 2xl:mb-2">
-                <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                Nombre del Negocio <span className="text-red-500">*</span>
+              <label htmlFor="input-descripcion-negocio"
+                className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
+                <AlignLeft className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                Descripción
               </label>
-              <div
-                className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
-                style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-              >
+              <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
+                style={ESTILO_INPUT}>
                 <input
-                  id="input-nombre-negocio"
-                  name="input-nombre-negocio"
+                  id="input-descripcion-negocio"
+                  name="input-descripcion-negocio"
                   type="text"
-                  value={datosInformacion.nombre}
-                  onChange={(e) => setDatosInformacion({ ...datosInformacion, nombre: e.target.value })}
-                  className="flex-1 bg-transparent outline-none text-lg lg:text-sm 2xl:text-base font-medium text-slate-800"
+                  value={datosInformacion.descripcion}
+                  onChange={(e) => setDatosInformacion({ ...datosInformacion, descripcion: e.target.value })}
+                  placeholder="Describe tu negocio..."
+                  className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                 />
               </div>
             </div>
-          )}
 
-          {/* Nombre de la Sucursal - Solo visible si tiene 2+ sucursales */}
-          {datosInformacion.totalSucursales > 1 && (
-            <div>
-              <label htmlFor="input-nombre-sucursal" className="flex items-center gap-2.5 text-base 2xl:text-base lg:text-sm font-bold text-slate-700 mb-2 lg:mb-2 2xl:mb-2">
-                <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                {datosInformacion.esPrincipal ? 'Nombre de la Sucursal Principal' : 'Nombre de la Sucursal'} <span className="text-red-500">*</span>
-              </label>
-              <div
-                className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
-                style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-              >
-                <input
-                  id="input-nombre-sucursal"
-                  name="input-nombre-sucursal"
-                  type="text"
-                  value={datosInformacion.nombreSucursal}
-                  onChange={(e) => setDatosInformacion({ ...datosInformacion, nombreSucursal: e.target.value })}
-                  placeholder={datosInformacion.esPrincipal ? 'Ej: Mi Negocio Centro' : 'Ej: Mi Negocio Plaza Norte'}
-                  className="flex-1 bg-transparent outline-none text-lg lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Descripción */}
-          <div>
-            <label htmlFor="input-descripcion-negocio" className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2 lg:mb-2 2xl:mb-2">
-              <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-              </svg>
-              Descripción
-            </label>
-            <div
-              className="flex items-center h-12 lg:h-10 2xl:h-12 bg-slate-50 rounded-lg px-4 lg:px-3 2xl:px-4"
-              style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-            >
-              <input
-                id="input-descripcion-negocio"
-                name="input-descripcion-negocio"
-                type="text"
-                value={datosInformacion.descripcion}
-                onChange={(e) => setDatosInformacion({ ...datosInformacion, descripcion: e.target.value })}
-                placeholder="Describe tu negocio..."
-                className="flex-1 bg-transparent outline-none text-lg lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
-              />
-            </div>
           </div>
-
-          {/* Categoría - SIN CARD */}
-          <div>
-            <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2 lg:mb-2 2xl:mb-2">
-              <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              Categoría <span className="text-red-500">*</span>
-            </div>
-            <SelectorCategoria
-              categorias={categorias}
-              categoriaSeleccionada={datosInformacion.categoriaId}
-              onSeleccionar={(id) => {
-                setDatosInformacion({
-                  ...datosInformacion,
-                  categoriaId: id,
-                  subcategoriasIds: [], // Reset subcategorías al cambiar categoría
-                });
-              }}
-            />
-          </div>
-
-          {/* Subcategorías - SIN CARD */}
-          {datosInformacion.categoriaId > 0 && (
-            <div>
-              <div className="flex items-center gap-2.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-700 mb-2 lg:mb-2 2xl:mb-2">
-                <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                Subcategorías • <span className="text-blue-600">{datosInformacion.subcategoriasIds.length} de 3</span>
-              </div>
-              <div className="flex flex-wrap gap-2.5 lg:gap-2.5 2xl:gap-2.5">
-                {subcategorias.map((sub) => {
-                  const isSelected = datosInformacion.subcategoriasIds.includes(sub.id);
-                  const canSelect = datosInformacion.subcategoriasIds.length < 3;
-
-                  return (
-                    <label
-                      key={sub.id}
-                      className={`
-                        inline-flex items-center gap-2.5 px-4 py-2.5 lg:px-4 lg:py-2.5 2xl:px-4 2xl:py-2.5 text-base  lg:text-sm 2xl:text-base font-semibold rounded-lg cursor-pointer border transition-all
-                        ${isSelected
-                          ? 'bg-blue-50 border-blue-400 text-blue-700'
-                          : canSelect
-                            ? 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                            : 'bg-slate-100 border-slate-200 text-slate-400 opacity-50 cursor-not-allowed'
-                        }
-                      `}
-                    >
-                      <input
-                        id={`checkbox-subcategoria-${sub.id}`}
-                        name={`checkbox-subcategoria-${sub.id}`}
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleSubcategoriaToggle(sub.id)}
-                        disabled={!isSelected && !canSelect}
-                        className="w-4.5 h-4.5 accent-blue-600 shrink-0"
-                      />
-                      <span className="leading-tight">
-                        {sub.nombre}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* COLUMNA DERECHA: CardYA - SOLO DESKTOP */}
-        <div className="hidden lg:block lg:col-span-5 sticky top-4 lg:top-2 2xl:top-4 self-start">
-          <CardYA
-            participaCardYA={datosInformacion.participaCardYA}
-            onToggle={(valor) => setDatosInformacion({ ...datosInformacion, participaCardYA: valor })}
-          />
+        {/* CARD: Categorización */}
+        <div className="bg-white border-2 border-slate-300 rounded-xl"
+          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+
+          <div className="px-4 py-3 flex items-center gap-2.5 rounded-t-xl"
+            style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+            <Tag className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+            <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Categorización</span>
+            {datosInformacion.categoriaId > 0 && (
+              <span className="ml-auto text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">
+                {datosInformacion.subcategoriasIds.length}/3 sub
+              </span>
+            )}
+          </div>
+
+          <div className="p-4 lg:p-3 2xl:p-4">
+
+            {/* 2 columnas: Categoría | Subcategorías */}
+            <div className="grid grid-cols-2 gap-3 lg:gap-2 2xl:gap-3">
+
+              {/* Categoría */}
+              <div>
+                <div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
+                  <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                  Categoría <span className="text-red-500">*</span>
+                </div>
+                <SelectorCategoria
+                  categorias={categorias}
+                  categoriaSeleccionada={datosInformacion.categoriaId}
+                  onSeleccionar={(id) => setDatosInformacion({
+                    ...datosInformacion,
+                    categoriaId: id,
+                    subcategoriasIds: [],
+                  })}
+                />
+              </div>
+
+              {/* Subcategorías */}
+              <div>
+                <div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
+                  <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                  Subcategorías
+                </div>
+                <SelectorSubcategoria
+                  subcategorias={subcategorias}
+                  seleccionados={datosInformacion.subcategoriasIds}
+                  onToggle={handleSubcategoriaToggle}
+                  deshabilitado={datosInformacion.categoriaId === 0}
+                />
+              </div>
+
+            </div>
+
+          </div>
         </div>
 
       </div>
 
-      {/* CARDYA - ABAJO EN MÓVIL */}
-      <div className="lg:hidden">
-        <CardYA
-          participaCardYA={datosInformacion.participaCardYA}
-          onToggle={(valor) => setDatosInformacion({ ...datosInformacion, participaCardYA: valor })}
-        />
-      </div>
+      {/* ================================================================ */}
+      {/* FILA 2: CardYA Widget Horizontal (full width)                   */}
+      {/* ================================================================ */}
+
+      <CardYA
+        participaCardYA={datosInformacion.participaCardYA}
+        onToggle={(valor) => setDatosInformacion({ ...datosInformacion, participaCardYA: valor })}
+      />
 
     </div>
   );

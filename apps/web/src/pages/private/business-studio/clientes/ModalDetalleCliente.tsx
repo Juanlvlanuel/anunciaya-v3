@@ -288,7 +288,8 @@ export default function ModalDetalleCliente({
       mostrarHeader={false}
       paddingContenido="none"
       sinScrollInterno
-      className="lg:max-w-md 2xl:max-w-lg max-lg:[background:linear-gradient(180deg,#1e40af_2.5rem,rgb(248,250,252)_2.5rem)]"
+      className="lg:max-w-md 2xl:max-w-lg"
+      headerOscuro
     >
       {/* ================================================================== */}
       {/* LOADING                                                           */}

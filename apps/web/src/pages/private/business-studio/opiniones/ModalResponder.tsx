@@ -184,7 +184,7 @@ export function ModalResponder({
                         placeholder="Escribe tu respuesta..."
                         rows={4}
                         disabled={respondiendo}
-                        className="w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:opacity-50"
+                        className="w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:opacity-50"
                     />
                     <div className="flex justify-end mt-1">
                         <span className={`text-sm lg:text-[11px] 2xl:text-sm font-medium ${texto.length >= MAX_CARACTERES ? 'text-red-500 font-bold' : 'text-slate-600'}`}>

@@ -28,7 +28,7 @@
  * CREADO: Febrero 2026 - Sprint 4 Módulo Opiniones
  */
 
-import { useState, useMemo, useEffect, useCallback, useLayoutEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import {
     MessageSquare,
     Search,
@@ -39,6 +39,8 @@ import {
     AlertCircle,
     Pencil,
     X,
+    ChevronDown,
+    Check,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useResenasStore } from '../../../../stores/useResenasStore';
@@ -116,6 +118,10 @@ export function PaginaOpiniones() {
     // Modal
     const [modalResponder, setModalResponder] = useState(false);
     const [resenaSeleccionada, setResenaSeleccionada] = useState<ResenaBS | null>(null);
+
+    // Dropdown estrellas
+    const [dropdownEstrellasAbierto, setDropdownEstrellasAbierto] = useState(false);
+    const dropdownEstrellasRef = useRef<HTMLDivElement | null>(null);
 
     // Sucursal activa
     const sucursalId = usuario?.sucursalActiva || usuario?.sucursalAsignada || '';
@@ -200,6 +206,18 @@ export function PaginaOpiniones() {
     useEffect(() => {
         return () => setBusqueda('');
     }, []);
+
+    // Cerrar dropdown estrellas al hacer click fuera
+    useEffect(() => {
+        if (!dropdownEstrellasAbierto) return;
+        const handler = (e: MouseEvent) => {
+            if (!dropdownEstrellasRef.current?.contains(e.target as Node)) {
+                setDropdownEstrellasAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [dropdownEstrellasAbierto]);
 
     // =========================================================================
     // FILTRADO LOCAL (todo en useMemo, sin ir al backend)
@@ -372,7 +390,7 @@ export function PaginaOpiniones() {
 
                             {/* Promedio ⭐ */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #fffbeb, #fff)',
                                     border: '2px solid #fcd34d',
@@ -395,7 +413,7 @@ export function PaginaOpiniones() {
 
                             {/* Total */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 w-[26%] h-13 2xl:h-16 lg:w-auto lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #eff6ff, #fff)',
                                     border: '2px solid #93c5fd',
@@ -416,18 +434,13 @@ export function PaginaOpiniones() {
                                 </div>
                             </div>
 
-                            {/* Pendientes (clickeable → filtra) */}
-                            <button
-                                onClick={() => setFiltroEstado((prev) => prev === 'pendientes' ? 'todas' : 'pendientes')}
-                                className={`flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px] ${filtroEstado === 'pendientes' ? 'ring-3 ring-orange-500 lg:scale-105' : ''}`}
+                            {/* Pendientes */}
+                            <div
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
-                                    background: filtroEstado === 'pendientes'
-                                        ? 'linear-gradient(135deg, #fdba74, #fb923c)'
-                                        : 'linear-gradient(135deg, #fff7ed, #fff)',
-                                    border: filtroEstado === 'pendientes' ? '3px solid #f97316' : '2px solid #fdba74',
-                                    boxShadow: filtroEstado === 'pendientes'
-                                        ? '0 4px 12px rgba(249,115,22,0.4)'
-                                        : '0 2px 6px rgba(0,0,0,0.06)',
+                                    background: 'linear-gradient(135deg, #fff7ed, #fff)',
+                                    border: '2px solid #fdba74',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
@@ -440,11 +453,11 @@ export function PaginaOpiniones() {
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-orange-800">
                                         {loading ? '—' : (kpis?.pendientes ?? 0)}
                                     </div>
-                                    <div className={`text-sm lg:text-[11px] 2xl:text-sm font-semibold mt-0.5 ${filtroEstado === 'pendientes' ? 'text-white' : 'text-slate-600'}`}>
+                                    <div className="text-sm lg:text-[11px] 2xl:text-sm font-semibold mt-0.5 text-slate-600">
                                         Pendientes
                                     </div>
                                 </div>
-                            </button>
+                            </div>
 
                         </div>
                     </div>
@@ -454,7 +467,7 @@ export function PaginaOpiniones() {
                 {/* CARD FILTROS (separado)                                        */}
                 {/* ============================================================= */}
 
-                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
+                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14 overflow-visible">
                     {/* Búsqueda */}
                     <div className="mb-2 lg:mb-1.5 2xl:mb-2">
                         <Input
@@ -464,7 +477,7 @@ export function PaginaOpiniones() {
                             placeholder="Buscar por nombre o texto..."
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
-                            className="w-full text-sm lg:text-xs 2xl:text-sm"
+                            className="w-full h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base"
                             elementoDerecha={busqueda ? (
                                 <button
                                     type="button"
@@ -478,64 +491,106 @@ export function PaginaOpiniones() {
                     </div>
 
                     {/* Chips: estado + estrellas */}
-                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 overflow-x-auto pt-2 border-t border-slate-300 pb-0.5">
-                        {/* Todas */}
-                        <button
-                            onClick={() => { setFiltroEstado('todas'); setFiltroEstrellas(null); }}
-                            className={`shrink-0 inline-flex items-center gap-1.5 px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${
-                                filtroEstado === 'todas' && filtroEstrellas === null
-                                    ? 'bg-slate-800 text-white border-slate-800'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
-                            }`}
-                        >
-                            <MessageSquare className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                            Todas {kpis ? `(${kpis.total})` : ''}
-                        </button>
+                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 pt-2 border-t border-slate-300 pb-0.5">
+                        {/* Chips con scroll horizontal (solo Todas + Pendientes) */}
+                        <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 overflow-x-auto flex-1 min-w-0">
+                            {/* Todas */}
+                            <button
+                                onClick={() => { setFiltroEstado('todas'); setFiltroEstrellas(null); }}
+                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 lg:px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${
+                                    filtroEstado === 'todas' && filtroEstrellas === null
+                                        ? 'bg-slate-800 text-white border-slate-800'
+                                        : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                                }`}
+                            >
+                                <MessageSquare className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                                Todas {kpis ? `(${kpis.total})` : ''}
+                            </button>
 
-                        {/* Pendientes */}
-                        <button
-                            onClick={() => setFiltroEstado((prev) => prev === 'pendientes' ? 'todas' : 'pendientes')}
-                            className={`shrink-0 inline-flex items-center gap-1.5 px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${
-                                filtroEstado === 'pendientes'
-                                    ? 'bg-slate-800 text-white border-slate-800'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
-                            }`}
-                        >
-                            <AlertCircle className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                            Pendientes {kpis ? `(${kpis.pendientes})` : ''}
-                        </button>
+                            {/* Pendientes */}
+                            <button
+                                onClick={() => setFiltroEstado((prev) => prev === 'pendientes' ? 'todas' : 'pendientes')}
+                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 lg:px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${
+                                    filtroEstado === 'pendientes'
+                                        ? 'bg-slate-800 text-white border-slate-800'
+                                        : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                                }`}
+                            >
+                                <AlertCircle className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                                Pendientes {kpis ? `(${kpis.pendientes})` : ''}
+                            </button>
+                        </div>
 
-                        {/* Separador */}
-                        <div className="w-px h-6 bg-slate-300 shrink-0" />
 
-                        {/* Filtros por estrellas */}
-                        {[5, 4, 3, 2, 1].map((n) => {
-                            const activo = filtroEstrellas === n;
-                            const cantidad = kpis?.distribucion[`estrellas${n}` as keyof typeof kpis.distribucion] ?? 0;
-                            return (
-                                <button
-                                    key={n}
-                                    onClick={() => toggleFiltroEstrellas(n)}
-                                    className={`shrink-0 inline-flex items-center gap-1 px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold border-2 transition-all cursor-pointer ${
-                                        activo
-                                            ? 'bg-amber-500 text-white border-amber-500'
-                                            : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
-                                    }`}
-                                >
-                                    <Star className={`w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${activo ? 'fill-white text-white' : 'fill-amber-500 text-amber-500'}`} />
-                                    {n}
-                                    <span className={`text-sm lg:text-[11px] 2xl:text-sm font-semibold ${activo ? 'text-amber-100' : 'text-amber-700'}`}>
-                                        ({cantidad})
-                                    </span>
-                                </button>
-                            );
-                        })}
+                        {/* Dropdown estrellas — fuera del scroll para que el panel no quede clipado */}
+                        <div ref={dropdownEstrellasRef} className="relative shrink-0 w-11 lg:w-[190px]">
+                            <button
+                                onClick={() => {
+                                    if (filtroEstrellas !== null && window.innerWidth < 1024) {
+                                        setFiltroEstrellas(null);
+                                    } else {
+                                        setDropdownEstrellasAbierto((prev) => !prev);
+                                    }
+                                }}
+                                className={`w-full flex items-center justify-center lg:justify-start gap-2 h-11 lg:h-10 2xl:h-11 lg:pl-2.5 2xl:pl-3 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer transition-all ${
+                                    filtroEstrellas !== null
+                                        ? 'bg-amber-100 border-amber-300 text-amber-700'
+                                        : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                                }`}
+                            >
+                                {/* Móvil: X roja si hay filtro activo, estrella si no */}
+                                {filtroEstrellas !== null
+                                    ? <X className="lg:hidden w-5 h-5 text-red-500 shrink-0" />
+                                    : <Star className="lg:hidden w-5 h-5 shrink-0 fill-amber-500 text-amber-500" />
+                                }
+                                {/* Desktop: siempre estrella */}
+                                <Star className="hidden lg:block w-3.5 h-3.5 2xl:w-4 2xl:h-4 shrink-0 fill-amber-500 text-amber-500" />
+                                <span className="hidden lg:block truncate">
+                                    {filtroEstrellas !== null ? `${filtroEstrellas} estrellas` : 'Calificación'}
+                                </span>
+                                <ChevronDown className={`hidden lg:block w-4 2xl:w-5 h-4 2xl:h-5 shrink-0 ml-auto transition-transform ${dropdownEstrellasAbierto ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {dropdownEstrellasAbierto && (
+                                <div className="absolute z-30 right-0 mt-1.5 w-[190px] bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
+                                    <div className="py-1">
+                                        {[5, 4, 3, 2, 1].map((n) => {
+                                            const activo = filtroEstrellas === n;
+                                            const cantidad = kpis?.distribucion[`estrellas${n}` as keyof typeof kpis.distribucion] ?? 0;
+                                            return (
+                                                <button
+                                                    key={n}
+                                                    onClick={() => { toggleFiltroEstrellas(n); setDropdownEstrellasAbierto(false); }}
+                                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base text-left cursor-pointer ${
+                                                        activo
+                                                            ? 'bg-amber-100 text-amber-700 font-semibold'
+                                                            : 'text-slate-600 font-medium hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-amber-500' : 'bg-slate-200'}`}>
+                                                        {activo && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                                                    </div>
+                                                    <div className="flex gap-0.5">
+                                                        {[1, 2, 3, 4, 5].map((s) => (
+                                                            <Star key={s} className={`w-3.5 h-3.5 ${s <= n ? 'fill-amber-500 text-amber-500' : 'text-slate-300'}`} />
+                                                        ))}
+                                                    </div>
+                                                    <span className={`ml-auto text-sm lg:text-[11px] 2xl:text-sm font-semibold shrink-0 ${activo ? 'text-amber-600' : 'text-slate-500'}`}>
+                                                        ({cantidad})
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Limpiar */}
                         {hayFiltrosActivos && (
                             <button
                                 onClick={limpiarFiltros}
-                                className="shrink-0 inline-flex items-center gap-1 px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold text-red-600 border-2 border-slate-300 bg-white hover:border-red-300 hover:bg-red-100 transition-all cursor-pointer"
+                                className="hidden lg:inline-flex shrink-0 items-center gap-1 px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold text-red-600 border-2 border-slate-300 bg-white hover:border-red-300 hover:bg-red-100 transition-all cursor-pointer"
                             >
                                 ✕ Limpiar
                             </button>
