@@ -40,7 +40,7 @@ interface Oferta {
     titulo: string;
     descripcion?: string | null;
     imagen?: string | null;
-    tipo: 'porcentaje' | 'monto_fijo' | '2x1' | '3x2' | 'envio_gratis' | 'otro';
+    tipo: 'porcentaje' | 'monto_fijo' | '2x1' | '3x2' | 'envio_gratis' | 'regalo' | 'otro';
     valor?: number | string | null;
     fechaInicio?: string | null;
     fechaFin?: string | null;
@@ -111,9 +111,10 @@ const getPanelGradient = (tipo: Oferta['tipo']): string => {
         '2x1': 'linear-gradient(to top, #000000 0%, #1e293b 80%, #475569 100%)',
         '3x2': 'linear-gradient(to top, #042f2e 0%, #115e59 70%, #0f766e 100%)',
         envio_gratis: 'linear-gradient(to top, #0c4a6e 0%, #075985 70%, #0369a1 100%)',
+        regalo: 'linear-gradient(to top, #2e1065 0%, #4c1d95 70%, #6d28d9 100%)',
         otro: 'linear-gradient(to top, #052e16 0%, #14532d 70%, #166534 100%)',
     };
-    
+
     return gradientes[tipo] || gradientes.otro;
 };
 
@@ -210,6 +211,11 @@ const CONFIG_TIPO: Record<Oferta['tipo'], ConfigTipo> = {
         badgeGradient: 'from-blue-400 via-sky-500 to-blue-500',
         badgeBorder: 'border-blue-300/60',
         barColor: 'from-blue-400 to-sky-500',
+    },
+    regalo: {
+        badgeGradient: 'from-purple-500 via-violet-600 to-purple-700',
+        badgeBorder: 'border-purple-400/30',
+        barColor: 'from-purple-500 to-violet-600',
     },
     otro: {
         badgeGradient: 'from-amber-500 via-orange-600 to-amber-700',

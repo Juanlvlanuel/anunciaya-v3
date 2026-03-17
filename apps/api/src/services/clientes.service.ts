@@ -414,7 +414,7 @@ export async function obtenerDetalleCliente(
                 puntosDisponibles: billetera?.puntosDisponibles ?? 0,
                 puntosAcumuladosTotal: billetera?.puntosAcumuladosTotal ?? 0,
                 puntosCanjeadosTotal: billetera?.puntosCanjeadosTotal ?? 0,
-                nivelActual: billetera?.nivelActual ?? null,
+                nivelActual: billetera?.nivelActual ?? 'bronce',
                 clienteDesde: billetera?.createdAt ?? null,
                 ultimaActividad: billetera?.ultimaActividad ?? null,
                 totalVisitas: Number(stats.totalVisitas),

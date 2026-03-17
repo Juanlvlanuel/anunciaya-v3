@@ -43,7 +43,7 @@ interface OfertaPublica {
     titulo: string;
     descripcion?: string | null;
     imagen?: string | null;
-    tipo: 'porcentaje' | 'monto_fijo' | '2x1' | '3x2' | 'envio_gratis' | 'otro';
+    tipo: 'porcentaje' | 'monto_fijo' | '2x1' | '3x2' | 'envio_gratis' | 'regalo' | 'otro';
     valor?: number | string | null;
     compraMinima?: string | null;
     fechaInicio?: string | null;

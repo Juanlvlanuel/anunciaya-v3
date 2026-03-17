@@ -108,7 +108,7 @@ interface Oferta {
     titulo: string;
     descripcion?: string;
     imagen?: string;
-    tipo: 'porcentaje' | 'monto_fijo' | '2x1' | '3x2' | 'envio_gratis' | 'otro';
+    tipo: 'porcentaje' | 'monto_fijo' | '2x1' | '3x2' | 'envio_gratis' | 'regalo' | 'otro';
     valor?: number | string;
     fechaFin?: string;
 }

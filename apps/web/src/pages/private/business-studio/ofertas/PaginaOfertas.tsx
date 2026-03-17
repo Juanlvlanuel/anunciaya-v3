@@ -171,6 +171,7 @@ function getLabelTipo(tipo: TipoOferta): string {
         case '2x1': return '2x1';
         case '3x2': return '3x2';
         case 'envio_gratis': return 'Envío gratis';
+        case 'regalo': return 'Regalo';
         case 'otro': return 'Otro';
     }
 }
@@ -183,6 +184,7 @@ function getIconoTipo(tipo: TipoOferta) {
         case '2x1':
         case '3x2': return Gift;
         case 'envio_gratis': return Truck;
+        case 'regalo': return Gift;
         case 'otro': return Sparkles;
     }
 }
@@ -195,6 +197,7 @@ function getColoresTipo(tipo: TipoOferta): string {
         case '2x1':
         case '3x2': return 'bg-amber-100 text-amber-700';
         case 'envio_gratis': return 'bg-sky-100 text-sky-700';
+        case 'regalo': return 'bg-purple-100 text-purple-700';
         case 'otro': return 'bg-slate-200 text-slate-700';
     }
 }

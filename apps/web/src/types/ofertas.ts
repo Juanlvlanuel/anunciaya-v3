@@ -24,6 +24,7 @@ export type TipoOferta =
   | '2x1'
   | '3x2'
   | 'envio_gratis'
+  | 'regalo'
   | 'otro';
 
 /**

@@ -27,7 +27,7 @@ interface RespuestaUpload {
     code: number;
 }
 
-interface RespuestaPresignedUrl {
+export interface RespuestaPresignedUrl {
     success: boolean;
     message: string;
     data?: {
