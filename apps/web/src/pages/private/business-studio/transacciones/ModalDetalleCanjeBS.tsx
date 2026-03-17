@@ -159,6 +159,12 @@ export default function ModalDetalleCanjeBS({
   if (!abierto || !canje) return null;
 
   const handleChatYA = () => {
+    const datos = {
+      id: canje.clienteId,
+      nombre: canje.clienteNombre || 'Cliente',
+      avatarUrl: canje.clienteAvatarUrl ?? null,
+    };
+
     // Limpiar entrada huérfana de ModalBottom en el historial
     if (history.state?._modalBottom) {
       const estado = { ...history.state };
@@ -166,23 +172,24 @@ export default function ModalDetalleCanjeBS({
       history.replaceState(estado, '');
     }
 
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: canje.clienteId,
-        nombre: canje.clienteNombre || 'Cliente',
-        apellidos: '',
-        avatarUrl: canje.clienteAvatarUrl ?? null,
-      },
-      datosCreacion: {
-        participante2Id: canje.clienteId,
-        participante2Modo: 'personal',
-        participante2SucursalId: null,
-        contextoTipo: 'negocio',
-      },
-    });
-    abrirChatYA();
     onCerrar();
+    setTimeout(() => {
+      abrirChatTemporal({
+        id: `temp_${Date.now()}`,
+        otroParticipante: {
+          id: datos.id,
+          nombre: datos.nombre,
+          apellidos: '',
+          avatarUrl: datos.avatarUrl,
+        },
+        datosCreacion: {
+          participante2Id: datos.id,
+          participante2Modo: 'personal',
+          contextoTipo: 'directo',
+        },
+      });
+      abrirChatYA();
+    }, 300);
   };
 
   const gradiente = GRADIENTES_ESTADO[canje.estado];
@@ -194,74 +201,50 @@ export default function ModalDetalleCanjeBS({
       ancho="md"
       mostrarHeader={false}
       paddingContenido="none"
-      className="lg:max-w-sm 2xl:max-w-md"
+      sinScrollInterno
+      className={`lg:max-w-sm 2xl:max-w-md max-lg:[background:linear-gradient(180deg,${canje.estado === 'pendiente' ? '#1e40af' : canje.estado === 'usado' ? '#064e3b' : '#7f1d1d'}_2.5rem,rgb(248,250,252)_2.5rem)]`}
     >
+      <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
       {/* ── Header dark con estado ── */}
       <div
-        className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4"
+        className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
         style={{ background: gradiente.bg, boxShadow: `0 4px 16px ${gradiente.shadow}` }}
       >
         {/* Círculos decorativos */}
         <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
         <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
 
-        <div className="relative flex items-center gap-3">
-          <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-xl bg-white/15 flex items-center justify-center">
-            <Gift className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-white font-bold text-base lg:text-sm 2xl:text-base">
-              Detalle de Canje
-            </h3>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              {ICONOS_ESTADO[canje.estado]}
-              <span className="text-white/80 text-sm lg:text-xs 2xl:text-sm font-medium">
-                {ETIQUETAS_ESTADO[canje.estado]}
+        <div className="relative flex items-center gap-2">
+          {/* Textos */}
+          <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5 text-white shrink-0" />
+              <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
+                {canje.clienteNombre || 'Sin nombre'}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-white shrink-0" />
+              <span className="text-base lg:text-sm 2xl:text-base text-white font-semibold truncate">
+                {canje.recompensaNombre}
               </span>
             </div>
           </div>
-          {/* Puntos prominentes */}
-          <div className="text-right shrink-0">
-            <p className="text-white/60 text-sm font-medium">Puntos</p>
-            <p className="text-white font-extrabold text-lg lg:text-base 2xl:text-lg">
-              -{canje.puntosUsados.toLocaleString()}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Cuerpo con filas de detalle ── */}
-      <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3">
-
-        {/* Cliente + teléfono + ChatYA */}
-        <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
-          <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
-            {canje.clienteAvatarUrl ? (
-              <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-4 h-4 text-indigo-700" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">
-              {canje.clienteNombre || 'Sin nombre'}
-            </p>
-            {canje.clienteTelefono && (
-              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
-                {formatearTelefono(canje.clienteTelefono)}
-              </p>
-            )}
-          </div>
-          {canje.clienteTelefono && (
+          {/* ChatYA — centrado verticalmente */}
+          {canje.clienteId && (
             <button
-              onClick={handleChatYA}
-              className="shrink-0 cursor-pointer"
-              title="Contactar cliente por ChatYA"
+              onClick={(e) => { e.stopPropagation(); handleChatYA(); }}
+              className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-2 -m-2"
             >
-              <img src="/ChatYA.webp" alt="ChatYA" className="w-auto h-7 lg:w-auto lg:h-6 2xl:h-7 2xl:w-auto" />
+              <img src="/ChatYA.webp" alt="ChatYA" className="w-auto h-10 lg:h-8 2xl:h-10" />
             </button>
           )}
         </div>
+      </div>
+
+      {/* ── Cuerpo con scroll ── */}
+      <div className="flex-1 overflow-y-auto">
+      <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-2">
 
         {/* Recompensa con imagen */}
         <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
@@ -375,7 +358,7 @@ export default function ModalDetalleCanjeBS({
           <div className="rounded-lg bg-blue-100 border-2 border-blue-300 p-3">
             <div className="flex items-center gap-2">
               <Hourglass className="w-4 h-4 text-blue-600 shrink-0" />
-              <p className="text-sm text-blue-600 font-semibold">Voucher pendiente de canje</p>
+              <p className="text-sm text-blue-600 font-semibold">Estado: {ETIQUETAS_ESTADO[canje.estado]}</p>
             </div>
             <p className="text-sm text-blue-600 font-medium mt-1.5 ml-6">
               El cliente puede presentar este voucher en cualquier sucursal para reclamar su recompensa.
@@ -387,7 +370,7 @@ export default function ModalDetalleCanjeBS({
           <div className="rounded-lg bg-emerald-100 border-2 border-emerald-300 p-3">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-              <p className="text-sm text-emerald-600 font-semibold">Voucher canjeado exitosamente</p>
+              <p className="text-sm text-emerald-600 font-semibold">Estado: {ETIQUETAS_ESTADO[canje.estado]}</p>
             </div>
             <p className="text-sm text-emerald-600 font-medium mt-1.5 ml-6">
               La recompensa fue entregada al cliente.
@@ -399,13 +382,15 @@ export default function ModalDetalleCanjeBS({
           <div className="rounded-lg bg-red-100 border-2 border-red-300 p-3">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-              <p className="text-sm text-red-600 font-semibold">Voucher vencido</p>
+              <p className="text-sm text-red-600 font-semibold">Estado: {ETIQUETAS_ESTADO[canje.estado]}</p>
             </div>
             <p className="text-sm text-red-600 font-medium mt-1.5 ml-6">
               Este voucher expiró sin ser canjeado. Los puntos fueron devueltos al saldo del cliente.
             </p>
           </div>
         )}
+      </div>
+      </div>
       </div>
     </ModalAdaptativo>
   );

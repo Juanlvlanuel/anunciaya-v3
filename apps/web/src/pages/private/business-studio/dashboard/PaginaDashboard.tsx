@@ -28,6 +28,7 @@ import { notificar } from '../../../../utils/notificaciones';
 import type { Oferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../../types/ofertas';
 import type { CrearArticuloInput, ActualizarArticuloInput } from '../../../../types/articulos';
 import type { Periodo } from '../../../../services/dashboardService';
+import Tooltip from '../../../../components/ui/Tooltip';
 
 // Componentes
 import HeaderDashboard from './componentes/HeaderDashboard';
@@ -52,13 +53,69 @@ import {
   Eye,
   UserPlus,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
+const kpiAnimStyles = `
+  /* — Click — */
+  @keyframes kpi-bounce {
+    0%, 100% { transform: translateY(0); }
+    35% { transform: translateY(-9px); }
+    65% { transform: translateY(-4px); }
+  }
+  @keyframes kpi-heartbeat {
+    0%, 100% { transform: scale(1); }
+    25% { transform: scale(1.55); }
+    55% { transform: scale(1.2); }
+  }
+  @keyframes kpi-spin {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.3); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  @keyframes kpi-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    40% { transform: scale(1.45); opacity: 0.75; }
+  }
+  /* — Idle — */
+  @keyframes kpi-idle-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes kpi-idle-heart {
+    0%, 80%, 100% { transform: scale(1); }
+    40% { transform: scale(1.18); }
+    60% { transform: scale(1.08); }
+  }
+  @keyframes kpi-idle-spin {
+    0%, 100% { transform: rotate(-12deg); }
+    50% { transform: rotate(12deg); }
+  }
+  @keyframes kpi-idle-eye {
+    0%, 90%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.15); }
+  }
+
+  .anim-bounce      { animation: kpi-bounce      0.5s ease; }
+  .anim-heart       { animation: kpi-heartbeat   0.5s ease; }
+  .anim-spin        { animation: kpi-spin         0.5s ease; }
+  .anim-pulse       { animation: kpi-pulse        0.5s ease; }
+
+  .anim-idle-float  { animation: kpi-idle-float   2.2s ease-in-out infinite; }
+  .anim-idle-heart  { animation: kpi-idle-heart   1.6s ease-in-out infinite; }
+  .anim-idle-spin   { animation: kpi-idle-spin    2.8s ease-in-out infinite; }
+  .anim-idle-eye    { animation: kpi-idle-eye     3.5s ease-in-out infinite; }
+`;
+
 export default function PaginaDashboard() {
+  const [animandoStat, setAnimandoStat] = useState<string | null>(null);
+
+  const animarStat = (id: string) => setAnimandoStat(id);
+
   const {
     kpis,
     ventas,
@@ -196,13 +253,17 @@ export default function PaginaDashboard() {
   };
 
   return (
+    <>
+    <style>{kpiAnimStyles}</style>
     <div className="p-3 lg:p-1.5 2xl:p-3">
-      <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-8 lg:space-y-7 2xl:space-y-14">
-        {/* Header */}
-        <HeaderDashboard
-          onNuevaOferta={handleNuevaOferta}
-          onNuevoArticulo={handleNuevoArticulo}
-        />
+      <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-2 2xl:space-y-3">
+        {/* Header — solo desktop */}
+        <div className="hidden lg:block">
+          <HeaderDashboard
+            onNuevaOferta={handleNuevaOferta}
+            onNuevoArticulo={handleNuevoArticulo}
+          />
+        </div>
 
         {/* Banner Alertas Urgentes - SOLO MÓVIL - SOLO SI HAY ALERTAS NO LEÍDAS */}
         {alertasUrgentes.length > 0 && (
@@ -214,65 +275,79 @@ export default function PaginaDashboard() {
         {/* =================================================================== */}
         {/* LAYOUT MÓVIL - Optimizado */}
         {/* =================================================================== */}
-        <div className="lg:hidden space-y-3">
-          {/* 4 Pills Secundarios en Carrusel Horizontal */}
-          <div className="overflow-x-auto pb-1">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-2 rounded-full shrink-0">
-                <UserPlus className="w-4 h-4" />
-                <span className="font-bold text-sm">{kpis?.followers ?? 0}</span>
-                <span className="text-blue-600 text-sm font-medium">Followers</span>
+        <div className="mt-5 lg:mt-0 lg:hidden space-y-3">
+          {/* 4 Stats Secundarios — icono + valor en línea */}
+          <div className="grid grid-cols-4">
+            <Tooltip text="Seguidores" position="bottom" triggerOnClick autoHide={2000}>
+              <div className="flex items-center justify-center gap-1.5 cursor-pointer" onClick={() => animarStat('followers')}>
+                <UserPlus
+                  className={`w-6 h-6 text-blue-500 shrink-0 ${animandoStat === 'followers' ? 'anim-bounce' : 'anim-idle-float'}`}
+                  onAnimationEnd={animandoStat === 'followers' ? () => setAnimandoStat(null) : undefined}
+                />
+                <span className="font-bold text-base text-blue-700">{kpis?.followers ?? 0}</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-pink-100 text-pink-700 px-3 py-2 rounded-full shrink-0">
-                <Heart className="w-4 h-4" />
-                <span className="font-bold text-sm">{kpis?.likes.valor ?? 0}</span>
-                <span className="text-pink-600 text-sm font-medium">Likes</span>
+            </Tooltip>
+            <Tooltip text="Likes" position="bottom" triggerOnClick autoHide={2000}>
+              <div className="flex items-center justify-center gap-1.5 cursor-pointer" onClick={() => animarStat('likes')}>
+                <Heart
+                  className={`w-6 h-6 text-pink-500 shrink-0 ${animandoStat === 'likes' ? 'anim-heart' : 'anim-idle-heart'}`}
+                  onAnimationEnd={animandoStat === 'likes' ? () => setAnimandoStat(null) : undefined}
+                />
+                <span className="font-bold text-base text-pink-700">{kpis?.likes.valor ?? 0}</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-yellow-100 text-yellow-700 px-3 py-2 rounded-full shrink-0">
-                <Star className="w-4 h-4" />
-                <span className="font-bold text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
-                <span className="text-yellow-600 text-sm font-medium">Rating</span>
+            </Tooltip>
+            <Tooltip text="Rating" position="bottom" triggerOnClick autoHide={2000}>
+              <div className="flex items-center justify-center gap-1.5 cursor-pointer" onClick={() => animarStat('rating')}>
+                <Star
+                  className={`w-6 h-6 text-yellow-500 shrink-0 ${animandoStat === 'rating' ? 'anim-spin' : 'anim-idle-spin'}`}
+                  onAnimationEnd={animandoStat === 'rating' ? () => setAnimandoStat(null) : undefined}
+                />
+                <span className="font-bold text-base text-yellow-700">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-slate-200 text-slate-700 px-3 py-2 rounded-full shrink-0">
-                <Eye className="w-4 h-4" />
-                <span className="font-bold text-sm">{kpis?.vistas.valor ?? 0}</span>
-                <span className="text-slate-600 text-sm font-medium">Vistas</span>
+            </Tooltip>
+            <Tooltip text="Vistas" position="bottom" triggerOnClick autoHide={2000}>
+              <div className="flex items-center justify-center gap-1.5 cursor-pointer" onClick={() => animarStat('vistas')}>
+                <Eye
+                  className={`w-6 h-6 text-slate-500 shrink-0 ${animandoStat === 'vistas' ? 'anim-pulse' : 'anim-idle-eye'}`}
+                  onAnimationEnd={animandoStat === 'vistas' ? () => setAnimandoStat(null) : undefined}
+                />
+                <span className="font-bold text-base text-slate-700">{kpis?.vistas.valor ?? 0}</span>
               </div>
-            </div>
+            </Tooltip>
           </div>
 
-          {/* Filtros de Período - SOLO MÓVIL - Discretos */}
-          <div className="flex items-center justify-between">
-            {/* Filtros */}
-            <div className="flex items-center gap-1 bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
+          {/* Selector de Período — SOLO MÓVIL */}
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
               {[
-                { valor: 'hoy', label: 'Hoy' },
-                { valor: 'semana', label: '7 días' },
-                { valor: 'mes', label: '30 días' },
-                { valor: 'trimestre', label: '90 días' },
-              ].map((p) => (
+                { valor: 'hoy',       label: 'Hoy' },
+                { valor: 'semana',    label: '7d'  },
+                { valor: 'mes',       label: '30d' },
+                { valor: 'trimestre', label: '90d' },
+              ].map(({ valor, label }) => (
                 <button
-                  key={p.valor}
-                  onClick={() => setPeriodo(p.valor as Periodo)}
-                  className={`px-3 h-9 flex items-center rounded-md text-sm font-semibold whitespace-nowrap cursor-pointer ${periodo === p.valor
+                  key={valor}
+                  onClick={() => setPeriodo(valor as Periodo)}
+                  className={`flex-1 h-10 rounded-lg text-sm font-semibold cursor-pointer ${periodo === valor
                     ? 'text-white shadow-md'
-                    : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
+                    : 'text-slate-700 hover:bg-slate-300'
                     }`}
-                  style={periodo === p.valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                  style={periodo === valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                 >
-                  {p.label}
+                  {label}
                 </button>
               ))}
             </div>
-
-            {/* Botón refresh */}
             <button
               onClick={handleRefresh}
               disabled={refrescando}
-              className="p-2 rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-indigo-100 hover:border-indigo-300 hover:text-indigo-600 transition-all disabled:opacity-50"
+              className="shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-white border-2 border-slate-300 text-slate-600"
               title="Actualizar"
             >
-              <RefreshCw className={`w-5 h-5 ${refrescando ? 'animate-spin' : ''}`} />
+              {refrescando
+                ? <Loader2 className="w-5 h-5 animate-spin" />
+                : <RefreshCw className="w-5 h-5" />
+              }
             </button>
           </div>
 
@@ -284,7 +359,8 @@ export default function PaginaDashboard() {
                 titulo="Ventas"
                 valor={kpis?.ventas.valor ?? 0}
                 icono={DollarSign}
-                colorIcono="from-emerald-500 to-teal-600"
+                bgIcono="bg-emerald-100"
+                textoIcono="text-emerald-600"
                 formato="moneda"
                 cargando={cargandoKpis}
                 filaMovil
@@ -293,7 +369,8 @@ export default function PaginaDashboard() {
                 titulo="Clientes"
                 valor={kpis?.clientes.valor ?? 0}
                 icono={Users}
-                colorIcono="from-blue-500 to-indigo-600"
+                bgIcono="bg-blue-100"
+                textoIcono="text-blue-600"
                 cargando={cargandoKpis}
                 filaMovil
               />
@@ -301,7 +378,8 @@ export default function PaginaDashboard() {
                 titulo="Transacciones"
                 valor={kpis?.transacciones.valor ?? 0}
                 icono={CreditCard}
-                colorIcono="from-violet-500 to-purple-600"
+                bgIcono="bg-violet-100"
+                textoIcono="text-violet-600"
                 cargando={cargandoKpis}
                 filaMovil
               />
@@ -331,7 +409,7 @@ export default function PaginaDashboard() {
         {/* =================================================================== */}
         {/* LAYOUT DESKTOP - Nuevo diseño compacto */}
         {/* =================================================================== */}
-        <div className="hidden lg:block space-y-3 2xl:space-y-4">
+        <div className="hidden lg:block space-y-3 2xl:space-y-4 lg:mt-14 2xl:mt-14">
           {/* Fila superior: KPIs + Pills + Cupones/Alertas | Gráfica derecha */}
           <div className="flex gap-3 2xl:gap-4">
             {/* Columna izquierda - 60% del ancho */}
@@ -343,7 +421,8 @@ export default function PaginaDashboard() {
                   valor={kpis?.ventas.valor ?? 0}
                   miniGrafica={kpis?.ventas.miniGrafica ?? []}
                   icono={DollarSign}
-                  colorIcono="from-emerald-500 to-teal-600"
+                  bgIcono="bg-emerald-100"
+                  textoIcono="text-emerald-600"
                   formato="moneda"
                   cargando={cargandoKpis}
                 />
@@ -351,7 +430,8 @@ export default function PaginaDashboard() {
                   titulo="Clientes Totales"
                   valor={kpis?.clientes.valor ?? 0}
                   icono={Users}
-                  colorIcono="from-blue-500 to-indigo-600"
+                  bgIcono="bg-blue-100"
+                  textoIcono="text-blue-600"
                   subtitulo={`Nuevos: ${kpis?.clientes.nuevos ?? 0} · Recurrentes: ${kpis?.clientes.recurrentes ?? 0}`}
                   cargando={cargandoKpis}
                 />
@@ -359,7 +439,8 @@ export default function PaginaDashboard() {
                   titulo="Transacciones"
                   valor={kpis?.transacciones.valor ?? 0}
                   icono={CreditCard}
-                  colorIcono="from-violet-500 to-purple-600"
+                  bgIcono="bg-violet-100"
+                  textoIcono="text-violet-600"
                   subtitulo={`Ticket Prom: $${kpis?.transacciones.ticketPromedio?.toLocaleString() ?? 0}`}
                   cargando={cargandoKpis}
                 />
@@ -430,5 +511,6 @@ export default function PaginaDashboard() {
         />
       )}
     </div>
+    </>
   );
 }

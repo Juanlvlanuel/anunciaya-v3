@@ -139,7 +139,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="fixed inset-0 z-1001">
+    <div className="fixed inset-0" style={{ zIndex: 1001 }} data-bloquear-swipe>
       {/* Overlay oscuro */}
       <div
         className="absolute inset-0 bg-black/50"

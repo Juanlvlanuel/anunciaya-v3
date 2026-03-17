@@ -26,6 +26,7 @@ import {
   DollarSign,
   Ticket,
   Clock,
+  Calendar,
   ChevronRight,
   Loader2,
 } from 'lucide-react';
@@ -212,6 +213,13 @@ export default function ModalDetalleCliente({
   const handleContactar = () => {
     if (!clienteDetalle?.id) return;
 
+    // Guardar datos antes de cerrar (el modal puede desmontarse)
+    const datos = {
+      id: clienteDetalle.id,
+      nombre: clienteDetalle.nombre,
+      avatarUrl: clienteDetalle.avatarUrl ?? null,
+    };
+
     // Limpiar entrada huérfana de ModalBottom en el historial
     if (history.state?._modalBottom) {
       const estado = { ...history.state };
@@ -219,22 +227,24 @@ export default function ModalDetalleCliente({
       history.replaceState(estado, '');
     }
 
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: clienteDetalle.id,
-        nombre: clienteDetalle.nombre,
-        apellidos: '',
-        avatarUrl: clienteDetalle.avatarUrl ?? null,
-      },
-      datosCreacion: {
-        participante2Id: clienteDetalle.id,
-        participante2Modo: 'personal',
-        contextoTipo: 'directo',
-      },
-    });
-    abrirChatYA();
     handleCerrar();
+    setTimeout(() => {
+      abrirChatTemporal({
+        id: `temp_${Date.now()}`,
+        otroParticipante: {
+          id: datos.id,
+          nombre: datos.nombre,
+          apellidos: '',
+          avatarUrl: datos.avatarUrl,
+        },
+        datosCreacion: {
+          participante2Id: datos.id,
+          participante2Modo: 'personal',
+          contextoTipo: 'directo',
+        },
+      });
+      abrirChatYA();
+    }, 300);
   };
 
   if (!abierto) return null;
@@ -307,7 +317,7 @@ export default function ModalDetalleCliente({
         <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
           {/* ── Header con gradiente (FIJO) ── */}
           <div
-            className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
+            className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
             style={{
               background: 'linear-gradient(135deg, #1e40af, #3b82f6)',
               boxShadow: '0 4px 16px rgba(59,130,246,0.3)',
@@ -317,53 +327,58 @@ export default function ModalDetalleCliente({
             <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/5" />
             <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-white/5" />
 
-            <div className="relative -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
-              {/* Línea 1: Nombre + ChatYA */}
-              <div className="flex items-center gap-2">
-                <User className="w-5 h-5 text-white shrink-0" />
-                <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
-                  {cliente.nombre}
-                </h3>
-                <button
-                  onClick={handleContactar}
-                  className="ml-auto shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                >
-                  <img src="/ChatYA.webp" alt="ChatYA" className="w-auto h-10 lg:h-8 2xl:h-10" />
-                </button>
-              </div>
-
-              {/* Línea 2: Teléfono */}
-              {cliente.telefono && (
+            <div className="relative flex items-center gap-2">
+              {/* Textos */}
+              <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <Phone className="w-5 h-5 text-white shrink-0" />
-                  <span className="text-sm lg:text-[11px] 2xl:text-sm text-white font-medium">
-                    {formatearTelefono(cliente.telefono)}
-                  </span>
+                  <User className="w-5 h-5 text-white shrink-0" />
+                  <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
+                    {cliente.nombre}
+                  </h3>
                 </div>
-              )}
-
-              {/* Línea 3: Correo + Desde */}
-              {(cliente.correo || cliente.clienteDesde) && (
-                <div className="flex items-center gap-2 text-sm lg:text-[11px] 2xl:text-sm text-white font-medium">
-                  <Mail className="w-5 h-5 text-white shrink-0" />
-                  {cliente.correo && (
-                    <span className="truncate">{cliente.correo}</span>
-                  )}
-                  {cliente.clienteDesde && (
-                    <span className="ml-auto shrink-0 font-medium text-right leading-tight">
-                      <span className="block">Miembro Desde</span>
-                      <span className="block">{formatearFechaCorta(cliente.clienteDesde)}</span>
+                {cliente.telefono && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-white shrink-0" />
+                    <span className="text-base lg:text-sm 2xl:text-base text-white font-semibold">
+                      {formatearTelefono(cliente.telefono)}
                     </span>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+              {/* ChatYA — centrado verticalmente */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleContactar(); }}
+                className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-2 -m-2"
+              >
+                <img src="/ChatYA.webp" alt="ChatYA" className="w-auto h-10 lg:h-8 2xl:h-10" />
+              </button>
             </div>
           </div>
 
           {/* ── Contenido con scroll ── */}
           <div className="flex-1 overflow-y-auto">
+            {/* ── Correo + Miembro Desde ── */}
+            {(cliente.correo || cliente.clienteDesde) && (
+              <div className="px-4 lg:px-3 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1 lg:gap-2">
+                {cliente.correo && (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Mail className="w-5 h-5 lg:w-4 lg:h-4 text-slate-500 shrink-0" />
+                    <span className="text-base lg:text-sm font-medium text-slate-600 truncate">{cliente.correo}</span>
+                  </div>
+                )}
+                {cliente.clienteDesde && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Calendar className="w-5 h-5 lg:w-4 lg:h-4 text-slate-500 shrink-0" />
+                    <span className="text-base lg:text-sm font-medium text-slate-600">
+                      Miembro desde {formatearFechaCorta(cliente.clienteDesde)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ── Sección Puntos ── */}
-            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 border-b border-slate-300">
+            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-2 border-b border-slate-300">
               {/* 3 puntos en fila compacta */}
               <div className="grid grid-cols-3 text-center">
                 <div>
@@ -431,7 +446,7 @@ export default function ModalDetalleCliente({
             </div>
 
             {/* ── Sección Estadísticas ── */}
-            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 border-b border-slate-300">
+            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-2 border-b border-slate-300">
               <div className="grid grid-cols-2 gap-y-3 gap-x-4 lg:gap-y-2.5 lg:gap-x-3 2xl:gap-y-3 2xl:gap-x-4">
                 <CeldaEstadistica
                   icono={<DollarSign className="w-3.5 h-3.5 text-emerald-600" />}
@@ -461,7 +476,7 @@ export default function ModalDetalleCliente({
             </div>
 
             {/* ── Sección Últimas Transacciones ── */}
-            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3">
+            <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-2">
               <div className="flex items-center justify-between mb-2.5 lg:mb-2 2xl:mb-2.5">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-slate-600" />

@@ -148,32 +148,38 @@ export default function ModalDetalleTransaccionBS({
   const handleContactarCliente = () => {
     if (!tx.clienteId) return;
 
+    // Guardar datos antes de cerrar (el modal puede desmontarse)
+    const datos = {
+      id: tx.clienteId,
+      nombre: tx.clienteNombre || 'Cliente',
+      avatarUrl: tx.clienteAvatarUrl ?? null,
+    };
+
     // Limpiar la entrada _modalBottom del historial antes de abrir ChatYA.
-    // ModalBottom pushState({ _modalBottom }) al abrir; si cerramos el modal
-    // por vía externa (no por back button), esa entrada queda huérfana y
-    // bloquea el popstate handler de ChatOverlay.
     if (history.state?._modalBottom) {
       const estado = { ...history.state };
       delete estado._modalBottom;
       history.replaceState(estado, '');
     }
 
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: tx.clienteId,
-        nombre: tx.clienteNombre || 'Cliente',
-        apellidos: '',
-        avatarUrl: tx.clienteAvatarUrl ?? null,
-      },
-      datosCreacion: {
-        participante2Id: tx.clienteId,
-        participante2Modo: 'personal',
-        contextoTipo: 'directo',
-      },
-    });
-    abrirChatYA();
     handleCerrar();
+    setTimeout(() => {
+      abrirChatTemporal({
+        id: `temp_${Date.now()}`,
+        otroParticipante: {
+          id: datos.id,
+          nombre: datos.nombre,
+          apellidos: '',
+          avatarUrl: datos.avatarUrl,
+        },
+        datosCreacion: {
+          participante2Id: datos.id,
+          participante2Modo: 'personal',
+          contextoTipo: 'directo',
+        },
+      });
+      abrirChatYA();
+    }, 300);
   };
 
   if (!abierto || !transaccion) return null;
@@ -225,51 +231,44 @@ export default function ModalDetalleTransaccionBS({
       <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
       {/* ── Header dark con estado ── */}
       <div
-        className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
+        className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
         style={{ background: gradiente.bg, boxShadow: `0 4px 16px ${gradiente.shadow}` }}
       >
         {/* Círculos decorativos */}
         <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
         <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
 
-        <div className="relative space-y-1 lg:space-y-0.5 2xl:space-y-1">
-          {/* Línea 1: Cliente + ChatYA */}
-          <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-white shrink-0" />
-            <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
-              {tx.clienteNombre || 'Sin nombre'}
-            </h3>
-            {tx.clienteId && (
-              <button
-                onClick={handleContactarCliente}
-                className="ml-auto shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <img src="/ChatYA.webp" alt="ChatYA" className="w-auto h-10 lg:h-8 2xl:h-10" />
-              </button>
-            )}
-          </div>
-
-          {/* Línea 2: Monto */}
-          <div className="flex items-center gap-2">
-            <StickyNote className="w-5 h-5 text-white shrink-0" />
-            <span className="text-sm lg:text-[11px] 2xl:text-sm text-white font-medium">
-              {formatearMoneda(tx.montoCompra)}
-            </span>
-          </div>
-
-          {/* Línea 3: Fecha */}
-          {tx.createdAt && (
-            <div className="flex items-center gap-2 text-sm lg:text-[11px] 2xl:text-sm text-white font-medium">
-              <Clock className="w-5 h-5 text-white shrink-0" />
-              <span>{formatearFechaCompleta(tx.createdAt)}</span>
+        <div className="relative flex items-center gap-2">
+          {/* Textos */}
+          <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5 text-white shrink-0" />
+              <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
+                {tx.clienteNombre || 'Sin nombre'}
+              </h3>
             </div>
+            <div className="flex items-center gap-2">
+              <StickyNote className="w-5 h-5 text-white shrink-0" />
+              <span className="text-base lg:text-sm 2xl:text-base text-white font-semibold">
+                {formatearMoneda(tx.montoCompra)}
+              </span>
+            </div>
+          </div>
+          {/* ChatYA — centrado verticalmente entre las 2 líneas */}
+          {tx.clienteId && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleContactarCliente(); }}
+              className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-2 -m-2"
+            >
+              <img src="/ChatYA.webp" alt="ChatYA" className="w-auto h-10 lg:h-8 2xl:h-10" />
+            </button>
           )}
         </div>
       </div>
 
       {/* ── Cuerpo con scroll ── */}
       <div className="flex-1 overflow-y-auto">
-      <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3">
+      <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-2">
 
         {/* Puntos + multiplicador + badge estado */}
         <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">

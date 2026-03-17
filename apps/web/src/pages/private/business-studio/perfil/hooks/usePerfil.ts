@@ -19,7 +19,7 @@
  * - Guardado independiente por tab
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../../../../services/api';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { notificar } from '../../../../../utils/notificaciones';
@@ -238,7 +238,7 @@ export function usePerfil() {
   // CARGAR DATOS INICIALES
   // =============================================================================
 
-  const cargarDatos = useCallback(async () => {
+  const cargarDatos = useCallback(async (silencioso = false) => {
     if (!sucursalActiva || !negocioId) {
       setError('No hay sucursal activa');
       setLoading(false);
@@ -246,7 +246,7 @@ export function usePerfil() {
     }
 
     try {
-      setLoading(true);
+      if (!silencioso) setLoading(true);
       setError(null);
 
       // Obtener perfil completo de la sucursal
@@ -611,8 +611,8 @@ export function usePerfil() {
         return;
       }
 
-      // Recargar datos para actualizar estados iniciales
-      await cargarDatos();
+      // Recargar datos para actualizar estados iniciales (silencioso = sin spinner)
+      await cargarDatos(true);
 
       // Notificaciones según resultado
       if (errores.length === 0) {
@@ -637,12 +637,26 @@ export function usePerfil() {
   // RETURN
   // =============================================================================
 
+  // Detectar si hay cambios pendientes (misma lógica que guardarTodo)
+  const hayCambios = useMemo(() => {
+    const vistaComoG = esGerente || (datosInformacion.totalSucursales > 1 && !datosInformacion.esPrincipal);
+    if (!vistaComoG && datosInicialesInformacion && JSON.stringify(datosInformacion) !== JSON.stringify(datosInicialesInformacion)) return true;
+    if (datosInicialesContacto && JSON.stringify(datosContacto) !== JSON.stringify(datosInicialesContacto)) return true;
+    if (vistaComoG && datosInicialesInformacion && datosInformacion.nombreSucursal !== datosInicialesInformacion.nombreSucursal) return true;
+    if (datosInicialesUbicacion && JSON.stringify(datosUbicacion) !== JSON.stringify(datosInicialesUbicacion)) return true;
+    if (datosInicialesHorarios && JSON.stringify(datosHorarios) !== JSON.stringify(datosInicialesHorarios)) return true;
+    if (datosInicialesOperacion && JSON.stringify(datosOperacion) !== JSON.stringify(datosInicialesOperacion)) return true;
+    return false;
+  }, [datosInformacion, datosContacto, datosUbicacion, datosHorarios, datosOperacion,
+      datosInicialesInformacion, datosInicialesContacto, datosInicialesUbicacion, datosInicialesHorarios, datosInicialesOperacion, esGerente]);
+
   return {
     // Estado general
     loading,
     guardando,
     error,
     esGerente,
+    hayCambios,
 
     // Datos por tabs
     datosInformacion,

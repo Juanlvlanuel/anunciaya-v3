@@ -250,6 +250,50 @@ export function PaginaOpiniones() {
     }, [resenas, filtroEstado, filtroEstrellas, busqueda]);
 
     // =========================================================================
+    // INFINITE SCROLL MÓVIL (slice local, 12 por tanda)
+    // =========================================================================
+
+    const RESENAS_POR_PAGINA = 12;
+    const [resenasCargadas, setResenasCargadas] = useState(RESENAS_POR_PAGINA);
+    const observerRef = useRef<HTMLDivElement | null>(null);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+
+    const resenasMostradas = useMemo(() => {
+        if (isMobile) return resenasFiltradas.slice(0, resenasCargadas);
+        return resenasFiltradas;
+    }, [resenasFiltradas, resenasCargadas, isMobile]);
+
+    const hayMasResenas = isMobile && resenasCargadas < resenasFiltradas.length;
+
+    const cargarMasResenas = useCallback(() => {
+        if (isMobile && resenasCargadas < resenasFiltradas.length) {
+            setResenasCargadas(prev => Math.min(prev + RESENAS_POR_PAGINA, resenasFiltradas.length));
+        }
+    }, [isMobile, resenasCargadas, resenasFiltradas.length]);
+
+    // Reset al cambiar filtros
+    useEffect(() => {
+        setResenasCargadas(RESENAS_POR_PAGINA);
+    }, [filtroEstado, filtroEstrellas, busqueda]);
+
+    // IntersectionObserver
+    useEffect(() => {
+        if (!isMobile || !hayMasResenas) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) cargarMasResenas();
+            },
+            { root: null, rootMargin: '100px', threshold: 0.1 }
+        );
+
+        const el = observerRef.current;
+        if (el) observer.observe(el);
+
+        return () => { if (el) observer.unobserve(el); };
+    }, [isMobile, hayMasResenas, cargarMasResenas]);
+
+    // =========================================================================
     // HANDLERS
     // =========================================================================
 
@@ -361,7 +405,7 @@ export function PaginaOpiniones() {
 
                 <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
                     {/* Header con icono animado */}
-                    <div className="flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+                    <div className="hidden lg:flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
                         <div
                             className="flex items-center justify-center shrink-0"
                             style={{
@@ -390,7 +434,7 @@ export function PaginaOpiniones() {
 
                             {/* Promedio ⭐ */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #fffbeb, #fff)',
                                     border: '2px solid #fcd34d',
@@ -413,7 +457,7 @@ export function PaginaOpiniones() {
 
                             {/* Total */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 w-[26%] h-13 2xl:h-16 lg:w-auto lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 w-[26%] h-13 2xl:h-16 lg:w-auto lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #eff6ff, #fff)',
                                     border: '2px solid #93c5fd',
@@ -436,7 +480,7 @@ export function PaginaOpiniones() {
 
                             {/* Pendientes */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #fff7ed, #fff)',
                                     border: '2px solid #fdba74',
@@ -477,7 +521,7 @@ export function PaginaOpiniones() {
                             placeholder="Buscar por nombre o texto..."
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
-                            className="w-full h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base"
+                            className="w-full h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
                             elementoDerecha={busqueda ? (
                                 <button
                                     type="button"
@@ -497,7 +541,7 @@ export function PaginaOpiniones() {
                             {/* Todas */}
                             <button
                                 onClick={() => { setFiltroEstado('todas'); setFiltroEstrellas(null); }}
-                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 lg:px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${
+                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${
                                     filtroEstado === 'todas' && filtroEstrellas === null
                                         ? 'bg-slate-800 text-white border-slate-800'
                                         : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
@@ -510,7 +554,7 @@ export function PaginaOpiniones() {
                             {/* Pendientes */}
                             <button
                                 onClick={() => setFiltroEstado((prev) => prev === 'pendientes' ? 'todas' : 'pendientes')}
-                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 lg:px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${
+                                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${
                                     filtroEstado === 'pendientes'
                                         ? 'bg-slate-800 text-white border-slate-800'
                                         : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
@@ -532,7 +576,7 @@ export function PaginaOpiniones() {
                                         setDropdownEstrellasAbierto((prev) => !prev);
                                     }
                                 }}
-                                className={`w-full flex items-center justify-center lg:justify-start gap-2 h-11 lg:h-10 2xl:h-11 lg:pl-2.5 2xl:pl-3 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer transition-all ${
+                                className={`w-full flex items-center justify-center lg:justify-start gap-2 h-10 lg:h-10 2xl:h-11 lg:pl-2.5 2xl:pl-3 lg:pr-2 2xl:pr-2.5 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${
                                     filtroEstrellas !== null
                                         ? 'bg-amber-100 border-amber-300 text-amber-700'
                                         : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
@@ -621,13 +665,15 @@ export function PaginaOpiniones() {
                         </p>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 overflow-hidden">
-                        <div className="overflow-y-auto max-h-[50vh] lg:max-h-[42vh] 2xl:max-h-[61vh] p-3 lg:p-2.5 2xl:p-3">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5 lg:gap-2 2xl:gap-2.5">
+                    <>
+                    {/* Desktop: card contenedor con scroll interno */}
+                    <div className="hidden lg:block bg-white rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 overflow-hidden">
+                        <div className="overflow-y-auto max-h-[42vh] 2xl:max-h-[61vh] p-2.5 2xl:p-3">
+                            <div className="grid grid-cols-2 2xl:grid-cols-3 gap-2 2xl:gap-2.5">
                                 {resenasFiltradas.map((resena) => (
                                     <div
                                         key={resena.id}
-                                        className={`rounded-xl lg:rounded-lg 2xl:rounded-xl p-3 lg:p-2.5 2xl:p-3 ${
+                                        className={`rounded-lg 2xl:rounded-xl p-2.5 2xl:p-3 ${
                                             resena.respuesta
                                                 ? 'bg-amber-50 border-2 border-slate-300'
                                                 : 'bg-amber-50 border-2 border-orange-300'
@@ -713,6 +759,102 @@ export function PaginaOpiniones() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Móvil: cards sueltos con scroll infinito */}
+                    <div className="lg:hidden space-y-2">
+                        {resenasMostradas.map((resena) => (
+                            <div
+                                key={resena.id}
+                                className={`rounded-xl p-3 ${
+                                    resena.respuesta
+                                        ? 'bg-amber-50 border-2 border-slate-300'
+                                        : 'bg-amber-50 border-2 border-orange-300'
+                                }`}
+                            >
+                                {/* Header: avatar + nombre + estrellas + badge */}
+                                <div className="flex items-center gap-2 mb-2">
+                                    {resena.autor.avatarUrl ? (
+                                        <img
+                                            src={resena.autor.avatarUrl}
+                                            alt={resena.autor.nombre}
+                                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                                        />
+                                    ) : (
+                                        <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+                                            <User className="w-3.5 h-3.5 text-slate-600" />
+                                        </div>
+                                    )}
+                                    <span className="font-bold text-sm text-slate-900 truncate flex-1 min-w-0">
+                                        {resena.autor.nombre}
+                                    </span>
+                                    <div className="flex gap-0.5 shrink-0">
+                                        {[1, 2, 3, 4, 5].map((s) => (
+                                            <Star key={s} className={`w-3 h-3 ${resena.rating && s <= resena.rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
+                                        ))}
+                                    </div>
+                                    <span className={`shrink-0 inline-flex items-center gap-1 text-sm px-1.5 py-0.5 rounded-full font-bold ${resena.respuesta ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                        {resena.respuesta ? <><CheckCircle2 className="w-3 h-3" />Respondida</> : <><Clock className="w-3 h-3" />Pendiente</>}
+                                    </span>
+                                </div>
+
+                                {/* Burbuja cliente */}
+                                {resena.texto && (
+                                    <div className="flex justify-start mb-2">
+                                        <div className="max-w-[88%] bg-white border-2 border-slate-200 rounded-2xl rounded-tl-sm px-3 py-2 shadow-sm">
+                                            <p className="text-sm font-medium text-slate-700 italic leading-snug">
+                                                "{resena.texto}"
+                                            </p>
+                                            <p className="text-sm font-medium text-slate-600 mt-0.5">
+                                                {formatearFecha(resena.createdAt)}{resena.sucursalNombre && ` · ${resena.sucursalNombre}`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Burbuja negocio */}
+                                {resena.respuesta && (
+                                    <div className="flex justify-end">
+                                        <div className="max-w-[88%] bg-slate-800 rounded-2xl rounded-tr-sm px-3 py-2 shadow-sm">
+                                            <p className="text-sm font-medium text-white leading-snug">
+                                                {resena.respuesta.texto}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-sm font-medium text-slate-400">
+                                                    {formatearFecha(resena.respuesta.createdAt)}
+                                                </span>
+                                                <button
+                                                    onClick={() => abrirResponder(resena)}
+                                                    className="inline-flex items-center gap-1 text-slate-300 text-sm font-semibold cursor-pointer hover:text-white ml-auto"
+                                                >
+                                                    <Pencil className="w-3 h-3" />
+                                                    Editar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Botón responder */}
+                                {!resena.respuesta && (
+                                    <div className="flex justify-end">
+                                        <button
+                                            onClick={() => abrirResponder(resena)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-sm cursor-pointer"
+                                        >
+                                            <Pencil className="w-3 h-3" />
+                                            Responder
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        {hayMasResenas && (
+                            <div ref={observerRef} className="w-full h-20 flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+                            </div>
+                        )}
+                    </div>
+                    </>
                 )}
             </div>
 

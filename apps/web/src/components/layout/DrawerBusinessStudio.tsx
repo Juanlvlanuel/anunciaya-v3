@@ -11,6 +11,7 @@
  * Ubicación: apps/web/src/components/layout/DrawerBusinessStudio.tsx
  */
 
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     X,
@@ -107,16 +108,18 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
     // No renderizar si está cerrado
     if (!abierto) return null;
 
-    return (
+    return createPortal(
         <>
             {/* Overlay */}
             <div
-                className="fixed inset-0 bg-black/50 z-60"
+                className="fixed inset-0 bg-black/50"
+                style={{ zIndex: 1001 }}
+                data-bloquear-swipe
                 onClick={onCerrar}
             />
 
             {/* Panel */}
-            <div className="fixed top-0 left-0 bottom-0 w-[60%] bg-white z-61 shadow-2xl overflow-y-auto">
+            <div className="fixed top-0 left-0 bottom-0 w-[60%] bg-white shadow-2xl overflow-y-auto animate-slide-in-left" style={{ zIndex: 1002 }}>
                 {/* Header del drawer */}
                 <div className="bg-linear-to-r from-gray-900 to-blue-600 text-white px-4 py-4">
                     <div className="flex items-center justify-between">
@@ -158,7 +161,8 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                     })}
                 </div>
             </div>
-        </>
+        </>,
+        document.body
     );
 }
 

@@ -38,6 +38,7 @@ import { ColumnaDerecha } from './ColumnaDerecha';
 import { PanelNotificaciones } from './PanelNotificaciones';
 import { PanelPreviewNegocio } from './PanelPreviewNegocio';
 import { BannerRateLimit } from '../ui/Banner429';
+import { useSwipeNavegacionBS } from '../../hooks/useSwipeNavegacionBS';
 
 // =============================================================================
 // CONSTANTES
@@ -68,6 +69,9 @@ export function MainLayout() {
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
   const esPerfilNegocio = location.pathname.startsWith('/negocios/');
   const esCardYA = location.pathname.startsWith('/cardya');
+
+  // Swipe horizontal entre módulos BS (solo móvil)
+  useSwipeNavegacionBS(mobileMainRef);
 
   // ---------------------------------------------------------------------------
   // Stores
@@ -107,6 +111,56 @@ export function MainLayout() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Teclado virtual móvil: blur al cerrar + forzar mostrar BottomNav
+  // Con resizes-visual: layout viewport no cambia, visual viewport sí
+  // CSS :has(input:focus) oculta el BottomNav. Este efecto solo detecta el
+  // cierre del teclado (flecha Android) para hacer blur y forzar mostrar.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (esDesktop) return;
+
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const esInputTeclado = (el: Element): boolean => {
+      const tag = el.tagName;
+      if (tag === 'TEXTAREA') return true;
+      if (tag === 'INPUT') {
+        const tipo = (el as HTMLInputElement).type;
+        const sinTeclado = ['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'range', 'color'];
+        return !sinTeclado.includes(tipo);
+      }
+      return false;
+    };
+
+    let tecladoEstaAbierto = false;
+
+    const handleViewportResize = () => {
+      const abierto = (window.innerHeight - vv.height) > 150;
+
+      if (tecladoEstaAbierto && !abierto) {
+        // Teclado se cerró → blur + forzar mostrar BottomNav
+        const activo = document.activeElement;
+        if (activo instanceof HTMLElement && esInputTeclado(activo)) {
+          activo.blur();
+        }
+        const forzar = (window as unknown as Record<string, unknown>).__bottomNavForzarMostrar;
+        if (typeof forzar === 'function') forzar();
+      }
+
+      tecladoEstaAbierto = abierto;
+    };
+
+    vv.addEventListener('resize', handleViewportResize);
+    window.addEventListener('resize', handleViewportResize);
+
+    return () => {
+      vv.removeEventListener('resize', handleViewportResize);
+      window.removeEventListener('resize', handleViewportResize);
+    };
+  }, [esDesktop]);
 
   // ---------------------------------------------------------------------------
   // Detectar si el contenido tiene scroll
@@ -179,12 +233,13 @@ export function MainLayout() {
         </main>
       ) : (
         <>
-          {/* ===== HEADER ===== */}
-          <div className="sticky top-0 z-50 lg:fixed lg:left-0 lg:right-0">
-            {esDesktop ? <Navbar /> : !esCardYA && <div className="mobile-header-landscape-hide"><MobileHeader /></div>}
-            {/* Banner de rate limit — debajo del header, visible para el usuario */}
-            <BannerRateLimit />
-          </div>
+          {/* ===== HEADER (Desktop) ===== */}
+          {esDesktop && (
+            <div className="fixed left-0 right-0 top-0 z-50">
+              <Navbar />
+              <BannerRateLimit />
+            </div>
+          )}
 
           {/* ===== CONTENIDO PRINCIPAL ===== */}
           {esDesktop ? (
@@ -253,13 +308,23 @@ export function MainLayout() {
               )}
             </>
           ) : (
-            <main
-              ref={mobileMainRef}
-              className="main-content-landscape-fullscreen overflow-y-auto pb-20"
-              style={{ height: esCardYA ? 'calc(100vh - 0px)' : 'calc(100vh - 80px)', WebkitOverflowScrolling: 'touch' }}
-            >
-              <Outlet />
-            </main>
+            <div className="fixed inset-0 flex flex-col z-0">
+              {/* MobileHeader — altura variable (con/sin BS sub-bar) */}
+              {!esCardYA && (
+                <div className="shrink-0 z-50 mobile-header-landscape-hide">
+                  <MobileHeader />
+                  <BannerRateLimit />
+                </div>
+              )}
+              {/* Main — ocupa el espacio restante exacto */}
+              <main
+                ref={mobileMainRef}
+                className="main-content-landscape-fullscreen flex-1 min-h-0 overflow-y-auto pb-20"
+                style={{ overscrollBehavior: 'contain' }}
+              >
+                <Outlet />
+              </main>
+            </div>
           )}
 
           {/* ===== BOTTOM NAV (Solo móvil) ===== */}

@@ -9,10 +9,9 @@
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../../../../stores/useDashboardStore';
 import type { Periodo } from '../../../../../services/dashboardService';
-import { Tag, Ticket, Package, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import Tooltip from '../../../../../components/ui/Tooltip';
 
 // =============================================================================
@@ -34,10 +33,8 @@ const ESTILO_ICONO_HEADER = `
 // TIPOS
 // =============================================================================
 
-interface HeaderDashboardProps {
-  onNuevaOferta?: () => void;
-  onNuevoArticulo?: () => void;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface HeaderDashboardProps {}
 
 const PERIODOS: { valor: Periodo; label: string }[] = [
   { valor: 'hoy', label: 'Hoy' },
@@ -51,8 +48,7 @@ const PERIODOS: { valor: Periodo; label: string }[] = [
 // COMPONENTE
 // =============================================================================
 
-export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: HeaderDashboardProps) {
-  const navigate = useNavigate();
+export default function HeaderDashboard(_props: HeaderDashboardProps) {
   const { periodo, setPeriodo, cargarTodo } = useDashboardStore();
 
   // Estado para animación del botón refresh
@@ -64,10 +60,6 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
     // Delay mínimo para ver la animación
     await new Promise(resolve => setTimeout(resolve, 500));
     setRefrescando(false);
-  };
-
-  const handleNuevoCupon = () => {
-    navigate('/business-studio/cupones');
   };
 
   return (
@@ -109,71 +101,19 @@ export default function HeaderDashboard({ onNuevaOferta, onNuevoArticulo }: Head
             </div>
           </div>
 
-          {/* Acciones rápidas - Visibles en móvil aquí */}
-          <div className="flex items-center gap-2 lg:hidden">
-            <button
-              onClick={onNuevaOferta}
-              className="h-10 w-10 flex items-center justify-center rounded-md bg-white border-2 border-slate-300 text-slate-700 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-600 transition-all shadow-sm cursor-pointer"
-            >
-              <Tag className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleNuevoCupon}
-              className="h-10 w-10 flex items-center justify-center rounded-md bg-white border-2 border-slate-300 text-slate-700 hover:bg-amber-100 hover:border-amber-300 hover:text-amber-600 transition-all shadow-sm cursor-pointer"
-            >
-              <Ticket className="w-5 h-5" />
-            </button>
-            <button
-              onClick={onNuevoArticulo}
-              className="h-10 w-10 flex items-center justify-center rounded-md bg-white border-2 border-slate-300 text-slate-700 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm cursor-pointer"
-            >
-              <Package className="w-5 h-5" />
-            </button>
-          </div>
         </div>
 
         {/* Controles - SOLO DESKTOP */}
         <div className="hidden lg:flex items-center gap-3">
-          {/* Acciones rápidas - Solo desktop con tooltips */}
-          <div className="flex items-center gap-2">
-            <Tooltip text="Nueva Oferta" position="bottom">
-              <button
-                onClick={onNuevaOferta}
-                className="h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md bg-white border-2 border-slate-300 text-slate-700 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-600 transition-all shadow-sm cursor-pointer"
-              >
-                <Tag className="w-4 h-4 2xl:w-5 2xl:h-5" />
-              </button>
-            </Tooltip>
-            <Tooltip text="Nuevo Cupón" position="bottom">
-              <button
-                onClick={handleNuevoCupon}
-                className="h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md bg-white border-2 border-slate-300 text-slate-700 hover:bg-amber-100 hover:border-amber-300 hover:text-amber-600 transition-all shadow-sm cursor-pointer"
-              >
-                <Ticket className="w-4 h-4 2xl:w-5 2xl:h-5" />
-              </button>
-            </Tooltip>
-            <Tooltip text="Nuevo Artículo" position="bottom">
-              <button
-                onClick={onNuevoArticulo}
-                className="h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md bg-white border-2 border-slate-300 text-slate-700 hover:bg-blue-100 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm cursor-pointer"
-              >
-                <Package className="w-4 h-4 2xl:w-5 2xl:h-5" />
-              </button>
-            </Tooltip>
-          </div>
-
-          {/* Separador */}
-          <div className="w-px h-8 bg-slate-200" />
-
           {/* Selector de periodo DESKTOP - 5 opciones */}
-          <div className="flex items-center gap-1 bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
+          <div className="flex items-center bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5 shadow-md">
             {PERIODOS.map((p) => (
               <button
                 key={p.valor}
                 onClick={() => setPeriodo(p.valor)}
-                className={`px-3 2xl:px-4 h-8 2xl:h-9 flex items-center rounded-md text-sm font-semibold whitespace-nowrap cursor-pointer ${periodo === p.valor
+                className={`px-3 2xl:px-4 h-9 2xl:h-10 flex items-center rounded-lg text-xs 2xl:text-sm font-semibold whitespace-nowrap cursor-pointer ${periodo === p.valor
                     ? 'text-white shadow-md'
-                    : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
+                    : 'text-slate-700 hover:bg-slate-300'
                   }`}
                 style={periodo === p.valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
               >

@@ -54,6 +54,11 @@ interface UiState {
   previewNegocioAbierto: boolean;
   sucursalActivaId: string | null;
 
+  // Estado - Botón Guardar BS (comunicación páginas BS → MobileHeader)
+  guardarBsFn: (() => void) | null;
+  guardandoBs: boolean;
+  bsPuedeGuardar: boolean;
+
   // Acciones - Sidebar
   toggleSidebar: () => void;
   setSidebar: (abierto: boolean) => void;
@@ -88,6 +93,11 @@ interface UiState {
   togglePreviewNegocio: () => void;
   setSucursalActiva: (sucursalId: string | null) => void;
 
+  // Acciones - Guardar BS
+  setGuardarBsFn: (fn: (() => void) | null) => void;
+  setGuardandoBs: (v: boolean) => void;
+  setBsPuedeGuardar: (v: boolean) => void;
+
   // Acción - Cerrar todos los modales/overlays
   cerrarTodo: () => void;
 }
@@ -111,6 +121,10 @@ export const useUiStore = create<UiState>((set) => ({
   // Preview Negocio
   previewNegocioAbierto: false,
   sucursalActivaId: null,
+  // Guardar BS
+  guardarBsFn: null,
+  guardandoBs: false,
+  bsPuedeGuardar: true,
 
   // ---------------------------------------------------------------------------
   // ACCIONES: Sidebar
@@ -262,6 +276,22 @@ export const useUiStore = create<UiState>((set) => ({
    */
   setSucursalActiva: (sucursalId: string | null) => {
     set({ sucursalActivaId: sucursalId });
+  },
+
+  // ---------------------------------------------------------------------------
+  // ACCIONES: Guardar BS
+  // ---------------------------------------------------------------------------
+
+  setGuardarBsFn: (fn: (() => void) | null) => {
+    set({ guardarBsFn: fn });
+  },
+
+  setGuardandoBs: (v: boolean) => {
+    set({ guardandoBs: v });
+  },
+
+  setBsPuedeGuardar: (v: boolean) => {
+    set({ bsPuedeGuardar: v });
   },
 
   // ---------------------------------------------------------------------------

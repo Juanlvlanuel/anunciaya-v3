@@ -402,17 +402,21 @@ export default function TabImagenes({
       {/* CARD: IMÁGENES PRINCIPALES */}
       {/* ================================================================ */}
 
-      <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden"
+      <div className="bg-white border-2 border-slate-300 rounded-xl"
         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
         {/* Header */}
-        <div className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-0.5 lg:gap-2.5"
+        <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
           style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-          <div className="flex items-center gap-2.5">
-            <Image className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
-            <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Imágenes Principales</span>
+          <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+            <Image className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
           </div>
-          <span className="text-xs lg:text-xs 2xl:text-sm text-white/70 font-medium lg:ml-auto">PNG o JPG · máx. 2MB</span>
+          <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Imágenes Principales</span>
+          <div className="ml-auto text-right text-xs lg:text-xs 2xl:text-sm text-white/70 font-medium leading-tight">
+            <p className="lg:inline">PNG o JPG</p>
+            <span className="hidden lg:inline"> · </span>
+            <p className="lg:inline">máx. 2MB</p>
+          </div>
         </div>
 
         <div className="p-4 lg:p-3 2xl:p-4">
@@ -427,7 +431,7 @@ export default function TabImagenes({
               {mostrarLogo && (
                 <div className="flex flex-col gap-1.5">
                   <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                    <Store className="w-4 h-4 text-blue-600 shrink-0" /> Logo
+                    <Store className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Logo
                   </span>
                   <div className="relative w-full aspect-square bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-sm">
                     {logo.imageUrl
@@ -443,7 +447,7 @@ export default function TabImagenes({
                       </button>
                       {logo.imageUrl && (
                         <button type="button" onClick={handleEliminarLogo} disabled={logo.isUploading}
-                          className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 cursor-pointer active:scale-95 disabled:opacity-50">
+                          className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 hover:bg-red-600 cursor-pointer active:scale-95 transition-colors disabled:opacity-50">
                           <Trash2 className="w-5 h-5 text-white" />
                         </button>
                       )}
@@ -455,7 +459,7 @@ export default function TabImagenes({
               {/* Foto Perfil */}
               <div className="flex flex-col gap-1.5 items-center">
                 <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                  <UserCircle className="w-4 h-4 text-blue-600 shrink-0" /> Foto Perfil
+                  <UserCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Foto Perfil
                 </span>
                 <div className="relative w-full aspect-square bg-linear-to-br from-orange-400 to-amber-500 rounded-full overflow-hidden shadow-lg">
                   {fotoPerfil.imageUrl
@@ -484,7 +488,7 @@ export default function TabImagenes({
             {/* Fila 2: Portada */}
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                <Image className="w-4 h-4 text-blue-600 shrink-0" /> Imagen de Portada
+                <Image className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Imagen de Portada
                 <span className="font-medium text-slate-500">1600×900px</span>
               </span>
               <div className="relative w-full aspect-video bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-sm">
@@ -517,7 +521,7 @@ export default function TabImagenes({
             {/* Logo */}
             {mostrarLogo && (
               <BloquImagen
-                titulo={<><Store className="w-4 h-4 text-blue-600 shrink-0" /> Logo del Negocio</>}
+                titulo={<><Store className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Logo del Negocio</>}
                 imageUrl={logo.imageUrl} isUploading={logo.isUploading}
                 onUpload={(f) => logo.uploadImage(f)} onDelete={handleEliminarLogo}
                 labelSubir="Subir Logo" labelCambiar="Cambiar Logo"
@@ -533,8 +537,9 @@ export default function TabImagenes({
             )}
 
             {/* Foto Perfil */}
+            <div className={!mostrarLogo ? 'lg:order-last flex justify-end' : 'flex justify-end'}>
             <BloquImagen
-              titulo={<><UserCircle className="w-4 h-4 text-blue-600 shrink-0" /> Foto de Perfil</>}
+              titulo={<><UserCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Foto de Perfil</>}
               imageUrl={fotoPerfil.imageUrl} isUploading={fotoPerfil.isUploading}
               onUpload={(f) => fotoPerfil.uploadImage(f)} onDelete={handleEliminarFotoPerfil}
               labelSubir="Subir Foto" labelCambiar="Cambiar Foto"
@@ -547,11 +552,12 @@ export default function TabImagenes({
                 }
               </div>
             </BloquImagen>
+            </div>
 
             {/* Portada */}
-            <div className={mostrarLogo ? 'lg:col-span-2' : ''}>
+            <div className={mostrarLogo ? 'lg:col-span-2' : 'lg:order-first'}>
               <BloquImagen
-                titulo={<><Image className="w-4 h-4 text-blue-600 shrink-0" /> Imagen de Portada</>}
+                titulo={<><Image className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Imagen de Portada</>}
                 subtitulo="1600×900px"
                 imageUrl={portada.imageUrl} isUploading={portada.isUploading}
                 onUpload={(f) => portada.uploadImage(f)} onDelete={handleEliminarPortada}
@@ -576,13 +582,15 @@ export default function TabImagenes({
       {/* CARD: GALERÍA */}
       {/* ================================================================ */}
 
-      <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden"
+      <div className="bg-white border-2 border-slate-300 rounded-xl"
         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
         {/* Header */}
-        <div className="px-4 py-3 flex items-center gap-2.5"
+        <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
           style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-          <Images className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+          <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+            <Images className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+          </div>
           <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Galería de Fotos</span>
           <div className="ml-auto flex items-center gap-2.5">
             <span className={`text-sm lg:text-xs 2xl:text-sm font-bold ${(galeria.images?.length || 0) >= 10 ? 'text-red-400' : 'text-white/70'}`}>
@@ -630,11 +638,11 @@ export default function TabImagenes({
                                 style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}>
                                 <button type="button" onClick={() => !galeria.isUploading && abrirMenuCamara((f) => galeria.uploadImages?.([f]))}
                                   disabled={galeria.isUploading}
-                                  className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 cursor-pointer active:scale-95 disabled:opacity-50">
+                                  className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 hover:bg-blue-600 cursor-pointer active:scale-95 transition-colors disabled:opacity-50">
                                   <Camera className="w-5 h-5 text-white" />
                                 </button>
                                 <button type="button" onClick={() => galeria.deleteImageAt?.(index)}
-                                  className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 cursor-pointer active:scale-95">
+                                  className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 hover:bg-red-600 cursor-pointer active:scale-95 transition-colors">
                                   <Trash2 className="w-5 h-5 text-white" />
                                 </button>
                               </div>
@@ -665,10 +673,13 @@ export default function TabImagenes({
                       <Loader2 className="w-8 h-8 text-white animate-spin drop-shadow-lg" />
                     </div>
                   ) : (
-                    <button type="button" onClick={() => galeria.deleteImageAt?.(index)}
-                      className="absolute top-1.5 right-1.5 p-1.5 lg:p-1.5 2xl:p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg cursor-pointer">
-                      <Trash2 className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                    </button>
+                    <div className="absolute bottom-0 inset-x-0 flex items-center justify-end py-2.5 px-3"
+                      style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}>
+                      <button type="button" onClick={() => galeria.deleteImageAt?.(index)}
+                        className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 hover:bg-red-600 cursor-pointer active:scale-95 transition-colors">
+                        <Trash2 className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
                   )}
                 </div>
               );

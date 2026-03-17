@@ -24,7 +24,8 @@ interface KPIPrincipalProps {
   valor: number;
   miniGrafica?: number[];
   icono: LucideIcon;
-  colorIcono: string;
+  bgIcono: string;
+  textoIcono: string;
   formato?: 'numero' | 'moneda' | 'decimal';
   subtitulo?: string;
   cargando?: boolean;
@@ -87,7 +88,8 @@ export default function KPIPrincipal({
   valor,
   miniGrafica,
   icono: Icono,
-  colorIcono,
+  bgIcono,
+  textoIcono,
   formato = 'numero',
   subtitulo,
   cargando = false,
@@ -99,8 +101,8 @@ export default function KPIPrincipal({
     <>
       <p className="hidden lg:block text-sm 2xl:text-base font-bold text-slate-700 mb-1 2xl:mb-1.5">{titulo}</p>
       <div className="hidden lg:flex items-center gap-1.5 2xl:gap-2 flex-1">
-        <div className={`w-8 h-8 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
-          <Icono className="w-4 h-4 text-white" />
+        <div className={`w-8 h-8 rounded-lg ${bgIcono} flex items-center justify-center shrink-0`}>
+          <Icono className={`w-4 h-4 ${textoIcono}`} />
         </div>
         {cargando ? (
           <div className="h-6 2xl:h-7 w-12 2xl:w-14 bg-slate-200 rounded animate-pulse" />
@@ -127,8 +129,8 @@ export default function KPIPrincipal({
       <>
         {/* MÓVIL: fila horizontal transparente */}
         <div className="lg:hidden flex items-center gap-3 px-3 py-2.5">
-          <div className={`w-8 h-8 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
-            <Icono className="w-4 h-4 text-white" />
+          <div className={`w-8 h-8 rounded-lg ${bgIcono} flex items-center justify-center shrink-0`}>
+            <Icono className={`w-4 h-4 ${textoIcono}`} />
           </div>
           <p className="text-base font-bold text-slate-800 flex-1 leading-tight">{titulo}</p>
           {cargando ? (
@@ -154,8 +156,8 @@ export default function KPIPrincipal({
       </div>
       {/* MÓVIL: Icono + Valor */}
       <div className="lg:hidden flex items-center gap-1.5">
-        <div className={`w-7 h-7 rounded-lg bg-linear-to-br ${colorIcono} flex items-center justify-center shadow-md shrink-0`}>
-          <Icono className="w-4 h-4 text-white" />
+        <div className={`w-7 h-7 rounded-lg ${bgIcono} flex items-center justify-center shrink-0`}>
+          <Icono className={`w-4 h-4 ${textoIcono}`} />
         </div>
         {cargando ? (
           <div className="h-6 w-12 bg-slate-200 rounded animate-pulse" />

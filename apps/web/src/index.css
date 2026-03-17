@@ -62,7 +62,6 @@ body {
 /* ============================================= */
 
 html {
-  overflow-y: scroll;
   overscroll-behavior: none;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -391,6 +390,22 @@ body {
   animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 
 /* ==============================================================
    OPCIONAL: Si quieres agregar una animación de salida
@@ -505,6 +520,15 @@ body {
   main {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Ocultar BottomNav cuando el teclado virtual está abierto (input enfocado) */
+  /* Excluir checkbox/radio que no abren teclado */
+  body:has(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):focus) .bottomnav-ocultar-teclado,
+  body:has(textarea:focus) .bottomnav-ocultar-teclado,
+  body:has([contenteditable="true"]:focus) .bottomnav-ocultar-teclado {
+    transform: translateY(calc(100% + 23px)) !important;
+    transition: transform 150ms ease !important;
   }
 }
 

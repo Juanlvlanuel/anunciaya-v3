@@ -174,47 +174,11 @@ NO usar SweetAlert2 directo en componentes nuevos. Siempre usar `notificar.*`.
 
 ## Sistema de Diseño — Tokens
 
-**Documentos:**
-- `docs/estandares/TOKENS_GLOBALES.md` — reglas obligatorias para toda auditoría
-- `docs/estandares/TOKENS_COMPONENTES.md` — patrones de componentes específicos
+- `docs/estandares/TOKENS_GLOBALES.md` — 12 reglas globales obligatorias (texto, tonos, pesos, iconos, bordes, sombras, colores, z-index, transiciones)
+- `docs/estandares/TOKENS_COMPONENTES.md` — 22 patrones de componentes (toggles, dropdowns, modales, tablas, cards, chips, drawers, carousels, listas, rounded, swipe)
+- `docs/estandares/Guia_Responsive_Laptop_AnunciaYA.md` — tablas completas del patrón `base lg:laptop 2xl:desktop`
 
-### Tamaños Mínimos de Texto
-
-| Dispositivo | Breakpoint | Mínimo |
-|-------------|------------|--------|
-| Móvil | base | `text-sm` (14px) |
-| Laptop | lg: | `text-[11px]` (11px) |
-| Desktop | 2xl: | `text-sm` (14px) |
-
-Excepción: contadores en badges circulares ("9+").
-
-### Tonos — Nada Pálido
-
-- Texto mínimo: `text-slate-600`
-- Bordes mínimo: `border-slate-300`
-- Hovers mínimo: variante `-100` (nunca `-50`)
-
-### Pesos Tipográficos
-
-Mínimo: `font-medium` (500). Prohibidos: `font-normal`, `font-light`, `font-thin`.
-
-### Iconos Mínimos
-
-Items de lista: `w-4 h-4` (icono) / `w-7 h-7` (cuadro). Laptop puede reducir pero nunca por debajo del mínimo.
-
-### Responsive — Patrón de 3 niveles
-
-```
-base lg:laptop 2xl:desktop
-```
-
-Laptop reduce ~30% vs móvil. Desktop restaura valores originales. SIEMPRE incluir `2xl:` — sin él, laptop afecta a PC.
-
-Ver `docs/estandares/Guia_Responsive_Laptop_AnunciaYA.md` para tablas completas.
-
-### Patrones de Componentes
-
-Cuando se trabaje en dropdowns, modales, tablas, inputs, cards móvil o chips de orden, consultar `docs/estandares/TOKENS_COMPONENTES.md` para los patrones validados de cada tipo de componente.
+Consultar antes de modificar UI. Breakpoints: solo `lg:` y `2xl:`. SIEMPRE incluir `2xl:` — sin él, laptop afecta a PC.
 
 ---
 
@@ -232,7 +196,8 @@ docs/
 │   ├── REGLAS_MANEJO_ARCHIVOS.md
 │   ├── Criterios_de_Uso_de_Modales.md
 │   ├── Patron_Scroll_Lateral.md
-│   └── Sistema_Transformacion_snake_camelCase.md
+│   ├── Sistema_Transformacion_snake_camelCase.md
+│   └── LECCIONES_TECNICAS.md
 ├── arquitectura/               → Referencia técnica por módulo
 │   ├── Sistema.md
 │   ├── Base_de_Datos.md
@@ -279,7 +244,9 @@ Al terminar cualquier tarea, hacer un segundo pase de verificación: buscar si q
 
 ### 6. Tokens de Diseño
 
-Antes de modificar UI, leer `docs/estandares/TOKENS_GLOBALES.md`. Para componentes específicos, consultar también `docs/estandares/TOKENS_COMPONENTES.md`. Aplicar las 10 reglas globales a todo código que se toque.
+Antes de modificar UI, leer `docs/estandares/TOKENS_GLOBALES.md`. Para componentes específicos, consultar también `docs/estandares/TOKENS_COMPONENTES.md`. Aplicar las reglas globales a todo código que se toque.
+
+Cuando durante una conversación se defina o modifique un patrón visual (tamaños, colores, rounded, animaciones, comportamientos), **recordar al usuario** que se debe actualizar la documentación de tokens antes de terminar.
 
 ### 7. Commits
 
@@ -311,15 +278,6 @@ BS Alertas + Cupones
 
 ---
 
-## Lecciones Técnicas Importantes
+## Lecciones Técnicas
 
-- Zod runtime validation es independiente de TypeScript compile-time — campos faltantes en schema Zod se eliminan silenciosamente
-- Leaflet crea su propio stacking context — requiere `z-[1000]` para overlays sobre mapas
-- `translate-y` mueve elementos visualmente sin afectar box model (vs `margin-top` que infla contenedor)
-- Para ChatYA a escala: cursor-based pagination > offset-based; endpoint "jump to message" es prioridad alta
-- Negocios solo físicos — eliminado tipo "Online". Todos requieren ubicación. `tiene_servicio_domicilio` y `tiene_envio_domicilio` en sucursales
-- Login obligatorio — sin login solo accesible: landing, registro, login, OAuth
-- Scroll reset al navegar: `MainLayout` usa `<main>` con `overflow-y-auto` (no `window`). El scroll se resetea con `useLayoutEffect` en `RootLayout` usando `document.querySelectorAll('main').forEach(el => el.scrollTo(0, 0))`. Usar `useLayoutEffect` (no `useEffect`) para evitar flash visual
-- `useState(false)` para detección móvil causa flash de vista desktop en primer render. Usar `useState(() => window.innerWidth < 1024)` como lazy initializer
-- Elementos fijos en la parte inferior de la pantalla: usar `bottom-4` o `pb-safe` (safe area configurada globalmente para notch/barra de navegación móvil)
-- `ModalAdaptativo` renderiza `ModalBottom` (bottom sheet) en móvil y `Modal` (centrado) en desktop. Siempre usar `ModalAdaptativo` para modales de detalle — nunca `Modal` o `ModalBottom` directamente
+Ver `docs/estandares/LECCIONES_TECNICAS.md` — consultar antes de trabajar en áreas que ya tuvieron bugs o descubrimientos.

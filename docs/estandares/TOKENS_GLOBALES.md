@@ -3,6 +3,21 @@
 > **Propósito:** Reglas que se auditan SIEMPRE en cualquier archivo de UI. Claude Code debe verificar estas reglas en cada auditoría de tokens.
 > **Complemento:** Para patrones de componentes específicos, ver TOKENS_COMPONENTES.md
 
+## Índice
+
+1. [Tamaños Mínimos de Texto](#1-tamaños-mínimos-de-texto)
+2. [Regla de Tonos — Nada Pálido](#2-regla-de-tonos--nada-pálido)
+3. [Pesos Tipográficos](#3-pesos-tipográficos)
+4. [Breakpoints](#4-breakpoints)
+5. [Tamaños Mínimos de Iconos](#5-tamaños-mínimos-de-iconos)
+6. [Grosor de Contornos (Bordes)](#6-grosor-de-contornos-bordes)
+7. [Sombras](#7-sombras)
+8. [Colores Semánticos](#8-colores-semánticos)
+9. [Tipografía de Encabezado de Página y KPIs](#9-tipografía-de-encabezado-de-página-y-kpis)
+10. [Transiciones](#10-transiciones)
+11. [Escala de Z-index](#11-escala-de-z-index)
+12. [Reglas Pendientes de Validar](#12-reglas-pendientes-de-validar)
+
 ---
 
 ## 1. Tamaños Mínimos de Texto
@@ -281,9 +296,45 @@ Para elementos que aparecen dinámicamente en el DOM (panels, menús, expanders)
 
 `animate-pulse` se reserva para indicadores de estado vivo ("En vivo", punto de disponibilidad) y skeletons de carga — nunca en elementos interactivos.
 
+### Drawers / Menús laterales
+
+Los drawers usan animaciones CSS definidas en `index.css`. Ambas variantes comparten la misma duración y easing para consistencia.
+
+| Dirección | Clase | Keyframe |
+|-----------|-------|----------|
+| Desde la derecha | `animate-slide-in` | `slideInRight` — `translateX(100%) → 0` |
+| Desde la izquierda | `animate-slide-in-left` | `slideInLeft` — `translateX(-100%) → 0` |
+
+**Timing compartido:** `0.3s cubic-bezier(0.4, 0, 0.2, 1)` — desaceleración natural (ease-out de Material Design).
+
+Ver TC-18 para la anatomía completa del drawer.
+
 ---
 
-## 11. Reglas Pendientes de Validar
+## 11. Escala de Z-index
+
+Jerarquía de capas de la app. Cada nivel debe respetar su rango para evitar que elementos se tapen entre sí.
+
+| Capa | Z-index | Método | Elementos |
+|------|---------|--------|-----------|
+| Contenido base | `0` – `10` | Tailwind | Cards, badges, elementos estáticos |
+| Columnas laterales | `30` | Tailwind | `ColumnaIzquierda`, `ColumnaDerecha` |
+| Header sticky | `40` – `50` | Tailwind | `MobileHeader` (`z-40`), wrapper en `MainLayout` (`z-50`) |
+| BottomNav | `51` | Tailwind | `BottomNav` fijo en la parte inferior |
+| Overlays de contenido | `60` – `100` | Tailwind | Tooltips, dropdowns, popovers dentro del flujo normal |
+| Drawers / Menús laterales | `1001` – `1002` | `style` inline | Overlay (`1001`) + Panel (`1002`). Ver TC-18 |
+| Leaflet overlays | `1000+` | Leaflet interno | Requiere `z-[1000]` para overlays sobre mapas |
+
+### Reglas
+
+1. **Drawers y modales full-screen** usan `style={{ zIndex: N }}` inline, no clases Tailwind — para señalar que son niveles críticos del sistema de capas.
+2. **Portal obligatorio** para cualquier elemento con z-index > 1000 que se renderice dentro de un padre con stacking context (ver TC-18).
+3. **Nunca reusar** el mismo z-index para elementos que pueden coexistir visualmente.
+4. **BottomNav `z-51`** está intencionalmente 1 nivel arriba del header sticky (`z-50`) para que la barra inferior siempre sea visible durante scroll.
+
+---
+
+## 12. Reglas Pendientes de Validar
 
 - [x] Tamaño mínimo de texto ✅
 - [x] Escala de iconos (mínimos) ✅
@@ -312,7 +363,11 @@ Para elementos que aparecen dinámicamente en el DOM (panels, menús, expanders)
 - [ ] Escala de spacing/padding
 - [ ] Botones (variantes completas, tamaños)
 - [ ] Inputs/formularios completos (formularios de datos, no solo búsqueda)
-- [ ] Z-index
+- [x] Z-index ✅ (TC-18: drawers con portal + z-index inline)
+- [x] Patrón de lista móvil ✅ (TC-19: infinite scroll, slice local vs backend offset)
+- [x] Jerarquía de rounded ✅ (TC-20: contenedor xl → hijos lg, Input rounded-lg!)
+- [x] CarouselKPI con fade dinámico ✅ (TC-21: fades oscuros condicionales)
+- [x] Swipe entre páginas BS ✅ (TC-22: hook con exclusión de carousels)
 
 ### Specs responsive pendientes de verificar en código real
 

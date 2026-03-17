@@ -186,12 +186,14 @@ export default function TabInformacion({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-3 2xl:gap-4">
 
         {/* CARD: Datos del Negocio */}
-        <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden"
+        <div className="bg-white border-2 border-slate-300 rounded-xl"
           style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
-          <div className="px-4 py-3 flex items-center gap-2.5"
+          <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-            <Building2 className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+            <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              <Building2 className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+            </div>
             <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Datos del Negocio</span>
           </div>
 
@@ -202,7 +204,7 @@ export default function TabInformacion({
               <div>
                 <label htmlFor="input-nombre-negocio"
                   className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
-                  <Building2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                  <Building2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
                   Nombre del Negocio <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
@@ -224,7 +226,7 @@ export default function TabInformacion({
               <div>
                 <label htmlFor="input-nombre-sucursal"
                   className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
-                  <MapPin className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                  <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
                   {datosInformacion.esPrincipal ? 'Nombre Sucursal Principal' : 'Nombre de la Sucursal'} <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
@@ -246,7 +248,7 @@ export default function TabInformacion({
             <div>
               <label htmlFor="input-descripcion-negocio"
                 className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
-                <AlignLeft className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                <AlignLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
                 Descripción
               </label>
               <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
@@ -270,9 +272,11 @@ export default function TabInformacion({
         <div className="bg-white border-2 border-slate-300 rounded-xl"
           style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
-          <div className="px-4 py-3 flex items-center gap-2.5 rounded-t-xl"
+          <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-            <Tag className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+            <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              <Tag className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+            </div>
             <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Categorización</span>
             {datosInformacion.categoriaId > 0 && (
               <span className="ml-auto text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">
@@ -289,7 +293,7 @@ export default function TabInformacion({
               {/* Categoría */}
               <div>
                 <div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
-                  <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                  <Tag className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
                   Categoría <span className="text-red-500">*</span>
                 </div>
                 <SelectorCategoria
@@ -306,7 +310,7 @@ export default function TabInformacion({
               {/* Subcategorías */}
               <div>
                 <div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
-                  <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                  <Tag className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
                   Subcategorías
                 </div>
                 <SelectorSubcategoria

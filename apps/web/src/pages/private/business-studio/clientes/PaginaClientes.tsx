@@ -44,10 +44,14 @@ import {
 } from 'lucide-react';
 import { useClientesStore } from '../../../../stores/useClientesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useChatYAStore } from '../../../../stores/useChatYAStore';
+import { useUiStore } from '../../../../stores/useUiStore';
 import { descargarExcel } from '../../../../services/clientesService';
 import Tooltip from '../../../../components/ui/Tooltip';
+import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
+import { ModalImagenes } from '../../../../components/ui/ModalImagenes';
 import type { ClienteCompleto } from '../../../../types/clientes';
 import type { NivelCardYA } from '../../../../types/clientes';
 import ModalDetalleCliente from './ModalDetalleCliente';
@@ -188,45 +192,64 @@ function HeaderOrdenable({
 function FilaMovil({
   cliente,
   onVerDetalle,
+  onChatear,
 }: {
   cliente: ClienteCompleto;
   onVerDetalle: (id: string) => void;
+  onChatear: (id: string) => void;
 }) {
   const colorNivel = obtenerColorNivel(cliente.nivelActual);
   const iconoNivel = obtenerIconoNivel(cliente.nivelActual);
+  const [verAvatar, setVerAvatar] = useState(false);
 
   return (
-    <button
-      onClick={() => onVerDetalle(cliente.id)}
-      className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer text-left"
+    <div
+      className="w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden"
+      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
     >
       {/* Avatar */}
-      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+      <div
+        onClick={() => cliente.avatarUrl && setVerAvatar(true)}
+        className={`w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${cliente.avatarUrl ? 'cursor-pointer' : ''}`}
+      >
         {cliente.avatarUrl ? (
           <img src={cliente.avatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <Users className="w-5 h-5 text-indigo-700" />
+          <Users className="w-8 h-8 text-indigo-700" />
         )}
       </div>
+      {cliente.avatarUrl && (
+        <ModalImagenes images={[cliente.avatarUrl]} isOpen={verAvatar} onClose={() => setVerAvatar(false)} />
+      )}
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-slate-800 truncate">{cliente.nombre}</p>
-          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold ${colorNivel}`}>
-            {iconoNivel}
-            {cliente.nivelActual}
-          </span>
+      <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+        <div>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-base font-bold text-slate-800 truncate">{cliente.nombre}</p>
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm font-bold shrink-0 ${colorNivel}`}>
+              {iconoNivel}
+              {cliente.nivelActual}
+            </span>
+          </div>
+          <p className="text-sm font-medium text-slate-500">Última visita: {formatearFechaCorta(cliente.ultimaActividad)}</p>
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-sm font-medium text-slate-600">
-          <span className="font-medium text-amber-600">{cliente.puntosDisponibles.toLocaleString()} pts</span>
-          <span>{cliente.totalVisitas} visitas</span>
-          <span>{formatearFechaCorta(cliente.ultimaActividad)}</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
+            <span className="font-semibold text-amber-600">{cliente.puntosDisponibles.toLocaleString()} pts</span>
+            <span>{cliente.totalVisitas} visitas</span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={() => onChatear(cliente.id)} className="cursor-pointer">
+              <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
+            </button>
+            <button onClick={() => onVerDetalle(cliente.id)} className="cursor-pointer text-slate-700">
+              <Eye className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </div>
-
-      <Eye className="w-4 h-4 text-slate-600 shrink-0" />
-    </button>
+    </div>
   );
 }
 
@@ -259,6 +282,7 @@ export default function PaginaClientes() {
   const [orden, setOrden] = useState<EstadoOrden | null>(null);
   const [textoBusqueda, setTextoBusqueda] = useState(busqueda);
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMobile = useIsMobile();
   const sentinelaRef = useRef<HTMLDivElement | null>(null);
@@ -283,8 +307,9 @@ export default function PaginaClientes() {
     return () => {
       setTextoBusqueda('');
       setBusqueda('');
+      setNivelFiltro(null);
     };
-  }, [setBusqueda]);
+  }, [setBusqueda, setNivelFiltro]);
 
   // ─── Infinite scroll mobile ───
   useEffect(() => {
@@ -341,6 +366,30 @@ export default function PaginaClientes() {
     setClienteSeleccionadoId(id);
   }, []);
 
+  // ─── Handler abrir ChatYA con cliente ───
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+
+  const handleChatear = useCallback((clienteId: string) => {
+    const cliente = clientes.find((c) => c.id === clienteId);
+    if (!cliente) return;
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: cliente.id,
+        nombre: cliente.nombre,
+        apellidos: '',
+        avatarUrl: cliente.avatarUrl ?? null,
+      },
+      datosCreacion: {
+        participante2Id: cliente.id,
+        participante2Modo: 'personal',
+        contextoTipo: 'directo',
+      },
+    });
+    abrirChatYA();
+  }, [clientes, abrirChatTemporal, abrirChatYA]);
+
   // ─── Handler cerrar modal ───
   const handleCerrarModal = useCallback(() => {
     setClienteSeleccionadoId(null);
@@ -376,7 +425,7 @@ export default function PaginaClientes() {
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
           {/* Header con icono animado */}
-          <div className="flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+          <div className="hidden lg:flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
             <div
               className="flex items-center justify-center shrink-0"
               style={{
@@ -400,11 +449,11 @@ export default function PaginaClientes() {
           </div>
 
           {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
-          <div className="mt-5 lg:mt-0 lg:overflow-visible lg:flex-1 cl-carousel">
+          <CarouselKPI className="mt-5 lg:mt-0 lg:flex-1">
             <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
               {/* Total Clientes */}
               <div
-                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                 style={{
                   background: 'linear-gradient(135deg, #eff6ff, #fff)',
                   border: '2px solid #93c5fd',
@@ -427,7 +476,7 @@ export default function PaginaClientes() {
 
               {/* Nuevos este mes */}
               <div
-                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                 style={{
                   background: 'linear-gradient(135deg, #f0fdf4, #fff)',
                   border: '2px solid #86efac',
@@ -450,7 +499,7 @@ export default function PaginaClientes() {
 
               {/* Inactivos 30d */}
               <div
-                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 flex-1 min-w-0 h-13 2xl:h-16 lg:flex-none lg:shrink-0 lg:min-w-[110px] 2xl:min-w-[140px]"
                 style={{
                   background: 'linear-gradient(135deg, #fef2f2, #fff)',
                   border: '2px solid #fca5a5',
@@ -474,7 +523,7 @@ export default function PaginaClientes() {
               {/* Distribución nivel - solo desktop */}
               {kpis?.distribucionNivel && !isMobile && (
                 <div
-                  className="hidden lg:flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[110px] 2xl:min-w-[180px]"
+                  className="hidden lg:flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[110px] 2xl:min-w-[180px]"
                   style={{
                     background: 'linear-gradient(135deg, #fefce8, #fff)',
                     border: '2px solid #fde047',
@@ -506,7 +555,7 @@ export default function PaginaClientes() {
                 </div>
               )}
             </div>
-          </div>
+          </CarouselKPI>
         </div>
 
         {/* ================================================================= */}
@@ -519,7 +568,7 @@ export default function PaginaClientes() {
             <div className="flex flex-row gap-1 lg:gap-1.5 lg:shrink-0">
               <button
                 onClick={() => setNivelFiltro(null)}
-                className={`flex-1 lg:flex-none flex items-center justify-center px-3 lg:px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${!nivelFiltro
+                className={`flex-1 lg:flex-none flex items-center justify-center px-3 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${!nivelFiltro
                   ? 'bg-slate-800 text-white border-slate-800'
                   : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                   }`}
@@ -530,7 +579,7 @@ export default function PaginaClientes() {
                 <button
                   key={n.valor}
                   onClick={() => setNivelFiltro(nivelFiltro === n.valor ? null : n.valor)}
-                  className={`flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 lg:px-3 2xl:px-4 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${nivelFiltro === n.valor
+                  className={`flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${nivelFiltro === n.valor
                     ? `${n.bg} ${n.color}`
                     : `bg-white ${n.color} border-slate-300 hover:border-slate-400`
                     }`}
@@ -548,7 +597,7 @@ export default function PaginaClientes() {
                   placeholder="Nombre o Celular..."
                   value={textoBusqueda}
                   onChange={(e) => handleBusquedaChange(e.target.value)}
-                  className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base"
+                  className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
                   icono={<Search className="w-4 h-4 text-slate-600" />}
                   elementoDerecha={textoBusqueda ? (
                     <button
@@ -614,7 +663,7 @@ export default function PaginaClientes() {
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_120px_140px_200px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider"
+              className="grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_120px_140px_200px] gap-0 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -645,12 +694,15 @@ export default function PaginaClientes() {
                     <button
                       key={c.id}
                       onClick={() => handleVerDetalle(c.id)}
-                      className={`grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_106px_125px_230px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
+                      className={`grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_106px_125px_230px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                         }`}
                     >
                       {/* Cliente */}
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
-                        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div
+                          onClick={(e) => { if (c.avatarUrl) { e.stopPropagation(); setAvatarUrl(c.avatarUrl); } }}
+                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${c.avatarUrl ? 'cursor-pointer' : ''}`}
+                        >
                           {c.avatarUrl ? (
                             <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -721,7 +773,7 @@ export default function PaginaClientes() {
         {isMobile && (
           <div className="space-y-2">
             {/* Chips de orden (móvil) */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="flex items-center bg-slate-800 rounded-xl border-2 border-slate-700 p-0.5 shadow-md">
               {([
                 { col: 'puntos' as ColumnaOrden, etiqueta: 'Puntos' },
                 { col: 'visitas' as ColumnaOrden, etiqueta: 'Visitas' },
@@ -732,16 +784,15 @@ export default function PaginaClientes() {
                   <button
                     key={col}
                     onClick={() => alternarOrden(col)}
-                    className={`flex items-center justify-center gap-1.5 h-11 rounded-lg text-base font-semibold border-2 transition-all cursor-pointer ${activa
-                      ? 'text-white border-slate-700'
-                      : 'bg-white text-slate-600 border-slate-300'
+                    className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
+                      ? 'bg-slate-400 text-slate-900 shadow-md'
+                      : 'text-white hover:bg-white/10'
                       }`}
-                    style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 text-amber-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 text-amber-400" />}
-                    {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                    {!activa && <ArrowUpDown className="w-4 h-4 text-white" strokeWidth={2.5} />}
                   </button>
                 );
               })}
@@ -755,7 +806,7 @@ export default function PaginaClientes() {
               </div>
             ) : (
               clientesOrdenados.map((c) => (
-                <FilaMovil key={c.id} cliente={c} onVerDetalle={handleVerDetalle} />
+                <FilaMovil key={c.id} cliente={c} onVerDetalle={handleVerDetalle} onChatear={handleChatear} />
               ))
             )}
 
@@ -778,6 +829,9 @@ export default function PaginaClientes() {
         onCerrar={handleCerrarModal}
         clienteId={clienteSeleccionadoId}
       />
+      {avatarUrl && (
+        <ModalImagenes images={[avatarUrl]} isOpen={!!avatarUrl} onClose={() => setAvatarUrl(null)} />
+      )}
     </div>
   );
 }

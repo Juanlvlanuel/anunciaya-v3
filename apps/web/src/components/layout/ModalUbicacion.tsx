@@ -31,13 +31,15 @@ import {
 
 interface ModalUbicacionProps {
     onClose: () => void;
+    /** Callback externo: si se pasa, el modal NO guarda en gpsStore — delega al padre */
+    onSeleccionar?: (ciudad: CiudadConNombreCompleto) => void;
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export function ModalUbicacion({ onClose }: ModalUbicacionProps) {
+export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) {
     // ---------------------------------------------------------------------------
     // Estado local
     // ---------------------------------------------------------------------------
@@ -93,11 +95,15 @@ export function ModalUbicacion({ onClose }: ModalUbicacionProps) {
     // ---------------------------------------------------------------------------
 
     const handleSeleccionarCiudad = (ciudadSeleccionada: CiudadConNombreCompleto) => {
-        setCiudad(
-            ciudadSeleccionada.nombre,
-            ciudadSeleccionada.estado,
-            ciudadSeleccionada.coordenadas
-        );
+        if (onSeleccionar) {
+            onSeleccionar(ciudadSeleccionada);
+        } else {
+            setCiudad(
+                ciudadSeleccionada.nombre,
+                ciudadSeleccionada.estado,
+                ciudadSeleccionada.coordenadas
+            );
+        }
         onClose();
     };
 
@@ -116,11 +122,14 @@ export function ModalUbicacion({ onClose }: ModalUbicacionProps) {
                 );
 
                 if (ciudadCercana) {
-                    setCiudad(
-                        ciudadCercana.nombre,
-                        ciudadCercana.estado
-                        // NO pasar coordenadas - mantener las del GPS
-                    );
+                    if (onSeleccionar) {
+                        onSeleccionar(ciudadCercana);
+                    } else {
+                        setCiudad(
+                            ciudadCercana.nombre,
+                            ciudadCercana.estado
+                        );
+                    }
                     onClose();
                 } else {
                     console.warn('⚠️ [GPS] No se encontró ciudad cercana');

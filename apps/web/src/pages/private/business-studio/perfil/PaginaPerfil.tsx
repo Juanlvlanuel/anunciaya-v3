@@ -46,6 +46,16 @@ const ESTILOS = `
   .perfil-kpi-scroll::-webkit-scrollbar {
     display: none;
   }
+  @keyframes guardar-tornado {
+    0%   { transform: scale(1) translate(0, 0) rotate(0deg); }
+    45%  { transform: scale(1.6) translate(var(--dx), var(--dy)) rotate(180deg); }
+    55%  { transform: scale(1.6) translate(var(--dx), var(--dy)) rotate(220deg); }
+    100% { transform: scale(1) translate(0, 0) rotate(360deg); }
+  }
+  .anim-guardar-tornado {
+    animation: guardar-tornado 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    z-index: 9999;
+  }
 `;
 
 // =============================================================================
@@ -65,13 +75,39 @@ type TabConfig = {
 
 export default function PaginaPerfil() {
   const [tabActivo, setTabActivo] = useState(0);
+  const [animandoGuardar, setAnimandoGuardar] = useState(false);
+  const btnGuardarDesktopRef = React.useRef<HTMLButtonElement>(null);
   const hookPerfil = usePerfil();
 
-  const { loading, error, esGerente, guardando, datosInformacion, datosUbicacion } = hookPerfil;
+  const { loading, error, esGerente, guardando, hayCambios, datosInformacion, datosUbicacion } = hookPerfil;
   const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
+  const { setGuardarBsFn, setGuardandoBs, setBsPuedeGuardar } = useUiStore();
 
   // Validación: campos requeridos para habilitar guardado
   const camposRequeridosCompletos = Boolean(datosUbicacion.estado);
+
+  // Ref para guardarTodo (siempre actualizado)
+  const guardarRef = React.useRef(hookPerfil.guardarTodo);
+  guardarRef.current = hookPerfil.guardarTodo;
+
+  // Registrar/desregistrar función de guardado según hayCambios
+  useEffect(() => {
+    if (hayCambios) {
+      setGuardarBsFn(() => guardarRef.current());
+    } else {
+      setGuardarBsFn(null);
+    }
+    return () => setGuardarBsFn(null);
+  }, [hayCambios]);
+
+  // Sincronizar estado de guardado al store
+  useEffect(() => {
+    setGuardandoBs(guardando);
+  }, [guardando]);
+
+  useEffect(() => {
+    setBsPuedeGuardar(camposRequeridosCompletos);
+  }, [camposRequeridosCompletos]);
 
   // Dueño viendo sucursal secundaria = misma vista que gerente
   const vistaComoGerente = esGerente || (datosInformacion.totalSucursales > 1 && !datosInformacion.esPrincipal);
@@ -191,7 +227,7 @@ export default function PaginaPerfil() {
   // =============================================================================
 
   return (
-    <div className="p-3 lg:p-1.5 2xl:p-3">
+    <div className="p-3 pb-10 lg:p-1.5 2xl:p-3">
       {/* Inyectar estilos */}
       <style dangerouslySetInnerHTML={{ __html: ESTILOS }} />
 
@@ -210,8 +246,8 @@ export default function PaginaPerfil() {
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between lg:gap-4">
 
-          {/* Icono + Título */}
-          <div className="flex items-center gap-3 shrink-0 mb-3 lg:mb-0">
+          {/* Icono + Título — solo desktop */}
+          <div className="hidden lg:flex items-center gap-3 shrink-0 mb-3 lg:mb-0">
             <div
               className="flex items-center justify-center shrink-0"
               style={{
@@ -258,7 +294,7 @@ export default function PaginaPerfil() {
                   onClick={() => setTabActivo(index)}
                   className={`
                     flex items-center gap-1 lg:gap-1 2xl:gap-1.5
-                    px-4 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10
+                    px-3 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10
                     rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold
                     whitespace-nowrap shrink-0 cursor-pointer
                     ${tabActivo === index
@@ -293,21 +329,39 @@ export default function PaginaPerfil() {
       {/* FAB - FLOATING ACTION BUTTON */}
       {/* ===================================================================== */}
 
-      {createPortal(
-        <div className={`fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-transform duration-75 ${previewNegocioAbierto
+      {/* FAB solo en desktop — en móvil se usa el botón del MobileHeader */}
+      {hayCambios && createPortal(
+        <div className={`hidden lg:block fixed lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-transform duration-75 ${previewNegocioAbierto
           ? 'lg:right-[375px] 2xl:translate-x-[510px]'
           : 'lg:right-[45px] 2xl:translate-x-[895px]'
           }`}>
           <button
-            onClick={handleGuardar}
+            ref={btnGuardarDesktopRef}
+            onClick={() => {
+              if (animandoGuardar || guardando) return;
+              const btn = btnGuardarDesktopRef.current;
+              if (btn) {
+                const rect = btn.getBoundingClientRect();
+                const dx = (window.innerWidth / 2) - (rect.left + rect.width / 2);
+                const dy = (window.innerHeight / 2) - (rect.top + rect.height / 2);
+                btn.style.setProperty('--dx', `${dx}px`);
+                btn.style.setProperty('--dy', `${dy}px`);
+              }
+              setAnimandoGuardar(true);
+              setTimeout(() => {
+                setAnimandoGuardar(false);
+                handleGuardar();
+              }, 850);
+            }}
             disabled={guardando || !camposRequeridosCompletos}
-            className="w-14 h-14 lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed flex items-center justify-center group cursor-pointer"
+            className={`w-14 h-14 2xl:w-16 2xl:h-16 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed flex items-center justify-center group cursor-pointer ${animandoGuardar ? 'anim-guardar-tornado' : ''}`}
+            style={{ background: guardando ? undefined : 'linear-gradient(135deg, #1e40af, #3b82f6)', border: '3px solid rgba(255,255,255,0.5)' }}
             title={guardando ? 'Guardando...' : !camposRequeridosCompletos ? 'Completa los campos requeridos' : 'Guardar Cambios'}
           >
             {guardando ? (
-              <div className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-7 h-7 2xl:w-7 2xl:h-7 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              <Save className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-7 2xl:h-7 group-hover:scale-110 transition-transform" />
+              <Save className="w-7 h-7 2xl:w-7 2xl:h-7 group-hover:scale-110 transition-transform" />
             )}
           </button>
         </div>,

@@ -165,9 +165,11 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
                 style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
                 {/* Header */}
-                <div className="px-4 py-3 flex items-center gap-2.5 rounded-t-xl"
+                <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
                     style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-                    <Clock className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+                    <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                      <Clock className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                    </div>
                     <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Horarios de Atención</span>
                     <span className="ml-auto text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">
                         {diasSemana[diaSeleccionado]} — {horarioDia.abierto ? 'Abierto' : 'Cerrado'}
@@ -285,13 +287,15 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
             {/* CARD: CONFIGURACIÓN DEL DÍA */}
             {/* ============================================================ */}
 
-            <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden"
+            <div className="bg-white border-2 border-slate-300 rounded-xl"
                 style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
                 {/* Header con toggle */}
-                <div className="px-4 py-3 flex items-center gap-2.5"
+                <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
                     style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-                    <Clock className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-300 shrink-0" />
+                    <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                      <Clock className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                    </div>
                     <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">{diasSemana[diaSeleccionado]}</span>
                     <label className="ml-auto flex items-center gap-2.5 cursor-pointer group">
                         <input
@@ -305,9 +309,9 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
                         <span className="text-sm lg:text-xs 2xl:text-sm font-medium text-white/60 group-has-checked:text-slate-300">
                             {horarioDia.abierto ? 'Abierto' : 'Cerrado'}
                         </span>
-                        <div className="relative w-10 h-5">
+                        <div className="relative w-12 h-6 lg:w-10 lg:h-5">
                             <div className="absolute inset-0 bg-white/20 group-has-checked:bg-slate-500 rounded-full transition-colors"></div>
-                            <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform group-has-checked:translate-x-5"></div>
+                            <div className="absolute top-0.5 left-0.5 w-5 h-5 lg:w-4 lg:h-4 bg-white rounded-full shadow-md transition-transform group-has-checked:translate-x-6 lg:group-has-checked:translate-x-5"></div>
                         </div>
                     </label>
                 </div>
@@ -321,7 +325,7 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
                             {/* Horario de Atención */}
                             <div>
                                 <div className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-2">
-                                    <Clock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500 shrink-0" />
+                                    <Clock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
                                     Horario de Atención
                                 </div>
                                 <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
@@ -343,39 +347,37 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
                             </div>
 
                             {/* Horario de Comida */}
-                            <div ref={comidaRef}>
-                                <label className="flex items-center gap-2 cursor-pointer mb-2">
+                            <div ref={comidaRef} className="bg-amber-100 border-2 border-amber-300 rounded-xl p-3 lg:p-2.5 2xl:p-3">
+                                <label className={`flex items-center gap-2 cursor-pointer ${horarioDia.tieneHorarioComida ? 'mb-2' : ''}`}>
                                     <input
                                         id="checkbox-horario-comida"
                                         name="checkbox-horario-comida"
                                         type="checkbox"
                                         checked={horarioDia.tieneHorarioComida}
                                         onChange={(e) => handleToggleComida(e.target.checked)}
-                                        className="w-4 h-4 accent-amber-600 border-2 border-slate-300 rounded"
+                                        className="w-4 h-4 accent-amber-600 border-2 border-amber-300 rounded"
                                     />
-                                    <Coffee className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-amber-600" />
-                                    <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700">
+                                    <Coffee className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-600" />
+                                    <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-amber-700">
                                         Horario de comida / break
                                     </span>
                                 </label>
 
                                 {horarioDia.tieneHorarioComida && (
-                                    <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 lg:p-2.5 2xl:p-3">
-                                        <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
-                                            <div>
-                                                <span className="block text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-600 mb-1.5">Salida</span>
-                                                <TimePicker
-                                                    hora={formatearHora(horarioDia.comidaInicio)}
-                                                    onChange={(nuevaHora) => actualizarHorarioDia(diaSeleccionado, { comidaInicio: nuevaHora + ':00' })}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="block text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-600 mb-1.5">Regreso</span>
-                                                <TimePicker
-                                                    hora={formatearHora(horarioDia.comidaFin)}
-                                                    onChange={(nuevaHora) => actualizarHorarioDia(diaSeleccionado, { comidaFin: nuevaHora + ':00' })}
-                                                />
-                                            </div>
+                                    <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
+                                        <div>
+                                            <span className="block text-sm lg:text-xs 2xl:text-sm font-semibold text-amber-700 mb-1.5">Salida</span>
+                                            <TimePicker
+                                                hora={formatearHora(horarioDia.comidaInicio)}
+                                                onChange={(nuevaHora) => actualizarHorarioDia(diaSeleccionado, { comidaInicio: nuevaHora + ':00' })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <span className="block text-sm lg:text-xs 2xl:text-sm font-semibold text-amber-700 mb-1.5">Regreso</span>
+                                            <TimePicker
+                                                hora={formatearHora(horarioDia.comidaFin)}
+                                                onChange={(nuevaHora) => actualizarHorarioDia(diaSeleccionado, { comidaFin: nuevaHora + ':00' })}
+                                            />
                                         </div>
                                     </div>
                                 )}

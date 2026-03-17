@@ -49,9 +49,13 @@ import {
 } from 'lucide-react';
 import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useChatYAStore } from '../../../../stores/useChatYAStore';
+import { useUiStore } from '../../../../stores/useUiStore';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
+import { ModalImagenes } from '../../../../components/ui/ModalImagenes';
 import Tooltip from '../../../../components/ui/Tooltip';
+import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { descargarCSV } from '../../../../services/transaccionesService';
 import ModalDetalleTransaccionBS from './ModalDetalleTransaccionBS';
 import ModalDetalleCanjeBS from './ModalDetalleCanjeBS';
@@ -130,7 +134,7 @@ const formatearFechaCorta = (fechaISO: string | null) => {
   }
   if (diffDias < 7) return `Hace ${diffDias}d`;
   if (diffDias < 30) return `Hace ${Math.floor(diffDias / 7)}sem`;
-  return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 /** Iniciales del nombre para avatar fallback */
@@ -167,7 +171,7 @@ const formatearExpiracion = (fechaISO: string | null) => {
   if (diffDias === 0) return 'Hoy';
   if (diffDias === 1) return 'Mañana';
   if (diffDias <= 7) return `${diffDias} días`;
-  return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 /** Color del badge de expiración según urgencia */
@@ -254,60 +258,72 @@ function HeaderOrdenable({
 function FilaMovil({
   transaccion,
   onVerDetalle,
+  onChatear,
 }: {
   transaccion: TransaccionPuntos;
   onVerDetalle: (tx: TransaccionPuntos) => void;
+  onChatear: (id: string) => void;
 }) {
   const esRevocada = transaccion.estado === 'cancelado';
+  const [verAvatar, setVerAvatar] = useState(false);
 
   return (
-    <button
-      onClick={() => onVerDetalle(transaccion)}
-      className={`w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer text-left ${esRevocada ? 'opacity-60' : ''
+    <div
+      className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden ${esRevocada ? 'opacity-60' : ''
         }`}
+      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
     >
       {/* Avatar */}
-      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+      <div
+        onClick={() => transaccion.clienteAvatarUrl && setVerAvatar(true)}
+        className={`w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${transaccion.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+      >
         {transaccion.clienteAvatarUrl ? (
           <img src={transaccion.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="text-sm font-bold text-indigo-700">
+          <span className="text-lg font-bold text-indigo-700">
             {obtenerIniciales(transaccion.clienteNombre)}
           </span>
         )}
       </div>
+      {transaccion.clienteAvatarUrl && (
+        <ModalImagenes images={[transaccion.clienteAvatarUrl]} isOpen={verAvatar} onClose={() => setVerAvatar(false)} />
+      )}
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className={`text-sm font-semibold text-slate-800 truncate ${esRevocada ? 'line-through' : ''}`}>
+      <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+        {/* Nombre + Badge */}
+        <div className="flex items-center justify-between gap-2">
+          <p className={`text-base font-bold text-slate-800 truncate ${esRevocada ? 'line-through' : ''}`}>
             {transaccion.clienteNombre}
           </p>
-          {/* Badge estado */}
-          {esRevocada ? (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm font-bold bg-red-100 text-red-700">
-              <XCircle className="w-2.5 h-2.5" />
-              Revocada
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-sm font-bold bg-green-100 text-green-700">
-              ✓
-            </span>
-          )}
+          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm font-bold shrink-0 ${esRevocada ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+            {esRevocada ? 'Revocada' : 'Activa'}
+          </span>
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-sm text-slate-600">
-          <span className={`font-bold ${esRevocada ? 'text-slate-600 line-through' : 'text-indigo-600'}`}>
+        {/* Monto + Puntos */}
+        <div className="flex items-center gap-3 text-sm font-semibold">
+          <span className={`font-bold ${esRevocada ? 'text-slate-600 line-through' : 'text-amber-600'}`}>
             {formatearMonto(transaccion.montoCompra)}
           </span>
-          <span className={esRevocada ? 'line-through font-medium' : 'text-amber-600 font-medium'}>
+          <span className={`font-semibold ${esRevocada ? 'line-through text-slate-600' : 'text-slate-600'}`}>
             +{transaccion.puntosOtorgados} pts
           </span>
-          <span className="font-medium">{formatearFechaCorta(transaccion.createdAt)}</span>
+        </div>
+        {/* Fecha + Acciones */}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium text-slate-500">{transaccion.createdAt ? new Date(transaccion.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</p>
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={() => onChatear(transaccion.clienteId)} className="cursor-pointer">
+              <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
+            </button>
+            <button onClick={() => onVerDetalle(transaccion)} className="cursor-pointer text-slate-700">
+              <Eye className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </div>
-
-      <Eye className="w-4 h-4 text-slate-600 shrink-0" />
-    </button>
+    </div>
   );
 }
 
@@ -318,51 +334,76 @@ function FilaMovil({
 function FilaMovilCanje({
   canje,
   onVerDetalle,
+  onChatear,
 }: {
   canje: VoucherCanje;
   onVerDetalle: (c: VoucherCanje) => void;
+  onChatear: (id: string) => void;
 }) {
+  const [verAvatar, setVerAvatar] = useState(false);
+
   return (
-    <button
-      onClick={() => onVerDetalle(canje)}
-      className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer text-left"
+    <div
+      className="w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden"
+      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
     >
       {/* Avatar */}
-      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+      <div
+        onClick={() => canje.clienteAvatarUrl && setVerAvatar(true)}
+        className={`w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+      >
         {canje.clienteAvatarUrl ? (
           <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="text-sm font-bold text-indigo-700">
+          <span className="text-lg font-bold text-indigo-700">
             {obtenerIniciales(canje.clienteNombre)}
           </span>
         )}
       </div>
+      {canje.clienteAvatarUrl && (
+        <ModalImagenes images={[canje.clienteAvatarUrl]} isOpen={verAvatar} onClose={() => setVerAvatar(false)} />
+      )}
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-slate-800 truncate">
+      <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+        {/* Nombre + Badge */}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-base font-bold text-slate-800 truncate">
             {canje.clienteNombre}
           </p>
           <BadgeEstadoCanje estado={canje.estado} />
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-sm text-slate-600">
-          <span className="font-medium text-purple-600 truncate max-w-[140px]">
+        {/* Recompensa + Puntos */}
+        <div className="flex items-center gap-3 text-sm font-semibold">
+          <span className="font-bold text-amber-600 truncate">
             {canje.recompensaNombre}
           </span>
-          <span className="text-amber-600 font-medium">
+          <span className="font-semibold text-slate-600 shrink-0">
             -{canje.puntosUsados} pts
           </span>
-          {canje.estado === 'pendiente' && canje.expiraAt && (
-            <span className={colorExpiracion(canje.expiraAt)}>
-              {formatearExpiracion(canje.expiraAt)}
-            </span>
-          )}
+        </div>
+        {/* Fecha/Expiración + Acciones */}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium text-slate-500">
+            {canje.estado === 'pendiente' && canje.expiraAt ? (
+              <span className={colorExpiracion(canje.expiraAt)}>
+                {formatearExpiracion(canje.expiraAt)}
+              </span>
+            ) : canje.usadoAt ? (
+              new Date(canje.usadoAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+            ) : '—'}
+          </p>
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={() => onChatear(canje.clienteId)} className="cursor-pointer">
+              <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
+            </button>
+            <button onClick={() => onVerDetalle(canje)} className="cursor-pointer text-slate-700">
+              <Eye className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </div>
-
-      <Eye className="w-4 h-4 text-slate-600 shrink-0" />
-    </button>
+    </div>
   );
 }
 
@@ -422,6 +463,7 @@ export default function PaginaTransacciones() {
   const [orden, setOrden] = useState<EstadoOrden | null>(null);
   const [textoBusqueda, setTextoBusqueda] = useState(busquedaInicial);
   const [txSeleccionada, setTxSeleccionada] = useState<TransaccionPuntos | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [canjeSeleccionado, setCanjeSeleccionado] = useState<VoucherCanje | null>(null);
   const [textoBusquedaCanjes, setTextoBusquedaCanjes] = useState('');
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
@@ -458,10 +500,19 @@ export default function PaginaTransacciones() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sucursalActiva]);
 
-  // ——— Limpiar búsqueda al salir (sin disparar cargarHistorial) ———
+  // ——— Limpiar filtros al salir (sin disparar cargarHistorial) ———
   useEffect(() => {
     return () => {
-      useTransaccionesStore.setState({ busqueda: '', offset: 0 });
+      useTransaccionesStore.setState({
+        busqueda: '',
+        offset: 0,
+        operadorId: '',
+        estadoFiltro: '',
+        estadoFiltroCanjes: '',
+        busquedaCanjes: '',
+        periodo: 'todo',
+        tabActivo: 'ventas',
+      });
     };
   }, []);
 
@@ -643,6 +694,30 @@ export default function PaginaTransacciones() {
     setTxSeleccionada(tx);
   }, []);
 
+  // ——— Abrir ChatYA con cliente ———
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+
+  const handleChatear = useCallback((clienteId: string) => {
+    const tx = historial.find((t) => t.clienteId === clienteId);
+    if (!tx) return;
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: tx.clienteId,
+        nombre: tx.clienteNombre || 'Cliente',
+        apellidos: '',
+        avatarUrl: tx.clienteAvatarUrl ?? null,
+      },
+      datosCreacion: {
+        participante2Id: tx.clienteId,
+        participante2Modo: 'personal',
+        contextoTipo: 'directo',
+      },
+    });
+    abrirChatYA();
+  }, [historial, abrirChatTemporal, abrirChatYA]);
+
   const handleCerrarModal = useCallback(() => {
     setTxSeleccionada(null);
   }, []);
@@ -680,9 +755,9 @@ export default function PaginaTransacciones() {
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
           {/* Header con icono animado */}
-          <div className="flex items-center gap-4 w-full lg:w-auto shrink-0 mb-3 lg:mb-0">
+          <div className="hidden lg:flex items-center gap-4 w-full lg:w-auto shrink-0 mb-3 lg:mb-0">
             <div
-              className="flex items-center justify-center shrink-0"
+              className="hidden lg:flex items-center justify-center shrink-0"
               style={{
                 width: 52, height: 52, borderRadius: 14,
                 background: 'linear-gradient(135deg, #6366f1, #818cf8, #a5b4fc)',
@@ -694,8 +769,8 @@ export default function PaginaTransacciones() {
               </div>
             </div>
             <div className="flex-1 flex items-center justify-between lg:block">
-              {/* Textos título + subtítulo */}
-              <div>
+              {/* Textos título + subtítulo — solo desktop */}
+              <div className="hidden lg:block">
                 <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
                   Transacciones
                 </h1>
@@ -765,7 +840,7 @@ export default function PaginaTransacciones() {
           </div>
 
           {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
-          <div className="mt-5 lg:mt-0 overflow-x-auto lg:overflow-visible lg:flex-1 tx-carousel">
+          <CarouselKPI className="mt-5 lg:mt-0 lg:flex-1">
             <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
 
               {/* ============ KPIs TAB VENTAS ============ */}
@@ -773,7 +848,7 @@ export default function PaginaTransacciones() {
                 <>
                   {/* Total Ventas */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #eff6ff, #fff)',
                       border: '2px solid #93c5fd',
@@ -796,7 +871,7 @@ export default function PaginaTransacciones() {
 
                   {/* # Transacciones */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #f0fdf4, #fff)',
                       border: '2px solid #86efac',
@@ -819,7 +894,7 @@ export default function PaginaTransacciones() {
 
                   {/* Ticket Promedio */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fffbeb, #fff)',
                       border: '2px solid #fcd34d',
@@ -842,7 +917,7 @@ export default function PaginaTransacciones() {
 
                   {/* Revocadas */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fef2f2, #fff)',
                       border: '2px solid #fca5a5',
@@ -870,7 +945,7 @@ export default function PaginaTransacciones() {
                 <>
                   {/* Pendientes */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fffbeb, #fff)',
                       border: '2px solid #fcd34d',
@@ -893,7 +968,7 @@ export default function PaginaTransacciones() {
 
                   {/* Usados */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #f0fdf4, #fff)',
                       border: '2px solid #86efac',
@@ -916,7 +991,7 @@ export default function PaginaTransacciones() {
 
                   {/* Vencidos */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fef2f2, #fff)',
                       border: '2px solid #fca5a5',
@@ -939,7 +1014,7 @@ export default function PaginaTransacciones() {
 
                   {/* Total Canjes */}
                   <div
-                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1 2xl:py-2 shrink-0 h-13 lg:h-auto 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[90px] 2xl:min-w-[140px]"
                     style={{
                       background: 'linear-gradient(135deg, #fdf4ff, #fff)',
                       border: '2px solid #e879f9',
@@ -963,7 +1038,30 @@ export default function PaginaTransacciones() {
               )}
 
             </div>
-          </div>
+          </CarouselKPI>
+        </div>
+
+        {/* ================================================================= */}
+        {/* TOGGLE Ventas/Canjes — solo móvil                                */}
+        {/* ================================================================= */}
+
+        <div className="lg:hidden flex w-full bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
+          <button
+            onClick={() => setTabActivo('ventas')}
+            className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'ventas' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+            style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+          >
+            <DollarSign className="w-4 h-4" />
+            Ventas
+          </button>
+          <button
+            onClick={() => setTabActivo('canjes')}
+            className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'canjes' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+            style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+          >
+            <Gift className="w-4 h-4" />
+            Canjes
+          </button>
         </div>
 
         {/* ================================================================= */}
@@ -1152,7 +1250,7 @@ export default function PaginaTransacciones() {
                       placeholder="Nombre o Celular..."
                       value={textoBusqueda}
                       onChange={(e) => handleBusqueda(e.target.value)}
-                      className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base pr-8"
+                      className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base pr-8"
                       icono={<Search className="w-4 h-4 text-slate-600" />}
                     />
                     {textoBusqueda && (
@@ -1284,7 +1382,7 @@ export default function PaginaTransacciones() {
                   placeholder="Buscar cliente..."
                   value={textoBusquedaCanjes}
                   onChange={(e) => handleBusquedaCanjes(e.target.value)}
-                  className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base pr-8"
+                  className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base pr-8"
                   icono={<Search className="w-4 h-4 text-slate-600" />}
                 />
                 {textoBusquedaCanjes && (
@@ -1326,7 +1424,7 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_250px_100px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider"
+              className="grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_250px_100px] gap-0 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -1359,12 +1457,15 @@ export default function PaginaTransacciones() {
                     <button
                       key={tx.id}
                       onClick={() => handleVerDetalle(tx)}
-                      className={`grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_210px_130px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
+                      className={`grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_210px_130px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                         } ${esRevocada ? 'opacity-60' : ''}`}
                     >
                       {/* Cliente */}
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
-                        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div
+                          onClick={(e) => { if (tx.clienteAvatarUrl) { e.stopPropagation(); setAvatarUrl(tx.clienteAvatarUrl); } }}
+                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${tx.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+                        >
                           {tx.clienteAvatarUrl ? (
                             <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -1461,7 +1562,7 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark - Canjes (6 columnas) */}
             <div
-              className="grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider"
+              className="grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -1494,12 +1595,15 @@ export default function PaginaTransacciones() {
                   <button
                     key={canje.id}
                     onClick={() => handleVerDetalleCanje(canje)}
-                    className={`grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
+                    className={`grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                       }`}
                   >
                     {/* Cliente */}
                     <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
-                      <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                      <div
+                        onClick={(e) => { if (canje.clienteAvatarUrl) { e.stopPropagation(); setAvatarUrl(canje.clienteAvatarUrl); } }}
+                        className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+                      >
                         {canje.clienteAvatarUrl ? (
                           <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -1590,7 +1694,7 @@ export default function PaginaTransacciones() {
         {isMobile && tabActivo === 'ventas' && (
           <div className="space-y-2">
             {/* Chips de orden (móvil) */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="flex items-center bg-slate-800 rounded-xl border-2 border-slate-700 p-0.5 shadow-md">
               {([
                 { col: 'monto' as ColumnaOrden, etiqueta: 'Monto' },
                 { col: 'puntos' as ColumnaOrden, etiqueta: 'Puntos' },
@@ -1601,16 +1705,15 @@ export default function PaginaTransacciones() {
                   <button
                     key={col}
                     onClick={() => alternarOrden(col)}
-                    className={`flex items-center justify-center gap-1.5 h-11 rounded-lg text-base font-semibold border-2 transition-all cursor-pointer ${activa
-                        ? 'text-white border-slate-700'
-                        : 'bg-white text-slate-600 border-slate-300'
+                    className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
+                        ? 'bg-slate-400 text-slate-900 shadow-md'
+                        : 'text-white hover:bg-white/10'
                       }`}
-                    style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 text-amber-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 text-amber-400" />}
-                    {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                    {!activa && <ArrowUpDown className="w-4 h-4 text-white" strokeWidth={2.5} />}
                   </button>
                 );
               })}
@@ -1624,7 +1727,7 @@ export default function PaginaTransacciones() {
               </div>
             ) : (
               transaccionesOrdenadas.map((tx) => (
-                <FilaMovil key={tx.id} transaccion={tx} onVerDetalle={handleVerDetalle} />
+                <FilaMovil key={tx.id} transaccion={tx} onVerDetalle={handleVerDetalle} onChatear={handleChatear} />
               ))
             )}
 
@@ -1646,7 +1749,7 @@ export default function PaginaTransacciones() {
         {isMobile && tabActivo === 'canjes' && (
           <div className="space-y-2">
             {/* Chips de orden (móvil canjes) */}
-            <div className="flex gap-2 overflow-x-auto tx-carousel pb-1">
+            <div className="flex items-center bg-slate-800 rounded-xl border-2 border-slate-700 p-0.5 shadow-md">
               {([
                 { col: 'puntos' as ColumnaOrden, etiqueta: 'Puntos' },
                 { col: 'fecha' as ColumnaOrden, etiqueta: 'Expira' },
@@ -1656,16 +1759,15 @@ export default function PaginaTransacciones() {
                   <button
                     key={col}
                     onClick={() => alternarOrden(col)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all shrink-0 cursor-pointer ${activa
-                        ? 'text-white border-slate-700'
-                        : 'bg-white text-slate-600 border-slate-300'
+                    className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
+                        ? 'bg-slate-400 text-slate-900 shadow-md'
+                        : 'text-white hover:bg-white/10'
                       }`}
-                    style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     {etiqueta}
-                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />}
-                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />}
-                    {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                    {!activa && <ArrowUpDown className="w-4 h-4 text-white" strokeWidth={2.5} />}
                   </button>
                 );
               })}
@@ -1683,7 +1785,7 @@ export default function PaginaTransacciones() {
               </div>
             ) : (
               canjesOrdenados.map((canje) => (
-                <FilaMovilCanje key={canje.id} canje={canje} onVerDetalle={handleVerDetalleCanje} />
+                <FilaMovilCanje key={canje.id} canje={canje} onVerDetalle={handleVerDetalleCanje} onChatear={handleChatear} />
               ))
             )}
 
@@ -1715,6 +1817,9 @@ export default function PaginaTransacciones() {
         onCerrar={handleCerrarModalCanje}
         canje={canjeSeleccionado}
       />
+      {avatarUrl && (
+        <ModalImagenes images={[avatarUrl]} isOpen={!!avatarUrl} onClose={() => setAvatarUrl(null)} />
+      )}
     </div>
   );
 }

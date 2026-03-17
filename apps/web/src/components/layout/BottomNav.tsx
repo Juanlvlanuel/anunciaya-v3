@@ -21,6 +21,7 @@
  * Ubicación: apps/web/src/components/layout/BottomNav.tsx
  */
 
+import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Store, ShoppingCart, Tag, Gift, BarChart3 } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
@@ -99,12 +100,18 @@ export function BottomNav() {
   const esComercial = usuario?.modoActivo === 'comercial';
 
   // Auto-hide al hacer scroll down (solo móvil)
-  const { hideStyle } = useHideOnScroll({ direction: 'down' });
+  const { hideStyle, forzarMostrar } = useHideOnScroll({ direction: 'down' });
+
+  // Exponer forzarMostrar globalmente para que MainLayout lo use al cerrar teclado
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__bottomNavForzarMostrar = forzarMostrar;
+    return () => { delete (window as unknown as Record<string, unknown>).__bottomNavForzarMostrar; };
+  }, [forzarMostrar]);
 
   // ChatYA Store - badge real
   const mensajesCount = useChatYAStore((s) => s.totalNoLeidos);
 
-  // No mostrar BottomNav cuando ChatYA está abierto (es fullscreen en móvil)
+  // No mostrar BottomNav cuando ChatYA está abierto
   if (chatYAAbierto) return null;
 
   // ---------------------------------------------------------------------------
@@ -115,7 +122,7 @@ export function BottomNav() {
       {/* Inyectar estilos de animación */}
       <style>{animationStyles}</style>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-51" style={hideStyle}>
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bottomnav-ocultar-teclado" style={hideStyle}>
 
 
         {/* Fondo con gradiente negro y padding para safe-area */}

@@ -26,17 +26,19 @@
  *   Gerentes → solo lectura + banner informativo, sin FAB
  */
 
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Star, Ticket, Clock, Users, Settings, Lock, Save,
-  Gift, Plus, Award,
+  Gift, Plus, Award, CircleDollarSign,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import { usePuntosStore } from '../../../../stores/usePuntosStore';
 import { Spinner } from '../../../../components/ui';
+import Tooltip from '../../../../components/ui/Tooltip';
 import { notificar } from '../../../../utils/notificaciones';
+import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import type { ActualizarConfigPuntosInput, Recompensa } from '../../../../types/puntos';
 
 import SistemaNiveles, { type NivelLocal } from './componentes/SistemaNiveles';
@@ -148,6 +150,16 @@ const ESTILO_ICONO_HEADER = `
   }
   .pp-carousel::-webkit-scrollbar { display: none; }
   .pp-carousel { -ms-overflow-style: none; scrollbar-width: none; }
+  @keyframes guardar-tornado {
+    0%   { transform: scale(1) translate(0, 0) rotate(0deg); }
+    45%  { transform: scale(1.6) translate(var(--dx), var(--dy)) rotate(180deg); }
+    55%  { transform: scale(1.6) translate(var(--dx), var(--dy)) rotate(220deg); }
+    100% { transform: scale(1) translate(0, 0) rotate(360deg); }
+  }
+  .anim-guardar-tornado {
+    animation: guardar-tornado 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    z-index: 9999;
+  }
 `;
 
 // =============================================================================
@@ -210,7 +222,7 @@ function KPI({ tipo, valor }: { tipo: keyof typeof KPI_CONFIG; valor: string }) 
 
   return (
     <div
-      className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2.5 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+      className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2.5 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(33.33%-6px)] lg:min-w-[110px] 2xl:min-w-[140px]"
       style={{
         background: bg,
         border: `2px solid ${border}`,
@@ -224,8 +236,8 @@ function KPI({ tipo, valor }: { tipo: keyof typeof KPI_CONFIG; valor: string }) 
         <Icono className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" style={{ color }} />
       </div>
       <div>
-        <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight" style={{ color }}>{valor}</div>
-        <div className="text-[12px] lg:text-[10px] 2xl:text-[14px] text-slate-500 font-semibold mt-0.5">{label}</div>
+        <div className="text-[16px] lg:text-sm 2xl:text-base font-bold leading-tight" style={{ color }}>{valor}</div>
+        <div className="text-sm lg:text-sm 2xl:text-sm text-slate-600 font-semibold mt-0.5">{label}</div>
       </div>
     </div>
   );
@@ -252,9 +264,11 @@ export default function PaginaPuntos() {
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
   const esGerente      = !!usuario?.sucursalAsignada; // Gerente tiene sucursalAsignada, dueño tiene null
   const previewNegocioAbierto = useUiStore((s) => s.previewNegocioAbierto);
+  const { setGuardarBsFn, setGuardandoBs, setBsPuedeGuardar } = useUiStore();
 
   // ─── Estado: Tab mobile ────────────────────────────────────────────────
   const [tabActiva, setTabActiva] = useState<TabPuntos>('configuracion');
+  const [tabDesktop, setTabDesktop] = useState<'puntos' | 'recompensas'>('puntos');
 
   // ─── Estado: Configuración ────────────────────────────────────────────
   // Inicializar con valores del store si existen (evita "salto" visual)
@@ -290,6 +304,8 @@ export default function PaginaPuntos() {
     };
   });
   const [guardando, setGuardando] = useState(false);
+  const [animandoGuardarDesktop, setAnimandoGuardarDesktop] = useState(false);
+  const btnGuardarDesktopRef = useRef<HTMLButtonElement>(null);
 
   // ─── Estado: Modal recompensas ────────────────────────────────────────
   const [modalAbierto, setModalAbierto]             = useState(false);
@@ -510,6 +526,46 @@ export default function PaginaPuntos() {
 
   const tieneErroresConfig = Object.keys(erroresConfigBase).length > 0;
 
+  // ─── Detectar cambios pendientes ──────────────────────────────────────
+  const hayCambiosPuntos = useMemo(() => {
+    if (!configInicial) return false;
+    const vi = valoresIniciales;
+    if (pesosPor !== vi.pesosPor || puntosGanados !== vi.puntosGanados) return true;
+    const expOriginal = configInicial.diasExpiracionPuntos;
+    if (noExpiran !== (expOriginal === null)) return true;
+    if (!noExpiran && diasExpiracionPuntos !== (expOriginal ?? 30)) return true;
+    if (diasExpiracionVoucher !== (configInicial.diasExpiracionVoucher ?? 7)) return true;
+    if (nivelesActivos !== (configInicial.nivelesActivos ?? true)) return true;
+    if (niveles.bronce.max !== configInicial.nivelBronce.max || niveles.bronce.multiplicador !== configInicial.nivelBronce.multiplicador) return true;
+    if (niveles.plata.min !== configInicial.nivelPlata.min || niveles.plata.max !== configInicial.nivelPlata.max || niveles.plata.multiplicador !== configInicial.nivelPlata.multiplicador) return true;
+    if (niveles.oro.min !== configInicial.nivelOro.min || niveles.oro.multiplicador !== configInicial.nivelOro.multiplicador) return true;
+    return false;
+  }, [pesosPor, puntosGanados, noExpiran, diasExpiracionPuntos, diasExpiracionVoucher, nivelesActivos, niveles, configInicial]);
+
+  // ─── Registrar guardado en MobileHeader (solo dueños, solo si hay cambios) ───
+  const guardarRef = useRef(handleGuardarConfig);
+  guardarRef.current = handleGuardarConfig;
+
+  useEffect(() => {
+    if (esGerente) return;
+    if (hayCambiosPuntos) {
+      setGuardarBsFn(() => guardarRef.current());
+    } else {
+      setGuardarBsFn(null);
+    }
+    return () => setGuardarBsFn(null);
+  }, [hayCambiosPuntos]);
+
+  useEffect(() => {
+    if (esGerente) return;
+    setGuardandoBs(guardando);
+  }, [guardando]);
+
+  useEffect(() => {
+    if (esGerente) return;
+    setBsPuedeGuardar(!tieneErroresNiveles && !tieneErroresConfig);
+  }, [tieneErroresNiveles, tieneErroresConfig]);
+
   // ─── Handlers: recompensas ──────────────────────────────────────────────
   const handleCrear = useCallback(() => {
     setRecompensaEditando(null);
@@ -552,207 +608,136 @@ export default function PaginaPuntos() {
   // SECCIONES REUTILIZABLES (mobile tabs + desktop inline)
   // =============================================================================
 
-  /** Sección: Configuración Base */
+  /** Sección Configuración — solo móvil (3 cards) */
   const seccionConfiguracion = (
-    <div
-      className="bg-white rounded-2xl overflow-hidden"
-      style={{ border: '2.5px solid #dde4ef', boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}
-    >
-      {/* Header card */}
-      <div
-        className="flex items-center gap-2.5 lg:gap-3 px-3 lg:px-5 py-2 lg:py-2.5"
-        style={{ background: 'linear-gradient(135deg, #f8fafd, #f0f4f8)', borderBottom: '2.5px solid #e4e9f2' }}
-      >
-        <div
-          className="w-9 h-9 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, #c7d2fe, #a5b4fc)', boxShadow: '0 3px 8px rgba(0,0,0,0.1)' }}
-        >
-          <Settings className="w-4.5 h-4.5 lg:w-4.5 lg:h-4.5 text-indigo-700" />
-        </div>
-        <h2 className="text-base lg:text-sm 2xl:text-base font-extrabold text-slate-900">Configuración Base</h2>
-      </div>
-
-      {/* Campos de configuración */}
-      <div className="p-3 lg:p-3.5">
-        {configuracion ? (
-          <div className="flex flex-col gap-2.5 lg:gap-2.5 2xl:gap-3">
-
-            {/* Acumulación de puntos — formato oración */}
-            <div>
-              <label className="block text-[13.5px] lg:text-[12.5px] 2xl:text-[13.5px] font-extrabold text-slate-700 tracking-wider mb-1 lg:mb-1.5">
-                Acumulación de puntos
-              </label>
-              <div className="flex items-center gap-1.5 lg:gap-2 flex-nowrap">
-                <span className="text-[13px] lg:text-xs 2xl:text-[13px] font-semibold text-slate-600 shrink-0">Por cada</span>
-                <div
-                  className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-50 rounded-lg px-1.5 lg:px-2 flex-1 min-w-0"
-                  style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-                >
-                  <span className="text-[13px] lg:text-xs 2xl:text-[13px] font-bold text-slate-400 mr-0.5">$</span>
-                  <input
-                    id="pp-pesosPor"
-                    name="pesosPor"
-                    type="number" min={1} value={textoPesosPor}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      setTextoPesosPor(raw);
-                      const v = Number(raw);
-                      if (v > 0) setPesosPor(v);
-                    }}
-                    onBlur={() => {
-                      if (!textoPesosPor || Number(textoPesosPor) <= 0) {
-                        setPesosPor(10);
-                        setTextoPesosPor('10');
-                      }
-                    }}
-                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                    onPaste={(e) => { const t = e.clipboardData.getData('text'); if (t.includes('.') || t.includes(',')) e.preventDefault(); }}
-                    disabled={esGerente}
-                    style={{ minWidth: '60px' }}
-                    className="flex-1 bg-transparent outline-none text-[15px] lg:text-sm 2xl:text-[15px] font-bold text-slate-800 w-full disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
-                  />
-                  <span
-                    className="text-[10px] lg:text-[9px] 2xl:text-[10px] font-bold text-indigo-700 px-1.5 py-0.5 rounded shrink-0 ml-1"
-                    style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}
-                  >
-                    MXN
-                  </span>
+    <>
+      {/* MÓVIL: cards separados por sección */}
+      <div className="lg:hidden space-y-3">
+        {/* Card: Puntos por Compra */}
+        <div className="bg-white rounded-xl border-2 border-slate-300"
+          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div className="px-3 py-2 flex items-center gap-2 rounded-t-[10px]"
+            style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              <Settings className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-sm font-bold text-white">Puntos por Compra</span>
+          </div>
+          <div className="p-4">
+          {configuracion ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-slate-600 shrink-0">Gasta</span>
+                  <div className="flex items-center h-11 bg-slate-100 rounded-lg px-2 flex-1 min-w-0 border-2 border-slate-300"
+                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <span className="text-sm font-bold text-slate-600 mr-0.5">$</span>
+                    <input id="pp-pesosPor-m" type="number" min={1} value={textoPesosPor}
+                      onChange={(e) => { const raw = e.target.value; setTextoPesosPor(raw); const v = Number(raw); if (v > 0) setPesosPor(v); }}
+                      onBlur={() => { if (!textoPesosPor || Number(textoPesosPor) <= 0) { setPesosPor(10); setTextoPesosPor('10'); } }}
+                      onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                      disabled={esGerente}
+                      className="flex-1 bg-transparent outline-none text-[15px] font-medium text-slate-800 w-full disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                    />
+                    <span className="text-[11px] font-bold text-indigo-700 px-1.5 py-0.5 rounded shrink-0 ml-1"
+                      style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}>MXN</span>
+                  </div>
                 </div>
-                <span className="text-[12px] lg:text-[11px] 2xl:text-[12px] font-bold text-slate-500 shrink-0">gana</span>
-                <div
-                  className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-50 rounded-lg px-1.5 lg:px-2 flex-1 min-w-0"
-                  style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-                >
-                  <input
-                    id="pp-puntosGanados"
-                    name="puntosGanados"
-                    type="number" min={1} value={textoPuntosGanados}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      setTextoPuntosGanados(raw);
-                      const v = Number(raw);
-                      if (v > 0) setPuntosGanados(v);
-                    }}
-                    onBlur={() => {
-                      if (!textoPuntosGanados || Number(textoPuntosGanados) <= 0) {
-                        setPuntosGanados(1);
-                        setTextoPuntosGanados('1');
-                      }
-                    }}
-                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                    onPaste={(e) => { const t = e.clipboardData.getData('text'); if (t.includes('.') || t.includes(',')) e.preventDefault(); }}
-                    disabled={esGerente}
-                    style={{ minWidth: '60px' }}
-                    className="flex-1 bg-transparent outline-none text-[15px] lg:text-sm 2xl:text-[15px] font-bold text-slate-800 w-full disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
-                  />
-                  <span
-                    className="text-[10px] lg:text-[9px] 2xl:text-[10px] font-bold text-amber-700 px-1.5 py-0.5 rounded shrink-0 ml-1"
-                    style={{ background: 'linear-gradient(135deg, #fef9c3, #fde68a)', border: '1px solid #fde68a' }}
-                  >
-                    pts
-                  </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-slate-600 shrink-0">Gana</span>
+                  <div className="flex items-center h-11 bg-slate-100 rounded-lg px-2 flex-1 min-w-0 border-2 border-slate-300"
+                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <input id="pp-puntosGanados-m" type="number" min={1} value={textoPuntosGanados}
+                      onChange={(e) => { const raw = e.target.value; setTextoPuntosGanados(raw); const v = Number(raw); if (v > 0) setPuntosGanados(v); }}
+                      onBlur={() => { if (!textoPuntosGanados || Number(textoPuntosGanados) <= 0) { setPuntosGanados(1); setTextoPuntosGanados('1'); } }}
+                      onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                      disabled={esGerente}
+                      className="flex-1 bg-transparent outline-none text-[15px] font-medium text-slate-800 w-full disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                    />
+                    <span className="text-[11px] font-bold text-amber-700 px-1.5 py-0.5 rounded shrink-0 ml-1"
+                      style={{ background: 'linear-gradient(135deg, #fef9c3, #fde68a)', border: '1px solid #fde68a' }}>PUNTOS</span>
+                  </div>
                 </div>
               </div>
               {(erroresConfigBase.pesosPor || erroresConfigBase.puntosGanados) && (
-                <span className="text-[10px] font-semibold text-red-500 mt-0.5">
-                  {erroresConfigBase.pesosPor || erroresConfigBase.puntosGanados}
-                </span>
+                <span className="text-sm font-semibold text-red-600 mt-1 block">{erroresConfigBase.pesosPor || erroresConfigBase.puntosGanados}</span>
               )}
-            </div>
+            </>
+          ) : <Spinner />}
+          </div>
+        </div>
 
-            {/* Expiración de puntos */}
+        {/* Card: Expiración */}
+        <div className="bg-white rounded-xl border-2 border-slate-300"
+          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div className="px-3 py-2 flex items-center gap-2 rounded-t-[10px]"
+            style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              <Clock className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-sm font-bold text-white">Expiración de Puntos</span>
+          </div>
+          <div className="p-4">
+          {configuracion ? (
             <div>
-              <label htmlFor="pp-diasExpPuntos" className="block text-[13.5px] lg:text-[12.5px] 2xl:text-[13.5px] font-extrabold text-slate-700 tracking-wider mb-1 lg:mb-1.5">
-                Expiración de puntos
-              </label>
-              <div
-                className="flex items-center h-10 lg:h-11 bg-slate-50 rounded-lg px-3 lg:px-3.5"
-                style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-              >
-                <input
-                  id="pp-diasExpPuntos"
-                  name="diasExpiracionPuntos"
-                  type="number" min={1} max={365} value={noExpiran ? '' : diasExpiracionPuntos}
+              <div className="flex items-center h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300"
+                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                <input type="number" min={1} max={365} value={noExpiran ? '' : diasExpiracionPuntos}
                   onChange={(e) => setDiasExpiracionPuntos(Number(e.target.value))}
                   onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                  onPaste={(e) => { const t = e.clipboardData.getData('text'); if (t.includes('.') || t.includes(',')) e.preventDefault(); }}
-                  disabled={esGerente || noExpiran}
-                  placeholder={noExpiran ? '∞' : undefined}
-                  className="flex-1 bg-transparent outline-none text-base font-bold text-slate-800 w-16 placeholder-slate-400 disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                  disabled={esGerente || noExpiran} placeholder={noExpiran ? '∞' : undefined}
+                  className="flex-1 bg-transparent outline-none text-base font-medium text-slate-800 w-16 placeholder:text-slate-500 disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                 />
-                <span
-                  className="text-xs lg:text-[10.5px] font-bold text-indigo-700 px-2 py-0.5 rounded"
-                  style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}
-                >
-                  días
-                </span>
+                <span className="text-[11px] font-bold text-indigo-700 px-2 py-0.5 rounded"
+                  style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}>DÍAS</span>
               </div>
-              {/* Checkbox: no expiran */}
-              <label className="flex items-center gap-1.5 mt-1 lg:mt-1.5 cursor-pointer">
-                <input
-                  id="pp-noExpiran"
-                  name="noExpiran"
-                  type="checkbox" checked={noExpiran}
-                  onChange={(e) => setNoExpiran(e.target.checked)}
-                  disabled={esGerente}
-                  className="w-3.5 h-3.5 lg:w-3 lg:h-3 accent-indigo-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <span className="text-xs text-slate-500">No expiran</span>
+              <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
+                <input type="checkbox" checked={noExpiran} onChange={(e) => setNoExpiran(e.target.checked)}
+                  disabled={esGerente} className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer disabled:opacity-50" />
+                <span className="text-sm text-slate-600 font-semibold">No expiran</span>
               </label>
-              {erroresConfigBase.diasExpPuntos && (
-                <span className="text-[10px] font-semibold text-red-500 mt-0.5">
-                  {erroresConfigBase.diasExpPuntos}
-                </span>
-              )}
-              <p className="text-xs lg:text-xs 2xl:text-xs text-slate-500 mt-1.5 leading-snug font-medium">
-                Los puntos expiran si el cliente no realiza compras ni canjes en este periodo.
-              </p>
+              {erroresConfigBase.diasExpPuntos && <span className="text-sm font-semibold text-red-600 mt-0.5 block">{erroresConfigBase.diasExpPuntos}</span>}
+              <p className="text-sm text-slate-500 mt-1 leading-snug font-semibold">Los puntos expiran si el cliente no realiza compras en este periodo.</p>
             </div>
+          ) : <Spinner />}
+          </div>
+        </div>
 
-            {/* Expiración de vouchers */}
-            <div>
-              <label htmlFor="pp-diasExpVoucher" className="block text-[13.5px] lg:text-[12.5px] 2xl:text-[13.5px] font-extrabold text-slate-700 tracking-wider mb-1 lg:mb-1.5">
-                Expiración de vouchers
-              </label>
-              <div
-                className="flex items-center h-10 lg:h-11 bg-slate-50 rounded-lg px-3 lg:px-3.5"
-                style={{ border: '2.5px solid #dde4ef', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-              >
-                <input
-                  id="pp-diasExpVoucher"
-                  name="diasExpiracionVoucher"
-                  type="number" min={1} max={365} value={diasExpiracionVoucher}
-                  onChange={(e) => setDiasExpiracionVoucher(Number(e.target.value))}
-                  onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
-                  onPaste={(e) => { const t = e.clipboardData.getData('text'); if (t.includes('.') || t.includes(',')) e.preventDefault(); }}
-                  disabled={esGerente}
-                  className="flex-1 bg-transparent outline-none text-base font-bold text-slate-800 w-16 disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
-                />
-                <span
-                  className="text-xs lg:text-[10.5px] font-bold text-indigo-700 px-2 py-0.5 rounded"
-                  style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}
-                >
-                  días
-                </span>
+        {/* Card: Expiración de Vouchers */}
+        <div className="bg-white rounded-xl border-2 border-slate-300"
+          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div className="px-3 py-2 flex items-center gap-2 rounded-t-[10px]"
+            style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              <Ticket className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-sm font-bold text-white">Expiración de Vouchers</span>
+          </div>
+          <div className="p-4">
+            {configuracion ? (
+              <div>
+                <div className="flex items-center h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300"
+                  style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                  <input type="number" min={1} max={365} value={diasExpiracionVoucher}
+                    onChange={(e) => setDiasExpiracionVoucher(Number(e.target.value))}
+                    onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                    disabled={esGerente}
+                    className="flex-1 bg-transparent outline-none text-base font-medium text-slate-800 w-16 disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                  />
+                  <span className="text-[11px] font-bold text-indigo-700 px-2 py-0.5 rounded"
+                    style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}>DÍAS</span>
+                </div>
+                {erroresConfigBase.diasExpVoucher && <span className="text-sm font-semibold text-red-600 mt-0.5 block">{erroresConfigBase.diasExpVoucher}</span>}
+                <p className="text-sm text-slate-500 mt-1 leading-snug font-semibold">Tiempo límite para recoger la recompensa.</p>
               </div>
-              {erroresConfigBase.diasExpVoucher && (
-                <span className="text-[10px] font-semibold text-red-500 mt-0.5">
-                  {erroresConfigBase.diasExpVoucher}
-                </span>
-              )}
-              <p className="text-xs lg:text-xs 2xl:text-xs text-slate-500 mt-1.5 leading-snug font-medium">
-                Tiempo límite para recoger la recompensa. Si vence, los puntos se devuelven al cliente.
-              </p>
-            </div>
-
+            ) : <Spinner />}
           </div>
-        ) : (
-          <div className="flex items-center justify-center py-8">
-            <Spinner />
-          </div>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   );
 
   /** Sección: Sistema de Niveles */
@@ -769,55 +754,98 @@ export default function PaginaPuntos() {
 
   /** Sección: Recompensas */
   const seccionRecompensas = (
-    <div
-      className="bg-white rounded-2xl overflow-hidden flex flex-col"
-      style={{ border: '2.5px solid #dde4ef', boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}
-    >
-      {/* Header con botón Nueva */}
-      <div
-        className="flex items-center gap-3 px-3 lg:px-5 py-2 lg:py-2.5 shrink-0"
-        style={{ background: 'linear-gradient(135deg, #f8fafd, #f0f4f8)', borderBottom: '2.5px solid #e4e9f2' }}
-      >
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, #c7d2fe, #a5b4fc)', boxShadow: '0 3px 8px rgba(0,0,0,0.1)' }}
+    <div className="space-y-3">
+      {/* Móvil: Botón Nueva — solo dueños */}
+      {!esGerente && (
+        <button
+          onClick={handleCrear}
+          className="lg:hidden w-full flex items-center justify-center gap-1.5 h-11 rounded-xl text-base font-semibold text-white cursor-pointer"
+          style={{
+            background: 'linear-gradient(135deg, #1e293b, #334155)',
+            boxShadow: '0 3px 10px rgba(0,0,0,0.25)',
+          }}
         >
-          <Gift className="w-4.5 h-4.5 text-indigo-700" />
-        </div>
-        <h2 className="text-base font-extrabold text-slate-900">Recompensas</h2>
+          <Plus className="w-4 h-4" /> Nueva Recompensa
+        </button>
+      )}
 
-        {/* Botón Nueva — solo dueños */}
-        {!esGerente && (
-          <button
-            onClick={handleCrear}
-            className="ml-auto flex items-center gap-1.5 text-white text-[12.5px] font-bold px-4 py-2 rounded-lg cursor-pointer"
-            style={{
-              background: 'linear-gradient(135deg, #2563eb, #3b82f6)',
-              boxShadow: '0 4px 12px rgba(37,99,235,0.4)',
-            }}
-          >
-            <Plus className="w-3.5 h-3.5" /> Nueva
-          </button>
-        )}
+      {/* Desktop: Card con header oscuro + grid */}
+      <div
+        className="hidden lg:flex bg-white rounded-xl overflow-hidden flex-col border-2 border-slate-300"
+        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-2"
+          style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
+            >
+              <Gift className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+            </div>
+            <h2 className="text-sm 2xl:text-base font-bold text-white">Recompensas</h2>
+          </div>
+          {!esGerente && (
+            <button
+              onClick={handleCrear}
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-white cursor-pointer"
+              style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Contenido */}
+        <div className="p-4">
+          {recompensas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-100 border-2 border-indigo-300 flex items-center justify-center mb-4">
+                <Gift className="w-7 h-7 text-indigo-500" />
+              </div>
+              <h3 className="text-base font-bold text-slate-700 mb-1">Sin recompensas aún</h3>
+              <p className="text-sm text-slate-600 font-medium max-w-xs">
+                {esGerente
+                  ? 'El dueño puede crear recompensas desde aquí.'
+                  : 'Crea recompensas para que tus clientes las canjeen con sus puntos.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 2xl:grid-cols-4 gap-3">
+              {recompensas.map((r) => (
+                <CardRecompensa
+                  key={r.id}
+                  recompensa={r}
+                  onEditar={handleEditar}
+                  onEliminar={handleEliminar}
+                  onToggleActiva={handleToggleActiva}
+                  esGerente={esGerente}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Grid de recompensas */}
-      <div className="overflow-y-auto flex-1 p-3 lg:p-4">
+      {/* Móvil: Grid sin card contenedor */}
+      <div className="lg:hidden">
         {recompensas.length === 0 ? (
-          /* Estado vacío */
-          <div className="flex flex-col items-center justify-center py-10 lg:py-12 text-center">
-            <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-indigo-50 border-2 border-indigo-200 flex items-center justify-center mb-3 lg:mb-4">
-              <Gift className="w-6 h-6 lg:w-7 lg:h-7 text-indigo-500" />
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-300 flex items-center justify-center mb-3">
+              <Gift className="w-6 h-6 text-indigo-500" />
             </div>
-            <h3 className="text-sm lg:text-base font-bold text-slate-700 mb-1">Sin recompensas aún</h3>
-            <p className="text-xs text-slate-400 max-w-xs">
+            <h3 className="text-sm font-bold text-slate-700 mb-1">Sin recompensas aún</h3>
+            <p className="text-sm text-slate-600 font-medium max-w-xs">
               {esGerente
                 ? 'El dueño puede crear recompensas desde aquí.'
                 : 'Crea recompensas para que tus clientes las canjeen con sus puntos.'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5 lg:gap-3">
+          <div className="space-y-2">
             {recompensas.map((r) => (
               <CardRecompensa
                 key={r.id}
@@ -843,15 +871,15 @@ export default function PaginaPuntos() {
       {/* Estilos del header */}
       <style dangerouslySetInnerHTML={{ __html: ESTILO_ICONO_HEADER }} />
 
-      <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto">
+      <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-2 2xl:space-y-3">
 
         {/* ═══════════════════════════════════════════════════════════════════
             HEADER UNIFICADO: icono gradiente + título + 4 KPIs
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:gap-4 mb-3 lg:mb-5 2xl:mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:gap-4 lg:mb-5 2xl:mb-6">
 
-          {/* Icono + Título */}
-          <div className="flex items-center gap-4 shrink-0 mb-2 lg:mb-0">
+          {/* Icono + Título — solo desktop */}
+          <div className="hidden lg:flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
             <div
               className="flex items-center justify-center shrink-0"
               style={{
@@ -876,30 +904,60 @@ export default function PaginaPuntos() {
               <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Sistema de Puntos
               </h1>
-              <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 mt-0.5 font-medium">
-                Configuración, recompensas y métricas
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium">
+                Configuración y Recompensas
               </p>
             </div>
           </div>
 
-          {/* 4 KPIs — carousel en mobile, right-aligned en desktop */}
-          <div className="pp-carousel flex gap-1.5 lg:gap-1.5 2xl:gap-2 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 lg:ml-auto">
-            <KPI tipo="clientes"  valor={fmt(kpis.clientes)} />
-            <KPI tipo="otorgados" valor={fmt(kpis.otorgados)} />
-            <KPI tipo="canjeados" valor={fmt(kpis.canjeados)} />
-            <KPI tipo="activos"   valor={fmt(kpis.activos)} />
+          {/* Toggle Puntos/Recompensas — Desktop, icon-only con tooltip */}
+          <div className="hidden lg:flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
+            <Tooltip text="Configuración de puntos" position="bottom">
+              <button
+                onClick={() => setTabDesktop('puntos')}
+                className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabDesktop === 'puntos'
+                    ? 'text-white shadow-md'
+                    : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
+                  }`}
+                style={tabDesktop === 'puntos' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+              >
+                <CircleDollarSign className="w-4 h-4 2xl:w-5 2xl:h-5" />
+              </button>
+            </Tooltip>
+            <Tooltip text="Recompensas" position="bottom">
+              <button
+                onClick={() => setTabDesktop('recompensas')}
+                className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabDesktop === 'recompensas'
+                    ? 'text-white shadow-md'
+                    : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
+                  }`}
+                style={tabDesktop === 'recompensas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+              >
+                <Gift className="w-4 h-4 2xl:w-5 2xl:h-5" />
+              </button>
+            </Tooltip>
           </div>
+
+          {/* 4 KPIs — carousel en mobile, right-aligned en desktop */}
+          <CarouselKPI className="mt-5 lg:mt-0 lg:ml-auto">
+            <div className="flex gap-1.5 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
+              <KPI tipo="clientes"  valor={fmt(kpis.clientes)} />
+              <KPI tipo="otorgados" valor={fmt(kpis.otorgados)} />
+              <KPI tipo="canjeados" valor={fmt(kpis.canjeados)} />
+              <KPI tipo="activos"   valor={fmt(kpis.activos)} />
+            </div>
+          </CarouselKPI>
         </div>
 
         {/* Banner solo lectura — solo gerentes */}
         {esGerente && (
-          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl p-3 lg:p-3.5 mt-3 lg:mt-14 2xl:mt-14 mb-3 lg:mb-5">
+          <div className="flex items-center gap-3 bg-blue-100 border border-blue-300 rounded-xl p-3 lg:p-3.5 mt-3 lg:mt-14 2xl:mt-14 mb-3 lg:mb-5">
             <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
               <Lock className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-[13px] lg:text-sm font-semibold text-blue-700">Modo solo lectura</p>
-              <p className="text-[11px] lg:text-xs text-blue-500">Solo el dueño puede modificar la configuración de puntos.</p>
+              <p className="text-sm lg:text-sm font-semibold text-blue-700">Modo solo lectura</p>
+              <p className="text-sm lg:text-sm 2xl:text-sm font-medium text-blue-600">Solo el dueño puede modificar la configuración de puntos.</p>
             </div>
           </div>
         )}
@@ -907,21 +965,19 @@ export default function PaginaPuntos() {
         {/* ═══════════════════════════════════════════════════════════════════
             MOBILE: 3 Tabs → solo se muestra la sección activa
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="lg:hidden">
+        <div className="lg:hidden mt-2">
           {/* Tab bar */}
-          <div
-            className="flex rounded-xl overflow-hidden mb-3"
-            style={{ border: '2px solid #dde4ef', background: '#f1f5f9' }}
-          >
+          <div className="flex items-center bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5 shadow-md mb-3">
             {TABS_CONFIG.map(({ id, label, Icono }) => (
               <button
                 key={id}
                 onClick={() => setTabActiva(id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-bold cursor-pointer transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-1 lg:gap-1 2xl:gap-1.5 px-3 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold whitespace-nowrap shrink-0 cursor-pointer ${
                   tabActiva === id
-                    ? 'bg-white text-indigo-700 shadow-sm'
-                    : 'text-slate-500'
+                    ? 'text-white shadow-md'
+                    : 'text-slate-700 hover:bg-slate-300'
                 }`}
+                style={tabActiva === id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
               >
                 <Icono className="w-4 h-4" />
                 {label}
@@ -935,17 +991,140 @@ export default function PaginaPuntos() {
           {tabActiva === 'recompensas' && seccionRecompensas}
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            LAPTOP/DESKTOP: Fila superior (Config + Niveles) + Recompensas
-        ═══════════════════════════════════════════════════════════════════ */}
-        <div className={`hidden lg:block ${!esGerente ? 'mt-4 lg:mt-14 2xl:mt-14' : ''}`}>
-          {/* Fila superior: 2 columnas */}
-          <div className="grid grid-cols-[1fr_2fr] lg:grid-cols-[1.6fr_2fr] 2xl:grid-cols-[1fr_2fr] gap-3 lg:gap-3 2xl:gap-4 mb-3 lg:mb-3 2xl:mb-4">
-            {seccionConfiguracion}
+        {/* Contenido desktop: Puntos */}
+        <div className={`hidden ${tabDesktop === 'puntos' ? 'lg:block' : ''} ${!esGerente ? 'mt-4 lg:mt-14 2xl:mt-14' : ''}`}>
+          {/* Fila superior: 3 cards de config + Niveles */}
+          <div className="grid grid-cols-3 gap-3 2xl:gap-4 mb-3 2xl:mb-4">
+            {/* Card: Puntos por Compra */}
+            <div className="bg-white rounded-xl border-2 border-slate-300"
+              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px]"
+                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                  <Settings className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                </div>
+                <span className="text-sm 2xl:text-base font-bold text-white">Puntos por Compra</span>
+              </div>
+              <div className="p-3.5 2xl:p-4">
+                {configuracion ? (
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-600 shrink-0">Gasta</span>
+                      <div className="flex items-center lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 flex-1 min-w-0 border-2 border-slate-300"
+                        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                        <span className="text-sm font-bold text-slate-600 mr-0.5">$</span>
+                        <input type="number" min={1} value={textoPesosPor}
+                          onChange={(e) => { const raw = e.target.value; setTextoPesosPor(raw); const v = Number(raw); if (v > 0) setPesosPor(v); }}
+                          onBlur={() => { if (!textoPesosPor || Number(textoPesosPor) <= 0) { setPesosPor(10); setTextoPesosPor('10'); } }}
+                          onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                          disabled={esGerente}
+                          className="flex-1 bg-transparent outline-none lg:text-sm 2xl:text-[15px] font-medium text-slate-800 w-full disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                        />
+                        <span className="text-[11px] font-bold text-indigo-700 px-1.5 py-0.5 rounded shrink-0 ml-1"
+                          style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}>MXN</span>
+                      </div>
+                      <span className="text-sm font-semibold text-slate-600 shrink-0">Gana</span>
+                      <div className="flex items-center lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 flex-1 min-w-0 border-2 border-slate-300"
+                        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                        <input type="number" min={1} value={textoPuntosGanados}
+                          onChange={(e) => { const raw = e.target.value; setTextoPuntosGanados(raw); const v = Number(raw); if (v > 0) setPuntosGanados(v); }}
+                          onBlur={() => { if (!textoPuntosGanados || Number(textoPuntosGanados) <= 0) { setPuntosGanados(1); setTextoPuntosGanados('1'); } }}
+                          onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                          disabled={esGerente}
+                          className="flex-1 bg-transparent outline-none lg:text-sm 2xl:text-[15px] font-medium text-slate-800 w-full disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                        />
+                        <span className="text-[11px] font-bold text-amber-700 px-1.5 py-0.5 rounded shrink-0 ml-1"
+                          style={{ background: 'linear-gradient(135deg, #fef9c3, #fde68a)', border: '1px solid #fde68a' }}>PUNTOS</span>
+                      </div>
+                    </div>
+                    {(erroresConfigBase.pesosPor || erroresConfigBase.puntosGanados) && (
+                      <span className="text-sm font-semibold text-red-600 mt-1 block">{erroresConfigBase.pesosPor || erroresConfigBase.puntosGanados}</span>
+                    )}
+                  </div>
+                ) : <Spinner />}
+              </div>
+            </div>
+
+            {/* Card: Expiración de Puntos */}
+            <div className="bg-white rounded-xl border-2 border-slate-300"
+              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px]"
+                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                  <Clock className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                </div>
+                <span className="text-sm 2xl:text-base font-bold text-white">Expiración de Puntos</span>
+              </div>
+              <div className="p-3.5 2xl:p-4">
+                {configuracion ? (
+                  <div>
+                    <div className="flex items-center lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300"
+                      style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <input type="number" min={1} max={365} value={noExpiran ? '' : diasExpiracionPuntos}
+                        onChange={(e) => setDiasExpiracionPuntos(Number(e.target.value))}
+                        onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                        disabled={esGerente || noExpiran} placeholder={noExpiran ? '∞' : undefined}
+                        className="flex-1 bg-transparent outline-none lg:text-sm 2xl:text-base font-medium text-slate-800 w-16 placeholder:text-slate-500 disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                      />
+                      <span className="text-[11px] font-bold text-indigo-700 px-2 py-0.5 rounded"
+                        style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}>DÍAS</span>
+                    </div>
+                    <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
+                      <input type="checkbox" checked={noExpiran} onChange={(e) => setNoExpiran(e.target.checked)}
+                        disabled={esGerente} className="w-3 h-3 accent-indigo-600 cursor-pointer disabled:opacity-50" />
+                      <span className="text-sm text-slate-600 font-semibold">No expiran</span>
+                    </label>
+                    {erroresConfigBase.diasExpPuntos && <span className="text-sm font-semibold text-red-600 mt-0.5 block">{erroresConfigBase.diasExpPuntos}</span>}
+                    <p className="text-sm 2xl:text-sm text-slate-500 mt-1.5 leading-snug font-semibold">Los puntos expiran si el cliente no realiza compras en este periodo.</p>
+                  </div>
+                ) : <Spinner />}
+              </div>
+            </div>
+
+            {/* Card: Expiración de Vouchers */}
+            <div className="bg-white rounded-xl border-2 border-slate-300"
+              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px]"
+                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                  <Ticket className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                </div>
+                <span className="text-sm 2xl:text-base font-bold text-white">Expiración de Vouchers</span>
+              </div>
+              <div className="p-3.5 2xl:p-4">
+                {configuracion ? (
+                  <div>
+                    <div className="flex items-center lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300"
+                      style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <input type="number" min={1} max={365} value={diasExpiracionVoucher}
+                        onChange={(e) => setDiasExpiracionVoucher(Number(e.target.value))}
+                        onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
+                        disabled={esGerente}
+                        className="flex-1 bg-transparent outline-none lg:text-sm 2xl:text-base font-medium text-slate-800 w-16 disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                      />
+                      <span className="text-[11px] font-bold text-indigo-700 px-2 py-0.5 rounded"
+                        style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}>DÍAS</span>
+                    </div>
+                    {erroresConfigBase.diasExpVoucher && <span className="text-sm font-semibold text-red-600 mt-0.5 block">{erroresConfigBase.diasExpVoucher}</span>}
+                    <p className="text-sm 2xl:text-sm text-slate-500 mt-1.5 leading-snug font-semibold">Tiempo límite para recoger la recompensa.</p>
+                  </div>
+                ) : <Spinner />}
+              </div>
+            </div>
+          </div>
+
+          {/* Fila media: Niveles */}
+          <div className="mb-3 2xl:mb-4">
             {seccionNiveles}
           </div>
 
-          {/* Fila inferior: Recompensas ancho completo */}
+        </div>
+
+        {/* Contenido desktop: Recompensas */}
+        <div className={`hidden ${tabDesktop === 'recompensas' ? 'lg:block' : ''} ${!esGerente ? 'mt-4 lg:mt-14 2xl:mt-14' : ''}`}>
           {seccionRecompensas}
         </div>
       </div>
@@ -953,16 +1132,33 @@ export default function PaginaPuntos() {
       {/* ═══════════════════════════════════════════════════════════════════
           FAB GUARDAR — solo dueños, posición fija inferior derecho
       ═══════════════════════════════════════════════════════════════════ */}
-      {!esGerente && createPortal(
-        <div className={`fixed bottom-20 right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-49 transition-transform duration-75 ${
+      {!esGerente && hayCambiosPuntos && createPortal(
+        <div className={`hidden lg:block fixed lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-49 transition-transform duration-75 ${
           previewNegocioAbierto
             ? 'lg:right-[375px] 2xl:translate-x-[510px]'
             : 'lg:right-[45px] 2xl:translate-x-[895px]'
         }`}>
           <button
-            onClick={handleGuardarConfig}
+            ref={btnGuardarDesktopRef}
+            onClick={() => {
+              if (animandoGuardarDesktop || guardando) return;
+              const btn = btnGuardarDesktopRef.current;
+              if (btn) {
+                const rect = btn.getBoundingClientRect();
+                const dx = (window.innerWidth / 2) - (rect.left + rect.width / 2);
+                const dy = (window.innerHeight / 2) - (rect.top + rect.height / 2);
+                btn.style.setProperty('--dx', `${dx}px`);
+                btn.style.setProperty('--dy', `${dy}px`);
+              }
+              setAnimandoGuardarDesktop(true);
+              setTimeout(() => {
+                setAnimandoGuardarDesktop(false);
+                handleGuardarConfig();
+              }, 850);
+            }}
             disabled={guardando || tieneErroresNiveles || tieneErroresConfig}
-            className="w-14 h-14 lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all disabled:cursor-not-allowed flex items-center justify-center group cursor-pointer"
+            className={`w-14 h-14 lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 disabled:bg-slate-400 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 disabled:cursor-not-allowed flex items-center justify-center group cursor-pointer ${animandoGuardarDesktop ? 'anim-guardar-tornado' : ''}`}
+            style={{ background: guardando ? undefined : 'linear-gradient(135deg, #1e40af, #3b82f6)', border: '3px solid rgba(255,255,255,0.5)' }}
             title={guardando ? 'Guardando...' : 'Guardar Cambios'}
           >
             {guardando ? (

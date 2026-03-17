@@ -52,9 +52,11 @@ import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { ModalImagenes } from '../../../../components/ui';
 import Tooltip from '../../../../components/ui/Tooltip';
+import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { ModalArticulo } from './ModalArticulo';
 import { ModalDuplicar } from './ModalDuplicar';
 import type { Articulo, FiltrosArticulos, CrearArticuloInput } from '../../../../types/articulos';
+import { notificar } from '../../../../utils/notificaciones';
 
 // =============================================================================
 // CONSTANTES
@@ -156,7 +158,7 @@ function FilaMovil({
 }: {
     articulo: Articulo;
     onEditar: (articulo: Articulo) => void;
-    onEliminar: (id: string) => void;
+    onEliminar: (id: string, nombre?: string) => void;
     onDuplicar: (articulo: Articulo) => void;
     onImagenClick?: (url: string) => void;
     esDueno: boolean;
@@ -167,13 +169,13 @@ function FilaMovil({
         : `$${Number(articulo.precioBase).toFixed(0)}`;
 
     return (
-        <button
-            onClick={() => onEditar(articulo)}
-            className={`w-full flex items-stretch gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer text-left ${!articulo.disponible ? 'opacity-60' : ''}`}
+        <div
+            className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden ${!articulo.disponible ? 'opacity-60' : ''}`}
+            style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
         >
             {/* Imagen */}
             <div
-                className="w-16 self-stretch rounded-lg shrink-0 overflow-hidden"
+                className="w-20 h-20 rounded-lg shrink-0 overflow-hidden"
                 onClick={(e) => {
                     if (articulo.imagenPrincipal && onImagenClick) {
                         e.stopPropagation();
@@ -194,18 +196,18 @@ function FilaMovil({
             </div>
 
             {/* Info */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
                 {/* Nombre + Precio */}
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-base font-bold text-slate-800 truncate">{articulo.nombre}</span>
-                        {articulo.destacado && <Star className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400 fill-amber-400 shrink-0" />}
+                        {articulo.destacado && <Star className="w-5 h-5 text-amber-400 fill-amber-400 shrink-0" />}
                     </div>
-                    <span className="text-lg font-extrabold text-emerald-600 shrink-0">{precioFormateado}</span>
+                    <span className="text-base font-extrabold text-emerald-600 shrink-0">{precioFormateado}</span>
                 </div>
 
-                {/* Badge tipo + estado */}
-                <div className="flex items-center gap-2 mt-1">
+                {/* Badges */}
+                <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold ${esTipoProducto ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                         {esTipoProducto ? <Package className="w-3.5 h-3.5" /> : <Wrench className="w-3.5 h-3.5" />}
                         {esTipoProducto ? 'Producto' : 'Servicio'}
@@ -219,36 +221,43 @@ function FilaMovil({
                 </div>
 
                 {/* Stats + Acciones */}
-                <div className="flex items-center justify-between gap-2 mt-1.5">
-                    <div className="flex items-center gap-4 text-sm font-semibold text-slate-600">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-base font-semibold text-slate-600">
                         <span className="flex items-center gap-1">
-                            <Eye className="w-4 h-4" />
-                            {articulo.totalVistas || 0} vistas
+                            <Eye className="w-5 h-5" />
+                            {articulo.totalVistas || 0}
                         </span>
+                        <span className="w-px h-4 bg-slate-400" />
                         <span className="flex items-center gap-1">
-                            <ShoppingCart className="w-4 h-4" />
-                            {articulo.totalVentas || 0} ventas
+                            <ShoppingCart className="w-5 h-5" />
+                            {articulo.totalVentas || 0}
                         </span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         {esDueno && (
                             <button
-                                onClick={(e) => { e.stopPropagation(); onDuplicar(articulo); }}
+                                onClick={() => onDuplicar(articulo)}
                                 className="cursor-pointer text-emerald-600"
                             >
                                 <Copy className="w-6 h-6" />
                             </button>
                         )}
                         <button
-                            onClick={(e) => { e.stopPropagation(); onEliminar(articulo.id); }}
+                            onClick={() => onEliminar(articulo.id, articulo.nombre)}
                             className="cursor-pointer text-red-600"
                         >
                             <Trash2 className="w-6 h-6" />
                         </button>
+                        <button
+                            onClick={() => onEditar(articulo)}
+                            className="cursor-pointer text-slate-700"
+                        >
+                            <Eye className="w-6 h-6" />
+                        </button>
                     </div>
                 </div>
             </div>
-        </button>
+        </div>
     );
 }
 
@@ -450,8 +459,9 @@ export function PaginaCatalogo() {
         setModalAbierto(true);
     };
 
-    const handleEliminar = async (id: string) => {
-        await eliminar(id);
+    const handleEliminar = async (id: string, nombre?: string) => {
+        const confirmado = await notificar.confirmar(`¿Eliminar "${nombre || 'artículo'}"?`);
+        if (confirmado) await eliminar(id);
     };
 
     const handleToggle = async (id: string, campo: 'disponible' | 'destacado', valor: boolean) => {
@@ -518,9 +528,9 @@ export function PaginaCatalogo() {
 
                 <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
                     {/* Header con icono animado + Switch móvil */}
-                    <div className="flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+                    <div className="hidden lg:flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
                         <div
-                            className="flex items-center justify-center shrink-0"
+                            className="hidden lg:flex items-center justify-center shrink-0"
                             style={{
                                 width: 52, height: 52, borderRadius: 14,
                                 background: 'linear-gradient(135deg, #0891b2, #06b6d4, #22d3ee)',
@@ -531,7 +541,7 @@ export function PaginaCatalogo() {
                                 <ShoppingBag className="w-6 h-6 text-white" strokeWidth={2.5} />
                             </div>
                         </div>
-                        <div className="min-w-0">
+                        <div className="hidden lg:block min-w-0">
                             <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
                                 Catálogo
                             </h1>
@@ -584,11 +594,11 @@ export function PaginaCatalogo() {
                     </div>
 
                     {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop */}
-                    <div className="mt-5 lg:mt-0 overflow-x-auto lg:overflow-visible lg:flex-1 cat-carousel">
+                    <CarouselKPI className="mt-5 lg:mt-0 lg:flex-1">
                         <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
                             {/* Total */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #eff6ff, #fff)',
                                     border: '2px solid #93c5fd',
@@ -609,7 +619,7 @@ export function PaginaCatalogo() {
 
                             {/* Productos */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #ecfeff, #fff)',
                                     border: '2px solid #67e8f9',
@@ -630,7 +640,7 @@ export function PaginaCatalogo() {
 
                             {/* Servicios */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #faf5ff, #fff)',
                                     border: '2px solid #d8b4fe',
@@ -651,7 +661,7 @@ export function PaginaCatalogo() {
 
                             {/* Disponibles */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #f0fdf4, #fff)',
                                     border: '2px solid #86efac',
@@ -672,7 +682,7 @@ export function PaginaCatalogo() {
 
                             {/* Ocultos */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #fef2f2, #fff)',
                                     border: '2px solid #fca5a5',
@@ -691,7 +701,38 @@ export function PaginaCatalogo() {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                </CarouselKPI>
+                </div>
+
+                {/* ================================================================= */}
+                {/* SWITCH Tipo — solo móvil                                          */}
+                {/* ================================================================= */}
+
+                <div className="lg:hidden flex w-full bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
+                    <button
+                        onClick={() => setFiltros(prev => ({ ...prev, tipo: 'todos' }))}
+                        className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-semibold cursor-pointer ${filtros.tipo === 'todos' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+                        style={filtros.tipo === 'todos' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                    >
+                        <Layers className="w-5 h-5" />
+                        Todos
+                    </button>
+                    <button
+                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
+                        className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-semibold cursor-pointer ${filtros.tipo === 'producto' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+                        style={filtros.tipo === 'producto' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                    >
+                        <Package className="w-5 h-5" />
+                        Productos
+                    </button>
+                    <button
+                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
+                        className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-semibold cursor-pointer ${filtros.tipo === 'servicio' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+                        style={filtros.tipo === 'servicio' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                    >
+                        <Wrench className="w-5 h-5" />
+                        Servicios
+                    </button>
                 </div>
 
                 {/* ================================================================= */}
@@ -786,7 +827,7 @@ export function PaginaCatalogo() {
                             {/* Nuevo Artículo — móvil */}
                             <button
                                 onClick={handleCrear}
-                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-3 rounded-lg text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
+                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-2.5 rounded-lg text-base font-semibold text-slate-600 border-2 border-slate-300 cursor-pointer"
                                 style={{
                                     background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
                                     boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
@@ -808,7 +849,7 @@ export function PaginaCatalogo() {
                                     icono={<Search className="w-4 h-4 text-slate-600" />}
                                     value={filtros.busqueda}
                                     onChange={(e) => setFiltros((prev) => ({ ...prev, busqueda: e.target.value }))}
-                                    className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base"
+                                    className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
                                     elementoDerecha={filtros.busqueda ? (
                                         <button
                                             type="button"
@@ -865,7 +906,7 @@ export function PaginaCatalogo() {
                     >
                         {/* Header dark */}
                         <div
-                            className="grid grid-cols-[minmax(0,1fr)_90px_100px_80px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider"
+                            className="grid grid-cols-[minmax(0,1fr)_90px_100px_80px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
                             <span>Artículo</span>
@@ -912,7 +953,7 @@ export function PaginaCatalogo() {
                                         <div
                                             key={art.id}
                                             onClick={() => handleEditar(art)}
-                                            className={`grid grid-cols-[minmax(0,1fr)_90px_100px_80px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!art.disponible ? 'opacity-60' : ''}`}
+                                            className={`grid grid-cols-[minmax(0,1fr)_90px_100px_80px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!art.disponible ? 'opacity-60' : ''}`}
                                         >
                                             {/* Artículo */}
                                             <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
@@ -990,7 +1031,7 @@ export function PaginaCatalogo() {
                                                         onClick={(e) => { e.stopPropagation(); handleToggle(art.id, 'destacado', !art.destacado); }}
                                                         className="p-1.5 rounded-lg cursor-pointer hover:bg-amber-100"
                                                     >
-                                                        <Star className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${art.destacado ? 'text-amber-500 fill-amber-500' : 'text-slate-600 hover:text-amber-500'}`} />
+                                                        <Star className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${art.destacado ? 'text-slate-900 fill-amber-500' : 'text-slate-600 hover:text-slate-900'}`} />
                                                     </button>
                                                 </Tooltip>
                                             </div>
@@ -1003,14 +1044,14 @@ export function PaginaCatalogo() {
                                                         className="p-1.5 rounded-lg cursor-pointer hover:bg-green-100"
                                                     >
                                                         {art.disponible
-                                                            ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-green-600" />
-                                                            : <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 hover:text-green-600" />
+                                                            ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700" />
+                                                            : <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700" />
                                                         }
                                                     </button>
                                                 </Tooltip>
                                                 <Tooltip text="Eliminar">
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); handleEliminar(art.id); }}
+                                                        onClick={(e) => { e.stopPropagation(); handleEliminar(art.id, art.nombre); }}
                                                         className="p-1.5 rounded-lg cursor-pointer text-red-600 hover:bg-red-100"
                                                     >
                                                         <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
@@ -1042,7 +1083,7 @@ export function PaginaCatalogo() {
                 {isMobile && (
                     <div className="space-y-2">
                         {/* Chips de orden (móvil) */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="flex items-center bg-slate-800 rounded-xl border-2 border-slate-700 p-0.5 shadow-md">
                             {([
                                 { col: 'precio' as ColumnaOrden, etiqueta: 'Precio' },
                                 { col: 'vistas' as ColumnaOrden, etiqueta: 'Vistas' },
@@ -1053,16 +1094,15 @@ export function PaginaCatalogo() {
                                     <button
                                         key={col}
                                         onClick={() => alternarOrden(col)}
-                                        className={`flex items-center justify-center gap-1.5 h-11 rounded-lg text-base font-semibold border-2 transition-all cursor-pointer ${activa
-                                            ? 'text-white border-slate-700'
-                                            : 'bg-white text-slate-600 border-slate-300'
+                                        className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
+                                            ? 'bg-slate-400 text-slate-900 shadow-md'
+                                            : 'text-white hover:bg-white/10'
                                         }`}
-                                        style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                                     >
                                         {etiqueta}
-                                        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 text-amber-400" />}
-                                        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 text-amber-400" />}
-                                        {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" />}
+                                        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                                        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                                        {!activa && <ArrowUpDown className="w-4 h-4 text-white" strokeWidth={2.5} />}
                                     </button>
                                 );
                             })}

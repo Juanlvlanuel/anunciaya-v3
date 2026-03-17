@@ -135,12 +135,12 @@ export default function ModalRecompensa({
       {/* Toggle activo/inactivo - PEGADO A LA X en PC con ml-auto */}
       {esEdicion && (
         <div className="flex items-center gap-2 ml-6 lg:ml-12 2xl:ml-36">
-          <span className={`text-xs lg:text-[10px] 2xl:text-xs font-bold ${activa ? 'text-green-600' : 'text-slate-400'}`}>
+          <span className={`text-sm lg:text-sm 2xl:text-sm font-bold ${activa ? 'text-emerald-700' : 'text-slate-600'}`}>
             {activa ? 'Activa' : 'Inactiva'}
           </span>
           <button
             onClick={() => setActiva(!activa)}
-            className={`relative w-11 h-6 lg:w-9 lg:h-[18px] 2xl:w-10 2xl:h-5 rounded-full transition-colors cursor-pointer ${
+            className={`relative w-11 h-6 lg:w-9 lg:h-[18px] 2xl:w-10 2xl:h-5 rounded-full cursor-pointer ${
               activa 
                 ? 'bg-linear-to-r from-green-500 to-emerald-600 shadow-md shadow-green-500/30' 
                 : 'bg-slate-300'
@@ -167,19 +167,19 @@ export default function ModalRecompensa({
       {/* ========== HERO: IMAGEN ========== */}
       <div className="relative">
         {imagen.imageUrl ? (
-          <div className="relative group rounded-xl lg:rounded-lg 2xl:rounded-xl overflow-hidden border border-slate-200 shadow-sm h-40 lg:h-28 2xl:h-32">
+          <div className="relative group rounded-xl lg:rounded-lg 2xl:rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm h-40 lg:h-28 2xl:h-32">
             <img 
               src={imagen.imageUrl} 
               alt="Recompensa" 
               className="w-full h-full object-cover"
             />
             {/* Overlay oscuro al hover */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40" />
             
             {/* Botón eliminar - aparece al hover */}
             <button
               onClick={handleEliminarImagen}
-              className="absolute top-2 right-2 lg:top-1.5 lg:right-1.5 2xl:top-2 2xl:right-2 bg-white/95 backdrop-blur-sm rounded-lg p-1.5 lg:p-1 2xl:p-1.5 shadow-lg border border-red-200 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:border-red-400 transition-all duration-300 cursor-pointer"
+              className="absolute top-2 right-2 lg:top-1.5 lg:right-1.5 2xl:top-2 2xl:right-2 bg-white/95 backdrop-blur-sm rounded-lg p-1.5 lg:p-1 2xl:p-1.5 shadow-lg border-2 border-red-300 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:border-red-400 cursor-pointer"
             >
               <X className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-600" />
             </button>
@@ -189,13 +189,13 @@ export default function ModalRecompensa({
               <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 className="w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-blue-600 animate-spin" />
-                  <span className="text-sm lg:text-[10px] 2xl:text-xs font-semibold text-slate-600">Subiendo...</span>
+                  <span className="text-sm lg:text-sm 2xl:text-sm font-semibold text-slate-600">Subiendo...</span>
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <label className="relative border border-dashed border-slate-300 rounded-xl lg:rounded-lg 2xl:rounded-xl h-40 lg:h-28 2xl:h-32 flex flex-col items-center justify-center gap-2.5 lg:gap-1.5 2xl:gap-2 cursor-pointer hover:border-blue-400 hover:bg-linear-to-br hover:from-blue-50 hover:to-blue-50/50 transition-all duration-300 group">
+          <label className="relative border-2 border-dashed border-slate-300 rounded-xl lg:rounded-lg 2xl:rounded-xl h-40 lg:h-28 2xl:h-32 flex flex-col items-center justify-center gap-2.5 lg:gap-1.5 2xl:gap-2 cursor-pointer hover:border-blue-400 hover:bg-blue-100/30 group">
             <input
               type="file" 
               accept="image/*"
@@ -204,19 +204,19 @@ export default function ModalRecompensa({
               className="sr-only"
             />
             
-            <div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-xl bg-linear-to-br from-slate-100 to-slate-200 group-hover:from-blue-100 group-hover:to-blue-200 flex items-center justify-center transition-all duration-300 shadow-sm">
+            <div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-xl bg-linear-to-br from-slate-200 to-slate-300 group-hover:from-blue-100 group-hover:to-blue-200 flex items-center justify-center shadow-sm">
               {imagen.isUploading ? (
                 <Loader2 className="w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-blue-600 animate-spin" />
               ) : (
-                <Image className="w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                <Image className="w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600 group-hover:text-blue-600" />
               )}
             </div>
             
             <div className="text-center">
-              <p className="text-sm lg:text-[10px] 2xl:text-xs font-semibold text-slate-600 group-hover:text-blue-700 transition-colors">
+              <p className="text-sm lg:text-sm 2xl:text-sm font-semibold text-slate-600 group-hover:text-blue-700">
                 {imagen.isUploading ? 'Subiendo imagen...' : 'Toca para agregar imagen'}
               </p>
-              <p className="text-xs lg:text-[9px] 2xl:text-[10px] text-slate-400 mt-1">
+              <p className="text-sm lg:text-sm 2xl:text-sm text-slate-600 font-medium mt-1">
                 PNG, JPG o WEBP
               </p>
             </div>
@@ -225,52 +225,52 @@ export default function ModalRecompensa({
       </div>
 
       {/* ========== CARD 1: SIN TÍTULO - Solo campos ========== */}
-      <div className="bg-linear-to-br from-slate-50 to-slate-100/50 rounded-xl lg:rounded-lg 2xl:rounded-xl p-4 lg:p-2.5 2xl:p-3 border border-slate-200">
+      <div className="bg-linear-to-br from-slate-100 to-slate-200/50 rounded-xl lg:rounded-lg 2xl:rounded-xl p-4 lg:p-2.5 2xl:p-3 border-2 border-slate-300">
         <div className="space-y-3 lg:space-y-1.5 2xl:space-y-2">
           {/* Nombre - Título más grande */}
           <div>
-            <label htmlFor="mr-nombre" className="flex items-center gap-1.5 text-base lg:text-xs 2xl:text-sm font-bold text-slate-800 mb-2 lg:mb-1 2xl:mb-1.5">
+            <label htmlFor="mr-nombre" className="flex items-center gap-1.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-800 mb-2 lg:mb-1 2xl:mb-1.5">
               Nombre de la recompensa
               <span className="text-red-500">*</span>
             </label>
             <input
               id="mr-nombre"
               name="nombre"
-              type="text" 
-              value={nombre} 
+              type="text"
+              value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej: Café gratis, Descuento 20%, etc."
-              className="w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg border border-slate-200 bg-white text-sm lg:text-[11px] 2xl:text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all cursor-text"
+              className="w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 bg-white text-base lg:text-sm 2xl:text-base text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 font-medium cursor-text"
             />
           </div>
 
           {/* Descripción - Título más grande */}
           <div>
-            <label htmlFor="mr-descripcion" className="flex items-center gap-1.5 text-base lg:text-xs 2xl:text-sm font-bold text-slate-800 mb-2 lg:mb-1 2xl:mb-1.5">
+            <label htmlFor="mr-descripcion" className="flex items-center gap-1.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-800 mb-2 lg:mb-1 2xl:mb-1.5">
               Descripción
-              <span className="text-xs lg:text-[9px] 2xl:text-[10px] text-slate-400 font-normal">(opcional)</span>
+              <span className="text-sm lg:text-sm 2xl:text-sm text-slate-600 font-medium">(opcional)</span>
             </label>
             <textarea
               id="mr-descripcion"
               name="descripcion"
-              value={descripcion} 
+              value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               placeholder="Describe los detalles..."
               rows={2}
-              className="w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg border border-slate-200 bg-white text-sm lg:text-[11px] 2xl:text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all resize-none cursor-text"
+              className="w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 bg-white text-base lg:text-sm 2xl:text-base text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 font-medium resize-none cursor-text"
             />
           </div>
         </div>
       </div>
 
       {/* ========== CARD 2: SIN TÍTULO - Grid 2 columnas ========== */}
-      <div className="bg-linear-to-br from-blue-50 to-blue-100/50 rounded-xl lg:rounded-lg 2xl:rounded-xl p-4 lg:p-2.5 2xl:p-3 border border-blue-200">
+      <div className="bg-linear-to-br from-blue-100 to-blue-200/50 rounded-xl lg:rounded-lg 2xl:rounded-xl p-4 lg:p-2.5 2xl:p-3 border-2 border-blue-300">
         {/* Grid 2 columnas: Puntos + Stock */}
         <div className="grid grid-cols-2 gap-3 lg:gap-1.5 2xl:gap-2">
           
           {/* Puntos requeridos - Título más grande */}
           <div className="col-span-2 sm:col-span-1">
-            <label htmlFor="mr-puntos" className="flex items-center gap-1.5 text-base lg:text-xs 2xl:text-sm font-bold text-slate-800 mb-2 lg:mb-1 2xl:mb-1.5">
+            <label htmlFor="mr-puntos" className="flex items-center gap-1.5 text-base lg:text-sm 2xl:text-base font-bold text-slate-800 mb-2 lg:mb-1 2xl:mb-1.5">
               Puntos requeridos
               <span className="text-red-500">*</span>
             </label>
@@ -278,14 +278,14 @@ export default function ModalRecompensa({
               <input
                 id="mr-puntos"
                 name="puntosRequeridos"
-                type="number" 
-                min={1} 
-                value={puntos} 
+                type="number"
+                min={1}
+                value={puntos}
                 onChange={(e) => setPuntos(e.target.value)}
                 placeholder="150"
-                className="w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 pr-14 lg:pr-12 2xl:pr-12 rounded-lg lg:rounded-md 2xl:rounded-lg border border-slate-200 bg-white text-sm lg:text-[11px] 2xl:text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                className="w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 pr-14 lg:pr-12 2xl:pr-12 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 bg-white text-base lg:text-sm 2xl:text-base text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 font-medium cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
               />
-              <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1 lg:py-0.5 2xl:px-1.5 2xl:py-0.5 bg-linear-to-r from-amber-500 to-orange-500 text-white text-xs lg:text-[9px] 2xl:text-[10px] font-bold rounded-md shadow-sm pointer-events-none">
+              <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-0.5 bg-linear-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
                 pts
               </span>
             </div>
@@ -294,7 +294,7 @@ export default function ModalRecompensa({
           {/* Stock disponible - Título más grande */}
           <div className="col-span-2 sm:col-span-1">
             <div className="flex items-center justify-between mb-2 lg:mb-1 2xl:mb-1.5">
-              <label htmlFor="mr-stock" className="text-base lg:text-xs 2xl:text-sm font-bold text-slate-800">
+              <label htmlFor="mr-stock" className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">
                 Stock disponible
               </label>
               <label className="flex items-center gap-1.5 lg:gap-1 2xl:gap-1 cursor-pointer group">
@@ -305,7 +305,7 @@ export default function ModalRecompensa({
                   onChange={(e) => setStockIlimitado(e.target.checked)}
                   className="w-3.5 h-3.5 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 rounded accent-blue-600 cursor-pointer"
                 />
-                <span className="text-xs lg:text-[9px] 2xl:text-[10px] font-medium text-slate-600 group-hover:text-blue-600 transition-colors">
+                <span className="text-sm lg:text-sm 2xl:text-sm font-medium text-slate-600 group-hover:text-blue-600">
                   Ilimitado
                 </span>
               </label>
@@ -320,23 +320,23 @@ export default function ModalRecompensa({
                 onChange={(e) => setStock(e.target.value)}
                 disabled={stockIlimitado} 
                 placeholder="50"
-                className={`w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 pr-14 lg:pr-12 2xl:pr-12 rounded-lg lg:rounded-md 2xl:rounded-lg border bg-white text-sm lg:text-[11px] 2xl:text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden ${
+                className={`w-full px-3.5 py-2.5 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 pr-14 lg:pr-12 2xl:pr-12 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 bg-white text-base lg:text-sm 2xl:text-base text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 font-medium disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden ${
                   !stockIlimitado && ((stock.length > 0 && Number(stock) <= 0) || stock.length === 0)
                     ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10'
-                    : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/10'
+                    : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/10'
                 }`}
               />
-              <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1 lg:py-0.5 2xl:px-1.5 2xl:py-0.5 bg-slate-200 text-slate-600 text-xs lg:text-[9px] 2xl:text-[10px] font-bold rounded-md pointer-events-none">
+              <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-0.5 bg-slate-200 text-slate-700 text-[11px] font-bold rounded-md pointer-events-none">
                 {stockIlimitado ? '∞' : 'unid'}
               </span>
             </div>
             {!stockIlimitado && stock.length > 0 && Number(stock) <= 0 && (
-              <p className="text-[11px] lg:text-[9px] 2xl:text-[11px] text-red-500 font-semibold mt-1">
+              <p className="text-sm lg:text-sm 2xl:text-sm text-red-600 font-semibold mt-1">
                 El stock debe ser mayor a 0
               </p>
             )}
             {!stockIlimitado && stock.length === 0 && (
-              <p className="text-[11px] lg:text-[9px] 2xl:text-[11px] text-red-500 font-semibold mt-1">
+              <p className="text-sm lg:text-sm 2xl:text-sm text-red-600 font-semibold mt-1">
                 Ingresa el stock o marca "Ilimitado"
               </p>
             )}
@@ -349,14 +349,14 @@ export default function ModalRecompensa({
       <div className="flex gap-3 lg:gap-1.5 2xl:gap-2 pt-1">
         <button
           onClick={handleCerrar}
-          className="flex-1 py-2.5 lg:py-1.5 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg border border-slate-300 bg-white text-sm lg:text-[11px] 2xl:text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-all cursor-pointer"
+          className="flex-1 py-2.5 lg:py-1.5 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg border-2 border-slate-300 bg-white text-sm lg:text-sm 2xl:text-sm font-semibold text-slate-600 hover:bg-slate-200 hover:border-slate-400 cursor-pointer"
         >
           Cancelar
         </button>
         <button
           onClick={handleGuardar}
           disabled={!valido || guardando || imagen.isUploading}
-          className="flex-1 py-2.5 lg:py-1.5 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg bg-linear-to-r from-blue-600 to-blue-700 text-sm lg:text-[11px] 2xl:text-xs font-semibold text-white hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-500 flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-1.5 shadow-md shadow-blue-500/30 disabled:shadow-none cursor-pointer"
+          className="flex-1 py-2.5 lg:py-1.5 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg bg-linear-to-r from-blue-600 to-blue-700 text-sm lg:text-sm 2xl:text-sm font-semibold text-white hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-500 flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-1.5 shadow-md shadow-blue-500/30 disabled:shadow-none cursor-pointer"
         >
           {guardando ? (
             <>

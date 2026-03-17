@@ -23,13 +23,15 @@ interface TooltipProps {
   autoHide?: number;
   /** Clases CSS adicionales para el contenedor del tooltip (ej: '2xl:hidden') */
   className?: string;
+  /** Activar con click/tap en lugar de hover */
+  triggerOnClick?: boolean;
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export default function Tooltip({ children, text, position = 'bottom', autoHide, className = '' }: TooltipProps) {
+export default function Tooltip({ children, text, position = 'bottom', autoHide, className = '', triggerOnClick = false }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +74,11 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
   }, [position]);
 
   const handleMouseEnter = () => {
+    calcularPosicion();
+    setVisible(true);
+  };
+
+  const handleClick = () => {
     calcularPosicion();
     setVisible(true);
   };
@@ -122,8 +129,9 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
     <div
       ref={triggerRef}
       className="relative inline-block"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setVisible(false)}
+      onMouseEnter={triggerOnClick ? undefined : handleMouseEnter}
+      onMouseLeave={triggerOnClick ? undefined : () => setVisible(false)}
+      onClick={triggerOnClick ? handleClick : undefined}
     >
       {children}
 

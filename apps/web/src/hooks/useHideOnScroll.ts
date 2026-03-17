@@ -166,7 +166,11 @@ export function useHideOnScroll({
     willChange: 'transform',
   };
 
-  return { shouldShow, hideStyle };
+  const forzarMostrar = useCallback(() => {
+    setShouldShow(true);
+  }, []);
+
+  return { shouldShow, hideStyle, forzarMostrar };
 }
 
 export default useHideOnScroll;

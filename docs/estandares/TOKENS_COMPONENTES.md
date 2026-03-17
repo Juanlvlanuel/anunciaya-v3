@@ -3,6 +3,31 @@
 > **Propósito:** Patrones de referencia para componentes específicos. Consultar cuando se construye o modifica el tipo de componente correspondiente.
 > **Requisito previo:** Siempre cumplir primero las reglas de TOKENS_GLOBALES.md
 
+## Índice
+
+1. [Botones de Acción Pequeños (Icon-only)](#1-botones-de-acción-pequeños-icon-only)
+2. [Altura de Elementos Interactivos](#2-altura-de-elementos-interactivos-botones-e-inputs)
+3. [Padding Interno de Contenedores de Filtros](#3-padding-interno-de-contenedores-de-filtros--cards)
+4. [Tipografía de Botones Interactivos](#4-tipografía-de-botones-interactivos-filtros-y-dropdowns)
+5. [Anatomía de Dropdowns](#5-anatomía-de-dropdowns)
+6. [Input de Búsqueda](#6-input-de-búsqueda)
+7. [Padding Horizontal de Botones](#7-padding-horizontal-de-botones-filtros-y-dropdowns)
+8. [Modales de Detalle (Bottom Sheet + Desktop)](#8-modales-de-detalle-bottom-sheet--desktop)
+9. [Dark Gradient de Marca](#9-dark-gradient-de-marca)
+10. [Patrón Tabla Desktop para Módulos de Datos](#10-patrón-tabla-desktop-para-módulos-de-datos)
+11. [Botones de Acción Inline en Filas de Tabla](#11-botones-de-acción-inline-en-filas-de-tabla)
+12. [Cards Horizontales en Móvil (FilaMovil)](#12-cards-horizontales-en-móvil-filamovil)
+13. [Chips de Orden en Móvil](#13-chips-de-orden-en-móvil)
+14. [Inputs de Formulario](#14-inputs-de-formulario)
+15. [ModalBottom — Fondo Personalizable y Drag Handle](#15-modalbottom--fondo-personalizable-y-drag-handle)
+16. [Botones Responsivos: Icon-Only en Laptop](#16-botones-responsivos-icon-only-en-laptop)
+17. [whitespace-nowrap en Títulos de Celdas Comprimidas](#17-whitespace-nowrap-en-títulos-de-celdas-comprimidas)
+18. [Drawers / Menús Laterales en Móvil](#18-drawers--menús-laterales-en-móvil)
+19. [Patrón de Lista Móvil](#19-patrón-de-lista-móvil)
+20. [Jerarquía de Rounded](#20-jerarquía-de-rounded)
+21. [CarouselKPI — Fade Dinámico](#21-carouselkpi--fade-dinámico)
+22. [Swipe entre Páginas (Business Studio)](#22-swipe-entre-páginas-business-studio)
+
 ---
 
 ## 1. Botones de Acción Pequeños (Icon-only)
@@ -393,27 +418,69 @@ background: linear-gradient(135deg, #1e293b, #334155)
 - Badges de estado — usar colores semánticos (`emerald`, `red`, `amber`)
 - Fondos de sección — reservado solo para elementos interactivos activos
 
-### Patrón en grupos de toggle
+### Patrón en grupos de toggle/switch (móvil)
 
-```tsx
-<div className="flex items-center gap-1 bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
-  {OPCIONES.map((op) => (
-    <button
-      key={op.valor}
-      className={`px-3 2xl:px-4 h-8 2xl:h-9 rounded-md text-sm font-semibold whitespace-nowrap cursor-pointer ${
-        activo === op.valor
-          ? 'text-white shadow-md'
-          : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
-      }`}
-      style={activo === op.valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-    >
-      {op.label}
-    </button>
-  ))}
-</div>
+Aplica a: selectores de período, toggles de tipo (Ventas/Canjes, Todos/Productos/Servicios), tabs de sección.
+
+**Contenedor:**
+
+```
+bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5
 ```
 
-### Patrón en botón primario de header móvil
+**Botones internos:**
+
+```tsx
+<button
+  className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${
+    activo === op.valor
+      ? 'text-white shadow-md'
+      : 'text-slate-700 hover:bg-slate-300'
+  }`}
+  style={activo === op.valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+>
+  <Icono className="w-4 h-4" /> {/* Opcional — solo si el toggle tiene iconos */}
+  {op.label}
+</button>
+```
+
+**Jerarquía de rounded:** contenedor `rounded-xl` → botones `rounded-lg` (siempre un nivel menos que su padre).
+
+**Tamaños responsive (cuando el toggle existe en desktop):**
+
+| Propiedad | Móvil | Laptop (`lg:`) | Desktop (`2xl:`) |
+|-----------|-------|----------------|------------------|
+| Altura | `h-10` | `lg:h-9` | `2xl:h-10` |
+| Texto | `text-sm` | `lg:text-xs` | `2xl:text-sm` |
+| Padding | `px-3` | `lg:px-3` | `2xl:px-4` |
+| Rounded botón | `rounded-lg` | `lg:rounded-lg` | — |
+
+Si el toggle es `lg:hidden` (solo móvil), no necesita clases `lg:` ni `2xl:`.
+
+### KPIs — rounded
+
+Los cards de KPIs usan `rounded-xl` fijo en todas las resoluciones — mismo nivel que el contenedor de toggles.
+
+### Patrón en botón de acción móvil (CTA)
+
+Botones como "Nueva Oferta", "Nuevo Artículo" que aparecen en móvil. Su tamaño iguala a los elementos interactivos del card de filtros donde conviven (dropdowns, inputs):
+
+```tsx
+<button
+  className="shrink-0 flex items-center gap-1.5 h-11 px-2.5 rounded-lg text-base font-semibold text-white cursor-pointer"
+  style={{
+    background: 'linear-gradient(135deg, #colorBase, #colorClaro)',
+    boxShadow: '0 3px 10px rgba(color, 0.35)',
+  }}
+>
+  <Plus className="w-4 h-4" />
+  Nueva X
+</button>
+```
+
+Se diferencia de los toggles por color y por estar al mismo nivel que los inputs (`h-11 text-base`), no al nivel de los toggles (`h-10 text-sm`).
+
+### Patrón en botón de acción desktop (header de filtros)
 
 ```tsx
 <button
@@ -427,9 +494,33 @@ background: linear-gradient(135deg, #1e293b, #334155)
 </button>
 ```
 
-**Excepción de texto:** los botones de toggle group usan `text-sm` fijo (sin responsive) porque viven dentro de un contenedor compacto, no son elementos interactivos standalone. El estándar `text-base lg:text-sm 2xl:text-base` aplica a elementos independientes (inputs, dropdowns, chips de filtro).
+### Headers de sección en cards (Mi Perfil, Puntos)
 
-**Regla:** el gradiente siempre se aplica con `style` inline (no Tailwind) para garantizar exactitud de los valores hexadecimales.
+Headers con gradiente oscuro dentro de cards de formulario.
+
+**Card contenedor obligatorio:**
+
+```
+bg-white border-2 border-slate-300 rounded-xl
+style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+```
+
+- **Sin `overflow-hidden`** en el card — permite que dropdowns sobresalgan.
+- El header lleva `rounded-t-[10px]` propio para recortar las esquinas del gradiente.
+- Excepción: cards de imágenes SÍ usan `overflow-hidden` para recortar fotos.
+
+**Header:**
+
+| Propiedad | Móvil | Laptop (`lg:`) | PC (`2xl:`) |
+|-----------|-------|----------------|-------------|
+| Padding | `px-3 py-2` | `lg:px-4 lg:py-2` | `2xl:py-2` |
+| Gap | `gap-2` | `lg:gap-2.5` | — |
+| Rounded | `rounded-t-[10px]` | — | — |
+| Icono wrapper | `w-7 h-7` | `lg:w-9 lg:h-9` | — |
+| Icono interior | `w-4 h-4` | fijo | — |
+| Texto | `text-sm font-bold text-white` | `lg:text-sm` | `2xl:text-base` |
+
+**Regla:** `py-2` es uniforme en las 3 vistas. El gradiente siempre se aplica con `style` inline (no Tailwind) para garantizar exactitud de los valores hexadecimales.
 
 ---
 
@@ -448,12 +539,13 @@ boxShadow: 0 2px 8px rgba(0,0,0,0.06)
 
 ```tsx
 <div
-  className="grid grid-cols-[...] px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3"
+  className="grid grid-cols-[...] px-4 lg:px-3 2xl:px-5 py-2 h-12 items-center"
   style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
 >
 ```
 
-- Texto de columna: `text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider`
+- Altura fija: `h-12` (48px) — igual que los headers de sección en cards
+- Texto de columna: `text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider`
 - Columna ordenable: `cursor-pointer hover:text-amber-300 transition-colors` — agrega `group`
 - Icono orden activo: `ChevronDown / ChevronUp` en `text-amber-400`
 - Icono orden inactivo: `ArrowUpDown` en `text-white/60`
@@ -608,35 +700,67 @@ Los iconos de acción (eliminar, duplicar) van en la esquina inferior derecha de
 
 Cuando un módulo tiene una tabla desktop con columnas ordenables, la vista móvil equivalente usa chips horizontales para seleccionar el criterio de orden. Reemplaza la funcionalidad del header ordenable de la tabla.
 
-### Estructura
+### Variante A — Contenedor oscuro (Clientes, Catálogo, Ofertas, Transacciones ventas)
+
+Chips dentro de un contenedor `bg-slate-800` que actúa como barra de ordenamiento:
 
 ```tsx
-<div className="flex gap-1.5 overflow-x-auto cl-carousel pb-1">
-  {CRITERIOS_ORDEN.map((c) => (
-    <button
-      key={c.campo}
-      onClick={() => toggleOrden(c.campo)}
-      className={`shrink-0 flex items-center gap-1.5 px-2.5 h-11 rounded-lg text-base font-semibold border-2 whitespace-nowrap cursor-pointer ${
-        orden.campo === c.campo
-          ? 'text-white border-transparent shadow-sm'
-          : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
-      }`}
-      style={orden.campo === c.campo ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-    >
-      {c.label}
-      {orden.campo === c.campo && (
-        orden.direccion === 'desc'
-          ? <ChevronDown className="w-3.5 h-3.5" />
-          : <ChevronUp className="w-3.5 h-3.5" />
-      )}
-    </button>
-  ))}
+<div className="flex items-center bg-slate-800 rounded-xl border-2 border-slate-700 p-0.5 shadow-md">
+  {CRITERIOS_ORDEN.map(({ col, etiqueta }) => {
+    const activa = orden?.columna === col;
+    return (
+      <button
+        key={col}
+        onClick={() => alternarOrden(col)}
+        className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
+          ? 'bg-slate-400 text-slate-900 shadow-md'
+          : 'text-white hover:bg-white/10'
+        }`}
+      >
+        {etiqueta}
+        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+        {!activa && <ArrowUpDown className="w-4 h-4 text-white" strokeWidth={2.5} />}
+      </button>
+    );
+  })}
 </div>
 ```
 
-Los criterios de orden son específicos de cada módulo y se definen en el momento de implementación. La regla es que deben coincidir exactamente con las columnas ordenables de la tabla desktop del mismo módulo.
+### Variante B — Chips sueltos con gradiente (Transacciones canjes)
 
-**Regla:** el estado activo siempre usa el dark gradient (R9). El scroll horizontal usa `cl-carousel` para ocultar la barra de scroll nativa.
+Chips individuales con borde, usados cuando hay pocos criterios (2-3) y no amerita un contenedor oscuro:
+
+```tsx
+<button
+  className={`flex items-center gap-1.5 px-4 h-10 rounded-lg text-sm font-semibold border-2 shrink-0 cursor-pointer ${activa
+    ? 'text-white border-slate-700'
+    : 'bg-white text-slate-600 border-slate-300'
+  }`}
+  style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+>
+  {etiqueta}
+  {activa && <ChevronDown className="w-4 h-4 text-amber-400" strokeWidth={2.5} />}
+  {!activa && <ArrowUpDown className="w-4 h-4 text-slate-600" strokeWidth={2.5} />}
+</button>
+```
+
+### Especificaciones comunes
+
+| Propiedad | Valor |
+|-----------|-------|
+| Altura | `h-10` (40px) |
+| Texto | `text-sm font-semibold` |
+| Rounded contenedor | `rounded-xl` |
+| Rounded botones | `rounded-lg` |
+| Flechas (strokeWidth) | `2.5` |
+| Flechas (tamaño) | `w-4 h-4` |
+| Inactivo (variante A) | `text-white` al 100% — nunca opacidad |
+| Activo (variante A) | `bg-slate-400 text-slate-900 shadow-md` |
+
+Los criterios de orden son específicos de cada módulo y deben coincidir exactamente con las columnas ordenables de la tabla desktop.
+
+**Regla:** las flechas siempre llevan `strokeWidth={2.5}` para mayor visibilidad. El texto inactivo es `text-white` al 100% (nunca `text-white/65` ni opacidad reducida).
 
 ---
 
@@ -817,3 +941,436 @@ Cuando un título de elemento (nombre de imagen, etiqueta de sección) está en 
 **Cuándo no aplicar:**
 - Nombres de usuario o contenido variable (puede ser largo, debe recortarse con `truncate`)
 - Descripciones o párrafos
+
+---
+
+## 18. Drawers / Menús Laterales en Móvil
+
+Paneles de navegación que se deslizan desde un borde de la pantalla. Hay dos variantes según la dirección de entrada.
+
+### Variantes
+
+| Variante | Componente | Dirección | Ancho | Clase animación |
+|----------|-----------|-----------|-------|-----------------|
+| Menú principal | `MenuDrawer` | Derecha → izquierda | `w-[65%]` | `animate-slide-in` |
+| Menú BS | `DrawerBusinessStudio` | Izquierda → derecha | `w-[60%]` | `animate-slide-in-left` |
+
+### Regla de renderizado: Portal obligatorio
+
+Los drawers deben renderizarse con `createPortal(jsx, document.body)` para escapar del stacking context de cualquier padre con `z-index` + `position`. Sin portal, un drawer dentro de un header `sticky z-40` queda atrapado en el contexto z=40 y es tapado por el BottomNav (`z-51`).
+
+```tsx
+import { createPortal } from 'react-dom';
+
+// ✅ Correcto — escapa de cualquier stacking context
+return createPortal(
+  <>
+    <div className="fixed inset-0 bg-black/50" style={{ zIndex: 1001 }} onClick={onCerrar} />
+    <div className="fixed top-0 left-0 bottom-0 w-[60%] bg-white shadow-2xl animate-slide-in-left"
+      style={{ zIndex: 1002 }}>
+      {children}
+    </div>
+  </>,
+  document.body
+);
+
+// ❌ Incorrecto — z-index atrapado por el padre
+return (
+  <>
+    <div className="fixed inset-0 bg-black/50 z-[1001]" />
+    <div className="fixed ... z-[1002]">{children}</div>
+  </>
+);
+```
+
+### Z-index (siempre via `style` inline)
+
+| Capa | `zIndex` | Motivo |
+|------|----------|--------|
+| Overlay (fondo oscuro) | `1001` | Cubre todo: headers, BottomNav, contenido |
+| Panel (drawer) | `1002` | Encima del overlay |
+
+**Regla:** usar `style={{ zIndex: 1001 }}` para mayor claridad y explicitness. Aunque `z-1001` funciona en Tailwind v4, el valor inline deja claro que es un z-index crítico del sistema de capas y no un token visual cualquiera.
+
+### Overlay
+
+```
+fixed inset-0 bg-black/50
+onClick={onCerrar}
+style={{ zIndex: 1001 }}
+```
+
+- El overlay siempre cierra el drawer al hacer click
+- Cubre la pantalla completa incluyendo headers y BottomNav
+
+### Panel
+
+```
+fixed top-0 [left-0|right-0] bottom-0 w-[60-65%] bg-white shadow-2xl overflow-y-auto
+style={{ zIndex: 1002 }}
+```
+
+- Menú desde la izquierda: `left-0` + `animate-slide-in-left`
+- Menú desde la derecha: `right-0` + `animate-slide-in`
+
+### Animaciones de entrada (definidas en `index.css`)
+
+```css
+/* Entrada desde la derecha (MenuDrawer) */
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Entrada desde la izquierda (DrawerBusinessStudio) */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+```
+
+**Parámetros de timing:**
+- Duración: `0.3s` — rápido pero perceptible
+- Easing: `cubic-bezier(0.4, 0, 0.2, 1)` — desaceleración natural (ease-out de Material Design)
+- Ambas variantes comparten los mismos valores para consistencia
+
+### Bloqueo de scroll del body
+
+Cuando el drawer está abierto, el body debe bloquearse para evitar scroll de fondo:
+
+```tsx
+useEffect(() => {
+  const scrollY = window.scrollY;
+  const body = document.body;
+  const original = {
+    position: body.style.position,
+    top: body.style.top,
+    width: body.style.width,
+    overflow: body.style.overflow,
+  };
+
+  body.style.position = 'fixed';
+  body.style.top = `-${scrollY}px`;
+  body.style.width = '100%';
+  body.style.overflow = 'hidden';
+
+  return () => {
+    Object.assign(body.style, original);
+    window.scrollTo(0, scrollY);
+  };
+}, []);
+```
+
+**Nota:** `MenuDrawer` ya implementa esto. `DrawerBusinessStudio` puede omitirlo si el overlay + panel cubren toda la pantalla y el `overflow-y-auto` del panel captura el touch.
+
+### Header del drawer
+
+| Variante | Estilo header |
+|----------|---------------|
+| MenuDrawer | Gradiente metálico claro: `bg-linear-to-r from-slate-100 via-slate-200 to-slate-100` |
+| DrawerBusinessStudio | Gradiente oscuro: `bg-linear-to-r from-gray-900 to-blue-600 text-white` |
+
+### Ítem de navegación
+
+| Propiedad | MenuDrawer | DrawerBusinessStudio |
+|-----------|-----------|---------------------|
+| Layout | `flex items-center gap-3 px-4 py-2.5` | `flex items-center gap-3 px-4 py-2.5` |
+| Icono wrapper | `w-8 h-8 rounded-lg` con gradiente + icono `w-4 h-4 text-white` | Sin wrapper — icono `w-5 h-5` directo |
+| Texto | `font-semibold text-gray-900` | `font-medium text-gray-700` |
+| Activo | — | `bg-blue-50 text-blue-600 border-r-4 border-blue-500` |
+| Hover | `hover:bg-linear-to-r hover:from-{color}-50 hover:translate-x-1` | `hover:bg-gray-50` |
+
+### Cuándo crear un drawer nuevo
+
+Antes de crear un drawer nuevo, verificar si `MenuDrawer` o `DrawerBusinessStudio` ya cubre el caso de uso. Solo crear uno nuevo si:
+1. La navegación es de un contexto completamente diferente (no app general, no BS)
+2. Necesita un layout radicalmente distinto (no solo diferentes ítems)
+
+**Regla:** todo drawer nuevo debe seguir este patrón: portal + overlay z-1001 + panel z-1002 + animación slide-in 0.3s.
+
+---
+
+## 19. Patrón de Lista Móvil
+
+Patrón estándar para mostrar listas de entidades en móvil dentro de Business Studio. Aplica a: Catálogo, Ofertas, Opiniones, Clientes, Transacciones.
+
+### Principios
+
+1. **Cards sueltos** — sin contenedor blanco con scroll interno. Cada item es un card independiente que fluye en el scroll natural de la página.
+2. **Infinite scroll** — los items se cargan progresivamente al hacer scroll, no hay botón "cargar más".
+3. **Desktop separado** — en `lg:` se usa tabla con scroll interno o grid contenido. El patrón móvil es `lg:hidden`.
+
+### Dos estrategias de carga
+
+| Estrategia | Cuándo usarla | Módulos |
+|-----------|---------------|---------|
+| **Backend offset/limit** | Items que crecen indefinidamente (miles) | Clientes, Transacciones |
+| **Slice local** | Items acotados (<200) que ya están en memoria | Catálogo, Ofertas, Opiniones |
+
+### Patrón: Slice local + IntersectionObserver
+
+Para módulos donde todos los items ya están en memoria (cargados al abrir la página):
+
+```tsx
+const ITEMS_POR_PAGINA = 12;
+const [itemsCargados, setItemsCargados] = useState(ITEMS_POR_PAGINA);
+const observerRef = useRef<HTMLDivElement | null>(null);
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+
+// Slice: mostrar solo los primeros N en móvil
+const itemsMostrados = useMemo(() => {
+  if (isMobile) return itemsFiltrados.slice(0, itemsCargados);
+  return itemsFiltrados;
+}, [itemsFiltrados, itemsCargados, isMobile]);
+
+const hayMas = isMobile && itemsCargados < itemsFiltrados.length;
+
+const cargarMas = useCallback(() => {
+  if (hayMas) {
+    setItemsCargados(prev => Math.min(prev + ITEMS_POR_PAGINA, itemsFiltrados.length));
+  }
+}, [hayMas, itemsFiltrados.length]);
+
+// Reset al cambiar filtros
+useEffect(() => {
+  setItemsCargados(ITEMS_POR_PAGINA);
+}, [/* dependencias de filtros */]);
+
+// Observer
+useEffect(() => {
+  if (!isMobile || !hayMas) return;
+  const observer = new IntersectionObserver(
+    (entries) => { if (entries[0].isIntersecting) cargarMas(); },
+    { root: null, rootMargin: '100px', threshold: 0.1 }
+  );
+  const el = observerRef.current;
+  if (el) observer.observe(el);
+  return () => { if (el) observer.unobserve(el); };
+}, [isMobile, hayMas, cargarMas]);
+```
+
+### Patrón: Backend offset/limit + IntersectionObserver
+
+Para módulos con items que crecen sin límite:
+
+```tsx
+// En el Zustand store:
+const LIMIT_PAGINA = 20;
+// cargarMas() → api.get('/endpoint', { limit: 20, offset })
+// hayMas = respuesta.length === LIMIT_PAGINA
+
+// En la página:
+<div ref={sentinelaRef} className="h-1" />
+// Observer con rootMargin: '100px'
+```
+
+### JSX del sentinel
+
+```tsx
+{/* Slice local — spinner visible */}
+{hayMas && (
+  <div ref={observerRef} className="w-full h-20 flex items-center justify-center">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+  </div>
+)}
+
+{/* Backend offset — sentinel invisible */}
+<div ref={sentinelaRef} className="h-1" />
+{cargandoMas && <Spinner />}
+```
+
+### Estructura móvil
+
+```tsx
+{/* Móvil: cards sueltos */}
+<div className="lg:hidden space-y-2">
+  {itemsMostrados.map((item) => (
+    <div key={item.id} className="rounded-xl p-3 border-2 ...">
+      {/* contenido del card */}
+    </div>
+  ))}
+  {hayMas && (
+    <div ref={observerRef} className="w-full h-20 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+    </div>
+  )}
+</div>
+
+{/* Desktop: tabla o grid con scroll interno */}
+<div className="hidden lg:block ...">
+  ...
+</div>
+```
+
+### Constantes
+
+| Módulo | Items por tanda | Estrategia |
+|--------|----------------|------------|
+| Catálogo | 12 | Slice local |
+| Ofertas | 12 | Slice local |
+| Opiniones | 12 | Slice local |
+| Clientes | 20 | Backend offset |
+| Transacciones | 20 | Backend offset |
+
+**Regla:** los cards móviles nunca van dentro de un contenedor con `overflow-y-auto` y `max-h-*`. El scroll lo maneja el `<main>` de la página.
+
+---
+
+## 20. Jerarquía de Rounded
+
+Regla de cascada para `border-radius` — cada nivel anidado usa un nivel menos de rounded que su padre.
+
+### Escala
+
+```
+rounded-2xl → rounded-xl → rounded-lg → rounded-md → rounded-sm
+```
+
+### Aplicación por nivel
+
+| Nivel | Rounded | Ejemplo |
+|-------|---------|---------|
+| **Contenedor exterior** (card de filtros, toggle group) | `rounded-xl` | Card blanca con búsqueda + filtros |
+| **Elementos internos** (inputs, dropdowns, botones, chips) | `rounded-lg` | Input de búsqueda, botones de toggle, chips de filtro |
+| **Sub-elementos** (botones dentro de toggles que están dentro de cards) | `rounded-lg` | Botón activo dentro de un toggle group |
+
+### Input dentro de cards
+
+El componente `Input` tiene `rounded-xl` hardcodeado. Cuando se usa dentro de un card `rounded-xl`, forzar `rounded-lg` con el modificador important de Tailwind v4:
+
+```tsx
+<Input
+  className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
+/>
+```
+
+`rounded-lg!` sobreescribe el `rounded-xl` del componente sin modificar el componente global.
+
+### KPIs
+
+Los cards de KPIs usan `rounded-xl` fijo en todas las resoluciones — son elementos standalone, no hijos de un contenedor.
+
+### Reglas
+
+1. **Contenedor siempre un nivel arriba** de sus hijos directos en la escala de rounded.
+2. **Nunca** un hijo con el mismo o mayor rounded que su padre — se ve visualmente roto.
+3. **El modificador `!`** (important) se usa exclusivamente para sobreescribir componentes globales como `Input` dentro de contextos específicos.
+
+---
+
+## 21. CarouselKPI — Fade Dinámico
+
+Componente wrapper para carousels horizontales de KPIs con indicadores visuales de que hay más contenido.
+
+**Ubicación:** `apps/web/src/components/ui/CarouselKPI.tsx`
+
+### Comportamiento
+
+- **Fade derecho oscuro**: visible cuando hay más items a la derecha
+- **Fade izquierdo oscuro**: visible cuando ya se scrolleó y hay items atrás
+- **Desaparece al llegar al extremo**: detecta con `scrollLeft` + `clientWidth` vs `scrollWidth`
+- **Solo en móvil**: los fades usan `lg:hidden`
+- **No bloquea interacción**: `pointer-events-none` en los fades
+
+### Especificaciones
+
+| Propiedad | Valor |
+|-----------|-------|
+| Color del fade | `rgba(15, 23, 42, 0.45)` (slate-900 al 45%) |
+| Ancho del fade | `w-7` (28px) |
+| Z-index del fade | `z-10` |
+| Detección de bordes | `scrollLeft <= 3` (inicio), `scrollLeft + clientWidth >= scrollWidth - 3` (fin) |
+| Scrollbar | Oculto vía `scrollbarWidth: 'none'` inline |
+| Recalculación | `scroll` event + `ResizeObserver` |
+
+### Uso
+
+```tsx
+import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
+
+<CarouselKPI className="mt-5 lg:mt-0 lg:flex-1">
+  <div className="flex lg:justify-end gap-2 pb-1 lg:pb-0">
+    {/* KPI cards */}
+  </div>
+</CarouselKPI>
+```
+
+El componente maneja internamente: `overflow-x-auto`, ocultamiento de scrollbar, `lg:overflow-visible` para desktop, y los fades con posición absoluta.
+
+### Cuándo usarlo
+
+- Carousels de KPIs en headers de páginas BS (Clientes, Transacciones, Catálogo, Ofertas, Puntos)
+- Cualquier fila horizontal de cards compactos que pueda desbordar en móvil
+
+### Cuándo NO usarlo
+
+- Tab bars de navegación — no necesitan indicador de "hay más"
+- Chips de orden — están dentro de un contenedor oscuro que ya delimita visualmente
+
+---
+
+## 22. Swipe entre Páginas (Business Studio)
+
+Navegación horizontal entre módulos de BS mediante gesto de swipe en móvil.
+
+**Ubicación:** `apps/web/src/hooks/useSwipeNavegacionBS.ts`
+
+### Comportamiento
+
+- **Swipe izquierda** → navega al módulo siguiente
+- **Swipe derecha** → navega al módulo anterior
+- **Bounce al límite**: al llegar al primer/último módulo, el contenido se desplaza 30px y regresa con easing suave (300ms)
+- **Solo en Business Studio**: el hook se desactiva fuera de `/business-studio/*`
+
+### Configuración
+
+| Parámetro | Valor | Descripción |
+|-----------|-------|-------------|
+| `SWIPE_THRESHOLD` | 30px | Mínimo recorrido horizontal para activar |
+| `SWIPE_MAX_TIME` | 600ms | Tiempo máximo del gesto |
+| `BOUNCE_DISTANCE` | 30px | Desplazamiento visual al llegar al límite |
+| `BOUNCE_DURATION` | 300ms | Duración de la animación bounce |
+
+### Exclusión de carousels horizontales
+
+El hook ignora swipes que inician dentro de un contenedor con scroll horizontal. Recorre el DOM hacia arriba desde el punto de toque buscando elementos con `overflow-x: auto/scroll` que tengan `scrollWidth > clientWidth`:
+
+```tsx
+let target = e.target as HTMLElement | null;
+while (target && target !== el) {
+  const { overflowX } = window.getComputedStyle(target);
+  if (
+    (overflowX === 'auto' || overflowX === 'scroll') &&
+    target.scrollWidth > target.clientWidth
+  ) {
+    swiping.current = false;
+    return;
+  }
+  target = target.parentElement;
+}
+```
+
+Esto protege automáticamente los carousels de KPIs, chips de orden con scroll, y cualquier futuro elemento con scroll horizontal.
+
+### Conexión
+
+El hook se conecta al `<main>` móvil en `MainLayout.tsx`:
+
+```tsx
+import { useSwipeNavegacionBS } from '../../hooks/useSwipeNavegacionBS';
+
+// Dentro del componente:
+useSwipeNavegacionBS(mobileMainRef);
+```
+
+### Módulos filtrados
+
+El hook respeta la misma lógica de filtrado de módulos que `MobileHeader` — gerentes y dueños en sucursal secundaria no ven "Sucursales" ni "Puntos" en la navegación por swipe.
+
+**Regla:** la lista de módulos en el hook debe mantenerse sincronizada con `MODULOS_BS` en `MobileHeader.tsx`. Si se agrega o reordena un módulo, actualizar ambos.

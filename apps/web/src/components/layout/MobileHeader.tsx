@@ -20,7 +20,13 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { Bell, Menu, Search, Eye, X, Store, ChevronRight, ChevronDown, ChevronLeft } from 'lucide-react';
+import {
+  Bell, Menu, Search, Eye, X, ChevronRight, ChevronLeft,
+  LayoutDashboard, Receipt, Users, MessageSquare, ShoppingBag, Tag,
+  Ticket, Trophy, UserCheck, Briefcase, BarChart3, MapPin,
+  User, CircleDollarSign, Building2, Save,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -63,7 +69,42 @@ const animationStyles = `
     animation: mobileShineMove 2.5s ease-in-out infinite;
     will-change: transform;
   }
+
+  @keyframes guardar-tornado {
+    0%   { transform: scale(1) translate(0, 0) rotate(0deg); }
+    45%  { transform: scale(1.6) translate(var(--dx), var(--dy)) rotate(180deg); }
+    55%  { transform: scale(1.6) translate(var(--dx), var(--dy)) rotate(220deg); }
+    100% { transform: scale(1) translate(0, 0) rotate(360deg); }
+  }
+  .anim-guardar-tornado {
+    animation: guardar-tornado 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    z-index: 9999;
+  }
 `;
+
+// =============================================================================
+// ICONO Y GRADIENTE POR MÓDULO DE BUSINESS STUDIO
+// =============================================================================
+
+function obtenerIconoModulo(pathname: string): LucideIcon {
+  if (pathname.includes('/transacciones')) return Receipt;
+  if (pathname.includes('/clientes')) return Users;
+  if (pathname.includes('/opiniones')) return MessageSquare;
+  if (pathname.includes('/alertas')) return Bell;
+  if (pathname.includes('/catalogo')) return ShoppingBag;
+  if (pathname.includes('/ofertas')) return Tag;
+  if (pathname.includes('/cupones')) return Ticket;
+  if (pathname.includes('/puntos')) return CircleDollarSign;
+  if (pathname.includes('/rifas')) return Trophy;
+  if (pathname.includes('/empleados')) return UserCheck;
+  if (pathname.includes('/vacantes')) return Briefcase;
+  if (pathname.includes('/reportes')) return BarChart3;
+  if (pathname.includes('/sucursales')) return MapPin;
+  if (pathname.includes('/perfil')) return User;
+  return LayoutDashboard;
+}
+
+const GRADIENTE_BS = 'linear-gradient(135deg, #0f172a, #1e293b, #334155)';
 
 // =============================================================================
 // MÓDULOS DEL BUSINESS STUDIO (en orden)
@@ -117,6 +158,11 @@ export function MobileHeader() {
   const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
   const togglePreviewNegocio = useUiStore((state) => state.togglePreviewNegocio);
 
+  // Guardar Perfil (comunicación con PaginaPerfil)
+  const guardarBsFn = useUiStore((state) => state.guardarBsFn);
+  const guardandoBs = useUiStore((state) => state.guardandoBs);
+  const bsPuedeGuardar = useUiStore((state) => state.bsPuedeGuardar);
+
   // Location
   const location = useLocation();
   const navigate = useNavigate();
@@ -131,6 +177,13 @@ export function MobileHeader() {
 
   // Estado del drawer BS
   const [drawerBsAbierto, setDrawerBsAbierto] = useState(false);
+
+  // Animación del botón guardar
+  const [animandoGuardar, setAnimandoGuardar] = useState(false);
+  const btnGuardarRef = useRef<HTMLButtonElement>(null);
+
+  // Estado del dropdown de sucursales
+  const [dropdownSucAbierto, setDropdownSucAbierto] = useState(false);
 
   // Sucursales (para cambio de sucursal en móvil)
   const { setSucursalActiva, setEsSucursalPrincipal, setTotalSucursales } = useAuthStore();
@@ -157,25 +210,7 @@ export function MobileHeader() {
     }).catch(() => setSucursalesMobile([]));
   }, [usuario?.negocioId, usuario?.modoActivo]);
 
-  const indiceSucursalActual = sucursalesMobile.findIndex(s => s.id === usuario?.sucursalActiva);
-  const sucursalActual = sucursalesMobile[indiceSucursalActual];
   const tieneMuchasSucursales = totalSucursales > 1;
-
-  const irSucursalAnterior = () => {
-    if (indiceSucursalActual > 0) {
-      const suc = sucursalesMobile[indiceSucursalActual - 1];
-      setSucursalActiva(suc.id);
-      setEsSucursalPrincipal(suc.esPrincipal);
-    }
-  };
-
-  const irSucursalSiguiente = () => {
-    if (indiceSucursalActual < sucursalesMobile.length - 1) {
-      const suc = sucursalesMobile[indiceSucursalActual + 1];
-      setSucursalActiva(suc.id);
-      setEsSucursalPrincipal(suc.esPrincipal);
-    }
-  };
 
   // Obtener sección actual del breadcrumb
   const obtenerSeccionActual = () => {
@@ -399,86 +434,166 @@ export function MobileHeader() {
 
         {/* Barra de info del negocio (solo en Business Studio) */}
         {esBusinessStudio && (
-          <div className="bg-white border-b border-slate-300 px-4 py-2 flex items-center justify-between shadow-sm">
-            {/* Botón menú + Logo */}
-            <div className="flex items-center gap-2">
-              {/* Botón para abrir drawer BS */}
-              <button
-                onClick={() => setDrawerBsAbierto(true)}
-                className="p-2 -ml-1 rounded-xl hover:bg-slate-200 transition-colors"
-              >
-                <ChevronDown className="w-5 h-5 text-slate-600" />
-              </button>
-              <div className="w-8 h-8 bg-linear-to-br from-orange-400 to-orange-500 rounded-lg flex items-center justify-center shadow-sm overflow-hidden">
-                {usuario?.logoNegocio ? (
-                  <img
-                    src={usuario.logoNegocio}
-                    alt={usuario?.nombreNegocio || 'Negocio'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Store className="w-4 h-4 text-white" />
-                )}
-              </div>
-              {tieneMuchasSucursales && sucursalActual && (
-                <div className="flex items-center gap-0.5">
-                  <span className="text-base font-semibold text-blue-600 truncate max-w-[100px]">
-                    {sucursalActual.nombre}
-                  </span>
-                  <button
-                    onClick={irSucursalAnterior}
-                    disabled={indiceSucursalActual === 0}
-                    className={`p-0.5 rounded ${indiceSucursalActual === 0 ? 'text-slate-400' : 'text-blue-500 active:scale-95'}`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-base font-medium text-slate-600">
-                    {indiceSucursalActual + 1}/{sucursalesMobile.length}
-                  </span>
-                  <button
-                    onClick={irSucursalSiguiente}
-                    disabled={indiceSucursalActual === sucursalesMobile.length - 1}
-                    className={`p-0.5 rounded ${indiceSucursalActual === sucursalesMobile.length - 1 ? 'text-slate-400' : 'text-blue-500 active:scale-95'}`}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
+          <div
+            className="relative flex items-center justify-between px-4 transition-all duration-300"
+            style={{
+              background: GRADIENTE_BS,
+              paddingTop: 6,
+              paddingBottom: 6,
+              overflow: 'visible',
+            }}
+          >
+            {/* IZQUIERDA: Botón flotante para abrir Drawer BS */}
+            <button
+              onClick={() => setDrawerBsAbierto(true)}
+              className="p-2 text-white/90 hover:bg-white/20 hover:text-white rounded-full transition-colors shrink-0"
+              title="Menú Business Studio"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
 
-            {/* Navegación entre módulos */}
-            <div className="flex items-center gap-1">
+            {/* CENTRO: Flechas de navegación + Icono + Nombre del módulo */}
+            <div className="flex-1 flex items-center justify-center gap-2 mx-2">
               {/* Flecha izquierda - Módulo anterior */}
               <button
                 onClick={navegarModuloAnterior}
                 disabled={!hayModuloAnterior}
-                className={`p-1 rounded transition-colors ${hayModuloAnterior
-                  ? 'text-blue-600 hover:bg-blue-100 active:scale-95'
-                  : 'text-slate-400 cursor-not-allowed'
+                className={`transition-all duration-200 rounded-lg active:scale-95 p-1 ${hayModuloAnterior
+                  ? 'text-white hover:bg-white/10'
+                  : 'text-white/25 cursor-not-allowed'
                   }`}
                 title={hayModuloAnterior ? 'Módulo anterior' : 'No hay módulo anterior'}
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
               </button>
 
-              {/* Nombre del módulo actual */}
-              <span className="text-base font-bold text-blue-600 min-w-20 text-center">
-                {obtenerSeccionActual()}
-              </span>
+              {/* Icono + Nombre del módulo */}
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const IconoModulo = obtenerIconoModulo(location.pathname);
+                  return (
+                    <IconoModulo
+                      className="text-white w-6 h-6"
+                      strokeWidth={2}
+                    />
+                  );
+                })()}
+                <span className="font-bold text-white text-lg">
+                  {obtenerSeccionActual()}
+                </span>
+              </div>
 
               {/* Flecha derecha - Módulo siguiente */}
               <button
                 onClick={navegarModuloSiguiente}
                 disabled={!hayModuloSiguiente}
-                className={`p-1 rounded transition-colors ${hayModuloSiguiente
-                  ? 'text-blue-600 hover:bg-blue-100 active:scale-95'
-                  : 'text-slate-400 cursor-not-allowed'
+                className={`transition-all duration-200 rounded-lg active:scale-95 p-1 ${hayModuloSiguiente
+                  ? 'text-white hover:bg-white/10'
+                  : 'text-white/25 cursor-not-allowed'
                   }`}
                 title={hayModuloSiguiente ? 'Módulo siguiente' : 'No hay módulo siguiente'}
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5" strokeWidth={2.5} />
               </button>
             </div>
+
+            {/* DERECHA: Botón Guardar (en Perfil) / Sucursal (si >1) / Spacer */}
+            {guardarBsFn ? (
+              /* Botón circular de guardar — sobresale por debajo del header con position absolute */
+              <div className="shrink-0" style={{ width: 38 }}>
+                <button
+                  ref={btnGuardarRef}
+                  onClick={() => {
+                    if (animandoGuardar || guardandoBs) return;
+                    const btn = btnGuardarRef.current;
+                    if (btn) {
+                      const rect = btn.getBoundingClientRect();
+                      const dx = (window.innerWidth / 2) - (rect.left + rect.width / 2);
+                      const dy = (window.innerHeight / 2) - (rect.top + rect.height / 2);
+                      btn.style.setProperty('--dx', `${dx}px`);
+                      btn.style.setProperty('--dy', `${dy}px`);
+                    }
+                    setAnimandoGuardar(true);
+                    setTimeout(() => {
+                      setAnimandoGuardar(false);
+                      useUiStore.getState().guardarBsFn?.();
+                    }, 850);
+                  }}
+                  disabled={guardandoBs || !bsPuedeGuardar}
+                  className={`absolute right-4 flex items-center justify-center rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed z-10 ${animandoGuardar ? 'anim-guardar-tornado' : 'active:scale-95'}`}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    background: guardandoBs ? '#64748b' : 'linear-gradient(135deg, #1e40af, #3b82f6)',
+                    border: '3px solid rgba(255,255,255,0.5)',
+                    boxShadow: '0 6px 22px rgba(0,0,0,0.4)',
+                    bottom: -20,
+                  }}
+                  title={guardandoBs ? 'Guardando...' : !bsPuedeGuardar ? 'Completa los campos requeridos' : 'Guardar Cambios'}
+                >
+                  {guardandoBs ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Save className="text-white w-6 h-6" />
+                  )}
+                </button>
+              </div>
+            ) : tieneMuchasSucursales ? (
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setDropdownSucAbierto(prev => !prev)}
+                  className="flex items-center justify-center rounded-xl active:scale-95 transition-all duration-200"
+                  style={{
+                    width: 38,
+                    height: 38,
+                    background: dropdownSucAbierto ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.22)',
+                    border: '1.5px solid rgba(255,255,255,0.45)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Cambiar sucursal"
+                >
+                  <Building2 className="text-white w-5 h-5" />
+                </button>
+
+                {/* Dropdown de sucursales */}
+                {dropdownSucAbierto && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setDropdownSucAbierto(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-200 z-50 min-w-[180px] overflow-hidden">
+                      {sucursalesMobile.map((suc) => (
+                        <button
+                          key={suc.id}
+                          onClick={() => {
+                            setSucursalActiva(suc.id);
+                            setEsSucursalPrincipal(suc.esPrincipal);
+                            setDropdownSucAbierto(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left text-sm font-medium flex items-center gap-2 transition-colors ${suc.id === usuario?.sucursalActiva
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-slate-700 hover:bg-slate-50'
+                            }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${suc.esPrincipal ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                          <span className="truncate">{suc.nombre}</span>
+                          {suc.id === usuario?.sucursalActiva && (
+                            <span className="ml-auto text-blue-500 font-bold">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div
+                className="shrink-0 transition-all duration-200"
+                style={{ width: 38 }}
+              />
+            )}
           </div>
         )}
       </div>

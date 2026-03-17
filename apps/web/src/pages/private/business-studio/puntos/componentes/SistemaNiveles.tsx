@@ -88,8 +88,8 @@ function TextoJustificativo({
         {icono}
       </div>
       <div>
-        <h4 className="text-[13.5px] font-bold text-slate-800">{titulo}</h4>
-        <p className="text-[12.5px] font-medium text-slate-600 mt-0.5 leading-relaxed" style={{ maxWidth: 190 }}>
+        <h4 className="text-sm font-bold text-slate-800">{titulo}</h4>
+        <p className="text-sm font-medium text-slate-600 mt-0.5 leading-relaxed" style={{ maxWidth: 190 }}>
           {desc}
         </p>
       </div>
@@ -176,16 +176,16 @@ function CampoNivel({
     <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 min-w-0 flex-1 lg:flex-none">
       <label
         htmlFor={inputId}
-        className="text-[11.5px] lg:text-[11px] 2xl:text-xs font-bold text-slate-500 tracking-wide"
+        className="text-sm lg:text-sm 2xl:text-sm font-bold text-slate-600 tracking-wide"
       >
         {label}
       </label>
       <div
-        className="flex items-center h-9 lg:h-8 2xl:h-9 bg-slate-50 rounded-lg px-2.5 lg:px-2.5 2xl:px-3"
-        style={{ border: error ? '2px solid #ef4444' : '2px solid #e2e8f0' }}
+        className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 lg:px-3 2xl:px-4 border-2"
+        style={{ borderColor: error ? '#ef4444' : '#cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
       >
         {prefijo && (
-          <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-slate-400 mr-1.5">
+          <span className="text-[11px] font-bold text-slate-600 mr-1.5">
             {sufijo}
           </span>
         )}
@@ -201,16 +201,16 @@ function CampoNivel({
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           disabled={disabled}
-          className="flex-1 bg-transparent outline-none text-[15px] lg:text-sm 2xl:text-[15px] font-extrabold text-slate-800 w-10 disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+          className="flex-1 bg-transparent outline-none text-[15px] lg:text-sm 2xl:text-[15px] font-medium text-slate-800 w-10 disabled:opacity-50 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
         />
         {!prefijo && (
-          <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-slate-400 ml-1 shrink-0">
+          <span className="text-[11px] font-bold text-slate-600 ml-1 shrink-0">
             {sufijo}
           </span>
         )}
       </div>
       {error && (
-        <span className="text-[10px] lg:text-[9.5px] 2xl:text-[10px] font-semibold text-red-500 mt-0.5">
+        <span className="text-sm lg:text-sm 2xl:text-sm font-semibold text-red-600 mt-0.5">
           {error}
         </span>
       )}
@@ -230,18 +230,18 @@ function CampoFijo({
 }) {
   return (
     <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 min-w-0 flex-1 lg:flex-none">
-      <span className="text-[11.5px] lg:text-[11px] 2xl:text-xs font-bold text-slate-500 tracking-wide">
+      <span className="text-sm lg:text-sm 2xl:text-sm font-bold text-slate-600 tracking-wide">
         {label}
       </span>
       <div
-        className="flex items-center h-9 lg:h-8 2xl:h-9 rounded-lg px-2.5 lg:px-2.5 2xl:px-3"
-        style={{ background: '#f8fafc', border: '2px solid #e2e8f0' }}
+        className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 lg:px-3 2xl:px-4 border-2 border-slate-300"
+        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
       >
-        <span className="text-[15px] lg:text-sm 2xl:text-[15px] font-extrabold text-slate-400">
+        <span className="text-[15px] lg:text-sm 2xl:text-[15px] font-medium text-slate-600">
           {texto}
         </span>
         {sufijo && (
-          <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-slate-400 ml-1 shrink-0">
+          <span className="text-[11px] font-bold text-slate-600 ml-1 shrink-0">
             {sufijo}
           </span>
         )}
@@ -274,42 +274,27 @@ function CardNivel({
 
   return (
     <div
-      className={`bg-white rounded-xl overflow-hidden flex flex-row lg:flex-col card-nivel-${tipo}`}
+      className={`bg-white rounded-xl overflow-hidden flex flex-col`}
       style={{ border: `2px solid ${s.borderColor}`, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
     >
-      {/* Header con gradiente — lateral fijo en mobile, arriba en desktop */}
+      {/* Header con gradiente — arriba en ambas vistas */}
       <div
-        className="flex flex-col lg:flex-row items-center justify-center gap-0.5 lg:gap-1.5 w-16 lg:w-auto py-2.5 lg:py-1.5 2xl:py-2 shrink-0"
+        className="flex flex-row items-center justify-center gap-1.5 py-2 lg:py-1.5 2xl:py-2 shrink-0"
         style={{
           background: s.headerBg,
-          borderRight: `2px solid ${s.borderColor}`,
-          borderBottom: 'none',
+          borderBottom: `2px solid ${s.borderColor}`,
         }}
       >
+        <span className="text-base lg:text-xs leading-none">{medal}</span>
         <span
-          className="text-2xl lg:text-xs leading-none"
-        >
-          {medal}
-        </span>
-        <span
-          className="text-[13px] lg:text-[13.5px] 2xl:text-[15px] font-extrabold whitespace-nowrap"
+          className="text-sm lg:text-sm 2xl:text-base font-bold whitespace-nowrap"
           style={{ color: s.headerColor }}
         >
           {nombre}
         </span>
       </div>
-      {/* En lg+ el header usa borderBottom en vez de borderRight */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media (min-width: 1024px) {
-          .card-nivel-${tipo} > div:first-child {
-            border-right: none !important;
-            border-bottom: 2px solid ${s.borderColor} !important;
-            width: auto !important;
-          }
-        }
-      `}} />
 
-      {/* Campos — fila en mobile, columna en desktop */}
+      {/* Campos — fila horizontal en ambas vistas */}
       <div className="p-2.5 lg:p-2 2xl:p-3 flex flex-row lg:flex-col gap-2 lg:gap-1.5 2xl:gap-2 flex-1 items-center lg:items-stretch justify-evenly lg:justify-center">
         {/* Mínimo — siempre fijo, auto-calculado */}
         <CampoFijo
@@ -370,45 +355,36 @@ export default function SistemaNiveles({
 }) {
   return (
     <div
-      className="bg-white rounded-2xl overflow-hidden flex flex-col"
-      style={{ border: '2.5px solid #dde4ef', boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}
+      className="bg-white rounded-xl overflow-hidden flex flex-col border-2 border-slate-300"
+      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
     >
       {/* Header con switch activo/inactivo */}
       <div
-        className="flex items-center justify-between px-3 lg:px-4 2xl:px-5 py-2 lg:py-2 2xl:py-2.5"
-        style={{ background: 'linear-gradient(135deg, #f8fafd, #f0f4f8)', borderBottom: '2.5px solid #e4e9f2' }}
+        className="flex items-center justify-between px-3 lg:px-4 py-2 lg:py-2"
+        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
       >
-        <div className="flex items-center gap-2.5 lg:gap-3">
+        <div className="flex items-center gap-2 lg:gap-2.5">
           <div
-            className="w-9 h-9 lg:w-9 lg:h-9 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #fde68a, #fbbf24)', boxShadow: '0 3px 8px rgba(0,0,0,0.1)' }}
+            className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
           >
-            <Award className="w-4.5 h-4.5 lg:w-4.5 lg:h-4.5 text-amber-800" />
+            <Award className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
           </div>
-          <h2 className="text-base lg:text-sm 2xl:text-base font-extrabold text-slate-900">Sistema de Niveles</h2>
+          <h2 className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Sistema de Niveles</h2>
         </div>
 
         <div className="flex items-center gap-2">
-          <span
-            className={`text-[12px] lg:text-[10.5px] 2xl:text-[11px] font-bold px-2.5 lg:px-2.5 py-0.5 rounded-full border ${
-              nivelesActivos
-                ? 'bg-green-50 text-green-600 border-green-200'
-                : 'bg-slate-100 text-slate-400 border-slate-200'
-            }`}
-          >
-            {nivelesActivos ? '✓ Activo' : 'Inactivo'}
-          </span>
           <button
             type="button"
             onClick={onToggleNiveles}
             disabled={esGerente}
-            className={`relative w-10 h-5.5 lg:w-11 lg:h-6 2xl:w-11 2xl:h-6 rounded-full transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-              nivelesActivos ? 'bg-blue-500' : 'bg-slate-300'
+            className={`relative w-12 h-6 lg:w-10 lg:h-5 rounded-full cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+              nivelesActivos ? 'bg-slate-500' : 'bg-white/20'
             }`}
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-5 2xl:h-5 bg-white rounded-full shadow transition-transform ${
-                nivelesActivos ? 'translate-x-4 lg:translate-x-5' : ''
+              className={`absolute top-0.5 left-0.5 w-5 h-5 lg:w-4 lg:h-4 bg-white rounded-full shadow-md transition-transform ${
+                nivelesActivos ? 'translate-x-6 lg:translate-x-5' : ''
               }`}
             />
           </button>
@@ -443,7 +419,7 @@ export default function SistemaNiveles({
             </div>
 
             {/* 3 Cards: 1 columna mobile, 3 columnas desktop */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-2.5 lg:gap-2.5 2xl:gap-3">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-2.5 2xl:gap-3">
               <CardNivel
                 nombre="Bronce" medal="🥉" tipo="bronce"
                 valores={niveles.bronce}
@@ -474,11 +450,11 @@ export default function SistemaNiveles({
       ) : (
         /* Estado vacío: niveles desactivados */
         <div className="py-10 lg:py-10 2xl:py-12 flex flex-col items-center text-center">
-          <div className="w-12 h-12 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-            <Award className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-slate-300" strokeWidth={1.5} />
+          <div className="w-12 h-12 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 rounded-2xl bg-slate-200 flex items-center justify-center mb-3">
+            <Award className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-slate-600" strokeWidth={1.5} />
           </div>
-          <p className="text-sm font-semibold text-slate-500">Sistema de niveles desactivado</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-sm font-semibold text-slate-600">Sistema de niveles desactivado</p>
+          <p className="text-sm text-slate-600 font-medium mt-1">
             Todos los clientes reciben puntos sin multiplicador adicional
           </p>
         </div>

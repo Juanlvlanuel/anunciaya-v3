@@ -632,6 +632,42 @@ const compartirNativo = async () => {
 
 ---
 
+## 🧩 12. React — No definir componentes dentro de otros componentes
+
+### ❌ Nunca definir un componente React dentro de otro componente
+
+Cuando un componente se define dentro de otro, React crea una **nueva referencia** en cada render. Esto causa:
+- **Pérdida de focus** en inputs
+- **Remount completo** del componente hijo (se destruye y recrea)
+- **Pérdida de estado interno** del hijo
+
+```typescript
+// ❌ INCORRECTO — componente definido dentro de otro
+export default function PaginaPerfil() {
+  const MiInput = ({ value }: { value: string }) => {
+    return <input value={value} />;
+  };
+
+  return <MiInput value="hola" />;
+}
+
+// ✅ CORRECTO — componente a nivel de módulo
+function MiInput({ value }: { value: string }) {
+  return <input value={value} />;
+}
+
+export default function PaginaPerfil() {
+  return <MiInput value="hola" />;
+}
+```
+
+### Regla:
+- **Componentes React** (con JSX, hooks o estado): SIEMPRE a nivel de módulo
+- **Funciones helper puras** (sin JSX ni hooks): pueden estar dentro si solo se usan ahí
+- Si el componente necesita datos del padre, pasarlos como **props**
+
+---
+
 ## 📚 Referencias
 
 - [Tailwind CSS v4 Documentation](https://tailwindcss.com/docs)

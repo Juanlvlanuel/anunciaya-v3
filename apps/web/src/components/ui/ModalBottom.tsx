@@ -24,6 +24,7 @@
  */
 
 import { ReactNode, useEffect, useCallback, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 // =============================================================================
@@ -322,7 +323,7 @@ export function ModalBottom({
   // Calcular opacidad del overlay basada en el drag
   const opacidadOverlay = Math.max(0.1 - (dragY / 400), 0.1);
 
-  return (
+  return createPortal(
     <div
       className={`fixed inset-0 ${zIndice} flex items-end justify-center`}
       role="dialog"
@@ -431,7 +432,8 @@ export function ModalBottom({
           }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }
 

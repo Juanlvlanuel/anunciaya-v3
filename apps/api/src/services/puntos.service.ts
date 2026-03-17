@@ -635,10 +635,9 @@ export async function eliminarRecompensa(
       };
     }
 
-    // Soft delete (marcar como inactiva)
+    // Hard delete — la confirmación del frontend ya advierte que no se puede deshacer
     await db
-      .update(recompensas)
-      .set({ activa: false })
+      .delete(recompensas)
       .where(eq(recompensas.id, id));
 
     // Eliminar imagen de Cloudinary

@@ -55,6 +55,7 @@ import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { ModalImagenes } from '../../../../components/ui';
 import Tooltip from '../../../../components/ui/Tooltip';
+import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { Boton } from '../../../../components/ui/Boton';
 import { notificar } from '../../../../utils/notificaciones';
 import { ModalOferta } from './ModalOferta';
@@ -269,19 +270,14 @@ function FilaMovilOferta({
     const esTrending = (oferta.totalVistas || 0) > 50 || (oferta.totalClicks || 0) > 20;
 
     return (
-        <button
-            onClick={() => onEditar(oferta)}
-            className={`w-full flex items-stretch gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all cursor-pointer text-left ${!oferta.activo ? 'opacity-60' : ''}`}
+        <div
+            className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden ${!oferta.activo ? 'opacity-60' : ''}`}
+            style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
         >
             {/* Imagen */}
             <div
-                className="w-16 self-stretch rounded-lg shrink-0 overflow-hidden"
-                onClick={(e) => {
-                    if (oferta.imagen && onImagenClick) {
-                        e.stopPropagation();
-                        onImagenClick(oferta.imagen);
-                    }
-                }}
+                className={`w-20 h-20 rounded-lg shrink-0 overflow-hidden ${oferta.imagen ? 'cursor-pointer' : ''}`}
+                onClick={() => { if (oferta.imagen && onImagenClick) onImagenClick(oferta.imagen); }}
             >
                 {oferta.imagen ? (
                     <img src={oferta.imagen} alt={oferta.titulo} className="w-full h-full object-cover" />
@@ -293,61 +289,59 @@ function FilaMovilOferta({
             </div>
 
             {/* Info */}
-            <div className="flex-1 min-w-0">
-                {/* Nombre + Valor */}
-                <div className="flex items-center justify-between gap-2">
-                    <span className="text-base font-bold text-slate-800 truncate">{oferta.titulo}</span>
-                    <span className="text-lg font-extrabold text-emerald-600 shrink-0">{valorFormateado}</span>
-                </div>
-
-                {/* Badges tipo + estado */}
-                <div className="flex items-center gap-2 mt-1">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold ${coloresTipo}`}>
-                        <IconoTipo className="w-3.5 h-3.5" />
-                        {getLabelTipo(oferta.tipo)}
-                    </span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold ${badgeEstado.clases}`}>
-                        {badgeEstado.label}
-                    </span>
-                    {esTrending && <Flame className="w-4 h-4 text-orange-500 shrink-0" />}
+            <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+                {/* Nombre + Badge estado + Valor */}
+                <div>
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="text-base font-bold text-slate-800 truncate">{oferta.titulo}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            {esTrending && <Flame className="w-4 h-4 text-orange-500" />}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold ${badgeEstado.clases}`}>
+                                {badgeEstado.label}
+                            </span>
+                        </div>
+                    </div>
+                    <span className="text-base font-extrabold text-emerald-600">{valorFormateado}</span>
                 </div>
 
                 {/* Stats + Acciones */}
-                <div className="flex items-center justify-between gap-2 mt-1.5">
-                    <div className="flex items-center gap-4 text-sm font-semibold text-slate-600">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-base font-semibold text-slate-600">
                         <span className="flex items-center gap-1">
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-5 h-5" />
                             {oferta.totalVistas || 0}
                         </span>
+                        <span className="w-px h-4 bg-slate-400" />
                         <span className="flex items-center gap-1">
-                            <Share2 className="w-4 h-4" />
-                            {oferta.totalShares || 0}
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <MousePointerClick className="w-4 h-4" />
+                            <MousePointerClick className="w-5 h-5" />
                             {oferta.totalClicks || 0}
                         </span>
                     </div>
-                    {/* Acciones */}
                     <div className="flex items-center gap-3 shrink-0">
                         {esDueno && (
                             <button
-                                onClick={(e) => { e.stopPropagation(); onDuplicar(oferta); }}
+                                onClick={() => onDuplicar(oferta)}
                                 className="cursor-pointer text-emerald-600"
                             >
                                 <Copy className="w-6 h-6" />
                             </button>
                         )}
                         <button
-                            onClick={(e) => { e.stopPropagation(); onEliminar(oferta.id, oferta.titulo); }}
+                            onClick={() => onEliminar(oferta.id, oferta.titulo)}
                             className="cursor-pointer text-red-600"
                         >
                             <Trash2 className="w-6 h-6" />
                         </button>
+                        <button
+                            onClick={() => onEditar(oferta)}
+                            className="cursor-pointer text-slate-700"
+                        >
+                            <Eye className="w-6 h-6" />
+                        </button>
                     </div>
                 </div>
             </div>
-        </button>
+        </div>
     );
 }
 
@@ -630,9 +624,9 @@ export function PaginaOfertas() {
 
                 <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
                     {/* Header con icono animado + Switch móvil estado */}
-                    <div className="flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+                    <div className="hidden lg:flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
                         <div
-                            className="flex items-center justify-center shrink-0"
+                            className="hidden lg:flex items-center justify-center shrink-0"
                             style={{
                                 width: 52, height: 52, borderRadius: 14,
                                 background: 'linear-gradient(135deg, #f43f5e, #fb7185, #fda4af)',
@@ -643,7 +637,7 @@ export function PaginaOfertas() {
                                 <Tag className="w-6 h-6 text-white" strokeWidth={2.5} />
                             </div>
                         </div>
-                        <div>
+                        <div className="hidden lg:block">
                             <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
                                 Ofertas
                             </h1>
@@ -669,11 +663,11 @@ export function PaginaOfertas() {
                     </div>
 
                     {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop (INFORMACIONALES) */}
-                    <div className="mt-5 lg:mt-0 overflow-x-auto lg:overflow-visible lg:flex-1 ofe-carousel">
+                    <CarouselKPI className="mt-5 lg:mt-0 lg:flex-1">
                         <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
                             {/* Total */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #eff6ff, #fff)',
                                     border: '2px solid #93c5fd',
@@ -694,7 +688,7 @@ export function PaginaOfertas() {
 
                             {/* Activas */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #f0fdf4, #fff)',
                                     border: '2px solid #86efac',
@@ -715,7 +709,7 @@ export function PaginaOfertas() {
 
                             {/* Inactivas */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #fef2f2, #fff)',
                                     border: '2px solid #fca5a5',
@@ -736,7 +730,7 @@ export function PaginaOfertas() {
 
                             {/* Próximas */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #fffbeb, #fff)',
                                     border: '2px solid #fcd34d',
@@ -757,7 +751,7 @@ export function PaginaOfertas() {
 
                             {/* Vencidas */}
                             <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-lg lg:rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
                                     background: 'linear-gradient(135deg, #f8fafc, #fff)',
                                     border: '2px solid #cbd5e1',
@@ -776,7 +770,25 @@ export function PaginaOfertas() {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                </CarouselKPI>
+                </div>
+
+                {/* ================================================================= */}
+                {/* BOTÓN NUEVA OFERTA — solo móvil                                   */}
+                {/* ================================================================= */}
+
+                <div className="lg:hidden">
+                    <button
+                        onClick={handleCrear}
+                        className="w-full flex items-center justify-center gap-1.5 h-11 rounded-xl text-base font-semibold text-white cursor-pointer"
+                        style={{
+                            background: 'linear-gradient(135deg, #1e293b, #334155)',
+                            boxShadow: '0 3px 10px rgba(0,0,0,0.25)',
+                        }}
+                    >
+                        <Plus className="w-4 h-4" />
+                        Nueva Oferta
+                    </button>
                 </div>
 
                 {/* ================================================================= */}
@@ -902,7 +914,7 @@ export function PaginaOfertas() {
                                     icono={<Search className="w-4 h-4 text-slate-600" />}
                                     value={filtros.busqueda}
                                     onChange={(e) => setFiltros(prev => ({ ...prev, busqueda: e.target.value }))}
-                                    className="h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base"
+                                    className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
                                     elementoDerecha={filtros.busqueda ? (
                                         <button
                                             type="button"
@@ -959,7 +971,7 @@ export function PaginaOfertas() {
                     >
                         {/* Header dark */}
                         <div
-                            className="grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white/80 uppercase tracking-wider"
+                            className="grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
                             <span>Oferta</span>
@@ -1008,7 +1020,7 @@ export function PaginaOfertas() {
                                         <div
                                             key={oferta.id}
                                             onClick={() => handleEditar(oferta)}
-                                            className={`grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-3 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
+                                            className={`grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
                                         >
                                             {/* Oferta: Imagen + Título + Valor */}
                                             <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
@@ -1087,8 +1099,8 @@ export function PaginaOfertas() {
                                                         className="p-1.5 rounded-lg cursor-pointer hover:bg-green-100"
                                                     >
                                                         {oferta.activo
-                                                            ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-green-600" />
-                                                            : <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 hover:text-green-600" />
+                                                            ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700" />
+                                                            : <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700" />
                                                         }
                                                     </button>
                                                 </Tooltip>
@@ -1126,7 +1138,7 @@ export function PaginaOfertas() {
                 {isMobile && (
                     <div className="space-y-2">
                         {/* Chips de orden (móvil) */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="flex items-center bg-slate-800 rounded-xl border-2 border-slate-700 p-0.5 shadow-md">
                             {([
                                 { col: 'vistas' as ColumnaOrden, etiqueta: 'Vistas' },
                                 { col: 'shares' as ColumnaOrden, etiqueta: 'Shares' },
@@ -1137,16 +1149,15 @@ export function PaginaOfertas() {
                                     <button
                                         key={col}
                                         onClick={() => alternarOrden(col)}
-                                        className={`flex items-center justify-center gap-1.5 h-11 rounded-lg text-base font-semibold border-2 transition-all cursor-pointer ${activa
-                                            ? 'text-white border-slate-700'
-                                            : 'bg-white text-slate-600 border-slate-300'
+                                        className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
+                                            ? 'bg-slate-400 text-slate-900 shadow-md'
+                                            : 'text-white hover:bg-white/10'
                                         }`}
-                                        style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                                     >
                                         {etiqueta}
-                                        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />}
-                                        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />}
-                                        {!activa && <ArrowUpDown className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-600" />}
+                                        {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                                        {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                                        {!activa && <ArrowUpDown className="w-4 h-4 text-white" strokeWidth={2.5} />}
                                     </button>
                                 );
                             })}
