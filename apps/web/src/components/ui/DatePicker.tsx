@@ -34,6 +34,8 @@ interface DatePickerProps {
     minDate?: string; // YYYY-MM-DD
     maxDate?: string; // YYYY-MM-DD
     className?: string;
+    /** En móvil (<1024px) abre el calendario centrado en pantalla en lugar de dropdown */
+    centradoEnMovil?: boolean;
 }
 
 // =============================================================================
@@ -85,13 +87,15 @@ export function DatePicker({
     error = false,
     minDate,
     maxDate,
-    className = ''
+    className = '',
+    centradoEnMovil = false,
 }: DatePickerProps) {
     const [abierto, setAbierto] = useState(false);
     const [mesActual, setMesActual] = useState<number>(new Date().getMonth());
     const [añoActual, setAñoActual] = useState<number>(new Date().getFullYear());
     const contenedorRef = useRef<HTMLDivElement>(null);
     const calendarRef = useRef<HTMLDivElement>(null);
+    const touchStartX = useRef<number | null>(null);
 
     // Sincronizar con valor seleccionado
     useEffect(() => {
@@ -188,6 +192,13 @@ export function DatePicker({
         setAbierto(false);
     };
 
+    // Ancho de referencia para escalar el calendario
+    // En modo modal centrado en móvil usa 308px (336px card - 2×14px padding)
+    // En modo dropdown usa el ancho real del input
+    const escalaW = (centradoEnMovil && typeof window !== 'undefined' && window.innerWidth < 1024)
+        ? 308
+        : (contenedorRef.current?.getBoundingClientRect().width ?? 0);
+
     // Generar días del mes
     const diasEnMes = getDiasEnMes(añoActual, mesActual);
     const primerDia = getPrimerDiaSemana(añoActual, mesActual);
@@ -228,12 +239,12 @@ export function DatePicker({
                 type="button"
                 onClick={() => !disabled && setAbierto(!abierto)}
                 disabled={disabled}
-                className={`w-full flex items-center justify-between px-3 py-2 lg:py-1.5 2xl:py-2 border-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-medium transition-colors ${disabled
+                className={`w-full h-11 lg:h-10 2xl:h-11 flex items-center justify-between px-3 border-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-medium transition-colors ${disabled
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'
                         : error
                             ? 'border-red-300 hover:border-red-400 cursor-pointer'
                             : abierto
-                                ? 'border-blue-500 ring-2 ring-blue-200 cursor-pointer'
+                                ? 'border-blue-600 ring-2 ring-blue-300 cursor-pointer'
                                 : 'border-slate-300 hover:border-slate-400 cursor-pointer'
                     }`}
             >
@@ -243,30 +254,59 @@ export function DatePicker({
                 <Calendar className="w-4 h-4 text-slate-400" />
             </button>
 
-            {/* Calendario desplegable - Escalado proporcional */}
+            {/* Calendario desplegable / modal centrado */}
             {abierto && createPortal(
+                <>
+                    {/* Backdrop: solo en modo modal centrado en móvil */}
+                    {centradoEnMovil && window.innerWidth < 1024 && (
+                        <div
+                            className="fixed inset-0 bg-black/50"
+                            style={{ zIndex: 9998 }}
+                            onMouseDown={() => setAbierto(false)}
+                        />
+                    )}
                 <div
                     ref={calendarRef}
-                    className="fixed bg-white rounded-lg shadow-2xl border-2 border-slate-200"
+                    className="fixed bg-white rounded-xl shadow-2xl border-2 border-slate-200"
+                    onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+                    onTouchEnd={(e) => {
+                        if (touchStartX.current === null) return;
+                        const diff = touchStartX.current - e.changedTouches[0].clientX;
+                        touchStartX.current = null;
+                        if (Math.abs(diff) < 50) return;
+                        if (diff > 0) handleMesSiguiente(); else handleMesAnterior();
+                    }}
                     style={{
                         zIndex: 9999,
                         ...(() => {
+                            const isMobile = window.innerWidth < 1024;
+
+                            // Modo modal centrado en móvil
+                            if (centradoEnMovil && isMobile) {
+                                return {
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    width: '336px',
+                                    padding: '14px',
+                                };
+                            }
+
                             if (!contenedorRef.current) return { top: 0, left: 0 };
                             const rect = contenedorRef.current.getBoundingClientRect();
-                            const isMobile = window.innerWidth < 1024;
-                            
+
                             // Dimensiones del calendario
                             const anchoCalendario = isMobile ? 240 : rect.width;
                             const alturaEstimada = 280;
-                            
+
                             // Detectar espacio disponible en todas direcciones
                             const espacioAbajo = window.innerHeight - rect.bottom;
                             const espacioArriba = rect.top;
                             const espacioDerecha = window.innerWidth - rect.left;
-                            
+
                             // Decidir si abre arriba o abajo
                             const abreArriba = espacioAbajo < alturaEstimada && espacioArriba > espacioAbajo;
-                            
+
                             // Decidir posición horizontal (solo móvil)
                             let leftPosition = rect.left;
                             if (isMobile) {
@@ -283,28 +323,14 @@ export function DatePicker({
                                     leftPosition = window.innerWidth - anchoCalendario - 8;
                                 }
                             }
-                            
+
                             return {
                                 top: abreArriba ? undefined : rect.bottom + 4,
                                 bottom: abreArriba ? (window.innerHeight - rect.top + 4) : undefined,
                                 left: leftPosition,
+                                width: isMobile ? '240px' : `${rect.width}px`,
+                                padding: isMobile ? '8px' : `${Math.max(8, rect.width * 0.025)}px`,
                             };
-                        })(),
-                        width: (() => {
-                            if (!contenedorRef.current) return 'auto';
-                            const isMobile = window.innerWidth < 1024;
-                            // Móvil: 240px fijo | Laptop+: ancho del input
-                            return isMobile 
-                                ? '240px' 
-                                : `${contenedorRef.current.getBoundingClientRect().width}px`;
-                        })(),
-                        // Padding: más grande en móvil
-                        padding: (() => {
-                            if (!contenedorRef.current) return '8px';
-                            const isMobile = window.innerWidth < 1024;
-                            return isMobile 
-                                ? '8px' 
-                                : `${Math.max(8, contenedorRef.current.getBoundingClientRect().width * 0.025)}px`;
                         })()
                     }}
                 >
@@ -313,7 +339,7 @@ export function DatePicker({
                         className="flex items-center justify-between"
                         style={{
                             marginBottom: contenedorRef.current
-                                ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
+                                ? `${Math.max(6, escalaW * 0.02)}px`
                                 : '6px'
                         }}
                     >
@@ -322,18 +348,18 @@ export function DatePicker({
                             onClick={handleMesAnterior}
                             className="hover:bg-slate-200 rounded transition-colors cursor-pointer"
                             style={{
-                                padding: contenedorRef.current
-                                    ? `${Math.max(2, contenedorRef.current.getBoundingClientRect().width * 0.01)}px`
+                                padding: escalaW > 0
+                                    ? `${Math.max(2, escalaW * 0.01)}px`
                                     : '2px'
                             }}
                         >
                             <ChevronLeft
                                 style={{
                                     width: contenedorRef.current
-                                        ? `${Math.max(16, contenedorRef.current.getBoundingClientRect().width * 0.085)}px`
+                                        ? `${Math.max(16, escalaW * 0.085)}px`
                                         : '16px',
                                     height: contenedorRef.current
-                                        ? `${Math.max(16, contenedorRef.current.getBoundingClientRect().width * 0.085)}px`
+                                        ? `${Math.max(16, escalaW * 0.085)}px`
                                         : '16px'
                                 }}
                                 className="text-slate-600"
@@ -342,8 +368,8 @@ export function DatePicker({
                         <div
                             className="font-bold text-slate-800"
                             style={{
-                                fontSize: contenedorRef.current
-                                    ? `${Math.max(13, contenedorRef.current.getBoundingClientRect().width * 0.07)}px`
+                                fontSize: escalaW > 0
+                                    ? `${Math.max(13, escalaW * 0.07)}px`
                                     : '13px'
                             }}
                         >
@@ -354,18 +380,18 @@ export function DatePicker({
                             onClick={handleMesSiguiente}
                             className="hover:bg-slate-200 rounded transition-colors cursor-pointer"
                             style={{
-                                padding: contenedorRef.current
-                                    ? `${Math.max(2, contenedorRef.current.getBoundingClientRect().width * 0.01)}px`
+                                padding: escalaW > 0
+                                    ? `${Math.max(2, escalaW * 0.01)}px`
                                     : '2px'
                             }}
                         >
                             <ChevronRight
                                 style={{
                                     width: contenedorRef.current
-                                        ? `${Math.max(16, contenedorRef.current.getBoundingClientRect().width * 0.085)}px`
+                                        ? `${Math.max(16, escalaW * 0.085)}px`
                                         : '12px',
                                     height: contenedorRef.current
-                                        ? `${Math.max(16, contenedorRef.current.getBoundingClientRect().width * 0.085)}px`
+                                        ? `${Math.max(16, escalaW * 0.085)}px`
                                         : '12px'
                                 }}
                                 className="text-slate-600"
@@ -378,10 +404,10 @@ export function DatePicker({
                         className="grid grid-cols-7"
                         style={{
                             gap: contenedorRef.current
-                                ? `${Math.max(1, contenedorRef.current.getBoundingClientRect().width * 0.005)}px`
+                                ? `${Math.max(1, escalaW * 0.005)}px`
                                 : '1px',
                             marginBottom: contenedorRef.current
-                                ? `${Math.max(4, contenedorRef.current.getBoundingClientRect().width * 0.015)}px`
+                                ? `${Math.max(4, escalaW * 0.015)}px`
                                 : '4px'
                         }}
                     >
@@ -391,10 +417,10 @@ export function DatePicker({
                                 className="text-center font-bold text-slate-500"
                                 style={{
                                     fontSize: contenedorRef.current
-                                        ? `${Math.max(10, contenedorRef.current.getBoundingClientRect().width * 0.055)}px`
+                                        ? `${Math.max(10, escalaW * 0.055)}px`
                                         : '10px',
                                     padding: contenedorRef.current
-                                        ? `${Math.max(2, contenedorRef.current.getBoundingClientRect().width * 0.008)}px`
+                                        ? `${Math.max(2, escalaW * 0.008)}px`
                                         : '2px'
                                 }}
                             >
@@ -408,7 +434,7 @@ export function DatePicker({
                         className="grid grid-cols-7"
                         style={{
                             gap: contenedorRef.current
-                                ? `${Math.max(1, contenedorRef.current.getBoundingClientRect().width * 0.005)}px`
+                                ? `${Math.max(1, escalaW * 0.005)}px`
                                 : '1px'
                         }}
                     >
@@ -432,15 +458,15 @@ export function DatePicker({
                                         ${deshabilitado
                                             ? 'text-slate-300 cursor-not-allowed'
                                             : seleccionado
-                                                ? 'bg-blue-500 text-white font-bold shadow-md cursor-pointer'
+                                                ? 'bg-blue-600 text-white font-bold shadow-md cursor-pointer'
                                                 : hoy
-                                                    ? 'bg-blue-50 text-blue-600 font-bold ring-2 ring-blue-500 cursor-pointer'
+                                                    ? 'bg-blue-100 text-blue-700 font-bold ring-2 ring-blue-600 cursor-pointer'
                                                     : 'text-slate-700 hover:bg-slate-200 cursor-pointer'
                                         }
                                     `}
                                     style={{
                                         fontSize: contenedorRef.current
-                                            ? `${Math.max(13, contenedorRef.current.getBoundingClientRect().width * 0.065)}px`
+                                            ? `${Math.max(13, escalaW * 0.065)}px`
                                             : '13px'
                                     }}
                                 >
@@ -455,13 +481,13 @@ export function DatePicker({
                         className="flex border-t border-slate-200"
                         style={{
                             gap: contenedorRef.current
-                                ? `${Math.max(4, contenedorRef.current.getBoundingClientRect().width * 0.01)}px`
+                                ? `${Math.max(4, escalaW * 0.01)}px`
                                 : '4px',
                             marginTop: contenedorRef.current
-                                ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
+                                ? `${Math.max(6, escalaW * 0.02)}px`
                                 : '6px',
                             paddingTop: contenedorRef.current
-                                ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
+                                ? `${Math.max(6, escalaW * 0.02)}px`
                                 : '6px'
                         }}
                     >
@@ -470,11 +496,11 @@ export function DatePicker({
                             onClick={handleLimpiar}
                             className="flex-1 font-semibold text-slate-600 hover:bg-slate-200 rounded transition-colors cursor-pointer"
                             style={{
-                                fontSize: contenedorRef.current
-                                    ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.06)}px`
+                                fontSize: escalaW > 0
+                                    ? `${Math.max(12, escalaW * 0.06)}px`
                                     : '12px',
-                                padding: contenedorRef.current
-                                    ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
+                                padding: escalaW > 0
+                                    ? `${Math.max(6, escalaW * 0.02)}px`
                                     : '6px'
                             }}
                         >
@@ -483,13 +509,13 @@ export function DatePicker({
                         <button
                             type="button"
                             onClick={handleHoy}
-                            className="flex-1 font-semibold text-blue-600 bg-blue-50 hover:bg-blue-200 rounded transition-colors cursor-pointer"
+                            className="flex-1 font-semibold text-blue-700 bg-blue-100 hover:bg-blue-300 rounded transition-colors cursor-pointer"
                             style={{
-                                fontSize: contenedorRef.current
-                                    ? `${Math.max(12, contenedorRef.current.getBoundingClientRect().width * 0.06)}px`
+                                fontSize: escalaW > 0
+                                    ? `${Math.max(12, escalaW * 0.06)}px`
                                     : '12px',
-                                padding: contenedorRef.current
-                                    ? `${Math.max(6, contenedorRef.current.getBoundingClientRect().width * 0.02)}px`
+                                padding: escalaW > 0
+                                    ? `${Math.max(6, escalaW * 0.02)}px`
                                     : '6px'
                             }}
                         >
@@ -497,7 +523,7 @@ export function DatePicker({
                         </button>
                     </div>
                 </div>
-                ,
+                </>,
                 document.body
             )}
         </div>

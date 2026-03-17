@@ -315,41 +315,50 @@ Estas decisiones arquitectónicas fueron tomadas durante la implementación del 
 
 ### 2. Optimización de Imágenes Client-Side
 
-**Decisión:** Comprimir y optimizar imágenes en el navegador antes de subir a Cloudinary.
+**Decisión:** Comprimir y optimizar imágenes en el navegador antes de subir (aplica tanto a Cloudinary como a R2).
 
 **Configuración:**
 ```typescript
-Logo:      maxWidth: 500px,  quality: 0.85, format: webp
-Portada:   maxWidth: 1600px, quality: 0.85, format: webp
-Galería:   maxWidth: 1200px, quality: 0.85, format: webp
-Productos: maxWidth: 800px,  quality: 0.85, format: webp
+Logo:      maxWidth: 500px,  quality: 0.85, format: webp  → Cloudinary
+Portada:   maxWidth: 1600px, quality: 0.85, format: webp  → Cloudinary
+Galería:   maxWidth: 1200px, quality: 0.85, format: webp  → Cloudinary
+Artículos: maxWidth: 1920px, quality: 0.85, format: webp  → R2
+Ofertas:   maxWidth: 1920px, quality: 0.85, format: webp  → R2 (pendiente)
 ```
 
 **Beneficios:**
-- Reduce costos de almacenamiento Cloudinary
+- Reduce costos de almacenamiento
 - Acelera tiempo de carga en frontend
 - Mejora experiencia de usuario en conexiones lentas
 
 ---
 
-### 3. Upload Diferido (Optimista)
+### 3. Upload Diferido (Optimista) y Presigned URLs
 
-**Decisión:** Mostrar preview local inmediato sin esperar upload.
+**Decisión:** Mostrar preview local inmediato sin esperar upload. Dos variantes según destino:
 
-**Implementación:**
+**A) Cloudinary** (Mi Perfil: logo, portada, galería) — `useOptimisticUpload`:
 - Preview instantáneo con `URL.createObjectURL()`
-- Upload a Cloudinary solo al confirmar paso/formulario
-- Evita imágenes huérfanas en servidor
+- Upload directo a Cloudinary con upload preset
+- URL de Cloudinary reemplaza blob local al completar
 
-**Flujo:**
+**B) Cloudflare R2** (Catálogo, Ofertas) — `useR2Upload`:
+- Preview instantáneo con `URL.createObjectURL()`
+- Solicita presigned URL al backend (`POST /api/{módulo}/upload-imagen`)
+- PUT directo al bucket R2 con la presigned URL
+- URL pública de R2 reemplaza blob local al completar
+- Eliminación inteligente: detecta automáticamente R2 vs Cloudinary según la URL
+
+**Flujo R2:**
 ```
-1. Usuario selecciona imagen → Preview INMEDIATO
-2. Usuario confirma formulario → Upload inicia
-3. Success → URL de Cloudinary reemplaza blob local
-4. Error → Retry automático o fallback
+1. Usuario selecciona imagen → Preview INMEDIATO (blob local)
+2. Hook optimiza imagen → canvas → WebP
+3. POST /api/articulos/upload-imagen → { uploadUrl, publicUrl }
+4. PUT uploadUrl (blob) → R2
+5. publicUrl reemplaza blob local
 ```
 
-**Razón:** UX optimista - interfaz "snappy" sin esperas.
+**Razón:** UX optimista - interfaz "snappy" sin esperas. R2 tiene egress ilimitado y menor costo a largo plazo.
 
 ---
 
@@ -691,11 +700,11 @@ Usuario Final
              ├─► AWS SES (Emails - Sandbox)
              │   └─► 200 emails/día
              │
-             ├─► Cloudinary (Imágenes - Free)
-             │   └─► 25 GB storage/mes
+             ├─► Cloudinary (Imágenes perfil - Free)
+             │   └─► Logo, portada, galería · 25 GB storage/mes
              │
-             ├─► Cloudflare R2 (Tickets - Free)
-             │   └─► 10 GB, egress ilimitado
+             ├─► Cloudflare R2 (Multimedia - Free)
+             │   └─► Tickets ScanYA + Artículos + Ofertas · 10 GB, egress ilimitado
              │
              └─► Stripe (Pagos - Test Mode)
                  └─► Suscripciones comerciales
@@ -713,8 +722,8 @@ Usuario Final
 | **MongoDB** | Atlas | M0 | 512 MB shared | Sin backups auto | $0 |
 | **Redis** | Upstash | Free | 10K commands/día | 256 MB | $0 |
 | **Emails** | AWS SES | Sandbox | 200 emails/día | Sandbox mode | $0 |
-| **Imágenes** | Cloudinary | Free | 25 GB/mes | 25 créditos/mes | $0 |
-| **Tickets** | R2 | Free | 10 GB storage | Egress ilimitado | $0 |
+| **Imágenes perfil** | Cloudinary | Free | 25 GB/mes | 25 créditos/mes | $0 |
+| **Multimedia** | Cloudflare R2 | Free | 10 GB storage | Egress ilimitado | $0 |
 | **Pagos** | Stripe | Test | N/A | Test mode | $0 |
 
 **Total Infraestructura: $0/mes**

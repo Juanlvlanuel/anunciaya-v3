@@ -30,6 +30,7 @@ import {
     putActualizarArticulo,
     deleteArticulo,
     postDuplicarArticulo,
+    postUploadImagenArticulo,
 } from '../controllers/articulos.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -67,6 +68,21 @@ router.post('/:id/vista', postRegistrarVista);
 // =============================================================================
 // RUTAS BUSINESS STUDIO (requieren autenticación)
 // =============================================================================
+
+/**
+ * POST /api/articulos/upload-imagen
+ * Genera una presigned URL para subir imagen de artículo directamente a R2.
+ * Debe ir ANTES de POST / para que Express no confunda la ruta.
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ * Body: { nombreArchivo, contentType }
+ */
+router.post(
+    '/upload-imagen',
+    verificarToken,
+    verificarNegocio,
+    postUploadImagenArticulo
+);
 
 /**
  * POST /api/articulos

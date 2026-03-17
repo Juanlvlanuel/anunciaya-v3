@@ -88,12 +88,27 @@ export async function eliminarArticulo(id: string) {
 /**
  * Duplica un artículo a otras sucursales (SOLO DUEÑOS)
  * POST /api/articulos/:id/duplicar
- * 
+ *
  * @param id - UUID del artículo original
  * @param datos - IDs de sucursales destino
  */
 export async function duplicarArticulo(id: string, datos: DuplicarArticuloInput) {
   return post<ArticuloDuplicado[]>(`/articulos/${id}/duplicar`, datos);
+}
+
+/**
+ * Genera una presigned URL para subir imagen de artículo directamente a R2.
+ * POST /api/articulos/upload-imagen
+ *
+ * @param nombreArchivo - Nombre original del archivo (ej: 'foto.jpg')
+ * @param contentType   - MIME type (ej: 'image/jpeg')
+ * @returns uploadUrl (para hacer PUT) + publicUrl (URL final de la imagen)
+ */
+export async function generarUrlUploadImagenArticulo(nombreArchivo: string, contentType: string) {
+  return post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>(
+    '/articulos/upload-imagen',
+    { nombreArchivo, contentType }
+  );
 }
 
 // =============================================================================
@@ -145,7 +160,8 @@ export default {
   actualizarArticulo,
   eliminarArticulo,
   duplicarArticulo,
-  
+  generarUrlUploadImagenArticulo,
+
   // Público
   obtenerCatalogoPublico,
   obtenerArticuloPublico,

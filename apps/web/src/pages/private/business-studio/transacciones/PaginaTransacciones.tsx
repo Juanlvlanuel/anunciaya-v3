@@ -46,6 +46,7 @@ import {
   CheckCircle,
   AlertCircle,
   Calendar,
+  LayoutList,
 } from 'lucide-react';
 import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
@@ -313,12 +314,12 @@ function FilaMovil({
         {/* Fecha + Acciones */}
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium text-slate-500">{transaccion.createdAt ? new Date(transaccion.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</p>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-4 shrink-0">
             <button onClick={() => onChatear(transaccion.clienteId)} className="cursor-pointer">
               <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
             </button>
             <button onClick={() => onVerDetalle(transaccion)} className="cursor-pointer text-slate-700">
-              <Eye className="w-6 h-6" />
+              <Eye className="w-7 h-7" />
             </button>
           </div>
         </div>
@@ -393,12 +394,12 @@ function FilaMovilCanje({
               new Date(canje.usadoAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
             ) : '—'}
           </p>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-4 shrink-0">
             <button onClick={() => onChatear(canje.clienteId)} className="cursor-pointer">
               <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
             </button>
             <button onClick={() => onVerDetalle(canje)} className="cursor-pointer text-slate-700">
-              <Eye className="w-6 h-6" />
+              <Eye className="w-7 h-7" />
             </button>
           </div>
         </div>
@@ -497,7 +498,6 @@ export default function PaginaTransacciones() {
     } else {
       cargarHistorial();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sucursalActiva]);
 
   // ——— Limpiar filtros al salir (sin disparar cargarHistorial) ———
@@ -1094,7 +1094,7 @@ export default function PaginaTransacciones() {
                             <button
                               key={p.id}
                               onClick={() => { handlePeriodo(p.id); setPeriodoDropdownAbierto(false); }}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                             >
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                                 {activo && <Check className="w-3 h-3 text-white" />}
@@ -1152,7 +1152,7 @@ export default function PaginaTransacciones() {
                             <button
                               key={e.id}
                               onClick={() => { setEstadoFiltro(e.id); setEstadoDropdownAbierto(false); }}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                             >
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                                 {activo && <Check className="w-3 h-3 text-white" />}
@@ -1187,7 +1187,7 @@ export default function PaginaTransacciones() {
                         <div className="absolute top-full right-0 mt-1.5 w-64 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                           <button
                             onClick={() => { setOperadorId(''); setDropdownAbierto(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer ${!operadorId ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${!operadorId ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                           >
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!operadorId ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                               {!operadorId && <Check className="w-3 h-3 text-white" />}
@@ -1202,7 +1202,7 @@ export default function PaginaTransacciones() {
                                 <button
                                   key={op.id}
                                   onClick={() => { setOperadorId(op.id); setDropdownAbierto(false); }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer ${seleccionado ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-200'}`}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${seleccionado ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700 hover:bg-slate-200'}`}
                                 >
                                   <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${seleccionado ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                                     {seleccionado && <Check className="w-3 h-3 text-white" />}
@@ -1285,24 +1285,24 @@ export default function PaginaTransacciones() {
               <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
 
                 {/* Dropdown Período */}
-                <div className="shrink-0 relative" ref={periodoDropdownRef}>
+                <div className="flex-1 lg:flex-none lg:w-40 lg:shrink-0 relative" ref={periodoDropdownRef}>
                   <button
                     onClick={() => setPeriodoDropdownAbierto(!periodoDropdownAbierto)}
-                    className={`flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
+                    className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
                   >
                     <Calendar className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
                     <span className="truncate">{PERIODOS_CONFIG.find(p => p.id === periodo)?.etiqueta ?? 'Período'}</span>
-                    <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${periodoDropdownAbierto ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 ml-auto transition-transform ${periodoDropdownAbierto ? 'rotate-180' : ''}`} />
                   </button>
                   {periodoDropdownAbierto && (
-                    <div className="absolute top-full left-0 mt-1.5 w-36 lg:w-40 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
+                    <div className="absolute top-full left-0 mt-1.5 w-full lg:w-40 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                       {PERIODOS_CONFIG.map((p) => {
                         const activo = periodo === p.id;
                         return (
                           <button
                             key={p.id}
                             onClick={() => { handlePeriodo(p.id); setPeriodoDropdownAbierto(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                           >
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                               {activo && <Check className="w-3 h-3 text-white" />}
@@ -1326,9 +1326,9 @@ export default function PaginaTransacciones() {
                     <button
                       key={e.id}
                       onClick={() => setEstadoFiltroCanjes(e.id)}
-                      className={`px-3 2xl:px-4 h-9 2xl:h-10 flex items-center rounded-lg lg:text-xs 2xl:text-sm font-semibold border-2 cursor-pointer ${estadoFiltroCanjes === e.id
+                      className={`px-3 2xl:px-4 h-10 2xl:h-11 flex items-center rounded-lg lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${estadoFiltroCanjes === e.id
                           ? 'text-white border-slate-700 shadow-sm'
-                          : 'bg-slate-200 text-slate-600 border-transparent hover:bg-slate-300'
+                          : 'bg-slate-200 text-slate-600 border-slate-300 hover:bg-slate-300'
                         }`}
                       style={estadoFiltroCanjes === e.id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                     >
@@ -1338,48 +1338,57 @@ export default function PaginaTransacciones() {
                 </div>
 
                 {/* Estado dropdown — solo móvil */}
-                <div className="lg:hidden shrink-0 relative" ref={estadoCanjesDropdownRef}>
-                  <button
-                    onClick={() => setEstadoCanjesDropdownAbierto(!estadoCanjesDropdownAbierto)}
-                    className={`flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltroCanjes
-                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                        : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
-                      }`}
-                  >
-                    <span className="truncate">{[{ id: '', etiqueta: 'Todos' }, { id: 'pendiente', etiqueta: 'Pendientes' }, { id: 'usado', etiqueta: 'Usados' }, { id: 'expirado', etiqueta: 'Vencidos' }].find(e => e.id === estadoFiltroCanjes)?.etiqueta ?? 'Todos'}</span>
-                    <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${estadoCanjesDropdownAbierto ? 'rotate-180' : ''}`} />
-                  </button>
-                  {estadoCanjesDropdownAbierto && (
-                    <div className="absolute top-full left-0 mt-1.5 w-36 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
-                      {[
-                        { id: '', etiqueta: 'Todos' },
-                        { id: 'pendiente', etiqueta: 'Pendientes' },
-                        { id: 'usado', etiqueta: 'Usados' },
-                        { id: 'expirado', etiqueta: 'Vencidos' },
-                      ].map((e) => {
-                        const activo = estadoFiltroCanjes === e.id;
-                        return (
-                          <button
-                            key={e.id}
-                            onClick={() => { setEstadoFiltroCanjes(e.id); setEstadoCanjesDropdownAbierto(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-xs 2xl:text-sm font-medium text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-200'}`}
-                          >
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                              {activo && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <span>{e.etiqueta}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                <div className="lg:hidden flex-1 relative" ref={estadoCanjesDropdownRef}>
+                  {(() => {
+                    const ESTADOS_CANJE = [
+                      { id: '', etiqueta: 'Todos', Icono: LayoutList, color: 'text-slate-500' },
+                      { id: 'pendiente', etiqueta: 'Pendientes', Icono: Hourglass, color: 'text-amber-600' },
+                      { id: 'usado', etiqueta: 'Usados', Icono: CheckCircle, color: 'text-green-600' },
+                      { id: 'expirado', etiqueta: 'Vencidos', Icono: AlertCircle, color: 'text-red-500' },
+                    ];
+                    const seleccionado = ESTADOS_CANJE.find(e => e.id === estadoFiltroCanjes) ?? ESTADOS_CANJE[0];
+                    return (
+                      <>
+                        <button
+                          onClick={() => setEstadoCanjesDropdownAbierto(!estadoCanjesDropdownAbierto)}
+                          className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltroCanjes
+                              ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                              : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                            }`}
+                        >
+                          <seleccionado.Icono className={`w-4 h-4 shrink-0 ${estadoFiltroCanjes ? 'text-indigo-500' : seleccionado.color}`} />
+                          <span className="truncate flex-1">{seleccionado.etiqueta}</span>
+                          <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${estadoCanjesDropdownAbierto ? 'rotate-180' : ''}`} />
+                        </button>
+                        {estadoCanjesDropdownAbierto && (
+                          <div className="absolute top-full left-0 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
+                            {ESTADOS_CANJE.map((e) => {
+                              const activo = estadoFiltroCanjes === e.id;
+                              return (
+                                <button
+                                  key={e.id}
+                                  onClick={() => { setEstadoFiltroCanjes(e.id); setEstadoCanjesDropdownAbierto(false); }}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                >
+                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                    {activo ? <Check className="w-3 h-3 text-white" /> : <e.Icono className={`w-3 h-3 ${e.color}`} />}
+                                  </div>
+                                  <span>{e.etiqueta}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
               {/* Fila 2: Solo búsqueda */}
               <div className="relative w-full">
                 <Input
-                  placeholder="Buscar cliente..."
+                  placeholder="Nombre o Celular..."
                   value={textoBusquedaCanjes}
                   onChange={(e) => handleBusquedaCanjes(e.target.value)}
                   className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base pr-8"
@@ -1443,7 +1452,7 @@ export default function PaginaTransacciones() {
 
             {/* Body scrolleable */}
             <div
-              className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white"
+              className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-455px)] overflow-y-auto bg-white"
             >
               {transaccionesOrdenadas.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-600">

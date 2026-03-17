@@ -52,8 +52,8 @@ interface ModalBottomProps {
   mostrarHeader?: boolean;
   /** ¿Desactivar scroll interno? (para manejar scroll en el children) */
   sinScrollInterno?: boolean;
-  /** Altura máxima del modal: 'sm' (50vh), 'md' (60vh), 'lg' (65vh) */
-  alturaMaxima?: 'sm' | 'md' | 'lg';
+  /** Altura máxima del modal: 'sm' (65vh), 'md' (75vh), 'lg' (80vh), 'xl' (93vh) */
+  alturaMaxima?: 'sm' | 'md' | 'lg' | 'xl';
   /** Clases CSS adicionales para el contenedor */
   className?: string;
   /** Clase de z-index para el wrapper (default: 'z-52'). Usar z-90 para modales sobre ChatYA */
@@ -81,6 +81,7 @@ const ALTURAS_MAXIMAS = {
   sm: 'max-h-[65vh]',
   md: 'max-h-[75vh]',
   lg: 'max-h-[80vh]',
+  xl: 'max-h-[93vh]',
 } as const;
 
 // =============================================================================

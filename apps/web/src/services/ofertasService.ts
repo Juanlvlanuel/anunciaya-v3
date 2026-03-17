@@ -97,6 +97,21 @@ export async function duplicarOferta(id: string, datos: DuplicarOfertaInput) {
   return post<OfertaDuplicada[]>(`/ofertas/${id}/duplicar`, datos);
 }
 
+/**
+ * Genera una presigned URL para subir imagen de oferta directamente a R2.
+ * POST /api/ofertas/upload-imagen
+ *
+ * @param nombreArchivo - Nombre original del archivo (ej: 'foto.jpg')
+ * @param contentType   - MIME type (ej: 'image/jpeg')
+ * @returns uploadUrl (para hacer PUT) + publicUrl (URL final de la imagen)
+ */
+export async function generarUrlUploadImagenOferta(nombreArchivo: string, contentType: string) {
+  return post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>(
+    '/ofertas/upload-imagen',
+    { nombreArchivo, contentType }
+  );
+}
+
 // =============================================================================
 // FUNCIONES FEED PÚBLICO (REQUIERE AUTH - AMBOS MODOS)
 // =============================================================================
@@ -164,6 +179,7 @@ export default {
   actualizarOferta,
   eliminarOferta,
   duplicarOferta,
+  generarUrlUploadImagenOferta,
 
   // Feed público
   obtenerFeedOfertas,

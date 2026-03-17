@@ -19,6 +19,7 @@ import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../db';
 import { ofertas } from '../db/schemas/schema';
 import { duplicarImagen } from './cloudinary.service';
+import { generarPresignedUrl } from './r2.service.js';
 import type {
   CrearOfertaInput,
   ActualizarOfertaInput,
@@ -27,6 +28,21 @@ import type {
 } from '../types/ofertas.types';
 import { negocios, puntosBilletera } from '../db/schemas/schema';
 import { crearNotificacion } from './notificaciones.service.js';
+
+// =============================================================================
+// GENERAR URL DE UPLOAD PARA IMAGEN DE OFERTA (R2)
+// =============================================================================
+
+/**
+ * Genera una presigned URL para que el frontend suba directamente a R2.
+ *
+ * @param nombreArchivo - Nombre original del archivo
+ * @param contentType   - MIME type (image/jpeg, image/png, image/webp)
+ */
+export async function generarUrlUploadImagenOferta(nombreArchivo: string, contentType: string) {
+    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    return generarPresignedUrl('ofertas', nombreArchivo, contentType, 300, TIPOS_PERMITIDOS);
+}
 
 // =============================================================================
 // FEED DE OFERTAS (VISTA PÚBLICA - AMBOS MODOS)
@@ -870,6 +886,7 @@ export default {
   registrarVistaOferta,
 
   // Business Studio (modo comercial)
+  generarUrlUploadImagenOferta,
   crearOferta,
   obtenerOfertas,
   obtenerOfertaPorId,

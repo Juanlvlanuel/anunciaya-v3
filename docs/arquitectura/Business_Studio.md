@@ -312,15 +312,21 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 **Funcionalidad:**
 - Lista de productos/servicios
 - Modal crear/editar artículo
-- Upload de imágenes (Cloudinary)
+- Upload de imágenes a **Cloudflare R2** (presigned URL, frontend sube directo)
 - Filtros por tipo (producto/servicio) y categoría
 - Sistema de asignación a sucursales (N:N)
 - Duplicar artículo a otras sucursales (solo dueños)
+
+> **Almacenamiento de imágenes:** Migrado de Cloudinary → R2 (Marzo 2026).
+> Las imágenes existentes en Cloudinary siguen siendo válidas. Nuevas imágenes van a `articulos/` en R2.
+> Hook: `useR2Upload` — optimiza a WebP antes de subir.
+> La eliminación es inteligente: detecta automáticamente R2 vs Cloudinary según la URL.
 
 **Endpoints:**
 
 | Método | Endpoint | Propósito |
 |--------|----------|-----------|
+| POST | `/api/articulos/upload-imagen` | Generar presigned URL para subir imagen a R2 |
 | POST | `/api/articulos` | Crear artículo |
 | GET | `/api/articulos` | Listar artículos de la sucursal |
 | GET | `/api/articulos/:id` | Obtener artículo específico |
@@ -348,6 +354,8 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 - Configuración días y horarios de vigencia
 - Duplicar oferta a otras sucursales (solo dueños)
 - Vista previa pública `/p/oferta/:id`
+
+> **Almacenamiento de imágenes:** Pendiente de migrar Cloudinary → R2 (mismo patrón que Catálogo).
 
 **Endpoints:**
 

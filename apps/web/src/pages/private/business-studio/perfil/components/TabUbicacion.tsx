@@ -249,7 +249,6 @@ export default function TabUbicacion({
         // Limpiar búsquedas ya que los valores se muestran desde datosUbicacion
         if (ciudadCercana) {
           setBusquedaCiudad('');
-          setBusquedaEstado('');
         }
 
         setForzarCentrado(prev => prev + 1);

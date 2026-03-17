@@ -43,6 +43,7 @@ interface UseHideOnScrollOptions {
 interface UseHideOnScrollReturn {
   shouldShow: boolean;
   hideStyle: React.CSSProperties;
+  forzarMostrar: () => void;
 }
 
 // =============================================================================

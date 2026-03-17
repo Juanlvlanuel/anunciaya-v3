@@ -239,12 +239,12 @@ function FilaMovil({
             <span className="font-semibold text-amber-600">{cliente.puntosDisponibles.toLocaleString()} pts</span>
             <span>{cliente.totalVisitas} visitas</span>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-4 shrink-0">
             <button onClick={() => onChatear(cliente.id)} className="cursor-pointer">
               <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
             </button>
             <button onClick={() => onVerDetalle(cliente.id)} className="cursor-pointer text-slate-700">
-              <Eye className="w-6 h-6" />
+              <Eye className="w-7 h-7" />
             </button>
           </div>
         </div>
@@ -680,7 +680,7 @@ export default function PaginaClientes() {
             </div>
 
             {/* Body scrolleable */}
-            <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white">
+            <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-455px)] overflow-y-auto bg-white">
               {clientesOrdenados.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                   <Inbox className="w-10 h-10 mb-2" />

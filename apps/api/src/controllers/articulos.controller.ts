@@ -23,6 +23,7 @@ import {
     actualizarArticulo,
     eliminarArticulo,
     duplicarArticuloASucursales,
+    generarUrlUploadImagenArticulo,
 } from '../services/articulos.service.js';
 import {
     crearArticuloSchema,
@@ -474,6 +475,40 @@ export async function postDuplicarArticulo(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al duplicar el artículo',
+        });
+    }
+}
+
+// =============================================================================
+// UPLOAD DE IMAGEN A R2
+// =============================================================================
+
+/**
+ * POST /api/articulos/upload-imagen
+ * Genera una presigned URL para que el frontend suba la imagen directamente a R2.
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ * Body: { nombreArchivo: string, contentType: string }
+ */
+export async function postUploadImagenArticulo(req: Request, res: Response) {
+    try {
+        const { nombreArchivo, contentType } = req.body;
+
+        if (!nombreArchivo || !contentType) {
+            return res.status(400).json({
+                success: false,
+                message: 'nombreArchivo y contentType son requeridos',
+            });
+        }
+
+        const resultado = await generarUrlUploadImagenArticulo(nombreArchivo, contentType);
+        return res.status(resultado.code).json(resultado);
+
+    } catch (error) {
+        console.error('Error en postUploadImagenArticulo:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al generar URL de subida',
         });
     }
 }

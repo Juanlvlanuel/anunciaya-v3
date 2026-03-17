@@ -33,8 +33,10 @@ const ESTILO_ICONO_HEADER = `
 // TIPOS
 // =============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface HeaderDashboardProps {}
+interface HeaderDashboardProps {
+  onNuevaOferta?: () => void;
+  onNuevoArticulo?: () => void;
+}
 
 const PERIODOS: { valor: Periodo; label: string }[] = [
   { valor: 'hoy', label: 'Hoy' },

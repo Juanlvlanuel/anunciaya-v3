@@ -29,6 +29,7 @@ import {
   putActualizarOferta,
   deleteOferta,
   postDuplicarOferta,
+  postUploadImagenOferta,
 } from '../controllers/ofertas.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -78,6 +79,20 @@ router.post('/:id/vista', verificarToken, postRegistrarVista);
 // =============================================================================
 // RUTAS BUSINESS STUDIO (REQUIEREN AUTH + MODO COMERCIAL + SUCURSAL)
 // =============================================================================
+
+/**
+ * POST /api/ofertas/upload-imagen
+ * Genera presigned URL para subir imagen de oferta a R2
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ * IMPORTANTE: Debe ir ANTES de POST /:id/* para evitar colisiones
+ */
+router.post(
+  '/upload-imagen',
+  verificarToken,
+  verificarNegocio,
+  postUploadImagenOferta
+);
 
 /**
  * POST /api/ofertas

@@ -86,7 +86,7 @@ function BadgeNivel({ nivel }: { nivel: string }) {
   const { icono, color, bg } = config[nivel?.toLowerCase()] || config.bronce;
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold ${bg} ${color}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-base lg:text-sm 2xl:text-base font-bold ${bg} ${color}`}>
       {icono}
       <span className="capitalize">{nivel}</span>
     </span>
@@ -111,8 +111,8 @@ function CeldaEstadistica({
         {icono}
       </div>
       <div className="min-w-0">
-        <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800 truncate">{valor}</p>
-        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium leading-tight">{etiqueta}</p>
+        <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 truncate">{valor}</p>
+        <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium leading-tight">{etiqueta}</p>
       </div>
     </div>
   );
@@ -137,18 +137,18 @@ function FilaTransaccion({
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800">
+          <span className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800">
             {formatearMoneda(monto)}
           </span>
-          <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-emerald-600">
+          <span className="text-base lg:text-sm 2xl:text-base font-bold text-emerald-600">
             +{puntos.toLocaleString()} pts
           </span>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 truncate">
+          <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 truncate">
             {concepto || 'Compra'}
           </span>
-          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 shrink-0">
+          <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 shrink-0">
             {formatearFechaTransaccion(fecha)}
           </span>
         </div>
@@ -298,6 +298,7 @@ export default function ModalDetalleCliente({
       mostrarHeader={false}
       paddingContenido="none"
       sinScrollInterno
+      alturaMaxima="xl"
       className="lg:max-w-md 2xl:max-w-lg"
       headerOscuro
     >
@@ -385,19 +386,19 @@ export default function ModalDetalleCliente({
                   <p className="text-base lg:text-sm 2xl:text-base font-bold text-emerald-600">
                     {cliente.puntosDisponibles.toLocaleString()}
                   </p>
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Disponibles</p>
+                  <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Disponibles</p>
                 </div>
                 <div className="border-x border-slate-300">
                   <p className="text-base lg:text-sm 2xl:text-base font-bold text-blue-600">
                     {cliente.puntosAcumuladosTotal.toLocaleString()}
                   </p>
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Acumulados</p>
+                  <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Acumulados</p>
                 </div>
                 <div>
                   <p className="text-base lg:text-sm 2xl:text-base font-bold text-violet-600">
                     {cliente.puntosCanjeadosTotal.toLocaleString()}
                   </p>
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Canjeados</p>
+                  <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Canjeados</p>
                 </div>
               </div>
 
@@ -420,7 +421,7 @@ export default function ModalDetalleCliente({
                     </div>
                     <BadgeNivel nivel={progreso.siguienteNivel} />
                   </div>
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-1 text-center">
+                  <p className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 mt-1 text-center">
                     {progreso.porcentaje.toFixed(0)}% — Faltan {progreso.puntosFaltantes.toLocaleString()} pts para {progreso.siguienteNivel}
                   </p>
                 </div>
@@ -436,9 +437,9 @@ export default function ModalDetalleCliente({
                         />
                       </div>
                     </div>
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-yellow-600">100%</span>
+                    <span className="text-base lg:text-sm 2xl:text-base font-semibold text-yellow-600">100%</span>
                   </div>
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-yellow-600 mt-1 text-center">
+                  <p className="text-base lg:text-sm 2xl:text-base font-medium text-yellow-600 mt-1 text-center">
                     ¡Nivel máximo alcanzado!
                   </p>
                 </div>
@@ -480,10 +481,10 @@ export default function ModalDetalleCliente({
               <div className="flex items-center justify-between mb-2.5 lg:mb-2 2xl:mb-2.5">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-slate-600" />
-                  <h4 className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700">Últimas transacciones</h4>
+                  <h4 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-700">Últimas transacciones</h4>
                 </div>
                 {historialCliente.length > 0 && (
-                  <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+                  <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600">
                     {historialCliente.length} recientes
                   </span>
                 )}
@@ -500,7 +501,7 @@ export default function ModalDetalleCliente({
               {!cargandoHistorial && historialCliente.length === 0 && (
                 <div className="text-center py-4">
                   <ShoppingBag className="w-6 h-6 text-slate-600 mx-auto mb-1" />
-                  <p className="text-sm font-medium text-slate-600">Sin transacciones recientes</p>
+                  <p className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600">Sin transacciones recientes</p>
                 </div>
               )}
 
@@ -523,7 +524,7 @@ export default function ModalDetalleCliente({
               {historialCliente.length > 0 && (
                 <button
                   onClick={handleVerHistorial}
-                  className="w-full mt-3 lg:mt-2 2xl:mt-3 py-2.5 lg:py-2 2xl:py-2.5 rounded-lg border-2 border-slate-300 text-sm lg:text-xs 2xl:text-sm text-slate-600 font-semibold hover:bg-slate-200 cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full mt-3 lg:mt-2 2xl:mt-3 py-2.5 lg:py-2 2xl:py-2.5 rounded-lg border-2 border-slate-300 text-base lg:text-sm 2xl:text-base text-slate-600 font-semibold hover:bg-slate-200 cursor-pointer transition-colors flex items-center justify-center gap-1.5"
                 >
                   Ver historial completo
                   <ChevronRight className="w-4 h-4" />

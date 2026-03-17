@@ -35,6 +35,7 @@ import {
     Star,
     Eye,
     EyeOff,
+    Edit2,
     Trash2,
     Tag,
     Copy,
@@ -250,9 +251,9 @@ function FilaMovil({
                         </button>
                         <button
                             onClick={() => onEditar(articulo)}
-                            className="cursor-pointer text-slate-700"
+                            className="cursor-pointer text-blue-600"
                         >
-                            <Eye className="w-6 h-6" />
+                            <Edit2 className="w-6 h-6" />
                         </button>
                     </div>
                 </div>
@@ -755,8 +756,8 @@ export function PaginaCatalogo() {
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
                                 className={`flex items-center justify-center gap-1 px-3 2xl:px-4 h-10 2xl:h-11 rounded-lg text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'producto'
-                                    ? 'bg-cyan-100 text-cyan-700 border-cyan-300'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                                    ? 'bg-blue-100 text-blue-700 border-blue-400'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
                                 }`}
                             >
                                 <Package className="w-3.5 h-3.5" />
@@ -765,8 +766,8 @@ export function PaginaCatalogo() {
                             <button
                                 onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
                                 className={`flex items-center justify-center gap-1 px-3 2xl:px-4 h-10 2xl:h-11 rounded-lg text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'servicio'
-                                    ? 'bg-purple-100 text-purple-700 border-purple-300'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                                    ? 'bg-slate-200 text-slate-800 border-slate-500'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-400'
                                 }`}
                             >
                                 <Wrench className="w-3.5 h-3.5" />
@@ -926,7 +927,7 @@ export function PaginaCatalogo() {
                         </div>
 
                         {/* Body scrolleable */}
-                        <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white">
+                        <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-455px)] overflow-y-auto bg-white">
                             {articulosOrdenados.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                                     <Inbox className="w-10 h-10 mb-2" />

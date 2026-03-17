@@ -125,6 +125,11 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
     },
   };
 
+  const handleTouchStart = () => {
+    calcularPosicion();
+    setVisible(true);
+  };
+
   return (
     <div
       ref={triggerRef}
@@ -132,6 +137,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
       onMouseEnter={triggerOnClick ? undefined : handleMouseEnter}
       onMouseLeave={triggerOnClick ? undefined : () => setVisible(false)}
       onClick={triggerOnClick ? handleClick : undefined}
+      onTouchStart={handleTouchStart}
     >
       {children}
 
@@ -146,7 +152,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
           }}
         >
           <div
-            className="relative bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap"
+            className="relative bg-slate-900 text-white text-sm font-medium px-3 py-1.5 rounded-lg whitespace-nowrap"
             style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
           >
             {text}

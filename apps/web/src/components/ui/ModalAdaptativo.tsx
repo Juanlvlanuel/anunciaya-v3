@@ -84,8 +84,8 @@ interface ModalAdaptativoProps {
 
   /** ¿Desactivar scroll interno en móvil? */
   sinScrollInterno?: boolean;
-  /** Altura máxima en móvil: 'sm' | 'md' | 'lg' */
-  alturaMaxima?: 'sm' | 'md' | 'lg';
+  /** Altura máxima en móvil: 'sm' | 'md' | 'lg' | 'xl' */
+  alturaMaxima?: 'sm' | 'md' | 'lg' | 'xl';
 
   // --- Props de fondo para ModalBottom (móvil) ---
 

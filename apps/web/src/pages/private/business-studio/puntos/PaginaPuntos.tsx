@@ -789,13 +789,15 @@ export default function PaginaPuntos() {
             <h2 className="text-sm 2xl:text-base font-bold text-white">Recompensas</h2>
           </div>
           {!esGerente && (
-            <button
-              onClick={handleCrear}
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-white cursor-pointer"
-              style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
-            >
-              <Plus className="w-5 h-5" />
-            </button>
+            <Tooltip text="Nueva Recompensa" position="bottom">
+              <button
+                onClick={handleCrear}
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-white cursor-pointer"
+                style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </Tooltip>
           )}
         </div>
 

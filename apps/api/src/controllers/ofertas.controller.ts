@@ -22,6 +22,7 @@ import {
   actualizarOferta,
   eliminarOferta,
   duplicarOfertaASucursales,
+  generarUrlUploadImagenOferta,
 } from '../services/ofertas.service.js';
 import {
   crearOfertaSchema,
@@ -480,6 +481,38 @@ export async function postDuplicarOferta(req: Request, res: Response) {
     return res.status(500).json({
       success: false,
       message: 'Error al duplicar la oferta',
+    });
+  }
+}
+
+// =============================================================================
+// UPLOAD IMAGEN (R2)
+// =============================================================================
+
+/**
+ * POST /api/ofertas/upload-imagen
+ * Genera presigned URL para subir imagen de oferta directamente a R2
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ */
+export async function postUploadImagenOferta(req: Request, res: Response) {
+  try {
+    const { nombreArchivo, contentType } = req.body;
+
+    if (!nombreArchivo || !contentType) {
+      return res.status(400).json({
+        success: false,
+        message: 'nombreArchivo y contentType son requeridos',
+      });
+    }
+
+    const resultado = await generarUrlUploadImagenOferta(nombreArchivo, contentType);
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en postUploadImagenOferta:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al generar URL de subida',
     });
   }
 }

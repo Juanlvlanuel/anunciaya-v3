@@ -37,6 +37,8 @@ import {
     Sparkles,
     PauseCircle,
     Eye,
+    EyeOff,
+    Edit2,
     Share2,
     MousePointerClick,
     Trash2,
@@ -334,9 +336,9 @@ function FilaMovilOferta({
                         </button>
                         <button
                             onClick={() => onEditar(oferta)}
-                            className="cursor-pointer text-slate-700"
+                            className="cursor-pointer text-blue-600"
                         >
-                            <Eye className="w-6 h-6" />
+                            <Edit2 className="w-6 h-6" />
                         </button>
                     </div>
                 </div>
@@ -991,7 +993,7 @@ export function PaginaOfertas() {
                         </div>
 
                         {/* Body scrolleable */}
-                        <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white">
+                        <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-455px)] overflow-y-auto bg-white">
                             {ofertasOrdenadas.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                                     <Inbox className="w-10 h-10 mb-2" />

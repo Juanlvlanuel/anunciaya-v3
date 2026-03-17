@@ -27,6 +27,7 @@
 20. [Jerarquía de Rounded](#20-jerarquía-de-rounded)
 21. [CarouselKPI — Fade Dinámico](#21-carouselkpi--fade-dinámico)
 22. [Swipe entre Páginas (Business Studio)](#22-swipe-entre-páginas-business-studio)
+23. [Tooltip](#23-tooltip)
 
 ---
 
@@ -111,12 +112,12 @@ mt-1.5  ← separación fija del botón que lo abre
 
 ```
 w-full flex items-center gap-2.5 px-3 py-2
-text-base lg:text-sm 2xl:text-base font-medium text-left cursor-pointer
+text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer
 ```
 
-- Activo: `bg-slate-200 text-slate-800 font-semibold` (neutral) o `bg-indigo-100 text-indigo-700 font-semibold` (indigo)
+- Activo: `bg-slate-200 text-slate-800` (neutral) o `bg-indigo-100 text-indigo-700` (indigo)
 - Inactivo: `text-slate-600 hover:bg-slate-200`
-- `font-medium` es la base para todos los ítems — el activo lo sobreescribe con `font-semibold`
+- `font-semibold` siempre — nunca `font-medium`. No se añade `font-semibold` extra al activo porque ya es la base.
 
 ### Indicador de selección (círculo + check)
 
@@ -279,20 +280,29 @@ Botón limpiar (X): `absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-f
 
 ---
 
-## 8. Modales de Detalle (Bottom Sheet + Desktop)
+## 8. Modales con Header Gradiente (Bottom Sheet + Desktop)
 
-Patrón para modales de detalle que usan `ModalAdaptativo` con header gradiente.
+Patrón para modales que usan `ModalAdaptativo` con header gradiente oscuro. Hay dos variantes:
 
-### Estructura general
+| Variante | Uso | `alturaMaxima` | Ancho |
+|----------|-----|----------------|-------|
+| **Detalle** | Ver información de una entidad (cliente, transacción…) | `lg` (80vh) | `md` |
+| **Formulario BS** | Crear o editar una entidad (artículo, oferta…) | `xl` (93vh) | `xl` |
+
+---
+
+### 8A. Modal de Detalle
+
+#### Estructura
 
 ```
 ModalAdaptativo (sinScrollInterno, mostrarHeader=false, paddingContenido="none")
-├── div.flex.flex-col.max-h-[85vh].lg:max-h-[75vh]
+├── div.flex.flex-col.max-h-[80vh].lg:max-h-[75vh]
 │   ├── Header gradiente (shrink-0, lg:rounded-t-2xl)
 │   └── div.flex-1.overflow-y-auto (contenido con scroll)
 ```
 
-### Props de ModalAdaptativo
+#### Props de ModalAdaptativo
 
 ```tsx
 <ModalAdaptativo
@@ -302,15 +312,125 @@ ModalAdaptativo (sinScrollInterno, mostrarHeader=false, paddingContenido="none")
   mostrarHeader={false}
   paddingContenido="none"
   sinScrollInterno
-  headerOscuro          // ← adapta la pill del drag handle para fondos oscuros
+  alturaMaxima="lg"
+  headerOscuro
 >
 ```
 
 - `sinScrollInterno` — solo afecta `ModalBottom` (móvil), no `Modal` (desktop)
-- `headerOscuro` — cuando el primer hijo tiene fondo de color oscuro, la pill del drag handle cambia a `bg-white/40` para ser visible. **No** se necesita hack CSS adicional.
-- Ver TC-15 para la mecánica de cómo el drag handle hereda el color del contenido.
+- `headerOscuro` — la pill del drag handle cambia a `bg-white/40` para ser visible sobre fondo oscuro. Ver TC-15.
 
-> ⚠️ Patrón obsoleto eliminado: `max-lg:[background:linear-gradient(...)]` no funciona porque `ModalAdaptativo` no pasa `className` a `ModalBottom`. Usar `fondo` o `headerOscuro` props.
+---
+
+### 8B. Modal de Formulario BS (Crear/Editar)
+
+Patrón de ModalArticulo y ModalOferta — layout 2 columnas, gradiente dinámico según tipo de entidad.
+
+#### Estructura
+
+```
+ModalAdaptativo (sinScrollInterno, mostrarHeader=false, alturaMaxima="xl")
+└── div.flex.flex-col.max-h-[93vh].lg:max-h-[90vh]
+    ├── Header gradiente dinámico (shrink-0, pt-8 pb-4 lg:py-3, lg:rounded-t-2xl)
+    └── div.flex-1.overflow-y-auto
+        └── form.flex.flex-col.lg:flex-row
+            ├── Columna izquierda lg:w-2/5 (imagen + controles)
+            └── Columna derecha  lg:w-3/5 (campos + botones)
+```
+
+#### Props de ModalAdaptativo
+
+```tsx
+// GRADIENTES_TIPO — objeto constante en el componente:
+const GRADIENTES_TIPO = {
+  tipoA: { bg: 'linear-gradient(135deg, #hex1, #hex2)', shadow: 'rgba(r,g,b,0.4)', handle: '#hex1' },
+  tipoB: { bg: 'linear-gradient(135deg, #hex3, #hex4)', shadow: 'rgba(r,g,b,0.4)', handle: '#hex3' },
+};
+
+const gradiente = GRADIENTES_TIPO[tipoActual];
+
+<ModalAdaptativo
+  abierto={abierto}
+  onCerrar={onCerrar}
+  ancho="xl"
+  mostrarHeader={false}
+  paddingContenido="none"
+  sinScrollInterno
+  alturaMaxima="xl"
+  colorHandle={gradiente.handle}   // ← color dinámico de la pill según tipo
+  headerOscuro                     // ← pill blanca visible sobre gradiente oscuro
+  className="max-w-xs lg:max-w-2xl 2xl:max-w-3xl"
+>
+```
+
+- `colorHandle` — recibe el hex del color base del gradiente activo. Permite que la pill cambie de color junto con el header al seleccionar un tipo diferente.
+- `headerOscuro` — se combina con `colorHandle`; adapta la pill a `bg-white/40` como base antes de aplicar el color.
+- `className` — **solo llega al `Modal` de escritorio**, nunca a `ModalBottom`. No usar `max-lg:` en className para controlar estilos mobile.
+
+#### Header gradiente dinámico
+
+```tsx
+<div
+  className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl"
+  style={{ background: gradiente.bg, boxShadow: `0 4px 16px ${gradiente.shadow}` }}
+>
+  {/* Círculos decorativos */}
+  <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+  <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
+
+  <div className="relative flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
+    {/* Icono tipo — círculo con borde */}
+    <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+      <IconoTipo className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+    </div>
+    {/* Título + subtítulo */}
+    <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
+      <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">{titulo}</h3>
+      <span className="text-sm lg:text-xs 2xl:text-sm text-white/70">{subtitulo}</span>
+    </div>
+    {/* Acción derecha (toggle tipo, toggle activo, etc.) */}
+    <Tooltip text="..." position="bottom" autoHide={2500}>
+      <button type="button" className="p-2 lg:p-1.5 2xl:p-2 rounded-xl ...">
+        <Icono className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+      </button>
+    </Tooltip>
+  </div>
+</div>
+```
+
+- `pt-8` en móvil — compensa el drag handle (position absolute) para que el contenido del header no quede tapado.
+- `text-white/70` está **permitido únicamente para el subtítulo** del header de formulario. El resto del texto usa `text-white` al 100%.
+
+#### Botones del formulario
+
+Nativos (`<button>`), nunca `<Boton>`. Mismos estilos en ModalArticulo y ModalOferta:
+
+```tsx
+{/* Cancelar */}
+<button type="button" onClick={onCerrar} disabled={guardando}
+  className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl
+             transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+             px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer
+             border-2 border-slate-400 text-slate-600 bg-transparent
+             hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100"
+>Cancelar</button>
+
+{/* Guardar / Crear */}
+<button type="submit" disabled={guardando || isUploading}
+  className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl
+             transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+             px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer
+             bg-linear-to-r from-slate-700 to-slate-800 text-white
+             shadow-lg shadow-slate-700/30
+             hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40
+             active:scale-[0.98]"
+>
+  {guardando && <Spinner tamanio="sm" color="white" />}
+  {esEdicion ? 'Guardar cambios' : 'Crear ...'}
+</button>
+```
+
+> ⚠️ `max-lg:[background:...]` en `className` de `ModalAdaptativo` **no tiene efecto en móvil** — `className` no se forwarded a `ModalBottom`. Para colorear el drag handle usar `colorHandle` + `headerOscuro`. Ver TC-15.
 
 ### Header gradiente
 
@@ -850,13 +970,48 @@ El drag handle es `position: absolute` en la parte superior del modal. Esto perm
 |------|------|-------------|
 | `fondo` | `string` (CSS) | Background del modal completo. Reemplaza `bg-slate-50`. Acepta gradientes, colores, etc. |
 | `headerOscuro` | `boolean` | Adapta pill (`bg-white/40`), borde del header (`border-white/10`) y botón X para fondos oscuros |
-| `colorHandle` | `string` (CSS color) | Color directo para la pill del drag handle. Sobreescribe `headerOscuro` |
+| `colorHandle` | `string` (CSS color) | Color directo para la pill del drag handle. Se combina con `headerOscuro` para colores dinámicos |
+| `alturaMaxima` | `'sm' \| 'md' \| 'lg' \| 'xl'` | Altura máxima del modal en móvil |
+
+### Valores de alturaMaxima
+
+| Valor | CSS | Uso recomendado |
+|-------|-----|-----------------|
+| `sm` | `max-h-[65vh]` | Confirmaciones, alertas simples |
+| `md` | `max-h-[75vh]` | Formularios cortos |
+| `lg` | `max-h-[80vh]` | Modales de detalle (default) |
+| `xl` | `max-h-[93vh]` | Modales de formulario BS con 2 columnas (ModalArticulo, ModalOferta) |
 
 ### Cuándo usar cada prop
 
 - **Fondo completo oscuro** (ej: menú de cámara): `fondo="linear-gradient(135deg, #000000, #0f172a)" headerOscuro`
 - **Header coloreado en modal normal** (ej: detalle de cliente): solo `headerOscuro` — el header del children se extiende automáticamente por detrás del handle
-- **Color de pill específico**: `colorHandle="#ffffff40"` — raro, preferir `headerOscuro`
+- **Gradiente dinámico por tipo** (ej: ModalArticulo, ModalOferta): `colorHandle={gradiente.handle} headerOscuro` — la pill cambia de color junto con el header al cambiar el tipo seleccionado
+
+### colorHandle dinámico
+
+Cuando el color del header cambia según el estado del formulario (tipo seleccionado), pasar el hex base del gradiente activo:
+
+```tsx
+const GRADIENTES_TIPO = {
+  porcentaje: { bg: 'linear-gradient(135deg, #b91c1c, #dc2626)', handle: '#b91c1c', ... },
+  monto_fijo: { bg: 'linear-gradient(135deg, #15803d, #16a34a)', handle: '#15803d', ... },
+};
+
+const gradiente = GRADIENTES_TIPO[formulario.tipo];
+
+<ModalAdaptativo
+  colorHandle={gradiente.handle}
+  headerOscuro
+  ...
+>
+```
+
+La pill del drag handle seguirá el color del header en tiempo real al cambiar `formulario.tipo`.
+
+### className no llega a ModalBottom
+
+> ⚠️ `ModalAdaptativo` **no forwarded `className` a `ModalBottom`** (móvil). Solo llega al `Modal` de escritorio. Consecuencia: cualquier clase con `max-lg:` en `className` no tiene efecto útil. Para controlar estilos del modal en móvil usar `fondo`, `headerOscuro`, `colorHandle` y `alturaMaxima`.
 
 ### Compensación de padding para sinScrollInterno
 
@@ -1374,3 +1529,58 @@ useSwipeNavegacionBS(mobileMainRef);
 El hook respeta la misma lógica de filtrado de módulos que `MobileHeader` — gerentes y dueños en sucursal secundaria no ven "Sucursales" ni "Puntos" en la navegación por swipe.
 
 **Regla:** la lista de módulos en el hook debe mantenerse sincronizada con `MODULOS_BS` en `MobileHeader.tsx`. Si se agrega o reordena un módulo, actualizar ambos.
+
+---
+
+## 23. Tooltip
+
+Componente de tooltip con portal — nunca recortado por `overflow:hidden`. Soporta mouse y touch.
+
+**Ubicación:** `apps/web/src/components/ui/Tooltip.tsx`
+
+### Props
+
+| Prop | Tipo | Default | Descripción |
+|------|------|---------|-------------|
+| `text` | `string` | — | Texto del tooltip (requerido) |
+| `position` | `'top' \| 'bottom' \| 'left' \| 'right'` | `'bottom'` | Posición relativa al trigger |
+| `autoHide` | `number` | — | Ms para auto-cerrar. Usar en botones icono donde `onMouseLeave` es poco confiable |
+| `className` | `string` | — | Clases aplicadas al wrapper del trigger. Útil para ocultar con breakpoints: `"2xl:hidden"` |
+| `triggerOnClick` | `boolean` | `false` | Si `true`, abre/cierra al hacer click en lugar de hover |
+
+### Reglas de uso
+
+**Texto siempre `text-sm`** — nunca usar `text-xs`. El componente lo aplica internamente; no sobreescribir.
+
+**`autoHide` en botones icono** — cuando el tooltip se activa con `onTouchStart` en móvil, no hay evento `onMouseLeave` para cerrarlo. Usar `autoHide={1500}` para que se cierre automáticamente.
+
+**Touch en móvil** — el componente escucha `onTouchStart` además de `onMouseEnter`, por lo que funciona sin configuración extra en dispositivos táctiles.
+
+**Portal a `document.body`** — usa `createPortal` con `z-index: 99999`. Nunca quedará recortado por un padre con `overflow:hidden` o `transform`.
+
+### Ejemplo de uso
+
+```tsx
+import Tooltip from '../../../../components/ui/Tooltip';
+
+// Botón icono con tooltip arriba y auto-cierre
+<Tooltip text="Activar oferta" position="top" autoHide={1500}>
+  <button onClick={toggleActivo} className="p-2 rounded-lg text-white/80 hover:text-white">
+    {activo ? <Eye size={20} /> : <EyeOff size={20} />}
+  </button>
+</Tooltip>
+
+// Tooltip solo en pantallas pequeñas (oculto en 2xl+)
+<Tooltip text="Duplicar en sucursales" className="2xl:hidden">
+  <button>...</button>
+</Tooltip>
+```
+
+### Visual
+
+```
+bg-slate-900  text-white  text-sm font-medium
+px-3 py-1.5  rounded-lg  whitespace-nowrap
+boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+Flecha: borde CSS, color #0f172a
+```

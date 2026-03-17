@@ -102,8 +102,8 @@ function FilaDetalle({
         {icono}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">{etiqueta}</p>
-        <p className={`text-sm lg:text-xs 2xl:text-sm font-semibold truncate ${valorColor || 'text-slate-800'}`}>
+        <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">{etiqueta}</p>
+        <p className={`text-base lg:text-sm 2xl:text-base font-semibold truncate ${valorColor || 'text-slate-800'}`}>
           {valor}
         </p>
       </div>
@@ -276,19 +276,19 @@ export default function ModalDetalleTransaccionBS({
             <Star className="w-4 h-4 text-amber-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Puntos otorgados</p>
+            <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Puntos otorgados</p>
             <div className="flex items-center gap-2">
-              <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-amber-600">
+              <span className="text-base lg:text-sm 2xl:text-base font-bold text-amber-600">
                 +{tx.puntosOtorgados.toLocaleString()} pts
               </span>
               {tx.multiplicadorAplicado > 1 && (
-                <span className="text-sm px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+                <span className="text-base lg:text-sm 2xl:text-base px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
                   ×{tx.multiplicadorAplicado}
                 </span>
               )}
             </div>
           </div>
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-semibold shrink-0 ${
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold shrink-0 ${
             estado === 'confirmado' ? 'bg-emerald-100 text-emerald-700' :
             estado === 'cancelado' ? 'bg-red-100 text-red-700' :
             'bg-amber-100 text-amber-700'
@@ -317,8 +317,8 @@ export default function ModalDetalleTransaccionBS({
                     <User className="w-4 h-4 text-blue-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Registró venta</p>
-                    <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{tx.empleadoNombre}</p>
+                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Registró venta</p>
+                    <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">{tx.empleadoNombre}</p>
                   </div>
                 </div>
               )}
@@ -328,8 +328,8 @@ export default function ModalDetalleTransaccionBS({
                     <MapPin className="w-4 h-4 text-purple-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Sucursal</p>
-                    <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{tx.sucursalNombre}</p>
+                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Sucursal</p>
+                    <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">{tx.sucursalNombre}</p>
                   </div>
                 </div>
               )}
@@ -355,14 +355,14 @@ export default function ModalDetalleTransaccionBS({
             <div className="flex-1 min-w-0">
               {tx.nota && (
                 <div>
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Nota</p>
-                  <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800">{tx.nota}</p>
+                  <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Nota</p>
+                  <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800">{tx.nota}</p>
                 </div>
               )}
               {tx.numeroOrden && (
                 <div className={tx.nota ? 'mt-1' : ''}>
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Nº orden</p>
-                  <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800">{tx.numeroOrden}</p>
+                  <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Nº orden</p>
+                  <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800">{tx.numeroOrden}</p>
                 </div>
               )}
             </div>
@@ -376,25 +376,25 @@ export default function ModalDetalleTransaccionBS({
               <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
                 <CreditCard className="w-4 h-4 text-slate-600" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Métodos de pago</p>
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Métodos de pago</p>
             </div>
             <div className="flex flex-wrap gap-2 ml-11 lg:ml-10 2xl:ml-11">
               {tx.montoEfectivo > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100">
                   <Banknote className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-sm font-semibold text-emerald-700">{formatearMoneda(tx.montoEfectivo)}</span>
+                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-emerald-700">{formatearMoneda(tx.montoEfectivo)}</span>
                 </span>
               )}
               {tx.montoTarjeta > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-100">
                   <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-700">{formatearMoneda(tx.montoTarjeta)}</span>
+                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-blue-700">{formatearMoneda(tx.montoTarjeta)}</span>
                 </span>
               )}
               {tx.montoTransferencia > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-100">
                   <ArrowRightLeft className="w-3.5 h-3.5 text-violet-600" />
-                  <span className="text-sm font-semibold text-violet-700">{formatearMoneda(tx.montoTransferencia)}</span>
+                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-violet-700">{formatearMoneda(tx.montoTransferencia)}</span>
                 </span>
               )}
             </div>
@@ -407,7 +407,7 @@ export default function ModalDetalleTransaccionBS({
             {!verImagen ? (
               <button
                 onClick={() => setVerImagen(true)}
-                className="w-full py-2 rounded-lg border-2 border-dashed border-slate-300 text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium hover:bg-slate-200 cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-2 rounded-lg border-2 border-dashed border-slate-300 text-base lg:text-sm 2xl:text-base text-slate-600 font-medium hover:bg-slate-200 cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Image className="w-4 h-4" />
                 Ver foto del ticket
@@ -430,14 +430,14 @@ export default function ModalDetalleTransaccionBS({
           {!mostrarRevocar ? (
             <button
               onClick={() => setMostrarRevocar(true)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 lg:py-2 2xl:py-2.5 rounded-lg border-2 border-dashed border-red-300 text-red-600 text-sm font-semibold hover:bg-red-200 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-2.5 lg:py-2 2xl:py-2.5 rounded-lg border-2 border-dashed border-red-300 text-red-600 text-base lg:text-sm 2xl:text-base font-semibold hover:bg-red-200 transition-colors cursor-pointer"
             >
               <AlertTriangle className="w-4 h-4" />
               Revocar transacción
             </button>
           ) : (
             <div className="space-y-2.5 bg-red-100 rounded-xl p-3 lg:p-2.5 2xl:p-3 border-2 border-red-300">
-              <p className="text-sm text-red-600 font-semibold flex items-center gap-1.5">
+              <p className="text-base lg:text-sm 2xl:text-base text-red-600 font-semibold flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5" />
                 Esta acción no se puede deshacer
               </p>
@@ -446,7 +446,7 @@ export default function ModalDetalleTransaccionBS({
                 onChange={(e) => setMotivo(e.target.value)}
                 placeholder="Motivo de revocación (obligatorio)..."
                 rows={2}
-                className="w-full rounded-lg border-2 border-red-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                className="w-full rounded-lg border-2 border-red-300 bg-white px-3 py-2 text-base lg:text-sm 2xl:text-base text-slate-800 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
               />
               <div className="flex gap-2">
                 <button
@@ -454,14 +454,14 @@ export default function ModalDetalleTransaccionBS({
                     setMostrarRevocar(false);
                     setMotivo('');
                   }}
-                  className="flex-1 py-2 rounded-lg border-2 border-red-300 text-red-600 text-sm font-medium hover:bg-red-200 transition-colors cursor-pointer"
+                  className="flex-1 py-2 rounded-lg border-2 border-red-300 text-red-600 text-base lg:text-sm 2xl:text-base font-medium hover:bg-red-200 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleRevocar}
                   disabled={revocando || !motivo.trim()}
-                  className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 py-2 rounded-lg bg-red-500 text-white text-base lg:text-sm 2xl:text-base font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   {revocando ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -482,14 +482,14 @@ export default function ModalDetalleTransaccionBS({
           <div className="rounded-lg bg-red-100 border-2 border-red-300 p-3">
             <div className="flex items-center gap-2">
               <XCircle className="w-4 h-4 text-red-600 shrink-0" />
-              <p className="text-sm text-red-600 font-semibold">Transacción revocada</p>
+              <p className="text-base lg:text-sm 2xl:text-base text-red-600 font-semibold">Transacción revocada</p>
             </div>
             {tx.motivoRevocacion && (
-              <p className="text-sm text-red-600 font-medium mt-1.5 ml-6">
+              <p className="text-base lg:text-sm 2xl:text-base text-red-600 font-medium mt-1.5 ml-6">
                 Motivo: {tx.motivoRevocacion}
               </p>
             )}
-            <p className="text-sm text-red-600 font-medium mt-1 ml-6">
+            <p className="text-base lg:text-sm 2xl:text-base text-red-600 font-medium mt-1 ml-6">
               Los puntos fueron devueltos al saldo del cliente.
             </p>
           </div>

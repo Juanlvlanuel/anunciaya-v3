@@ -17,6 +17,35 @@ import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../db';
 import { articulos, articuloSucursales } from '../db/schemas/schema';
 import { duplicarImagen, eliminarImagen } from './cloudinary.service.js';
+import { generarPresignedUrl, eliminarArchivo, esUrlR2 } from './r2.service.js';
+
+// =============================================================================
+// HELPER PRIVADO: ELIMINAR IMAGEN (R2 o Cloudinary)
+// =============================================================================
+
+/** Detecta si la imagen está en R2 o Cloudinary y usa el servicio correcto */
+async function eliminarImagenInteligente(url: string): Promise<void> {
+    if (esUrlR2(url)) {
+        await eliminarArchivo(url);
+    } else {
+        await eliminarImagen(url);
+    }
+}
+
+// =============================================================================
+// GENERAR URL DE UPLOAD PARA IMAGEN DE ARTÍCULO (R2)
+// =============================================================================
+
+/**
+ * Genera una presigned URL para que el frontend suba directamente a R2.
+ *
+ * @param nombreArchivo - Nombre original del archivo
+ * @param contentType   - MIME type (image/jpeg, image/png, image/webp)
+ */
+export async function generarUrlUploadImagenArticulo(nombreArchivo: string, contentType: string) {
+    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    return generarPresignedUrl('articulos', nombreArchivo, contentType, 300, TIPOS_PERMITIDOS);
+}
 import type {
     ArticuloCatalogoRow,
     CrearArticuloInput,
@@ -455,10 +484,10 @@ export async function actualizarArticulo(
             };
         });
 
-        // 4. Eliminar imagen anterior de Cloudinary (fuera de la transacción)
+        // 4. Eliminar imagen anterior (R2 o Cloudinary según origen)
         if (imagenAEliminar) {
-            eliminarImagen(imagenAEliminar).catch((err) => {
-                console.error('⚠️ Error al eliminar imagen anterior de Cloudinary:', err);
+            eliminarImagenInteligente(imagenAEliminar).catch((err) => {
+                console.error('⚠️ Error al eliminar imagen anterior:', err);
             });
         }
 
@@ -512,10 +541,10 @@ export async function eliminarArticulo(
                 .delete(articulos)
                 .where(eq(articulos.id, articuloId));
 
-            // 4. Eliminar imagen de Cloudinary (fuera de transacción)
+            // 4. Eliminar imagen (R2 o Cloudinary según origen)
             if (imagenUrl) {
-                eliminarImagen(imagenUrl).catch(err => {
-                    console.error('Error eliminando imagen de Cloudinary:', err);
+                eliminarImagenInteligente(imagenUrl).catch(err => {
+                    console.error('Error eliminando imagen de artículo:', err);
                 });
             }
 
