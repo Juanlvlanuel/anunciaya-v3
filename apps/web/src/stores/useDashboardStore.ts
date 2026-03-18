@@ -20,7 +20,6 @@ import type {
   VentasData,
   Campana,
   Interaccion,
-  Resena,
   AlertasData,
 } from '../services/dashboardService';
 
@@ -37,7 +36,6 @@ interface DashboardState {
   ventas: VentasData | null;
   campanas: Campana[];
   interacciones: Interaccion[];
-  resenas: Resena[];
   alertas: AlertasData | null;
 
   // Estados de carga
@@ -45,7 +43,6 @@ interface DashboardState {
   cargandoVentas: boolean;
   cargandoCampanas: boolean;
   cargandoInteracciones: boolean;
-  cargandoResenas: boolean;
   cargandoAlertas: boolean;
 
   // Errores
@@ -57,7 +54,6 @@ interface DashboardState {
   cargarVentas: () => Promise<void>;
   cargarCampanas: () => Promise<void>;
   cargarInteracciones: () => Promise<void>;
-  cargarResenas: () => Promise<void>;
   cargarAlertas: () => Promise<void>;
   cargarTodo: () => Promise<void>;
   marcarAlertaLeida: (alertaId: string) => Promise<void>;
@@ -73,18 +69,16 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // ---------------------------------------------------------------------------
   // Estado inicial
   // ---------------------------------------------------------------------------
-  periodo: 'semana',
+  periodo: 'mes',
   kpis: null,
   ventas: null,
   campanas: [],
   interacciones: [],
-  resenas: [],
   alertas: null,
   cargandoKpis: false,
   cargandoVentas: false,
   cargandoCampanas: false,
   cargandoInteracciones: false,
-  cargandoResenas: false,
   cargandoAlertas: false,
   error: null,
 
@@ -93,9 +87,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // ---------------------------------------------------------------------------
   setPeriodo: (periodo: Periodo) => {
     set({ periodo });
-    // Recargar datos con nuevo periodo
+    // Recargar datos filtrados por periodo
     get().cargarKPIs();
     get().cargarVentas();
+    get().cargarInteracciones();
   },
 
   // ---------------------------------------------------------------------------
@@ -163,10 +158,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // ACCIÓN: Cargar interacciones recientes
   // ---------------------------------------------------------------------------
   cargarInteracciones: async () => {
+    const { periodo } = get();
     set({ cargandoInteracciones: true });
 
     try {
-      const respuesta = await dashboardService.obtenerInteracciones(10);
+      const respuesta = await dashboardService.obtenerInteracciones(10, periodo);
       if (respuesta.success && respuesta.data) {
         set({ interacciones: respuesta.data });
       }
@@ -174,24 +170,6 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       console.error('Error cargando interacciones:', error);
     } finally {
       set({ cargandoInteracciones: false });
-    }
-  },
-
-  // ---------------------------------------------------------------------------
-  // ACCIÓN: Cargar reseñas recientes
-  // ---------------------------------------------------------------------------
-  cargarResenas: async () => {
-    set({ cargandoResenas: true });
-
-    try {
-      const respuesta = await dashboardService.obtenerResenas(5);
-      if (respuesta.success && respuesta.data) {
-        set({ resenas: respuesta.data });
-      }
-    } catch (error) {
-      console.error('Error cargando reseñas:', error);
-    } finally {
-      set({ cargandoResenas: false });
     }
   },
 
@@ -225,7 +203,6 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       state.cargarVentas(),
       state.cargarCampanas(),
       state.cargarInteracciones(),
-      state.cargarResenas(),
       state.cargarAlertas(),
     ]);
   },
@@ -304,18 +281,16 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // ---------------------------------------------------------------------------
   limpiar: () => {
     set({
-      periodo: 'semana',
+      periodo: 'mes',
       kpis: null,
       ventas: null,
       campanas: [],
       interacciones: [],
-      resenas: [],
       alertas: null,
       cargandoKpis: false,
       cargandoVentas: false,
       cargandoCampanas: false,
       cargandoInteracciones: false,
-      cargandoResenas: false,
       cargandoAlertas: false,
       error: null,
     });
@@ -330,7 +305,6 @@ export const selectKPIs = (state: DashboardState) => state.kpis;
 export const selectVentas = (state: DashboardState) => state.ventas;
 export const selectCampanas = (state: DashboardState) => state.campanas;
 export const selectInteracciones = (state: DashboardState) => state.interacciones;
-export const selectResenas = (state: DashboardState) => state.resenas;
 export const selectAlertas = (state: DashboardState) => state.alertas;
 export const selectPeriodo = (state: DashboardState) => state.periodo;
 export const selectCargando = (state: DashboardState) =>

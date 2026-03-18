@@ -14,6 +14,7 @@
 
 import { useState, useCallback } from 'react';
 import { generarUrlUploadImagenArticulo } from '../services/articulosService';
+import { eliminarImagenHuerfana } from '../services/r2Service';
 
 // =============================================================================
 // TIPOS
@@ -124,6 +125,8 @@ export function useR2Upload({
   const [r2Url, setR2Url] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // true solo cuando la imagen fue subida en esta sesión (no preexistente de BD)
+  const [esSubidaNueva, setEsSubidaNueva] = useState(false);
 
   const uploadImage = useCallback(async (file: File) => {
     setError(null);
@@ -164,6 +167,7 @@ export function useR2Upload({
       URL.revokeObjectURL(blobUrl);
       setImageUrl(publicUrl);
       setR2Url(publicUrl);
+      setEsSubidaNueva(true);
       onSuccess?.(publicUrl);
 
     } catch (err) {
@@ -180,11 +184,18 @@ export function useR2Upload({
     if (imageUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(imageUrl);
     }
+    // Capturar antes de limpiar el estado
+    const urlHuerfana = esSubidaNueva ? r2Url : null;
     setImageUrl(null);
     setR2Url(null);
+    setEsSubidaNueva(false);
     setIsUploading(false);
     setError(null);
-  }, [imageUrl]);
+    // Fire-and-forget: eliminar de R2 solo si fue subida en esta sesión
+    if (urlHuerfana) {
+      eliminarImagenHuerfana(urlHuerfana).catch(() => { /* silencioso */ });
+    }
+  }, [imageUrl, r2Url, esSubidaNueva]);
 
   return {
     imageUrl,

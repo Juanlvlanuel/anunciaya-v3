@@ -124,6 +124,8 @@ export const actualizarArticuloSchema = z.object({
     disponible: z.boolean().optional(),
     destacado: z.boolean().optional(),
     orden: z.number().int().min(0).optional(),
+    /** URL de la imagen anterior a eliminar de R2/Cloudinary al actualizar */
+    imagenAEliminar: z.string().url().optional(),
 }).refine(
     // Validación: al menos un campo debe estar presente
     (data) => Object.keys(data).length > 0,

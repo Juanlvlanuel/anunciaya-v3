@@ -572,7 +572,7 @@ export function MobileHeader() {
                             setEsSucursalPrincipal(suc.esPrincipal);
                             setDropdownSucAbierto(false);
                           }}
-                          className={`w-full px-4 py-3 text-left text-sm font-medium flex items-center gap-2 transition-colors ${suc.id === usuario?.sucursalActiva
+                          className={`w-full px-4 py-3 text-left text-base font-semibold flex items-center gap-2 transition-colors ${suc.id === usuario?.sucursalActiva
                             ? 'bg-blue-50 text-blue-700'
                             : 'text-slate-700 hover:bg-slate-50'
                             }`}

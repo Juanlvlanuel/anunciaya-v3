@@ -61,25 +61,25 @@ const estilosBase = `
  */
 const variantes = {
   primario: `
-    bg-gradient-to-r from-blue-600 to-blue-700 text-white
-    shadow-lg shadow-blue-500/30
-    hover:shadow-blue-500/40 hover:from-blue-700 hover:to-blue-800
-    active:shadow-blue-500/50 active:scale-[0.98]
+    bg-gradient-to-r from-blue-700 to-blue-900 text-white
+    shadow-lg shadow-blue-800/30
+    hover:shadow-blue-800/40 hover:from-blue-800 hover:to-blue-950
+    active:shadow-blue-800/50 active:scale-[0.98]
   `,
   secundario: `
-    bg-slate-100 text-slate-700
-    hover:bg-slate-200
-    active:bg-slate-300
+    bg-slate-200 text-slate-700
+    hover:bg-slate-300
+    active:bg-slate-400
   `,
   outline: `
-    border-2 border-blue-600 text-blue-600 bg-transparent
-    hover:bg-blue-50 hover:border-blue-700
-    active:bg-blue-100
+    border-2 border-blue-700 text-blue-700 bg-transparent
+    hover:bg-blue-100 hover:border-blue-800
+    active:bg-blue-200
   `,
   outlineGray: `
     border-2 border-slate-300 text-slate-600 bg-transparent
-    hover:bg-slate-50 hover:border-slate-400
-    active:bg-slate-100
+    hover:bg-slate-100 hover:border-slate-400
+    active:bg-slate-200
   `,
   ghost: `
     text-slate-600 bg-transparent
@@ -87,16 +87,16 @@ const variantes = {
     active:bg-slate-200
   `,
   danger: `
-    bg-gradient-to-r from-red-600 to-red-700 text-white
-    shadow-lg shadow-red-500/30
-    hover:shadow-red-500/40 hover:from-red-700 hover:to-red-800
-    active:shadow-red-500/50 active:scale-[0.98]
+    bg-gradient-to-r from-red-700 to-red-900 text-white
+    shadow-lg shadow-red-800/30
+    hover:shadow-red-800/40 hover:from-red-800 hover:to-red-950
+    active:shadow-red-800/50 active:scale-[0.98]
   `,
   success: `
-    bg-gradient-to-r from-green-600 to-green-700 text-white
-    shadow-lg shadow-green-500/30
-    hover:shadow-green-500/40 hover:from-green-700 hover:to-green-800
-    active:shadow-green-500/50 active:scale-[0.98]
+    bg-gradient-to-r from-emerald-700 to-emerald-900 text-white
+    shadow-lg shadow-emerald-800/30
+    hover:shadow-emerald-800/40 hover:from-emerald-800 hover:to-emerald-950
+    active:shadow-emerald-800/50 active:scale-[0.98]
   `,
 };
 

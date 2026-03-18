@@ -29,14 +29,12 @@ import type { Oferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../.
 import type { CrearArticuloInput, ActualizarArticuloInput } from '../../../../types/articulos';
 import type { Periodo } from '../../../../services/dashboardService';
 import Tooltip from '../../../../components/ui/Tooltip';
+import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 
 // Componentes
-import HeaderDashboard from './componentes/HeaderDashboard';
-import KPIPrincipal from './componentes/KPIPrincipal';
 import GraficaVentas from './componentes/GraficaVentas';
 import PanelCampanas from './componentes/PanelCampanas';
 import PanelInteracciones from './componentes/PanelInteracciones';
-import PanelOpiniones from './componentes/PanelOpiniones';
 import PanelAlertas from './componentes/PanelAlertas';
 import BannerAlertasUrgentes from './componentes/BannerAlertasUrgentes';
 import GraficaColapsable from './componentes/GraficaColapsable';
@@ -54,13 +52,29 @@ import {
   UserPlus,
   RefreshCw,
   Loader2,
+  LayoutDashboard,
 } from 'lucide-react';
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-const kpiAnimStyles = `
+// =============================================================================
+// CSS — Animación del icono del header (patrón estandarizado BS)
+// =============================================================================
+
+const ESTILOS_CSS = `
+  @keyframes dashboard-icon-bounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    40%      { transform: translateY(-4px) rotate(-3deg); }
+    60%      { transform: translateY(-2px) rotate(2deg); }
+  }
+  .dashboard-icon-bounce {
+    animation: dashboard-icon-bounce 2s ease-in-out infinite;
+  }
+  .dash-carousel::-webkit-scrollbar { display: none; }
+  .dash-carousel { -ms-overflow-style: none; scrollbar-width: none; }
+
   /* — Click — */
   @keyframes kpi-bounce {
     0%, 100% { transform: translateY(0); }
@@ -111,6 +125,18 @@ const kpiAnimStyles = `
   .anim-idle-eye    { animation: kpi-idle-eye     3.5s ease-in-out infinite; }
 `;
 
+// =============================================================================
+// CONSTANTES — Periodos (movido desde HeaderDashboard)
+// =============================================================================
+
+const PERIODOS: { valor: Periodo; label: string }[] = [
+  { valor: 'hoy', label: 'Hoy' },
+  { valor: 'semana', label: '7 días' },
+  { valor: 'mes', label: '30 días' },
+  { valor: 'trimestre', label: '90 días' },
+  { valor: 'anio', label: '12 meses' },
+];
+
 export default function PaginaDashboard() {
   const [animandoStat, setAnimandoStat] = useState<string | null>(null);
 
@@ -121,12 +147,12 @@ export default function PaginaDashboard() {
     ventas,
     campanas,
     interacciones,
-    resenas,
     alertas,
     cargandoKpis,
     cargarTodo,
     periodo,
     setPeriodo,
+    limpiar,
   } = useDashboardStore();
 
   // Escuchar cambios en sucursalActiva
@@ -148,7 +174,9 @@ export default function PaginaDashboard() {
     }
 
     cargarTodo();
-  }, [cargarTodo, sucursalActiva, usuario?.modoActivo]);
+
+    return () => limpiar();
+  }, [cargarTodo, sucursalActiva, usuario?.modoActivo, limpiar]);
 
   // Estado del modal de ofertas
   const [modalOfertaAbierto, setModalOfertaAbierto] = useState(false);
@@ -253,29 +281,125 @@ export default function PaginaDashboard() {
   };
 
   return (
-    <>
-    <style>{kpiAnimStyles}</style>
     <div className="p-3 lg:p-1.5 2xl:p-3">
+      <style dangerouslySetInnerHTML={{ __html: ESTILOS_CSS }} />
+
       <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-2 2xl:space-y-3">
-        {/* Header — solo desktop */}
-        <div className="hidden lg:block">
-          <HeaderDashboard
-            onNuevaOferta={handleNuevaOferta}
-            onNuevoArticulo={handleNuevoArticulo}
-          />
+
+        {/* ================================================================= */}
+        {/* HEADER + KPIs                                                     */}
+        {/* ================================================================= */}
+
+        <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
+          {/* Header con icono animado — solo desktop */}
+          <div className="hidden lg:flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+            <div
+              className="flex items-center justify-center shrink-0"
+              style={{
+                width: 52, height: 52, borderRadius: 14,
+                background: 'linear-gradient(135deg, #2563eb, #3b82f6, #60a5fa)',
+                boxShadow: '0 6px 20px rgba(37,99,235,0.4)',
+              }}
+            >
+              <div className="dashboard-icon-bounce">
+                <LayoutDashboard className="w-6 h-6 text-white" strokeWidth={2.5} />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Dashboard
+              </h1>
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium">
+                Métricas y actividad
+              </p>
+            </div>
+          </div>
+
+          {/* KPIs COMPACTOS — Carousel en móvil, fila en desktop */}
+          <CarouselKPI className="mt-5 lg:mt-0 lg:flex-1">
+            <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
+              {/* Ventas */}
+              <div
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                style={{
+                  background: 'linear-gradient(135deg, #f0fdf4, #fff)',
+                  border: '2px solid #86efac',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                }}
+              >
+                <div
+                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}
+                >
+                  <DollarSign className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-emerald-700" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-emerald-700">
+                    {cargandoKpis ? '—' : `$${(kpis?.ventas.valor ?? 0).toLocaleString('es-MX')}`}
+                  </div>
+                  <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Ventas</div>
+                </div>
+              </div>
+
+              {/* Clientes */}
+              <div
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                style={{
+                  background: 'linear-gradient(135deg, #eff6ff, #fff)',
+                  border: '2px solid #93c5fd',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                }}
+              >
+                <div
+                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
+                >
+                  <Users className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">
+                    {cargandoKpis ? '—' : (kpis?.clientes.valor ?? 0)}
+                  </div>
+                  <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Clientes</div>
+                </div>
+              </div>
+
+              {/* Transacciones */}
+              <div
+                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                style={{
+                  background: 'linear-gradient(135deg, #f5f3ff, #fff)',
+                  border: '2px solid #c4b5fd',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                }}
+              >
+                <div
+                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #ddd6fe, #c4b5fd)', boxShadow: '0 3px 8px rgba(139,92,246,0.25)' }}
+                >
+                  <CreditCard className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-violet-700" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-violet-700">
+                    {cargandoKpis ? '—' : (kpis?.transacciones.valor ?? 0)}
+                  </div>
+                  <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Transacciones</div>
+                </div>
+              </div>
+
+            </div>
+          </CarouselKPI>
         </div>
 
-        {/* Banner Alertas Urgentes - SOLO MÓVIL - SOLO SI HAY ALERTAS NO LEÍDAS */}
-        {alertasUrgentes.length > 0 && (
-          <div className="lg:hidden">
+        {/* ================================================================= */}
+        {/* LAYOUT MÓVIL                                                      */}
+        {/* ================================================================= */}
+        <div className="lg:hidden space-y-3">
+          {/* Banner Alertas Urgentes */}
+          {alertasUrgentes.length > 0 && (
             <BannerAlertasUrgentes alertas={alertasUrgentes} />
-          </div>
-        )}
+          )}
 
-        {/* =================================================================== */}
-        {/* LAYOUT MÓVIL - Optimizado */}
-        {/* =================================================================== */}
-        <div className="mt-5 lg:mt-0 lg:hidden space-y-3">
           {/* 4 Stats Secundarios — icono + valor en línea */}
           <div className="grid grid-cols-4">
             <Tooltip text="Seguidores" position="bottom" triggerOnClick autoHide={2000}>
@@ -316,13 +440,13 @@ export default function PaginaDashboard() {
             </Tooltip>
           </div>
 
-          {/* Selector de Período — SOLO MÓVIL */}
+          {/* Selector de Período */}
           <div className="flex items-center gap-2">
             <div className="flex flex-1 bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
               {[
-                { valor: 'hoy',       label: 'Hoy' },
-                { valor: 'semana',    label: '7d'  },
-                { valor: 'mes',       label: '30d' },
+                { valor: 'hoy', label: 'Hoy' },
+                { valor: 'semana', label: '7d' },
+                { valor: 'mes', label: '30d' },
                 { valor: 'trimestre', label: '90d' },
               ].map(({ valor, label }) => (
                 <button
@@ -331,7 +455,7 @@ export default function PaginaDashboard() {
                   className={`flex-1 h-10 rounded-lg text-sm font-semibold cursor-pointer ${periodo === valor
                     ? 'text-white shadow-md'
                     : 'text-slate-700 hover:bg-slate-300'
-                    }`}
+                  }`}
                   style={periodo === valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                 >
                   {label}
@@ -351,43 +475,8 @@ export default function PaginaDashboard() {
             </button>
           </div>
 
-          {/* KPIs + Gráfica agrupados — ambos dependen de los filtros de período */}
-          <div className="space-y-2">
-            {/* 3 KPIs como filas en card unificada */}
-            <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden divide-y divide-slate-200">
-              <KPIPrincipal
-                titulo="Ventas"
-                valor={kpis?.ventas.valor ?? 0}
-                icono={DollarSign}
-                bgIcono="bg-emerald-100"
-                textoIcono="text-emerald-600"
-                formato="moneda"
-                cargando={cargandoKpis}
-                filaMovil
-              />
-              <KPIPrincipal
-                titulo="Clientes"
-                valor={kpis?.clientes.valor ?? 0}
-                icono={Users}
-                bgIcono="bg-blue-100"
-                textoIcono="text-blue-600"
-                cargando={cargandoKpis}
-                filaMovil
-              />
-              <KPIPrincipal
-                titulo="Transacciones"
-                valor={kpis?.transacciones.valor ?? 0}
-                icono={CreditCard}
-                bgIcono="bg-violet-100"
-                textoIcono="text-violet-600"
-                cargando={cargandoKpis}
-                filaMovil
-              />
-            </div>
-
-            {/* Gráfica Colapsable — junto a KPIs, mismos filtros */}
-            <GraficaColapsable datos={ventas} />
-          </div>
+          {/* Gráfica Colapsable */}
+          <GraficaColapsable datos={ventas} />
 
           {/* Panel Campañas */}
           <PanelCampanas
@@ -397,81 +486,99 @@ export default function PaginaDashboard() {
             vistaMobil={true}
           />
 
-          {/* Interacciones - Simplificadas (solo últimas 3) */}
-          <PanelInteracciones interacciones={interacciones.slice(0, 3)} vistaMobil={true} />
+          {/* Interacciones */}
+          <PanelInteracciones interacciones={interacciones.slice(0, 4)} vistaMobil={true} />
 
-          {/* Alertas - Solo si hay */}
+          {/* Alertas */}
           {alertas && alertas.alertas.length > 0 && (
             <PanelAlertas alertas={alertas} vistaMobil={true} />
           )}
         </div>
 
-        {/* =================================================================== */}
-        {/* LAYOUT DESKTOP - Nuevo diseño compacto */}
-        {/* =================================================================== */}
-        <div className="hidden lg:block space-y-3 2xl:space-y-4 lg:mt-14 2xl:mt-14">
-          {/* Fila superior: KPIs + Pills + Cupones/Alertas | Gráfica derecha */}
-          <div className="flex gap-3 2xl:gap-4">
-            {/* Columna izquierda - 60% del ancho */}
-            <div className="w-[58%] lg:w-[55%] 2xl:w-[58%] shrink-0 flex flex-col gap-2 2xl:gap-3">
-              {/* 3 KPIs Principales */}
-              <div className="grid grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2">
-                <KPIPrincipal
-                  titulo="Ventas Totales"
-                  valor={kpis?.ventas.valor ?? 0}
-                  miniGrafica={kpis?.ventas.miniGrafica ?? []}
-                  icono={DollarSign}
-                  bgIcono="bg-emerald-100"
-                  textoIcono="text-emerald-600"
-                  formato="moneda"
-                  cargando={cargandoKpis}
-                />
-                <KPIPrincipal
-                  titulo="Clientes Totales"
-                  valor={kpis?.clientes.valor ?? 0}
-                  icono={Users}
-                  bgIcono="bg-blue-100"
-                  textoIcono="text-blue-600"
-                  subtitulo={`Nuevos: ${kpis?.clientes.nuevos ?? 0} · Recurrentes: ${kpis?.clientes.recurrentes ?? 0}`}
-                  cargando={cargandoKpis}
-                />
-                <KPIPrincipal
-                  titulo="Transacciones"
-                  valor={kpis?.transacciones.valor ?? 0}
-                  icono={CreditCard}
-                  bgIcono="bg-violet-100"
-                  textoIcono="text-violet-600"
-                  subtitulo={`Ticket Prom: $${kpis?.transacciones.ticketPromedio?.toLocaleString() ?? 0}`}
-                  cargando={cargandoKpis}
-                />
-              </div>
+        {/* ================================================================= */}
+        {/* LAYOUT DESKTOP                                                    */}
+        {/* ================================================================= */}
+        <div className="hidden lg:block space-y-3 2xl:space-y-4 lg:mt-7 2xl:mt-14">
 
-              {/* 4 Mini Stats como Pills Horizontales */}
-              <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
-                  <UserPlus className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-                  <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm">{kpis?.followers ?? 0}</span>
-                  <span className="text-blue-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">Followers</span>
+          {/* Stats animados (izq) + Periodo + Refresh (der) */}
+          <div className="flex items-center justify-between">
+            {/* Stats animados — estilo móvil, más grandes en PC */}
+            <div className="flex items-center gap-5 lg:gap-5 2xl:gap-7">
+              <Tooltip text="Seguidores" position="bottom">
+                <div className="flex items-center gap-2 2xl:gap-2.5 cursor-pointer" onClick={() => animarStat('followers')}>
+                  <UserPlus
+                    className={`w-7 h-7 2xl:w-8 2xl:h-8 text-blue-500 shrink-0 ${animandoStat === 'followers' ? 'anim-bounce' : 'anim-idle-float'}`}
+                    onAnimationEnd={animandoStat === 'followers' ? () => setAnimandoStat(null) : undefined}
+                  />
+                  <span className="font-bold text-sm 2xl:text-base text-blue-700">{kpis?.followers ?? 0}</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-pink-100 text-pink-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
-                  <Heart className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-                  <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm">{kpis?.likes.valor ?? 0}</span>
-                  <span className="text-pink-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">Likes</span>
+              </Tooltip>
+              <Tooltip text="Likes" position="bottom">
+                <div className="flex items-center gap-2 2xl:gap-2.5 cursor-pointer" onClick={() => animarStat('likes')}>
+                  <Heart
+                    className={`w-7 h-7 2xl:w-8 2xl:h-8 text-pink-500 shrink-0 ${animandoStat === 'likes' ? 'anim-heart' : 'anim-idle-heart'}`}
+                    onAnimationEnd={animandoStat === 'likes' ? () => setAnimandoStat(null) : undefined}
+                  />
+                  <span className="font-bold text-sm 2xl:text-base text-pink-700">{kpis?.likes.valor ?? 0}</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-yellow-100 text-yellow-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
-                  <Star className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-                  <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
-                  <span className="text-yellow-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">Rating</span>
+              </Tooltip>
+              <Tooltip text="Rating" position="bottom">
+                <div className="flex items-center gap-2 2xl:gap-2.5 cursor-pointer" onClick={() => animarStat('rating')}>
+                  <Star
+                    className={`w-7 h-7 2xl:w-8 2xl:h-8 text-yellow-500 shrink-0 ${animandoStat === 'rating' ? 'anim-spin' : 'anim-idle-spin'}`}
+                    onAnimationEnd={animandoStat === 'rating' ? () => setAnimandoStat(null) : undefined}
+                  />
+                  <span className="font-bold text-sm 2xl:text-base text-yellow-700">{(kpis?.rating.valor ?? 0).toFixed(1)}</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full">
-                  <Eye className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-                  <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm">{kpis?.vistas.valor ?? 0}</span>
-                  <span className="text-blue-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">Vistas</span>
+              </Tooltip>
+              <Tooltip text="Vistas" position="bottom">
+                <div className="flex items-center gap-2 2xl:gap-2.5 cursor-pointer" onClick={() => animarStat('vistas')}>
+                  <Eye
+                    className={`w-7 h-7 2xl:w-8 2xl:h-8 text-slate-500 shrink-0 ${animandoStat === 'vistas' ? 'anim-pulse' : 'anim-idle-eye'}`}
+                    onAnimationEnd={animandoStat === 'vistas' ? () => setAnimandoStat(null) : undefined}
+                  />
+                  <span className="font-bold text-sm 2xl:text-base text-slate-700">{kpis?.vistas.valor ?? 0}</span>
                 </div>
-              </div>
+              </Tooltip>
+            </div>
 
-              {/* Cupones/Ofertas + Alertas (más compactos) */}
-              <div className="grid grid-cols-2 gap-2 lg:gap-1.5 2xl:gap-2 flex-1">
+            {/* Selector de periodo + Refresh */}
+            <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
+              <div className="flex items-center bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5 shadow-md">
+                {PERIODOS.map((p) => (
+                  <button
+                    key={p.valor}
+                    onClick={() => setPeriodo(p.valor)}
+                    className={`px-3 2xl:px-4 h-9 2xl:h-10 flex items-center rounded-lg text-xs 2xl:text-sm font-semibold whitespace-nowrap cursor-pointer ${periodo === p.valor
+                      ? 'text-white shadow-md'
+                      : 'text-slate-700 hover:bg-slate-300'
+                    }`}
+                    style={periodo === p.valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <Tooltip text="Actualizar" position="bottom">
+                <button
+                  onClick={handleRefresh}
+                  disabled={refrescando}
+                  className="p-2 2xl:p-2.5 rounded-lg 2xl:rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-indigo-100 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw className={`w-4 h-4 2xl:w-5 2xl:h-5 ${refrescando ? 'animate-spin' : ''}`} />
+                </button>
+              </Tooltip>
+            </div>
+          </div>
+
+          {/* Campañas + Alertas + Ventas | Actividad Reciente */}
+          <div className="flex gap-3 2xl:gap-4 lg:h-[520px] 2xl:h-[640px]">
+            {/* Columna izquierda */}
+            <div className="w-[55%] 2xl:w-[58%] shrink-0 flex flex-col gap-2 lg:gap-1.5 2xl:gap-2">
+              <div className="flex-1 min-h-0">
+                <GraficaVentas datos={ventas} vertical={true} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 lg:gap-1.5 2xl:gap-2">
                 <PanelCampanas
                   campanas={campanasOrdenadas}
                   totalActivas={kpis?.ofertasActivas ?? 0}
@@ -480,17 +587,10 @@ export default function PaginaDashboard() {
                 <PanelAlertas alertas={alertas} />
               </div>
             </div>
-
-            {/* Columna derecha: Gráfica Vertical - ocupa el resto */}
-            <div className="flex-1 min-w-0">
-              <GraficaVentas datos={ventas} vertical={true} />
+            {/* Columna derecha — Actividad Reciente (misma altura que izquierda) */}
+            <div className="flex-1 min-w-0 flex flex-col">
+              <PanelInteracciones interacciones={interacciones} />
             </div>
-          </div>
-
-          {/* Fila inferior: Opiniones + Interacciones */}
-          <div className="grid grid-cols-2 gap-3 2xl:gap-4">
-            <PanelOpiniones resenas={resenas} />
-            <PanelInteracciones interacciones={interacciones} />
           </div>
         </div>
       </div>
@@ -511,6 +611,5 @@ export default function PaginaDashboard() {
         />
       )}
     </div>
-    </>
   );
 }

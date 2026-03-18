@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X,
+  Trash2,
   Package,
   Wrench,
   ImagePlus,
@@ -208,7 +208,8 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
     const categoriaFinal = categoria || 'Sin categoría';
     const imagenOriginal = articulo?.imagenPrincipal;
     const imagenNueva = imagen.r2Url;
-    const imagenCambio = esEdicion && imagenOriginal && imagenNueva && imagenOriginal !== imagenNueva;
+    // true si la imagen original fue reemplazada o borrada
+    const imagenCambio = esEdicion && !!imagenOriginal && imagenOriginal !== imagenNueva;
 
     try {
       setGuardando(true);
@@ -383,9 +384,9 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                         <button
                           type="button"
                           onClick={() => imagen.reset()}
-                          className="absolute top-1 right-1 bg-red-500 text-white p-0.5 rounded-md hover:bg-red-600 cursor-pointer"
+                          className="absolute top-1.5 right-1.5 bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 cursor-pointer"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </>
                     ) : (
@@ -492,9 +493,9 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                       <button
                         type="button"
                         onClick={() => imagen.reset()}
-                        className="absolute top-1.5 right-1.5 bg-red-500 text-white p-0.5 rounded-md hover:bg-red-600 cursor-pointer"
+                        className="absolute top-1.5 right-1.5 bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 cursor-pointer"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </>
                   ) : (

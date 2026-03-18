@@ -269,7 +269,6 @@ function FilaMovilOferta({
     esDueno: boolean;
 }) {
     const IconoTipo = getIconoTipo(oferta.tipo);
-    const coloresTipo = getColoresTipo(oferta.tipo);
     const badgeEstado = getBadgeEstado(estado);
     const valorFormateado = formatearValor(oferta.tipo, oferta.valor);
     const esTrending = (oferta.totalVistas || 0) > 50 || (oferta.totalClicks || 0) > 20;
@@ -356,6 +355,7 @@ function FilaMovilOferta({
 
 export function PaginaOfertas() {
     const { usuario } = useAuthStore();
+    const totalSucursales = useAuthStore((s) => s.totalSucursales);
     const { ofertas, loading, crear, actualizar, eliminar, duplicar } = useOfertas();
     const { compararConHoy } = useZonaHoraria();
 
@@ -576,6 +576,11 @@ export function PaginaOfertas() {
             return;
         }
         if (esDueno) {
+            // Dueño con 1 sola sucursal → duplicar directo sin modal
+            if (totalSucursales <= 1 && usuario?.sucursalActiva) {
+                await duplicar(oferta.id, { sucursalesIds: [usuario.sucursalActiva] });
+                return;
+            }
             setOfertaDuplicando(oferta);
             setModalDuplicarAbierto(true);
         }
@@ -996,7 +1001,7 @@ export function PaginaOfertas() {
                         </div>
 
                         {/* Body scrolleable */}
-                        <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-455px)] overflow-y-auto bg-white">
+                        <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-395px)] overflow-y-auto bg-white">
                             {ofertasOrdenadas.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                                     <Inbox className="w-10 h-10 mb-2" />

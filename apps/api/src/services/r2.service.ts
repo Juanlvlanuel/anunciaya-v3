@@ -8,7 +8,7 @@
  * Usado principalmente para fotos de tickets en ScanYA
  */
 
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { r2Client, r2Config } from '../config/r2.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -284,4 +284,50 @@ export function extraerKeyDeUrl(url: string): string | null {
  */
 export function esUrlR2(url: string): boolean {
     return url.startsWith(r2Config.publicUrl);
+}
+
+// =============================================================================
+// FUNCIÓN 6: DUPLICAR ARCHIVO EN R2
+// =============================================================================
+
+/**
+ * Copia un archivo dentro del mismo bucket R2 con una nueva key.
+ * Más eficiente que descargar y re-subir.
+ *
+ * @param urlOriginal - URL pública del archivo original en R2
+ * @param carpetaDestino - Carpeta destino (ej: 'articulos')
+ * @returns Nueva URL pública del archivo copiado, o null si falla
+ */
+export async function duplicarArchivo(
+    urlOriginal: string,
+    carpetaDestino: string
+): Promise<string | null> {
+    try {
+        if (!r2Config.bucketName || !r2Config.publicUrl) return null;
+
+        // Extraer key original
+        const keyOriginal = extraerKeyDeUrl(urlOriginal);
+        if (!keyOriginal) return null;
+
+        // Generar nueva key
+        const extension = keyOriginal.split('.').pop() || 'webp';
+        const timestamp = Date.now();
+        const uniqueId = uuidv4().slice(0, 8);
+        const nuevaKey = `${carpetaDestino}/${timestamp}-${uniqueId}.${extension}`;
+
+        // Copiar dentro del mismo bucket
+        const command = new CopyObjectCommand({
+            Bucket: r2Config.bucketName,
+            CopySource: `${r2Config.bucketName}/${keyOriginal}`,
+            Key: nuevaKey,
+        });
+
+        await r2Client.send(command);
+
+        return `${r2Config.publicUrl}/${nuevaKey}`;
+
+    } catch (error) {
+        console.error('Error en duplicarArchivo R2:', error);
+        return null;
+    }
 }

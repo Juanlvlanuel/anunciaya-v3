@@ -17,7 +17,7 @@ import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../db';
 import { articulos, articuloSucursales } from '../db/schemas/schema';
 import { duplicarImagen, eliminarImagen } from './cloudinary.service.js';
-import { generarPresignedUrl, eliminarArchivo, esUrlR2 } from './r2.service.js';
+import { generarPresignedUrl, eliminarArchivo, duplicarArchivo, esUrlR2 } from './r2.service.js';
 
 // =============================================================================
 // HELPER PRIVADO: ELIMINAR IMAGEN (R2 o Cloudinary)
@@ -29,6 +29,15 @@ async function eliminarImagenInteligente(url: string): Promise<void> {
         await eliminarArchivo(url);
     } else {
         await eliminarImagen(url);
+    }
+}
+
+/** Duplica una imagen detectando si está en R2 o Cloudinary */
+async function duplicarImagenInteligente(url: string, carpeta: string): Promise<string | null> {
+    if (esUrlR2(url)) {
+        return await duplicarArchivo(url, carpeta);
+    } else {
+        return await duplicarImagen(url, carpeta);
     }
 }
 
@@ -415,7 +424,7 @@ export async function actualizarArticulo(
     datos: ActualizarArticuloInput
 ) {
     // Extraer imagenAEliminar de los datos (no se guarda en DB)
-    const { imagenAEliminar, ...datosArticulo } = datos as ActualizarArticuloInput & { imagenAEliminar?: string };
+    const { imagenAEliminar, ...datosArticulo } = datos;
 
     try {
         const resultado = await db.transaction(async (tx) => {
@@ -613,10 +622,10 @@ export async function duplicarArticuloASucursales(
             const articulosDuplicados = [];
 
             for (const sucursalId of datos.sucursalesIds) {
-                // 3.1 Duplicar imagen si existe
+                // 3.1 Duplicar imagen si existe (R2 o Cloudinary)
                 let nuevaImagenUrl = articuloOriginal.imagenPrincipal;
                 if (articuloOriginal.imagenPrincipal) {
-                    const imagenDuplicada = await duplicarImagen(
+                    const imagenDuplicada = await duplicarImagenInteligente(
                         articuloOriginal.imagenPrincipal,
                         'articulos'
                     );

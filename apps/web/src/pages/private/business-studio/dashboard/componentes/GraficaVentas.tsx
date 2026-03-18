@@ -147,24 +147,28 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
   // =========================================================================
   if (vertical) {
     return (
-      <div className={`bg-white lg:h-89 2xl:h-110 flex flex-col ${embedded
+      <div className={`bg-white h-full flex flex-col ${embedded
         ? 'p-3'
-        : 'rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2.5 2xl:p-3 shadow-md'
+        : 'rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden'
         }`}>
-        {/* Header con icono */}
-        <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-              <BarChart3 className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-blue-600" />
+        {/* Header — gradiente oscuro */}
+        <div
+          className="flex items-center justify-between px-3 lg:px-4 2xl:px-4 py-2 shrink-0"
+          style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 lg:w-9 lg:h-9 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              <BarChart3 className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
             </div>
-            <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Ventas del Periodo</h3>
+            <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-white">Ventas del Periodo</h3>
           </div>
-          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Evolución diaria</span>
+          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-400">Evolución diaria</span>
         </div>
 
         {/* Estadísticas en fila compacta */}
         {estadisticas && (
-          <div className="flex items-center justify-between gap-2 mb-3 lg:mb-2 2xl:mb-3 pb-2 border-b border-slate-300">
+          <div className="flex items-center justify-between gap-2 px-3 lg:px-2.5 2xl:px-3 pt-2.5 lg:pt-2 2xl:pt-2.5 pb-2 mb-1 border-b border-slate-300">
             <div>
               <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Prom/día</p>
               <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-700">
@@ -191,10 +195,10 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
           </div>
         )}
 
-        {/* Gráfica vertical (más alta) */}
+        {/* Gráfica vertical — ocupa todo el alto disponible */}
         {datosGrafica.length > 0 ? (
-          <div className="flex-1" style={{ minHeight: 280 }}>
-            <ResponsiveContainer width="100%" height={altura}>
+          <div className="flex-1 px-2 lg:px-1.5 2xl:px-2 pb-2" style={{ minHeight: 200 }}>
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={datosGrafica}
                 margin={{ top: 5, right: 5, left: 0, bottom: 0 }}

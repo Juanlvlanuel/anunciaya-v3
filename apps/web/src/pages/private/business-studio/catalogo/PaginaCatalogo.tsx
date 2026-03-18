@@ -267,7 +267,7 @@ function FilaMovil({
 // =============================================================================
 
 export function PaginaCatalogo() {
-    const { usuario } = useAuthStore();
+    const { usuario, totalSucursales } = useAuthStore();
     const { articulos, loading, crear, actualizar, eliminar, duplicar } = useArticulos();
 
     // Estados UI
@@ -470,10 +470,17 @@ export function PaginaCatalogo() {
     };
 
     const handleDuplicar = async (articulo: Articulo) => {
+        // Gerente: duplicar directo en su sucursal asignada
         if (esGerente && usuario?.sucursalAsignada) {
             await duplicar(articulo.id, { sucursalesIds: [usuario.sucursalAsignada] });
             return;
         }
+        // Dueño sin sucursales adicionales: duplicar directo en la sucursal activa
+        if (esDueno && totalSucursales <= 1 && usuario?.sucursalActiva) {
+            await duplicar(articulo.id, { sucursalesIds: [usuario.sucursalActiva] });
+            return;
+        }
+        // Dueño con múltiples sucursales: abrir modal de selección
         if (esDueno) {
             setArticuloDuplicando(articulo);
             setModalDuplicarAbierto(true);
@@ -927,7 +934,7 @@ export function PaginaCatalogo() {
                         </div>
 
                         {/* Body scrolleable */}
-                        <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-455px)] overflow-y-auto bg-white">
+                        <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-395px)] overflow-y-auto bg-white">
                             {articulosOrdenados.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                                     <Inbox className="w-10 h-10 mb-2" />

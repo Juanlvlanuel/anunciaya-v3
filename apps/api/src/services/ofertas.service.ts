@@ -19,7 +19,7 @@ import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../db';
 import { ofertas } from '../db/schemas/schema';
 import { duplicarImagen } from './cloudinary.service';
-import { generarPresignedUrl } from './r2.service.js';
+import { generarPresignedUrl, duplicarArchivo, esUrlR2 } from './r2.service.js';
 import type {
   CrearOfertaInput,
   ActualizarOfertaInput,
@@ -28,6 +28,20 @@ import type {
 } from '../types/ofertas.types';
 import { negocios, puntosBilletera } from '../db/schemas/schema';
 import { crearNotificacion } from './notificaciones.service.js';
+
+// =============================================================================
+// HELPER: DUPLICAR IMAGEN (R2 o Cloudinary)
+// =============================================================================
+
+/**
+ * Duplica una imagen de forma inteligente:
+ * - Si es URL de R2 → usa CopyObjectCommand (sin descargar)
+ * - Si es URL de Cloudinary → usa duplicarImagen de cloudinary.service
+ */
+async function duplicarImagenInteligente(url: string, carpeta: string): Promise<string | null> {
+    if (esUrlR2(url)) return await duplicarArchivo(url, carpeta);
+    return await duplicarImagen(url, carpeta);
+}
 
 // =============================================================================
 // GENERAR URL DE UPLOAD PARA IMAGEN DE OFERTA (R2)
@@ -786,10 +800,10 @@ export async function duplicarOfertaASucursales(
         );
       }
 
-      // 3. Duplicar imagen en Cloudinary (si existe)
+      // 3. Duplicar imagen (R2 o Cloudinary según origen)
       let nuevaImagenUrl: string | null = null;
       if (ofertaOriginal.imagen) {
-        nuevaImagenUrl = await duplicarImagen(ofertaOriginal.imagen, 'ofertas');
+        nuevaImagenUrl = await duplicarImagenInteligente(ofertaOriginal.imagen, 'ofertas');
 
         if (!nuevaImagenUrl) {
           nuevaImagenUrl = ofertaOriginal.imagen; // Fallback a imagen original

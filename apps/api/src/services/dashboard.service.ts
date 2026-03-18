@@ -146,16 +146,6 @@ interface InteraccionCompartidoRow {
     created_at: string; // Alias de updated_at en la query
 }
 
-interface ResenaRow {
-    id: string;
-    rating: string | number;
-    texto: string;
-    created_at: string;
-    autor_nombre: string;
-    autor_apellidos: string;
-    autor_avatar: string | null;
-}
-
 interface AlertaRow {
     id: string;
     tipo: string;
@@ -816,12 +806,18 @@ export async function obtenerCampanasActivas(
 export async function obtenerInteracciones(
     negocioId: string,
     limite: number = 10,
-    sucursalId?: string) {
+    sucursalId?: string,
+    periodo: Periodo = 'semana') {
     try {
         const sucursalIdParam = sucursalId ?? null;
+        const zonaHoraria = await obtenerZonaHorariaNegocio(negocioId, sucursalId);
+        const { inicio, fin } = calcularRangoFechas(periodo, zonaHoraria);
+        const fechaInicio = inicio.toISOString();
+        const fechaFin = fin.toISOString();
+
         // 1. Ventas recientes
         const ventasQuery = sql`
-            SELECT 
+            SELECT
                 'venta' as tipo,
                 pt.id,
                 pt.monto_compra as monto,
@@ -833,6 +829,8 @@ export async function obtenerInteracciones(
             WHERE pt.negocio_id = ${negocioId}
               AND (${sucursalIdParam}::uuid IS NULL OR pt.sucursal_id = ${sucursalIdParam}::uuid)
               AND pt.estado = 'confirmado'
+              AND pt.created_at >= ${fechaInicio}::timestamptz
+              AND pt.created_at <= ${fechaFin}::timestamptz
             ORDER BY pt.created_at DESC
             LIMIT 5
         `;
@@ -852,6 +850,8 @@ export async function obtenerInteracciones(
             WHERE c.negocio_id = ${negocioId}
               AND (${sucursalIdParam}::uuid IS NULL OR c.sucursal_id = ${sucursalIdParam}::uuid)
               AND cu.estado = 'usado'
+              AND cu.usado_at >= ${fechaInicio}::timestamptz
+              AND cu.usado_at <= ${fechaFin}::timestamptz
             ORDER BY cu.usado_at DESC
             LIMIT 5
         `;
@@ -883,6 +883,8 @@ export async function obtenerInteracciones(
               AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
               AND v.entity_type = 'sucursal'
               AND v.tipo_accion = 'like'
+              AND v.created_at >= ${fechaInicio}::timestamptz
+              AND v.created_at <= ${fechaFin}::timestamptz
             ORDER BY v.created_at DESC
             LIMIT 5
         `;
@@ -914,6 +916,8 @@ export async function obtenerInteracciones(
               AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
               AND v.entity_type = 'sucursal'
               AND v.tipo_accion = 'follow'
+              AND v.created_at >= ${fechaInicio}::timestamptz
+              AND v.created_at <= ${fechaFin}::timestamptz
             ORDER BY v.created_at DESC
             LIMIT 5
         `;
@@ -932,7 +936,8 @@ export async function obtenerInteracciones(
               AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
               AND m.entity_type = 'sucursal'
               AND m.total_shares > 0
-              AND m.updated_at >= NOW() - INTERVAL '7 days'
+              AND m.updated_at >= ${fechaInicio}::timestamptz
+              AND m.updated_at <= ${fechaFin}::timestamptz
             ORDER BY m.updated_at DESC
             LIMIT 3
         `;
@@ -997,56 +1002,6 @@ export async function obtenerInteracciones(
         return { success: true, data: interacciones.slice(0, limite) };
     } catch (error) {
         console.error('Error al obtener interacciones:', error);
-        throw error;
-    }
-}
-
-// =============================================================================
-// OBTENER RESEÑAS RECIENTES
-// =============================================================================
-
-export async function obtenerResenasRecientes(
-    negocioId: string,
-    limite: number = 5,
-    sucursalId?: string) {
-    try {
-        const sucursalIdParam = sucursalId ?? null;
-        const query = sql`
-            SELECT 
-                r.id,
-                r.rating,
-                r.texto,
-                r.created_at,
-                u.nombre as autor_nombre,
-                u.apellidos as autor_apellidos,
-                u.avatar_url as autor_avatar
-            FROM resenas r
-            JOIN usuarios u ON u.id = r.autor_id
-            JOIN negocio_sucursales s ON s.id = r.sucursal_id
-            WHERE s.negocio_id = ${negocioId}
-             AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
-             AND r.destino_tipo = 'negocio'
-            ORDER BY r.created_at DESC
-            LIMIT ${limite}
-        `;
-
-        const resultado = await db.execute(query);
-
-        const data = (resultado.rows as unknown as ResenaRow[]).map((row) => ({
-            id: row.id,
-            rating: Number(row.rating) || 0,
-            texto: row.texto,
-            createdAt: row.created_at,
-            autor: {
-                nombre: row.autor_nombre,
-                apellidos: row.autor_apellidos,
-                avatar: row.autor_avatar,
-            },
-        }));
-
-        return { success: true, data };
-    } catch (error) {
-        console.error('Error al obtener reseñas recientes:', error);
         throw error;
     }
 }
@@ -1133,7 +1088,6 @@ export default {
     obtenerVentasDiarias,
     obtenerCampanasActivas,
     obtenerInteracciones,
-    obtenerResenasRecientes,
     obtenerAlertasRecientes,
     marcarAlertaLeida,
 };

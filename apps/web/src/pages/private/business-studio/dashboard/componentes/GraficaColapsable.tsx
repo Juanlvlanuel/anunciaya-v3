@@ -13,7 +13,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 import GraficaVentas from './GraficaVentas';
 import type { VentasData } from '../../../../../services/dashboardService';
 
@@ -60,24 +60,21 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
 
   return (
     <div ref={contenedorRef} className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-md transition-all duration-300">
-      {/* Header Colapsable - Siempre visible */}
+      {/* Header Colapsable — gradiente oscuro */}
       <button
         onClick={() => setExpandida(!expandida)}
-        className="w-full px-3 py-2.5 flex items-center gap-2.5 bg-white hover:bg-slate-200 active:bg-white focus:outline-none focus:bg-white"
-        style={{ WebkitTapHighlightColor: 'transparent' }}
+        className="w-full px-3 py-2 flex items-center gap-2.5 focus:outline-none"
+        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', WebkitTapHighlightColor: 'transparent' }}
       >
-        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-          {crecimientoPositivo ? (
-            <TrendingUp className="w-4 h-4 text-blue-600" />
-          ) : (
-            <TrendingDown className="w-4 h-4 text-rose-600" />
-          )}
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+          <BarChart3 className="w-4 h-4 text-white" />
         </div>
 
         <div className="flex-1 text-left min-w-0">
-          <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Ventas del Periodo</h3>
+          <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-white">Ventas del Periodo</h3>
           {estadisticas && (
-            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 truncate">
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-400 truncate">
               ${estadisticas.promedioDiario >= 1000
                 ? `${(estadisticas.promedioDiario / 1000).toFixed(1)}k`
                 : estadisticas.promedioDiario.toLocaleString('es-MX')}/día
@@ -87,26 +84,26 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
         </div>
 
         {/* "Ver gráfica" solo en laptop/desktop — en móvil solo el chevron */}
-        <span className="hidden lg:inline text-[11px] 2xl:text-sm font-medium text-slate-600">
+        <span className="hidden lg:inline text-[11px] 2xl:text-sm font-medium text-slate-400">
           {expandida ? 'Ocultar' : 'Ver gráfica'}
         </span>
         {expandida ? (
-          <ChevronUp className="w-5 h-5 text-slate-600 shrink-0" />
+          <ChevronUp className="w-5 h-5 text-slate-400 shrink-0" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-slate-600 shrink-0" />
+          <ChevronDown className="w-5 h-5 text-slate-400 shrink-0" />
         )}
       </button>
 
       {/* Contenido Expandible - Gráfica */}
       {expandida && (
-        <div className="border-t-2 border-slate-300 animate-in slide-in-from-top duration-300">
+        <div className="border-t border-slate-300 animate-in slide-in-from-top duration-300">
           <GraficaVentas datos={datos} embedded />
         </div>
       )}
 
       {/* Preview de Estadísticas cuando está colapsada — solo laptop/desktop */}
       {!expandida && estadisticas && (
-        <div className="px-3 pb-3 hidden lg:grid grid-cols-3 gap-2 text-center">
+        <div className="px-3 py-2.5 hidden lg:grid grid-cols-3 gap-2 text-center">
           <div className="bg-slate-200 rounded-lg p-2">
             <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Mejor día</p>
             <p className="text-sm font-bold text-slate-800">{estadisticas.diaPico}</p>

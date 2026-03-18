@@ -21,6 +21,7 @@ import pagoRoutes from './pago.routes';
 import categoriasRoutes from './categorias.routes';
 import onboardingRoutes from './onboarding.routes';
 import cloudinaryRoutes from './cloudinary.routes';
+import r2Routes from './r2.routes';
 import negociosRoutes from './negocios.routes';
 import resenasRoutes from './resenas.routes';
 import articulosRoutes from './articulos.routes';
@@ -62,6 +63,9 @@ router.use('/onboarding', onboardingRoutes);
 
 // Rutas de cloudinary
 router.use('/cloudinary', cloudinaryRoutes);
+
+// Rutas de R2 (limpieza de imágenes huérfanas)
+router.use('/r2', r2Routes);
 
 // Rutas de negocios
 router.use('/negocios', negociosRoutes);

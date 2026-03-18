@@ -13,7 +13,6 @@
  * - GET /api/business/dashboard/ventas
  * - GET /api/business/dashboard/campanas
  * - GET /api/business/dashboard/interacciones
- * - GET /api/business/dashboard/resenas
  * - GET /api/business/dashboard/alertas
  * - PUT /api/business/dashboard/alertas/:id
  */
@@ -99,18 +98,6 @@ export interface Interaccion {
   createdAt: string;
 }
 
-export interface Resena {
-  id: string;
-  rating: number;
-  texto: string;
-  createdAt: string;
-  autor: {
-    nombre: string;
-    apellidos: string;
-    avatar: string | null;
-  };
-}
-
 export interface Alerta {
   id: string;
   tipo: string;
@@ -158,16 +145,8 @@ export async function obtenerCampanas(limite: number = 5) {
  * Obtiene las interacciones recientes
  * @param limite - Número máximo de interacciones
  */
-export async function obtenerInteracciones(limite: number = 10) {
-  return get<Interaccion[]>(`/business/dashboard/interacciones?limite=${limite}`);
-}
-
-/**
- * Obtiene las reseñas recientes
- * @param limite - Número máximo de reseñas
- */
-export async function obtenerResenas(limite: number = 5) {
-  return get<Resena[]>(`/business/dashboard/resenas?limite=${limite}`);
+export async function obtenerInteracciones(limite: number = 10, periodo: Periodo = 'semana') {
+  return get<Interaccion[]>(`/business/dashboard/interacciones?limite=${limite}&periodo=${periodo}`);
 }
 
 /**
@@ -194,7 +173,6 @@ export default {
   obtenerVentas,
   obtenerCampanas,
   obtenerInteracciones,
-  obtenerResenas,
   obtenerAlertas,
   marcarAlertaLeida,
 };

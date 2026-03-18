@@ -67,17 +67,21 @@ function getIconoInteraccion(tipo: Interaccion['tipo']) {
 
 export default function PanelInteracciones({ interacciones, vistaMobil = false }: PanelInteraccionesProps) {
   return (
-    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-4 lg:p-3 2xl:p-4 ${!vistaMobil ? 'max-h-[270px] lg:max-h-[230px] 2xl:max-h-[340px]' : ''} flex flex-col shadow-md`}>
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3 lg:mb-2 2xl:mb-3">
-        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-          <Users className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-indigo-600" />
+    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 ${!vistaMobil ? 'h-full' : ''} flex flex-col shadow-md overflow-hidden`}>
+      {/* Header — gradiente oscuro */}
+      <div
+        className="flex items-center gap-2.5 px-3 lg:px-4 2xl:px-4 py-2 shrink-0"
+        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+      >
+        <div className="w-7 h-7 lg:w-9 lg:h-9 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+          <Users className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
         </div>
-        <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-slate-800">Actividad Reciente</h3>
+        <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-white">Actividad Reciente</h3>
       </div>
 
       {/* Lista */}
-      <div className={`flex-1 space-y-2 lg:space-y-1.5 2xl:space-y-2 ${!vistaMobil && 'overflow-y-auto'}`}>
+      <div className={`flex-1 space-y-2 lg:space-y-1.5 2xl:space-y-2 ${!vistaMobil && 'overflow-y-auto'} p-3 lg:p-2.5 2xl:p-3`}>
         {interacciones.length > 0 ? (
           interacciones.slice(0, 20).map((interaccion, index) => {
             const { icon: Icono, bg, color } = getIconoInteraccion(interaccion.tipo);

@@ -285,18 +285,22 @@ export default function PanelCampanas({ campanas, onEditar, vistaMobil = false }
   };
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 lg:h-54 2xl:h-66 flex flex-col shadow-md">
-      {/* Header - Título y contador en línea */}
-      <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
-        <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center">
-          <Tag className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-rose-600" />
+    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 lg:h-54 2xl:h-66 flex flex-col shadow-md overflow-hidden">
+      {/* Header — gradiente oscuro */}
+      <div
+        className="flex items-center gap-2.5 px-3 lg:px-4 2xl:px-4 py-2 shrink-0"
+        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+      >
+        <div className="w-7 h-7 lg:w-9 lg:h-9 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+          <Tag className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
         </div>
-        <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">Cupones y Ofertas</h3>
-        <span className="text-sm lg:text-[11px] 2xl:text-sm text-emerald-600 bg-emerald-100 px-2 py-1 lg:py-0.5 2xl:py-1 rounded-full font-medium whitespace-nowrap">{total} Activas</span>
+        <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-white flex-1">Cupones y Ofertas</h3>
+        <span className="text-sm lg:text-[11px] 2xl:text-sm text-emerald-400 bg-emerald-400/15 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap">{total} Activas</span>
       </div>
 
       {/* Lista de campañas */}
-      <div className="flex-1 space-y-1.5 lg:space-y-1 2xl:space-y-1.5 overflow-y-auto">
+      <div className="flex-1 space-y-1.5 lg:space-y-1 2xl:space-y-1.5 overflow-y-auto p-2.5 lg:p-2 2xl:p-2.5">
         {campanasVisibles.length > 0 ? (
           campanasVisibles.map((campana) => (
             <CardCampana

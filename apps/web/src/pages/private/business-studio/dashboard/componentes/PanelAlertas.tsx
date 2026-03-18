@@ -137,32 +137,36 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
   const noLeidas = alertas?.noLeidas ?? 0;
 
   return (
-    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-2.5 lg:p-2 2xl:p-2.5 lg:h-54 2xl:h-66 flex flex-col shadow-md`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2 lg:mb-1.5 2xl:mb-2">
-        <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
-          <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center relative">
-            <Bell className="w-4 h-4 text-rose-600" />
+    <div className={`bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 lg:h-54 2xl:h-66 flex flex-col shadow-md overflow-hidden`}>
+      {/* Header — gradiente oscuro */}
+      <div
+        className="flex items-center justify-between px-3 lg:px-4 2xl:px-4 py-2 shrink-0"
+        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 lg:w-9 lg:h-9 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0 relative"
+            style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+            <Bell className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
             {noLeidas > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 lg:w-4.5 lg:h-4.5 2xl:w-4 2xl:h-4 rounded-full bg-rose-500 text-white text-[10px] lg:text-[11px] 2xl:text-sm flex items-center justify-center font-medium">
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center font-bold">
                 {noLeidas > 9 ? '9+' : noLeidas}
               </span>
             )}
           </div>
-          <h3 className="font-semibold text-base lg:text-sm 2xl:text-base text-slate-800">Alertas</h3>
+          <h3 className="font-bold text-base lg:text-sm 2xl:text-base text-white">Alertas</h3>
         </div>
 
         {/* Badge estado */}
         {noLeidas === 0 && (
-          <div className="flex items-center gap-1 px-2 py-1 lg:px-1.5 lg:py-0.5 2xl:px-2 2xl:py-1 rounded-full bg-emerald-100 text-emerald-600 whitespace-nowrap">
-            <CheckCircle className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4" />
-            <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium">Todo bien</span>
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-400/15 text-emerald-400 whitespace-nowrap">
+            <CheckCircle className="w-4 h-4" />
+            <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold">Todo bien</span>
           </div>
         )}
       </div>
 
       {/* Lista */}
-      <div className={`flex-1 space-y-1.5 lg:space-y-1 2xl:space-y-1.5 ${!vistaMobil && 'overflow-y-auto'} flex flex-col`}>
+      <div className={`flex-1 space-y-1.5 lg:space-y-1 2xl:space-y-1.5 ${!vistaMobil && 'overflow-y-auto'} flex flex-col p-2.5 lg:p-2 2xl:p-2.5`}>
         {listaAlertas.length > 0 ? (
           listaAlertas.map((alerta) => (
             <ItemAlerta key={alerta.id} alerta={alerta} />

@@ -15,7 +15,6 @@
  * GET  /ventas       → Ventas diarias para gráfica
  * GET  /campanas     → Ofertas y cupones activos
  * GET  /interacciones    → Feed de interacciones recientes (NUEVO)
- * GET  /resenas      → Reseñas recientes
  * GET  /alertas      → Alertas de seguridad
  * PUT  /alertas/:id  → Marcar alerta como leída
  * 
@@ -140,27 +139,6 @@ router.get('/campanas', dashboardController.obtenerCampanasActivas);
  * }
  */
 router.get('/interacciones', dashboardController.obtenerInteracciones);
-
-/**
- * GET /api/business/dashboard/resenas
- * Obtiene las reseñas más recientes
- * 
- * Query params:
- * - limite: número (default: 5, max: 20)
- * 
- * Response:
- * {
- *   success: true,
- *   data: [
- *     {
- *       id, rating, texto, createdAt,
- *       autor: { nombre, apellidos, avatar }
- *     },
- *     ...
- *   ]
- * }
- */
-router.get('/resenas', dashboardController.obtenerResenasRecientes);
 
 /**
  * GET /api/business/dashboard/alertas

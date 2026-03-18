@@ -94,6 +94,7 @@ export interface ActualizarArticuloInput {
     precioBase?: number;
     precioDesde?: boolean;
     imagenPrincipal?: string | null;
+    imagenAEliminar?: string | null;
     disponible?: boolean;
     destacado?: boolean;
     orden?: number;

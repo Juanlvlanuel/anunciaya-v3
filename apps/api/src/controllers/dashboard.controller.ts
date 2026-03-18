@@ -12,8 +12,7 @@
  * GET /api/business/dashboard/kpis         → KPIs principales
  * GET /api/business/dashboard/ventas       → Ventas diarias (gráfica)
  * GET /api/business/dashboard/campanas     → Campañas activas
- * GET /api/business/dashboard/interacciones    → Feed de actividad reciente (NUEVO)
- * GET /api/business/dashboard/resenas      → Reseñas recientes
+ * GET /api/business/dashboard/interacciones    → Feed de actividad reciente
  * GET /api/business/dashboard/alertas      → Alertas de seguridad
  * PUT /api/business/dashboard/alertas/:id  → Marcar alerta leída
  * 
@@ -203,45 +202,9 @@ export async function obtenerInteracciones(
         let limite = parseInt(req.query.limite as string) || 10;
         limite = Math.min(Math.max(limite, 1), 20); // Entre 1 y 20
         const sucursalId = req.query.sucursalId as string | undefined;
+        const periodo = (req.query.periodo as string) || 'semana';
 
-        const resultado = await dashboardService.obtenerInteracciones(negocioId, limite, sucursalId);
-
-        return res.json(resultado);
-    } catch (error) {
-        next(error);
-    }
-}
-
-// =============================================================================
-// OBTENER RESEÑAS RECIENTES
-// =============================================================================
-
-/**
- * GET /api/business/dashboard/resenas
- * 
- * Query params:
- * - limite: número de reseñas (default: 5, max: 20)
- */
-export async function obtenerResenasRecientes(
-    req: RequestConNegocio,
-    res: Response,
-    next: NextFunction
-) {
-    try {
-        const negocioId = req.negocioId;
-
-        if (!negocioId) {
-            return res.status(400).json({
-                success: false,
-                error: 'No se encontró el negocio asociado',
-            });
-        }
-
-        let limite = parseInt(req.query.limite as string) || 5;
-        limite = Math.min(Math.max(limite, 1), 20); // Entre 1 y 20
-        const sucursalId = req.query.sucursalId as string | undefined;
-
-        const resultado = await dashboardService.obtenerResenasRecientes(negocioId, limite, sucursalId);
+        const resultado = await dashboardService.obtenerInteracciones(negocioId, limite, sucursalId, periodo as 'hoy' | 'semana' | 'mes' | 'trimestre' | 'anio');
 
         return res.json(resultado);
     } catch (error) {
@@ -335,7 +298,6 @@ export default {
     obtenerVentasDiarias,
     obtenerCampanasActivas,
     obtenerInteracciones,
-    obtenerResenasRecientes,
     obtenerAlertasRecientes,
     marcarAlertaLeida,
 };
