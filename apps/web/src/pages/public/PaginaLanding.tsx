@@ -17,22 +17,6 @@
  * Ubicación: apps/web/src/pages/public/PaginaLanding.tsx
  */
 
-// Declaración de tipo para Google Identity Services
-declare global {
-    interface Window {
-        google?: {
-            accounts: {
-                id: {
-                    initialize: (config: Record<string, unknown>) => void;
-                    prompt: (callback?: (notification: Record<string, unknown>) => void) => void;
-                    renderButton: (element: HTMLElement, config: Record<string, unknown>) => void;
-                    disableAutoSelect: () => void;
-                };
-            };
-        };
-    }
-}
-
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
