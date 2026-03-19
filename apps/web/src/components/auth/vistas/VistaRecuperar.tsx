@@ -2,14 +2,13 @@
  * VistaRecuperar.tsx
  * ===================
  * Flujo de recuperación de contraseña en 2 pasos.
- * Diseño compacto para móvil.
  *
  * Ubicación: apps/web/src/components/auth/vistas/VistaRecuperar.tsx
  */
 
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyRound, Mail, Hash, Lock, Eye, EyeOff, Check, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Mail, Hash, Lock, Eye, EyeOff, Check, RefreshCw, ArrowLeft } from 'lucide-react';
 import { notificar } from '../../../utils/notificaciones';
 import authService from '../../../services/authService';
 import type { VistaAuth, DatosAuth } from '../ModalLogin';
@@ -80,12 +79,11 @@ export function VistaRecuperar({
           } else {
             notificar.info('Si el correo está registrado, recibirás un código en breve.');
           }
-        }
-        else {
+        } else {
           notificar.error(response.message || t('recuperar.error'));
         }
-      } catch (error: any) {
-        notificar.error(error.response?.data?.mensaje || t('recuperar.error'));
+      } catch {
+        notificar.error(t('recuperar.error'));
       } finally {
         setCargando(false);
       }
@@ -115,8 +113,8 @@ export function VistaRecuperar({
         } else {
           notificar.error(response.message || t('recuperar.error'));
         }
-      } catch (error: any) {
-        notificar.error(error.response?.data?.mensaje || t('recuperar.error'));
+      } catch {
+        notificar.error(t('recuperar.error'));
       } finally {
         setCargando(false);
       }
@@ -134,8 +132,8 @@ export function VistaRecuperar({
       } else {
         notificar.error(response.message || t('recuperar.error'));
       }
-    } catch (error: any) {
-      notificar.error(error.response?.data?.mensaje || t('recuperar.error'));
+    } catch {
+      notificar.error(t('recuperar.error'));
     } finally {
       setCargando(false);
     }
@@ -146,46 +144,50 @@ export function VistaRecuperar({
     if (valorLimpio.length <= 6) setCodigo(valorLimpio);
   }, []);
 
-  // Clases
-  const getInputClasses = (valor: string, esValido: boolean) => {
-    const base = 'w-full pl-10 pr-4 py-2.5 border rounded-xl text-gray-900 placeholder-gray-400 text-sm transition-colors focus:outline-none';
-    if (valor.length === 0) return `${base} border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100`;
-    if (esValido) return `${base} border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-100`;
-    return `${base} border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100`;
+  // Borde del wrapper según estado (TC-14)
+  const getBorde = (valor: string, esValido: boolean) => {
+    if (valor.length === 0) return 'border-slate-300';
+    if (esValido) return 'border-emerald-500';
+    return 'border-red-500';
   };
+
+  const claseWrapper = (valor: string, esValido: boolean) =>
+    `flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 ${getBorde(valor, esValido)}`;
+
+  const claseBotonSubmit = (valido: boolean) =>
+    `w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-white text-base lg:text-sm 2xl:text-base ${
+      valido && !cargando
+        ? 'bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 hover:shadow-slate-700/40 active:scale-[0.98] lg:cursor-pointer'
+        : 'bg-slate-400 cursor-not-allowed'
+    }`;
 
   // Indicador de pasos compacto
   const IndicadorPasos = () => (
     <div className="flex items-center justify-center gap-2 mb-4">
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${paso >= 1 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'
-        }`}>
-        {paso > 1 ? <Check size={12} /> : '1'}
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base font-bold ${
+        paso >= 1 ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-600'
+      }`}>
+        {paso > 1 ? <Check size={16} /> : '1'}
       </div>
-      <div className={`w-8 h-0.5 ${paso > 1 ? 'bg-green-500' : 'bg-gray-200'}`} />
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${paso === 2 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'
-        }`}>
+      <div className={`w-10 h-0.5 ${paso > 1 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base font-bold ${
+        paso === 2 ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-600'
+      }`}>
         2
       </div>
     </div>
   );
 
   return (
-    <div className="p-5">
-      {/* Header */}
-      <div className="flex items-center gap-2.5 mb-3">
-        <div className={`w-10 h-10 ${paso === 1 ? 'bg-blue-500' : 'bg-green-500'} rounded-xl flex items-center justify-center`}>
-          <KeyRound className="w-5 h-5 text-white" />
-        </div>
-        <h2 className="text-lg font-bold text-gray-900">{t('recuperar.titulo')}</h2>
-      </div>
+    <div className="p-6">
 
       {/* Volver */}
       <button
         type="button"
         onClick={() => paso === 2 ? setPaso(1) : onCambiarVista('login')}
-        className="flex items-center gap-1.5 text-base text-gray-500 hover:text-gray-700 mb-3 font-medium lg:cursor-pointer"
+        className="flex items-center gap-1.5 text-base font-semibold text-blue-600 hover:underline mb-5 lg:cursor-pointer"
       >
-        <ArrowLeft size={18} />
+        <ArrowLeft size={22} />
         {paso === 2 ? t('recuperar.volver') : t('recuperar.volverLogin')}
       </button>
 
@@ -194,20 +196,22 @@ export function VistaRecuperar({
       {/* PASO 1 */}
       {paso === 1 && (
         <form onSubmit={handleEnviarCodigo}>
-          <p className="text-sm text-gray-500 mb-4">{t('recuperar.subtitulo')}</p>
+          <p className="text-base font-medium text-slate-600 mb-5">
+            {t('recuperar.subtitulo')}
+          </p>
 
-          <div className="mb-4">
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <div className="mb-6">
+            <label className="block text-base font-bold text-slate-700 mb-2">
               {t('recuperar.correo')}
             </label>
-            <div className="relative">
-              <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className={claseWrapper(email, emailValido)} style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+              <Mail className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('recuperar.correoPlaceholder')}
-                className={getInputClasses(email, emailValido)}
+                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
               />
             </div>
           </div>
@@ -215,10 +219,7 @@ export function VistaRecuperar({
           <button
             type="submit"
             disabled={!formularioPaso1Valido || cargando}
-            className={`w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-colors ${formularioPaso1Valido && !cargando
-              ? 'bg-blue-500 hover:bg-blue-600 lg:cursor-pointer'
-              : 'bg-blue-300 cursor-not-allowed'
-              }`}
+            className={claseBotonSubmit(formularioPaso1Valido)}
           >
             {cargando ? t('recuperar.enviando') : t('recuperar.botonEnviar')}
           </button>
@@ -229,29 +230,31 @@ export function VistaRecuperar({
       {paso === 2 && (
         <form onSubmit={handleRestablecer}>
           {/* Email badge */}
-          <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-3 text-center text-sm">
-            <span className="text-gray-600">{t('recuperar.codigoEnviadoA')} </span>
-            <span className="font-semibold text-blue-600">{email}</span>
+          <div className="bg-slate-100 border-2 border-slate-300 rounded-lg px-3 py-2 mb-4 text-center">
+            <span className="text-base font-medium text-slate-600">
+              {t('recuperar.codigoEnviadoA')}{' '}
+            </span>
+            <span className="text-base font-semibold text-slate-800">{email}</span>
           </div>
 
-          {/* Código - Label y Reenviar en la misma línea */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-semibold text-gray-700">
+          {/* Código */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-base font-bold text-slate-700">
                 {t('recuperar.codigo')}
               </label>
               <button
                 type="button"
                 onClick={handleReenviar}
                 disabled={cargando}
-                className="flex items-center gap-1.5 text-base text-blue-500 hover:underline font-medium lg:cursor-pointer"
+                className="flex items-center gap-1.5 text-base font-semibold text-blue-600 hover:underline lg:cursor-pointer"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={14} />
                 {t('recuperar.reenviar')}
               </button>
             </div>
-            <div className="relative">
-              <Hash size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className={claseWrapper(codigo, codigoValido)} style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+              <Hash className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
               <input
                 type="text"
                 inputMode="numeric"
@@ -259,39 +262,39 @@ export function VistaRecuperar({
                 onChange={(e) => handleCambioCodigo(e.target.value)}
                 placeholder={t('recuperar.codigoPlaceholder')}
                 maxLength={6}
-                className={getInputClasses(codigo, codigoValido)}
+                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
               />
             </div>
           </div>
 
           {/* Nueva contraseña */}
-          <div className="mb-3">
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <div className="mb-5">
+            <label className="block text-base font-bold text-slate-700 mb-2">
               {t('recuperar.nuevaContrasena')}
             </label>
-            <div className="relative">
-              <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className={claseWrapper(nuevaPassword, passwordValida)} style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+              <Lock className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
               <input
                 type={mostrarPassword ? 'text' : 'password'}
                 value={nuevaPassword}
                 onChange={(e) => setNuevaPassword(e.target.value)}
                 placeholder={t('recuperar.nuevaContrasenaPlaceholder')}
-                className={`${getInputClasses(nuevaPassword, passwordValida)} pr-10`}
+                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
               />
               <button
                 type="button"
                 onClick={() => setMostrarPassword(!mostrarPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 lg:cursor-pointer"
+                className="shrink-0 ml-1 text-slate-600 hover:text-slate-800 lg:cursor-pointer"
                 tabIndex={-1}
               >
-                {mostrarPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                {mostrarPassword ? <EyeOff size={22} /> : <Eye size={22} />}
               </button>
             </div>
 
-            {/* Requisitos simplificados - texto más grande */}
-            <div className={`flex items-center gap-2 mt-2 text-base ${passwordValida ? 'text-green-600' : 'text-gray-500'}`}>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${passwordValida ? 'bg-green-500 border-green-500' : 'border-gray-300'
-                }`}>
+            <div className={`flex items-center gap-2 mt-3 text-base font-medium ${passwordValida ? 'text-emerald-600' : 'text-slate-600'}`}>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                passwordValida ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'
+              }`}>
                 {passwordValida && <Check size={12} className="text-white" />}
               </div>
               <span>Mínimo 8 caracteres: 1 mayúscula y 1 número</span>
@@ -299,40 +302,39 @@ export function VistaRecuperar({
           </div>
 
           {/* Confirmar */}
-          <div className="mb-4">
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <div className="mb-6">
+            <label className="block text-base font-bold text-slate-700 mb-2">
               {t('recuperar.confirmar')}
             </label>
-            <div className="relative">
-              <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className={claseWrapper(confirmarPassword, passwordsCoinciden)} style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+              <Lock className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
               <input
                 type={mostrarConfirmar ? 'text' : 'password'}
                 value={confirmarPassword}
                 onChange={(e) => setConfirmarPassword(e.target.value)}
                 placeholder={t('recuperar.confirmarPlaceholder')}
-                className={`${getInputClasses(confirmarPassword, passwordsCoinciden)} pr-10`}
+                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
               />
               <button
                 type="button"
                 onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 lg:cursor-pointer"
+                className="shrink-0 ml-1 text-slate-600 hover:text-slate-800 lg:cursor-pointer"
                 tabIndex={-1}
               >
-                {mostrarConfirmar ? <EyeOff size={16} /> : <Eye size={16} />}
+                {mostrarConfirmar ? <EyeOff size={22} /> : <Eye size={22} />}
               </button>
             </div>
             {confirmarPassword.length > 0 && !passwordsCoinciden && (
-              <p className="text-sm text-red-500 mt-1">{t('recuperar.passwordNoCoincide')}</p>
+              <p className="text-base font-medium text-red-600 mt-2">
+                {t('recuperar.passwordNoCoincide')}
+              </p>
             )}
           </div>
 
           <button
             type="submit"
             disabled={!formularioPaso2Valido || cargando}
-            className={`w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-colors ${formularioPaso2Valido && !cargando
-              ? 'bg-green-500 hover:bg-green-600 lg:cursor-pointer'
-              : 'bg-green-300 cursor-not-allowed'
-              }`}
+            className={claseBotonSubmit(formularioPaso2Valido)}
           >
             {cargando ? t('recuperar.restableciendo') : t('recuperar.botonRestablecer')}
           </button>

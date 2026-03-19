@@ -171,9 +171,11 @@ Mapeo de colores según la naturaleza del mensaje o acción. Aplica a badges de 
 | Éxito / activo / disponible / confirmado | `emerald` | Estado "Activo", "Disponible", "Pagado", "Completado" |
 | Error / peligro / eliminar / vencido | `red` | Estado "Vencido", botón eliminar, mensajes de error |
 | Advertencia / pendiente / especial | `amber` | Estado "Próximo a vencer", destacado (⭐), advertencias |
-| Información / acción primaria / filtro activo | `indigo` | Dropdowns activos, badges informativos, acción secundaria |
+| Información / filtro activo | `indigo` | Dropdowns activos, badges informativos |
 | Neutral / inactivo / oculto / sin datos | `slate` | Estado "Inactivo", "Oculto", "Sin datos", elementos deshabilitados |
-| Acción de navegación / enlace | `blue` | Botones "Ver más", "Cargar más", links de acción |
+| Acción de navegación / enlace | `blue` | "Ver más", "Cargar más", links de texto dentro del contenido |
+
+> **Botones de submit en formularios** (login, guardar, crear) — no usan paleta de color sino el Dark Gradient de Marca. Ver TC-9.
 
 ### Escala dentro de cada color semántico
 

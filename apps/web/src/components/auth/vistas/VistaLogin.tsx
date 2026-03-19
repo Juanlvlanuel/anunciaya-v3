@@ -110,9 +110,8 @@ export function VistaLogin({
         } else {
           notificar.error(response.message || t('login.error'));
         }
-      } catch (error: any) {
-        const mensaje = error.response?.data?.message || t('login.error');
-        notificar.error(mensaje);
+      } catch {
+        notificar.error(t('login.error'));
       } finally {
         setCargando(false);
       }
@@ -125,99 +124,98 @@ export function VistaLogin({
     navigate('/registro');
   }, [onCerrarModal, navigate]);
 
-  // Clases de input
-  const getInputClasses = (valor: string, esValido: boolean) => {
-    const base = 'w-full pl-10 pr-4 py-2.5 border rounded-xl text-gray-900 placeholder-gray-400 transition-colors focus:outline-none text-sm';
-    if (valor.length === 0) return `${base} border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100`;
-    if (esValido) return `${base} border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-100`;
-    return `${base} border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100`;
+  // Borde del wrapper según estado de validación (TC-14)
+  const getBorde = (valor: string, esValido: boolean) => {
+    if (valor.length === 0) return 'border-slate-300';
+    if (esValido) return 'border-emerald-500';
+    return 'border-red-500';
   };
 
   return (
-    <div className="p-5">
-      {/* Header compacto */}
-      <div className="flex items-center gap-2.5 mb-5">
-        <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
-          <Mail className="w-5 h-5 text-white" />
-        </div>
-        <h2 className="text-lg font-bold text-gray-900">{t('login.titulo')}</h2>
-      </div>
-
+    <div className="p-6">
       <form onSubmit={handleSubmit}>
         {/* Email */}
-        <div className="mb-3">
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <div className="mb-5">
+          <label className="block text-base font-bold text-slate-700 mb-2">
             {t('login.correo')}
           </label>
-          <div className="relative">
-            <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div
+            className={`flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 ${getBorde(email, emailValido)}`}
+            style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+          >
+            <Mail className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t('login.correoPlaceholder')}
-              className={getInputClasses(email, emailValido)}
+              className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
               autoComplete="email"
             />
           </div>
         </div>
 
         {/* Contraseña */}
-        <div className="mb-3">
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-            {t('login.contrasena')}
-          </label>
-          <div className="relative">
-            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="mb-2">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-base font-bold text-slate-700">
+              {t('login.contrasena')}
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                onActualizarDatos({ email });
+                onCambiarVista('recuperar');
+              }}
+              className="text-base font-semibold text-blue-600 hover:underline lg:cursor-pointer"
+            >
+              {t('login.olvidaste')}
+            </button>
+          </div>
+          <div
+            className={`flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 ${getBorde(password, passwordValido)}`}
+            style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+          >
+            <Lock className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
             <input
               type={mostrarPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t('login.contrasenaPlaceholder')}
-              className={`${getInputClasses(password, passwordValido)} pr-10`}
+              className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
               autoComplete="current-password"
             />
             <button
               type="button"
               onClick={() => setMostrarPassword(!mostrarPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 lg:cursor-pointer"
+              className="shrink-0 ml-1 text-slate-600 hover:text-slate-800 lg:cursor-pointer"
               tabIndex={-1}
             >
-              {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {mostrarPassword ? <EyeOff size={22} /> : <Eye size={22} />}
             </button>
           </div>
         </div>
 
-        {/* Recordar + Olvidaste */}
-        <div className="flex items-center justify-between mb-4">
+        {/* Recordar */}
+        <div className="mb-6">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={recordarCorreo}
               onChange={(e) => setRecordarCorreo(e.target.checked)}
-              className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-slate-700 border-slate-300 rounded focus:ring-slate-400"
             />
-            <span className="text-sm text-gray-600">{t('login.recordarCorreo')}</span>
+            <span className="text-base font-medium text-slate-600">{t('login.recordarCorreo')}</span>
           </label>
-          <button
-            type="button"
-            onClick={() => {
-              onActualizarDatos({ email });
-              onCambiarVista('recuperar');
-            }}
-            className="text-sm text-blue-500 hover:underline lg:cursor-pointer"
-          >
-            {t('login.olvidaste')}
-          </button>
         </div>
 
         {/* Botón */}
         <button
           type="submit"
           disabled={!formularioValido || cargando}
-          className={`w-full py-2.5 rounded-xl font-semibold text-white transition-colors text-sm ${formularioValido && !cargando
-            ? 'bg-blue-500 hover:bg-blue-600 lg:cursor-pointer'
-            : 'bg-blue-300 cursor-not-allowed'
+          className={`w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-white text-base lg:text-sm 2xl:text-base ${formularioValido && !cargando
+            ? 'bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 hover:shadow-slate-700/40 active:scale-[0.98] lg:cursor-pointer'
+            : 'bg-slate-400 cursor-not-allowed'
             }`}
         >
           {cargando ? t('login.cargando') : t('login.boton')}
@@ -225,12 +223,12 @@ export function VistaLogin({
       </form>
 
       {/* Footer */}
-      <p className="mt-4 text-center text-sm text-gray-500">
+      <p className="mt-6 text-center text-base font-medium text-slate-600">
         {t('login.sinCuenta')}{' '}
         <button
           type="button"
           onClick={handleIrARegistro}
-          className="font-semibold text-blue-500 hover:underline lg:cursor-pointer"
+          className="font-semibold text-blue-600 hover:underline lg:cursor-pointer"
         >
           {t('login.registrate')}
         </button>

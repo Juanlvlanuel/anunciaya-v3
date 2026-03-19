@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   User,
   Mail,
@@ -95,11 +95,14 @@ export function FormularioRegistro({
   onAbrirLogin,
 }: FormularioRegistroProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // ---------------------------------------------------------------------------
   // Estado
   // ---------------------------------------------------------------------------
-  const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta>('personal');
+  const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta>(
+    searchParams.get('plan') === 'comercial' ? 'comercial' : 'personal'
+  );
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
 

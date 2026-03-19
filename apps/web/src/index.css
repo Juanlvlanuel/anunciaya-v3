@@ -861,3 +861,151 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* ============================================= */
+/* LANDING PAGE v10 — Animaciones                */
+/* ============================================= */
+
+/* Gradient text animado — el degradado se desplaza */
+@keyframes landing-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.landing-gradient-text {
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ef4444, #3b82f6);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: landing-gradient-shift 6s ease-in-out infinite;
+}
+
+/* Glow pulsante detrás del hero */
+@keyframes landing-glow-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.landing-glow {
+  animation: landing-glow-pulse 4s ease-in-out infinite;
+}
+
+/* Marquee infinito */
+@keyframes landing-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.landing-marquee {
+  animation: landing-marquee 30s linear infinite;
+}
+
+.landing-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Border gradient rotante (pricing card) */
+@keyframes landing-border-rotate {
+  0% { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
+}
+
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.landing-border-glow {
+  --border-angle: 0deg;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#0f172a, #0f172a) padding-box,
+    conic-gradient(from var(--border-angle), #3b82f6, #8b5cf6, #ef4444, #3b82f6) border-box;
+  animation: landing-border-rotate 4s linear infinite;
+}
+
+/* Reveal on scroll — estados */
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger para hijos del bento grid */
+.landing-reveal-stagger > .landing-reveal:nth-child(1) { transition-delay: 0ms; }
+.landing-reveal-stagger > .landing-reveal:nth-child(2) { transition-delay: 100ms; }
+.landing-reveal-stagger > .landing-reveal:nth-child(3) { transition-delay: 200ms; }
+.landing-reveal-stagger > .landing-reveal:nth-child(4) { transition-delay: 300ms; }
+.landing-reveal-stagger > .landing-reveal:nth-child(5) { transition-delay: 400ms; }
+.landing-reveal-stagger > .landing-reveal:nth-child(6) { transition-delay: 500ms; }
+
+/* Floating mockup */
+@keyframes landing-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(0.5deg); }
+}
+
+.landing-float {
+  animation: landing-float 6s ease-in-out infinite;
+}
+
+/* Scroll indicator bounce */
+@keyframes landing-scroll-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+
+.landing-scroll-indicator {
+  animation: landing-scroll-bounce 2s ease-in-out infinite;
+}
+
+/* Glass card */
+.landing-glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Landing page — dark scrollbar override */
+.landing-dark-scroll::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.landing-dark-scroll::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-color: #0f172a;
+}
+
+.landing-dark-scroll::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.landing-dark-scroll::-webkit-scrollbar-button:single-button {
+  background-color: #0f172a;
+}
+
+.landing-dark-scroll::-webkit-scrollbar-button:single-button:vertical:decrement {
+  background-color: #0f172a;
+}
+
+.landing-dark-scroll::-webkit-scrollbar-button:single-button:vertical:decrement:hover {
+  background-color: #1e293b;
+}
+
+.landing-dark-scroll::-webkit-scrollbar-button:single-button:vertical:increment {
+  background-color: #0f172a;
+}
+
+.landing-dark-scroll::-webkit-scrollbar-button:single-button:vertical:increment:hover {
+  background-color: #1e293b;
+}

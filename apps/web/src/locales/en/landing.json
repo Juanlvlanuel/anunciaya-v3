@@ -3,7 +3,10 @@
     "google": "Google",
     "o": "or",
     "iniciarSesion": "Sign In",
-    "registrate": "Sign Up"
+    "registrate": "Sign Up",
+    "entrar": "Sign In",
+    "unete": "Join",
+    "entrarConGoogle": "Sign in with Google"
   },
   "hero": {
     "badgeParte1": "One card, Multiple Rewards.",
@@ -20,40 +23,87 @@
     "subtitulo5": "redeem them",
     "subtitulo6": "for",
     "subtitulo7": "rewards.",
+    "tus": "Your",
+    "compras": "purchases",
+    "ahora": "are now",
+    "valen": "worth",
+    "mas": "more",
+    "acumulaPuntos": "Earn points shopping at your",
+    "comerciosFavoritos": "favorite stores",
+    "yCanjealos": "and",
+    "canjealos": "redeem them",
+    "por": "for",
+    "recompensas": "rewards.",
+    "unaTarjeta": "One card",
+    "multiplesRecompensas": "Multiple rewards",
     "botonPrimario": "Get Started",
     "beneficio1": "Earn points",
     "beneficio2": "Post for free",
     "beneficio3": "Create raffles",
-    "scrollIndicador": "Discover more"
+    "scrollIndicador": "Discover more",
+    "stats": {
+      "negocios": "Businesses",
+      "secciones": "Sections",
+      "gratis": "Free"
+    }
+  },
+  "categorias": {
+    "negocios": "Businesses",
+    "ofertas": "Deals",
+    "cardya": "CardYA",
+    "chatya": "ChatYA",
+    "marketplace": "Marketplace",
+    "dinamicas": "Dynamics",
+    "empleos": "Jobs"
   },
   "secciones": {
+    "titulo": "Explore AnunciaYA",
+    "subtitulo": "5 sections to connect consumers and merchants.",
+    "unete": "Join AnunciaYA and unlock benefits",
+    "alSerParte": "As a community member you get access to:",
     "negocios": {
       "titulo": "Local Businesses",
       "subtitulo": "Find businesses and services near you",
       "descripcion": "*Earn points on every purchase.<br />*Collect and Redeem for rewards.",
       "stats": "+100 Businesses",
-      "highlight": "Near you"
+      "highlight": "Near you",
+      "beneficio": "Find businesses",
+      "beneficioDesc": "Map with categories, reviews and catalogs"
     },
     "marketplace": {
       "titulo": "Marketplace",
       "subtitulo": "Generate Income",
       "descripcion": "*0 Commissions.<br />*P2P Buy and Sell.<br />*Support Micro Entrepreneurs.",
       "stats": "+1,000 products",
-      "highlight": "Post FREE"
+      "highlight": "Post FREE",
+      "beneficio": "Buy and sell",
+      "beneficioDesc": "Local MarketPlace for your community"
     },
     "ofertas": {
       "titulo": "Deals",
       "subtitulo": "Promotions and Coupons",
       "descripcion": "*Digital Coupons.<br />*Limited time offers.",
       "stats": "+200 Deals",
-      "highlight": "Exclusive"
+      "highlight": "Exclusive",
+      "beneficio": "Save with coupons",
+      "beneficioDesc": "Real discounts you redeem with your phone"
     },
     "dinamicas": {
       "titulo": "Dynamics",
       "subtitulo": "Raffles and Giveaways",
       "descripcion": "*Use your points to participate.<br />*Create your own Raffles.<br />*0 Commissions.",
       "stats": "+100 Raffles",
-      "highlight": "Live"
+      "highlight": "Live",
+      "beneficio": "Dynamics and jobs",
+      "beneficioDesc": "Raffles, giveaways and job board"
+    },
+    "cardya": {
+      "beneficio": "Earn points",
+      "beneficioDesc": "CardYA: earn on every purchase, level up"
+    },
+    "chatya": {
+      "beneficio": "Chat directly",
+      "beneficioDesc": "Message businesses: photos, audio, location"
     },
     "disponible": "Available",
     "activo": "Active",
@@ -84,6 +134,33 @@
       "subtitulo": "Your purchases boost the local economy."
     }
   },
+  "niveles": {
+    "titulo": "Level up with CardYA",
+    "bronce": "Bronze",
+    "plata": "Silver",
+    "oro": "Gold",
+    "platino": "Platinum"
+  },
+  "comerciantes": {
+    "etiqueta": "FOR MERCHANTS",
+    "titulo": "Business Studio + ScanYA",
+    "descripcion": "Dashboard, point of sale, customers, loyalty system, deals, catalog and real-time reports.",
+    "tags": {
+      "dashboard": "Dashboard",
+      "pos": "ScanYA POS",
+      "clientes": "Customers",
+      "puntos": "Points",
+      "ofertas": "Deals",
+      "reportes": "Reports"
+    },
+    "boton": "Register my business",
+    "precio": "/mo",
+    "ventasHoy": "Sales today",
+    "clientesActivos": "Customers",
+    "ventasMes": "Monthly sales",
+    "posActivo": "ScanYA POS",
+    "activo": "Active"
+  },
   "beneficios": {
     "titulo1": "Why choose",
     "titulo2": "AnunciaYA",
@@ -105,7 +182,7 @@
   },
   "cta": {
     "titulo": "Start today...",
-    "subtitulo": "",
+    "subtitulo": "Free for consumers · $449/mo for merchants · Made in Mexico",
     "personal": {
       "titulo": "Personal Account",
       "precio": "Free",
@@ -133,7 +210,7 @@
         "f6": "Integrated chat (ChatYA)",
         "f7": "Business Studio (Management Tool)"
       },
-      "boton": "Try 7 days free"
+      "boton": "Try Free Trial"
     },
     "trial": {
       "dias": "7-day free trial",
@@ -141,9 +218,21 @@
       "nota": "When registering a Business account, enter your card to activate the trial. It charges automatically after 7 days if you don't cancel."
     }
   },
+  "collage": {
+    "cupones": "Coupons",
+    "rifas": "Raffles",
+    "ofertas": "Deals",
+    "chatya": "ChatYA",
+    "empleos": "Jobs",
+    "scanya": "ScanYA"
+  },
+  "general": {
+    "volverArriba": "Back to top"
+  },
   "footer": {
     "slogan": "\"Your purchases are now worth more.\"",
     "contactanos": "Contact us!",
-    "derechos": "AnunciaYA. All rights reserved."
+    "derechos": "AnunciaYA. All rights reserved.",
+    "comunidad": "Your Local Community..."
   }
 }

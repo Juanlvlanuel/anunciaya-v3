@@ -5,49 +5,271 @@
 
 ## Índice
 
-1. [Botones de Acción Pequeños (Icon-only)](#1-botones-de-acción-pequeños-icon-only)
-2. [Altura de Elementos Interactivos](#2-altura-de-elementos-interactivos-botones-e-inputs)
-3. [Padding Interno de Contenedores de Filtros](#3-padding-interno-de-contenedores-de-filtros--cards)
-4. [Tipografía de Botones Interactivos](#4-tipografía-de-botones-interactivos-filtros-y-dropdowns)
-5. [Anatomía de Dropdowns](#5-anatomía-de-dropdowns)
-6. [Input de Búsqueda](#6-input-de-búsqueda)
-7. [Padding Horizontal de Botones](#7-padding-horizontal-de-botones-filtros-y-dropdowns)
-8. [Modales de Detalle (Bottom Sheet + Desktop)](#8-modales-de-detalle-bottom-sheet--desktop)
-9. [Dark Gradient de Marca](#9-dark-gradient-de-marca)
-10. [Patrón Tabla Desktop para Módulos de Datos](#10-patrón-tabla-desktop-para-módulos-de-datos)
-11. [Botones de Acción Inline en Filas de Tabla](#11-botones-de-acción-inline-en-filas-de-tabla)
-12. [Cards Horizontales en Móvil (FilaMovil)](#12-cards-horizontales-en-móvil-filamovil)
-13. [Chips de Orden en Móvil](#13-chips-de-orden-en-móvil)
-14. [Inputs de Formulario](#14-inputs-de-formulario)
-15. [ModalBottom — Fondo Personalizable y Drag Handle](#15-modalbottom--fondo-personalizable-y-drag-handle)
-16. [Botones Responsivos: Icon-Only en Laptop](#16-botones-responsivos-icon-only-en-laptop)
-17. [whitespace-nowrap en Títulos de Celdas Comprimidas](#17-whitespace-nowrap-en-títulos-de-celdas-comprimidas)
-18. [Drawers / Menús Laterales en Móvil](#18-drawers--menús-laterales-en-móvil)
-19. [Patrón de Lista Móvil](#19-patrón-de-lista-móvil)
-20. [Jerarquía de Rounded](#20-jerarquía-de-rounded)
-21. [CarouselKPI — Fade Dinámico](#21-carouselkpi--fade-dinámico)
-22. [Swipe entre Páginas (Business Studio)](#22-swipe-entre-páginas-business-studio)
-23. [Tooltip](#23-tooltip)
+1. [Botones](#1-botones)
+2. [Altura de Elementos Interactivos](#2-altura-de-elementos-interactivos)
+3. [Padding de Contenedores de Filtros](#3-padding-de-contenedores-de-filtros)
+4. [Anatomía de Dropdowns](#4-anatomía-de-dropdowns)
+5. [Input de Búsqueda](#5-input-de-búsqueda)
+6. [Modales con Header Gradiente](#6-modales-con-header-gradiente)
+7. [Dark Gradient de Marca](#7-dark-gradient-de-marca)
+8. [Patrón Tabla Desktop](#8-patrón-tabla-desktop)
+9. [Cards Horizontales en Móvil (FilaMovil)](#9-cards-horizontales-en-móvil-filamovil)
+10. [Chips de Orden en Móvil](#10-chips-de-orden-en-móvil)
+11. [Inputs de Formulario](#11-inputs-de-formulario)
+12. [ModalBottom — Fondo Personalizable y Drag Handle](#12-modalbottom--fondo-personalizable-y-drag-handle)
+13. [whitespace-nowrap en Títulos Comprimidos](#13-whitespace-nowrap-en-títulos-comprimidos)
+14. [Drawers / Menús Laterales en Móvil](#14-drawers--menús-laterales-en-móvil)
+15. [Patrón de Lista Móvil](#15-patrón-de-lista-móvil)
+16. [Jerarquía de Rounded](#16-jerarquía-de-rounded)
+17. [CarouselKPI — Fade Dinámico](#17-carouselkpi--fade-dinámico)
+18. [Swipe entre Páginas (Business Studio)](#18-swipe-entre-páginas-business-studio)
+19. [Tooltip](#19-tooltip)
 
 ---
 
-## 1. Botones de Acción Pequeños (Icon-only)
+## 1. Botones
+
+Centraliza **todas** las reglas de botones de la app. En otros TCs donde se mencione un botón, se referencia esta sección.
+
+### Reglas comunes a todos los botones
+
+- **Borde:** siempre `border-2 border-slate-300`. El color puede variar según estado activo o tipo de botón específico.
+- **Cursor:** `lg:cursor-pointer` en elementos interactivos dentro del flujo de la app.
+- **Elemento HTML:** siempre `<button>` nativo, nunca el componente `<Boton>` en código nuevo.
+
+---
+
+### 1A. Botones de Acción Pequeños (Icon-only)
 
 Botones que contienen únicamente un icono, usados en headers y barras de control.
 
-| Resolución | Padding | Border radius | Icono |
-|------------|---------|---------------|-------|
-| Móvil (base) | `p-2` | `rounded-xl` | `w-5 h-5` |
-| Laptop (`lg:`) | `p-2` | `rounded-lg` | `w-4 h-4` |
-| Desktop (`2xl:`) | `p-2.5` | `rounded-xl` | `w-5 h-5` |
+| Resolución | Padding | Icono |
+|------------|---------|-------|
+| Móvil (base) | `p-2` | `w-5 h-5` |
+| Laptop (`lg:`) | `p-2` | `w-4 h-4` |
+| Desktop (`2xl:`) | `p-2.5` | `w-5 h-5` |
 
-Ejemplo: `p-2 2xl:p-2.5 rounded-lg 2xl:rounded-xl` con icono `w-4 h-4 2xl:w-5 2xl:h-5`
+**Patrón Tailwind:** `p-2 2xl:p-2.5` con icono `w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5`
 
-> Nota: en móvil el `rounded-xl` es igual al desktop. Laptop reduce a `rounded-lg` por densidad.
+**Border radius según contexto:**
+
+| Contexto | Rounded |
+|----------|---------|
+| Dentro de un card o contenedor (convive con inputs, dropdowns) | `rounded-lg` fijo — igual que inputs y dropdowns |
+| Standalone sobre gradiente (botón X en header de modal, botón + en header de sección) | `rounded-xl lg:rounded-lg 2xl:rounded-xl` |
+
+**Color de fondo según contexto:**
+
+| Contexto | Fondo | Hover |
+|----------|-------|-------|
+| Sobre fondo claro (cards, secciones blancas) | `bg-slate-100` | `hover:bg-slate-200` |
+| Sobre fondo oscuro (headers con gradiente, modales) | `bg-white/10` | `hover:bg-white/20` |
+| Acción destructiva flotante sobre imagen | `bg-red-500 text-white` | — |
 
 ---
 
-## 2. Altura de Elementos Interactivos (Botones e Inputs)
+### 1B. Controles Interactivos (Filtros y Dropdowns) — Tipografía y Padding
+
+Aplica a: botones de filtro (chips), botones de dropdown (Período, Estado, Operador) y cualquier botón de control de vista en toda la app.
+
+**Tipografía:**
+
+| Propiedad | Valor |
+|-----------|-------|
+| Peso | `font-semibold` — igual en las 3 resoluciones |
+| Tamaño | `text-base lg:text-sm 2xl:text-base` |
+
+**Patrón Tailwind:** `font-semibold text-base lg:text-sm 2xl:text-base`
+
+**Color de fondo:** `bg-white` sin selección / `bg-indigo-100` con selección activa.
+
+**Regla:** `font-medium` queda prohibido en botones de filtro y dropdown — solo `font-semibold` o superior.
+
+**Padding horizontal:**
+
+| Tipo | Móvil | Laptop | Desktop |
+|------|-------|--------|---------|
+| Chips de filtro | `px-4` | `px-3` | `px-4` |
+| Dropdown con texto | `pl-3 pr-2.5` | `pl-2.5 pr-2` | `pl-3 pr-2.5` |
+
+- Chips: `px-4 lg:px-3 2xl:px-4`
+- Dropdowns (texto + chevron): `pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5`
+
+> La asimetría izquierda/derecha en dropdowns es intencional: el padding derecho es menor porque el chevron ya aporta espacio visual.
+
+---
+
+### 1C. Botones de Acción CTA (Módulos BS)
+
+Botones como "+Nueva Oferta", "+Nuevo Artículo" que aparecen en cards de filtros junto a dropdowns e inputs. Usan el Dark Gradient de Marca (ver TC-7).
+
+**Variante móvil** — dentro del card de filtros, al mismo nivel visual que los inputs (`h-11`):
+
+```tsx
+<button
+  className="shrink-0 flex items-center gap-1.5 h-11 px-2.5 rounded-lg text-base font-semibold text-white cursor-pointer"
+  style={{
+    background: 'linear-gradient(135deg, #1e293b, #334155)',
+    boxShadow: '0 3px 10px rgba(30, 41, 59, 0.35)',
+  }}
+>
+  <Plus className="w-4 h-4" />
+  Nueva X
+</button>
+```
+
+**Variante desktop** — en header de filtros:
+
+```tsx
+<button
+  className="shrink-0 flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 px-3 rounded-lg text-base lg:text-sm 2xl:text-base font-bold text-white border-2 border-slate-800 cursor-pointer"
+  style={{
+    background: 'linear-gradient(135deg, #1e293b, #334155)',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+  }}
+>
+  +Nueva X
+</button>
+```
+
+**Diferencia con toggles:** los CTAs usan `h-11 text-base` (nivel input), los toggles usan `h-10 text-sm` (nivel control secundario).
+
+---
+
+### 1D. Botones de Acción Inline en Filas de Tabla
+
+Viven dentro de filas de datos. Deben ser sutiles para no competir con el contenido.
+
+| Propiedad | Valor |
+|-----------|-------|
+| Padding | `p-1.5` |
+| Border radius | `rounded-lg` |
+| Fondo default | Ninguno (transparente) |
+| Fondo hover | `hover:bg-{color}-100` |
+| Icono tamaño | `w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4` |
+| Color icono | Directo al color semántico (no slate) |
+
+**Colores por acción:**
+
+| Acción | Color icono | Hover fondo |
+|--------|-------------|-------------|
+| Editar | `text-blue-600` | `hover:bg-blue-100` |
+| Eliminar | `text-red-600` | `hover:bg-red-100` |
+| Duplicar | `text-emerald-600` | `hover:bg-emerald-100` |
+| Toggle destacado activo | `text-amber-500 fill-amber-500` | `hover:bg-amber-100` |
+| Toggle destacado inactivo | `text-slate-400` | `hover:text-amber-500` |
+| Toggle visible activo | `text-green-600` | `hover:bg-green-100` |
+| Toggle visible inactivo | `text-slate-400` | `hover:text-green-600` |
+
+```tsx
+<button className="p-1.5 rounded-lg text-red-600 hover:bg-red-100 cursor-pointer">
+  <Trash2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+</button>
+```
+
+**Excepción a la regla global:** estos botones no llevan borde ni sombra — deben integrarse visualmente con la fila sin crear separación visual.
+
+---
+
+### 1E. Botones de Formulario (Submit / Cancelar)
+
+Usados en modales de creación/edición (Business Studio) y en formularios de auth. Siempre `<button>` nativo, nunca `<Boton>`.
+
+**En modales BS (layout con Cancelar + Submit en fila):**
+
+```tsx
+{/* Cancelar */}
+<button type="button" onClick={onCerrar} disabled={guardando}
+  className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl
+             transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+             px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer
+             border-2 border-slate-400 text-slate-600 bg-transparent
+             hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100"
+>Cancelar</button>
+
+{/* Guardar / Crear */}
+<button type="submit" disabled={guardando || isUploading}
+  className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl
+             transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+             px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer
+             bg-linear-to-r from-slate-700 to-slate-800 text-white
+             shadow-lg shadow-slate-700/30
+             hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40
+             active:scale-[0.98]"
+>
+  {guardando && <Spinner tamanio="sm" color="white" />}
+  {esEdicion ? 'Guardar cambios' : 'Crear ...'}
+</button>
+```
+
+**En formularios simples (auth, un solo botón de ancho completo):**
+
+```tsx
+<button
+  type="submit"
+  disabled={!formularioValido || cargando}
+  className={`w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-white text-base lg:text-sm 2xl:text-base ${
+    formularioValido && !cargando
+      ? 'bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 hover:shadow-slate-700/40 active:scale-[0.98] lg:cursor-pointer'
+      : 'bg-slate-400 cursor-not-allowed'
+  }`}
+>
+  {cargando ? 'Cargando...' : 'Confirmar'}
+</button>
+```
+
+**Reglas:**
+- El botón submit siempre usa el Dark Gradient slate (ver TC-7). Nunca color plano.
+- Estado deshabilitado: `bg-slate-400 cursor-not-allowed` — nunca opacidad sobre el gradiente.
+- `rounded-xl` en modales BS / `rounded-lg` en formularios simples — el botón usa el mismo rounded que los inputs del formulario donde vive.
+
+---
+
+### 1F. Responsivos: Icon-Only en Laptop
+
+Cuando el espacio horizontal es limitado en laptop (`lg:`), los botones con texto + icono colapsan a solo icono. El texto vuelve en desktop (`2xl:`).
+
+**Patrón de texto oculto:**
+
+```tsx
+<button className="flex items-center gap-1.5 lg:w-8 lg:px-0 2xl:w-auto 2xl:px-3">
+  <Camera className="w-3.5 h-3.5 shrink-0" />
+  <span className="lg:hidden 2xl:inline">Cambiar</span>
+</button>
+```
+
+- `lg:w-8 lg:px-0` — fija el ancho para que solo quepa el icono en laptop
+- `2xl:w-auto 2xl:px-3` — restaura el ancho natural en desktop
+- `span lg:hidden 2xl:inline` — oculta el texto solo en laptop
+
+**Tooltip de apoyo en laptop:**
+
+```tsx
+import Tooltip from '../../../../../components/ui/Tooltip';
+
+<Tooltip text="Cambiar foto" position="bottom" className="2xl:hidden">
+  <button className="flex items-center gap-1.5 lg:w-8 lg:px-0 2xl:w-auto 2xl:px-3">
+    <Camera className="w-3.5 h-3.5 shrink-0" />
+    <span className="lg:hidden 2xl:inline">Cambiar</span>
+  </button>
+</Tooltip>
+```
+
+- `className="2xl:hidden"` en `Tooltip` — el portal queda invisible en `2xl:` porque el texto ya es visible.
+
+**Labels simplificados en desktop:**
+
+| Móvil (base) | Desktop (2xl:) |
+|---|---|
+| "Cambiar Foto de Perfil" | "Cambiar" |
+| "Subir Imagen de Portada" | "Subir" |
+| "Eliminar artículo" | "Eliminar" |
+
+**Regla:** el label en desktop debe ser funcional y breve (1 palabra).
+
+---
+
+## 2. Altura de Elementos Interactivos
 
 Altura estándar validada para todos los elementos interactivos de la app: botones, inputs de búsqueda, inputs de formulario, dropdowns y chips.
 
@@ -65,7 +287,7 @@ Altura estándar validada para todos los elementos interactivos de la app: boton
 
 ---
 
-## 3. Padding Interno de Contenedores de Filtros / Cards
+## 3. Padding de Contenedores de Filtros
 
 Padding validado para cards que contienen controles de filtro (búsqueda, dropdowns, chips).
 
@@ -79,25 +301,7 @@ Padding validado para cards que contienen controles de filtro (búsqueda, dropdo
 
 ---
 
-## 4. Tipografía de Botones Interactivos (Filtros y Dropdowns)
-
-Aplica a: botones de filtro (chips), botones de dropdown (Período, Estado, Operador) y cualquier botón de control de vista en toda la app.
-
-| Propiedad | Valor | Notas |
-|-----------|-------|-------|
-| Peso | `font-semibold` (600) | Igual en las 3 resoluciones |
-| Tamaño móvil | `text-base` (16px) | Mismo patrón que inputs |
-| Tamaño laptop | `lg:text-sm` (14px) | Mismo patrón que inputs |
-| Tamaño desktop | `2xl:text-base` (16px) | Mismo patrón que inputs |
-| Border | `border-2 rounded-lg` | Ver R6 |
-
-**Patrón Tailwind:** `font-semibold text-base lg:text-sm 2xl:text-base border-2 rounded-lg`
-
-**Regla:** `font-medium` queda prohibido en botones de filtro y dropdown — solo `font-semibold` o superior. El tamaño de texto es el mismo que el de los inputs (TC-2) — un solo estándar para todos los elementos interactivos.
-
----
-
-## 5. Anatomía de Dropdowns
+## 4. Anatomía de Dropdowns
 
 Estructura validada para todos los dropdowns de la app (Período, Estado, Operador, y similares).
 
@@ -117,7 +321,7 @@ text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer
 
 - Activo: `bg-slate-200 text-slate-800` (neutral) o `bg-indigo-100 text-indigo-700` (indigo)
 - Inactivo: `text-slate-600 hover:bg-slate-200`
-- `font-semibold` siempre — nunca `font-medium`. No se añade `font-semibold` extra al activo porque ya es la base.
+- `font-semibold` siempre — nunca `font-medium`.
 
 ### Indicador de selección (círculo + check)
 
@@ -247,13 +451,11 @@ useEffect(() => {
 - `max-h-80` → `320`
 - `max-h-[300px]` → `300`
 
-**Por qué funciona:** `offsetTop` acumulado da la posición absoluta real del botón dentro de `<main>`, independiente del scroll actual. El padding temporal solo se agrega si el contenido existente no alcanza para llegar al `targetScroll`.
-
 ---
 
-## 6. Input de Búsqueda
+## 5. Input de Búsqueda
 
-Patrón estándar para inputs de búsqueda en toda la app. Usa el **Patrón A** de altura (TC-2).
+Patrón estándar para inputs de búsqueda en toda la app. Usa el patrón de altura de TC-2.
 
 | Propiedad | Valor |
 |-----------|-------|
@@ -266,21 +468,7 @@ Botón limpiar (X): `absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-f
 
 ---
 
-## 7. Padding Horizontal de Botones (Filtros y Dropdowns)
-
-| Tipo | Móvil | Laptop | Desktop |
-|------|-------|--------|---------|
-| Chips de filtro | `px-4` | `px-3` | `px-4` |
-| Dropdown con texto | `pl-3 pr-2.5` | `pl-2.5 pr-2` | `pl-3 pr-2.5` |
-
-- Chips: `px-4 lg:px-3 2xl:px-4`
-- Dropdowns (texto + chevron): `pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5`
-
-> La asimetría izquierda/derecha en dropdowns es intencional: el padding derecho es menor porque el chevron ya aporta espacio visual.
-
----
-
-## 8. Modales con Header Gradiente (Bottom Sheet + Desktop)
+## 6. Modales con Header Gradiente
 
 Patrón para modales que usan `ModalAdaptativo` con header gradiente oscuro. Hay dos variantes:
 
@@ -291,7 +479,7 @@ Patrón para modales que usan `ModalAdaptativo` con header gradiente oscuro. Hay
 
 ---
 
-### 8A. Modal de Detalle
+### 6A. Modal de Detalle
 
 #### Estructura
 
@@ -318,11 +506,11 @@ ModalAdaptativo (sinScrollInterno, mostrarHeader=false, paddingContenido="none")
 ```
 
 - `sinScrollInterno` — solo afecta `ModalBottom` (móvil), no `Modal` (desktop)
-- `headerOscuro` — la pill del drag handle cambia a `bg-white/40` para ser visible sobre fondo oscuro. Ver TC-15.
+- `headerOscuro` — la pill del drag handle cambia a `bg-white/40` para ser visible sobre fondo oscuro. Ver TC-12.
 
 ---
 
-### 8B. Modal de Formulario BS (Crear/Editar)
+### 6B. Modal de Formulario BS (Crear/Editar)
 
 Patrón de ModalArticulo y ModalOferta — layout 2 columnas, gradiente dinámico según tipo de entidad.
 
@@ -403,34 +591,9 @@ const gradiente = GRADIENTES_TIPO[tipoActual];
 
 #### Botones del formulario
 
-Nativos (`<button>`), nunca `<Boton>`. Mismos estilos en ModalArticulo y ModalOferta:
+Ver TC-1 §1E — Botones de Formulario.
 
-```tsx
-{/* Cancelar */}
-<button type="button" onClick={onCerrar} disabled={guardando}
-  className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl
-             transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
-             px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer
-             border-2 border-slate-400 text-slate-600 bg-transparent
-             hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100"
->Cancelar</button>
-
-{/* Guardar / Crear */}
-<button type="submit" disabled={guardando || isUploading}
-  className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl
-             transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
-             px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer
-             bg-linear-to-r from-slate-700 to-slate-800 text-white
-             shadow-lg shadow-slate-700/30
-             hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40
-             active:scale-[0.98]"
->
-  {guardando && <Spinner tamanio="sm" color="white" />}
-  {esEdicion ? 'Guardar cambios' : 'Crear ...'}
-</button>
-```
-
-> ⚠️ `max-lg:[background:...]` en `className` de `ModalAdaptativo` **no tiene efecto en móvil** — `className` no se forwarded a `ModalBottom`. Para colorear el drag handle usar `colorHandle` + `headerOscuro`. Ver TC-15.
+> ⚠️ `max-lg:[background:...]` en `className` de `ModalAdaptativo` **no tiene efecto en móvil** — `className` no se forwarded a `ModalBottom`. Para colorear el drag handle usar `colorHandle` + `headerOscuro`. Ver TC-12.
 
 ### Header gradiente
 
@@ -457,7 +620,7 @@ Todas las líneas usan `flex items-center gap-2`. Patrón obligatorio:
 - **Iconos:** `w-5 h-5 text-white shrink-0` — mismo tamaño en las 3 líneas, sin opacidad.
 - **Texto:** `text-white` al 100%. Nunca `text-white/80` ni `text-white/70`.
 - **Espaciado entre líneas:** `space-y-0.5` a `space-y-1` según densidad. Se permite negativo (`-space-y-0.5`) cuando un elemento de la línea 1 agrega altura visual extra.
-- **Badges y estados** van en el contenido, no en el header. El header se reserva para: título, datos de contacto/identificación, fecha y acciones.
+- **Badges y estados** van en el contenido, no en el header.
 
 ### Logo ChatYA en header
 
@@ -515,7 +678,7 @@ Para datos con etiqueta + valor en el header:
 
 ---
 
-## 9. Dark Gradient de Marca
+## 7. Dark Gradient de Marca
 
 Gradiente oscuro unificado para estados activos y botones de acción primaria.
 
@@ -529,7 +692,7 @@ background: linear-gradient(135deg, #1e293b, #334155)
 |----------|---------|
 | Estado activo en grupos de toggle/switch (período, vista) | Botón de período activo en Dashboard, selector de tipo en Catálogo |
 | Chips de orden activos en móvil | Chip "Precio" seleccionado en lista móvil |
-| Botón de acción primaria en header móvil | "+Nueva Oferta", "+Nuevo Artículo" |
+| Botones de acción CTA ("+Nueva Oferta", "+Nuevo Artículo") | Ver TC-1 §1C para el patrón completo |
 | Header de tabla desktop | `linear-gradient(135deg, #1e293b, #334155)` como fondo del thead |
 
 ### Cuándo NO usarlo
@@ -581,39 +744,6 @@ Si el toggle es `lg:hidden` (solo móvil), no necesita clases `lg:` ni `2xl:`.
 
 Los cards de KPIs usan `rounded-xl` fijo en todas las resoluciones — mismo nivel que el contenedor de toggles.
 
-### Patrón en botón de acción móvil (CTA)
-
-Botones como "Nueva Oferta", "Nuevo Artículo" que aparecen en móvil. Su tamaño iguala a los elementos interactivos del card de filtros donde conviven (dropdowns, inputs):
-
-```tsx
-<button
-  className="shrink-0 flex items-center gap-1.5 h-11 px-2.5 rounded-lg text-base font-semibold text-white cursor-pointer"
-  style={{
-    background: 'linear-gradient(135deg, #colorBase, #colorClaro)',
-    boxShadow: '0 3px 10px rgba(color, 0.35)',
-  }}
->
-  <Plus className="w-4 h-4" />
-  Nueva X
-</button>
-```
-
-Se diferencia de los toggles por color y por estar al mismo nivel que los inputs (`h-11 text-base`), no al nivel de los toggles (`h-10 text-sm`).
-
-### Patrón en botón de acción desktop (header de filtros)
-
-```tsx
-<button
-  className="shrink-0 flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 px-3 rounded-lg text-base lg:text-sm 2xl:text-base font-bold text-white border-2 border-slate-800 cursor-pointer"
-  style={{
-    background: 'linear-gradient(135deg, #1e293b, #334155)',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-  }}
->
-  +Nueva X
-</button>
-```
-
 ### Headers de sección en cards (Mi Perfil, Puntos)
 
 Headers con gradiente oscuro dentro de cards de formulario.
@@ -644,7 +774,7 @@ style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
 
 ---
 
-## 10. Patrón Tabla Desktop para Módulos de Datos
+## 8. Patrón Tabla Desktop para Módulos de Datos
 
 Estructura estándar para listar entidades en resolución ≥lg en cualquier sección de la app que requiera mostrar una lista de registros con múltiples columnas. Reemplaza al grid de cards. Usada en: Clientes, Transacciones, Catálogo, Ofertas.
 
@@ -690,13 +820,11 @@ El offset se calcula restando al 100vh los elementos fijos de la página (header
 
 ### Texto de badges en celdas
 
-Cualquier badge dentro de una celda de tabla debe incluir `whitespace-nowrap` para evitar que su texto se parta en dos líneas cuando la columna se estrecha.
-
-```tsx
-<span className="... whitespace-nowrap">Texto del badge</span>
-```
+Cualquier badge dentro de una celda de tabla debe incluir `whitespace-nowrap` para evitar que su texto se parta en dos líneas cuando la columna se estrecha. Ver TC-13.
 
 ### Botón "Cargar más" al pie de tabla
+
+Ver TC-1 §1B — aplica tipografía de controles interactivos con `text-blue-600`.
 
 ```
 w-full py-3 text-sm font-semibold text-blue-600 hover:bg-blue-100 cursor-pointer
@@ -705,44 +833,7 @@ border-t border-slate-300
 
 ---
 
-## 11. Botones de Acción Inline en Filas de Tabla
-
-Distinto a los icon buttons del header (R8). Estos viven dentro de filas de datos y deben ser sutiles para no competir con el contenido.
-
-| Propiedad | Valor |
-|-----------|-------|
-| Padding | `p-1.5` |
-| Border radius | `rounded-lg` |
-| Fondo default | Ninguno (transparente) |
-| Fondo hover | `hover:bg-{color}-100` |
-| Icono tamaño | `w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4` |
-| Color icono | Directo al color semántico (no slate) |
-
-### Colores por acción
-
-| Acción | Color icono | Hover fondo |
-|--------|-------------|-------------|
-| Editar | `text-blue-600` | `hover:bg-blue-100` |
-| Eliminar | `text-red-600` | `hover:bg-red-100` |
-| Duplicar | `text-emerald-600` | `hover:bg-emerald-100` |
-| Toggle destacado activo | `text-amber-500 fill-amber-500` | `hover:bg-amber-100` |
-| Toggle destacado inactivo | `text-slate-400` | `hover:text-amber-500` |
-| Toggle visible activo | `text-green-600` | `hover:bg-green-100` |
-| Toggle visible inactivo | `text-slate-400` | `hover:text-green-600` |
-
-Ejemplo:
-
-```tsx
-<button className="p-1.5 rounded-lg text-red-600 hover:bg-red-100 cursor-pointer">
-  <Trash2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-</button>
-```
-
-**Regla:** nunca usar `shadow-*` ni `border-*` en estos botones — deben integrarse visualmente con la fila.
-
----
-
-## 12. Cards Horizontales en Móvil (FilaMovil)
+## 9. Cards Horizontales en Móvil (FilaMovil)
 
 Componente equivalente de la tabla desktop para resolución <lg. Representa una entidad de datos (artículo, oferta, cliente, transacción) como tarjeta horizontal.
 
@@ -789,7 +880,7 @@ Componente equivalente de la tabla desktop para resolución <lg. Representa una 
 
 ### Iconos de acción en el card
 
-Los iconos de acción (eliminar, duplicar) van en la esquina inferior derecha del bloque info. Son más grandes que los de tabla desktop, sin fondo.
+Los iconos de acción (eliminar, duplicar) van en la esquina inferior derecha del bloque info. Son más grandes que los de tabla desktop, sin fondo. Ver TC-1 §1D para colores por acción.
 
 | Propiedad | Valor |
 |-----------|-------|
@@ -816,7 +907,7 @@ Los iconos de acción (eliminar, duplicar) van en la esquina inferior derecha de
 
 ---
 
-## 13. Chips de Orden en Móvil
+## 10. Chips de Orden en Móvil
 
 Cuando un módulo tiene una tabla desktop con columnas ordenables, la vista móvil equivalente usa chips horizontales para seleccionar el criterio de orden. Reemplaza la funcionalidad del header ordenable de la tabla.
 
@@ -884,11 +975,11 @@ Los criterios de orden son específicos de cada módulo y deben coincidir exacta
 
 ---
 
-## 14. Inputs de Formulario
+## 11. Inputs de Formulario
 
 Patrón estándar para campos donde el usuario escribe o consulta datos (nombre, descripción, teléfono, dirección, etc.).
 
-Se diferencia del input de búsqueda (TC-6) en el tamaño de texto y ausencia de ícono de lupa — la altura es la misma (`h-11 lg:h-10 2xl:h-11`) para todos los elementos interactivos.
+Se diferencia del input de búsqueda (TC-5) en el tamaño de texto y ausencia de ícono de lupa — la altura es la misma (`h-11 lg:h-10 2xl:h-11`) para todos los elementos interactivos.
 
 ### Especificaciones completas
 
@@ -944,7 +1035,7 @@ Cuando un campo de teléfono tiene selector de lada (prefijo de país), ambos co
 
 ---
 
-## 15. ModalBottom — Fondo Personalizable y Drag Handle
+## 12. ModalBottom — Fondo Personalizable y Drag Handle
 
 `ModalBottom` (y `ModalAdaptativo` en móvil) soporta fondos personalizados con herencia automática del color en la zona del drag handle.
 
@@ -1029,56 +1120,7 @@ Cuando `sinScrollInterno` es true, el contenido del children maneja su propio sc
 
 ---
 
-## 16. Botones Responsivos: Icon-Only en Laptop
-
-Cuando el espacio horizontal es limitado en resolución laptop (`lg:`), los botones con texto + icono pueden colapsar a solo el icono. El texto vuelve en desktop (`2xl:`).
-
-### Patrón de texto oculto
-
-```tsx
-<button className="flex items-center gap-1.5 lg:w-8 lg:px-0 2xl:w-auto 2xl:px-3">
-  <Camera className="w-3.5 h-3.5 shrink-0" />
-  <span className="lg:hidden 2xl:inline">Cambiar</span>
-</button>
-```
-
-- `lg:w-8 lg:px-0` — fija el ancho del botón para que solo quepa el icono en laptop
-- `2xl:w-auto 2xl:px-3` — restaura el ancho natural en desktop
-- `span lg:hidden 2xl:inline` — oculta el texto solo en laptop
-
-### Tooltip de apoyo en laptop
-
-Cuando el texto desaparece en laptop, agregar un `Tooltip` visible **únicamente en laptop** (no en desktop donde el texto ya está):
-
-```tsx
-import Tooltip from '../../../../../components/ui/Tooltip';
-
-<Tooltip text="Cambiar foto" position="bottom" className="2xl:hidden">
-  <button className="flex items-center gap-1.5 lg:w-8 lg:px-0 2xl:w-auto 2xl:px-3">
-    <Camera className="w-3.5 h-3.5 shrink-0" />
-    <span className="lg:hidden 2xl:inline">Cambiar</span>
-  </button>
-</Tooltip>
-```
-
-- `className="2xl:hidden"` en `Tooltip` — el portal del tooltip se renderiza pero queda invisible en `2xl:` gracias a esta clase en el contenedor
-- El `Tooltip` component soporta `className` que se aplica al div del portal, permitiendo breakpoints
-
-### Labels simplificados en desktop
-
-En desktop (`2xl:`), si el texto ya es visible, usar **labels cortos** en lugar de descriptivos largos. El usuario en PC tiene más contexto visual.
-
-| Móvil (base) | Desktop (2xl:) |
-|---|---|
-| "Cambiar Foto de Perfil" | "Cambiar" |
-| "Subir Imagen de Portada" | "Subir" |
-| "Eliminar artículo" | "Eliminar" |
-
-**Regla:** el label en desktop debe ser funcional y breve (1 palabra). La descripción completa se reserva para labels flotantes o modales de confirmación.
-
----
-
-## 17. `whitespace-nowrap` en Títulos de Celdas Comprimidas
+## 13. whitespace-nowrap en Títulos Comprimidos
 
 Cuando un título de elemento (nombre de imagen, etiqueta de sección) está en una celda o columna con ancho limitado, agregar `whitespace-nowrap` para evitar que el texto se parta en dos líneas.
 
@@ -1092,6 +1134,7 @@ Cuando un título de elemento (nombre de imagen, etiqueta de sección) está en 
 - Títulos junto a botones en fila horizontal (`flex items-center`)
 - Encabezados de secciones dentro de grids con columnas angostas
 - Labels de campos en layout de 2 columnas en laptop
+- Badges dentro de celdas de tabla (para que el texto no se parta al estrecharse la columna)
 
 **Cuándo no aplicar:**
 - Nombres de usuario o contenido variable (puede ser largo, debe recortarse con `truncate`)
@@ -1099,7 +1142,7 @@ Cuando un título de elemento (nombre de imagen, etiqueta de sección) está en 
 
 ---
 
-## 18. Drawers / Menús Laterales en Móvil
+## 14. Drawers / Menús Laterales en Móvil
 
 Paneles de navegación que se deslizan desde un borde de la pantalla. Hay dos variantes según la dirección de entrada.
 
@@ -1251,7 +1294,7 @@ Antes de crear un drawer nuevo, verificar si `MenuDrawer` o `DrawerBusinessStudi
 
 ---
 
-## 19. Patrón de Lista Móvil
+## 15. Patrón de Lista Móvil
 
 Patrón estándar para mostrar listas de entidades en móvil dentro de Business Studio. Aplica a: Catálogo, Ofertas, Opiniones, Clientes, Transacciones.
 
@@ -1377,7 +1420,7 @@ const LIMIT_PAGINA = 20;
 
 ---
 
-## 20. Jerarquía de Rounded
+## 16. Jerarquía de Rounded
 
 Regla de cascada para `border-radius` — cada nivel anidado usa un nivel menos de rounded que su padre.
 
@@ -1392,7 +1435,7 @@ rounded-2xl → rounded-xl → rounded-lg → rounded-md → rounded-sm
 | Nivel | Rounded | Ejemplo |
 |-------|---------|---------|
 | **Contenedor exterior** (card de filtros, toggle group) | `rounded-xl` | Card blanca con búsqueda + filtros |
-| **Elementos internos** (inputs, dropdowns, botones, chips) | `rounded-lg` | Input de búsqueda, botones de toggle, chips de filtro |
+| **Elementos internos** (inputs, dropdowns, chips) | `rounded-lg` | Input de búsqueda, botones de toggle, chips de filtro |
 | **Sub-elementos** (botones dentro de toggles que están dentro de cards) | `rounded-lg` | Botón activo dentro de un toggle group |
 
 ### Input dentro de cards
@@ -1419,7 +1462,7 @@ Los cards de KPIs usan `rounded-xl` fijo en todas las resoluciones — son eleme
 
 ---
 
-## 21. CarouselKPI — Fade Dinámico
+## 17. CarouselKPI — Fade Dinámico
 
 Componente wrapper para carousels horizontales de KPIs con indicadores visuales de que hay más contenido.
 
@@ -1470,7 +1513,7 @@ El componente maneja internamente: `overflow-x-auto`, ocultamiento de scrollbar,
 
 ---
 
-## 22. Swipe entre Páginas (Business Studio)
+## 18. Swipe entre Páginas (Business Studio)
 
 Navegación horizontal entre módulos de BS mediante gesto de swipe en móvil.
 
@@ -1532,7 +1575,7 @@ El hook respeta la misma lógica de filtrado de módulos que `MobileHeader` — 
 
 ---
 
-## 23. Tooltip
+## 19. Tooltip
 
 Componente de tooltip con portal — nunca recortado por `overflow:hidden`. Soporta mouse y touch.
 

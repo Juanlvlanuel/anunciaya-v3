@@ -1,1153 +1,572 @@
+/**
+ * PaginaLanding.tsx
+ * ==================
+ * Landing page pública de AnunciaYA v3.0
+ *
+ * DISEÑO:
+ * - Hero: fondo azul oscuro (izq) + collage imágenes (der en desktop, oculto en móvil)
+ * - Strip de categorías (5 secciones)
+ * - Sección unificada: Cuenta Personal (izq) + Cuenta Comercial (der)
+ * - Footer negro minimalista
+ *
+ * PALETA: Azul marca (#0B358F) + Amber (acento) + Slate
+ * TOKENS: R1-R12 aplicados. Breakpoints: base lg: 2xl:
+ * BILINGÜE: ES/EN con react-i18next (namespace 'landing')
+ * AUTH: Google OAuth completo + ModalLogin (global en RootLayout)
+ *
+ * Ubicación: apps/web/src/pages/public/PaginaLanding.tsx
+ */
+
 // Declaración de tipo para Google Identity Services
 declare global {
     interface Window {
         google?: {
             accounts: {
                 id: {
-                    initialize: (config: any) => void;
-                    prompt: (callback?: (notification: any) => void) => void;
-                    renderButton: (element: HTMLElement, config: any) => void;
+                    initialize: (config: Record<string, unknown>) => void;
+                    prompt: (callback?: (notification: Record<string, unknown>) => void) => void;
+                    renderButton: (element: HTMLElement, config: Record<string, unknown>) => void;
                     disableAutoSelect: () => void;
                 };
             };
         };
     }
 }
-/**
- * PaginaLanding.tsx
- * ==================
- * Página principal pública de AnunciaYA.
- * Versión 8 - Badge sin icono, CTA actualizado
- * 
- * Ubicación: apps/web/src/pages/public/PaginaLanding.tsx
- */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
-    Store,
-    ShoppingCart,
-    Gift,
-    Ticket,
-    MapPin,
-    Users,
-    Star,
-    TrendingUp,
-    ArrowRight,
-    Sparkles,
-    MessageCircle,
-    ChevronUp,
-    Mail,
-    LucideIcon,
-    CreditCard,
-    Clock,
-    UserCircle,
-    Building,
-    Check,
-    Megaphone,
+    MapPin, Tag, MessageCircle, ShoppingCart, Store, ArrowRight,
+    Star, Briefcase, Mail, Users, ChevronDown,
+    CheckCircle2, Globe, Ticket,
+    type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { SelectorIdioma } from '../../components/ui/SelectorIdioma';
-import { useTranslation } from 'react-i18next';
 import authService from '../../services/authService';
+import Tooltip from '../../components/ui/Tooltip';
 import { notificar } from '../../utils/notificaciones';
+import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
 
 // =============================================================================
-// DATOS
+// HOOK: Pausar animación cuando no está visible
 // =============================================================================
 
-interface SeccionData {
-    id: string;
-    tituloKey: string;
-    subtituloKey: string;
-    descripcionKey: string;
-    icono: LucideIcon;
-    iconBg: string;
-    statsKey: string;
-    highlightKey: string;
-    imagen: string;
-}
-
-// 4 Secciones principales
-const SECCIONES: SeccionData[] = [
-    {
-        id: 'negocios',
-        tituloKey: 'secciones.negocios.titulo',
-        subtituloKey: 'secciones.negocios.subtitulo',
-        descripcionKey: 'secciones.negocios.descripcion',
-        icono: Store,
-        iconBg: 'bg-blue-500',
-        statsKey: 'secciones.negocios.stats',
-        highlightKey: 'secciones.negocios.highlight',
-        imagen: '/images/secciones/negocios-locales.webp',
-    },
-    {
-        id: 'marketplace',
-        tituloKey: 'secciones.marketplace.titulo',
-        subtituloKey: 'secciones.marketplace.subtitulo',
-        descripcionKey: 'secciones.marketplace.descripcion',
-        icono: ShoppingCart,
-        iconBg: 'bg-emerald-500',
-        statsKey: 'secciones.marketplace.stats',
-        highlightKey: 'secciones.marketplace.highlight',
-        imagen: '/images/secciones/marketplace.webp',
-    },
-    {
-        id: 'ofertas',
-        tituloKey: 'secciones.ofertas.titulo',
-        subtituloKey: 'secciones.ofertas.subtitulo',
-        descripcionKey: 'secciones.ofertas.descripcion',
-        icono: Gift,
-        iconBg: 'bg-orange-500',
-        statsKey: 'secciones.ofertas.stats',
-        highlightKey: 'secciones.ofertas.highlight',
-        imagen: '/images/secciones/ofertas.webp',
-    },
-    {
-        id: 'dinamicas',
-        tituloKey: 'secciones.dinamicas.titulo',
-        subtituloKey: 'secciones.dinamicas.subtitulo',
-        descripcionKey: 'secciones.dinamicas.descripcion',
-        icono: Ticket,
-        iconBg: 'bg-purple-500',
-        statsKey: 'secciones.dinamicas.stats',
-        highlightKey: 'secciones.dinamicas.highlight',
-        imagen: '/images/secciones/dinamicas.webp',
-    },
-];
-
-// Slides del Onboarding Móvil - Actualizados
-const ONBOARDING_SLIDES = [
-    {
-        id: 'puntos',
-        tituloKey: 'onboarding.negocios.titulo',
-        subtituloKey: 'onboarding.negocios.subtitulo',
-        imagen: '/images/onboarding/puntos.webp',
-    },
-    {
-        id: 'tarjeta',
-        tituloKey: 'onboarding.marketplace.titulo',
-        subtituloKey: 'onboarding.marketplace.subtitulo',
-        imagen: '/images/onboarding/tarjeta.webp',
-    },
-    {
-        id: 'sorteos',
-        tituloKey: 'onboarding.chatya.titulo',
-        subtituloKey: 'onboarding.chatya.subtitulo',
-        imagen: '/images/onboarding/sorteos.webp',
-    },
-    {
-        id: 'marketplace',
-        tituloKey: 'onboarding.marketplaceVenta.titulo',
-        subtituloKey: 'onboarding.marketplaceVenta.subtitulo',
-        imagen: '/images/onboarding/marketplace.webp',
-    },
-    {
-        id: 'comunidad',
-        tituloKey: 'onboarding.gratis.titulo',
-        subtituloKey: 'onboarding.gratis.subtitulo',
-        imagen: '/images/onboarding/comunidad.webp',
-    },
-];
-
-// Beneficios actualizados
-const BENEFICIOS = [
-    {
-        icono: CreditCard,
-        tituloKey: 'beneficios.items.chat.titulo',
-        descripcionKey: 'beneficios.items.chat.descripcion',
-        color: 'bg-blue-500',
-    },
-    {
-        icono: MessageCircle,
-        tituloKey: 'beneficios.items.descuentos.titulo',
-        descripcionKey: 'beneficios.items.descuentos.descripcion',
-        color: 'bg-emerald-500',
-    },
-    {
-        icono: MapPin,
-        tituloKey: 'beneficios.items.todoEnUno.titulo',
-        descripcionKey: 'beneficios.items.todoEnUno.descripcion',
-        color: 'bg-orange-500',
-    },
-];
-
-// =============================================================================
-// COMPONENTE: NAVBAR
-// =============================================================================
-
-function NavbarLanding({ iniciarLoginGoogle }: { iniciarLoginGoogle: () => void }) {
-    const { t } = useTranslation('landing');
-    const navigate = useNavigate();
-    const { abrirModalLogin } = useUiStore();
-    const [mostrarScrollTop, setMostrarScrollTop] = useState(false);
+function useVisibleEnViewport<T extends HTMLElement = HTMLDivElement>() {
+    const ref = useRef<T>(null);
+    const [visible, setVisible] = useState(false);
 
     useEffect(() => {
-        const handleScroll = () => {
-            setMostrarScrollTop(window.scrollY > 300);
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+        const el = ref.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.1 });
+        obs.observe(el);
+        return () => obs.disconnect();
     }, []);
 
-    const scrollToTop = () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    return { ref, visible };
+}
 
+// =============================================================================
+// ICONO SVG DE GOOGLE (Multicolor oficial)
+// =============================================================================
+
+function IconoGoogle({ className = 'w-4 h-4' }: { className?: string }) {
     return (
-        <>
-            {/* ========== DESKTOP HEADER ========== */}
-            <header className="fixed top-0 left-0 right-0 z-50 bg-linear-to-r from-white/95 via-blue-50/95 to-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm hidden lg:block">
-                <div className="hidden md:block">
-                    <div className="w-full px-4 lg:px-8 2xl:px-16">
-                        <div className="flex items-center justify-between h-16 2xl:h-20">
-                            {/* Logo */}
-                            <motion.div
-                                className="flex items-center cursor-pointer"
-                                whileHover={{ scale: 1.02 }}
-                                transition={{ duration: 0.15 }}
-                                onClick={scrollToTop}
-                            >
-                                <img
-                                    src="/logo-anunciaya.webp"
-                                    alt="AnunciaYA - Tu Comunidad Local"
-                                    className="h-10 2xl:h-14 w-auto object-contain"
-                                />
-                            </motion.div>
-
-                            {/* Auth Buttons + Selector Idioma */}
-                            <div className="flex items-center gap-2 2xl:gap-3">
-                                {/* Selector de Idioma */}
-                                <SelectorIdioma />
-
-                                <div className="w-px h-6 2xl:h-8 bg-gray-300 mx-1" />
-
-                                <motion.button
-                                    onClick={iniciarLoginGoogle}
-                                    className="flex items-center gap-2 2xl:gap-2.5 px-3 2xl:px-5 py-2 2xl:py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:border-gray-300 hover:bg-gray-50 font-medium text-sm 2xl:text-base transition-all duration-150 shadow-sm cursor-pointer"
-                                    whileHover={{ scale: 1.03 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    <svg className="w-4 h-4 2xl:w-5 2xl:h-5" viewBox="0 0 24 24">
-                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                    </svg>
-                                    <span>{t('navbar.google')}</span>
-                                </motion.button>
-
-                                <span className="text-gray-800 text-base 2xl:text-xl">{t('navbar.o')}</span>
-
-                                <motion.button
-                                    onClick={abrirModalLogin}
-                                    className="flex items-center gap-2 2xl:gap-2.5 px-3 2xl:px-5 py-2 2xl:py-3 bg-blue-50 text-blue-700 border-2 border-blue-200 hover:bg-blue-100 hover:border-blue-300 rounded-xl font-medium text-sm 2xl:text-base transition-all duration-150 shadow-sm cursor-pointer"
-                                    whileHover={{ scale: 1.03 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    <Mail className="w-4 h-4 2xl:w-5 2xl:h-5" />
-                                    <span>{t('navbar.iniciarSesion')}</span>
-                                </motion.button>
-
-                                <motion.button
-                                    onClick={() => navigate('/registro')}
-                                    className="flex items-center gap-2 2xl:gap-2.5 px-4 2xl:px-6 py-2 2xl:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm 2xl:text-base transition-all duration-150 shadow-md cursor-pointer"
-                                    whileHover={{ scale: 1.03 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    <Users className="w-4 h-4 2xl:w-5 2xl:h-5" />
-                                    <span>{t('navbar.registrate')}</span>
-                                </motion.button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Mobile Header - Sin hamburguesa (solo logo centrado) */}
-                <div className="md:hidden px-5">
-                    <div className="flex items-center justify-center h-20">
-                        <motion.div
-                            className="flex items-center cursor-pointer"
-                            whileHover={{ scale: 1.02 }}
-                            transition={{ duration: 0.15 }}
-                            onClick={scrollToTop}
-                        >
-                            <img
-                                src="/logo-anunciaya.webp"
-                                alt="AnunciaYA"
-                                className="h-11 w-auto object-contain"
-                            />
-                        </motion.div>
-                    </div>
-                </div>
-            </header>
-
-            {/* ========== SELECTOR IDIOMA FLOTANTE - SOLO MÓVIL ========== */}
-            <div className="fixed top-4 right-4 z-50 lg:hidden">
-                <SelectorIdioma size="sm" />
-            </div>
-
-            {/* Scroll to Top */}
-            <AnimatePresence>
-                {mostrarScrollTop && (
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0 }}
-                        onClick={scrollToTop}
-                        className="fixed bottom-6 left-6 z-40 w-12 h-12 bg-linear-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow duration-150 flex items-center justify-center lg:cursor-pointer"
-                    >
-                        <ChevronUp className="w-6 h-6" />
-                    </motion.button>
-                )}
-            </AnimatePresence>
-        </>
+        <svg className={className} viewBox="0 0 24 24">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+        </svg>
     );
 }
 
 // =============================================================================
-// COMPONENTE: HERO SECTION - Nuevo concepto de recompensas
+// DATOS ESTÁTICOS
 // =============================================================================
 
-function HeroSection({ iniciarLoginGoogle }: { iniciarLoginGoogle: () => void }) {
+const SECCIONES_CARRUSEL = [
+    { key: 'negocios', icono: Store, color: 'bg-blue-600' },
+    { key: 'marketplace', icono: ShoppingCart, color: 'bg-blue-600' },
+    { key: 'ofertas', icono: Tag, color: 'bg-blue-600' },
+    { key: 'dinamicas', icono: Ticket, color: 'bg-blue-600' },
+    { key: 'empleos', icono: Briefcase, color: 'bg-blue-600' },
+] as const;
+
+// =============================================================================
+// COMPONENTE: NAVBAR — Responsivo
+// =============================================================================
+
+function ToggleIdioma() {
+    const { i18n } = useTranslation();
+    const idiomaActual = i18n.language?.split('-')[0] || 'es';
+    const esEspanol = idiomaActual === 'es';
+
+    return (
+        <Tooltip text={esEspanol ? 'English' : 'Español'} position="bottom" autoHide={1500}>
+            <button
+                onClick={() => i18n.changeLanguage(esEspanol ? 'en' : 'es')}
+                className="p-1.5 lg:p-1 2xl:p-2 lg:cursor-pointer hover:scale-110 active:scale-95"
+            >
+                <Globe className="w-7 h-7 lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-slate-600" />
+            </button>
+        </Tooltip>
+    );
+}
+
+function NavbarLanding({
+    iniciarLoginGoogle,
+}: {
+    iniciarLoginGoogle: () => void;
+}) {
     const { t } = useTranslation('landing');
     const navigate = useNavigate();
     const { abrirModalLogin } = useUiStore();
-    const [seccionActiva, setSeccionActiva] = useState(0);
-
-    // Usar el máximo de slides entre móvil y desktop
-    const maxSlides = Math.max(SECCIONES.length, ONBOARDING_SLIDES.length);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setSeccionActiva((prev) => (prev + 1) % maxSlides);
-        }, 5000);
-        return () => clearInterval(interval);
-    }, [maxSlides]);
-
-    // Acceder con módulo para evitar índices fuera de rango
-    const seccionActual = SECCIONES[seccionActiva % SECCIONES.length];
-    const IconoActivo = seccionActual.icono;
 
     return (
-        <section className="relative pt-24 lg:pt-8 2xl:pt-12 pb-12 lg:pb-8 2xl:pb-24 px-4 md:px-6 lg:px-8 2xl:px-12 min-h-screen lg:min-h-full flex items-start md:items-center">
-            {/* Background - Azulado grisáceo */}
-            <div className="absolute inset-0 bg-linear-to-br from-slate-100 via-blue-50/50 to-gray-100 overflow-hidden" />
+        <nav className="fixed top-0 left-0 right-0 z-50 px-3 lg:px-7 2xl:px-10 py-2 lg:py-1.5 2xl:py-2.5 flex items-center justify-between bg-white/60 backdrop-blur-md border-b-2 border-slate-300 lg:sticky lg:left-auto lg:right-auto">
+            {/* Logo — más grande en móvil */}
+            <img
+                src="/logo-anunciaya-blanco.webp"
+                alt="AnunciaYA"
+                className="h-14 lg:h-11 2xl:h-14 w-auto shrink-0"
+            />
 
-            {/* Floating Particles - Solo desktop */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
-                {[...Array(6)].map((_, i) => (
-                    <motion.div
-                        key={i}
-                        className="absolute w-2 h-2 bg-blue-400/20 rounded-full"
-                        style={{
-                            left: `${20 + i * 15}%`,
-                            top: `${30 + (i % 2) * 40}%`,
-                        }}
-                        animate={{
-                            y: [0, -20, 0],
-                            opacity: [0.3, 0.8, 0.3],
-                            scale: [1, 1.2, 1],
-                        }}
-                        transition={{
-                            duration: 3 + i * 0.5,
-                            repeat: Infinity,
-                            delay: i * 0.3,
-                        }}
-                    />
+            {/* Acciones */}
+            <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2.5">
+                {/* Google — siempre visible */}
+                <Tooltip text={t('navbar.entrarConGoogle')} position="bottom" autoHide={1500}>
+                    <button
+                        onClick={iniciarLoginGoogle}
+                        className="p-2 lg:p-1 2xl:p-2 lg:cursor-pointer hover:scale-110 active:scale-95"
+                    >
+                        <IconoGoogle className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                    </button>
+                </Tooltip>
+
+                {/* Entrar — solo desktop */}
+                <button
+                    onClick={abrirModalLogin}
+                    className="hidden lg:flex items-center gap-1.5 lg:px-3 lg:py-1 2xl:px-4 2xl:py-1.5 bg-white border-2 border-slate-300 rounded-full lg:text-sm 2xl:text-base font-semibold text-slate-700 hover:bg-slate-200 lg:cursor-pointer"
+                >
+                    <Mail className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                    <span>{t('navbar.entrar')}</span>
+                </button>
+
+                {/* Únete — solo desktop */}
+                <button
+                    onClick={() => navigate('/registro')}
+                    className="hidden lg:flex items-center gap-1.5 lg:px-3 lg:py-1 2xl:px-5 2xl:py-1.5 rounded-full lg:text-sm 2xl:text-base font-bold text-white bg-slate-800 border-2 border-slate-700 lg:cursor-pointer hover:bg-slate-600 hover:border-slate-500"
+                >
+                    <Users className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                    {t('navbar.unete')}
+                </button>
+
+                {/* Separador — solo desktop */}
+                <div className="w-0.5 h-8 lg:h-8 2xl:h-12 hidden lg:block mx-1 2xl:mx-2 rounded-full bg-linear-to-b from-transparent via-slate-400 to-transparent" />
+
+                {/* Idioma — siempre visible */}
+                <ToggleIdioma />
+            </div>
+        </nav>
+    );
+}
+
+// =============================================================================
+// COMPONENTE: COLLAGE ITEM
+// =============================================================================
+
+function CollageItem({ src, label, flex, anim, icono: Icono }: { src: string; label: string; flex: string; anim: string; icono: LucideIcon }) {
+    return (
+        <div className={`${flex} rounded-md 2xl:rounded-lg overflow-hidden shadow-2xl ${anim} relative group`}>
+            <img src={src} alt={label} className="w-full h-full object-cover group-hover:scale-110 duration-500" loading="eager" />
+            <div className="absolute bottom-2 2xl:bottom-3 left-1/2 -translate-x-1/2 z-10">
+                <span className="flex items-center gap-1.5 px-3 lg:px-3 2xl:px-5 py-0.5 lg:py-0.5 2xl:py-1.5 bg-black/50 backdrop-blur-sm rounded-full text-sm lg:text-[11px] 2xl:text-base font-bold text-white whitespace-nowrap">
+                    <Icono className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5" />
+                    {label}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+// =============================================================================
+// COMPONENTE: HERO — Responsivo
+// =============================================================================
+
+function HeroSection({ abrirModalLogin }: { abrirModalLogin: () => void }) {
+    const { t } = useTranslation('landing');
+    const navigate = useNavigate();
+    const { ref: refCarrusel, visible: carruselVisible } = useVisibleEnViewport();
+
+    return (
+        <section className="relative flex flex-col flex-1 min-h-0 overflow-hidden lg:flex-none lg:flex-row lg:h-[calc(88vh)] 2xl:h-[calc(88vh)] lg:items-center">
+            {/* Fondo oscuro — móvil: completo, desktop: solo izquierda */}
+            <div
+                className="absolute top-0 left-0 bottom-0 w-full lg:w-[50%] 2xl:w-[45%]"
+                style={{ background: 'linear-gradient(to bottom, #0B358F 40%, #000000 80%)' }}
+            />
+
+            {/* Carrusel de imágenes — solo móvil, detrás del contenido, debajo del navbar */}
+            <div ref={refCarrusel} className="absolute top-18 left-0 right-0 h-60 overflow-hidden lg:hidden pointer-events-none">
+                {/* Desvanecido inferior */}
+                <div className="absolute bottom-0 left-0 right-0 h-30 z-10" style={{ background: 'linear-gradient(to top, #0B358F, transparent)' }} />
+                <div className="flex gap-2 landing-marquee" style={{ width: 'max-content', animationPlayState: carruselVisible ? 'running' : 'paused' }}>
+                    {[
+                        '/images/secciones/negocios-locales.webp',
+                        '/images/secciones/marketplace.webp',
+                        '/images/secciones/cupones.webp',
+                        '/images/secciones/dinamicas.webp',
+                        '/images/secciones/oferta.webp',
+                        '/images/secciones/chatya-mobile.webp',
+                        '/images/secciones/empleos.webp',
+                        '/images/secciones/negocios-locales.webp',
+                        '/images/secciones/marketplace.webp',
+                        '/images/secciones/cupones.webp',
+                        '/images/secciones/dinamicas.webp',
+                        '/images/secciones/oferta.webp',
+                        '/images/secciones/chatya-mobile.webp',
+                        '/images/secciones/empleos.webp',
+                    ].map((src, i) => (
+                        <img key={i} src={src} alt="" className="h-60 w-auto rounded-md object-cover shrink-0" loading="eager" />
+                    ))}
+                </div>
+            </div>
+
+            {/* Línea lateral — acento */}
+            <div className="hidden lg:block absolute z-20 lg:left-5 2xl:left-12 lg:top-8 lg:bottom-8 w-1.5 2xl:w-2 rounded-full bg-linear-to-b from-slate-400 via-slate-500 to-transparent" />
+
+            {/* ═══ LAYOUT ═══ */}
+            <div className="relative z-20 w-full lg:h-full flex flex-col lg:grid lg:grid-cols-[1fr_1.2fr] 2xl:grid-cols-[1fr_1.2fr] items-center px-5 lg:px-8 2xl:px-16 mt-auto lg:mt-0 pb-12 lg:pb-0 gap-6 lg:gap-6 2xl:gap-16">
+
+                {/* ═══ IZQUIERDA: Texto ═══ */}
+                <div className="flex flex-col justify-center pl-3 lg:pl-5 2xl:pl-8 max-w-[750px]">
+                    {/* Título — laptop grande */}
+                    <h1 className="leading-[1.1] tracking-tight mb-4 lg:mb-4 2xl:mb-6 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+                        <span className="text-4xl lg:text-6xl 2xl:text-7xl">
+                            <span className="font-medium text-white/80">{t('hero.tus')}</span>{' '}
+                            <span className="font-extrabold bg-linear-to-r from-white to-slate-300 bg-clip-text text-transparent">{t('hero.compras')}</span>{' '}
+                            <span className="font-medium text-white/80">{t('hero.ahora')}</span>
+                        </span>
+                        <br />
+                        <span className="text-5xl lg:text-7xl 2xl:text-8xl">
+                            <span className="font-extrabold bg-linear-to-r from-white to-slate-300 bg-clip-text text-transparent">{t('hero.valen')}</span>{' '}
+                            <span className="font-extrabold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">{t('hero.mas')}</span>
+                        </span>
+                    </h1>
+
+                    {/* Subtítulo */}
+                    <p className="text-lg lg:text-xl 2xl:text-2xl leading-relaxed mb-5 lg:mb-5 2xl:mb-8">
+                        <span className="font-medium text-white/70">{t('hero.acumulaPuntos')} </span>
+                        <span className="font-bold text-white">{t('hero.comerciosFavoritos')}</span>
+                        <br />
+                        <span className="font-medium text-white/70">{t('hero.yCanjealos')} </span>
+                        <span className="font-bold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">{t('hero.canjealos')}</span>
+                        <span className="font-medium text-white/70"> {t('hero.por')} </span>
+                        <span className="font-bold text-white">{t('hero.recompensas')}</span>
+                    </p>
+
+                    {/* CTA + KPIs */}
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6 2xl:gap-8">
+                        {/* Móvil: 3 botones juntos en fila */}
+                        <div className="flex items-center gap-2.5 lg:hidden">
+                            <button
+                                onClick={() => navigate('/registro')}
+                                className="flex items-center justify-center gap-2 px-7 py-2 rounded-full text-base font-bold text-white bg-slate-800 border-2 border-slate-700"
+                            >
+                                {t('navbar.unete')} {t('cta.personal.precio')}
+                                <ArrowRight className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={abrirModalLogin}
+                                className="flex items-center gap-2 px-6 py-2 rounded-full text-base font-bold text-white bg-white/15 border-2 border-white/30"
+                            >
+                                <Mail className="w-5 h-5" />
+                                {t('navbar.entrar')}
+                            </button>
+                        </div>
+
+                        {/* Desktop: "Comenzar Ahora" */}
+                        <button
+                            onClick={() => navigate('/registro')}
+                            className="hidden lg:inline-flex items-center gap-1.5 lg:px-6 lg:py-2 2xl:px-6 2xl:py-2.5 rounded-full lg:text-base 2xl:text-lg font-bold text-white bg-slate-800 border-2 border-slate-700 lg:cursor-pointer hover:bg-slate-600 hover:border-slate-500"
+                        >
+                            {t('hero.botonPrimario')}
+                            <ArrowRight className="lg:w-5 lg:h-5 2xl:w-5 2xl:h-5" />
+                        </button>
+
+                        {/* Separador — solo desktop */}
+                        <div className="w-0.5 h-10 2xl:h-12 rounded-full bg-linear-to-b from-transparent via-white/25 to-transparent hidden lg:block" />
+
+                        {/* KPIs — solo desktop */}
+                        <div className="hidden lg:flex items-center gap-6 2xl:gap-8">
+                            {[
+                                { valor: '50+', label: t('hero.stats.negocios') },
+                                { valor: '5', label: t('hero.stats.secciones') },
+                                { valor: '100%', label: t('hero.stats.gratis') },
+                            ].map(({ valor, label }) => (
+                                <div key={valor} className="text-center">
+                                    <span className="text-xl lg:text-2xl 2xl:text-3xl font-bold text-white block">{valor}</span>
+                                    <span className="text-sm lg:text-sm 2xl:text-sm font-semibold text-white/50">{label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* CardYA */}
+                    <div className="flex items-center gap-4 lg:gap-4 2xl:gap-6 mt-6 lg:mt-4 2xl:mt-10 pt-5 lg:pt-4 2xl:pt-8 border-t-2 border-white/25">
+                        <img src="/CardYA.webp" alt="CardYA" className="h-28 lg:h-36 2xl:h-40 w-auto drop-shadow-2xl landing-float" />
+                        <div className="flex flex-col">
+                            <span className="text-2xl lg:text-3xl 2xl:text-4xl font-extrabold text-white leading-tight">
+                                {t('hero.unaTarjeta')}
+                            </span>
+                            <span className="text-xl lg:text-2xl 2xl:text-3xl font-bold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent leading-tight">
+                                {t('hero.multiplesRecompensas')}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ═══ DERECHA: Collage — solo desktop, full height ═══ */}
+                <div className="hidden lg:block relative h-full">
+                    <div className="grid grid-cols-3 gap-1.5 2xl:gap-3 lg:h-[600px] 2xl:h-[755px] lg:max-w-[600px] 2xl:max-w-none lg:ml-auto lg:mt-8 2xl:mt-12">
+                        <div className="flex flex-col gap-1.5 2xl:gap-3 min-h-0">
+                            <CollageItem src="/images/secciones/negocios-locales.webp" label={t('secciones.negocios.titulo')} icono={MapPin} flex="flex-[1.2]" anim="landing-float" />
+                            <CollageItem src="/images/secciones/cupones.webp" label={t('collage.cupones')} icono={Tag} flex="flex-1" anim="animate-float-3" />
+                        </div>
+                        <div className="flex flex-col gap-1.5 2xl:gap-3 min-h-0">
+                            <CollageItem src="/images/secciones/marketplace.webp" label={t('secciones.marketplace.titulo')} icono={ShoppingCart} flex="flex-1" anim="animate-float-2" />
+                            <CollageItem src="/images/secciones/dinamicas.webp" label={t('collage.rifas')} icono={Ticket} flex="flex-[1.4]" anim="animate-float-1" />
+                            <CollageItem src="/images/secciones/oferta.webp" label={t('collage.ofertas')} icono={Star} flex="flex-1" anim="animate-float-3" />
+                        </div>
+                        <div className="flex flex-col gap-1.5 2xl:gap-3 min-h-0">
+                            <CollageItem src="/images/secciones/chatya-mobile.webp" label={t('collage.chatya')} icono={MessageCircle} flex="flex-[1.2]" anim="animate-float-1" />
+                            <CollageItem src="/images/secciones/empleos.webp" label={t('collage.empleos')} icono={Briefcase} flex="flex-1" anim="animate-float-2" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Scroll indicator — móvil: solo visual */}
+            <div className="lg:hidden absolute bottom-3 left-1/2 -translate-x-1/2 landing-scroll-indicator">
+                <div className="flex items-center gap-1 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full border border-white/15">
+                    <span className="text-sm font-medium text-white/50">{t('hero.scrollIndicador')}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-white/50" />
+                </div>
+            </div>
+
+            {/* Scroll indicator — desktop: clickeable */}
+            <button
+                onClick={() => document.getElementById('seccion-planes')?.scrollIntoView({ behavior: 'smooth' })}
+                className="hidden lg:flex absolute bottom-3 lg:left-[40%] lg:-translate-x-1/2 2xl:left-175 2xl:translate-x-0 landing-scroll-indicator items-center gap-1 lg:px-4 lg:py-1 2xl:px-3.5 2xl:py-1 bg-white/20 backdrop-blur-sm rounded-full border border-white/15 hover:bg-white/30 lg:cursor-pointer z-30"
+            >
+                <span className="text-sm 2xl:text-sm font-medium text-white/50">{t('hero.scrollIndicador')}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-white/50" />
+            </button>
+        </section>
+    );
+}
+
+// =============================================================================
+// COMPONENTE: STRIP DE CATEGORÍAS — Responsivo
+// =============================================================================
+
+function CategoriaItem({ icono: Icono, label }: { icono: LucideIcon; label: string }) {
+    return (
+        <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-2.5 shrink-0">
+            <div className="w-7 h-7 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full flex items-center justify-center bg-linear-to-b from-slate-600 to-slate-800">
+                <Icono className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5 text-white" strokeWidth={2.5} />
+            </div>
+            <span className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-800">{label}</span>
+        </div>
+    );
+}
+
+function StripCategorias() {
+    const { t } = useTranslation('landing');
+    const { ref: refStrip, visible: stripVisible } = useVisibleEnViewport();
+
+    const items = SECCIONES_CARRUSEL.map(({ key, icono }) => ({
+        icono,
+        label: t(`categorias.${key}`),
+    }));
+
+    return (
+        <div ref={refStrip} className="py-3 lg:py-3 2xl:py-4 bg-white/60 backdrop-blur-sm border-b-2 border-slate-300 overflow-x-hidden">
+            {/* Desktop: centrado estático */}
+            <div className="hidden lg:flex justify-center gap-5 2xl:gap-8 px-7 2xl:px-8">
+                {items.map((item, i) => (
+                    <CategoriaItem key={i} icono={item.icono} label={item.label} />
                 ))}
             </div>
 
-            {/* Badge Desktop - Con gradiente y iconos animados */}
-            <div className="absolute top-4 2xl:top-12 left-0 right-0 hidden md:flex justify-center z-10 px-5">
-                <motion.div
-                    className="inline-flex items-center gap-2 2xl:gap-3 px-5 2xl:px-8 py-2.5 2xl:py-4 bg-linear-to-r from-blue-600 via-purple-600 to-blue-700 rounded-full shadow-lg shadow-purple-500/25"
-                    whileHover={{ scale: 1.03 }}
-                    transition={{ duration: 0.15 }}
-                >
-                    <motion.div
-                        animate={{ rotate: [0, 10, -10, 0] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                        <CreditCard className="w-4 h-4 2xl:w-6 2xl:h-6 text-white" />
-                    </motion.div>
-                    <span className="text-white font-semibold text-xs 2xl:text-lg">
-                        {t('hero.badgeParte1')}
-                    </span>
-                    <motion.div
-                        animate={{ scale: [1, 1.2, 1], opacity: [1, 0.8, 1] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                        <Sparkles className="w-4 h-4 2xl:w-6 2xl:h-6 text-yellow-300" />
-                    </motion.div>
-                </motion.div>
+            {/* Móvil: marquee automático */}
+            <div className="lg:hidden flex gap-4 px-3 landing-marquee" style={{ width: 'max-content', animationDuration: '15s', animationPlayState: stripVisible ? 'running' : 'paused' }}>
+                {[...items, ...items].map((item, i) => (
+                    <CategoriaItem key={i} icono={item.icono} label={item.label} />
+                ))}
             </div>
-
-            <div className="relative w-full max-w-[1600px] mx-auto z-10 mt-0 lg:mt-14 2xl:mt-20">
-
-                {/* ========== MOBILE LAYOUT - Onboarding Estilo App ========== */}
-                <div className="lg:hidden fixed inset-0 flex flex-col bg-linear-to-b from-blue-100 via-blue-50 to-white pt-6 overflow-hidden">
-
-                    {/* Burbujas animadas - detrás del contenido */}
-                    <div className="absolute inset-0 pointer-events-none z-0">
-                        <div className="absolute w-5 h-5 rounded-full bg-blue-400/20 top-[8%] right-[15%]" style={{ animation: 'float1 5s ease-in-out infinite' }} />
-                        <div className="absolute w-3.5 h-3.5 rounded-full bg-blue-400/20 top-[20%] left-[10%]" style={{ animation: 'float2 6s ease-in-out infinite' }} />
-                        <div className="absolute w-4 h-4 rounded-full bg-blue-400/20 top-[35%] right-[8%]" style={{ animation: 'float3 4s ease-in-out infinite' }} />
-                        <div className="absolute w-3 h-3 rounded-full bg-blue-400/20 top-[50%] left-[15%]" style={{ animation: 'float4 5s ease-in-out infinite' }} />
-                        <div className="absolute w-4 h-4 rounded-full bg-blue-400/20 top-[65%] right-[20%]" style={{ animation: 'float5 4s ease-in-out infinite' }} />
-                        <div className="absolute w-2.5 h-2.5 rounded-full bg-blue-400/20 top-[75%] left-[8%]" style={{ animation: 'float6 5s ease-in-out infinite' }} />
-                        <div className="absolute w-5 h-5 rounded-full bg-blue-400/20 top-[15%] right-[30%]" style={{ animation: 'float7 6s ease-in-out infinite' }} />
-                        <div className="absolute w-2 h-2 rounded-full bg-blue-400/20 top-[45%] left-[25%]" style={{ animation: 'float8 4s ease-in-out infinite' }} />
-                    </div>
-                    {/* Logo centrado */}
-                    <div className="flex justify-center pt-2 pb-1">
-                        <motion.div
-                            className="flex items-center"
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                        >
-                            <img
-                                src="/logo-anunciaya.webp"
-                                alt="AnunciaYA"
-                                className="h-14 w-auto"
-                            />
-                        </motion.div>
-                    </div>
-
-                    {/* Badge Móvil - Con gradiente y iconos animados */}
-                    <motion.div
-                        className="flex justify-center mt-8 mb-4"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.1 }}
-                    >
-                        <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-blue-600 via-purple-600 to-blue-700 rounded-full shadow-lg shadow-purple-500/25">
-                            <motion.div
-                                animate={{ rotate: [0, 10, -10, 0] }}
-                                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                            >
-                                <CreditCard className="w-4 h-4 text-white" />
-                            </motion.div>
-                            <span className="text-white font-semibold text-sm">
-                                {t('hero.badgeParte1')}
-                            </span>
-                            <motion.div
-                                animate={{ scale: [1, 1.2, 1], opacity: [1, 0.8, 1] }}
-                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                            >
-                                <Sparkles className="w-4 h-4 text-yellow-300" />
-                            </motion.div>
-                        </div>
-                    </motion.div>
-
-                    {/* Área de slides */}
-                    <div className="flex-1 flex flex-col justify-center px-5 relative z-10">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={seccionActiva}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                transition={{ duration: 0.3 }}
-                                className="flex flex-col items-center"
-                            >
-                                {/* Imagen del slide - MÁS GRANDE */}
-                                <div className="w-full max-w-sm rounded-3xl overflow-hidden shadow-xl mb-5">
-                                    <img
-                                        src={ONBOARDING_SLIDES[seccionActiva % ONBOARDING_SLIDES.length].imagen}
-                                        alt={t(ONBOARDING_SLIDES[seccionActiva % ONBOARDING_SLIDES.length].tituloKey)}
-                                        className="w-full h-64 sm:h-72 object-cover"
-                                    />
-                                </div>
-
-                                {/* Título */}
-                                <h1 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-2">
-                                    {t(ONBOARDING_SLIDES[seccionActiva % ONBOARDING_SLIDES.length].tituloKey)}
-                                </h1>
-
-                                {/* Subtítulo */}
-                                <p className="text-base text-gray-500 text-center max-w-xs mb-4">
-                                    {t(ONBOARDING_SLIDES[seccionActiva % ONBOARDING_SLIDES.length].subtituloKey)}
-                                </p>
-
-                                {/* Mini badges - Actualizados */}
-                                <div className="flex items-center justify-center gap-2.5 flex-wrap">
-                                    <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-full border border-purple-200 shadow-sm">
-                                        <Gift className="w-4 h-4 text-purple-600" />
-                                        <span className="text-sm font-semibold text-purple-700">{t('hero.beneficio1')}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 shadow-sm">
-                                        <Megaphone className="w-4 h-4 text-emerald-600" />
-                                        <span className="text-sm font-semibold text-emerald-700">{t('hero.beneficio2')}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200 shadow-sm">
-                                        <Ticket className="w-4 h-4 text-orange-600" />
-                                        <span className="text-sm font-semibold text-orange-700">{t('hero.beneficio3')}</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </AnimatePresence>
-
-                        {/* Dots de navegación */}
-                        <div className="flex justify-center gap-2 mt-6">
-                            {ONBOARDING_SLIDES.map((_, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => setSeccionActiva(index)}
-                                    className={`h-2 rounded-full transition-all duration-200 ${index === seccionActiva
-                                        ? 'w-6 bg-linear-to-r from-blue-600 to-blue-700'
-                                        : 'w-2 bg-gray-300'
-                                        }`}
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Botones fijos abajo */}
-                    <div className="px-5 pb-8 pt-4 space-y-2.5 bg-linear-to-t from-white via-white to-transparent">
-                        {/* Fila 1: Google + Iniciar Sesión */}
-                        <div className="grid grid-cols-2 gap-2.5">
-                            <button
-                                onClick={iniciarLoginGoogle}
-                                className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-300 rounded-xl text-sm font-medium shadow-sm"
-                            >
-                                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                </svg>
-                                {t('navbar.google')}
-                            </button>
-
-                            <button
-                                onClick={abrirModalLogin}
-                                className="flex items-center justify-center gap-2 py-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-sm font-medium text-blue-700"
-                            >
-                                <Mail className="w-5 h-5" />
-                                {t('navbar.iniciarSesion')}
-                            </button>
-                        </div>
-
-                        {/* Fila 2: Registrarse */}
-                        <button
-                            onClick={() => navigate('/registro')}
-                            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg flex items-center justify-center gap-2"
-                        >
-                            <Users className="w-5 h-5" />
-                            {t('navbar.registrate')}
-                        </button>
-                    </div>
-                </div>
-
-                {/* ========== DESKTOP LAYOUT ========== */}
-                <div className="hidden lg:grid lg:grid-cols-[1fr_auto] gap-6 2xl:gap-16 items-center justify-center max-w-[1100px] 2xl:max-w-[1600px] mx-auto">
-                    {/* Left Content */}
-                    <div className="space-y-4 2xl:space-y-7 text-center lg:text-left">
-                        {/* Título - Nuevo concepto */}
-                        <motion.h1
-                            className="text-4xl sm:text-5xl lg:text-5xl 2xl:text-8xl font-bold leading-tight 2xl:leading-none"
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5 }}
-                        >
-                            <span className="text-slate-900">{t('hero.titulo1')}</span>
-                            <br />
-                            <span className="bg-linear-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
-                                {t('hero.titulo2')}
-                            </span>
-                            <br />
-                            <span className="text-slate-900">{t('hero.titulo3')}</span>
-                            <span className="bg-linear-to-r from-orange-500 to-red-500 bg-clip-text text-transparent"> {t('hero.titulo4')}</span>
-                        </motion.h1>
-
-                        {/* Subtítulo - Nuevo concepto */}
-                        <motion.p
-                            className="text-lg lg:text-2xl 2xl:text-3xl text-gray-600"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.2, duration: 0.5 }}
-                        >
-                            <span className="font-bold text-slate-800">{t('hero.subtitulo1')}</span>
-                            <br />
-                            {t('hero.subtitulo2')} <span className="font-bold text-blue-600">{t('hero.subtitulo3')}</span>
-                            <br />
-                            {t('hero.subtitulo4')} <span className="font-bold text-slate-800">{t('hero.subtitulo5')}</span> {t('hero.subtitulo6')} <span className="font-bold text-purple-600">{t('hero.subtitulo7')}</span>
-                        </motion.p>
-
-                        {/* CTA Button - Solo primario */}
-                        <motion.div
-                            className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3, duration: 0.5 }}
-                        >
-                            <button
-                                onClick={() => navigate('/registro')}
-                                className="inline-flex items-center justify-center gap-2 2xl:gap-2.5 px-6 2xl:px-10 py-3 2xl:py-5 bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold text-base 2xl:text-xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-pointer"
-                            >
-                                <Sparkles className="w-5 h-5 2xl:w-6 2xl:h-6" />
-                                <span>{t('hero.botonPrimario')}</span>
-                                <ArrowRight className="w-5 h-5 2xl:w-6 2xl:h-6" />
-                            </button>
-                        </motion.div>
-
-                        {/* Beneficios destacados - Actualizados */}
-                        <motion.div
-                            className="flex flex-wrap items-center justify-center lg:justify-start gap-2 2xl:gap-5 pt-2 2xl:pt-2"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.4, duration: 0.5 }}
-                        >
-                            <div className="flex items-center gap-1.5 2xl:gap-3 bg-purple-50 px-3 2xl:px-5 py-2 2xl:py-3 rounded-xl border border-purple-200">
-                                <Gift className="w-5 h-5 2xl:w-7 2xl:h-7 text-purple-600" />
-                                <span className="text-sm 2xl:text-xl font-semibold text-purple-700">{t('hero.beneficio1')}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 2xl:gap-3 bg-emerald-50 px-3 2xl:px-5 py-2 2xl:py-3 rounded-xl border border-emerald-200">
-                                <Megaphone className="w-5 h-5 2xl:w-7 2xl:h-7 text-emerald-600" />
-                                <span className="text-sm 2xl:text-xl font-semibold text-emerald-700">{t('hero.beneficio2')}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 2xl:gap-3 bg-orange-50 px-3 2xl:px-5 py-2 2xl:py-3 rounded-xl border border-orange-200">
-                                <Ticket className="w-5 h-5 2xl:w-7 2xl:h-7 text-orange-600" />
-                                <span className="text-sm 2xl:text-xl font-semibold text-orange-700">{t('hero.beneficio3')}</span>
-                            </div>
-                        </motion.div>
-                    </div>
-
-                    {/* Right Content - Carrusel Desktop */}
-                    <div className="relative mt-4 lg:mt-0 w-[520px] 2xl:w-auto">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={seccionActiva}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.5 }}
-                                className="relative"
-                            >
-                                <div className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl">
-                                    <div className="relative h-80 2xl:h-[520px]">
-                                        <img
-                                            src={seccionActual.imagen}
-                                            alt={t(seccionActual.tituloKey)}
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                        />
-
-                                        {/* Icono flotante superior derecha */}
-                                        <motion.div
-                                            className="absolute top-3 2xl:top-4 right-3 2xl:right-4 w-9 h-9 2xl:w-14 2xl:h-14 bg-linear-to-r from-orange-500 to-red-500 rounded-xl 2xl:rounded-2xl flex items-center justify-center shadow-lg z-20"
-                                            animate={{
-                                                y: [0, -15, 0, -8, 0, -3, 0],
-                                                scale: [1, 1.1, 1, 1.05, 1, 1.02, 1]
-                                            }}
-                                            transition={{
-                                                duration: 2,
-                                                repeat: Infinity,
-                                                repeatDelay: 1,
-                                                ease: "easeOut"
-                                            }}
-                                        >
-                                            <Gift className="w-4 h-4 2xl:w-7 2xl:h-7 text-white" />
-                                        </motion.div>
-
-                                        {/* Iconos flotantes inferiores */}
-                                        <motion.div
-                                            className="absolute bottom-3 2xl:bottom-4 left-3 2xl:left-4 w-9 h-9 2xl:w-14 2xl:h-14 bg-linear-to-r from-emerald-500 to-teal-500 rounded-lg 2xl:rounded-xl flex items-center justify-center shadow-lg z-30"
-                                            animate={{
-                                                y: [0, -12, 0, -6, 0, -2, 0],
-                                                scale: [1, 1.15, 1, 1.08, 1, 1.03, 1]
-                                            }}
-                                            transition={{
-                                                duration: 1.8,
-                                                repeat: Infinity,
-                                                repeatDelay: 1.5,
-                                                ease: "easeOut"
-                                            }}
-                                        >
-                                            <TrendingUp className="w-4 h-4 2xl:w-7 2xl:h-7 text-white" />
-                                        </motion.div>
-
-                                        <motion.div
-                                            className="absolute bottom-3 2xl:bottom-4 right-3 2xl:right-4 w-9 h-9 2xl:w-14 2xl:h-14 bg-linear-to-r from-violet-500 to-pink-500 rounded-lg 2xl:rounded-xl flex items-center justify-center shadow-lg z-30"
-                                            animate={{
-                                                y: [0, -10, 0, -5, 0, -2, 0],
-                                                scale: [1, 1.12, 1, 1.06, 1, 1.02, 1]
-                                            }}
-                                            transition={{
-                                                duration: 2.2,
-                                                repeat: Infinity,
-                                                repeatDelay: 0.8,
-                                                ease: "easeOut"
-                                            }}
-                                        >
-                                            <Star className="w-4 h-4 2xl:w-7 2xl:h-7 text-white" />
-                                        </motion.div>
-
-                                        {/* Header con título */}
-                                        <div className="absolute top-3 2xl:top-4 left-3 2xl:left-4 right-14 2xl:right-20 z-10">
-                                            <div className="flex items-center gap-2 2xl:gap-3">
-                                                <div className={`w-9 h-9 2xl:w-14 2xl:h-14 ${seccionActual.iconBg} rounded-xl 2xl:rounded-2xl flex items-center justify-center shadow-lg`}>
-                                                    <IconoActivo className="w-4 h-4 2xl:w-7 2xl:h-7 text-white" />
-                                                </div>
-                                                <h4
-                                                    className="font-bold text-lg 2xl:text-3xl text-slate-900"
-                                                    style={{
-                                                        textShadow: '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 0 1px 0 white, 1px 0 0 white, 0 -1px 0 white, -1px 0 0 white'
-                                                    }}
-                                                >
-                                                    {t(seccionActual.tituloKey)}
-                                                </h4>
-                                            </div>
-                                        </div>
-
-                                        {/* Content Area */}
-                                        <div className="absolute bottom-0 left-0 right-0 p-3 2xl:p-4 z-10">
-                                            {/* Badge Chat Integrado - Arriba izquierda */}
-                                            <div className="absolute -top-10 2xl:-top-14 left-3 2xl:left-4">
-                                                <div className="inline-flex items-center px-3 2xl:px-5 py-1.5 2xl:py-2.5 bg-linear-to-r from-blue-600 to-blue-900 rounded-full shadow-md">
-                                                    <MessageCircle className="w-3 h-3 2xl:w-5 2xl:h-5 text-white mr-1.5 2xl:mr-2" />
-                                                    <span className="text-xs 2xl:text-base font-bold text-white">
-                                                        {t('secciones.chatIntegrado')}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Badge highlight - Arriba derecha */}
-                                            <div className="absolute -top-10 2xl:-top-14 right-3 2xl:right-4">
-                                                <div className="inline-flex items-center px-3 2xl:px-5 py-1.5 2xl:py-2.5 bg-linear-to-r from-emerald-50/95 to-green-50/95 backdrop-blur-sm border-2 border-emerald-200 rounded-full shadow-md">
-                                                    <div className="w-2 h-2 2xl:w-3.5 2xl:h-3.5 bg-emerald-500 rounded-full animate-pulse mr-1.5 2xl:mr-3" />
-                                                    <span className="text-xs 2xl:text-base font-bold text-emerald-700">
-                                                        {t(seccionActual.highlightKey)}
-                                                    </span>
-                                                    <Sparkles className="w-3 h-3 2xl:w-5 2xl:h-5 text-emerald-500 ml-1.5 2xl:ml-2.5" />
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white/30 backdrop-blur-sm rounded-xl 2xl:rounded-2xl p-3 2xl:p-5 shadow-sm text-center">
-                                                <h3
-                                                    className="text-base 2xl:text-2xl font-bold leading-relaxed mb-1 2xl:mb-3 text-slate-900"
-                                                    style={{
-                                                        textShadow: '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 0 1px 0 white, 1px 0 0 white, 0 -1px 0 white, -1px 0 0 white'
-                                                    }}
-                                                >
-                                                    {t(seccionActual.subtituloKey)}
-                                                </h3>
-
-                                                <p
-                                                    className="font-semibold text-sm 2xl:text-xl leading-snug text-black"
-                                                    style={{ textShadow: '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white' }}
-                                                    dangerouslySetInnerHTML={{ __html: t(seccionActual.descripcionKey) }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </AnimatePresence>
-
-                        {/* Navigation Dots Desktop */}
-                        <div className="flex justify-center mt-4 2xl:mt-10 gap-2 2xl:gap-4">
-                            {SECCIONES.map((_, index) => (
-                                <motion.button
-                                    key={index}
-                                    onClick={() => setSeccionActiva(index)}
-                                    className={`rounded-full transition-all duration-300 ${index === seccionActiva % SECCIONES.length
-                                        ? 'w-8 2xl:w-12 h-2.5 2xl:h-3.5 bg-linear-to-r from-blue-500 to-purple-500'
-                                        : 'w-2.5 2xl:w-3.5 h-2.5 2xl:h-3.5 bg-gray-300 hover:bg-gray-400'
-                                        }`}
-                                    whileHover={{ scale: 1.2 }}
-                                    whileTap={{ scale: 0.9 }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Scroll Indicator - Solo desktop - Posición fija en viewport */}
-            <div className="hidden lg:block absolute bottom-2 2xl:bottom-8 left-0 right-0 z-30">
-                <motion.div
-                    className="flex justify-center"
-                    animate={{ y: [0, 8, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                >
-                    <div className="flex flex-col items-center gap-1 2xl:gap-2">
-                        <span className="text-xs 2xl:text-base font-medium text-gray-600 bg-white/70 px-2 2xl:px-3 py-0.5 2xl:py-1 rounded-full backdrop-blur-sm">{t('hero.scrollIndicador')}</span>
-                        <div className="w-6 h-9 2xl:w-8 2xl:h-12 border-2 border-blue-500 rounded-full flex justify-center pt-1.5 2xl:pt-2 bg-white/80 backdrop-blur-sm shadow-lg">
-                            <motion.div
-                                className="w-1.5 h-2 2xl:w-2 2xl:h-3 bg-blue-500 rounded-full"
-                                animate={{ y: [0, 10, 0] }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                            />
-                        </div>
-                    </div>
-                </motion.div>
-            </div>
-        </section>
+        </div>
     );
 }
 
 // =============================================================================
-// COMPONENTE: BENEFICIOS (Solo Desktop) - Actualizados
+// COMPONENTE: SECCIÓN UNIFICADA — Usuarios + Comerciantes — Responsivo
 // =============================================================================
 
-function BeneficiosSection() {
-    const { t } = useTranslation('landing');
-    return (
-        <section id="beneficios" className="hidden md:block py-8 2xl:py-12 px-6 lg:px-8 2xl:px-12 bg-linear-to-br from-slate-100 via-blue-50/50 to-gray-100">
-            <div className="w-full max-w-[1600px] mx-auto">
-                {/* Título sin subtítulo */}
-                <div className="text-center mb-6 2xl:mb-10">
-                    <h2 className="text-3xl 2xl:text-5xl font-bold text-gray-900">
-                        {t('beneficios.titulo1')} <span className="text-blue-600">Anuncia</span><span className="text-red-500">YA</span>{t('beneficios.titulo3')}
-                    </h2>
-                </div>
-
-                {/* Grid - 3 columnas */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 2xl:gap-8">
-                    {BENEFICIOS.map((beneficio, index) => {
-                        const Icono = beneficio.icono;
-                        return (
-                            <motion.div
-                                key={index}
-                                className="bg-white rounded-2xl p-5 2xl:p-8 text-center hover:shadow-lg transition-shadow duration-150"
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: index * 0.1 }}
-                            >
-                                <div className={`w-12 h-12 2xl:w-16 2xl:h-16 ${beneficio.color} rounded-2xl flex items-center justify-center mx-auto mb-4 2xl:mb-6`}>
-                                    <Icono className="w-6 h-6 2xl:w-8 2xl:h-8 text-white" />
-                                </div>
-                                <h3 className="text-xl 2xl:text-2xl font-bold text-gray-900 mb-2 2xl:mb-3">{t(beneficio.tituloKey)}</h3>
-                                <p className="text-base 2xl:text-xl text-gray-600">{t(beneficio.descripcionKey)}</p>
-                            </motion.div>
-                        );
-                    })}
-                </div>
-            </div>
-        </section>
-    );
-}
-
-// =============================================================================
-// COMPONENTE: CTA FINAL - Cards de Planes ACTUALIZADOS CON ANIMACIONES
-// =============================================================================
-
-function CtaFinal() {
+function SeccionPlanes() {
     const { t } = useTranslation('landing');
     const navigate = useNavigate();
-
-    // Features para Cuenta Personal
-    const PERSONAL_FEATURES = [
-        'cta.personal.features.f1',
-        'cta.personal.features.f2',
-        'cta.personal.features.f3',
-        'cta.personal.features.f4',
-        'cta.personal.features.f5',
-        'cta.personal.features.f6',
-    ];
-
-    // Features para Cuenta Comercial
-    const COMERCIAL_FEATURES = [
-        'cta.comercial.features.f1',
-        'cta.comercial.features.f2',
-        'cta.comercial.features.f3',
-        'cta.comercial.features.f4',
-        'cta.comercial.features.f5',
-        'cta.comercial.features.f6',
-        'cta.comercial.features.f7',
-    ];
+    const { ref: refReveal, esVisible } = useRevealOnScroll();
 
     return (
-        <section className="py-8 2xl:py-16 px-5 md:px-6 lg:px-8 2xl:px-12 bg-linear-to-br from-slate-100 via-blue-50/50 to-gray-100 relative overflow-hidden">
-            {/* Decoración animada de fondo */}
-            <div className="absolute top-0 left-0 w-72 h-72 bg-sky-200/50 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-200/50 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
-            <motion.div 
-                className="absolute top-20 right-20 w-4 h-4 bg-purple-400/30 rounded-full"
-                animate={{ y: [0, -20, 0], opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 3, repeat: Infinity }}
-            />
-            <motion.div 
-                className="absolute bottom-40 left-20 w-3 h-3 bg-blue-400/30 rounded-full"
-                animate={{ y: [0, 15, 0], opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-            />
-
-            <div className="relative z-10 max-w-5xl mx-auto">
-
-                {/* Título con icono animado */}
-                <div className="text-center mb-8 2xl:mb-12">
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5 }}
-                        className="flex flex-col items-center"
-                    >
-                        <h2 className="text-3xl 2xl:text-5xl font-bold text-gray-900 mb-2 2xl:mb-4">
-                            {t('cta.titulo')}
-                        </h2>
-                        <motion.div
-                            animate={{ y: [0, 8, 0] }}
-                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        >
-                            <ArrowRight className="w-6 h-6 2xl:w-8 2xl:h-8 text-blue-600 rotate-90" />
-                        </motion.div>
-                    </motion.div>
-                    {t('cta.subtitulo') && (
-                        <p className="text-gray-600 text-base 2xl:text-lg max-w-lg mx-auto mt-2 2xl:mt-4">
-                            {t('cta.subtitulo')}
-                        </p>
-                    )}
-                </div>
-
-                {/* Cards con animaciones */}
-                <div className="grid md:grid-cols-2 gap-4 2xl:gap-8 mb-8 2xl:mb-12 max-w-4xl mx-auto">
-
-                    {/* Card Personal */}
-                    <motion.div 
-                        className="bg-white rounded-2xl p-5 2xl:p-6 shadow-lg border-2 border-emerald-200 hover:border-emerald-400 transition-colors flex flex-col relative overflow-hidden group"
-                        initial={{ opacity: 0, x: -30 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5 }}
-                        whileHover={{ y: -5, boxShadow: "0 25px 50px -12px rgba(16, 185, 129, 0.25)" }}
-                    >
-                        {/* Efecto de brillo en hover */}
-                        <div className="absolute inset-0 bg-linear-to-r from-transparent via-emerald-100/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                        
-                        {/* Header */}
-                        <div className="flex items-center gap-3 mb-4 2xl:mb-5 pb-3 2xl:pb-4 border-b border-gray-100 relative z-10">
-                            <motion.div 
-                                className="w-10 h-10 2xl:w-12 2xl:h-12 bg-emerald-100 rounded-xl flex items-center justify-center"
-                                whileHover={{ rotate: [0, -10, 10, 0] }}
-                                transition={{ duration: 0.5 }}
-                            >
-                                <UserCircle className="w-5 h-5 2xl:w-6 2xl:h-6 text-emerald-600" />
-                            </motion.div>
-                            <div>
-                                <h3 className="font-bold text-gray-900 text-lg 2xl:text-xl">{t('cta.personal.titulo')}</h3>
-                                <span className="text-emerald-600 font-bold text-xl 2xl:text-2xl">{t('cta.personal.precio')}</span>
-                            </div>
-                        </div>
-
-                        {/* Features con animación escalonada */}
-                        <ul className="space-y-2 2xl:space-y-3 text-gray-600 mb-4 2xl:mb-6 flex-1 relative z-10 text-sm 2xl:text-base">
-                            {PERSONAL_FEATURES.map((featureKey, index) => (
-                                <motion.li 
-                                    key={index} 
-                                    className="flex items-center gap-2 2xl:gap-3"
-                                    initial={{ opacity: 0, x: -10 }}
-                                    whileInView={{ opacity: 1, x: 0 }}
-                                    viewport={{ once: true }}
-                                    transition={{ delay: index * 0.1 }}
-                                >
-                                    <motion.div
-                                        whileHover={{ scale: 1.2 }}
-                                        className="shrink-0"
-                                    >
-                                        <Check className="w-4 h-4 2xl:w-5 2xl:h-5 text-emerald-500" />
-                                    </motion.div>
-                                    <span>{t(featureKey)}</span>
-                                </motion.li>
-                            ))}
-                        </ul>
-
-                        {/* Button */}
-                        <motion.button
-                            onClick={() => navigate('/registro')}
-                            className="w-full py-3 2xl:py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-base 2xl:text-lg transition-colors relative z-10 overflow-hidden group/btn cursor-pointer"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                        >
-                            <span className="relative z-10 flex items-center justify-center gap-2">
-                                {t('cta.personal.boton')}
-                                <motion.div
-                                    animate={{ x: [0, 5, 0] }}
-                                    transition={{ duration: 1, repeat: Infinity }}
-                                >
-                                    <ArrowRight className="w-5 h-5" />
-                                </motion.div>
-                            </span>
-                        </motion.button>
-                    </motion.div>
-
-                    {/* Card Comercial */}
-                    <motion.div 
-                        className="bg-white rounded-2xl p-5 2xl:p-6 shadow-lg border-2 border-amber-200 hover:border-amber-400 transition-colors relative flex flex-col overflow-hidden group"
-                        initial={{ opacity: 0, x: 30 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
-                        whileHover={{ y: -5, boxShadow: "0 25px 50px -12px rgba(245, 158, 11, 0.25)" }}
-                    >
-                        {/* Efecto de brillo en hover */}
-                        <div className="absolute inset-0 bg-linear-to-r from-transparent via-amber-100/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                        
-                        {/* Badge POPULAR animado */}
-                        <motion.div 
-                            className="absolute top-0 right-4 bg-linear-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-3 2xl:px-4 py-1 2xl:py-1.5 rounded-b-lg shadow-lg"
-                            animate={{ y: [0, -2, 0] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                        >
-                            <span className="flex items-center gap-1">
-                                <Star className="w-3 h-3" />
-                                {t('cta.comercial.badge')}
-                            </span>
-                        </motion.div>
-
-                        {/* Header */}
-                        <div className="flex items-center gap-3 mb-4 2xl:mb-5 pb-3 2xl:pb-4 border-b border-gray-100 relative z-10 mt-2">
-                            <motion.div 
-                                className="w-10 h-10 2xl:w-12 2xl:h-12 bg-amber-100 rounded-xl flex items-center justify-center"
-                                whileHover={{ rotate: [0, -10, 10, 0] }}
-                                transition={{ duration: 0.5 }}
-                            >
-                                <Building className="w-5 h-5 2xl:w-6 2xl:h-6 text-amber-600" />
-                            </motion.div>
-                            <div>
-                                <h3 className="font-bold text-gray-900 text-lg 2xl:text-xl">{t('cta.comercial.titulo')}</h3>
-                                <span className="text-amber-600 font-bold text-xl 2xl:text-2xl">{t('cta.comercial.precio')}</span>
-                            </div>
-                        </div>
-
-                        {/* Features con animación escalonada */}
-                        <ul className="space-y-2 2xl:space-y-3 text-gray-600 mb-4 2xl:mb-6 flex-1 relative z-10 text-sm 2xl:text-base">
-                            {COMERCIAL_FEATURES.map((featureKey, index) => (
-                                <motion.li 
-                                    key={index} 
-                                    className="flex items-center gap-2 2xl:gap-3"
-                                    initial={{ opacity: 0, x: -10 }}
-                                    whileInView={{ opacity: 1, x: 0 }}
-                                    viewport={{ once: true }}
-                                    transition={{ delay: index * 0.1 + 0.2 }}
-                                >
-                                    <motion.div
-                                        whileHover={{ scale: 1.2 }}
-                                        className="shrink-0"
-                                    >
-                                        <Check className="w-4 h-4 2xl:w-5 2xl:h-5 text-amber-500" />
-                                    </motion.div>
-                                    <span className={index === 6 ? 'font-medium text-amber-700' : ''}>
-                                        {t(featureKey)}
-                                    </span>
-                                </motion.li>
-                            ))}
-                        </ul>
-
-                        {/* Button */}
-                        <motion.button
-                            onClick={() => navigate('/registro?plan=comercial')}
-                            className="w-full py-3 2xl:py-3.5 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-semibold text-base 2xl:text-lg transition-all relative z-10 cursor-pointer"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                        >
-                            <span className="flex items-center justify-center gap-2">
-                                {t('cta.comercial.boton')}
-                                <motion.div
-                                    animate={{ x: [0, 5, 0] }}
-                                    transition={{ duration: 1, repeat: Infinity }}
-                                >
-                                    <ArrowRight className="w-5 h-5" />
-                                </motion.div>
-                            </span>
-                        </motion.button>
-                    </motion.div>
-                </div>
-
-                {/* Detalles del trial con animación */}
-                <motion.div 
-                    className="text-center space-y-2 2xl:space-y-4"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.4 }}
-                >
-                    <div className="flex flex-wrap justify-center gap-x-4 2xl:gap-x-8 gap-y-2 text-gray-700 text-sm 2xl:text-lg">
-                        <motion.span 
-                            className="flex items-center gap-2 bg-white/80 px-3 2xl:px-4 py-1.5 2xl:py-2 rounded-full shadow-sm"
-                            whileHover={{ scale: 1.05 }}
-                        >
-                            <Clock className="w-4 h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-                            {t('cta.trial.dias')}
-                        </motion.span>
-                        <motion.span 
-                            className="flex items-center gap-2 bg-white/80 px-3 2xl:px-4 py-1.5 2xl:py-2 rounded-full shadow-sm"
-                            whileHover={{ scale: 1.05 }}
-                        >
-                            <CreditCard className="w-4 h-4 2xl:w-5 2xl:h-5 text-blue-600" />
-                            {t('cta.trial.cancela')}
-                        </motion.span>
+        <section
+            id="seccion-planes"
+            ref={refReveal}
+            className={`flex flex-col lg:grid lg:grid-cols-2 lg:min-h-[calc(100vh-130px)] 2xl:min-h-[calc(100vh-160px)] landing-reveal ${esVisible ? 'visible' : ''}`}
+        >
+            {/* ═══ IZQUIERDA: Para Usuarios ═══ */}
+            <div className="lg:grid lg:grid-cols-[0.8fr_1.3fr] 2xl:grid-cols-[0.8fr_1.4fr]"
+                style={{ background: 'linear-gradient(to bottom, #eff6ff, #e0eaf5)' }}
+            >
+                {/* Imágenes — solo desktop */}
+                <div className="hidden lg:flex flex-col h-full overflow-hidden">
+                    <div className="flex-1 overflow-hidden group">
+                        <img src="/images/secciones/negocios_desktop.webp" alt="Negocios Desktop" className="w-full h-full object-cover group-hover:scale-110 duration-500" loading="lazy" />
                     </div>
-                    <p className="text-gray-500 text-xs 2xl:text-base max-w-lg mx-auto">
-                        {t('cta.trial.nota')}
+                    <div className="flex-1 overflow-hidden group">
+                        <img src="/images/secciones/negocios_mobile.webp" alt="Negocios Mobile" className="w-full h-full object-cover group-hover:scale-110 duration-500" loading="lazy" />
+                    </div>
+                </div>
+
+                {/* Info */}
+                <div className="p-6 lg:p-6 2xl:p-10 flex flex-col justify-center">
+                    <div className="mb-4 lg:mb-4 2xl:mb-6">
+                        <h2 className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold text-slate-900 tracking-tight">
+                            {t('cta.personal.titulo')}
+                        </h2>
+                        <div className="mt-1">
+                            <span className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold text-emerald-600">{t('cta.personal.precio')}</span>
+                            <span className="text-base lg:text-base 2xl:text-xl font-medium text-slate-600 ml-2">{t('cta.personal.siempre')}</span>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-2.5 lg:space-y-2.5 2xl:space-y-4 mb-5 lg:mb-5 2xl:mb-8">
+                        {Object.values(t('cta.personal.features', { returnObjects: true }) as Record<string, string>).map((feat, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                                <CheckCircle2 className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-emerald-600 shrink-0 mt-0.5" />
+                                <span className="text-base lg:text-base 2xl:text-xl font-medium text-slate-700">{feat}</span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <button
+                        onClick={() => navigate('/registro')}
+                        className="w-full lg:w-auto lg:self-start inline-flex items-center justify-center gap-2 px-6 py-2.5 lg:px-6 lg:py-2.5 2xl:px-10 2xl:py-3.5 rounded-full text-base lg:text-base 2xl:text-xl font-bold text-white bg-slate-800 border-2 border-slate-700 lg:cursor-pointer hover:bg-slate-600 hover:border-slate-500"
+                    >
+                        {t('cta.personal.boton')}
+                        <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
+                    </button>
+                </div>
+            </div>
+
+            {/* ═══ DERECHA: Para Comerciantes ═══ */}
+            <div className="lg:grid lg:grid-cols-[1.3fr_0.7fr] 2xl:grid-cols-[1.4fr_0.8fr]"
+                style={{ background: 'linear-gradient(to bottom, #0B358F 30%, #000000 80%)' }}
+            >
+                {/* Info comercial */}
+                <div className="p-6 lg:p-6 2xl:p-10 flex flex-col justify-center">
+                    <div className="mb-4 lg:mb-4 2xl:mb-6">
+                        <h2 className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold text-white tracking-tight">
+                            {t('cta.comercial.titulo')}
+                        </h2>
+                        <div className="mt-1 flex items-center gap-2 lg:gap-2 2xl:gap-3">
+                            <span className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">{t('cta.comercial.precio')}</span>
+                            <span className="px-2.5 py-0.5 lg:px-2.5 lg:py-0.5 2xl:px-3 2xl:py-1 bg-amber-500 text-white text-sm lg:text-sm 2xl:text-base font-bold rounded-full">{t('cta.comercial.badge')}</span>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-2.5 lg:space-y-2.5 2xl:space-y-4 mb-5 lg:mb-5 2xl:mb-8">
+                        {Object.values(t('cta.comercial.features', { returnObjects: true }) as Record<string, string>).map((feat, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                                <CheckCircle2 className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-amber-400 shrink-0 mt-0.5" />
+                                <span className={`text-base lg:text-base 2xl:text-xl font-medium ${i === 6 ? 'text-amber-300 font-semibold' : 'text-white/80'}`}>
+                                    {feat}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 lg:gap-4 mb-3 lg:mb-3 2xl:mb-4">
+                        <button
+                            onClick={() => navigate('/registro?plan=comercial')}
+                            className="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 lg:px-6 lg:py-2.5 2xl:px-10 2xl:py-3.5 rounded-full text-base lg:text-base 2xl:text-xl font-bold text-slate-900 bg-amber-400 border-2 border-amber-500 lg:cursor-pointer hover:bg-amber-300"
+                        >
+                            {t('cta.comercial.boton')}
+                            <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
+                        </button>
+                        <span className="text-xl lg:text-xl 2xl:text-3xl font-bold text-white">
+                            $449<span className="text-sm lg:text-sm 2xl:text-base font-medium text-white/50">{t('comerciantes.precio')}</span>
+                        </span>
+                    </div>
+
+                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-white/50">
+                        {t('cta.trial.cancela')}
                     </p>
-                </motion.div>
+                </div>
+
+                {/* Imagen ScanYA — solo desktop */}
+                <div className="hidden lg:block relative overflow-hidden group">
+                    <img src="/images/secciones/scanya.webp" alt="ScanYA" className="w-full h-full object-cover group-hover:scale-110 duration-500" loading="lazy" />
+                    <div className="absolute bottom-2 lg:bottom-2 2xl:bottom-4 left-1/2 -translate-x-1/2">
+                        <span className="flex items-center gap-1.5 px-3 lg:px-3 2xl:px-5 py-0.5 lg:py-0.5 2xl:py-1.5 bg-black/50 backdrop-blur-sm rounded-full text-sm lg:text-[11px] 2xl:text-base font-bold text-white whitespace-nowrap">
+                            <Star className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5" />
+                            {t('collage.scanya')}
+                        </span>
+                    </div>
+                </div>
             </div>
         </section>
     );
 }
 
 // =============================================================================
-// COMPONENTE: FOOTER
+// COMPONENTE: FOOTER — Responsivo
 // =============================================================================
 
 function FooterLanding() {
     const { t } = useTranslation('landing');
+
     return (
-        <footer className="bg-gray-950 text-white py-8 px-5 md:px-6 lg:px-12">
-            <div className="w-full max-w-[1200px] mx-auto">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-6">
-                    {/* Logo y descripción */}
-                    <div className="text-center md:text-left">
-                        <img
-                            src="/logo-anunciaya.webp"
-                            alt="AnunciaYA"
-                            className="h-12 mx-auto md:mx-0 mb-3"
-                        />
-                        <p className="text-gray-400 text-sm max-w-xs mx-auto md:mx-0">
-                            {t('footer.slogan')}
-                        </p>
-                    </div>
+        <footer className="hidden lg:block px-4 lg:px-7 2xl:px-8 lg:py-5 2xl:py-5 bg-black relative">
+            {/* Volver arriba */}
+            <button
+                onClick={() => {
+                    // Desktop: scroll del contenedor fijo. Móvil: scroll del window.
+                    document.querySelector('.fixed.overflow-y-auto')?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3 py-1 lg:px-4 lg:py-1 2xl:px-3.5 2xl:py-1 bg-slate-800 rounded-full border-2 border-slate-700 hover:bg-slate-600 lg:cursor-pointer shadow-md"
+            >
+                <ChevronDown className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 text-white/70 rotate-180" />
+                <span className="text-sm lg:text-sm 2xl:text-sm font-semibold text-white/70">{t('general.volverArriba')}</span>
+            </button>
 
-                    {/* Contáctanos + Redes */}
-                    <div className="text-center md:text-right">
-                        <p className="text-white font-semibold mb-3">{t('footer.contactanos')}</p>
-                        <div className="flex gap-3 justify-center md:justify-end">
-                            {/* Facebook */}
-                            <a
-                                href="https://facebook.com/anunciaya"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-11 h-11 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white transition-colors duration-150"
-                            >
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                                </svg>
-                            </a>
-                            {/* WhatsApp */}
-                            <a
-                                href="https://wa.me/526381234567"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-11 h-11 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center text-white transition-colors duration-150"
-                            >
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                </svg>
-                            </a>
-                        </div>
-                    </div>
-                </div>
+            <div className="flex items-center justify-between">
+                <img src="/logo-anunciaya-azul.webp" alt="AnunciaYA" className="h-8 lg:h-8 2xl:h-10" />
 
-                {/* Copyright */}
-                <div className="pt-5 border-t border-slate-800 text-center text-gray-500 text-xs">
+                <p className="text-sm lg:text-sm 2xl:text-sm font-medium text-white/80 text-center">
                     © {new Date().getFullYear()} {t('footer.derechos')}
+                </p>
+
+                <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4">
+                    <a href="https://wa.me/526381234567" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
+                        <img src="/whatsapp.webp" alt="WhatsApp" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                    </a>
+                    <a href="https://facebook.com/anunciaya" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
+                        <img src="/facebook.webp" alt="Facebook" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                    </a>
                 </div>
             </div>
         </footer>
@@ -1155,59 +574,35 @@ function FooterLanding() {
 }
 
 // =============================================================================
-// COMPONENTE PRINCIPAL
+// COMPONENTE PRINCIPAL — con auth completo
 // =============================================================================
 
 export default function PaginaLanding() {
     const navigate = useNavigate();
     const { loginExitoso, setDatosGooglePendiente } = useAuthStore();
-    const { cerrarModalLogin, abrirModal2FA } = useUiStore();
+    const { cerrarModalLogin, abrirModal2FA, abrirModalLogin } = useUiStore();
 
-    // =========================================================================
-    // HABILITAR SCROLL EN LANDING - SOLO MÓVIL
-    // (En desktop el scroll está en un div contenedor, no en body)
-    // =========================================================================
+    // Altura visible real del viewport (descuenta barra del navegador en móvil)
     useEffect(() => {
-        const esDesktop = window.innerWidth >= 1024;
-        
-        if (esDesktop) {
-            // Desktop: no necesitamos modificar body, el scroll está en el div contenedor
-            return;
-        }
-
-        // Móvil: habilitar scroll en body
-        const htmlOriginal = document.documentElement.style.cssText;
-        const bodyOriginal = document.body.style.cssText;
-
-        document.documentElement.style.overflow = 'auto';
-        document.documentElement.style.height = 'auto';
-        document.body.style.overflow = 'auto';
-        document.body.style.height = 'auto';
-
-        return () => {
-            document.documentElement.style.cssText = htmlOriginal;
-            document.body.style.cssText = bodyOriginal;
-        };
+        document.documentElement.style.setProperty('--altura-visible', `${window.innerHeight}px`);
+        return () => { document.documentElement.style.removeProperty('--altura-visible'); };
     }, []);
 
     // =========================================================================
-    // GOOGLE OAUTH
+    // GOOGLE OAUTH — Flujo completo (3 casos)
     // =========================================================================
 
     const handleGoogleSuccess = async (credential: string) => {
         try {
             const respuesta = await authService.loginConGoogle(credential);
 
-            if (respuesta.success&& respuesta.data) {
+            if (respuesta.success && respuesta.data) {
                 const datos = respuesta.data;
 
-                // Limpiar popups de Google primero
                 document.getElementById('google-signin-container')?.remove();
                 document.getElementById('google-signin-overlay')?.remove();
 
-                // CASO 1: Usuario nuevo → Guardar en store y redirigir
                 if ('usuarioNuevo' in datos && datos.usuarioNuevo === true) {
-                    // Guardar datos en el store (incluye el token de Google)
                     setDatosGooglePendiente({
                         googleIdToken: credential,
                         correo: datos.datosGoogle.email,
@@ -1215,19 +610,15 @@ export default function PaginaLanding() {
                         apellidos: datos.datosGoogle.apellidos || '',
                         avatar: datos.datosGoogle.avatar || null,
                     });
-
-                    // Redirigir sin query params
                     navigate('/registro');
                     return;
                 }
 
-                // CASO 2: Requiere 2FA → Abrir modal en vista 2FA
                 if ('requiere2FA' in datos && datos.requiere2FA === true) {
                     abrirModal2FA(datos.tokenTemporal!, datos.usuario?.correo || '');
                     return;
                 }
 
-                // CASO 3: Login exitoso (sin 2FA)
                 if ('usuario' in datos && datos.accessToken) {
                     loginExitoso(datos.usuario, datos.accessToken, datos.refreshToken);
                     cerrarModalLogin();
@@ -1236,15 +627,14 @@ export default function PaginaLanding() {
                     return;
                 }
 
-                // Si llegamos aquí, respuesta inesperada
                 notificar.error('Respuesta inesperada del servidor');
-
             } else {
                 notificar.error(respuesta.message || 'Error al iniciar sesión');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { mensaje?: string } } };
             console.error('Error en Google OAuth:', error);
-            notificar.error(error.response?.data?.mensaje || 'Error al iniciar sesión con Google');
+            notificar.error(err.response?.data?.mensaje || 'Error al iniciar sesión con Google');
         }
     };
 
@@ -1258,41 +648,35 @@ export default function PaginaLanding() {
 
         window.google.accounts.id.initialize({
             client_id: clientId,
-            callback: (response: { credential: string }) => {
+            callback: (response: Record<string, unknown>) => {
                 if (response.credential) {
-                    handleGoogleSuccess(response.credential);
+                    handleGoogleSuccess(response.credential as string);
                 }
             },
             use_fedcm_for_prompt: true,
         });
 
-        // En producción (HTTPS) usar mini-popup, en localhost usar botón renderizado
         const esProduccion = window.location.protocol === 'https:';
 
         if (esProduccion) {
-            // Mini-popup de FedCM (solo funciona con HTTPS)
             window.google.accounts.id.prompt();
         } else {
-            // Botón renderizado para localhost
             const container = document.createElement('div');
-            container.style.position = 'fixed';
-            container.style.top = '50%';
-            container.style.left = '50%';
-            container.style.transform = 'translate(-50%, -50%)';
-            container.style.zIndex = '9999';
-            container.style.background = 'white';
-            container.style.padding = '20px';
-            container.style.borderRadius = '12px';
-            container.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
             container.id = 'google-signin-container';
+            Object.assign(container.style, {
+                position: 'fixed', top: '50%', left: '50%',
+                transform: 'translate(-50%, -50%)', zIndex: '9999',
+                background: 'white', padding: '20px',
+                borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            });
             document.body.appendChild(container);
 
             const overlay = document.createElement('div');
-            overlay.style.position = 'fixed';
-            overlay.style.inset = '0';
-            overlay.style.background = 'rgba(0,0,0,0.5)';
-            overlay.style.zIndex = '9998';
             overlay.id = 'google-signin-overlay';
+            Object.assign(overlay.style, {
+                position: 'fixed', inset: '0',
+                background: 'rgba(0,0,0,0.5)', zIndex: '9998',
+            });
             overlay.onclick = () => {
                 document.getElementById('google-signin-container')?.remove();
                 document.getElementById('google-signin-overlay')?.remove();
@@ -1300,34 +684,33 @@ export default function PaginaLanding() {
             document.body.appendChild(overlay);
 
             window.google.accounts.id.renderButton(container, {
-                theme: 'outline',
-                size: 'large',
-                text: 'signin_with',
-                shape: 'rectangular',
-                width: 280,
+                theme: 'outline', size: 'large',
+                text: 'signin_with', shape: 'rectangular', width: 280,
             });
         }
     };
 
-    return (
-        <>
-            {/* Header fijo - siempre visible arriba */}
-            <NavbarLanding iniciarLoginGoogle={iniciarLoginGoogle} />
-            
-            {/* Contenido scrolleable - empieza debajo del header */}
-            <div 
-                className="fixed top-16 2xl:top-20 left-0 right-0 bottom-0 overflow-y-auto bg-white lg:block hidden"
-            >
-                <HeroSection iniciarLoginGoogle={iniciarLoginGoogle} />
-                <BeneficiosSection />
-                <CtaFinal />
-                <FooterLanding />
-            </div>
+    // =========================================================================
+    // RENDER
+    // =========================================================================
 
-            {/* Móvil - scroll normal del body */}
-            <main className="min-h-screen bg-white lg:hidden">
-                <HeroSection iniciarLoginGoogle={iniciarLoginGoogle} />
+    return (
+        <div
+            className="min-h-screen"
+            style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
+        >
+            <NavbarLanding iniciarLoginGoogle={iniciarLoginGoogle} />
+
+            {/* Contenedor scrolleable — móvil: desde top-0, desktop: desde top-10/12 */}
+            <main className="fixed top-0 lg:top-10 2xl:top-12 left-0 right-0 bottom-0 overflow-y-auto">
+                {/* Primera pantalla: hero + strip = exactamente la altura visible */}
+                <div className="flex flex-col h-(--altura-visible) lg:h-auto">
+                    <HeroSection abrirModalLogin={abrirModalLogin} />
+                    <StripCategorias />
+                </div>
+                <SeccionPlanes />
+                <FooterLanding />
             </main>
-        </>
+        </div>
     );
 }

@@ -2,17 +2,16 @@
  * Vista2FA.tsx
  * =============
  * Vista de verificación de dos factores.
- * Diseño compacto para móvil.
  *
  * Ubicación: apps/web/src/components/auth/vistas/Vista2FA.tsx
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, Key } from 'lucide-react';
+import { Key } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notificar } from '../../../utils/notificaciones';
-import { useAuthStore } from '../../../stores/useAuthStore';
+import { useAuthStore, type Usuario } from '../../../stores/useAuthStore';
 import authService from '../../../services/authService';
 import type { VistaAuth } from '../ModalLogin';
 
@@ -64,7 +63,7 @@ export function Vista2FA({
 
   // Login exitoso
   const handleLoginExitoso = useCallback(
-    (datos: { usuario: any; accessToken: string; refreshToken: string }) => {
+    (datos: { usuario: Usuario; accessToken: string; refreshToken: string }) => {
       setTokens(datos.accessToken, datos.refreshToken);
       setUsuario(datos.usuario);
       notificar.exito(t('dosFactor.exito'));
@@ -134,8 +133,8 @@ export function Vista2FA({
           setCodigoTOTP(['', '', '', '', '', '']);
           setTimeout(() => inputRefs.current[0]?.focus(), 100);
         }
-      } catch (error: any) {
-        notificar.error(error.response?.data?.mensaje || t('dosFactor.error'));
+      } catch {
+        notificar.error(t('dosFactor.error'));
         setCodigoTOTP(['', '', '', '', '', '']);
         setTimeout(() => inputRefs.current[0]?.focus(), 100);
       } finally {
@@ -162,8 +161,8 @@ export function Vista2FA({
         } else {
           notificar.error(response.message || t('dosFactor.respaldo.error'));
         }
-      } catch (error: any) {
-        notificar.error(error.response?.data?.mensaje || t('dosFactor.respaldo.error'));
+      } catch {
+        notificar.error(t('dosFactor.respaldo.error'));
       } finally {
         setCargando(false);
       }
@@ -173,27 +172,29 @@ export function Vista2FA({
 
   // Clases
   const getCodeInputClasses = (valor: string) => {
-    const base = 'w-10 h-12 text-center text-lg font-bold border-2 rounded-lg transition-colors focus:outline-none';
-    if (valor === '') return `${base} border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100`;
-    return `${base} border-green-500 focus:border-green-500`;
+    const base = 'w-10 h-12 text-center text-lg font-bold border-2 rounded-lg focus:outline-none bg-slate-100';
+    if (valor === '') return `${base} border-slate-300`;
+    return `${base} border-emerald-500`;
   };
 
+  const claseBotonSubmit = (valido: boolean) =>
+    `w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-white text-base lg:text-sm 2xl:text-base ${
+      valido && !cargando
+        ? 'bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 hover:shadow-slate-700/40 active:scale-[0.98] lg:cursor-pointer'
+        : 'bg-slate-400 cursor-not-allowed'
+    }`;
+
   return (
-    <div className="p-5">
-      {/* Header */}
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center">
-          <ShieldCheck className="w-5 h-5 text-white" />
-        </div>
-        <h2 className="text-lg font-bold text-gray-900">{t('dosFactor.titulo')}</h2>
-      </div>
+    <div className="p-6">
 
       {/* TOTP */}
       {subVista === 'totp' && (
         <form onSubmit={handleSubmitTOTP}>
-          <p className="text-sm text-gray-500 mb-4">{t('dosFactor.subtitulo')}</p>
+          <p className="text-base font-medium text-slate-600 mb-6">
+            {t('dosFactor.subtitulo')}
+          </p>
 
-          <div className="flex justify-center gap-1.5 mb-4" onPaste={handlePasteTOTP}>
+          <div className="flex justify-center gap-1.5 mb-6" onPaste={handlePasteTOTP}>
             {codigoTOTP.map((digito, index) => (
               <input
                 key={index}
@@ -212,20 +213,16 @@ export function Vista2FA({
           <button
             type="submit"
             disabled={!codigoTOTPValido || cargando}
-            className={`w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-colors ${
-              codigoTOTPValido && !cargando
-                ? 'bg-purple-500 hover:bg-purple-600 lg:cursor-pointer'
-                : 'bg-purple-300 cursor-not-allowed'
-            }`}
+            className={claseBotonSubmit(codigoTOTPValido)}
           >
             {cargando ? t('dosFactor.verificando') : t('dosFactor.boton')}
           </button>
 
-          <p className="mt-4 text-center">
+          <p className="mt-6 text-center">
             <button
               type="button"
               onClick={() => setSubVista('respaldo')}
-              className="text-sm text-purple-500 hover:underline lg:cursor-pointer"
+              className="text-base font-semibold text-blue-600 hover:underline lg:cursor-pointer"
             >
               {t('dosFactor.usarRespaldo')}
             </button>
@@ -236,46 +233,46 @@ export function Vista2FA({
       {/* Respaldo */}
       {subVista === 'respaldo' && (
         <form onSubmit={handleSubmitRespaldo}>
-          <p className="text-sm text-gray-500 mb-4">{t('dosFactor.respaldo.subtitulo')}</p>
+          <p className="text-base font-medium text-slate-600 mb-6">
+            {t('dosFactor.respaldo.subtitulo')}
+          </p>
 
-          <div className="mb-3">
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <div className="mb-6">
+            <label className="block text-base font-bold text-slate-700 mb-2">
               {t('dosFactor.respaldo.titulo')}
             </label>
-            <div className="relative">
-              <Key size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div
+              className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 border-slate-300"
+              style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+            >
+              <Key className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
               <input
                 type="text"
                 value={codigoRespaldo}
                 onChange={(e) => setCodigoRespaldo(e.target.value)}
                 placeholder={t('dosFactor.respaldo.placeholder')}
-                className="w-full pl-10 pr-4 py-2.5 border rounded-xl text-gray-900 placeholder-gray-400 text-sm focus:outline-none border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                 autoFocus
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">{t('dosFactor.respaldo.nota')}</p>
           </div>
 
           <button
             type="submit"
             disabled={!codigoRespaldoValido || cargando}
-            className={`w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-colors ${
-              codigoRespaldoValido && !cargando
-                ? 'bg-purple-500 hover:bg-purple-600 lg:cursor-pointer'
-                : 'bg-purple-300 cursor-not-allowed'
-            }`}
+            className={claseBotonSubmit(codigoRespaldoValido)}
           >
             {cargando ? t('dosFactor.verificando') : t('dosFactor.boton')}
           </button>
 
-          <p className="mt-4 text-center">
+          <p className="mt-6 text-center">
             <button
               type="button"
               onClick={() => {
                 setSubVista('totp');
                 setCodigoRespaldo('');
               }}
-              className="text-sm text-gray-500 hover:text-gray-700 lg:cursor-pointer"
+              className="text-base font-medium text-slate-600 hover:text-slate-800 lg:cursor-pointer"
             >
               ← {t('dosFactor.volverApp')}
             </button>
