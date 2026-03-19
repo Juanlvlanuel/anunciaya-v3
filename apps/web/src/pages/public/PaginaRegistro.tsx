@@ -18,7 +18,6 @@ import authService, {
   type RegistroInput,
   type DatosGoogleNuevo,
   type Usuario,
-  type RespuestaLoginGoogle,
 } from '@/services/authService';
 import pagoService from '@/services/pagoService';
 import { notificar } from '@/utils/notificaciones';
@@ -118,6 +117,7 @@ export function PaginaRegistro() {
   });
 
   const [cargando, setCargando] = useState(false);
+  const [tipoCuentaActiva, setTipoCuentaActiva] = useState<'personal' | 'comercial'>('personal');
 
   // Tokens temporales para personal (login después del modal)
   const [tokensTemporales, setTokensTemporales] = useState<TokensTemporales | null>(null);
@@ -357,9 +357,10 @@ export function PaginaRegistro() {
         } else {
           notificar.error(respuesta.message || 'Error al conectar con Google');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { mensaje?: string } } };
         console.error('Error en Google OAuth:', error);
-        notificar.error(error.response?.data?.mensaje || 'Error al conectar con Google');
+        notificar.error(err.response?.data?.mensaje || 'Error al conectar con Google');
       } finally {
         setCargando(false);
       }
@@ -541,15 +542,17 @@ export function PaginaRegistro() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-slate-100 lg:bg-white">
+    <div className="min-h-screen bg-slate-200 lg:bg-white">
       {/* Layout desktop: 2 columnas */}
       <div className="lg:grid lg:grid-cols-2 lg:h-screen">
         {/* Columna izquierda: Branding (solo desktop) */}
-        <BrandingColumn />
+        <BrandingColumn tipoCuenta={tipoCuentaActiva} />
 
         {/* Columna derecha: Formulario con scroll */}
-        <div className="lg:flex lg:items-center lg:justify-center lg:p-2 lg:py-2 2xl:p-8 lg:overflow-hidden lg:h-screen">
-          <div className="lg:scale-[0.80] 2xl:scale-100 lg:origin-center w-full">
+        <div className="lg:flex lg:items-center lg:justify-center lg:p-4 2xl:p-8 lg:overflow-y-auto lg:h-screen"
+            style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
+        >
+          <div className="w-full">
             <FormularioRegistro
               onSubmit={handleSubmitRegistro}
               onGoogleClick={handleGoogleClick}
@@ -558,10 +561,12 @@ export function PaginaRegistro() {
               googleIdToken={estado.datosGoogle?.googleIdToken}
               cargando={cargando}
               onAbrirLogin={abrirModalLogin}
+              onTipoCuentaCambio={setTipoCuentaActiva}
             />
           </div>
         </div>
       </div>
+
 
       {/* Modal: Verificación de email */}
       <ModalVerificacionEmail

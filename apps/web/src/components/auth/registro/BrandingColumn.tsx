@@ -2,161 +2,170 @@
  * BrandingColumn.tsx
  * ===================
  * Columna izquierda del registro en desktop.
- * Muestra logo, mensaje de bienvenida, badges y imagen hero.
+ * Arriba: Logo + texto de bienvenida (fijo).
+ * Abajo: Info de cuenta (izq) + imágenes (der) — cambia con el toggle.
  *
  * Ubicación: apps/web/src/components/auth/registro/BrandingColumn.tsx
  */
 
-import { Building2, Tag, MapPin, Shield, Zap } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+
+// =============================================================================
+// DATOS POR TIPO DE CUENTA
+// =============================================================================
+
+const DATOS_CUENTA = {
+    personal: {
+        imagenes: [
+            '/images/secciones/negocios_desktop.webp',
+            '/images/secciones/negocios_mobile.webp',
+        ],
+        colorCheck: 'text-emerald-600',
+        featuresKey: 'cta.personal.features',
+        tituloKey: 'cta.personal.titulo',
+        precioKey: 'cta.personal.precio',
+        colorPrecio: 'text-emerald-600',
+    },
+    comercial: {
+        imagenes: [
+            '/images/secciones/scanya.webp',
+        ],
+        colorCheck: 'text-amber-400',
+        featuresKey: 'cta.comercial.features',
+        tituloKey: 'cta.comercial.titulo',
+        precioKey: 'cta.comercial.precio',
+        colorPrecio: 'bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent',
+    },
+} as const;
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function BrandingColumn() {
-  return (
-    <div className="hidden lg:flex flex-col h-screen overflow-hidden">
-      {/* ===================================================================== */}
-      {/* PARTE SUPERIOR: Branding                                             */}
-      {/* ===================================================================== */}
-      <div className="flex-1 flex flex-col justify-center items-center bg-gradient-to-br from-blue-700 via-blue-600 to-blue-500 p-4 lg:p-6 xl:p-8 relative overflow-hidden">
-        {/* Elementos decorativos de fondo */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 -right-32 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl" />
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0)',
-              backgroundSize: '40px 40px',
-            }}
-          />
+interface BrandingColumnProps {
+    tipoCuenta?: 'personal' | 'comercial';
+}
+
+export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps) {
+    const { t } = useTranslation('landing');
+    const datos = DATOS_CUENTA[tipoCuenta];
+    const esComercial = tipoCuenta === 'comercial';
+
+    return (
+        <div className="hidden lg:flex flex-col h-screen overflow-hidden"
+            style={{ background: 'linear-gradient(to bottom, #0B358F 40%, #000000 80%)' }}
+        >
+            {/* ═══ PARTE SUPERIOR: Logo + Texto de bienvenida (fijo) ═══ */}
+            <div className="flex flex-col items-center justify-center px-6 lg:px-8 2xl:px-12 pt-8 lg:pt-20 2xl:pt-24 pb-4 lg:pb-3 2xl:pb-6">
+                {/* Logo */}
+                <Link to="/" className="mb-4 lg:mb-3 2xl:mb-6">
+                    <img
+                        src="/logo-anunciaya-blanco.webp"
+                        alt="AnunciaYA"
+                        className="h-16 lg:h-20 2xl:h-24 object-contain"
+                    />
+                </Link>
+
+                {/* Texto */}
+                <p className="text-lg lg:text-xl 2xl:text-2xl font-medium text-white/70 text-center">
+                    Únete y Gana{' '}
+                    <span className="font-extrabold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">
+                        Recompensas
+                    </span>
+                    {' '}por comprar
+                </p>
+                <p className="text-xl lg:text-2xl 2xl:text-3xl font-bold text-white text-center">
+                    en Negocios de tu Comunidad.
+                </p>
+            </div>
+
+            {/* ═══ PARTE INFERIOR: Imágenes (izq) + Info (der) — dinámico ═══ */}
+            <div className="grid grid-cols-[1fr_1.2fr] 2xl:grid-cols-[1fr_1.3fr] min-h-0 h-[55%] 2xl:h-[60%] mt-auto">
+                {/* Imágenes */}
+                <div className="flex flex-col h-full">
+                    {datos.imagenes.map((src, i) => (
+                        <div key={i} className="flex-1 overflow-hidden group">
+                            <img
+                                src={src}
+                                alt=""
+                                className="w-full h-full object-cover group-hover:scale-110 duration-500"
+                                loading="lazy"
+                            />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Info de cuenta */}
+                <div className="flex flex-col justify-start pt-6 lg:pt-4 2xl:pt-8 px-6 lg:px-5 2xl:px-8">
+                    {/* Título */}
+                    <h2 className="text-3xl lg:text-2xl 2xl:text-4xl font-extrabold text-white tracking-tight">
+                        {t(datos.tituloKey)}
+                    </h2>
+
+                    {/* Precio */}
+                    <div className="mt-1">
+                        {esComercial ? (
+                            <div className="flex items-center gap-2">
+                                <span className={`text-3xl lg:text-2xl 2xl:text-4xl font-extrabold ${datos.colorPrecio}`}>
+                                    {t(datos.precioKey)}
+                                </span>
+                                <span className="px-3 py-0.5 bg-amber-500 text-white text-sm lg:text-sm 2xl:text-base font-bold rounded-full">
+                                    {t('cta.comercial.badge')}
+                                </span>
+                            </div>
+                        ) : (
+                            <div>
+                                <span className={`text-3xl lg:text-2xl 2xl:text-4xl font-extrabold ${datos.colorPrecio}`}>
+                                    {t(datos.precioKey)}
+                                </span>
+                                <span className="text-lg lg:text-base 2xl:text-xl font-medium text-white/60 ml-2">
+                                    {t('cta.personal.siempre')}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Features */}
+                    <ul className="mt-5 lg:mt-4 2xl:mt-6 space-y-2.5 lg:space-y-2 2xl:space-y-3">
+                        {Object.values(t(datos.featuresKey, { returnObjects: true }) as Record<string, string>).map((feat, i) => (
+                            <li key={i} className="flex items-start gap-2.5">
+                                <CheckCircle2 className={`w-5 h-5 2xl:w-6 2xl:h-6 ${datos.colorCheck} shrink-0 mt-0.5`} />
+                                <span className={`text-base lg:text-sm 2xl:text-base font-medium ${esComercial && i === 6 ? 'text-amber-300 font-semibold' : 'text-white/80'}`}>
+                                    {feat}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    {/* Extra info */}
+                    {esComercial ? (
+                        <div className="mt-4 lg:mt-3 2xl:mt-5 pt-4 lg:pt-3 2xl:pt-5 border-t border-white/15">
+                            <span className="text-3xl lg:text-2xl 2xl:text-4xl font-bold text-white">
+                                $449<span className="text-lg lg:text-base 2xl:text-xl font-medium text-white/50">/mes</span>
+                            </span>
+                            <p className="text-base lg:text-sm 2xl:text-base font-medium text-white/50 mt-1">
+                                {t('cta.trial.cancela')}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-4 lg:gap-3 2xl:gap-5 mt-4 lg:mt-3 2xl:mt-5 pt-4 lg:pt-3 2xl:pt-5 border-t border-white/15">
+                            <img src="/CardYA.webp" alt="CardYA" className="h-20 lg:h-18 2xl:h-28 w-auto drop-shadow-xl" />
+                            <div className="flex flex-col">
+                                <span className="text-lg lg:text-base 2xl:text-xl font-extrabold text-white leading-tight">
+                                    Una tarjeta
+                                </span>
+                                <span className="text-base lg:text-sm 2xl:text-lg font-bold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent leading-tight">
+                                    Múltiples recompensas
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
-
-        <div className="relative z-10 text-center">
-          {/* Logo (más pequeño en laptop, normal en xl+) */}
-          <Link to="/" className="flex justify-center mb-3 lg:mb-4 xl:mb-16 group">
-            <img
-              src="/logo-anunciaya-blanco.webp"
-              alt="AnunciaYA"
-              className="h-12 lg:h-16 xl:h-20 2xl:h-24 object-contain transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]"
-            />
-          </Link>
-
-          {/* Texto: Únete a la comunidad local más grande de México */}
-          <p className="text-sm lg:text-base xl:text-lg 2xl:text-xl text-blue-100 mb-0.5 lg:mb-1">
-            Únete y Gana Recompensas por comprar
-          </p>
-          <p className="text-base lg:text-lg xl:text-xl 2xl:text-2xl font-bold text-white mb-3 lg:mb-4 xl:mb-6 2xl:mb-8">
-            en Negocios Locales de tu Comunidad.
-          </p>
-
-          {/* 3 Badges de beneficios (más pequeños en laptop) */}
-          <div className="flex justify-center gap-1.5 lg:gap-2 2xl:gap-3 flex-wrap">
-            <Badge color="green" icon={<Shield className="w-3 h-3 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />} text="Sin comisiones" />
-            <Badge color="blue" icon={<MapPin className="w-3 h-3 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />} text="100% Local" />
-            <Badge color="orange" icon={<Zap className="w-3 h-3 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />} text="Fácil de usar" />
-          </div>
-        </div>
-      </div>
-
-      {/* ===================================================================== */}
-      {/* PARTE INFERIOR: Imagen Hero con Cards Flotantes                      */}
-      {/* ===================================================================== */}
-      <div className="flex-1 relative overflow-hidden">
-        {/* Imagen de fondo */}
-        <img
-          src="/images/registro-hero.webp"
-          alt="Comunidad AnunciaYA"
-          className="w-full h-full object-cover"
-        />
-
-        {/* Overlay oscuro para contraste */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/30 to-transparent" />
-
-        {/* Cards flotantes */}
-        <FloatingCard
-          className="top-[35%] left-[30%] animate-float-1"
-          icon={<Building2 className="w-5 h-5 text-white" />}
-          iconBg="bg-orange-500"
-          title="Tacos El Güero"
-          subtitle="⭐ 4.8 · Comida"
-        />
-
-        <FloatingCard
-          className="top-[45%] right-[8%] animate-float-2"
-          icon={<Tag className="w-5 h-5 text-white" />}
-          iconBg="bg-green-500"
-          title="-30% Hoy"
-          subtitle="Farmacia del Pueblo"
-        />
-
-        <FloatingCard
-          className="bottom-[15%] left-[15%] animate-float-3"
-          icon={<MapPin className="w-5 h-5 text-white" />}
-          iconBg="bg-blue-500"
-          title="A 500m de ti"
-          subtitle="12 negocios cerca"
-        />
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// COMPONENTES AUXILIARES
-// =============================================================================
-
-interface BadgeProps {
-  color: 'green' | 'blue' | 'orange';
-  icon: React.ReactNode;
-  text: string;
-}
-
-function Badge({ color, icon, text }: BadgeProps) {
-  const colors = {
-    green: 'bg-green-50 border-green-200 text-green-700',
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
-  };
-
-  const iconColors = {
-    green: 'text-green-600',
-    blue: 'text-blue-600',
-    orange: 'text-orange-600',
-  };
-
-  return (
-    <div className={`flex items-center gap-1.5 lg:gap-2 ${colors[color]} border px-2 py-1.5 lg:px-3 lg:py-2 2xl:px-4 2xl:py-2.5 rounded-full`}>
-      <span className={iconColors[color]}>{icon}</span>
-      <span className="text-[10px] lg:text-xs 2xl:text-sm font-semibold">{text}</span>
-    </div>
-  );
-}
-
-interface FloatingCardProps {
-  className?: string;
-  icon: React.ReactNode;
-  iconBg: string;
-  title: string;
-  subtitle: string;
-}
-
-function FloatingCard({ className, icon, iconBg, title, subtitle }: FloatingCardProps) {
-  return (
-    <div
-      className={`absolute bg-white/15 backdrop-blur-md border border-white/20 rounded-xl lg:rounded-2xl p-2 lg:p-3 flex items-center gap-2 lg:gap-3 ${className}`}
-    >
-      <div className={`w-8 h-8 lg:w-10 lg:h-10 ${iconBg} rounded-lg lg:rounded-xl flex items-center justify-center`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-white text-xs lg:text-sm font-semibold">{title}</p>
-        <p className="text-white/60 text-[10px] lg:text-xs">{subtitle}</p>
-      </div>
-    </div>
-  );
+    );
 }
 
 export default BrandingColumn;

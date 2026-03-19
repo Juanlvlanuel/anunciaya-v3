@@ -37,6 +37,7 @@ interface FormularioRegistroProps {
   googleIdToken?: string;
   cargando: boolean;
   onAbrirLogin: () => void;
+  onTipoCuentaCambio?: (tipo: TipoCuenta) => void;
 }
 
 interface EstadoFormulario {
@@ -93,6 +94,7 @@ export function FormularioRegistro({
   googleIdToken,
   cargando,
   onAbrirLogin,
+  onTipoCuentaCambio,
 }: FormularioRegistroProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -368,19 +370,15 @@ export function FormularioRegistro({
   return (
     <div className="w-full">
       {/* ===================================================================== */}
-      {/* HEADER MÓVIL - Con franja azul oscura arriba                         */}
+      {/* HEADER MÓVIL — Estilo landing (azul oscuro → negro)                  */}
       {/* ===================================================================== */}
       <div className="lg:hidden">
-        {/* Franja azul oscura superior (status bar area) */}
-        <div className="bg-blue-900 h-3" />
-
-        {/* Contenido del header con gradiente */}
-        <div className="bg-linear-to-br from-blue-700 to-blue-500 px-4 pt-4 pb-16">
-          {/* Barra superior: Botón atrás + Logo - Izquierda */}
-          <div className="flex items-center justify-center relative mb-8">
+        <div className="px-4 pt-4 pb-14" style={{ background: 'linear-gradient(to bottom, #0B358F 40%, #000000 80%)' }}>
+          {/* Barra superior: Botón atrás + Logo */}
+          <div className="flex items-center justify-center relative mb-6">
             <button
               onClick={handleVolver}
-              className="absolute left-0 w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+              className="absolute left-0 w-10 h-10 flex items-center justify-center rounded-full bg-white/10"
             >
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
@@ -391,20 +389,16 @@ export function FormularioRegistro({
             />
           </div>
 
-          {/* Título con icono - Centrado */}
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <h1 className="text-3xl font-extrabold text-white">
-              "Bienvenido"
-            </h1>
-          </div>
-
-          {/* Subtítulo - Centrado */}
+          {/* Título */}
           <div className="text-center">
-            <p className="text-blue-100 text-2x1 leading-relaxed">
-              Únete y Gana recompensas por comprar en
-            </p>
-            <p className="text-white font-bold text-xl">
-              Negocios Locales.
+            <h1 className="text-2xl font-extrabold text-white mb-1">
+              Únete y gana{' '}
+              <span className="bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">
+                recompensas
+              </span>
+            </h1>
+            <p className="text-base font-medium text-white/60">
+              comprando en Negocios de tu comunidad.
             </p>
           </div>
         </div>
@@ -413,12 +407,12 @@ export function FormularioRegistro({
       {/* ===================================================================== */}
       {/* CARD DEL FORMULARIO - 600px centrada                                 */}
       {/* ===================================================================== */}
-      <div className="bg-white rounded-t-3xl lg:rounded-2xl -mt-10 lg:mt-0 mx-3 lg:mx-auto p-4 lg:p-3 2xl:p-6 shadow-xl lg:shadow-lg lg:max-w-[480px] 2xl:max-w-[600px] lg:w-full relative z-10">
+      <div className="bg-white rounded-t-3xl lg:rounded-2xl -mt-10 lg:mt-0 mx-3 lg:mx-auto p-4 lg:p-5 2xl:p-6 shadow-xl lg:shadow-lg lg:max-w-[480px] 2xl:max-w-[600px] lg:w-full relative z-10">
 
-        {/* Header desktop - Alineado a la izquierda */}
+        {/* Header desktop */}
         <div className="hidden lg:flex items-center gap-2 mb-2 2xl:mb-5">
-          <div className="flex items-center justify-center w-8 h-8 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg lg:rounded-xl shadow-lg shadow-blue-500/30">
-            <User className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+          <div className="flex items-center justify-center w-8 h-8 2xl:w-10 2xl:h-10 rounded-full bg-linear-to-b from-slate-600 to-slate-800">
+            <User className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
           </div>
           <h2 className="text-base lg:text-lg 2xl:text-xl font-extrabold text-slate-900">Registra tu cuenta</h2>
         </div>
@@ -426,31 +420,31 @@ export function FormularioRegistro({
         {/* ------------------------------------------------------------------- */}
         {/* TOGGLE PERSONAL/COMERCIAL - Con iconos y color naranja              */}
         {/* ------------------------------------------------------------------- */}
-        <div className="bg-slate-100 rounded-lg lg:rounded-xl p-1 flex relative mb-2 2xl:mb-4 shadow-inner">
-          {/* Indicador deslizante - Azul para Personal, Naranja para Comercial */}
+        <div className="bg-slate-200 rounded-lg p-1 flex relative mb-2 2xl:mb-4">
+          {/* Indicador deslizante — dark gradient */}
           <div
-            className={`absolute top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-lg shadow-lg transition-all duration-300 ${tipoCuenta === 'comercial'
-              ? 'translate-x-[calc(100%+4px)] bg-linear-to-r from-orange-500 to-orange-600'
-              : 'translate-x-0 bg-linear-to-r from-blue-600 to-blue-700'
-              }`}
+            className={`absolute top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-lg transition-all duration-300 ${tipoCuenta === 'comercial'
+              ? 'translate-x-[calc(100%+4px)]'
+              : 'translate-x-0'
+              } bg-linear-to-r from-slate-700 to-slate-800 shadow-lg shadow-slate-700/30`}
           />
 
           {/* Botón Personal */}
           <button
             type="button"
-            onClick={() => setTipoCuenta('personal')}
-            className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-3 2xl:px-4 rounded-lg text-sm font-semibold z-10 transition-colors flex items-center justify-center gap-1.5 lg:cursor-pointer ${tipoCuenta === 'personal' ? 'text-white' : 'text-slate-500'
+            onClick={() => { setTipoCuenta('personal'); onTipoCuentaCambio?.('personal'); }}
+            className={`flex-1 h-10 lg:h-9 2xl:h-10 px-4 lg:px-3 2xl:px-4 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold z-10 flex items-center justify-center gap-1.5 lg:cursor-pointer ${tipoCuenta === 'personal' ? 'text-white' : 'text-slate-600'
               }`}
           >
-            <User className="w-5 h-5" />
+            <User className="w-4 h-4" />
             Personal
           </button>
 
           {/* Botón Comercial */}
           <button
             type="button"
-            onClick={() => setTipoCuenta('comercial')}
-            className={`flex-1 py-1.5 lg:py-2 2xl:py-2.5 px-2 lg:px-3 2xl:px-4 rounded-lg text-sm font-semibold z-10 transition-colors flex items-center justify-center gap-1.5 lg:cursor-pointer ${tipoCuenta === 'comercial' ? 'text-white' : 'text-slate-500'
+            onClick={() => { setTipoCuenta('comercial'); onTipoCuentaCambio?.('comercial'); }}
+            className={`flex-1 h-10 lg:h-9 2xl:h-10 px-4 lg:px-3 2xl:px-4 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold z-10 flex items-center justify-center gap-1.5 lg:cursor-pointer ${tipoCuenta === 'comercial' ? 'text-white' : 'text-slate-600'
               }`}
           >
             <Building2 className="w-5 h-5" />
@@ -459,22 +453,21 @@ export function FormularioRegistro({
         </div>
 
         {tipoCuenta === 'comercial' && (
-          <div className="bg-linear-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-2 lg:p-2.5 2xl:p-3 mb-2 lg:mb-2.5 2xl:mb-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 lg:w-20 lg:h-20 bg-orange-200/30 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="flex items-center justify-between relative z-10">
+          <div className="bg-amber-100 border-2 border-amber-300 rounded-lg p-1.5 lg:p-2 2xl:p-2.5 mb-2 lg:mb-2 2xl:mb-3">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg lg:text-lg 2xl:text-xl font-extrabold text-orange-700">
+                <p className="text-lg lg:text-lg 2xl:text-xl font-extrabold text-slate-800">
                   ${PRECIO_COMERCIAL}
-                  <span className="text-sm lg:text-sm font-medium text-orange-600">/mes</span>
+                  <span className="text-sm lg:text-sm font-medium text-slate-600">/mes</span>
                 </p>
-                <p className="text-[11px] lg:text-xs text-orange-600">IVA incluido</p>
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">IVA incluido</p>
               </div>
               <div className="text-right">
-                <span className="bg-linear-to-r from-green-500 to-emerald-500 text-white text-[11px] lg:text-xs font-bold px-2 lg:px-2.5 2xl:px-3 py-1 lg:py-1.5 rounded-full shadow-sm flex items-center gap-1">
+                <span className="bg-amber-500 text-white text-sm lg:text-[11px] 2xl:text-sm font-bold px-2.5 lg:px-2.5 2xl:px-3 py-1 lg:py-1 2xl:py-1.5 rounded-full flex items-center gap-1">
                   <Check className="w-3 h-3" />
                   7 días gratis
                 </span>
-                <p className="text-[11px] lg:text-[11px] text-orange-500 mt-0.5 lg:mt-1">Se cobra al día 8</p>
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-0.5 lg:mt-1">Se cobra al día 8</p>
               </div>
             </div>
           </div>
@@ -542,17 +535,23 @@ export function FormularioRegistro({
 
             {/* Teléfono con lada */}
             <div>
-              <label className="block text-[12px] lg:text-[11px] 2xl:text-xs font-semibold text-slate-600 mb-0.5 lg:mb-1 2xl:mb-1.5">
+              <label className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 lg:mb-0.5 2xl:mb-1.5">
                 Teléfono personal
               </label>
-              <div className="flex gap-1.5">
+              <div className={`flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg border-2 ${
+                validacion.telefono === null
+                  ? 'border-slate-300'
+                  : validacion.telefono
+                    ? 'border-emerald-500 bg-emerald-100'
+                    : 'border-red-500 bg-red-100'
+              }`} style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
                 {/* Selector de lada */}
-                <div className="relative" style={{ width: '80px' }}>
+                <div className="relative shrink-0">
                   <select
                     value={formulario.lada}
                     onChange={handleChange('lada')}
                     disabled={cargando}
-                    className="w-full h-full px-1.5 lg:px-2 pr-4 lg:pr-5 py-3 lg:py-2 2xl:py-3 bg-slate-50 border-2 border-slate-200 rounded-lg lg:rounded-xl text-[14px] lg:text-sm font-medium appearance-none cursor-pointer focus:border-blue-500 focus:outline-none transition-colors disabled:opacity-50"
+                    className="w-20 lg:w-18 2xl:w-20 h-full px-2 lg:px-1.5 2xl:px-2 pr-5 bg-transparent text-base lg:text-sm 2xl:text-base font-medium text-slate-800 appearance-none cursor-pointer focus:outline-none disabled:opacity-50 border-r-2 border-slate-300"
                   >
                     {LADAS.map((lada) => (
                       <option key={lada.codigo} value={lada.codigo}>
@@ -560,26 +559,19 @@ export function FormularioRegistro({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600 pointer-events-none" />
                 </div>
 
                 {/* Input teléfono */}
-                <div className="flex-1 relative">
-                  <input
-                    type="tel"
-                    placeholder="638 123 4567"
-                    value={formulario.telefono}
-                    onChange={handleChange('telefono')}
-                    onBlur={handleBlur('telefono')}
-                    disabled={cargando}
-                    className={`w-full px-2 lg:px-2.5 2xl:px-3 py-3 lg:py-2 2xl:py-3 bg-slate-50 border-2 rounded-lg lg:rounded-xl text-sm font-medium focus:outline-none transition-all disabled:opacity-50 ${validacion.telefono === null
-                      ? 'border-slate-200 focus:border-blue-500'
-                      : validacion.telefono
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-red-500 bg-red-50'
-                      }`}
-                  />
-                </div>
+                <input
+                  type="tel"
+                  placeholder="638 123 4567"
+                  value={formulario.telefono}
+                  onChange={handleChange('telefono')}
+                  onBlur={handleBlur('telefono')}
+                  disabled={cargando}
+                  className="flex-1 h-full px-3 lg:px-2.5 2xl:px-3 bg-transparent text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
+                />
               </div>
             </div>
           </div>
@@ -610,12 +602,12 @@ export function FormularioRegistro({
                     <button
                       type="button"
                       onClick={() => setMostrarContrasena(!mostrarContrasena)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 lg:cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-800 lg:cursor-pointer"
                     >
                       {mostrarContrasena ? (
-                        <EyeOff className="w-4 h-4" />
+                        <EyeOff className="w-5 h-5" />
                       ) : (
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-5 h-5" />
                       )}
                     </button>
                   }
@@ -640,12 +632,12 @@ export function FormularioRegistro({
                     <button
                       type="button"
                       onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 lg:cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-800 lg:cursor-pointer"
                     >
                       {mostrarConfirmar ? (
-                        <EyeOff className="w-4 h-4" />
+                        <EyeOff className="w-5 h-5" />
                       ) : (
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-5 h-5" />
                       )}
                     </button>
                   }
@@ -653,7 +645,7 @@ export function FormularioRegistro({
               </div>
 
               {/* Requisitos de contraseña - Grid 2x2 */}
-              <div className="grid grid-cols-2 gap-1 lg:gap-0.5 2xl:gap-1">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 lg:gap-2 2xl:gap-3">
                 <PasswordRequirement met={validacion.contrasena.longitud} text="8+ caracteres" />
                 <PasswordRequirement met={validacion.contrasena.mayuscula} text="1 mayúscula" />
                 <PasswordRequirement met={validacion.contrasena.minuscula} text="1 minúscula" />
@@ -686,24 +678,24 @@ export function FormularioRegistro({
           {/* Checkbox términos */}
           <div
             onClick={handleToggleTerminos}
-            className={`flex items-start gap-2 lg:gap-2.5 2xl:gap-3 p-2.5 lg:p-2.5 xl:p-3 rounded-xl border-2 cursor-pointer transition-all ${formulario.aceptaTerminos
-              ? 'bg-blue-50 border-blue-500'
-              : 'bg-slate-50 border-transparent hover:bg-slate-100'
+            className={`flex items-start gap-2 lg:gap-2.5 2xl:gap-3 p-2.5 lg:p-2.5 2xl:p-3 rounded-xl border-2 cursor-pointer ${formulario.aceptaTerminos
+              ? 'bg-slate-200 border-slate-400'
+              : 'bg-slate-100 border-transparent hover:bg-slate-200'
               }`}
           >
             <div
-              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${formulario.aceptaTerminos
-                ? 'bg-blue-600 border-blue-600'
+              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 ${formulario.aceptaTerminos
+                ? 'bg-slate-800 border-slate-800'
                 : 'border-slate-300 bg-white'
                 }`}
             >
               {formulario.aceptaTerminos && <Check className="w-3 h-3 text-white" />}
             </div>
-            <label className="text-xs text-slate-600 leading-relaxed cursor-pointer">
+            <label className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium leading-relaxed cursor-pointer">
               Acepto los{' '}
               <a
                 href="/terminos"
-                className="text-blue-600 font-semibold hover:underline"
+                className="text-slate-800 font-bold hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 Términos
@@ -711,7 +703,7 @@ export function FormularioRegistro({
               y{' '}
               <a
                 href="/privacidad"
-                className="text-blue-600 font-semibold hover:underline"
+                className="text-slate-800 font-bold hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 Privacidad
@@ -723,7 +715,12 @@ export function FormularioRegistro({
           <button
             type="submit"
             disabled={!esFormularioValido() || cargando}
-            className="w-full py-3 lg:py-2.5 2xl:py-3.5 bg-linear-to-r from-blue-600 to-blue-700 text-white font-bold text-sm lg:text-sm rounded-lg lg:rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all lg:cursor-pointer"          >
+            className={`w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base lg:cursor-pointer ${
+              esFormularioValido() && !cargando
+                ? 'bg-linear-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 hover:shadow-slate-700/40 active:scale-[0.98]'
+                : 'bg-slate-400 text-white cursor-not-allowed'
+            }`}
+          >
             {cargando ? (
               <span className="flex items-center justify-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -739,10 +736,10 @@ export function FormularioRegistro({
           {/* Divider */}
           {!datosGoogle && (
             <>
-              <div className="flex items-center gap-2 lg:gap-3 my-2 lg:my-2.5 2xl:my-3">
-                <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-sm text-slate-400 font-medium">o continúa con</span>
-                <div className="flex-1 h-px bg-slate-200" />
+              <div className="flex items-center gap-2 lg:gap-3 my-1 lg:my-1 2xl:my-1.5">
+                <div className="flex-1 h-px bg-slate-300" />
+                <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">o continúa con</span>
+                <div className="flex-1 h-px bg-slate-300" />
               </div>
 
               {/* Botón Google */}
@@ -750,7 +747,7 @@ export function FormularioRegistro({
                 type="button"
                 onClick={onGoogleClick}
                 disabled={cargando}
-                className="w-full py-3 bg-white border-2 border-slate-200 rounded-xl font-semibold text-sm text-slate-700 flex items-center justify-center gap-2.5 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-all lg:cursor-pointer"
+                className="w-full h-11 lg:h-10 2xl:h-11 bg-white border-2 border-slate-300 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base text-slate-700 flex items-center justify-center gap-2.5 hover:bg-slate-200 disabled:opacity-50 lg:cursor-pointer"
               >
                 <GoogleIcon />
                 Google
@@ -759,12 +756,12 @@ export function FormularioRegistro({
           )}
 
           {/* Link login */}
-          <p className="text-center text-sm text-slate-500 mt-3">
+          <p className="text-center text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-1.5 lg:mt-1 2xl:mt-1.5 font-medium">
             ¿Ya tienes cuenta?{' '}
             <button
               type="button"
               onClick={onAbrirLogin}
-              className="text-blue-600 font-semibold hover:underline lg:cursor-pointer"
+              className="text-slate-800 font-bold hover:underline lg:cursor-pointer"
             >
               Inicia sesión
             </button>
@@ -808,14 +805,14 @@ function InputField({
 }: InputFieldProps) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-600 mb-1.5">{label}</label>
+      <label className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 lg:mb-0.5 2xl:mb-1.5">{label}</label>
       <div className="relative">
         <span
-          className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${isValid === null
-            ? 'text-slate-400'
+          className={`absolute left-3 lg:left-2.5 2xl:left-3 top-1/2 -translate-y-1/2 ${isValid === null
+            ? 'text-slate-600'
             : isValid
-              ? 'text-green-500'
-              : 'text-red-500'
+              ? 'text-emerald-600'
+              : 'text-red-600'
             }`}
         >
           {icon}
@@ -827,17 +824,18 @@ function InputField({
           onChange={onChange}
           onBlur={onBlur}
           disabled={disabled}
-          className={`w-full pl-10 pr-10 py-3 bg-slate-50 border-2 rounded-xl text-sm font-medium focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${isValid === null
-            ? 'border-slate-200 focus:border-blue-500 focus:bg-white'
+          className={`w-full h-11 lg:h-10 2xl:h-11 pl-10 lg:pl-9 2xl:pl-10 pr-10 bg-slate-100 border-2 rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isValid === null
+            ? 'border-slate-300 focus:border-slate-500'
             : isValid
-              ? 'border-green-500 bg-green-50'
-              : 'border-red-500 bg-red-50'
+              ? 'border-emerald-500 bg-emerald-100'
+              : 'border-red-500 bg-red-100'
             }`}
+          style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
         />
         {rightElement}
       </div>
       {isValid === false && errorMessage && (
-        <p className="text-xs text-red-500 mt-1">{errorMessage}</p>
+        <p className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-medium mt-1">{errorMessage}</p>
       )}
     </div>
   );
@@ -847,12 +845,12 @@ function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <div
-        className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${met ? 'bg-green-500' : 'border border-slate-300 bg-white'
+        className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${met ? 'bg-emerald-600' : 'border-2 border-slate-300 bg-white'
           }`}
       >
         {met && <Check className="w-2.5 h-2.5 text-white" />}
       </div>
-      <span className={`text-xs ${met ? 'text-green-600 font-medium' : 'text-slate-400'}`}>
+      <span className={`text-sm lg:text-[11px] 2xl:text-sm font-medium ${met ? 'text-emerald-600' : 'text-slate-600'}`}>
         {text}
       </span>
     </div>
