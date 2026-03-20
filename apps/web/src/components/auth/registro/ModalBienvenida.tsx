@@ -1,8 +1,8 @@
 /**
  * ModalBienvenida.tsx
  * ====================
- * Modal informativo post-registro que prepara al usuario para el onboarding.
- * Tiene 2 variantes: Personal y Comercial.
+ * Modal informativo post-registro con 2 variantes (Personal y Comercial).
+ * Estilo unificado con la landing page.
  *
  * Ubicación: apps/web/src/components/auth/registro/ModalBienvenida.tsx
  */
@@ -14,11 +14,11 @@ import { Check, Edit3, TrendingUp, ArrowRight, Home, Search, Tag, MapPin } from 
 // =============================================================================
 
 interface ModalBienvenidaProps {
-  isOpen: boolean;
-  tipo: 'personal' | 'comercial';
-  nombre: string;
-  onCompletarPerfil?: () => void;
-  onIrAlInicio: () => void;
+    isOpen: boolean;
+    tipo: 'personal' | 'comercial';
+    nombre: string;
+    onCompletarPerfil?: () => void;
+    onIrAlInicio: () => void;
 }
 
 // =============================================================================
@@ -26,195 +26,167 @@ interface ModalBienvenidaProps {
 // =============================================================================
 
 export function ModalBienvenida({
-  isOpen,
-  tipo,
-  nombre,
-  onCompletarPerfil,
-  onIrAlInicio,
+    isOpen,
+    tipo,
+    nombre,
+    onCompletarPerfil,
+    onIrAlInicio,
 }: ModalBienvenidaProps) {
-  if (!isOpen) return null;
+    if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop con gradiente suave */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-blue-100" />
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Backdrop */}
+            <div className="absolute inset-0"
+                style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
+            />
 
-      {/* Modal */}
-      <div className="relative w-full max-w-lg mx-4 bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-        {/* Header con check verde */}
-        <div className="px-8 pt-10 pb-6 text-center">
-          {/* Icono check verde con círculo */}
-          <div className="relative inline-flex items-center justify-center mb-5">
-            <div className="w-20 h-20 rounded-full border-4 border-emerald-500 flex items-center justify-center bg-emerald-50">
-              <Check className="w-10 h-10 text-emerald-500 stroke-[3]" />
+            {/* Modal */}
+            <div className="relative w-full max-w-lg mx-4 bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="px-5 lg:px-6 2xl:px-8 pt-4 lg:pt-8 2xl:pt-10 pb-2 lg:pb-4 2xl:pb-6 text-center">
+                    {/* Check verde */}
+                    <div className="inline-flex items-center justify-center mb-2 lg:mb-4 2xl:mb-5">
+                        <div className="w-12 h-12 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20 rounded-full border-4 border-emerald-600 flex items-center justify-center bg-emerald-100">
+                            <Check className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-emerald-600 stroke-3" />
+                        </div>
+                    </div>
+
+                    {/* Línea decorativa */}
+                    <div className="flex items-center justify-center gap-1.5 mb-2 lg:mb-4 2xl:mb-5">
+                        <div className="w-8 lg:w-10 h-1 bg-slate-800 rounded-full" />
+                        <div className="w-2 lg:w-2.5 h-1 bg-slate-400 rounded-full" />
+                    </div>
+
+                    {/* Texto */}
+                    <h3 className="text-lg lg:text-xl 2xl:text-2xl font-extrabold text-slate-900 mb-0.5">
+                        ¡Perfecto, {nombre}!
+                    </h3>
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+                        Cuenta creada exitosamente
+                    </p>
+                </div>
+
+                {/* Contenido según tipo */}
+                <div className="px-5 lg:px-6 2xl:px-8 pb-4 lg:pb-6 2xl:pb-8">
+                    {tipo === 'personal' ? (
+                        <ContenidoPersonal onIrAlInicio={onIrAlInicio} />
+                    ) : (
+                        <ContenidoComercial onIrAlInicio={onIrAlInicio} onCompletarPerfil={onCompletarPerfil} />
+                    )}
+                </div>
             </div>
-          </div>
-
-          {/* Línea decorativa azul */}
-          <div className="flex items-center justify-center gap-1.5 mb-5">
-            <div className="w-10 h-1 bg-blue-600 rounded-full" />
-            <div className="w-2.5 h-1 bg-blue-400 rounded-full" />
-          </div>
-
-          {/* Texto de bienvenida */}
-          <h3 className="text-2xl font-bold text-slate-900 mb-2">
-            ¡Perfecto, {nombre}!
-          </h3>
-          <p className="text-slate-500 text-sm mb-1">Cuenta creada exitosamente</p>
         </div>
-
-        {/* Contenido según tipo */}
-        <div className="px-8 pb-8">
-          {tipo === 'personal' ? (
-            <ContenidoPersonal onIrAlInicio={onIrAlInicio} />
-          ) : (
-            <ContenidoComercial onIrAlInicio={onIrAlInicio} onCompletarPerfil={onCompletarPerfil} />
-          )}
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 // =============================================================================
 // VARIANTE PERSONAL
 // =============================================================================
 
-interface ContenidoPersonalProps {
-  onIrAlInicio: () => void;
-}
+function ContenidoPersonal({ onIrAlInicio }: { onIrAlInicio: () => void }) {
+    const features = [
+        { icon: Search, color: 'bg-slate-800', titulo: 'Busca negocios', descripcion: 'Encuentra lo que necesitas' },
+        { icon: Tag, color: 'bg-slate-800', titulo: 'Ofertas locales', descripcion: 'Descubre promociones' },
+        { icon: MapPin, color: 'bg-slate-800', titulo: 'Cerca de ti', descripcion: 'Negocios en tu zona' },
+    ];
 
-function ContenidoPersonal({ onIrAlInicio }: ContenidoPersonalProps) {
-  const features = [
-    {
-      icon: <Search className="w-6 h-6 text-blue-600" />,
-      titulo: 'Busca negocios',
-      descripcion: 'Encuentra lo que necesitas',
-    },
-    {
-      icon: <Tag className="w-6 h-6 text-green-600" />,
-      titulo: 'Ofertas locales',
-      descripcion: 'Descubre promociones',
-    },
-    {
-      icon: <MapPin className="w-6 h-6 text-orange-600" />,
-      titulo: 'Cerca de ti',
-      descripcion: 'Negocios en tu zona',
-    },
-  ];
-
-  return (
-    <>
-      {/* Mensaje */}
-      <div className="text-center mb-6">
-        <h4 className="text-xl font-bold text-slate-900 mb-2">
-          ¡Bienvenido a AnunciaYA!
-        </h4>
-        <p className="text-slate-600 text-sm">
-          Descubre negocios y ofertas en tu zona
-        </p>
-      </div>
-
-      {/* Features en grid 3 columnas */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {features.map((feature, index) => (
-          <div key={index} className="text-center">
-            <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-3">
-              {feature.icon}
+    return (
+        <>
+            <div className="text-center mb-4 lg:mb-4 2xl:mb-6">
+                <h4 className="text-lg lg:text-lg 2xl:text-xl font-extrabold text-slate-900 mb-1">
+                    ¡Bienvenido a AnunciaYA!
+                </h4>
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+                    Descubre negocios y ofertas en tu zona
+                </p>
             </div>
-            <h5 className="text-xs font-bold text-slate-900 mb-1">{feature.titulo}</h5>
-            <p className="text-xs text-slate-600">{feature.descripcion}</p>
-          </div>
-        ))}
-      </div>
 
-      {/* Botón */}
-      <button
-        onClick={onIrAlInicio}
-        className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-2"
-      >
-        <Home className="w-4 h-4" />
-        Ir al inicio
-      </button>
-    </>
-  );
+            <div className="grid grid-cols-3 gap-3 lg:gap-3 2xl:gap-4 mb-5 lg:mb-6 2xl:mb-8">
+                {features.map((feature, index) => {
+                    const Icono = feature.icon;
+                    return (
+                        <div key={index} className="text-center">
+                            <div className={`w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 ${feature.color} rounded-lg flex items-center justify-center mx-auto mb-2 lg:mb-1.5 2xl:mb-2`}>
+                                <Icono className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                            </div>
+                            <h5 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-900 mb-0.5">{feature.titulo}</h5>
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">{feature.descripcion}</p>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <button
+                onClick={onIrAlInicio}
+                className="w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base text-white bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 lg:cursor-pointer flex items-center justify-center gap-2"
+            >
+                <Home className="w-4 h-4" />
+                Ir al inicio
+            </button>
+        </>
+    );
 }
 
 // =============================================================================
 // VARIANTE COMERCIAL
 // =============================================================================
 
-interface ContenidoComercialProps {
-  onIrAlInicio: () => void;
-  onCompletarPerfil?: () => void;
-}
+function ContenidoComercial({ onIrAlInicio, onCompletarPerfil }: { onIrAlInicio: () => void; onCompletarPerfil?: () => void }) {
+    return (
+        <>
+            <div className="text-center mb-4 lg:mb-4 2xl:mb-6">
+                <h4 className="text-lg lg:text-lg 2xl:text-xl font-extrabold text-slate-900 mb-1">
+                    Configuremos tu negocio
+                </h4>
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+                    Solo lo básico para que tu negocio sea visible
+                </p>
+            </div>
 
-function ContenidoComercial({ onIrAlInicio, onCompletarPerfil }: ContenidoComercialProps) {
-  return (
-    <>
-      {/* Mensaje principal */}
-      <div className="text-center mb-6">
-        <h4 className="text-xl font-bold text-slate-900 mb-2">
-          Configuremos tu negocio
-        </h4>
-        <p className="text-slate-600 text-sm">
-          Solo lo básico para que tu negocio sea visible
-        </p>
-      </div>
+            <div className="grid grid-cols-2 gap-3 lg:gap-3 2xl:gap-4 mb-5 lg:mb-6 2xl:mb-8">
+                <div className="bg-slate-200 border-2 border-slate-300 rounded-lg p-4 lg:p-3 2xl:p-4 text-center">
+                    <div className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white rounded-lg flex items-center justify-center mx-auto mb-2 lg:mb-1.5 2xl:mb-2 shadow-md">
+                        <Edit3 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-800" />
+                    </div>
+                    <h5 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-900 mb-0.5">100% Editable</h5>
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 leading-snug">
+                        Puedes cambiar todo después en <span className="whitespace-nowrap">Business Studio</span>
+                    </p>
+                </div>
 
-      {/* Cards informativos en fila horizontal */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        {/* Card 1: Editable */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-2xl p-5 text-center">
-          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <Edit3 className="w-6 h-6 text-blue-600" />
-          </div>
-          <h5 className="text-sm font-bold text-slate-900 mb-1">
-            100% Editable
-          </h5>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Puedes cambiar todo después en Business Studio
-          </p>
-        </div>
+                <div className="bg-amber-100 border-2 border-amber-300 rounded-lg p-4 lg:p-3 2xl:p-4 text-center">
+                    <div className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white rounded-lg flex items-center justify-center mx-auto mb-2 lg:mb-1.5 2xl:mb-2 shadow-md">
+                        <TrendingUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-600" />
+                    </div>
+                    <h5 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-900 mb-0.5">Agrega más después</h5>
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 leading-snug">
+                        Completa tu perfil a tu ritmo
+                    </p>
+                </div>
+            </div>
 
-        {/* Card 2: Agrega más después */}
-        <div className="bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 rounded-2xl p-5 text-center">
-          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <TrendingUp className="w-6 h-6 text-green-600" />
-          </div>
-          <h5 className="text-sm font-bold text-slate-900 mb-1">
-            Agrega más después
-          </h5>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Completa tu perfil a tu ritmo
-          </p>
-        </div>
-      </div>
+            <div className="space-y-2.5 lg:space-y-2 2xl:space-y-2.5">
+                {onCompletarPerfil && (
+                    <button
+                        onClick={onCompletarPerfil}
+                        className="w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base text-white bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 lg:cursor-pointer flex items-center justify-center gap-2"
+                    >
+                        Comenzar configuración
+                        <ArrowRight className="w-4 h-4" />
+                    </button>
+                )}
 
-      {/* Botones */}
-      <div className="space-y-3">
-        {/* Botón principal - Solo se muestra si existe onCompletarPerfil */}
-        {onCompletarPerfil && (
-          <button
-            onClick={onCompletarPerfil}
-            className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-2"
-          >
-            Comenzar configuración
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Botón secundario */}
-        <button
-          onClick={onIrAlInicio}
-          className="w-full py-4 bg-slate-100 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-        >
-          <Home className="w-4 h-4" />
-          {onCompletarPerfil ? 'Saltar por ahora' : 'Ir al inicio'}
-        </button>
-      </div>
-    </>
-  );
+                <button
+                    onClick={onIrAlInicio}
+                    className="w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base text-slate-700 bg-slate-200 border-2 border-slate-300 hover:bg-slate-300 lg:cursor-pointer flex items-center justify-center gap-2"
+                >
+                    <Home className="w-4 h-4" />
+                    {onCompletarPerfil ? 'Saltar por ahora' : 'Ir al inicio'}
+                </button>
+            </div>
+        </>
+    );
 }
 
 export default ModalBienvenida;

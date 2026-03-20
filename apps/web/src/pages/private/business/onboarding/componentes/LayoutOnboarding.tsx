@@ -49,12 +49,11 @@ export function LayoutOnboarding({
   const pasoActual = useOnboardingStore(state => state.pasoActual);
 
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)',
-      }}
-    >
+    <div className="min-h-screen relative">
+      {/* Fondo móvil — vertical */}
+      <div className="lg:hidden fixed inset-0 -z-10" style={{ background: 'linear-gradient(to bottom, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }} />
+      {/* Fondo desktop — horizontal */}
+      <div className="hidden lg:block fixed inset-0 -z-10" style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }} />
 
       {/* ===================================================================== */}
       {/* LAYOUT MÓVIL (Vertical) */}
@@ -91,17 +90,19 @@ export function LayoutOnboarding({
         {/* Contenido */}
         <main className="flex-1 overflow-y-auto px-4 pb-24">
           {/* Header del paso */}
-          <div className="flex items-start gap-3 mb-4 p-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/50">
-            <div className="w-11 h-11 rounded-xl bg-linear-to-br from-blue-50 to-blue-100 flex items-center justify-center shrink-0 shadow-sm">
-              <div className="text-blue-600">
+          <div className="flex items-center gap-3 mb-4 p-4 rounded-xl"
+            style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 4px 16px rgba(30,41,59,0.3)' }}
+          >
+            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+              <div className="text-white">
                 {iconoPaso}
               </div>
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-bold text-slate-900 mb-1">
+              <h2 className="text-base font-bold text-white">
                 {tituloPaso}
               </h2>
-              <p className="text-xs text-slate-600">
+              <p className="text-sm font-medium text-white/70">
                 {descripcionPaso}
               </p>
             </div>
@@ -112,7 +113,7 @@ export function LayoutOnboarding({
         </main>
 
         {/* Footer Fijo */}
-        <footer className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 p-4 pb-safe shadow-lg">
+        <footer className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-300 p-4 pb-safe shadow-lg">
           <BotonesNavegacion />
         </footer>
       </div>
@@ -168,26 +169,29 @@ export function LayoutOnboarding({
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 overflow-hidden h-[720px] max-h-[720px] 2xl:h-[780px] 2xl:max-h-[780px] flex flex-col">
 
               {/* Header del Paso */}
-              <header className="bg-linear-to-r from-white/90 to-white/70 backdrop-blur-sm border-b border-slate-200/50 px-5 lg:px-6 2xl:px-8 py-4 lg:py-5 2xl:py-6">
-                <div className="flex items-start gap-3 2xl:gap-4">
-                  {/* Ícono */}
-                  <div className="w-12 h-12 lg:w-13 lg:h-13 2xl:w-14 2xl:h-14 rounded-xl 2xl:rounded-2xl bg-linear-to-br from-blue-50 to-blue-100 flex items-center justify-center shrink-0 shadow-md">
-                    <div className="text-blue-600">
+              <header
+                className="px-5 lg:px-6 2xl:px-8 py-4 lg:py-4 2xl:py-5 shrink-0 lg:rounded-t-2xl"
+                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 4px 16px rgba(30,41,59,0.3)' }}
+              >
+                <div className="flex items-center gap-3 2xl:gap-4">
+                  {/* Ícono — transparente sobre gradiente oscuro */}
+                  <div className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                    <div className="text-white">
                       {iconoPaso}
                     </div>
                   </div>
 
                   {/* Título y Descripción */}
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h2 className="text-xl lg:text-2xl 2xl:text-3xl font-bold text-slate-900">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl lg:text-xl 2xl:text-2xl font-bold text-white">
                         {tituloPaso}
                       </h2>
-                      <span className="text-xs 2xl:text-sm text-slate-500 font-medium px-2 py-0.5 bg-slate-100 rounded-full">
+                      <span className="text-sm lg:text-[11px] 2xl:text-sm text-white/60 font-semibold px-2 py-0.5 bg-white/10 rounded-full">
                         {pasoActual}/8
                       </span>
                     </div>
-                    <p className="text-sm lg:text-sm 2xl:text-base text-slate-600">
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-white/70 font-medium">
                       {descripcionPaso}
                     </p>
                   </div>
@@ -200,7 +204,7 @@ export function LayoutOnboarding({
               </div>
 
               {/* Footer con Botones */}
-              <footer className="bg-linear-to-r from-white/90 to-white/70 backdrop-blur-sm border-t border-slate-200/50 px-5 lg:px-6 2xl:px-8 py-3 lg:py-4 2xl:py-5">
+              <footer className="bg-linear-to-r from-white/90 to-white/70 backdrop-blur-sm border-t border-slate-300/50 px-5 lg:px-6 2xl:px-8 py-3 lg:py-4 2xl:py-5">
                 <BotonesNavegacion />
               </footer>
             </div>

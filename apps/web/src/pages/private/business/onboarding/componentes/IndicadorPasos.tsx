@@ -127,10 +127,10 @@ export function IndicadorPasos() {
                   w-8 h-8 rounded-full flex items-center justify-center
                   font-bold text-[10px] transition-all duration-300
                   ${paso.esCompletado
-                    ? 'bg-linear-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/30'
+                    ? 'bg-linear-to-br from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'
                     : paso.esActual
-                      ? 'bg-linear-to-br from-blue-600 to-blue-700 text-white shadow-xl shadow-blue-500/50 ring-4 ring-blue-100'
-                      : 'bg-white text-slate-400 shadow-md border-2 border-slate-200'
+                      ? 'bg-linear-to-br from-slate-700 to-slate-800 text-white shadow-xl shadow-slate-700/50 ring-4 ring-slate-300'
+                      : 'bg-white text-slate-600 shadow-md border-2 border-slate-300'
                   }
                   ${esClickeable(paso) && !guardando
                     ? 'cursor-pointer hover:scale-110 hover:shadow-xl active:scale-95'
@@ -152,7 +152,7 @@ export function IndicadorPasos() {
                 <div
                   className={`
                     w-6 h-0.5 transition-all duration-500
-                    ${paso.esCompletado ? 'bg-linear-to-r from-green-500 to-green-600' : 'bg-slate-200'}
+                    ${paso.esCompletado ? 'bg-linear-to-r from-emerald-500 to-emerald-600' : 'bg-slate-200'}
                   `}
                 />
               )}
@@ -162,7 +162,7 @@ export function IndicadorPasos() {
 
         {/* Label del paso actual */}
         <div className="mt-2 text-center">
-          <p className="text-xs font-semibold text-blue-600">
+          <p className="text-xs font-semibold text-slate-800">
             {pasosAMostrar.find(p => p.esActual)?.label}
           </p>
         </div>
@@ -199,10 +199,10 @@ export function IndicadorPasos() {
                     flex items-center justify-center font-bold text-sm 2xl:text-base
                     transition-all duration-300 shrink-0
                     ${paso.esCompletado
-                      ? 'bg-linear-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/30'
+                      ? 'bg-linear-to-br from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'
                       : paso.esActual
-                        ? 'bg-linear-to-br from-blue-600 to-blue-700 text-white shadow-xl shadow-blue-500/50 scale-110 ring-4 ring-blue-100'
-                        : 'bg-white text-slate-400 shadow-md border-2 border-slate-200'
+                        ? 'bg-linear-to-br from-slate-700 to-slate-800 text-white shadow-xl shadow-slate-700/50 scale-110 ring-4 ring-slate-300'
+                        : 'bg-white text-slate-600 shadow-md border-2 border-slate-300'
                     }
                     ${esClickeable(paso) && !guardando && !paso.esActual
                       ? 'hover:scale-105 hover:shadow-xl'
@@ -223,13 +223,13 @@ export function IndicadorPasos() {
                     className={`
                       text-sm 2xl:text-base font-semibold transition-colors
                       ${paso.esActual
-                        ? 'text-blue-600'
+                        ? 'text-slate-800'
                         : paso.esCompletado
-                          ? 'text-green-600'
-                          : 'text-slate-400'
+                          ? 'text-emerald-600'
+                          : 'text-slate-600'
                       }
                       ${esClickeable(paso) && !guardando && !paso.esActual
-                        ? 'group-hover:text-blue-500'
+                        ? 'group-hover:text-slate-800'
                         : ''
                       }
                     `}
@@ -246,7 +246,7 @@ export function IndicadorPasos() {
                     <div
                       className={`
                         w-0.5 h-full transition-all duration-500 rounded-full
-                        ${paso.esCompletado ? 'bg-linear-to-b from-green-500 to-green-600' : 'bg-slate-200'}
+                        ${paso.esCompletado ? 'bg-linear-to-b from-emerald-500 to-emerald-600' : 'bg-slate-200'}
                       `}
                     />
                   </div>

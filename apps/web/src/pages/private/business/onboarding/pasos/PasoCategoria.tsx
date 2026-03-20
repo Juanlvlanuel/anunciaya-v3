@@ -277,7 +277,7 @@ export function PasoCategoria() {
         return (
             <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
                 <div className="text-center">
-                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-blue-600 mx-auto mb-2 lg:mb-3" />
+                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-800 mx-auto mb-2 lg:mb-3" />
                     <p className="text-xs lg:text-sm text-slate-600">Cargando...</p>
                 </div>
             </div>
@@ -302,9 +302,9 @@ export function PasoCategoria() {
                     onChange={(e) => setNombreNegocio(e.target.value)}
                     placeholder="Ej: La Casa del Pan"
                     maxLength={100}
-                    className="w-full px-4 lg:px-3.5 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 border-2 border-slate-200 rounded-lg 2xl:rounded-xl focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none text-sm lg:text-sm 2xl:text-base transition-all"
+                    className="w-full px-4 lg:px-3.5 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 border-2 border-slate-300 rounded-lg 2xl:rounded-xl focus:border-slate-800 focus:ring-2 focus:ring-blue-100 focus:outline-none text-sm lg:text-sm 2xl:text-base transition-all"
                 />
-                <p className="text-[11px] lg:text-[10px] text-slate-500 mt-0.5">
+                <p className="text-[11px] lg:text-[10px] text-slate-600 mt-0.5">
                     {nombreNegocio.length}/100 caracteres
                 </p>
             </div>
@@ -330,18 +330,18 @@ export function PasoCategoria() {
                                 className={`
                                     relative p-2.5 lg:p-1.5 border-2 rounded-lg transition-all text-center group
                                     ${seleccionada
-                                        ? 'border-blue-600 bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm'
-                                        : 'border-slate-200 hover:border-blue-400 hover:bg-slate-50'
+                                        ? 'border-slate-800 bg-linear-to-br from-indigo-100 to-indigo-200 shadow-sm'
+                                        : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
                                     }
                                 `}
                             >
                                 {seleccionada && (
-                                    <div className="absolute -top-1 -right-1 w-5 h-5 lg:w-4 lg:h-4 bg-blue-600 rounded-full flex items-center justify-center shadow-sm">
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 lg:w-4 lg:h-4 bg-slate-800 rounded-full flex items-center justify-center shadow-sm">
                                         <Check className="w-3.5 h-3.5 lg:w-2.5 lg:h-2.5 text-white" />
                                     </div>
                                 )}
                                 <div className="flex justify-center mb-0.5">
-                                    <IconoCategoria className={`w-6 h-6 lg:w-5 lg:h-5 ${seleccionada ? 'text-blue-600' : 'text-slate-600'}`} />
+                                    <IconoCategoria className={`w-6 h-6 lg:w-5 lg:h-5 ${seleccionada ? 'text-slate-800' : 'text-slate-600'}`} />
                                 </div>
                                 <div className="text-[10px] lg:text-[9px] 2xl:text-[10px] font-semibold text-slate-700 leading-tight px-0.5">
                                     {categoria.nombre}
@@ -361,10 +361,10 @@ export function PasoCategoria() {
                         </h3>
                         <span
                             className={`text-xs lg:text-xs font-bold px-3 py-1 rounded-full transition-colors ${subcategoriasSeleccionadas.size === 0
-                                ? 'bg-slate-100 text-slate-500'
+                                ? 'bg-slate-200 text-slate-600'
                                 : subcategoriasSeleccionadas.size < 3
-                                    ? 'bg-blue-100 text-blue-600'
-                                    : 'bg-green-100 text-green-600'
+                                    ? 'bg-indigo-100 text-slate-800'
+                                    : 'bg-emerald-100 text-emerald-600'
                                 }`}
                         >
                             {subcategoriasSeleccionadas.size}/3
@@ -373,7 +373,7 @@ export function PasoCategoria() {
 
                     {cargandoSubcategorias ? (
                         <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                            <Loader2 className="w-6 h-6 animate-spin text-slate-800" />
                         </div>
                     ) : (
                         <>
@@ -386,8 +386,8 @@ export function PasoCategoria() {
                                             className={`
                                                 relative flex items-center gap-2.5 p-2.5 lg:p-2 border-2 rounded-lg cursor-pointer transition-all group
                                                 ${seleccionada
-                                                    ? 'border-blue-600 bg-linear-to-br from-blue-50 to-blue-100 shadow-sm'
-                                                    : 'border-slate-200 hover:border-blue-400 hover:bg-slate-50 hover:shadow-sm'
+                                                    ? 'border-slate-800 bg-linear-to-br from-indigo-100 to-indigo-200 shadow-sm'
+                                                    : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50 hover:shadow-sm'
                                                 }
                                             `}
                                         >
@@ -402,8 +402,8 @@ export function PasoCategoria() {
                                                 <div className={`
                                                     w-5 h-5 rounded border-2 flex items-center justify-center transition-all
                                                     ${seleccionada
-                                                        ? 'border-blue-600 bg-blue-600'
-                                                        : 'border-slate-300 bg-white group-hover:border-blue-400'
+                                                        ? 'border-slate-800 bg-slate-800'
+                                                        : 'border-slate-300 bg-white group-hover:border-slate-400'
                                                     }
                                                 `}>
                                                     {seleccionada && (
@@ -424,7 +424,7 @@ export function PasoCategoria() {
                             {mostrarMensajeLimite && (
                                 <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg animate-in fade-in duration-200">
                                     <div className="flex items-center gap-2">
-                                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
+                                        <div className="shrink-0 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
                                             <span className="text-white text-sm font-bold">!</span>
                                         </div>
                                         <p className="text-xs lg:text-xs text-amber-800 font-medium">
@@ -441,7 +441,7 @@ export function PasoCategoria() {
             {/* Info */}
             <div className="hidden lg:block p-2 lg:p-2.5 2xl:p-3 bg-blue-50 border border-blue-100 rounded-lg 2xl:rounded-xl">
                 <div className="flex gap-1.5 lg:gap-2">
-                    <Info className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <Info className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-slate-800 shrink-0 mt-0.5" />
                     <p className="text-[9px] lg:text-[10px] 2xl:text-xs text-blue-700 leading-tight">
                         <span className="font-semibold">Las categorías ayudan a los clientes a encontrarte.</span> Selecciona las que mejor describan tu negocio.
                     </p>
