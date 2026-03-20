@@ -21,9 +21,18 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Info, Sparkles, Users, TrendingUp, Gift, Check, X, Loader2 } from 'lucide-react';
+import { Star, TrendingUp, Check, Loader2 } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
+
+// =============================================================================
+// CACHÉ
+// =============================================================================
+
+const cache7 = {
+    cargado: false,
+    participaPuntos: false,
+};
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -32,14 +41,18 @@ import { api } from '@/services/api';
 export function PasoPuntos() {
     const { negocioId, guardarPaso7, setSiguienteDeshabilitado } = useOnboardingStore();
 
-    // Estados
-    const [participaPuntos, setParticipaPuntos] = useState(false);
-    const [cargandoDatos, setCargandoDatos] = useState(true);
+    // Estados — inicializar desde caché
+    const [participaPuntos, setParticipaPuntos] = useState(cache7.participaPuntos);
+    const [cargandoDatos, setCargandoDatos] = useState(!cache7.cargado);
+
+    // Sincronizar caché
+    useEffect(() => { cache7.participaPuntos = participaPuntos; }, [participaPuntos]);
 
     // ---------------------------------------------------------------------------
     // Cargar datos existentes
     // ---------------------------------------------------------------------------
     useEffect(() => {
+        if (cache7.cargado) { setCargandoDatos(false); return; }
         const cargarDatos = async () => {
             if (!negocioId) {
                 setCargandoDatos(false);
@@ -58,6 +71,7 @@ export function PasoPuntos() {
                 console.error('Error al cargar datos:', error);
             } finally {
                 setCargandoDatos(false);
+                cache7.cargado = true;
             }
         };
 
@@ -80,14 +94,13 @@ export function PasoPuntos() {
     // Exponer función de guardado
     // ---------------------------------------------------------------------------
     useEffect(() => {
-        (window as any).guardarPaso7 = async (validar: boolean): Promise<boolean> => {
-            // Este paso no tiene validación obligatoria - siempre es válido
+        const guardarFn = async (validar: boolean): Promise<boolean> => {
             try {
                 if (validar) {
-                    await guardarPaso7(participaPuntos as any);
+                    await guardarPaso7(participaPuntos as Parameters<typeof guardarPaso7>[0]);
                 } else {
                     const { guardarBorradorPaso7 } = useOnboardingStore.getState();
-                    await guardarBorradorPaso7(participaPuntos as any);
+                    await guardarBorradorPaso7(participaPuntos as Parameters<typeof guardarBorradorPaso7>[0]);
                 }
                 return true;
             } catch (error) {
@@ -96,8 +109,10 @@ export function PasoPuntos() {
             }
         };
 
+        (window as unknown as Record<string, unknown>).guardarPaso7 = guardarFn;
+
         return () => {
-            delete (window as any).guardarPaso7;
+            delete (window as unknown as Record<string, unknown>).guardarPaso7;
         };
     }, [participaPuntos]);
 
@@ -113,177 +128,112 @@ export function PasoPuntos() {
     // ---------------------------------------------------------------------------
     if (cargandoDatos) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
+                <div className="text-center">
+                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-600 mx-auto mb-2 lg:mb-3" />
+                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600">Cargando...</p>
+                </div>
             </div>
         );
     }
 
     // ---------------------------------------------------------------------------
-    // Render principal
+    // Render principal — Card estilo Mi Perfil
     // ---------------------------------------------------------------------------
     return (
-        <div className="space-y-3 lg:space-y-2.5 2xl:space-y-3">
+        <div className="space-y-4 lg:space-y-3.5 2xl:space-y-5">
 
-            {/* Card: ¿Qué es CardYA? */}
-            <div className="bg-white rounded-lg border-2 border-slate-200 p-4 lg:p-5">
-                <div className="flex items-start gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                        <Info className="w-5 h-5 text-blue-600" />
+            {/* ================================================================= */}
+            {/* CARD: Sistema de Puntos CardYA */}
+            {/* ================================================================= */}
+            <div className="bg-white border-2 border-slate-300 rounded-xl"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div className="px-3 lg:px-4 py-2 flex items-center justify-between rounded-t-[10px]"
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                    <div className="flex items-center gap-2 lg:gap-2.5">
+                        <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                            <Star className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                        </div>
+                        <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Sistema de Puntos CardYA</span>
                     </div>
-                    <div>
-                        <h2 className="text-lg lg:text-xl font-bold text-slate-900 mb-1">
-                            ¿Qué es CardYA?
-                        </h2>
-                        <p className="text-sm text-slate-600 leading-relaxed">
-                            Es el sistema de lealtad de AnunciaYA donde tus clientes acumulan puntos por cada compra y pueden canjearlos por recompensas en tu negocio.
-                        </p>
+                    <span className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">Opcional</span>
+                </div>
+
+                {/* Toggle principal — estilo FilaToggle de Mi Perfil */}
+                <div onClick={togglePuntos} className="p-3.5 lg:p-2.5 2xl:p-3.5 hover:bg-slate-100 cursor-pointer">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="p-2 rounded-lg shrink-0 bg-slate-100">
+                                <Star className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${participaPuntos ? 'text-amber-500' : 'text-slate-500'}`} />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                                <span className={`text-sm lg:text-xs 2xl:text-sm font-bold ${participaPuntos ? 'text-slate-700' : 'text-slate-400'}`}>
+                                    ¿Participar en CardYA?
+                                </span>
+                                <span className={`text-sm lg:text-xs 2xl:text-sm font-medium ${participaPuntos ? 'text-slate-600' : 'text-slate-400'}`}>
+                                    {participaPuntos ? 'Tus clientes podrán ganar puntos' : 'Puedes activarlo después'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <label className="shrink-0 cursor-pointer group" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" checked={participaPuntos}
+                                onChange={(e) => { e.stopPropagation(); togglePuntos(); }}
+                                className="sr-only" />
+                            <div className="relative w-12 h-6 lg:w-10 lg:h-5">
+                                <div className={`absolute inset-0 rounded-full transition-colors ${participaPuntos ? 'bg-slate-500' : 'bg-slate-300'}`} />
+                                <div className={`absolute top-0.5 left-0.5 w-5 h-5 lg:w-4 lg:h-4 bg-white rounded-full shadow-md transition-transform ${participaPuntos ? 'translate-x-6 lg:translate-x-5' : ''}`} />
+                            </div>
+                        </label>
                     </div>
                 </div>
             </div>
 
-            {/* Toggle Principal */}
-            <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border-2 border-amber-200 rounded-lg p-4 lg:p-5">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${participaPuntos ? 'bg-amber-500' : 'bg-slate-200'
-                            }`}>
-                            {participaPuntos ? (
-                                <Sparkles className="w-6 h-6 text-white" />
-                            ) : (
-                                <X className="w-6 h-6 text-slate-500" />
-                            )}
-                        </div>
-                        <div>
-                            <div className="text-base lg:text-lg font-bold text-slate-900">
-                                ¿Quieres participar en CardYA?
-                            </div>
-                            <div className="text-xs lg:text-sm text-slate-600">
-                                {participaPuntos ? 'Tus clientes podrán ganar puntos' : 'Puedes activarlo después'}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Toggle Switch */}
-                    <button
-                        onClick={togglePuntos}
-                        type="button"
-                        className={`relative inline-flex h-8 w-14 lg:h-10 lg:w-[4.5rem] items-center rounded-full transition-colors ${participaPuntos ? 'bg-amber-500' : 'bg-slate-300'
-                            }`}
-                    >
-                        <span className={`inline-block h-6 w-6 lg:h-8 lg:w-8 transform rounded-full bg-white transition-transform shadow-md ${participaPuntos ? 'translate-x-7 lg:translate-x-8' : 'translate-x-1'
-                            }`} />
-                    </button>
-                </div>
-            </div>
-
-            {/* Información Condicional */}
+            {/* ================================================================= */}
+            {/* CARD: Beneficios (solo si activado) */}
+            {/* ================================================================= */}
             {participaPuntos && (
-                <div className="space-y-3 lg:space-y-2.5">
-
-                    {/* Beneficios */}
-                    <div className="bg-white rounded-lg border-2 border-green-200 p-4 lg:p-5">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                                <TrendingUp className="w-5 h-5 text-green-600" />
-                            </div>
-                            <h3 className="text-base lg:text-lg font-bold text-slate-900">
-                                Beneficios para tu negocio
-                            </h3>
+                <div className="bg-white border-2 border-slate-300 rounded-xl"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    <div className="px-3 lg:px-4 py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
+                        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                        <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                            <TrendingUp className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
                         </div>
-                        <ul className="space-y-2.5">
-                            <li className="flex items-start gap-2">
-                                <Check className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                                <span className="text-sm text-slate-700">
-                                    <strong>Clientes recurrentes:</strong> Los puntos incentivan a regresar
-                                </span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <Check className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                                <span className="text-sm text-slate-700">
-                                    <strong>Mayor ticket promedio:</strong> Clientes compran más para ganar puntos
-                                </span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <Check className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                                <span className="text-sm text-slate-700">
-                                    <strong>Fidelización digital:</strong> Tus clientes no olvidan su tarjeta de puntos
-                                </span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <Check className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                                <span className="text-sm text-slate-700">
-                                    <strong>Sin costo adicional:</strong> Solo pagas la membresía de AnunciaYA
-                                </span>
-                            </li>
-                        </ul>
+                        <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Beneficios para tu negocio</span>
                     </div>
-
-                    {/* Cómo funciona */}
-                    <div className="bg-white rounded-lg border-2 border-blue-200 p-4 lg:p-5">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                                <Users className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <h3 className="text-base lg:text-lg font-bold text-slate-900">
-                                ¿Cómo funciona?
-                            </h3>
-                        </div>
-                        <ol className="space-y-2.5">
-                            <li className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                                    <span className="text-xs font-bold text-blue-600">1</span>
-                                </div>
-                                <span className="text-sm text-slate-700">
-                                    El cliente realiza una compra en tu negocio
-                                </span>
-                            </li>
-                            <li className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                                    <span className="text-xs font-bold text-blue-600">2</span>
-                                </div>
-                                <span className="text-sm text-slate-700">
-                                    Tú o tu empleado escanean el código QR del cliente con ScanYA
-                                </span>
-                            </li>
-                            <li className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                                    <span className="text-xs font-bold text-blue-600">3</span>
-                                </div>
-                                <span className="text-sm text-slate-700">
-                                    Los puntos se acreditan automáticamente en su CardYA
-                                </span>
-                            </li>
-                            <li className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                                    <span className="text-xs font-bold text-blue-600">4</span>
-                                </div>
-                                <span className="text-sm text-slate-700">
-                                    El cliente canjea sus puntos por descuentos en futuras compras
-                                </span>
-                            </li>
-                        </ol>
-                    </div>
-
-                    {/* Configuración después */}
-                    <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
-                        <div className="flex items-start gap-2">
-                            <Gift className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
-                            <div>
-                                <p className="text-sm text-purple-800">
-                                    <strong>Configura después:</strong> Podrás definir cuántos puntos otorgas por peso gastado y las recompensas disponibles desde tu Business Studio.
+                    <div className="p-4 lg:p-3 2xl:p-4 space-y-3 lg:space-y-2 2xl:space-y-3">
+                        {[
+                            { titulo: 'Clientes recurrentes', desc: 'Los puntos incentivan a regresar' },
+                            { titulo: 'Mayor ticket promedio', desc: 'Clientes compran más para ganar puntos' },
+                            { titulo: 'Fidelización digital', desc: 'Tus clientes no olvidan su tarjeta' },
+                            { titulo: 'Sin costo adicional', desc: 'Incluido en la membresía de AnunciaYA' },
+                        ].map((item, i) => (
+                            <div key={i} className="flex items-start gap-2.5">
+                                <Check className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-emerald-500 shrink-0 mt-0.5" />
+                                <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-700">
+                                    <span className="font-bold">{item.titulo}:</span> {item.desc}
                                 </p>
                             </div>
+                        ))}
+
+                        {/* Nota */}
+                        <div className="p-3 lg:p-2.5 2xl:p-3 bg-slate-200 border-2 border-slate-300 rounded-lg mt-2">
+                            <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600 leading-tight">
+                                <span className="font-bold text-slate-700">Configura después:</span> Define cuántos puntos otorgas y las recompensas desde Business Studio.
+                            </p>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Mensaje cuando está desactivado */}
+            {/* Mensaje desactivado */}
             {!participaPuntos && (
-                <div className="bg-slate-50 border-2 border-slate-200 rounded-lg p-4">
-                    <p className="text-sm text-slate-600 text-center">
-                        No te preocupes, puedes activar CardYA en cualquier momento desde tu Business Studio.
+                <div className="p-3 lg:p-2.5 2xl:p-3 bg-slate-200 border-2 border-slate-300 rounded-lg">
+                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600 text-center">
+                        Puedes activar CardYA en cualquier momento desde tu Business Studio.
                     </p>
                 </div>
             )}

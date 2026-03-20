@@ -115,6 +115,38 @@ router.post('/:negocioId/contacto', actualizarContacto);
 router.post('/:negocioId/horarios', guardarHorarios);
 
 // ============================================
+// UPLOAD DE IMÁGENES A R2 (presigned URL)
+// ============================================
+
+/**
+ * POST /api/onboarding/upload-imagen
+ * Genera presigned URL para subir imagen directamente a R2
+ * Body: { nombreArchivo: string, contentType: string, carpeta?: string }
+ */
+router.post('/upload-imagen', async (req, res) => {
+  const { generarPresignedUrl } = await import('../services/r2.service');
+  const { nombreArchivo, contentType, carpeta = 'onboarding' } = req.body;
+
+  if (!nombreArchivo || !contentType) {
+    res.status(400).json({ success: false, message: 'nombreArchivo y contentType son requeridos' });
+    return;
+  }
+
+  const carpetasPermitidas = ['logos', 'portadas', 'galeria', 'onboarding'];
+  const carpetaFinal = carpetasPermitidas.includes(carpeta) ? carpeta : 'onboarding';
+
+  const resultado = await generarPresignedUrl(
+    carpetaFinal,
+    nombreArchivo,
+    contentType,
+    300,
+    ['image/jpeg', 'image/png', 'image/webp']
+  );
+
+  res.status(resultado.code).json(resultado);
+});
+
+// ============================================
 // PASO 5: IMÁGENES
 // ============================================
 

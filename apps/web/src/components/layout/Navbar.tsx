@@ -842,8 +842,8 @@ export const Navbar = () => {
               <button
                 onClick={togglePanel}
                 className="
-                    relative 
-                    text-blue-200 
+                    relative
+                    text-blue-200
                     hover:text-white
                     transition-transform
                     hover:scale-120
@@ -858,11 +858,11 @@ export const Navbar = () => {
                         absolute -top-1 lg:-top-1 2xl:-top-1.5 -right-1 lg:-right-1 2xl:-right-1.5
                         min-w-4 lg:min-w-4 2xl:min-w-5
                         h-4 lg:h-4 2xl:h-5
-                        bg-red-500 
-                        text-white 
+                        bg-red-500
+                        text-white
                         text-[9px] lg:text-[9px] 2xl:text-xs
-                        rounded-full 
-                        flex items-center justify-center 
+                        rounded-full
+                        flex items-center justify-center
                         font-bold
                         pulse-badge
                       "

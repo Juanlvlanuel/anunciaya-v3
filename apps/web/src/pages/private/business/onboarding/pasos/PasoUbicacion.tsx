@@ -15,14 +15,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import {
-    MapPin, Navigation, Info, Loader2, Search
+    MapPin, Navigation, Loader2, Search
 } from 'lucide-react';
 import L from 'leaflet';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useGpsStore } from '@/stores/useGpsStore';
 import { api } from '@/services/api';
 import { notificar } from '@/utils/notificaciones';
-import { buscarCiudades, buscarCiudadCercana, buscarEstados, type CiudadConNombreCompleto } from '@/data/ciudadesPopulares';
+import { buscarCiudades, buscarCiudadCercana, type CiudadConNombreCompleto } from '@/data/ciudadesPopulares';
+import { ModalUbicacion } from '@/components/layout/ModalUbicacion';
 import { detectarZonaHoraria } from '@/utils/zonaHoraria';
 
 import 'leaflet/dist/leaflet.css';
@@ -33,6 +34,7 @@ import 'leaflet/dist/leaflet.css';
 // FIX DE ICONOS DE LEAFLET
 // =============================================================================
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -123,6 +125,20 @@ function obtenerCoordenadasDeCiudad(ciudad: CiudadConNombreCompleto): { lat: num
 }
 
 // =============================================================================
+// CACHÉ — persiste entre montar/desmontar
+// =============================================================================
+
+const cache2 = {
+    cargado: false,
+    ciudad: '',
+    estado: '',
+    direccion: '',
+    latitud: 31.3122,
+    longitud: -113.5465,
+    mapaListo: false,
+};
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -130,37 +146,33 @@ export function PasoUbicacion() {
     const { negocioId, guardarPaso2, setSiguienteDeshabilitado } = useOnboardingStore();
     const { latitud: latitudGps, longitud: longitudGps, obtenerUbicacion } = useGpsStore();
 
-    // Estados principales
-    const [ciudad, setCiudad] = useState('');
-    const [estado, setEstado] = useState('');
-    const [direccion, setDireccion] = useState('');
-    const [latitud, setLatitud] = useState<number>(31.3122);
-    const [longitud, setLongitud] = useState<number>(-113.5465);
+    // Estados principales — inicializar desde caché
+    const [ciudad, setCiudad] = useState(cache2.ciudad);
+    const [estado, setEstado] = useState(cache2.estado);
+    const [direccion, setDireccion] = useState(cache2.direccion);
+    const [latitud, setLatitud] = useState<number>(cache2.latitud);
+    const [longitud, setLongitud] = useState<number>(cache2.longitud);
 
     // Estados de carga
-    const [cargandoDatos, setCargandoDatos] = useState(true);
+    const [cargandoDatos, setCargandoDatos] = useState(!cache2.cargado);
     const [detectandoUbicacion, setDetectandoUbicacion] = useState(false);
-    const [mapaListo, setMapaListo] = useState(false);
+    const [mapaListo, setMapaListo] = useState(cache2.mapaListo);
     const [forzarCentrado, setForzarCentrado] = useState(0);
 
     // Estados de autocomplete CIUDAD
     const [busquedaCiudad, setBusquedaCiudad] = useState('');
     const [sugerenciasCiudades, setSugerenciasCiudades] = useState<CiudadConNombreCompleto[]>([]);
     const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
-    const [ciudadSeleccionada, setCiudadSeleccionada] = useState<CiudadConNombreCompleto | null>(null);
+    const [, setCiudadSeleccionada] = useState<CiudadConNombreCompleto | null>(null);
     const [inputCiudadActivo, setInputCiudadActivo] = useState(false);
+    const [modalCiudadAbierto, setModalCiudadAbierto] = useState(false);
 
-    // Estados de autocomplete ESTADO
-    const [busquedaEstado, setBusquedaEstado] = useState('');
-    const [resultadosEstado, setResultadosEstado] = useState<string[]>([]);
-    const [mostrarResultadosEstado, setMostrarResultadosEstado] = useState(false);
+    // (Estado se auto-rellena desde ciudad/GPS — no necesita autocomplete)
 
     // Refs para click outside
     const contenedorGeneralRef = useRef<HTMLDivElement>(null);
     const inputCiudadRef = useRef<HTMLInputElement>(null);
     const sugerenciasRef = useRef<HTMLDivElement>(null);
-    const inputEstadoRef = useRef<HTMLInputElement>(null);
-    const sugerenciasEstadoRef = useRef<HTMLDivElement>(null);
 
     // ---------------------------------------------------------------------------
     // Validación
@@ -189,10 +201,21 @@ export function PasoUbicacion() {
         actualizarPasoCompletado(1, esValido); // índice 1 = Paso 2
     }, [ciudad, estado, direccion, latitud, longitud]);
 
+    // Sincronizar caché
+    useEffect(() => {
+        cache2.ciudad = ciudad;
+        cache2.estado = estado;
+        cache2.direccion = direccion;
+        cache2.latitud = latitud;
+        cache2.longitud = longitud;
+        cache2.mapaListo = mapaListo;
+    }, [ciudad, estado, direccion, latitud, longitud, mapaListo]);
+
     // ---------------------------------------------------------------------------
     // Auto-detectar ubicación al cargar
     // ---------------------------------------------------------------------------
     useEffect(() => {
+        if (cache2.cargado) return;
         const autoDetectar = async () => {
             if (latitudGps && longitudGps) {
                 setLatitud(latitudGps);
@@ -204,7 +227,6 @@ export function PasoUbicacion() {
                     setEstado(ciudadCercana.estado);
                     setCiudadSeleccionada(ciudadCercana);
                     setBusquedaCiudad('');
-                    setBusquedaEstado('');
                 }
 
                 setMapaListo(true);
@@ -229,6 +251,7 @@ export function PasoUbicacion() {
     // Cargar datos guardados
     // ---------------------------------------------------------------------------
     useEffect(() => {
+        if (cache2.cargado) { setCargandoDatos(false); return; }
         const cargarDatos = async () => {
             if (!negocioId) {
                 setCargandoDatos(false);
@@ -254,9 +277,9 @@ export function PasoUbicacion() {
                 if (response.data.success && response.data.data.sucursal) {
                     const { ciudad: c, estado: e, direccion: d, latitud: lat, longitud: lng } = response.data.data.sucursal;
 
-                    if (c) setCiudad(c);
-                    if (e) setEstado(e);
-                    if (d) setDireccion(d);
+                    if (c && c !== 'Por configurar') setCiudad(c);
+                    if (e && e !== 'Por configurar') setEstado(e);
+                    if (d && d !== 'Por configurar') setDireccion(d);
                     if (lat !== null && lng !== null) {
                         setLatitud(lat);
                         setLongitud(lng);
@@ -267,27 +290,17 @@ export function PasoUbicacion() {
                 console.error('Error al cargar datos:', error);
             } finally {
                 setCargandoDatos(false);
+                cache2.cargado = true;
             }
         };
 
         cargarDatos();
     }, [negocioId]);
 
-    // ---------------------------------------------------------------------------
-    // Autocomplete de CIUDADES
-    // ---------------------------------------------------------------------------
-    const handleCiudadChange = (valor: string) => {
-        setBusquedaCiudad(valor);
-        setCiudadSeleccionada(null);
 
-        if (valor.length >= 2) {
-            const resultados = buscarCiudades(valor);
-            setSugerenciasCiudades(resultados);
-            setMostrarSugerencias(resultados.length > 0);
-        } else {
-            setSugerenciasCiudades([]);
-            setMostrarSugerencias(false);
-        }
+    const handleSeleccionarCiudadModal = (ciudadSel: CiudadConNombreCompleto) => {
+        handleSeleccionarCiudad(ciudadSel);
+        setModalCiudadAbierto(false);
     };
 
     const handleSeleccionarCiudad = (ciudadSel: CiudadConNombreCompleto) => {
@@ -296,7 +309,6 @@ export function PasoUbicacion() {
         setCiudadSeleccionada(ciudadSel);
         setMostrarSugerencias(false);
         setBusquedaCiudad(''); // Limpiar búsqueda
-        setBusquedaEstado(''); // Limpiar búsqueda de estado también
 
         const coords = obtenerCoordenadasDeCiudad(ciudadSel);
         if (coords) {
@@ -307,29 +319,6 @@ export function PasoUbicacion() {
         }
     };
 
-    // ---------------------------------------------------------------------------
-    // Autocomplete de ESTADO
-    // ---------------------------------------------------------------------------
-    const handleBusquedaEstado = (valor: string) => {
-        setBusquedaEstado(valor);
-
-        if (valor.length >= 1) {
-            const resultados = buscarEstados(valor);
-            setResultadosEstado(resultados);
-            setMostrarResultadosEstado(resultados.length > 0);
-        } else {
-            // Si no hay búsqueda, mostrar todos los estados
-            const todos = buscarEstados('');
-            setResultadosEstado(todos);
-            setMostrarResultadosEstado(true);
-        }
-    };
-
-    const handleSeleccionarEstado = (estadoSel: string) => {
-        setEstado(estadoSel);
-        setBusquedaEstado('');
-        setMostrarResultadosEstado(false);
-    };
 
     // ---------------------------------------------------------------------------
     // Cerrar dropdowns al hacer clic fuera
@@ -348,15 +337,6 @@ export function PasoUbicacion() {
                 setMostrarSugerencias(false);
             }
 
-            // Cerrar dropdown de estado
-            if (
-                sugerenciasEstadoRef.current &&
-                !sugerenciasEstadoRef.current.contains(target) &&
-                inputEstadoRef.current &&
-                !inputEstadoRef.current.contains(target)
-            ) {
-                setMostrarResultadosEstado(false);
-            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
@@ -367,7 +347,7 @@ export function PasoUbicacion() {
     // Guardar datos
     // ---------------------------------------------------------------------------
     useEffect(() => {
-        (window as any).guardarPaso2 = async (validar: boolean): Promise<boolean> => {
+        const guardarFn = async (validar: boolean): Promise<boolean> => {
             if (validar && !esFormularioValido()) {
                 notificar.error('Completa todos los campos requeridos');
                 return false;
@@ -375,20 +355,20 @@ export function PasoUbicacion() {
 
             try {
                 const zonaHoraria = detectarZonaHoraria(latitud, longitud);
-                const datos: any = {
-                    ciudad: ciudad.trim() || null,
-                    estado: estado.trim() || null,
-                    direccion: direccion.trim() || null,
-                    latitud: latitud || null,
-                    longitud: longitud || null,
-                    zonaHoraria: zonaHoraria || null,
+                const datos = {
+                    ciudad: ciudad.trim() || undefined,
+                    estado: estado.trim() || undefined,
+                    direccion: direccion.trim() || undefined,
+                    latitud: latitud || undefined,
+                    longitud: longitud || undefined,
+                    zonaHoraria: zonaHoraria || undefined,
                 };
 
                 if (validar) {
-                    await guardarPaso2(datos as any);
+                    await guardarPaso2(datos as Parameters<typeof guardarPaso2>[0]);
                 } else {
                     const { guardarBorradorPaso2 } = useOnboardingStore.getState();
-                    await guardarBorradorPaso2(datos as any);
+                    await guardarBorradorPaso2(datos);
                 }
 
                 return true;
@@ -399,8 +379,10 @@ export function PasoUbicacion() {
             }
         };
 
+        (window as unknown as Record<string, unknown>).guardarPaso2 = guardarFn;
+
         return () => {
-            delete (window as any).guardarPaso2;
+            delete (window as unknown as Record<string, unknown>).guardarPaso2;
         };
     }, [ciudad, estado, direccion, latitud, longitud]);
 
@@ -436,9 +418,8 @@ export function PasoUbicacion() {
                     setEstado(ciudadCercana.estado);
                     setCiudadSeleccionada(ciudadCercana);
                     setBusquedaCiudad('');
-                    setBusquedaEstado('');
                     setInputCiudadActivo(false); // Cerrar modo edición ciudad
-                    setMostrarResultadosEstado(false); // Cerrar dropdown
+ // Cerrar dropdown
                     setMostrarSugerencias(false); // Cerrar dropdown de ciudad también
                 }
 
@@ -459,8 +440,8 @@ export function PasoUbicacion() {
         return (
             <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
                 <div className="text-center">
-                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-blue-600 mx-auto mb-2 lg:mb-3" />
-                    <p className="text-xs lg:text-sm text-slate-600">Cargando...</p>
+                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-600 mx-auto mb-2 lg:mb-3" />
+                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600">Cargando...</p>
                 </div>
             </div>
         );
@@ -470,269 +451,207 @@ export function PasoUbicacion() {
     // Render principal
     // ---------------------------------------------------------------------------
     return (
-        <div className="space-y-2.5 lg:space-y-3 2xl:space-y-4" ref={contenedorGeneralRef}>
-            {/* Dirección */}
-            <div>
-                <label className="flex text-sm lg:text-sm 2xl:text-base font-semibold text-slate-900 mb-1.5 lg:mb-1.5 items-center gap-2 lg:gap-1.5">
-                    <MapPin className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
-                    Dirección completa <span className="text-red-500">*</span>
-                </label>
-                <input
-                    type="text"
-                    value={direccion}
-                    onChange={(e) => setDireccion(e.target.value)}
-                    placeholder="Ej: Calle Revolución #123, Col. Centro"
-                    maxLength={250}
-                    className="w-full px-4 lg:px-3.5 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 border-2 border-slate-200 rounded-lg 2xl:rounded-xl focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none text-sm lg:text-sm 2xl:text-base transition-all"
-                />
-                <p className="text-[11px] lg:text-[10px] text-slate-500 mt-0.5">
-                    {direccion.length}/250 caracteres
-                </p>
+        <div className="space-y-4 lg:space-y-3.5 2xl:space-y-5" ref={contenedorGeneralRef}>
+
+            {/* ================================================================= */}
+            {/* CARD: Dirección */}
+            {/* ================================================================= */}
+            <div className="bg-white border-2 border-slate-300 rounded-xl"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div className="px-3 lg:px-4 py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                    <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                        <MapPin className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                    </div>
+                    <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Dirección</span>
+                </div>
+                <div className="p-4 lg:p-3 2xl:p-4 space-y-4 lg:space-y-3 2xl:space-y-4">
+
+                    {/* Calle y Colonia */}
+                    <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700">
+                                Calle y Colonia <span className="text-red-500">*</span>
+                            </label>
+                            <span className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-500">
+                                {direccion.length}/250
+                            </span>
+                        </div>
+                        <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 border-2 border-slate-300"
+                            style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                            <input
+                                type="text"
+                                value={direccion}
+                                onChange={(e) => setDireccion(e.target.value)}
+                                placeholder="Ej: Calle Revolución #123, Col. Centro"
+                                maxLength={250}
+                                className="flex-1 bg-transparent outline-none text-sm lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Ciudad + Estado */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2.5 2xl:gap-3">
+
+                        {/* Ciudad */}
+                        <div className="relative z-20">
+                            <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 block">
+                                Ciudad <span className="text-red-500">*</span>
+                            </label>
+
+                            {/* MÓVIL: botón que abre modal */}
+                            <button type="button" onClick={() => setModalCiudadAbierto(true)}
+                                className="lg:hidden flex items-center w-full h-11 bg-slate-100 rounded-lg px-4 border-2 border-slate-300 hover:border-slate-400 cursor-pointer"
+                                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                <span className={`flex-1 text-left text-base font-medium ${ciudad ? 'text-slate-800' : 'text-slate-500'}`}>
+                                    {ciudad || 'Buscar ciudad...'}
+                                </span>
+                                <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                            </button>
+
+                            {/* DESKTOP: input con autocomplete */}
+                            <div className="hidden lg:block relative">
+                                <div className="flex items-center h-10 2xl:h-11 bg-slate-100 rounded-lg px-2.5 2xl:px-3 border-2 border-slate-300"
+                                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                    <Search className="w-4 h-4 text-slate-400 shrink-0 mr-2" />
+                                    <input
+                                        ref={inputCiudadRef}
+                                        type="text"
+                                        autoComplete="new-password"
+                                        value={inputCiudadActivo ? busquedaCiudad : ciudad}
+                                        onChange={(e) => {
+                                            const valor = e.target.value;
+                                            setBusquedaCiudad(valor);
+                                            if (valor === '') { setCiudad(''); setCiudadSeleccionada(null); }
+                                            if (valor.length >= 2) {
+                                                const resultados = buscarCiudades(valor);
+                                                setSugerenciasCiudades(resultados);
+                                                setMostrarSugerencias(resultados.length > 0);
+                                            } else {
+                                                setSugerenciasCiudades([]);
+                                                setMostrarSugerencias(false);
+                                            }
+                                        }}
+                                        onFocus={() => {
+                                            setInputCiudadActivo(true);
+                                            setBusquedaCiudad(ciudad);
+                                            if (ciudad.length >= 2) {
+                                                const resultados = buscarCiudades(ciudad);
+                                                setSugerenciasCiudades(resultados);
+                                                setMostrarSugerencias(resultados.length > 0);
+                                            }
+                                        }}
+                                        onBlur={() => setTimeout(() => setInputCiudadActivo(false), 200)}
+                                        placeholder="Buscar ciudad..."
+                                        maxLength={120}
+                                        className="flex-1 bg-transparent outline-none text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                                    />
+                                </div>
+
+                                {/* Sugerencias */}
+                                {mostrarSugerencias && (
+                                    <div ref={sugerenciasRef}
+                                        className="absolute z-30 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
+                                        <div className="max-h-[250px] overflow-y-auto py-1">
+                                            {sugerenciasCiudades.map((sug, idx) => (
+                                                <button key={idx} type="button"
+                                                    onClick={() => handleSeleccionarCiudad(sug)}
+                                                    className="w-full flex items-center gap-2 px-3 py-2 text-left cursor-pointer text-slate-600 font-medium hover:bg-slate-200 transition-colors">
+                                                    <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                                                    <span className="flex-1 text-sm 2xl:text-base font-semibold text-slate-800 truncate">
+                                                        {sug.nombre}, <span className="font-medium text-slate-600">{sug.estado}</span>
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Estado (solo lectura — se auto-rellena) */}
+                        <div>
+                            <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 block">
+                                Estado
+                            </label>
+                            <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 lg:px-2.5 2xl:px-3 border-2 border-slate-300"
+                                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                <span className={`flex-1 text-sm lg:text-sm 2xl:text-base font-medium ${estado ? 'text-slate-800' : 'text-slate-500'}`}>
+                                    {estado || 'Se auto-completa'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* ═══════════════════════════════════════════════════════════════════
-                FILA: CIUDAD + ESTADO + GPS
-            ═══════════════════════════════════════════════════════════════════ */}
-            <div className="flex gap-3 items-start">
-                {/* Ciudad - 50% */}
-                <div className="w-[50%] relative z-20">
-                    <label className="text-sm lg:text-sm 2xl:text-base font-semibold text-slate-900 mb-1.5 lg:mb-1.5 flex items-center gap-2 lg:gap-1.5">
-                        <MapPin className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
-                        Ciudad <span className="text-red-500">*</span>
-                    </label>
-
-                    <div className="relative">
-                        <div className="absolute left-3 lg:left-2.5 top-[21px] lg:top-[19px] 2xl:top-6 -translate-y-1/2 pointer-events-none">
-                            <Search className="w-4 h-4 lg:w-3.5 lg:h-3.5 text-slate-400" />
+            {/* ================================================================= */}
+            {/* CARD: Ubicación en el Mapa */}
+            {/* ================================================================= */}
+            <div className="bg-white border-2 border-slate-300 rounded-xl relative z-0"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div className="px-3 lg:px-4 py-2 flex items-center justify-between rounded-t-[10px]"
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                    <div className="flex items-center gap-2 lg:gap-2.5">
+                        <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                            <Navigation className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
                         </div>
-                        <input
-                            ref={inputCiudadRef}
-                            type="text"
-                            autoComplete="new-password"
-                            value={inputCiudadActivo ? busquedaCiudad : ciudad}
-                            onChange={(e) => {
-                                const valor = e.target.value;
-                                setBusquedaCiudad(valor);
-
-                                // Si borra todo, limpiar también la ciudad seleccionada
-                                if (valor === '') {
-                                    setCiudad('');
-                                    setCiudadSeleccionada(null);
-                                }
-
-                                // Buscar ciudades
-                                if (valor.length >= 2) {
-                                    const resultados = buscarCiudades(valor);
-                                    setSugerenciasCiudades(resultados);
-                                    setMostrarSugerencias(resultados.length > 0);
-                                } else {
-                                    setSugerenciasCiudades([]);
-                                    setMostrarSugerencias(false);
-                                }
-                            }}
-                            onFocus={() => {
-                                setInputCiudadActivo(true);
-                                setBusquedaCiudad(ciudad);
-                                if (ciudad.length >= 2) {
-                                    const resultados = buscarCiudades(ciudad);
-                                    setSugerenciasCiudades(resultados);
-                                    setMostrarSugerencias(resultados.length > 0);
-                                }
-                            }}
-                            onBlur={() => {
-                                setTimeout(() => {
-                                    setInputCiudadActivo(false);
-                                }, 200);
-                            }}
-                            placeholder="Buscar ciudad..."
-                            maxLength={120}
-                            className={`w-full pl-9 lg:pl-8 pr-9 lg:pr-8 py-2.5 lg:py-2 2xl:py-2.5 border-2 rounded-lg 2xl:rounded-xl focus:ring-2 focus:outline-none text-sm lg:text-sm 2xl:text-base transition-all ${!ciudad
-                                ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                                : 'border-slate-200 focus:border-blue-600 focus:ring-blue-100'
-                                }`}
-                        />
-                        {/* Mensaje de error */}
-                        {!ciudad && (
-                            <p className="text-[11px] lg:text-[12px] text-red-500 mt-0.5">
-                                Selecciona una ciudad
-                            </p>
-                        )}
+                        <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Ubicación en el Mapa</span>
                     </div>
-
-                    {/* Sugerencias de Ciudad */}
-                    {mostrarSugerencias && (
-                        <div
-                            ref={sugerenciasRef}
-                            className="absolute z-50 w-full mt-1 bg-white border-2 border-slate-200 rounded-lg 2xl:rounded-xl shadow-lg max-h-60 overflow-y-auto"
-                        >
-                            {sugerenciasCiudades.map((sug, idx) => (
-                                <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => handleSeleccionarCiudad(sug)}
-                                    className="w-full px-4 py-2.5 lg:py-2 text-left hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
-                                        <span className="text-sm lg:text-sm text-slate-900 font-medium">
-                                            {sug.nombre_completo}
-                                        </span>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Estado - 30% */}
-                <div className="w-[30%] relative z-10">
-                    <label className="text-sm lg:text-sm 2xl:text-base font-semibold text-slate-900 mb-1.5 lg:mb-1.5 flex items-center gap-2 lg:gap-1.5">
-                        <MapPin className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
-                        Estado <span className="text-red-500">*</span>
-                    </label>
-
-                    <div className="relative">
-                        <input
-                            ref={inputEstadoRef}
-                            type="text"
-                            autoComplete="new-password"
-                            value={mostrarResultadosEstado ? busquedaEstado : estado}
-                            onChange={(e) => {
-                                const valor = e.target.value;
-                                setBusquedaEstado(valor);
-
-                                // Si borra todo, limpiar también el estado seleccionado
-                                if (valor === '') {
-                                    setEstado('');
-                                }
-
-                                // Buscar estados
-                                const resultados = buscarEstados(valor);
-                                setResultadosEstado(resultados);
-                                setMostrarResultadosEstado(true);
-                            }}
-                            onFocus={() => {
-                                setBusquedaEstado(estado); // Mantener el valor actual
-                                const todos = buscarEstados('');
-                                setResultadosEstado(todos);
-                                setMostrarResultadosEstado(true);
-                            }}
-                            placeholder="Estado..."
-                            className={`w-full px-3 lg:px-2.5 py-2.5 lg:py-2 2xl:py-2.5 border-2 rounded-lg 2xl:rounded-xl focus:ring-2 focus:outline-none text-sm lg:text-sm 2xl:text-base transition-all ${!estado
-                                ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                                : 'border-slate-200 focus:border-blue-600 focus:ring-blue-100'
-                                }`}
-                        />
-                    </div>
-
-                    {/* Dropdown de Estados */}
-                    {mostrarResultadosEstado && resultadosEstado.length > 0 && (
-                        <div
-                            ref={sugerenciasEstadoRef}
-                            className="absolute z-50 w-full mt-1 bg-white border-2 border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                        >
-                            {resultadosEstado.map((est, idx) => (
-                                <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => handleSeleccionarEstado(est)}
-                                    className="w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0 text-sm"
-                                >
-                                    {est}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Mensaje de error */}
-                    {!estado && (
-                        <p className="text-[11px] lg:text-[12px] text-red-500 mt-0.5">
-                            Selecciona un estado
-                        </p>
-                    )}
-                </div>
-
-                {/* Botón GPS - 20% */}
-                <div className="w-[20%]">
-                    <label className="block text-sm lg:text-sm 2xl:text-base font-semibold text-slate-900 mb-1.5 lg:mb-1.5 opacity-0">
-                        GPS
-                    </label>
-                    <button
-                        type="button"
-                        onClick={handleDetectarUbicacion}
-                        disabled={detectandoUbicacion}
-                        className="w-full h-[42px] lg:h-[38px] 2xl:h-[42px] flex items-center justify-center gap-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg 2xl:rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                    >
-                        {detectandoUbicacion ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Navigation className="w-4 h-4" />
-                        )}
-                        <span className="hidden lg:inline">Usar GPS</span>
+                    <button type="button" onClick={handleDetectarUbicacion} disabled={detectandoUbicacion}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 border-2 border-white/30 text-white hover:bg-white/25 transition-all cursor-pointer text-sm font-semibold whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                        {detectandoUbicacion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4 shrink-0" />}
+                        Mi Ubicación
                     </button>
                 </div>
-            </div>
+                <div className="p-4 lg:p-3 2xl:p-4 space-y-3 lg:space-y-2.5 2xl:space-y-3">
 
-            {/* Mapa Interactivo */}
-            <div className="relative z-0">
-                <div className="flex items-center justify-between mb-1.5 lg:mb-2">
-                    <label className="text-sm lg:text-sm 2xl:text-base font-semibold text-slate-900 flex items-center gap-2 lg:gap-1.5">
-                        <Navigation className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
-                        Ubicación en el mapa <span className="text-red-500">*</span>
-                    </label>
-                    <p className="text-xs text-blue-600 font-medium">
-                        Tip: Arrastra el marcador o haz clic en el mapa para ajustar la ubicación exacta
+                    {/* Tip */}
+                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-500">
+                        <span className="font-bold text-slate-700">Tip:</span> Arrastra el marcador o toca el mapa para ajustar la ubicación
                     </p>
-                </div>
 
-                <div className="rounded-lg 2xl:rounded-xl overflow-hidden border-2 border-slate-200 shadow-sm relative z-0">
+                    {/* Mapa */}
+                    <div className="rounded-lg overflow-hidden border-2 border-slate-300 relative z-0">
+                        {mapaListo && (
+                            <button type="button"
+                                onClick={() => setForzarCentrado(prev => prev + 1)}
+                                className="absolute top-3 right-3 z-1000 bg-white hover:bg-slate-100 text-slate-700 p-2 rounded-lg shadow-lg border-2 border-slate-300 hover:border-slate-400 transition-all cursor-pointer"
+                                title="Centrar mapa">
+                                <MapPin className="w-4 h-4" />
+                            </button>
+                        )}
 
-                    {/* Botón Centrar Mapa - Flotante */}
-                    {mapaListo && (
-                        <button
-                            type="button"
-                            onClick={() => setForzarCentrado(prev => prev + 1)}
-                            className="absolute top-3 right-3 z-1000 bg-white hover:bg-blue-50 text-blue-600 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg shadow-lg border-2 border-blue-300 hover:border-blue-500 transition-all"
-                            title="Centrar mapa en la ubicación"
-                        >
-                            <MapPin className="w-[18px] h-[18px] lg:w-4 lg:h-4 2xl:w-[18px] 2xl:h-[18px]" />
-                        </button>
-                    )}
-
-                    {mapaListo ? (
-                        <MapContainer
-                            center={[latitud, longitud]}
-                            zoom={15}
-                            style={{ height: '280px', width: '100%' }}
-                            className="lg:h-[500px]! 2xl:h-[560px]! z-0!"
-                        >
-                            <TileLayer
-                                attribution='&copy; OpenStreetMap'
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            />
-                            <MarcadorArrastrable
-                                posicion={[latitud, longitud]}
-                                onMover={handleMoverMarcador}
-                            />
-                            <DetectarClicMapa onClic={handleMoverMarcador} />
-                            <CentrarMapa lat={latitud} lng={longitud} forzar={forzarCentrado} />
-                        </MapContainer>
-                    ) : (
-                        <div className="flex items-center justify-center h-[280px] lg:h-[500px] 2xl:h-[560px] bg-slate-50">
-                            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                        </div>
-                    )}
-                </div>
-
-                <div className="mt-2 p-3 lg:p-2.5 bg-blue-50 border border-blue-100 rounded-lg 2xl:rounded-xl">
-                    <div className="flex gap-2 lg:gap-2">
-                        <Info className="w-4 h-4 lg:w-3.5 lg:h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                        <p className="text-xs lg:text-[10px] 2xl:text-xs text-blue-700 leading-relaxed lg:leading-tight">
-                            <span className="font-semibold">Arrastra el marcador o haz clic en el mapa</span> para ajustar la ubicación exacta de tu negocio.
-                        </p>
+                        {mapaListo ? (
+                            <MapContainer
+                                center={[latitud, longitud]}
+                                zoom={15}
+                                style={{ height: '250px', width: '100%' }}
+                                className="lg:h-[280px]! 2xl:h-80! z-0!"
+                            >
+                                <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                <MarcadorArrastrable posicion={[latitud, longitud]} onMover={handleMoverMarcador} />
+                                <DetectarClicMapa onClic={handleMoverMarcador} />
+                                <CentrarMapa lat={latitud} lng={longitud} forzar={forzarCentrado} />
+                            </MapContainer>
+                        ) : (
+                            <div className="flex items-center justify-center h-[250px] lg:h-[280px] 2xl:h-80 bg-slate-50">
+                                <Loader2 className="w-6 h-6 animate-spin text-slate-600" />
+                            </div>
+                        )}
                     </div>
+
                 </div>
             </div>
+            {/* Modal de ciudad (móvil) */}
+            {modalCiudadAbierto && (
+                <ModalUbicacion
+                    onClose={() => setModalCiudadAbierto(false)}
+                    onSeleccionar={handleSeleccionarCiudadModal}
+                />
+            )}
         </div>
     );
 }

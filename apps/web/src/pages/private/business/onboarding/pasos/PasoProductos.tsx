@@ -16,14 +16,16 @@
  * CREADO: 25/12/2024
  */
 
-import React, { useState, useEffect } from 'react';
-import { Package, Plus, Edit2, Trash2, Loader2, Scissors } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShoppingCart, Plus, Edit2, Trash2, Copy, Loader2, Package, Scissors } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { api } from '@/services/api';
-import { ModalAgregarProducto } from '../componentes';
+import { ModalArticulo } from '@/pages/private/business-studio/catalogo/ModalArticulo';
+import type { Articulo as ArticuloCatalogo, CrearArticuloInput, ActualizarArticuloInput } from '@/types/articulos';
 import { notificar } from '@/utils/notificaciones';
 import { useNavigate } from 'react-router-dom';
+import { eliminarImagenHuerfana } from '@/services/r2Service';
 
 // =============================================================================
 // TIPOS
@@ -40,6 +42,15 @@ interface Articulo {
 }
 
 // =============================================================================
+// CACHÉ
+// =============================================================================
+
+const cache8 = {
+    cargado: false,
+    articulos: [] as Articulo[],
+};
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -48,9 +59,9 @@ export function PasoProductos() {
     const { negocioId, guardarPaso8, finalizarOnboarding, setSiguienteDeshabilitado } = useOnboardingStore();
     const { usuario, setUsuario } = useAuthStore();
 
-    // Estados
-    const [articulos, setArticulos] = useState<Articulo[]>([]);
-    const [cargandoDatos, setCargandoDatos] = useState(true);
+    // Estados — inicializar desde caché
+    const [articulos, setArticulos] = useState<Articulo[]>(cache8.articulos);
+    const [cargandoDatos, setCargandoDatos] = useState(!cache8.cargado);
     const [modalAbierto, setModalAbierto] = useState(false);
     const [articuloEditar, setArticuloEditar] = useState<Articulo | null>(null);
     const [guardando, setGuardando] = useState(false);
@@ -59,8 +70,11 @@ export function PasoProductos() {
     // ---------------------------------------------------------------------------
     // Cargar artículos existentes
     // ---------------------------------------------------------------------------
+    // Sincronizar caché
+    useEffect(() => { cache8.articulos = articulos; }, [articulos]);
+
     useEffect(() => {
-        // No hacer nada si no hay negocioId aún
+        if (cache8.cargado) { setCargandoDatos(false); return; }
         if (!negocioId) {
             setCargandoDatos(false);
             return;
@@ -74,14 +88,14 @@ export function PasoProductos() {
                 const datos = response.data.data;
 
                 if (datos.articulos && datos.articulos.length > 0 && isMounted) {
-                    const articulosMapeados = datos.articulos.map((art: any) => ({
-                        id: art.id,
+                    const articulosMapeados = datos.articulos.map((art: Record<string, unknown>) => ({
+                        id: art.id as string,
                         tipo: art.tipo as 'producto' | 'servicio',
-                        nombre: art.nombre,
-                        descripcion: art.descripcion,
-                        precioBase: parseFloat(art.precioBase),
-                        imagenPrincipal: art.imagenPrincipal,
-                        disponible: art.disponible ?? true,
+                        nombre: art.nombre as string,
+                        descripcion: art.descripcion as string,
+                        precioBase: parseFloat(String(art.precioBase)),
+                        imagenPrincipal: art.imagenPrincipal as string,
+                        disponible: (art.disponible as boolean) ?? true,
                     }));
 
                     const articulosUnicos = articulosMapeados.filter(
@@ -95,6 +109,7 @@ export function PasoProductos() {
             } finally {
                 if (isMounted) {
                     setCargandoDatos(false);
+                    cache8.cargado = true;
                 }
             }
         };
@@ -123,88 +138,87 @@ export function PasoProductos() {
     // Exponer función de guardado
     // ---------------------------------------------------------------------------
     useEffect(() => {
-        (window as any).guardarPaso8 = async (validar: boolean): Promise<boolean> => {
-            // Si validar, requiere mínimo 3 artículos
+        const guardarFn = async (validar: boolean): Promise<boolean> => {
             if (validar && articulos.length < 3) {
                 notificar.error('Debes agregar al menos 3 productos o servicios');
                 return false;
             }
 
-            // Si es borrador, permite guardar con 0+ artículos
-            if (!validar && articulos.length === 0) {
-                return true; // No hay nada que guardar
-            }
+            if (!validar && articulos.length === 0) return true;
 
             try {
                 setGuardando(true);
-
-                const datos: any = {
-                    articulos: articulos.length > 0 ? articulos : null
-                };
+                const datos = articulos.length > 0 ? articulos : undefined;
 
                 if (validar) {
-                    // Guardar CON validación (avanzar) - mínimo 3 artículos
-                    await guardarPaso8(datos.articulos as any);
+                    await guardarPaso8(datos as Parameters<typeof guardarPaso8>[0]);
                 } else {
-                    // Guardar SIN validación (retroceder/borrador)
                     const { guardarBorradorPaso8 } = useOnboardingStore.getState();
-                    await guardarBorradorPaso8(datos.articulos as any);
+                    await guardarBorradorPaso8(datos as Parameters<typeof guardarBorradorPaso8>[0]);
                 }
 
                 setGuardando(false);
                 return true;
-            } catch (error: any) {
+            } catch (error) {
                 console.error('Error al guardar paso 8:', error);
                 setGuardando(false);
                 return false;
             }
         };
 
+        (window as unknown as Record<string, unknown>).guardarPaso8 = guardarFn;
+
         return () => {
-            delete (window as any).guardarPaso8;
+            delete (window as unknown as Record<string, unknown>).guardarPaso8;
         };
     }, [articulos]);
 
     // ---------------------------------------------------------------------------
     // Agregar nuevo artículo
     // ---------------------------------------------------------------------------
-    const agregarArticulo = (articulo: Articulo) => {
-        // Generar ID temporal
-        const nuevoArticulo: Articulo = {
-            ...articulo,
-            id: `temp-${Date.now()}`,
-        };
-
-        setArticulos([...articulos, nuevoArticulo]);
-
-        notificar.exito('Producto agregado');
+    // Handler unificado para guardar desde ModalArticulo
+    const handleGuardarArticulo = async (datos: CrearArticuloInput | ActualizarArticuloInput) => {
+        if (articuloEditar?.id) {
+            // Editar existente
+            setArticulos(articulos.map(a =>
+                a.id === articuloEditar.id
+                    ? {
+                        ...a,
+                        nombre: (datos as CrearArticuloInput).nombre || a.nombre,
+                        descripcion: (datos as CrearArticuloInput).descripcion || a.descripcion,
+                        precioBase: (datos as CrearArticuloInput).precioBase ?? a.precioBase,
+                        imagenPrincipal: (datos as CrearArticuloInput).imagenPrincipal ?? a.imagenPrincipal,
+                        tipo: (datos as CrearArticuloInput).tipo || a.tipo,
+                        disponible: (datos as CrearArticuloInput).disponible ?? a.disponible,
+                    }
+                    : a
+            ));
+            setArticuloEditar(null);
+            notificar.exito('Cambios guardados');
+        } else {
+            // Crear nuevo
+            const crear = datos as CrearArticuloInput;
+            const nuevoArticulo: Articulo = {
+                id: `temp-${Date.now()}`,
+                tipo: crear.tipo,
+                nombre: crear.nombre,
+                descripcion: crear.descripcion || '',
+                precioBase: crear.precioBase,
+                imagenPrincipal: crear.imagenPrincipal || '',
+                disponible: crear.disponible ?? true,
+            };
+            setArticulos([...articulos, nuevoArticulo]);
+            notificar.exito('Producto agregado');
+        }
+        setModalAbierto(false);
     };
 
-    // ---------------------------------------------------------------------------
     // Editar artículo existente
-    // ---------------------------------------------------------------------------
     const handleEditar = (id: string) => {
         const articulo = articulos.find(a => a.id === id);
         if (!articulo) return;
-
         setArticuloEditar(articulo);
         setModalAbierto(true);
-    };
-
-    const guardarEdicion = (articuloActualizado: Articulo) => {
-        if (!articuloEditar?.id) return;
-
-        setArticulos(
-            articulos.map(a =>
-                a.id === articuloEditar.id
-                    ? { ...articuloActualizado, id: articuloEditar.id }
-                    : a
-            )
-        );
-
-        setArticuloEditar(null);
-
-        notificar.exito('Cambios guardados');
     };
 
     // ---------------------------------------------------------------------------
@@ -229,17 +243,33 @@ export function PasoProductos() {
             }
         }
 
-        // Eliminar imagen de Cloudinary en segundo plano
-        if (articulo?.imagenPrincipal && articulo.imagenPrincipal !== 'https://via.placeholder.com/300?text=Sin+Imagen') {
-            try {
-                const { eliminarDeCloudinary } = await import('@/utils/cloudinary');
-                await eliminarDeCloudinary(articulo.imagenPrincipal);
-            } catch (error) {
-                console.error('❌ Error al eliminar imagen de Cloudinary:', error);
-            }
+        // Eliminar imagen de R2 en segundo plano
+        if (articulo?.imagenPrincipal && articulo.imagenPrincipal.startsWith('http') && !articulo.imagenPrincipal.includes('placeholder')) {
+            eliminarImagenHuerfana(articulo.imagenPrincipal).catch(() => {});
         }
     };
 
+
+    // ---------------------------------------------------------------------------
+    // Duplicar artículo (copia local, misma imagen — se duplica en R2 al persistir)
+    // ---------------------------------------------------------------------------
+    const duplicarArticulo = (id: string) => {
+        const original = articulos.find(a => a.id === id);
+        if (!original) return;
+
+        const copia: Articulo = {
+            id: `temp-${Date.now()}`,
+            tipo: original.tipo,
+            nombre: `${original.nombre} (copia)`,
+            descripcion: original.descripcion,
+            precioBase: original.precioBase,
+            imagenPrincipal: original.imagenPrincipal,
+            disponible: original.disponible,
+        };
+
+        setArticulos(prev => [...prev, copia]);
+        notificar.exito('Producto duplicado');
+    };
 
     // ---------------------------------------------------------------------------
     // Finalizar onboarding
@@ -286,9 +316,9 @@ export function PasoProductos() {
             setTimeout(() => {
                 navigate('/business/dashboard');
             }, 1500);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error al finalizar onboarding:', error);
-            notificar.error(error.response?.data?.message || 'Error al finalizar. Intenta nuevamente');
+            notificar.error('Error al finalizar. Intenta nuevamente');
         } finally {
             setFinalizando(false);
         }
@@ -306,161 +336,195 @@ export function PasoProductos() {
     // ---------------------------------------------------------------------------
     if (cargandoDatos) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
+                <div className="text-center">
+                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-600 mx-auto mb-2 lg:mb-3" />
+                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600">Cargando...</p>
+                </div>
             </div>
         );
     }
 
     // ---------------------------------------------------------------------------
-    // Render principal
+    // Render principal — Card estilo Mi Perfil
     // ---------------------------------------------------------------------------
     return (
-        <div className="space-y-3 lg:space-y-2.5 2xl:space-y-3">
+        <div className="space-y-4 lg:space-y-3.5 2xl:space-y-5">
 
-            {/* Card principal */}
-            <div className="bg-white rounded-lg lg:rounded-xl 2xl:rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-5 2xl:p-6">
-
-                {/* Header con botón */}
-                <div className="flex items-center justify-between mb-4 lg:mb-5 2xl:mb-6">
-                    <div>
-                        <h2 className="text-base lg:text-lg 2xl:text-xl font-bold text-slate-900">
-                            Productos y Servicios
-                        </h2>
-                        <p className="text-xs lg:text-sm text-slate-600">
-                            {articulos.length}/3 mínimo agregados
-                        </p>
+            {/* ================================================================= */}
+            {/* CARD: Productos y Servicios */}
+            {/* ================================================================= */}
+            <div className="bg-white border-2 border-slate-300 rounded-xl"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div className="px-3 lg:px-4 py-2 flex items-center justify-between rounded-t-[10px]"
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                    <div className="flex items-center gap-2 lg:gap-2.5">
+                        <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                            <ShoppingCart className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                        </div>
+                        <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Productos y Servicios</span>
+                        <span className={`text-sm lg:text-xs 2xl:text-sm font-bold px-2 py-0.5 rounded-full ${
+                            articulos.length >= 3 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white/60'
+                        }`}>
+                            {articulos.length}/3
+                        </span>
                     </div>
-                    <button
-                        onClick={() => {
-                            setArticuloEditar(null);
-                            setModalAbierto(true);
-                        }}
-                        type="button"
-                        className="px-3 lg:px-4 py-2 lg:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm lg:text-sm font-semibold flex items-center gap-2 transition-all shadow-sm"
-                    >
-                        <Plus className="w-4 h-4 lg:w-4 lg:h-4" />
-                        Agregar
+                    <button type="button"
+                        onClick={() => { setArticuloEditar(null); setModalAbierto(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 border border-white/30 text-white hover:bg-white/25 transition-all cursor-pointer text-sm font-semibold">
+                        <Plus className="w-4 h-4" />
+                        <span className="hidden lg:inline">Agregar</span>
                     </button>
                 </div>
 
-                {/* Lista de productos */}
-                {articulos.length > 0 ? (
-                    <div className="space-y-2 lg:space-y-2.5 2xl:space-y-3">
-                        {articulos.map((articulo) => {
+                {/* Lista desktop */}
+                <div className="hidden lg:block p-3 2xl:p-4">
+                    {articulos.length > 0 ? (
+                        <div className="divide-y divide-slate-200">
+                            {articulos.map((articulo) => {
+                                const Icono = getIconoTipo(articulo.tipo);
+                                return (
+                                    <div key={articulo.id} className="flex items-center gap-3 py-2.5 2xl:py-3 first:pt-0 last:pb-0">
+                                        <div className="w-14 h-14 rounded-lg shrink-0 overflow-hidden border-2 border-slate-300">
+                                            {articulo.imagenPrincipal && !articulo.imagenPrincipal.includes('placeholder') ? (
+                                                <img src={articulo.imagenPrincipal} alt={articulo.nombre} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                                                    <Icono className="w-5 h-5 text-slate-400" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm 2xl:text-base font-bold text-slate-800 truncate">{articulo.nombre}</p>
+                                                <span className={`text-[10px] 2xl:text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                                    articulo.tipo === 'producto' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                    {articulo.tipo === 'producto' ? 'Producto' : 'Servicio'}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm 2xl:text-base font-medium text-slate-500 truncate">{articulo.descripcion}</p>
+                                        </div>
+                                        <p className="text-sm 2xl:text-base font-bold text-emerald-600 shrink-0">${articulo.precioBase.toFixed(0)}</p>
+                                        <div className="flex gap-1.5 shrink-0">
+                                            <button type="button" onClick={() => handleEditar(articulo.id!)} title="Editar"
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-indigo-50 hover:bg-indigo-100 transition-all cursor-pointer">
+                                                <Edit2 className="w-[18px] h-[18px] text-indigo-600" />
+                                            </button>
+                                            <button type="button" onClick={() => duplicarArticulo(articulo.id!)} title="Duplicar"
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-50 hover:bg-emerald-100 transition-all cursor-pointer">
+                                                <Copy className="w-[18px] h-[18px] text-emerald-600" />
+                                            </button>
+                                            <button type="button" onClick={() => eliminarArticulo(articulo.id!)} title="Eliminar"
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 transition-all cursor-pointer">
+                                                <Trash2 className="w-[18px] h-[18px] text-red-500" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8">
+                            <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                            <p className="text-sm 2xl:text-base font-medium text-slate-500">No hay productos agregados</p>
+                            <p className="text-sm font-medium text-slate-400 mt-1">Toca "Agregar" para comenzar</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Cards móvil — estilo FilaMovil de PaginaCatalogo */}
+                <div className="lg:hidden p-3 space-y-3">
+                    {articulos.length > 0 ? (
+                        articulos.map((articulo) => {
                             const Icono = getIconoTipo(articulo.tipo);
+                            const esTipoProducto = articulo.tipo === 'producto';
                             return (
-                                <div
-                                    key={articulo.id}
-                                    className="flex items-center gap-3 lg:gap-3.5 2xl:gap-4 p-3 lg:p-3.5 2xl:p-4 rounded-lg border-2 border-slate-100 hover:border-slate-200 transition-all"
-                                >
-                                    {/* Imagen del producto */}
-                                    <div className="w-14 h-14 lg:w-16 lg:h-16 2xl:w-18 2xl:h-18 rounded-lg shrink-0 overflow-hidden bg-slate-100">
+                                <div key={articulo.id}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300"
+                                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                                    {/* Imagen */}
+                                    <div className="w-20 h-20 rounded-lg shrink-0 overflow-hidden">
                                         {articulo.imagenPrincipal && !articulo.imagenPrincipal.includes('placeholder') ? (
-                                            <img
-                                                src={articulo.imagenPrincipal}
-                                                alt={articulo.nombre}
-                                                className="w-full h-full object-cover"
-                                            />
+                                            <img src={articulo.imagenPrincipal} alt={articulo.nombre} className="w-full h-full object-cover" />
                                         ) : (
-                                            <div
-                                                className={`w-full h-full flex items-center justify-center ${articulo.tipo === 'producto' ? 'bg-blue-100' : 'bg-purple-100'
-                                                    }`}
-                                            >
-                                                <Icono
-                                                    className={`w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 ${articulo.tipo === 'producto' ? 'text-blue-600' : 'text-purple-600'
-                                                        }`}
-                                                />
+                                            <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                                                <Icono className="w-5 h-5 text-slate-600" />
                                             </div>
                                         )}
                                     </div>
-
                                     {/* Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-sm lg:text-base font-bold text-slate-900">
-                                            {articulo.nombre}
-                                        </h3>
-                                        <p className="text-xs lg:text-sm text-slate-600 truncate">
-                                            {articulo.descripcion}
-                                        </p>
-                                    </div>
-
-                                    {/* Precio y badge */}
-                                    <div className="flex items-center gap-2 lg:gap-2.5 2xl:gap-3 shrink-0">
-                                        <div className="text-right">
-                                            <p className="text-base lg:text-lg 2xl:text-xl font-bold text-green-600">
-                                                ${articulo.precioBase.toFixed(0)}
-                                            </p>
-                                            <span
-                                                className={`text-[10px] lg:text-xs px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full ${articulo.tipo === 'producto'
-                                                    ? 'bg-blue-100 text-blue-700'
-                                                    : 'bg-purple-100 text-purple-700'
-                                                    }`}
-                                            >
-                                                {articulo.tipo === 'producto' ? 'Producto' : 'Servicio'}
-                                            </span>
+                                    <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-base font-bold text-slate-800 truncate">{articulo.nombre}</span>
+                                            <span className="text-base font-extrabold text-emerald-600 shrink-0">${articulo.precioBase.toFixed(0)}</span>
                                         </div>
-
-                                        {/* Botones */}
-                                        <div className="flex gap-1">
-                                            <button
-                                                onClick={() => handleEditar(articulo.id!)}
-                                                type="button"
-                                                className="p-1.5 lg:p-2 hover:bg-blue-50 rounded-lg transition-all"
-                                            >
-                                                <Edit2 className="w-4 h-4 lg:w-4 lg:h-4 text-blue-600" />
+                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold w-fit ${
+                                            esTipoProducto ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'
+                                        }`}>
+                                            {esTipoProducto ? <Package className="w-3.5 h-3.5" /> : <Scissors className="w-3.5 h-3.5" />}
+                                            {esTipoProducto ? 'Producto' : 'Servicio'}
+                                        </span>
+                                        <div className="flex items-center justify-end gap-3">
+                                            <button type="button" onClick={() => handleEditar(articulo.id!)} className="cursor-pointer text-indigo-600">
+                                                <Edit2 className="w-5 h-5" />
                                             </button>
-                                            <button
-                                                onClick={() => eliminarArticulo(articulo.id!)}
-                                                type="button"
-                                                className="p-1.5 lg:p-2 hover:bg-red-50 rounded-lg transition-all"
-                                            >
-                                                <Trash2 className="w-4 h-4 lg:w-4 lg:h-4 text-red-600" />
+                                            <button type="button" onClick={() => duplicarArticulo(articulo.id!)} className="cursor-pointer text-emerald-600">
+                                                <Copy className="w-5 h-5" />
+                                            </button>
+                                            <button type="button" onClick={() => eliminarArticulo(articulo.id!)} className="cursor-pointer text-red-600">
+                                                <Trash2 className="w-5 h-5" />
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             );
-                        })}
-                    </div>
-                ) : (
-                    <div className="text-center py-8 lg:py-10 2xl:py-12">
-                        <Package className="w-12 h-12 lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 text-slate-300 mx-auto mb-3 lg:mb-4" />
-                        <p className="text-sm lg:text-base text-slate-500">No hay productos agregados</p>
-                        <p className="text-xs lg:text-sm text-slate-400 mt-1">
-                            Click en "Agregar" para comenzar
-                        </p>
-                    </div>
-                )}
+                        })
+                    ) : (
+                        <div className="text-center py-8">
+                            <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                            <p className="text-sm font-medium text-slate-500">No hay productos agregados</p>
+                            <p className="text-sm font-medium text-slate-400 mt-1">Toca "+" para comenzar</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Alert contador */}
+            {/* Alerta */}
             {articulos.length < 3 && (
-                <div className="flex items-start gap-2 lg:gap-2.5 p-2.5 lg:p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="mt-0.5">
-                        <Package className="w-4 h-4 lg:w-5 lg:h-5 text-amber-600" />
-                    </div>
-                    <div>
-                        <p className="text-xs lg:text-xs 2xl:text-sm text-amber-800">
-                            <span className="font-semibold">
-                                Necesitas {3 - articulos.length} producto(s) más
-                            </span>{' '}
-                            para finalizar el onboarding
-                        </p>
-                    </div>
+                <div className="p-2.5 bg-amber-100 border-2 border-amber-300 rounded-lg">
+                    <p className="text-sm font-medium text-amber-700">
+                        Necesitas <span className="font-bold">{3 - articulos.length} producto{3 - articulos.length !== 1 ? 's' : ''} más</span> para finalizar
+                    </p>
                 </div>
             )}
 
-            {/* Modal */}
-            <ModalAgregarProducto
-                isOpen={modalAbierto}
-                onClose={() => {
-                    setModalAbierto(false);
-                    setArticuloEditar(null);
-                }}
-                onSave={articuloEditar ? guardarEdicion : agregarArticulo}
-                articuloEditar={articuloEditar}
-            />
+            {/* Modal — reutiliza ModalArticulo del Catálogo */}
+            {modalAbierto && (
+                <ModalArticulo
+                    articulo={articuloEditar ? {
+                        id: articuloEditar.id || '',
+                        negocioId: negocioId || '',
+                        tipo: articuloEditar.tipo,
+                        nombre: articuloEditar.nombre,
+                        descripcion: articuloEditar.descripcion,
+                        categoria: '',
+                        precioBase: String(articuloEditar.precioBase),
+                        precioDesde: false,
+                        imagenPrincipal: articuloEditar.imagenPrincipal,
+                        disponible: articuloEditar.disponible,
+                        destacado: false,
+                        orden: 0,
+                        totalVentas: 0,
+                        totalVistas: 0,
+                        createdAt: '',
+                        updatedAt: '',
+                    } as ArticuloCatalogo : null}
+                    onGuardar={handleGuardarArticulo}
+                    onCerrar={() => { setModalAbierto(false); setArticuloEditar(null); }}
+                />
+            )}
         </div>
     );
 }

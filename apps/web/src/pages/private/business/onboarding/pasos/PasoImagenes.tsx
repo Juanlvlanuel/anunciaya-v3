@@ -25,21 +25,195 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Image as ImageIcon, Monitor, Grid3x3, X, Plus, Loader2, Check } from 'lucide-react';
+import { Image as ImageIcon, Grid3x3, Trash2, Plus, Loader2 } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
-import { useOptimisticUpload } from '@/hooks/useOptimisticUpload';
+import { useR2Upload } from '@/hooks/useR2Upload';
 import { notificar } from '@/utils/notificaciones';
 import { api } from '@/services/api';
+import { eliminarImagenHuerfana } from '@/services/r2Service';
+import { ModalImagenes } from '@/components/ui';
 
 // =============================================================================
 // TIPOS
 // =============================================================================
 
-// Extender Window para incluir guardarPaso5
 declare global {
     interface Window {
         guardarPaso5?: (validar: boolean) => Promise<boolean>;
     }
+}
+
+// =============================================================================
+// HELPER: Generar presigned URL para onboarding
+// =============================================================================
+
+async function generarUrlUploadOnboarding(nombreArchivo: string, contentType: string, carpeta = 'onboarding') {
+    const response = await api.post('/onboarding/upload-imagen', { nombreArchivo, contentType, carpeta });
+    return response.data;
+}
+
+// =============================================================================
+// ZONA DE UPLOAD — Componente con patrón 3 capas (igual a ChatYA ImagenBurbuja)
+// =============================================================================
+
+interface ZonaUploadProps {
+    imageUrl: string | null;
+    miniatura: string | null;
+    isUploading: boolean;
+    r2Url: string | null;
+    inputRef: React.RefObject<HTMLInputElement | null>;
+    isDragging: boolean;
+    aspect: string;
+    onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onDelete: () => void;
+    onDragEnter: (e: React.DragEvent) => void;
+    onDragOver: (e: React.DragEvent) => void;
+    onDragLeave: (e: React.DragEvent) => void;
+    onDrop: (e: React.DragEvent) => void;
+    placeholder: string;
+    uploadingText: string;
+    onImageClick?: () => void;
+}
+
+function ZonaUpload({
+    imageUrl, miniatura, isUploading, r2Url, inputRef, isDragging, aspect,
+    onFileChange, onDelete, onDragEnter, onDragOver, onDragLeave, onDrop,
+    placeholder, uploadingText, onImageClick,
+}: ZonaUploadProps) {
+    // Trackear QUÉ URL ya cargó (síncrono, sin delay de useEffect)
+    const [urlCargada, setUrlCargada] = useState<string | null>(null);
+    const cargada = imageUrl !== null && imageUrl === urlCargada;
+
+    // URL para capa blur: miniatura propia (blob separado) o imageUrl actual
+    const urlBlur = miniatura || imageUrl;
+
+    return (
+        <div
+            onClick={() => {
+                if (isUploading) return;
+                if (imageUrl && cargada && onImageClick) { onImageClick(); return; }
+                inputRef.current?.click();
+            }}
+            onDragEnter={onDragEnter}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            className={`
+                relative group ${aspect} rounded-xl overflow-hidden
+                border-2 border-dashed transition-all duration-200
+                ${isDragging
+                    ? 'border-slate-400 bg-slate-200'
+                    : imageUrl
+                        ? 'border-transparent'
+                        : 'border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100'
+                }
+                ${!isUploading && !imageUrl ? 'cursor-pointer' : ''}
+            `}
+        >
+            <input ref={inputRef} type="file" accept=".png,.jpg,.jpeg,.webp" onChange={onFileChange} className="hidden" disabled={isUploading} />
+
+            {/* Placeholder vacío */}
+            {!imageUrl && !isUploading && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                    <ImageIcon className="w-8 h-8 text-slate-300 mb-2" />
+                    <p className="text-sm font-medium text-slate-600">{placeholder}</p>
+                    <p className="text-sm text-slate-500 mt-0.5">Clic o arrastra</p>
+                </div>
+            )}
+
+            {/* Capa 1: Blur — miniatura o imageUrl con blur (placeholder visual permanente) */}
+            {urlBlur && (
+                <img src={urlBlur} alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                    style={{ filter: 'blur(8px)' }} />
+            )}
+
+            {/* Capa 2: Imagen real — opacity 0 hasta que carga, luego fade-in */}
+            {imageUrl && (
+                <img src={imageUrl} alt=""
+                    className={`absolute inset-0 w-full h-full object-cover duration-500 ${cargada && onImageClick ? 'group-hover:scale-110 cursor-pointer' : ''}`}
+                    style={{ opacity: cargada ? 1 : 0 }}
+                    onLoad={() => setUrlCargada(imageUrl)} />
+            )}
+
+            {/* Capa 3: Overlay + spinner durante upload */}
+            {isUploading && (
+                <div className="absolute inset-0 bg-black/25 flex flex-col items-center justify-center gap-2">
+                    <div className="w-8 h-8 border-3 rounded-full animate-spin border-white/30 border-t-white/80" />
+                    <p className="text-sm font-medium text-white/80">{uploadingText}</p>
+                </div>
+            )}
+
+            {/* Controles post-upload (solo cuando imagen cargó) */}
+            {imageUrl && !isUploading && cargada && (
+                <>
+                    <div className="absolute bottom-0 inset-x-0 h-12"
+                        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)' }} />
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                        className="absolute bottom-2 right-2 w-9 h-9 bg-black/30 hover:bg-red-600 text-white rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-colors">
+                        <Trash2 className="w-5 h-5" />
+                    </button>
+                </>
+            )}
+        </div>
+    );
+}
+
+// =============================================================================
+// CELDA DE GALERÍA — Mismo patrón 3 capas para cada imagen del grid
+// =============================================================================
+
+function CeldaGaleria({
+    url, miniatura, subiendo, onDelete, onCargada, onImageClick,
+}: {
+    url: string;
+    miniatura: string | null;
+    subiendo: boolean;
+    onDelete: () => void;
+    onCargada?: (url: string) => void;
+    onImageClick?: () => void;
+}) {
+    const [urlCargada, setUrlCargada] = useState<string | null>(null);
+    const [errorCarga, setErrorCarga] = useState(false);
+    const cargada = url === urlCargada;
+    const urlBlur = miniatura || url;
+
+    // Si la imagen no existe en R2 (huérfana), no renderizar la celda
+    if (errorCarga) return null;
+
+    return (
+        <div className="relative group aspect-video rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm">
+            {/* Capa 1: Blur */}
+            {urlBlur && (
+                <img src={urlBlur} alt="" className="absolute inset-0 w-full h-full object-cover"
+                    style={{ filter: 'blur(8px)' }}
+                    onError={() => setErrorCarga(true)} />
+            )}
+            {/* Capa 2: Imagen real — fade-in al cargar */}
+            <img src={url} alt=""
+                className={`absolute inset-0 w-full h-full object-cover duration-500 ${cargada && onImageClick ? 'group-hover:scale-110 cursor-pointer' : ''}`}
+                style={{ opacity: cargada ? 1 : 0 }}
+                onClick={() => cargada && onImageClick?.()}
+                onLoad={() => { setUrlCargada(url); onCargada?.(url); }}
+                onError={() => setErrorCarga(true)} />
+            {/* Capa 3: Spinner durante upload */}
+            {subiendo && (
+                <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                    <div className="w-6 h-6 border-2 rounded-full animate-spin border-white/30 border-t-white/80" />
+                </div>
+            )}
+            {/* Controles post-carga */}
+            {cargada && !subiendo && (
+                <>
+                    <div className="absolute inset-x-0 bottom-0 h-12" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)' }} />
+                    <button onClick={onDelete}
+                        className="absolute bottom-2 right-2 w-8 h-8 bg-black/30 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-all cursor-pointer">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </>
+            )}
+        </div>
+    );
 }
 
 // =============================================================================
@@ -48,82 +222,47 @@ declare global {
 
 export function PasoImagenes() {
     const negocioId = useOnboardingStore(state => state.negocioId);
-    const pasoActual = useOnboardingStore(state => state.pasoActual);
     const guardarPaso5 = useOnboardingStore(state => state.guardarPaso5);
     const setSiguienteDeshabilitado = useOnboardingStore(state => state.setSiguienteDeshabilitado);
-    // Estado para almacenar las imágenes de galería con sus IDs de BD
-    const [galeriaImagenes, setGaleriaImagenes] = useState<any[]>([]);
 
-    // ✅ Hooks de upload optimista
-    const logo = useOptimisticUpload({
-        carpeta: 'logos',
+    // Estado para galería (múltiples imágenes)
+    const [galeriaImagenes, setGaleriaImagenes] = useState<{ id: string; url: string }[]>([]);
+    const [galeriaUrls, setGaleriaUrls] = useState<string[]>([]);
+    const [subiendoGaleria, setSubiendoGaleria] = useState(false);
+    const [galeriaSubiendo, setGaleriaSubiendo] = useState<{ tempId: string; blobUrl: string }[]>([]);
+    const [miniaturasGaleria, setMiniaturasGaleria] = useState<Record<string, string>>({});
+
+    // Estado para ModalImagenes
+    const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number }>({
+        isOpen: false, images: [], initialIndex: 0,
+    });
+
+    // ✅ Hooks de upload R2 (logo y portada)
+    const logo = useR2Upload({
         maxWidth: 500,
         quality: 0.85,
+        generarUrl: (nombre, type) => generarUrlUploadOnboarding(nombre, type, 'logos'),
         onSuccess: async (url) => {
             const { guardarBorradorPaso5 } = useOnboardingStore.getState();
-            await guardarBorradorPaso5({ logoUrl: url as string || '' });
-        }
+            await guardarBorradorPaso5({ logoUrl: url });
+        },
     });
 
-    const portada = useOptimisticUpload({
-        carpeta: 'portadas',
+    const portada = useR2Upload({
         maxWidth: 1600,
         quality: 0.85,
+        generarUrl: (nombre, type) => generarUrlUploadOnboarding(nombre, type, 'portadas'),
         onSuccess: async (url) => {
             const { guardarBorradorPaso5 } = useOnboardingStore.getState();
-            await guardarBorradorPaso5({ portadaUrl: url as string || '' });
-        }
-    });
-
-    const galeria = useOptimisticUpload({
-        carpeta: 'galeria',
-        multiple: true,
-        maxImages: 10,
-        maxWidth: 1200,
-        quality: 0.85,
-        onSuccess: async (imagenes: any) => {
-            try {
-                // Guardar en BD - ahora imagenes ya tiene {url, publicId}
-                const response = await api.post(`/onboarding/${negocioId}/galeria`, {
-                    imagenes: imagenes.map((img: any) => ({
-                        url: img.url,
-                        cloudinaryPublicId: img.publicId
-                    }))
-                });
-
-                // Actualizar galeriaImagenes con las imágenes guardadas (incluyen ID de BD)
-                if (response.data.success && response.data.data) {
-                    setGaleriaImagenes(response.data.data.map((img: any) => ({
-                        id: img.id,
-                        url: img.url
-                    })));
-                }
-
-            } catch (error) {
-                console.error('❌ Error al guardar galería en BD:', error);
-            }
+            await guardarBorradorPaso5({ portadaUrl: url });
         },
-        // 🆕 AGREGAR CALLBACK onDelete
-        onDelete: async (url) => {
-            try {
-                // Buscar el ID en BD
-                const imagenEnBD = galeriaImagenes.find((img: any) => img.url === url);
-
-                if (imagenEnBD?.id) {
-                    await api.delete(`/negocios/${negocioId}/galeria/${imagenEnBD.id}`);
-
-                    // Actualizar estado local
-                    setGaleriaImagenes((prev: any[]) =>
-                        prev.filter((img: any) => img.id !== imagenEnBD.id)
-                    );
-                }
-            } catch (error) {
-                console.error('❌ Error al eliminar de BD:', error);
-            }
-        }
     });
 
     const [cargandoDatos, setCargandoDatos] = useState(true);
+
+    // Miniaturas separadas para blur (blob URLs independientes del hook)
+    const [logoMiniatura, setLogoMiniatura] = useState<string | null>(null);
+    const [portadaMiniatura, setPortadaMiniatura] = useState<string | null>(null);
 
     // Estados para drag & drop
     const [isDraggingLogo, setIsDraggingLogo] = useState(false);
@@ -142,8 +281,6 @@ export function PasoImagenes() {
     // ---------------------------------------------------------------------------
 
     useEffect(() => {
-        if (pasoActual !== 5) return;
-
         if (datosYaCargados.current) return;
 
         const cargarDatos = async () => {
@@ -156,28 +293,48 @@ export function PasoImagenes() {
                 const response = await api.get(`/onboarding/${negocioId}/progreso`);
                 const datos = response.data.data;
 
-                // Cargar logo si existe (viene del negocio)
+                // Cargar logo si existe
                 if (datos.negocio?.logoUrl) {
-                    logo.setCloudinaryUrl(datos.negocio.logoUrl);
+                    logo.setR2Url(datos.negocio.logoUrl);
                     logo.setImageUrl(datos.negocio.logoUrl);
                 }
 
-                // Cargar portada si existe (viene de la sucursal)
+                // Cargar portada si existe
                 if (datos.sucursal?.portadaUrl) {
-                    portada.setCloudinaryUrl(datos.sucursal.portadaUrl);
+                    portada.setR2Url(datos.sucursal.portadaUrl);
                     portada.setImageUrl(datos.sucursal.portadaUrl);
                 }
 
-                // Cargar galería desde endpoint directo
+                // Cargar galería (con limpieza de duplicados)
                 const respGaleria = await api.get(`/negocios/${negocioId}/galeria`);
                 if (respGaleria.data.success && respGaleria.data.data.length > 0) {
-                    setGaleriaImagenes(respGaleria.data.data.map((img: any) => ({
-                        id: img.id,
-                        url: img.url
-                    })));
+                    const todos: { id: string; url: string }[] = respGaleria.data.data.map(
+                        (img: { id: string; url: string }) => ({ id: img.id, url: img.url })
+                    );
 
-                    const urls = respGaleria.data.data.map((img: any) => img.url);
-                    galeria.setImages!(urls);
+                    // Deduplicar: mantener solo el primer registro de cada URL
+                    const urlsVistas = new Set<string>();
+                    const unicos: { id: string; url: string }[] = [];
+                    const duplicadosIds: string[] = [];
+
+                    for (const img of todos) {
+                        if (urlsVistas.has(img.url)) {
+                            duplicadosIds.push(img.id);
+                        } else {
+                            urlsVistas.add(img.url);
+                            unicos.push(img);
+                        }
+                    }
+
+                    // Borrar duplicados de BD en background
+                    if (duplicadosIds.length > 0) {
+                        for (const id of duplicadosIds) {
+                            api.delete(`/negocios/${negocioId}/galeria/${id}`).catch(() => {});
+                        }
+                    }
+
+                    setGaleriaImagenes(unicos);
+                    setGaleriaUrls(unicos.map(img => img.url));
                 }
 
                 datosYaCargados.current = true;
@@ -190,16 +347,16 @@ export function PasoImagenes() {
         };
 
         cargarDatos();
-    }, [negocioId, pasoActual]); // Mantener estas dependencias
+    }, [negocioId]);
 
     // ---------------------------------------------------------------------------
     // Validación en tiempo real
     // ---------------------------------------------------------------------------
 
     const esFormularioValido = () => {
-        const tienePortadaEnCloudinary = portada.cloudinaryUrl !== null && portada.cloudinaryUrl !== '';
-        const tieneGaleria = galeria.images && galeria.images.length >= 1;
-        return tienePortadaEnCloudinary && tieneGaleria;
+        const tienePortada = portada.r2Url !== null && portada.r2Url !== '';
+        const tieneGaleria = galeriaUrls.length >= 1;
+        return tienePortada && tieneGaleria;
     };
 
     useEffect(() => {
@@ -208,7 +365,7 @@ export function PasoImagenes() {
 
         const { actualizarPasoCompletado } = useOnboardingStore.getState();
         actualizarPasoCompletado(4, Boolean(esValido));
-    }, [portada.cloudinaryUrl, galeria.images]);
+    }, [portada.r2Url, galeriaUrls]);
 
     // ---------------------------------------------------------------------------
     // Exponer función de guardado para el botón "Siguiente"
@@ -223,11 +380,9 @@ export function PasoImagenes() {
 
             try {
                 const datos = {
-                    logoUrl: logo.cloudinaryUrl ?? undefined,
-                    portadaUrl: portada.cloudinaryUrl ?? undefined,
-                    galeriaUrls: galeria.images && galeria.images.length > 0
-                        ? galeria.images
-                        : undefined
+                    logoUrl: logo.r2Url ?? undefined,
+                    portadaUrl: portada.r2Url ?? undefined,
+                    galeriaUrls: galeriaUrls.length > 0 ? galeriaUrls : undefined,
                 };
 
                 if (validar) {
@@ -249,7 +404,7 @@ export function PasoImagenes() {
         return () => {
             delete window.guardarPaso5;
         };
-    }, [logo.cloudinaryUrl, portada.cloudinaryUrl, galeria.images]);
+    }, [logo.r2Url, portada.r2Url, galeriaUrls]);
 
     // ---------------------------------------------------------------------------
     // Handlers de Logo
@@ -267,6 +422,9 @@ export function PasoImagenes() {
     };
 
     const procesarLogoFile = async (file: File) => {
+        // Crear blob URL propio para capa blur (independiente del hook)
+        if (logoMiniatura) URL.revokeObjectURL(logoMiniatura);
+        setLogoMiniatura(URL.createObjectURL(file));
         try {
             await logo.uploadImage(file);
         } catch (error) {
@@ -276,8 +434,15 @@ export function PasoImagenes() {
         }
     };
 
-    const handleLogoDelete = async () => {
-        await logo.deleteImage();
+    const handleLogoDelete = () => {
+        const urlAnterior = logo.r2Url || logo.imageUrl;
+        logo.reset();
+        if (logoMiniatura) { URL.revokeObjectURL(logoMiniatura); setLogoMiniatura(null); }
+        const { guardarBorradorPaso5 } = useOnboardingStore.getState();
+        guardarBorradorPaso5({ logoUrl: '' });
+        if (urlAnterior && urlAnterior.startsWith('http')) {
+            eliminarImagenHuerfana(urlAnterior).catch(() => { /* silencioso */ });
+        }
     };
 
     const handleLogoDragEnter = (e: React.DragEvent) => {
@@ -324,6 +489,8 @@ export function PasoImagenes() {
     };
 
     const procesarPortadaFile = async (file: File) => {
+        if (portadaMiniatura) URL.revokeObjectURL(portadaMiniatura);
+        setPortadaMiniatura(URL.createObjectURL(file));
         try {
             await portada.uploadImage(file);
         } catch (error) {
@@ -333,8 +500,15 @@ export function PasoImagenes() {
         }
     };
 
-    const handlePortadaDelete = async () => {
-        await portada.deleteImage();
+    const handlePortadaDelete = () => {
+        const urlAnterior = portada.r2Url || portada.imageUrl;
+        portada.reset();
+        if (portadaMiniatura) { URL.revokeObjectURL(portadaMiniatura); setPortadaMiniatura(null); }
+        const { guardarBorradorPaso5 } = useOnboardingStore.getState();
+        guardarBorradorPaso5({ portadaUrl: '' });
+        if (urlAnterior && urlAnterior.startsWith('http')) {
+            eliminarImagenHuerfana(urlAnterior).catch(() => { /* silencioso */ });
+        }
     };
 
     const handlePortadaDragEnter = (e: React.DragEvent) => {
@@ -369,19 +543,115 @@ export function PasoImagenes() {
     // Handlers de Galería
     // ---------------------------------------------------------------------------
 
+    const subirImagenGaleriaR2 = async (file: File) => {
+        // Optimizar: crear canvas, redimensionar, comprimir a webp
+        const blob = await new Promise<Blob>((resolve, reject) => {
+            const img = new Image();
+            const blobUrl = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(blobUrl);
+                let { width, height } = img;
+                if (width > 1200) { height = Math.round((height * 1200) / width); width = 1200; }
+                const canvas = document.createElement('canvas');
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { reject(new Error('No canvas')); return; }
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob(b => b ? resolve(b) : reject(new Error('Blob error')), 'image/webp', 0.85);
+            };
+            img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error('Error imagen')); };
+            img.src = blobUrl;
+        });
+
+        const nombreArchivo = file.name.replace(/\.[^.]+$/, '.webp');
+        const resp = await generarUrlUploadOnboarding(nombreArchivo, 'image/webp', 'galeria');
+        if (!resp.success || !resp.data) throw new Error(resp.message || 'Error presigned URL');
+
+        const putResp = await fetch(resp.data.uploadUrl, { method: 'PUT', body: blob, headers: { 'Content-Type': 'image/webp' } });
+        if (!putResp.ok) throw new Error(`Error R2: ${putResp.status}`);
+
+        return resp.data.publicUrl;
+    };
+
     const handleGaleriaChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        await galeria.uploadImages!(Array.from(files));
+        const archivos = Array.from(files).slice(0, 10 - galeriaUrls.length);
+        if (archivos.length === 0) return;
 
-        if (galeriaInputRef.current) {
-            galeriaInputRef.current.value = '';
+        // Crear previews inmediatos (blob URLs para blur de fondo)
+        const previews = archivos.map((f, i) => ({
+            tempId: `temp-${Date.now()}-${i}`,
+            blobUrl: URL.createObjectURL(f),
+        }));
+        setGaleriaSubiendo(previews);
+        setSubiendoGaleria(true);
+
+        try {
+            for (let i = 0; i < archivos.length; i++) {
+                // 1. Subir a R2
+                const url = await subirImagenGaleriaR2(archivos[i]);
+
+                // 2. Guardar en BD inmediatamente (solo esta imagen)
+                const response = await api.post(`/onboarding/${negocioId}/galeria`, {
+                    imagenes: [{ url, cloudinaryPublicId: '' }]
+                });
+
+                // 3. Actualizar UI: quitar preview, agregar imagen real con su ID de BD
+                const nuevaImagen = response.data?.data?.[0];
+                if (nuevaImagen) {
+                    setGaleriaImagenes(prev => [...prev, { id: nuevaImagen.id, url: nuevaImagen.url }]);
+                }
+                setMiniaturasGaleria(prev => ({ ...prev, [url]: previews[i].blobUrl }));
+                setGaleriaSubiendo(prev => prev.filter(p => p.tempId !== previews[i].tempId));
+                setGaleriaUrls(prev => [...prev, url]);
+            }
+        } catch (error) {
+            console.error('Error al subir galería:', error);
+            notificar.error('Error al subir imágenes');
+            galeriaSubiendo.forEach(p => URL.revokeObjectURL(p.blobUrl));
+            setGaleriaSubiendo([]);
+        } finally {
+            setSubiendoGaleria(false);
+            if (galeriaInputRef.current) galeriaInputRef.current.value = '';
         }
     };
 
     const handleGaleriaDelete = async (index: number) => {
-        await galeria.deleteImageAt!(index);
+        const urlAEliminar = galeriaUrls[index];
+        const imagenEnBD = galeriaImagenes.find(img => img.url === urlAEliminar);
+
+        // Quitar de UI inmediatamente
+        setGaleriaUrls(prev => prev.filter((_, i) => i !== index));
+
+        // Eliminar de BD
+        if (imagenEnBD?.id) {
+            try {
+                await api.delete(`/negocios/${negocioId}/galeria/${imagenEnBD.id}`);
+                setGaleriaImagenes(prev => prev.filter(img => img.id !== imagenEnBD.id));
+            } catch (error) {
+                console.error('Error al eliminar de BD:', error);
+            }
+        }
+
+        // Eliminar de R2
+        if (urlAEliminar) {
+            eliminarImagenHuerfana(urlAEliminar).catch(() => { /* silencioso */ });
+        }
+    };
+
+    // Limpiar blob URL de miniatura después de que la R2 hizo fade-in
+    const handleGaleriaCargada = (url: string) => {
+        const blobUrl = miniaturasGaleria[url];
+        if (blobUrl) {
+            URL.revokeObjectURL(blobUrl);
+            setMiniaturasGaleria(prev => {
+                const next = { ...prev };
+                delete next[url];
+                return next;
+            });
+        }
     };
 
     const handleGaleriaDragEnter = (e: React.DragEvent) => {
@@ -409,7 +679,11 @@ export function PasoImagenes() {
         const files = e.dataTransfer.files;
         if (!files || files.length === 0) return;
 
-        await galeria.uploadImages!(Array.from(files));
+        // Crear un fake event para reutilizar handleGaleriaChange
+        const dataTransfer = new DataTransfer();
+        Array.from(files).forEach(f => dataTransfer.items.add(f));
+        const fakeInput = { target: { files: dataTransfer.files } } as React.ChangeEvent<HTMLInputElement>;
+        await handleGaleriaChange(fakeInput);
     };
 
     // ---------------------------------------------------------------------------
@@ -418,329 +692,207 @@ export function PasoImagenes() {
 
     if (cargandoDatos) {
         return (
-            <div className="flex items-center justify-center py-12 lg:py-16">
-                <Loader2 className="w-6 h-6 lg:w-7 lg:h-7 animate-spin text-blue-500" />
+            <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
+                <div className="text-center">
+                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-600 mx-auto mb-2 lg:mb-3" />
+                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600">Cargando...</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 lg:space-y-7 2xl:space-y-8">
-            {/* Grid 2 columnas para Logo y Portada en laptop/desktop */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-7 2xl:gap-8">
-                {/* LOGO */}
-                <div className="space-y-3 lg:space-y-3.5 2xl:space-y-4">
-                    <div className="flex items-center gap-2 lg:gap-2.5">
-                        <Monitor className="w-4 h-4 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5 text-slate-600" />
-                        <h3 className="text-sm lg:text-[15px] 2xl:text-base font-semibold text-slate-800">
-                            Logo del Negocio
-                        </h3>
-                        <span className="text-xs lg:text-[13px] 2xl:text-sm text-slate-500 ml-auto">
-                            Opcional
-                        </span>
+        <div className="space-y-4 lg:space-y-3.5 2xl:space-y-5">
+
+            {/* ================================================================= */}
+            {/* CARD: Imágenes Principales */}
+            {/* ================================================================= */}
+            <div className="bg-white border-2 border-slate-300 rounded-xl"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                    <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                        <ImageIcon className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
                     </div>
-
-                    <p className="text-xs lg:text-[13px] 2xl:text-sm text-slate-600">
-                        Imagen cuadrada recomendada. Tu logo será visible en el directorio.
-                    </p>
-
-                    {/* Zona de Upload de Logo */}
-                    <div
-                        onClick={() => !logo.isUploading && logoInputRef.current?.click()}
-                        onDragEnter={handleLogoDragEnter}
-                        onDragOver={handleLogoDragOver}
-                        onDragLeave={handleLogoDragLeave}
-                        onDrop={handleLogoDrop}
-                        className={`
-                            relative group aspect-square w-[56.25%] mx-auto rounded-xl lg:rounded-2xl overflow-hidden
-                            border-2 border-dashed transition-all duration-200
-                            ${isDraggingLogo
-                                ? 'border-blue-400 bg-blue-50'
-                                : logo.imageUrl
-                                    ? 'border-transparent'
-                                    : 'border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100'
-                            }
-                            ${!logo.isUploading && !logo.imageUrl ? 'cursor-pointer' : ''}
-                        `}
-                    >
-                        <input
-                            ref={logoInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleLogoChange}
-                            className="hidden"
-                            disabled={logo.isUploading}
-                        />
-
-                        {/* Estado: Vacío */}
-                        {!logo.imageUrl && !logo.isUploading && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 lg:p-5 text-center">
-                                <ImageIcon className="w-8 h-8 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 text-slate-400 mb-2 lg:mb-2.5 group-hover:text-slate-500 transition-colors" />
-                                <p className="text-xs lg:text-[13px] 2xl:text-sm font-medium text-slate-600 mb-0.5 lg:mb-1">
-                                    Arrastra tu logo aquí
-                                </p>
-                                <p className="text-[10px] lg:text-[11px] 2xl:text-xs text-slate-500">
-                                    o haz clic para seleccionar
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Estado: Subiendo */}
-                        {logo.isUploading && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50">
-                                <Loader2 className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 animate-spin text-white mb-2 lg:mb-2.5" />
-                                <p className="text-xs lg:text-[13px] 2xl:text-sm text-white font-medium">
-                                    Subiendo logo...
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Estado: Imagen Cargada */}
-                        {logo.imageUrl && !logo.isUploading && (
-                            <>
-                                <img
-                                    src={logo.imageUrl}
-                                    alt="Logo"
-                                    className="w-full h-full object-cover"
-                                />
-
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleLogoDelete();
-                                    }}
-                                    className="
-                                        absolute top-2 lg:top-2.5 2xl:top-3 right-2 lg:right-2.5 2xl:right-3
-                                        w-7 h-7 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9
-                                        bg-red-500 hover:bg-red-600 text-white
-                                        rounded-lg lg:rounded-xl shadow-lg
-                                        flex items-center justify-center
-                                        transition-all duration-200
-                                        opacity-0 group-hover:opacity-100
-                                    "
-                                >
-                                    <X className="w-4 h-4 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5" />
-                                </button>
-
-                                {logo.cloudinaryUrl && (
-                                    <div className="absolute bottom-2 lg:bottom-2.5 2xl:bottom-3 left-2 lg:left-2.5 2xl:left-3 bg-green-500 text-white px-2 lg:px-2.5 py-1 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-[11px] 2xl:text-xs font-medium flex items-center gap-1 lg:gap-1.5 shadow-lg">
-                                        <Check className="w-3 h-3 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                                        Guardado
-                                    </div>
-                                )}
-                            </>
-                        )}
+                    <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Imágenes Principales</span>
+                    <div className="ml-auto text-right text-xs lg:text-xs 2xl:text-sm text-white/70 font-medium leading-tight">
+                        <p className="lg:inline">PNG o JPG</p>
+                        <span className="hidden lg:inline"> · </span>
+                        <p className="lg:inline">máx. 2MB</p>
                     </div>
                 </div>
-
-                {/* PORTADA */}
-                <div className="space-y-3 lg:space-y-3.5 2xl:space-y-4">
-                    <div className="flex items-center gap-2 lg:gap-2.5">
-                        <ImageIcon className="w-4 h-4 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5 text-slate-600" />
-                        <h3 className="text-sm lg:text-[15px] 2xl:text-base font-semibold text-slate-800">
-                            Portada del Negocio
-                        </h3>
-                        <span className="text-xs lg:text-[13px] 2xl:text-sm text-red-500 ml-auto">
-                            * Obligatorio
-                        </span>
-                    </div>
-
-                    <p className="text-xs lg:text-[13px] 2xl:text-sm text-slate-600">
-                        Imagen horizontal de 1600×900px ideal. Se mostrará en la parte superior de tu perfil.
-                    </p>
-
-                    <div
-                        onClick={() => !portada.isUploading && portadaInputRef.current?.click()}
-                        onDragEnter={handlePortadaDragEnter}
-                        onDragOver={handlePortadaDragOver}
-                        onDragLeave={handlePortadaDragLeave}
-                        onDrop={handlePortadaDrop}
-                        className={`
-                            relative group aspect-video rounded-xl lg:rounded-2xl overflow-hidden
-                            border-2 border-dashed transition-all duration-200
-                            ${isDraggingPortada
-                                ? 'border-blue-400 bg-blue-50'
-                                : portada.imageUrl
-                                    ? 'border-transparent'
-                                    : 'border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100'
-                            }
-                            ${!portada.isUploading && !portada.imageUrl ? 'cursor-pointer' : ''}
-                        `}
-                    >
-                        <input
-                            ref={portadaInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handlePortadaChange}
-                            className="hidden"
-                            disabled={portada.isUploading}
-                        />
-
-                        {!portada.imageUrl && !portada.isUploading && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 lg:p-5 text-center">
-                                <ImageIcon className="w-8 h-8 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 text-slate-400 mb-2 lg:mb-2.5 group-hover:text-slate-500 transition-colors" />
-                                <p className="text-xs lg:text-[13px] 2xl:text-sm font-medium text-slate-600 mb-0.5 lg:mb-1">
-                                    Arrastra tu portada aquí
-                                </p>
-                                <p className="text-[10px] lg:text-[11px] 2xl:text-xs text-slate-500">
-                                    o haz clic para seleccionar
-                                </p>
+                <div className="p-4 lg:p-3 2xl:p-4 space-y-4 lg:space-y-3 2xl:space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-3 2xl:gap-4">
+                        {/* Logo */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700">Logo del Negocio <span className="font-medium text-slate-500">(Opcional)</span></label>
                             </div>
-                        )}
-
-                        {portada.isUploading && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50">
-                                <Loader2 className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 animate-spin text-white mb-2 lg:mb-2.5" />
-                                <p className="text-xs lg:text-[13px] 2xl:text-sm text-white font-medium">
-                                    Subiendo portada...
-                                </p>
-                            </div>
-                        )}
-
-                        {portada.imageUrl && !portada.isUploading && (
-                            <>
-                                <img
-                                    src={portada.imageUrl}
-                                    alt="Portada"
-                                    className="w-full h-full object-cover"
+                            <div className="aspect-video flex items-center justify-start">
+                                <ZonaUpload
+                                    imageUrl={logo.imageUrl} miniatura={logoMiniatura}
+                                    isUploading={logo.isUploading} r2Url={logo.r2Url}
+                                    inputRef={logoInputRef} isDragging={isDraggingLogo} aspect="h-full aspect-square"
+                                    onFileChange={handleLogoChange} onDelete={handleLogoDelete}
+                                    onDragEnter={handleLogoDragEnter} onDragOver={handleLogoDragOver}
+                                    onDragLeave={handleLogoDragLeave} onDrop={handleLogoDrop}
+                                    placeholder="Logo cuadrado" uploadingText="Subiendo logo..."
+                                    onImageClick={() => logo.imageUrl && setModalImagenes({ isOpen: true, images: [logo.imageUrl], initialIndex: 0 })}
                                 />
+                            </div>
+                        </div>
 
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handlePortadaDelete();
-                                    }}
-                                    className="
-                                        absolute top-2 lg:top-2.5 2xl:top-3 right-2 lg:right-2.5 2xl:right-3
-                                        w-7 h-7 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9
-                                        bg-red-500 hover:bg-red-600 text-white
-                                        rounded-lg lg:rounded-xl shadow-lg
-                                        flex items-center justify-center
-                                        transition-all duration-200
-                                        opacity-0 group-hover:opacity-100
-                                    "
-                                >
-                                    <X className="w-4 h-4 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5" />
-                                </button>
-
-                                {portada.cloudinaryUrl && (
-                                    <div className="absolute bottom-2 lg:bottom-2.5 2xl:bottom-3 left-2 lg:left-2.5 2xl:left-3 bg-green-500 text-white px-2 lg:px-2.5 py-1 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-[11px] 2xl:text-xs font-medium flex items-center gap-1 lg:gap-1.5 shadow-lg">
-                                        <Check className="w-3 h-3 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                                        Guardado
-                                    </div>
-                                )}
-                            </>
-                        )}
+                        {/* Portada */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700">Portada <span className="text-red-500">*</span></label>
+                                <span className="text-sm lg:text-sm 2xl:text-base text-slate-500 font-medium">1600×900px</span>
+                            </div>
+                            <ZonaUpload
+                                imageUrl={portada.imageUrl} miniatura={portadaMiniatura}
+                                isUploading={portada.isUploading} r2Url={portada.r2Url}
+                                inputRef={portadaInputRef} isDragging={isDraggingPortada} aspect="aspect-video"
+                                onFileChange={handlePortadaChange} onDelete={handlePortadaDelete}
+                                onDragEnter={handlePortadaDragEnter} onDragOver={handlePortadaDragOver}
+                                onDragLeave={handlePortadaDragLeave} onDrop={handlePortadaDrop}
+                                placeholder="Portada horizontal" uploadingText="Subiendo portada..."
+                                onImageClick={() => portada.imageUrl && setModalImagenes({ isOpen: true, images: [portada.imageUrl], initialIndex: 0 })}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* GALERÍA */}
-            <div className="space-y-3 lg:space-y-3.5 2xl:space-y-4">
-                <div className="flex items-center gap-2 lg:gap-2.5">
-                    <Grid3x3 className="w-4 h-4 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5 text-slate-600" />
-                    <h3 className="text-sm lg:text-[15px] 2xl:text-base font-semibold text-slate-800">
-                        Galería de Fotos
-                    </h3>
-                    <span className="text-xs lg:text-[13px] 2xl:text-sm text-red-500 ml-auto">
-                        * Al menos 1 imagen
-                    </span>
+            {/* ================================================================= */}
+            {/* CARD: Galería de Fotos */}
+            {/* ================================================================= */}
+            <div className="bg-white border-2 border-slate-300 rounded-xl"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div className="px-3 lg:px-4 py-2 flex items-center justify-between rounded-t-[10px]"
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                    <div className="flex items-center gap-2 lg:gap-2.5">
+                        <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                            <Grid3x3 className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                        </div>
+                        <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Galería de Fotos <span className="font-medium text-white/60">(Mínimo 1)</span></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={`text-sm lg:text-sm 2xl:text-base font-bold ${(galeriaUrls.length) >= 10 ? 'text-red-400' : 'text-white/60'}`}>
+                            {galeriaUrls.length}/10
+                        </span>
+                        {galeriaUrls.length < 10 && (
+                            <label className="w-7 h-7 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center cursor-pointer transition-all">
+                                <Plus className="w-4 h-4 text-white" />
+                                <input ref={galeriaInputRef} type="file" accept=".png,.jpg,.jpeg,.webp" multiple onChange={handleGaleriaChange} className="hidden" disabled={subiendoGaleria} />
+                            </label>
+                        )}
+                    </div>
                 </div>
+                <div className="p-4 lg:p-3 2xl:p-4">
 
-                <p className="text-xs lg:text-[13px] 2xl:text-sm text-slate-600">
-                    Sube de 1 a 10 imágenes que muestren tu negocio, productos o servicios.
-                </p>
+                    {/* ---- GALERÍA MÓVIL: carrusel 2×2 (igual a Mi Perfil) ---- */}
+                    {(() => {
+                        const items = [...galeriaUrls];
+                        const paginas: string[][] = [];
+                        for (let i = 0; i < items.length; i += 4) paginas.push(items.slice(i, i + 4));
 
-                <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-3.5 2xl:gap-4">
-                    {galeria.images && galeria.images.map((url: string, index: number) => (
-                        <div
-                            key={index}
-                            className="relative group aspect-square rounded-xl lg:rounded-2xl overflow-hidden border-2 border-transparent hover:border-slate-200 transition-all"
-                        >
-                            <img
-                                src={url}
-                                alt={`Galería ${index + 1}`}
-                                className="w-full h-full object-cover"
+                        return (
+                            <div className="lg:hidden overflow-x-auto perfil-kpi-scroll" style={{ scrollSnapType: 'x mandatory' }}>
+                                <div className="flex gap-2">
+                                    {paginas.map((pagina, pi) => (
+                                        <div key={pi} className="grid grid-cols-2 gap-2 shrink-0 w-full" style={{ scrollSnapAlign: 'start' }}>
+                                            {pagina.map((url, ii) => {
+                                                const index = pi * 4 + ii;
+                                                return (
+                                                    <div key={index} className="relative group aspect-square bg-white rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm"
+                                                        onClick={() => setModalImagenes({ isOpen: true, images: galeriaUrls, initialIndex: index })}>
+                                                        {(miniaturasGaleria[url] || url) && (
+                                                            <img src={miniaturasGaleria[url] || url} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: 'blur(8px)' }} />
+                                                        )}
+                                                        <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover cursor-pointer"
+                                                            style={{ opacity: 1, transition: 'opacity 300ms' }} />
+                                                        <div className="absolute bottom-0 inset-x-0 h-12"
+                                                            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)' }} />
+                                                        <button onClick={() => handleGaleriaDelete(index)}
+                                                            className="absolute bottom-2 right-2 w-9 h-9 bg-black/30 hover:bg-red-600 text-white rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-colors">
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ))}
+
+                                    {/* Página con items subiendo */}
+                                    {galeriaSubiendo.length > 0 && (
+                                        <div className="grid grid-cols-2 gap-2 shrink-0 w-full" style={{ scrollSnapAlign: 'start' }}>
+                                            {galeriaSubiendo.map((item) => (
+                                                <div key={item.tempId} className="relative aspect-square bg-slate-800 rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm">
+                                                    <img src={item.blobUrl} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: 'blur(8px)' }} />
+                                                    <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                                                        <Loader2 className="w-8 h-8 text-white animate-spin drop-shadow-lg" />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* ---- GALERÍA DESKTOP: grid 3 columnas ---- */}
+                    <div className="hidden lg:grid lg:grid-cols-3 gap-2 2xl:gap-2.5">
+                        {galeriaUrls.map((url: string, index: number) => (
+                            <CeldaGaleria
+                                key={`galeria-${url}`}
+                                url={url}
+                                miniatura={miniaturasGaleria[url] || null}
+                                subiendo={false}
+                                onDelete={() => handleGaleriaDelete(index)}
+                                onCargada={handleGaleriaCargada}
+                                onImageClick={() => setModalImagenes({ isOpen: true, images: galeriaUrls, initialIndex: index })}
                             />
+                        ))}
 
-                            <button
-                                onClick={() => handleGaleriaDelete(index)}
-                                className="
-                                    absolute top-2 lg:top-2.5 2xl:top-3 right-2 lg:right-2.5 2xl:right-3
-                                    w-7 h-7 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9
-                                    bg-red-500 hover:bg-red-600 text-white
-                                    rounded-lg lg:rounded-xl shadow-lg
-                                    flex items-center justify-center
-                                    transition-all duration-200
-                                    opacity-0 group-hover:opacity-100
-                                "
+                        {galeriaSubiendo.map((item) => (
+                            <CeldaGaleria
+                                key={item.tempId}
+                                url={item.blobUrl}
+                                miniatura={null}
+                                subiendo={true}
+                                onDelete={() => {}}
+                            />
+                        ))}
+
+                        {(galeriaUrls.length + galeriaSubiendo.length) < 10 && (
+                            <div
+                                onClick={() => !subiendoGaleria && galeriaInputRef.current?.click()}
+                                onDragEnter={handleGaleriaDragEnter} onDragOver={handleGaleriaDragOver}
+                                onDragLeave={handleGaleriaDragLeave} onDrop={handleGaleriaDrop}
+                                className={`aspect-video rounded-xl overflow-hidden border-2 border-dashed flex items-center justify-center transition-all ${
+                                    isDraggingGaleria ? 'border-slate-400 bg-slate-200' : 'border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100'
+                                } ${!subiendoGaleria ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                             >
-                                <X className="w-4 h-4 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5" />
-                            </button>
-
-                            <div className="absolute bottom-2 lg:bottom-2.5 2xl:bottom-3 left-2 lg:left-2.5 2xl:left-3 bg-green-500 text-white px-2 lg:px-2.5 py-1 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-[11px] 2xl:text-xs font-medium flex items-center gap-1 lg:gap-1.5 shadow-lg">
-                                <Check className="w-3 h-3 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                                Guardado
-                            </div>
-                        </div>
-                    ))}
-
-                    {galeria.canAddMore && (
-                        <div
-                            onClick={() => !galeria.isUploading && galeriaInputRef.current?.click()}
-                            onDragEnter={handleGaleriaDragEnter}
-                            onDragOver={handleGaleriaDragOver}
-                            onDragLeave={handleGaleriaDragLeave}
-                            onDrop={handleGaleriaDrop}
-                            className={`
-                                relative aspect-square rounded-xl lg:rounded-2xl overflow-hidden
-                                border-2 border-dashed transition-all duration-200
-                                flex items-center justify-center
-                                ${isDraggingGaleria
-                                    ? 'border-blue-400 bg-blue-50'
-                                    : 'border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100'
-                                }
-                                ${!galeria.isUploading ? 'cursor-pointer' : 'cursor-not-allowed'}
-                            `}
-                        >
-                            <input
-                                ref={galeriaInputRef}
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={handleGaleriaChange}
-                                className="hidden"
-                                disabled={galeria.isUploading}
-                            />
-
-                            {!galeria.isUploading ? (
                                 <div className="flex flex-col items-center justify-center p-4 text-center">
-                                    <Plus className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 text-slate-400 mb-1 lg:mb-1.5" />
-                                    <p className="text-xs lg:text-[13px] 2xl:text-sm font-medium text-slate-600">
-                                        Agregar
-                                    </p>
-                                    <p className="text-[10px] lg:text-[11px] 2xl:text-xs text-slate-500 mt-0.5">
-                                        {galeria.images?.length || 0}/10
-                                    </p>
+                                    <Plus className="w-6 h-6 text-slate-400 mb-1" />
+                                    <p className="text-sm font-medium text-slate-600">Agregar</p>
                                 </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center">
-                                    <Loader2 className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 animate-spin text-blue-500 mb-1 lg:mb-1.5" />
-                                    <p className="text-xs lg:text-[13px] 2xl:text-sm text-slate-600 font-medium">
-                                        Subiendo...
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                            </div>
+                        )}
+                    </div>
 
-                <p className="text-xs lg:text-[13px] 2xl:text-sm text-slate-500 text-center">
-                    {!galeria.images || galeria.images.length === 0
-                        ? 'No hay imágenes aún'
-                        : `${galeria.images.length} de 10 imágenes`}
-                </p>
+                </div>
             </div>
+
+            <ModalImagenes
+                images={modalImagenes.images}
+                initialIndex={modalImagenes.initialIndex}
+                isOpen={modalImagenes.isOpen}
+                onClose={() => setModalImagenes({ isOpen: false, images: [], initialIndex: 0 })}
+            />
         </div>
     );
 }

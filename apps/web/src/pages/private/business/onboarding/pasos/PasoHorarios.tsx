@@ -22,8 +22,9 @@
  * - Validaciones en tiempo real
  */
 
-import { useState, useEffect, useRef } from 'react';
-import { Clock, Coffee, Copy, Loader2, Check, X } from 'lucide-react';
+import { useState, useEffect, useRef, useId } from 'react';
+import { createPortal } from 'react-dom';
+import { Clock, Coffee, Copy, Loader2, Check, X, ChevronDown } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { notificar } from '@/utils/notificaciones';
@@ -43,42 +44,70 @@ interface Horario {
 }
 
 // =============================================================================
+// CACHÉ — persiste entre montar/desmontar
+// =============================================================================
+
+const HORARIOS_DEFAULT: Horario[] = [
+    { diaSemana: 0, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
+    { diaSemana: 1, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
+    { diaSemana: 2, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
+    { diaSemana: 3, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
+    { diaSemana: 4, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
+    { diaSemana: 5, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
+    { diaSemana: 6, abierto: false, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
+];
+
+const cache4 = {
+    cargado: false,
+    horarios: HORARIOS_DEFAULT,
+    diaSeleccionado: 0,
+};
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
 export function PasoHorarios() {
     const { negocioId, sucursalId, guardarPaso4, setSiguienteDeshabilitado } = useOnboardingStore();
 
-    // Estados
-    const [diaSeleccionado, setDiaSeleccionado] = useState(0);
-    const [horarios, setHorarios] = useState<Horario[]>([
-        { diaSemana: 0, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
-        { diaSemana: 1, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
-        { diaSemana: 2, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
-        { diaSemana: 3, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
-        { diaSemana: 4, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
-        { diaSemana: 5, abierto: true, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' },
-        { diaSemana: 6, abierto: false, horaApertura: '09:00', horaCierre: '21:00', tieneHorarioComida: false, comidaInicio: '14:00', comidaFin: '16:00' }
-    ]);
-    const [cargandoDatos, setCargandoDatos] = useState(true);
+    // Estados — inicializar desde caché
+    const [diaSeleccionado, setDiaSeleccionado] = useState(cache4.diaSeleccionado);
+    const [horarios, setHorarios] = useState<Horario[]>(cache4.horarios);
+    const [cargandoDatos, setCargandoDatos] = useState(!cache4.cargado);
+    const [dropdownDiasAbierto, setDropdownDiasAbierto] = useState(false);
+    const dropdownDiasRef = useRef<HTMLDivElement>(null);
+    const comidaRef = useRef<HTMLDivElement>(null);
 
     // Array visual: Lunes primero
-    const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
     // Mapeo: índice visual (0=Lun) → diaSemana BD (0=Dom, 1=Lun, ...)
     const visualADiaSemana = (indiceVisual: number): number => {
         return (indiceVisual + 1) % 7;
     };
 
-    // Mapeo inverso: diaSemana BD → índice visual
-    const diaSemanaAVisual = (diaSemana: number): number => {
-        return diaSemana === 0 ? 6 : diaSemana - 1;
-    };
+    // Cerrar dropdown al click fuera
+    useEffect(() => {
+        const handleClickFuera = (e: MouseEvent) => {
+            if (dropdownDiasRef.current && !dropdownDiasRef.current.contains(e.target as Node)) {
+                setDropdownDiasAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickFuera);
+        return () => document.removeEventListener('mousedown', handleClickFuera);
+    }, []);
+
+    // Sincronizar caché
+    useEffect(() => {
+        cache4.horarios = horarios;
+        cache4.diaSeleccionado = diaSeleccionado;
+    }, [horarios, diaSeleccionado]);
 
     // ---------------------------------------------------------------------------
     // Cargar datos existentes
     // ---------------------------------------------------------------------------
     useEffect(() => {
+        if (cache4.cargado) { setCargandoDatos(false); return; }
         const cargarDatos = async () => {
             if (!sucursalId) {
                 setCargandoDatos(false);
@@ -90,14 +119,14 @@ export function PasoHorarios() {
                 const datos = response.data.data;
 
                 if (datos.horarios && datos.horarios.length > 0) {
-                    const horariosFormateados = datos.horarios.map((h: any) => ({
+                    const horariosFormateados = datos.horarios.map((h: Partial<Horario> & { diaSemana: number }) => ({
                         diaSemana: h.diaSemana,
                         abierto: h.abierto ?? true,
-                        horaApertura: formatearHora(h.horaApertura ?? '09:00:00'),
-                        horaCierre: formatearHora(h.horaCierre ?? '21:00:00'),
+                        horaApertura: formatearHora(h.horaApertura ?? '09:00'),
+                        horaCierre: formatearHora(h.horaCierre ?? '21:00'),
                         tieneHorarioComida: h.tieneHorarioComida ?? false,
-                        comidaInicio: formatearHora(h.comidaInicio ?? '14:00:00'),
-                        comidaFin: formatearHora(h.comidaFin ?? '16:00:00')
+                        comidaInicio: formatearHora(h.comidaInicio ?? '14:00'),
+                        comidaFin: formatearHora(h.comidaFin ?? '16:00'),
                     }));
 
                     horariosFormateados.sort((a: Horario, b: Horario) => a.diaSemana - b.diaSemana);
@@ -107,6 +136,7 @@ export function PasoHorarios() {
                 console.error('Error al cargar datos:', error);
             } finally {
                 setCargandoDatos(false);
+                cache4.cargado = true;
             }
         };
 
@@ -153,22 +183,20 @@ export function PasoHorarios() {
     // Exponer función de guardado
     // ---------------------------------------------------------------------------
     useEffect(() => {
-        (window as any).guardarPaso4 = async (validar: boolean): Promise<boolean> => {
+        const guardarFn = async (validar: boolean): Promise<boolean> => {
             if (validar && !esFormularioValido()) {
                 notificar.error('Completa los horarios correctamente');
                 return false;
             }
 
             try {
-                const datos: any = {
-                    horarios: horarios.length > 0 ? horarios : null
-                };
+                const datosHorarios = horarios.length > 0 ? horarios : undefined;
 
                 if (validar) {
-                    await guardarPaso4(datos.horarios as any);
+                    await guardarPaso4(datosHorarios as Parameters<typeof guardarPaso4>[0]);
                 } else {
                     const { guardarBorradorPaso4 } = useOnboardingStore.getState();
-                    await guardarBorradorPaso4(datos.horarios as any);
+                    await guardarBorradorPaso4(datosHorarios as Parameters<typeof guardarBorradorPaso4>[0]);
                 }
                 return true;
             } catch (error) {
@@ -177,15 +205,17 @@ export function PasoHorarios() {
             }
         };
 
+        (window as unknown as Record<string, unknown>).guardarPaso4 = guardarFn;
+
         return () => {
-            delete (window as any).guardarPaso4;
+            delete (window as unknown as Record<string, unknown>).guardarPaso4;
         };
     }, [horarios]);
 
     // ---------------------------------------------------------------------------
     // Handlers
     // ---------------------------------------------------------------------------
-    const actualizarHorario = (campo: keyof Horario, valor: any) => {
+    const actualizarHorario = (campo: keyof Horario, valor: string | boolean) => {
         const diaBD = visualADiaSemana(diaSeleccionado);
         const nuevosHorarios = horarios.map(h =>
             h.diaSemana === diaBD
@@ -204,26 +234,34 @@ export function PasoHorarios() {
 
     const toggleHorarioComida = () => {
         const diaBD = visualADiaSemana(diaSeleccionado);
-        const horarioActual = horarios.find(h => h.diaSemana === diaBD)!;
-        actualizarHorario('tieneHorarioComida', !horarioActual.tieneHorarioComida);
+        const actual = horarios.find(h => h.diaSemana === diaBD)!;
+        const activar = !actual.tieneHorarioComida;
+        actualizarHorario('tieneHorarioComida', activar);
     };
 
-    const marcar24x7 = () => {
-        actualizarHorario('horaApertura', '00:00');
-        actualizarHorario('horaCierre', '23:59');
-        actualizarHorario('tieneHorarioComida', false);
+    const marcar24x7 = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const nuevosHorarios = horarios.map(h => ({
+            ...h,
+            abierto: true,
+            horaApertura: '00:00',
+            horaCierre: '23:59',
+            tieneHorarioComida: false,
+        }));
+        setHorarios(nuevosHorarios);
         notificar.exito('Horario configurado 24/7');
     };
 
-    const copiarATodos = () => {
+    const copiarATodos = (e: React.MouseEvent) => {
+        e.stopPropagation();
         const diaBD = visualADiaSemana(diaSeleccionado);
-        const horarioActual = horarios.find(h => h.diaSemana === diaBD)!;
+        const actual = horarios.find(h => h.diaSemana === diaBD)!;
         const nuevosHorarios = horarios.map(h => ({
-            ...horarioActual,
-            diaSemana: h.diaSemana // Mantener el diaSemana original de cada elemento
+            ...actual,
+            diaSemana: h.diaSemana,
         }));
         setHorarios(nuevosHorarios);
-        notificar.exito('Horario copiado a todos los días');
+        notificar.exito('Duplicado a toda la semana');
     };
 
     const diaBD = visualADiaSemana(diaSeleccionado);
@@ -244,191 +282,277 @@ export function PasoHorarios() {
     // ---------------------------------------------------------------------------
     if (cargandoDatos) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
+                <div className="text-center">
+                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-600 mx-auto mb-2 lg:mb-3" />
+                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600">Cargando...</p>
+                </div>
             </div>
         );
     }
 
     // ---------------------------------------------------------------------------
-    // Render principal
+    // Render principal — Cards estilo Mi Perfil
     // ---------------------------------------------------------------------------
-    return (
-        <div className="space-y-2 lg:space-y-3 2xl:space-y-4 pb-6">
-
-            {/* Selector de días con indicadores */}
-            <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
-                <div className="flex gap-2 min-w-max">
-                    {diasSemana.map((dia, indiceVisual) => {
-                        const diaBD = visualADiaSemana(indiceVisual);
-                        const horarioDia = horarios.find(h => h.diaSemana === diaBD)!;
-                        const seleccionado = diaSeleccionado === indiceVisual;
-
-                        return (
-                            <button
-                                key={indiceVisual}
-                                onClick={() => setDiaSeleccionado(indiceVisual)}
-                                className={`
-                                    relative px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg text-sm font-semibold transition-all
-                                    ${seleccionado
-                                        ? 'bg-blue-600 text-white shadow-sm'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    }
-                                `}
-                            >
-                                {dia}
-                                {/* Indicador de estado */}
-                                <span className={`
-                                    absolute -top-1 -right-1 w-2.5 h-2.5 lg:w-2 lg:h-2 rounded-full border-2 border-white
-                                    ${horarioDia.abierto ? 'bg-green-500' : 'bg-slate-400'}
-                                `} />
-                            </button>
-                        );
-                    })}
+    // Helper: contenido del horario (compartido móvil/desktop)
+    const renderHorarioContenido = () => (
+        horarioActual.abierto ? (
+            <>
+                {/* Horario de Atención — columna en móvil, fila en desktop */}
+                <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-2.5 2xl:gap-3">
+                    <div>
+                        <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-slate-500" /> Apertura
+                        </label>
+                        <TimePicker hora={horarioActual.horaApertura} onChange={(v) => actualizarHorario('horaApertura', v)} />
+                    </div>
+                    <div>
+                        <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-slate-500" /> Cierre
+                        </label>
+                        <TimePicker hora={horarioActual.horaCierre} onChange={(v) => actualizarHorario('horaCierre', v)} />
+                    </div>
                 </div>
-            </div>
 
-            {/* Toggle Abierto/Cerrado */}
-            <div className="flex items-center justify-between p-2.5 lg:p-3 bg-gradient-to-r from-green-50 to-green-100/50 border border-green-200 rounded-lg">
-                <div className="flex items-center gap-2 lg:gap-2.5">
-                    <div className={`w-5 h-5 lg:w-6 lg:h-6 rounded flex items-center justify-center ${horarioActual.abierto ? 'bg-green-100' : 'bg-slate-200'
+                {errorHorarioGeneral && (
+                    <div className="p-2.5 bg-red-100 border-2 border-red-300 rounded-lg">
+                        <p className="text-sm font-medium text-red-600">La hora de apertura debe ser menor a la de cierre</p>
+                    </div>
+                )}
+
+                {/* Horario de Comida */}
+                <div ref={comidaRef} className={`p-3 lg:p-2.5 2xl:p-3 rounded-xl border-2 ${horarioActual.tieneHorarioComida ? 'bg-amber-100 border-amber-300' : 'bg-slate-100 border-slate-300'}`}>
+                    <div className="flex items-center gap-3 cursor-pointer" onClick={toggleHorarioComida}>
+                        <div className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                            horarioActual.tieneHorarioComida ? 'border-amber-600 bg-amber-600' : 'border-slate-300 bg-white'
                         }`}>
-                        {horarioActual.abierto ? (
-                            <Check className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-green-600" />
-                        ) : (
-                            <X className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-slate-500" />
-                        )}
-                    </div>
-                    <span className="text-sm font-medium text-slate-700">
-                        {horarioActual.abierto ? 'Abierto' : 'Cerrado'}
-                    </span>
-                </div>
-                <button
-                    onClick={toggleAbierto}
-                    className={`relative inline-flex h-5 w-9 lg:h-6 lg:w-11 items-center rounded-full transition-colors ${horarioActual.abierto ? 'bg-green-600' : 'bg-slate-300'
-                        }`}
-                >
-                    <span className={`inline-block h-3.5 w-3.5 lg:h-4 lg:w-4 transform rounded-full bg-white transition-transform ${horarioActual.abierto ? 'translate-x-5 lg:translate-x-6' : 'translate-x-0.5 lg:translate-x-1'
-                        }`} />
-                </button>
-            </div>
-
-            {/* Contenedor de horarios */}
-            {horarioActual.abierto && (
-                <>
-                    {/* Grid de horarios */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-24">
-
-                        {/* Hora Apertura */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-1.5">
-                                Hora de Apertura
-                            </label>
-                            <TimePicker
-                                value={horarioActual.horaApertura}
-                                onChange={(valor) => actualizarHorario('horaApertura', valor)}
-                            />
+                            {horarioActual.tieneHorarioComida && <Check className="w-3 h-3 text-white stroke-3" />}
                         </div>
-
-                        {/* Hora Cierre */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-1.5">
-                                Hora de Cierre
-                            </label>
-                            <TimePicker
-                                value={horarioActual.horaCierre}
-                                onChange={(valor) => actualizarHorario('horaCierre', valor)}
-                            />
-                        </div>
+                        <Coffee className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${horarioActual.tieneHorarioComida ? 'text-amber-600' : 'text-slate-500'}`} />
+                        <span className={`text-sm lg:text-sm 2xl:text-base font-bold select-none ${horarioActual.tieneHorarioComida ? 'text-amber-700' : 'text-slate-700'}`}>
+                            Horario de comida / break
+                        </span>
                     </div>
 
-                    {/* Error horario general */}
-                    {errorHorarioGeneral && (
-                        <div className="p-2 lg:p-2 bg-red-50 border border-red-200 rounded-lg">
-                            <p className="text-sm text-red-600">La hora de apertura debe ser menor a la de cierre</p>
+                    {horarioActual.tieneHorarioComida && (
+                        <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-2.5 2xl:gap-3 mt-3">
+                            <div>
+                                <label className="text-sm lg:text-sm 2xl:text-base font-bold text-amber-700 mb-1.5 block">Salida</label>
+                                <TimePicker hora={horarioActual.comidaInicio} onChange={(v) => actualizarHorario('comidaInicio', v)} />
+                            </div>
+                            <div>
+                                <label className="text-sm lg:text-sm 2xl:text-base font-bold text-amber-700 mb-1.5 block">Regreso</label>
+                                <TimePicker hora={horarioActual.comidaFin} onChange={(v) => actualizarHorario('comidaFin', v)} />
+                            </div>
                         </div>
                     )}
 
-                    {/* Toggle horario de comida */}
-                    <div
-                        onClick={toggleHorarioComida}
-                        className="flex items-center gap-2 lg:gap-2.5 p-2.5 lg:p-3 bg-linear-to-r from-orange-50 to-orange-100/50 border border-orange-200 rounded-lg cursor-pointer select-none"
-                    >                        <input
-                            type="checkbox"
-                            id="tiene-comida"
-                            checked={horarioActual.tieneHorarioComida}
-                            onChange={toggleHorarioComida}
-                            className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-orange-600 border-orange-300 rounded focus:ring-2 focus:ring-orange-100"
-                        />
-                        <label htmlFor="tiene-comida" className="text-sm text-slate-700 cursor-pointer select-none flex items-center gap-1.5 lg:gap-2">
-                            <Coffee className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-orange-600" />
-                            ¿Tienes horario de comida/break?
-                        </label>
+                    {errorHorarioComida && (
+                        <div className="p-2.5 bg-red-100 border-2 border-red-300 rounded-lg mt-2">
+                            <p className="text-sm font-medium text-red-600">El horario de comida debe estar dentro del horario de operación</p>
+                        </div>
+                    )}
+                </div>
+            </>
+        ) : (
+            <div className="flex items-center gap-3 py-4 justify-center text-slate-400">
+                <X className="w-5 h-5" />
+                <span className="text-sm lg:text-sm 2xl:text-base font-medium">Este día permanecerá cerrado</span>
+            </div>
+        )
+    );
+
+    return (
+        <div className="space-y-4 lg:space-y-3.5 2xl:space-y-5">
+
+            {/* ================================================================= */}
+            {/* MÓVIL: Card único con dropdown + botones + config */}
+            {/* ================================================================= */}
+            <div className="lg:hidden space-y-4">
+                {/* Card: Horario de Atención */}
+                <div className="bg-white border-2 border-slate-300 rounded-xl"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    <div className="px-3 py-2 flex items-center justify-between rounded-t-[10px]"
+                        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                        <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                                <Clock className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="text-sm font-bold text-white">Horario de Atención</span>
+                        </div>
+                        <span className="text-sm font-medium text-white/60">
+                            {diasSemana[diaSeleccionado]} — {horarioActual.abierto ? 'Abierto' : 'Cerrado'}
+                        </span>
                     </div>
-
-                    {/* Horarios de comida */}
-                    {horarioActual.tieneHorarioComida && (
-                        <>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-24">
-
-                                {/* Comida Inicio */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-1.5">
-                                        Hora de Salida
-                                    </label>
-                                    <TimePicker
-                                        value={horarioActual.comidaInicio}
-                                        onChange={(valor) => actualizarHorario('comidaInicio', valor)}
-                                    />
-                                </div>
-
-                                {/* Comida Fin */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-1.5">
-                                        Hora de Regreso
-                                    </label>
-                                    <TimePicker
-                                        value={horarioActual.comidaFin}
-                                        onChange={(valor) => actualizarHorario('comidaFin', valor)}
-                                    />
+                    <div className="p-4 space-y-3">
+                        {/* Dropdown selector de día */}
+                        <div ref={dropdownDiasRef} className="relative">
+                            <div onClick={() => setDropdownDiasAbierto(!dropdownDiasAbierto)}
+                                className="flex items-center h-11 bg-slate-100 rounded-lg px-4 border-2 border-slate-300 hover:border-slate-400 cursor-pointer"
+                                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                <span className="flex-1 text-base font-medium text-slate-800">{diasSemana[diaSeleccionado]}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-sm font-medium ${horarioActual.abierto ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                        {horarioActual.abierto ? 'Abierto' : 'Cerrado'}
+                                    </span>
+                                    <ChevronDown className={`w-5 h-5 text-slate-600 shrink-0 transition-transform ${dropdownDiasAbierto ? 'rotate-180' : ''}`} />
                                 </div>
                             </div>
 
-                            {/* Error horario comida */}
-                            {errorHorarioComida && (
-                                <div className="p-2 lg:p-2 bg-red-50 border border-red-200 rounded-lg">
-                                    <p className="text-sm text-red-600">El horario de comida debe estar dentro del horario de operación</p>
+                            {dropdownDiasAbierto && (
+                                <div className="absolute z-30 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
+                                    <div className="py-1">
+                                        {diasSemana.map((dia, indiceVisual) => {
+                                            const diaBDLocal = visualADiaSemana(indiceVisual);
+                                            const horarioDia = horarios.find(h => h.diaSemana === diaBDLocal)!;
+                                            const seleccionado = diaSeleccionado === indiceVisual;
+                                            return (
+                                                <button key={indiceVisual} type="button"
+                                                    onClick={() => { setDiaSeleccionado(indiceVisual); setDropdownDiasAbierto(false); }}
+                                                    className={`w-full flex items-center justify-between px-4 py-2.5 text-left cursor-pointer transition-colors ${
+                                                        seleccionado ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-slate-600 font-medium hover:bg-slate-200'
+                                                    }`}>
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${seleccionado ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                                            {seleccionado && <Check className="w-3 h-3 text-white" />}
+                                                        </div>
+                                                        <span className="text-base">{dia}</span>
+                                                    </div>
+                                                    <span className={`w-2.5 h-2.5 rounded-full ${horarioDia.abierto ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
-                        </>
-                    )}
+                        </div>
 
-                    {/* Botones especiales */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-24">
-                        <button
-                            onClick={marcar24x7}
-                            className="w-full px-4 py-2.5 lg:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
-                        >
-                            <Clock className="w-4 h-4" />
-                            Abierto 24/7
-                        </button>
-                        <button
-                            onClick={copiarATodos}
-                            className="w-full px-4 py-2.5 lg:py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
-                        >
-                            <Copy className="w-4 h-4" />
-                            Duplicar Horario
-                        </button>
+                        {/* Botones rápidos */}
+                        <div className="flex gap-2">
+                            <button onClick={copiarATodos}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 lg:py-2 2xl:py-2.5 text-sm lg:text-sm 2xl:text-base font-semibold bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 text-white rounded-lg cursor-pointer transition-all">
+                                <Copy className="w-4 h-4" />
+                                Duplicar
+                            </button>
+                            <button onClick={marcar24x7}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 lg:py-2 2xl:py-2.5 text-sm lg:text-sm 2xl:text-base font-semibold bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 text-white rounded-lg cursor-pointer transition-all">
+                                <Clock className="w-4 h-4" />
+                                24/7
+                            </button>
+                        </div>
                     </div>
-                </>
-            )}
+                </div>
 
-            {/* Info adicional */}
+                {/* Card: Configuración del día seleccionado */}
+                <div className="bg-white border-2 border-slate-300 rounded-xl"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    <div className="px-3 py-2 flex items-center justify-between rounded-t-[10px]"
+                        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                        <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                                <Clock className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="text-sm font-bold text-white">{diasSemana[diaSeleccionado]}</span>
+                        </div>
+                        <label className="flex items-center gap-2.5 cursor-pointer group">
+                            <span className="text-sm font-medium text-white/60">{horarioActual.abierto ? 'Abierto' : 'Cerrado'}</span>
+                            <input type="checkbox" className="sr-only" checked={horarioActual.abierto} onChange={toggleAbierto} />
+                            <div className="relative w-12 h-6">
+                                <div className={`absolute inset-0 rounded-full transition-colors ${horarioActual.abierto ? 'bg-slate-500' : 'bg-white/20'}`} />
+                                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${horarioActual.abierto ? 'translate-x-6' : ''}`} />
+                            </div>
+                        </label>
+                    </div>
+                    <div className="p-4 space-y-4">
+                        {renderHorarioContenido()}
+                    </div>
+                </div>
+            </div>
+
+            {/* ================================================================= */}
+            {/* DESKTOP: Card días (botones) + Card config */}
+            {/* ================================================================= */}
+            <div className="hidden lg:block space-y-3.5 2xl:space-y-5">
+                {/* Card: Selector de días */}
+                <div className="bg-white border-2 border-slate-300 rounded-xl"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px]"
+                        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                            <Clock className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                        </div>
+                        <span className="text-sm 2xl:text-base font-bold text-white">Horario de Atención</span>
+                    </div>
+                    <div className="p-3 2xl:p-4 space-y-2.5 2xl:space-y-3">
+                        <div className="grid grid-cols-7 gap-1 2xl:gap-1.5">
+                            {diasSemana.map((dia, indiceVisual) => {
+                                const diaBDLocal = visualADiaSemana(indiceVisual);
+                                const horarioDia = horarios.find(h => h.diaSemana === diaBDLocal)!;
+                                const seleccionado = diaSeleccionado === indiceVisual;
+                                return (
+                                    <button key={indiceVisual} onClick={() => setDiaSeleccionado(indiceVisual)}
+                                        className={`relative px-1 py-1 2xl:py-1.5 rounded-xl text-xs 2xl:text-sm font-semibold transition-all border-2 cursor-pointer text-center ${
+                                            seleccionado
+                                                ? 'bg-slate-800 text-white border-slate-800'
+                                                : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400 hover:bg-slate-200'
+                                        }`}>
+                                        {dia}
+                                        <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full border-2 border-white ${
+                                            horarioDia.abierto ? 'bg-emerald-500' : 'bg-slate-400'
+                                        }`} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={copiarATodos}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 lg:py-2 2xl:py-2.5 text-sm lg:text-sm 2xl:text-base font-semibold bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 text-white rounded-lg cursor-pointer transition-all">
+                                <Copy className="w-4 h-4" />
+                                Duplicar
+                            </button>
+                            <button onClick={marcar24x7}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 lg:py-2 2xl:py-2.5 text-sm lg:text-sm 2xl:text-base font-semibold bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 text-white rounded-lg cursor-pointer transition-all">
+                                <Clock className="w-4 h-4" />
+                                24/7
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Card: Configuración del día */}
+                <div className="bg-white border-2 border-slate-300 rounded-xl"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    <div className="px-4 py-2 flex items-center justify-between rounded-t-[10px]"
+                        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+                        <div className="flex items-center gap-2 lg:gap-2.5">
+                            <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                                <Clock className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                            </div>
+                            <span className="text-sm 2xl:text-base font-bold text-white">{diasSemana[diaSeleccionado]}</span>
+                        </div>
+                        <label className="flex items-center gap-2.5 cursor-pointer group">
+                            <span className="text-sm 2xl:text-base font-medium text-white/60">{horarioActual.abierto ? 'Abierto' : 'Cerrado'}</span>
+                            <input type="checkbox" className="sr-only" checked={horarioActual.abierto} onChange={toggleAbierto} />
+                            <div className="relative w-10 h-5">
+                                <div className={`absolute inset-0 rounded-full transition-colors ${horarioActual.abierto ? 'bg-slate-500' : 'bg-white/20'}`} />
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform ${horarioActual.abierto ? 'translate-x-5' : ''}`} />
+                            </div>
+                        </label>
+                    </div>
+                    <div className="p-3 2xl:p-4 space-y-3 2xl:space-y-4">
+                        {renderHorarioContenido()}
+                    </div>
+                </div>
+            </div>
+
+            {/* Alerta */}
             {!horarios.some(h => h.abierto) && (
-                <div className="p-2 lg:p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-700">
-                        Al menos un día debe estar abierto
-                    </p>
+                <div className="p-2.5 bg-amber-100 border-2 border-amber-300 rounded-lg">
+                    <p className="text-sm font-medium text-amber-700">Al menos un día debe estar abierto</p>
                 </div>
             )}
         </div>
@@ -436,100 +560,221 @@ export function PasoHorarios() {
 }
 
 // =============================================================================
-// COMPONENTE TIME PICKER (RESPONSIVO)
+// COMPONENTE: TimePicker (IDÉNTICO A Mi Perfil)
+// Móvil: Modal con reloj circular | Desktop: Inputs numéricos + AM/PM
 // =============================================================================
 
 interface TimePickerProps {
-    value: string;
-    onChange: (value: string) => void;
+    hora: string;
+    onChange: (hora: string) => void;
 }
 
-function TimePicker({ value, onChange }: TimePickerProps) {
-    const [hora24, minutos] = value.split(':').map(Number);
-    const hora12 = hora24 === 0 ? 12 : hora24 > 12 ? hora24 - 12 : hora24;
-    const periodo = hora24 >= 12 ? 'PM' : 'AM';
+function TimePicker({ hora, onChange }: TimePickerProps) {
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+    const [dropdownAbierto, setDropdownAbierto] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLDivElement>(null);
+    const clockRef = useRef<HTMLDivElement>(null);
+    const [posicion, setPosicion] = useState({ top: 0, left: 0, width: 0 });
+    const [pickerMovilAbierto, setPickerMovilAbierto] = useState(false);
+    const [modo, setModo] = useState<'hora' | 'minutos'>('hora');
+    const [tempH, setTempH] = useState(1);
+    const [tempM, setTempM] = useState(0);
+    const [tempP, setTempP] = useState('AM');
 
-    const actualizarHora = (nuevaHora12: number, nuevoPeriodo: string = periodo) => {
-        let hora24 = nuevaHora12;
-        if (nuevoPeriodo === 'PM' && nuevaHora12 !== 12) hora24 = nuevaHora12 + 12;
-        if (nuevoPeriodo === 'AM' && nuevaHora12 === 12) hora24 = 0;
-        onChange(`${hora24.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        if (dropdownAbierto && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPosicion({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        }
+    }, [dropdownAbierto]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+                buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+                setDropdownAbierto(false);
+            }
+        };
+        if (dropdownAbierto) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [dropdownAbierto]);
+
+    const parsearHora = (horaStr: string) => {
+        const [hh, mm] = horaStr.split(':').map(Number);
+        const periodo = hh >= 12 ? 'PM' : 'AM';
+        const hora12 = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+        return { hora: hora12, minutos: mm, periodo };
     };
 
-    const actualizarMinutos = (nuevosMinutos: number) => {
-        onChange(`${hora24.toString().padStart(2, '0')}:${nuevosMinutos.toString().padStart(2, '0')}`);
+    const formatearHoraStr = (h: number, min: number, per: string): string => {
+        let hh = per === 'PM' && h !== 12 ? h + 12 : h;
+        if (per === 'AM' && h === 12) hh = 0;
+        return `${hh.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
     };
 
-    const actualizarPeriodo = (nuevoPeriodo: string) => {
-        actualizarHora(hora12, nuevoPeriodo);
+    const { hora: h, minutos: m, periodo: p } = parsearHora(hora);
+
+    const handleChange = (newH: number, newM: number, newP: string) => {
+        onChange(formatearHoraStr(newH, newM, newP));
     };
 
+    useEffect(() => {
+        if (pickerMovilAbierto) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = '';
+        return () => { document.body.style.overflow = ''; };
+    }, [pickerMovilAbierto]);
+
+    const abrirPickerMovil = () => {
+        const parsed = parsearHora(hora);
+        setTempH(parsed.hora); setTempM(parsed.minutos); setTempP(parsed.periodo);
+        setModo('hora');
+        setPickerMovilAbierto(true);
+    };
+
+    const handleSelectHora = (num: number) => {
+        setTempH(num);
+        setTimeout(() => setModo('minutos'), 220);
+    };
+
+    const CLOCK_SIZE = 220, CLOCK_CENTER = 110, CLOCK_RADIO = 80, CLOCK_BTN_HALF = 20;
+    const horasReloj = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    const minutosReloj = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+    const calcularValorDesdeTouch = (clientX: number, clientY: number) => {
+        if (!clockRef.current) return;
+        const rect = clockRef.current.getBoundingClientRect();
+        const x = clientX - rect.left - CLOCK_CENTER;
+        const y = clientY - rect.top - CLOCK_CENTER;
+        const angulo = ((Math.atan2(y, x) * 180 / Math.PI) + 90 + 360) % 360;
+        const idx = Math.round(angulo / 30) % 12;
+        if (modo === 'hora') setTempH(horasReloj[idx]);
+        else setTempM(minutosReloj[idx]);
+    };
+
+    if (isMobile) {
+        const horaDisplay = `${h}:${m.toString().padStart(2, '0')} ${p}`;
+        const getPosReloj = (index: number) => {
+            const angle = (index * 30 - 90) * (Math.PI / 180);
+            return { x: Math.cos(angle) * CLOCK_RADIO, y: Math.sin(angle) * CLOCK_RADIO };
+        };
+        const selIdx = modo === 'hora' ? horasReloj.indexOf(tempH) : minutosReloj.findIndex(v => v === tempM);
+        const { x: selX, y: selY } = getPosReloj(selIdx >= 0 ? selIdx : 0);
+
+        return (
+            <>
+                <div onClick={abrirPickerMovil}
+                    className="flex items-center h-11 bg-slate-100 rounded-lg border-2 border-slate-300 hover:border-slate-400 px-4 cursor-pointer"
+                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <Clock className="w-4 h-4 text-slate-500 shrink-0 mr-2.5" />
+                    <span className="flex-1 text-base font-semibold text-slate-800">{horaDisplay}</span>
+                    <ChevronDown className="w-5 h-5 text-slate-600 shrink-0" />
+                </div>
+
+                {pickerMovilAbierto && createPortal(
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/50" onClick={() => setPickerMovilAbierto(false)} />
+                        <div style={{ position: 'relative', background: '#000', borderRadius: 24, overflow: 'hidden', width: '100%', maxWidth: 272, boxShadow: '0 32px 80px rgba(0,0,0,0.95), 0 0 0 1px #1c1c1e' }}>
+                            <div style={{ padding: '22px 22px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0 }}>
+                                    <button type="button" onClick={() => setModo('hora')} style={{ background: 'none', border: 'none', padding: '0 4px', fontSize: 54, fontWeight: 800, lineHeight: 1, cursor: 'pointer', color: modo === 'hora' ? '#fff' : '#374151', borderBottom: `2.5px solid ${modo === 'hora' ? '#6b7280' : 'transparent'}` }}>
+                                        {tempH.toString().padStart(2, '0')}
+                                    </button>
+                                    <span style={{ fontSize: 50, fontWeight: 800, color: '#1f2937', lineHeight: 1, paddingBottom: 2 }}>:</span>
+                                    <button type="button" onClick={() => setModo('minutos')} style={{ background: 'none', border: 'none', padding: '0 4px', fontSize: 54, fontWeight: 800, lineHeight: 1, cursor: 'pointer', color: modo === 'minutos' ? '#fff' : '#374151', borderBottom: `2.5px solid ${modo === 'minutos' ? '#6b7280' : 'transparent'}` }}>
+                                        {tempM.toString().padStart(2, '0')}
+                                    </button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 3 }}>
+                                    <button type="button" onClick={() => setTempP('AM')} style={{ padding: '5px 11px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', color: tempP === 'AM' ? '#fff' : '#374151', background: tempP === 'AM' ? '#1c1c1e' : 'transparent', border: `1px solid ${tempP === 'AM' ? '#374151' : '#111'}` }}>AM</button>
+                                    <button type="button" onClick={() => setTempP('PM')} style={{ padding: '5px 11px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', color: tempP === 'PM' ? '#fff' : '#374151', background: tempP === 'PM' ? '#1c1c1e' : 'transparent', border: `1px solid ${tempP === 'PM' ? '#374151' : '#111'}` }}>PM</button>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '0 18px 14px' }}>
+                                <div ref={clockRef}
+                                    onTouchStart={(e) => calcularValorDesdeTouch(e.touches[0].clientX, e.touches[0].clientY)}
+                                    onTouchMove={(e) => calcularValorDesdeTouch(e.touches[0].clientX, e.touches[0].clientY)}
+                                    onTouchEnd={() => { if (modo === 'hora') setTimeout(() => setModo('minutos'), 200); }}
+                                    style={{ position: 'relative', width: CLOCK_SIZE, height: CLOCK_SIZE, borderRadius: '50%', background: '#111', border: '1px solid #1c1c1e', touchAction: 'none' }}>
+                                    <svg style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} width={CLOCK_SIZE} height={CLOCK_SIZE}>
+                                        <line x1={CLOCK_CENTER} y1={CLOCK_CENTER} x2={CLOCK_CENTER + selX} y2={CLOCK_CENTER + selY} stroke="#4b5563" strokeWidth="2" strokeLinecap="round" />
+                                        <circle cx={CLOCK_CENTER} cy={CLOCK_CENTER} r="3" fill="#6b7280" />
+                                        <circle cx={CLOCK_CENTER + selX} cy={CLOCK_CENTER + selY} r="20" fill="#ffffff" fillOpacity="0.06" />
+                                    </svg>
+                                    {modo === 'hora'
+                                        ? horasReloj.map((num, i) => { const { x, y } = getPosReloj(i); return (
+                                            <button key={num} type="button" onClick={() => handleSelectHora(num)} style={{ position: 'absolute', left: CLOCK_CENTER + x - CLOCK_BTN_HALF, top: CLOCK_CENTER + y - CLOCK_BTN_HALF, width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: num === tempH ? '#000' : '#6b7280', background: num === tempH ? '#fff' : 'transparent', border: 'none', cursor: 'pointer', zIndex: 1, userSelect: 'none' }}>{num}</button>
+                                        ); })
+                                        : minutosReloj.map((num, i) => { const { x, y } = getPosReloj(i); return (
+                                            <button key={num} type="button" onClick={() => setTempM(num)} style={{ position: 'absolute', left: CLOCK_CENTER + x - CLOCK_BTN_HALF, top: CLOCK_CENTER + y - CLOCK_BTN_HALF, width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: num === tempM ? '#000' : '#6b7280', background: num === tempM ? '#fff' : 'transparent', border: 'none', cursor: 'pointer', zIndex: 1, userSelect: 'none' }}>{num.toString().padStart(2, '0')}</button>
+                                        ); })
+                                    }
+                                </div>
+                            </div>
+                            <div style={{ padding: '0 22px 22px' }}>
+                                <button type="button" onClick={() => { onChange(formatearHoraStr(tempH, tempM, tempP)); setPickerMovilAbierto(false); }}
+                                    style={{ width: '100%', height: 44, borderRadius: 12, fontSize: 15, fontWeight: 700, color: '#fff', background: '#1c1c1e', border: '1px solid #374151', cursor: 'pointer' }}>
+                                    Listo
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+            </>
+        );
+    }
+
+    // Desktop: NumberInput + AM/PM dropdown
     return (
-        <>
-            {/* MÓVIL: Selector iOS */}
-            <div className="lg:hidden">
-                <WheelTimePicker
-                    hora={hora12}
-                    minutos={minutos}
-                    periodo={periodo}
-                    onHoraChange={actualizarHora}
-                    onMinutosChange={actualizarMinutos}
-                    onPeriodoChange={actualizarPeriodo}
-                />
+        <div className="flex items-center gap-1.5">
+            <NumberInput value={h} min={1} max={12} onChange={(newH) => handleChange(newH, m, p)} />
+            <span className="text-lg font-bold text-slate-400">:</span>
+            <NumberInput value={m} min={0} max={55} step={5} onChange={(newM) => handleChange(h, newM, p)} />
+            <div className="relative">
+                <div ref={buttonRef} onClick={() => setDropdownAbierto(!dropdownAbierto)}
+                    className="w-20 lg:w-16 2xl:w-20 flex items-center justify-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 border-2 border-slate-300"
+                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-800">{p}</span>
+                    <ChevronDown className={`w-4 h-4 ml-1 text-slate-500 transition-transform ${dropdownAbierto ? 'rotate-180' : ''}`} />
+                </div>
+                {dropdownAbierto && createPortal(
+                    <div ref={dropdownRef} className="bg-white rounded-lg shadow-xl overflow-hidden z-9999"
+                        style={{ position: 'fixed', top: `${posicion.top}px`, left: `${posicion.left}px`, width: `${posicion.width}px`, border: '2px solid #cbd5e1' }}>
+                        <button type="button" onClick={() => { handleChange(h, m, 'AM'); setDropdownAbierto(false); }}
+                            className={`w-full px-4 py-2.5 text-center text-base lg:text-sm 2xl:text-base font-medium cursor-pointer ${p === 'AM' ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'bg-white text-slate-700 hover:bg-slate-200'}`}>AM</button>
+                        <button type="button" onClick={() => { handleChange(h, m, 'PM'); setDropdownAbierto(false); }}
+                            className={`w-full px-4 py-2.5 text-center text-base lg:text-sm 2xl:text-base font-medium cursor-pointer ${p === 'PM' ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'bg-white text-slate-700 hover:bg-slate-200'}`}>PM</button>
+                    </div>,
+                    document.body
+                )}
             </div>
-
-            {/* LAPTOP/DESKTOP: Input Numérico */}
-            <div className="hidden lg:flex items-center gap-2">
-                <NumericInput
-                    value={hora12}
-                    onChange={(val) => actualizarHora(val)}
-                    min={1}
-                    max={12}
-                />
-                <span className="text-base font-medium text-slate-400">:</span>
-                <NumericInput
-                    value={minutos}
-                    onChange={actualizarMinutos}
-                    min={0}
-                    max={59}
-                    step={5}
-                />
-                <select
-                    value={periodo}
-                    onChange={(e) => actualizarPeriodo(e.target.value)}
-                    className="appearance-none text-center text-base font-medium py-2 px-3 pr-7 border border-slate-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all bg-white cursor-pointer"
-                >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                </select>
-            </div>
-        </>
+        </div>
     );
 }
 
 // =============================================================================
-// COMPONENTE: INPUT NUMÉRICO (DESKTOP)
+// NUMBER INPUT (DESKTOP) — idéntico a Mi Perfil
 // =============================================================================
 
-interface NumericInputProps {
+interface NumberInputProps {
     value: number;
-    onChange: (value: number) => void;
     min: number;
     max: number;
     step?: number;
+    onChange: (value: number) => void;
 }
 
-function NumericInput({ value, onChange, min, max, step = 1 }: NumericInputProps) {
-    const increment = () => {
-        const newValue = value + step;
-        onChange(newValue > max ? min : newValue);
-    };
-
-    const decrement = () => {
-        const newValue = value - step;
-        onChange(newValue < min ? max : newValue);
-    };
-
+function NumberInput({ value, min, max, step = 1, onChange }: NumberInputProps) {
+    const inputId = useId();
+    const increment = () => onChange(value + step > max ? min : value + step);
+    const decrement = () => onChange(value - step < min ? max : value - step);
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let val = parseInt(e.target.value) || 0;
         if (val < min) val = min;
@@ -539,166 +784,16 @@ function NumericInput({ value, onChange, min, max, step = 1 }: NumericInputProps
 
     return (
         <div className="relative flex-1">
-            <input
-                type="number"
-                value={value.toString().padStart(2, '0')}
-                onChange={handleChange}
-                className="w-full text-center text-base font-medium py-2 px-3 border border-slate-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
-            />
+            <input id={inputId} name={inputId} type="number" value={value.toString().padStart(2, '0')} onChange={handleChange}
+                className="w-full text-center text-base lg:text-sm 2xl:text-base font-medium h-11 lg:h-10 2xl:h-11 px-3 bg-slate-100 rounded-lg focus:outline-none border-2 border-slate-300"
+                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }} />
             <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex flex-col gap-0.5">
-                <button
-                    type="button"
-                    onClick={increment}
-                    className="w-5 h-4 rounded bg-slate-100 hover:bg-blue-100 flex items-center justify-center transition-all"
-                >
-                    <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M5 15l7-7 7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                <button type="button" onClick={increment} className="w-5 h-4 rounded bg-slate-200 hover:bg-slate-300 border border-slate-300 flex items-center justify-center cursor-pointer">
+                    <svg className="w-3 h-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
-                <button
-                    type="button"
-                    onClick={decrement}
-                    className="w-5 h-4 rounded bg-slate-100 hover:bg-blue-100 flex items-center justify-center transition-all"
-                >
-                    <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                <button type="button" onClick={decrement} className="w-5 h-4 rounded bg-slate-200 hover:bg-slate-300 border border-slate-300 flex items-center justify-center cursor-pointer">
+                    <svg className="w-3 h-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
-            </div>
-        </div>
-    );
-}
-
-// =============================================================================
-// COMPONENTE: WHEEL TIME PICKER (MÓVIL - ESTILO iOS)
-// =============================================================================
-
-interface WheelTimePickerProps {
-    hora: number;
-    minutos: number;
-    periodo: string;
-    onHoraChange: (hora: number) => void;
-    onMinutosChange: (minutos: number) => void;
-    onPeriodoChange: (periodo: string) => void;
-}
-
-function WheelTimePicker({ hora, minutos, periodo, onHoraChange, onMinutosChange, onPeriodoChange }: WheelTimePickerProps) {
-    const horaRef = useRef<HTMLDivElement | null>(null);
-    const minutosRef = useRef<HTMLDivElement | null>(null);
-    const periodoRef = useRef<HTMLDivElement | null>(null);
-
-    const horas = Array.from({ length: 12 }, (_, i) => i + 1);
-    const minutosArray = Array.from({ length: 12 }, (_, i) => i * 5);
-    const periodos = ['AM', 'PM'];
-
-    useEffect(() => {
-        const scrollToSelected = (ref: React.RefObject<HTMLDivElement | null>, index: number) => {
-            if (!ref.current) return;
-            const items = ref.current.querySelectorAll('.wheel-item');
-            const item = items[index];
-            if (item) {
-                const container = ref.current;
-                const itemHeight = (item as HTMLElement).offsetHeight;
-                const scrollTop = (item as HTMLElement).offsetTop - container.offsetHeight / 2 + itemHeight / 2;
-                container.scrollTop = scrollTop;
-            }
-        };
-
-        setTimeout(() => {
-            scrollToSelected(horaRef, hora - 1);
-            scrollToSelected(minutosRef, minutos / 5);
-            scrollToSelected(periodoRef, periodo === 'AM' ? 0 : 1);
-        }, 100);
-    }, []);
-
-    const handleScroll = (ref: React.RefObject<HTMLDivElement | null>, onChange: (value: any) => void, values: any[]) => {
-        if (!ref.current) return;
-
-        const container = ref.current;
-        const items = container.querySelectorAll('.wheel-item');
-        const containerRect = container.getBoundingClientRect();
-        const centerY = containerRect.top + containerRect.height / 2;
-
-        let closestIndex = 0;
-        let minDistance = Infinity;
-
-        items.forEach((item, index) => {
-            const itemRect = item.getBoundingClientRect();
-            const itemCenterY = itemRect.top + itemRect.height / 2;
-            const distance = Math.abs(centerY - itemCenterY);
-
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestIndex = index;
-            }
-        });
-
-        onChange(values[closestIndex]);
-    };
-
-    return (
-        <div className="relative bg-white border-2 border-slate-200 rounded-xl p-2.5 overflow-hidden touch-none shadow-sm">
-            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-7 border-y-2 border-blue-300 bg-blue-100/40 pointer-events-none z-0 rounded"></div>
-
-            <div className="flex items-center justify-center gap-2">
-                <div
-                    ref={horaRef}
-                    onScroll={() => handleScroll(horaRef, onHoraChange, horas)}
-                    className="h-20 overflow-y-auto hide-scrollbar"
-                    style={{ scrollSnapType: 'y mandatory', touchAction: 'pan-y' }}
-                >
-                    <div className="py-7">
-                        {horas.map((h) => (
-                            <div
-                                key={h}
-                                className="wheel-item text-center py-0.5 text-sm font-semibold text-slate-700"
-                                style={{ scrollSnapAlign: 'center' }}
-                            >
-                                {h.toString().padStart(2, '0')}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <span className="text-base font-bold text-slate-400">:</span>
-
-                <div
-                    ref={minutosRef}
-                    onScroll={() => handleScroll(minutosRef, onMinutosChange, minutosArray)}
-                    className="h-20 overflow-y-auto hide-scrollbar"
-                    style={{ scrollSnapType: 'y mandatory', touchAction: 'pan-y' }}
-                >
-                    <div className="py-7">
-                        {minutosArray.map((m) => (
-                            <div
-                                key={m}
-                                className="wheel-item text-center py-0.5 text-sm font-semibold text-slate-700"
-                                style={{ scrollSnapAlign: 'center' }}
-                            >
-                                {m.toString().padStart(2, '0')}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div
-                    ref={periodoRef}
-                    onScroll={() => handleScroll(periodoRef, onPeriodoChange, periodos)}
-                    className="h-20 overflow-y-auto hide-scrollbar"
-                    style={{ scrollSnapType: 'y mandatory', touchAction: 'pan-y' }}
-                >
-                    <div className="py-7">
-                        {periodos.map((p) => (
-                            <div
-                                key={p}
-                                className="wheel-item text-center py-0.5 text-sm font-bold text-slate-700"
-                                style={{ scrollSnapAlign: 'center' }}
-                            >
-                                {p}
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
         </div>
     );

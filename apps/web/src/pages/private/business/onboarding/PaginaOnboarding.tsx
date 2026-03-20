@@ -139,51 +139,18 @@ export function PaginaOnboarding() {
   // Obtener info del paso actual
   const { titulo, descripcion, icono } = pasoInfo[pasoActual - 1];
 
-  // Renderizar contenido del paso
+  // Renderizar paso actual
   const renderPasoActual = () => {
     switch (pasoActual) {
-      case 1:
-        return <PasoCategoria />;
-      case 2:
-        return <PasoUbicacion />;
-      case 3:
-        return <PasoContacto />;
-      case 4:
-        return <PasoHorarios />;
-      case 5:
-        return <PasoImagenes />;
-      case 6:
-        return <PasoMetodosPago />;
-      case 7:
-        return <PasoPuntos />;
-      case 8:
-        return <PasoProductos />;
-      default:
-        return (
-          <div className="border-2 border-dashed border-slate-200 rounded-xl lg:rounded-2xl p-8 lg:p-10 2xl:p-12 text-center bg-slate-50/50">
-            <div className="w-16 h-16 lg:w-18 lg:h-18 2xl:w-20 2xl:h-20 mx-auto mb-3 lg:mb-4 rounded-xl lg:rounded-2xl bg-white shadow-sm flex items-center justify-center">
-              <svg
-                className="w-8 h-8 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-            </div>
-            <p className="text-sm lg:text-base 2xl:text-lg text-slate-600 font-medium mb-2">
-              Paso {pasoActual} - Contenido pendiente
-            </p>
-            <p className="text-xs lg:text-sm text-slate-500">
-              Aquí irá el formulario de "{titulo}"
-            </p>
-          </div>
-        );
+      case 1: return <PasoCategoria />;
+      case 2: return <PasoUbicacion />;
+      case 3: return <PasoContacto />;
+      case 4: return <PasoHorarios />;
+      case 5: return <PasoImagenes />;
+      case 6: return <PasoMetodosPago />;
+      case 7: return <PasoPuntos />;
+      case 8: return <PasoProductos />;
+      default: return null;
     }
   };
 

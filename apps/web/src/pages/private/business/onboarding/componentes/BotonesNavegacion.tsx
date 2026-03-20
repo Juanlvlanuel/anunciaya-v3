@@ -50,7 +50,7 @@ export function BotonesNavegacion() {
   ) : (
     <ChevronRight className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
   );
-  const varianteSiguiente = esUltimoPaso ? 'success' : 'primario';
+  const varianteSiguiente = 'primario';
 
   // ---------------------------------------------------------------------------
   // FUNCIÓN COMPARTIDA: Guardar paso actual
@@ -192,7 +192,7 @@ export function BotonesNavegacion() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4">
+    <div className="flex items-center gap-2 lg:flex-col lg:gap-2 2xl:gap-3">
       {/* Botón Atrás - solo mostrar si NO es el primer paso */}
       {pasoActual > 1 && (
         <Boton
@@ -201,7 +201,7 @@ export function BotonesNavegacion() {
           tamanio="lg"
           disabled={cargando || guardando}
           iconoIzquierda={<ChevronLeft className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />}
-          className="flex-1 lg:flex-initial px-4 lg:px-5 2xl:px-6 py-2 lg:py-2.5 2xl:py-3 text-sm lg:text-sm 2xl:text-base"
+          className="flex-1 lg:w-full px-4 lg:px-5 2xl:px-6 py-2 lg:py-2.5 2xl:py-3 text-sm lg:text-sm 2xl:text-base cursor-pointer"
         >
           <span className="hidden sm:inline">Anterior</span>
           <span className="sm:hidden">Atrás</span>
@@ -216,7 +216,7 @@ export function BotonesNavegacion() {
         cargando={cargando || guardando}
         disabled={siguienteDeshabilitado || cargando || guardando}
         iconoDerecha={!cargando && !guardando ? iconoSiguiente : undefined}
-        className="flex-1 lg:flex-initial px-6 lg:px-8 2xl:px-10 py-2 lg:py-2.5 2xl:py-3 text-sm lg:text-sm 2xl:text-base"
+        className="flex-1 lg:w-full px-6 lg:px-8 2xl:px-10 py-2 lg:py-2.5 2xl:py-3 text-sm lg:text-sm 2xl:text-base cursor-pointer"
       >
         {/* Texto completo en pantallas grandes */}
         <span className="hidden sm:inline">{textoSiguiente}</span>

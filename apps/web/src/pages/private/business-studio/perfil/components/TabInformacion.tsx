@@ -292,8 +292,7 @@ export default function TabInformacion({
 
               {/* Categoría */}
               <div>
-                <div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
-                  <Tag className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
+                <div className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
                   Categoría <span className="text-red-500">*</span>
                 </div>
                 <SelectorCategoria
@@ -309,8 +308,7 @@ export default function TabInformacion({
 
               {/* Subcategorías */}
               <div>
-                <div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
-                  <Tag className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
+                <div className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
                   Subcategorías
                 </div>
                 <SelectorSubcategoria

@@ -106,7 +106,7 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
         }));
         setDatosHorarios({ horarios: nuevosHorarios });
 
-        notificar.exito('Horario duplicado a toda la semana');
+        notificar.exito('Duplicado a toda la semana');
     };
 
     const establecer24_7 = () => {
@@ -170,68 +170,66 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
                     <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
                       <Clock className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                     </div>
-                    <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Horarios de Atención</span>
+                    <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Horario de Atención</span>
                     <span className="ml-auto text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">
                         {diasSemana[diaSeleccionado]} — {horarioDia.abierto ? 'Abierto' : 'Cerrado'}
                     </span>
                 </div>
 
-                <div className="p-3 lg:p-2.5 2xl:p-3">
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-2">
+                <div className="p-3 lg:p-2.5 2xl:p-3 space-y-3 lg:space-y-2.5 2xl:space-y-3">
 
-                        {/* Selector de días — Móvil: dropdown / Desktop: botones */}
+                    {/* Selector de días — Móvil: dropdown / Desktop: botones */}
 
-                        {/* MÓVIL */}
-                        <div ref={dropdownDiasRef} className="relative flex-1 lg:hidden">
-                            <div
-                                onClick={() => setDropdownDiasAbierto(!dropdownDiasAbierto)}
-                                className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg pl-3 pr-2.5 border-2 border-slate-300 hover:border-slate-400 cursor-pointer gap-2"
-                                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-                            >
-                                <span className="flex-1 text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">{diasSemana[diaSeleccionado]}</span>
-                                <span className={`text-sm lg:text-xs 2xl:text-sm font-medium shrink-0 ${horarioDia.abierto ? 'text-slate-700' : 'text-slate-400'}`}>
-                                    {horarioDia.abierto ? 'Abierto' : 'Cerrado'}
-                                </span>
-                                <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0 transition-transform ${dropdownDiasAbierto ? 'rotate-180' : ''}`} />
-                            </div>
-
-                            {dropdownDiasAbierto && (
-                                <div className="absolute z-30 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
-                                    <div className="py-1">
-                                        {diasSemana.map((nombreDia, indiceVisual) => {
-                                            const diaBD_iter = visualADiaSemana(indiceVisual);
-                                            const horarioDelDia = horarios.find(h => h.diaSemana === diaBD_iter);
-                                            const estaAbierto = horarioDelDia?.abierto ?? true;
-                                            const esSeleccionado = indiceVisual === diaSeleccionado;
-
-                                            return (
-                                                <button
-                                                    key={indiceVisual}
-                                                    type="button"
-                                                    onClick={() => { setDiaSeleccionado(indiceVisual); setDropdownDiasAbierto(false); }}
-                                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer ${
-                                                        esSeleccionado
-                                                            ? 'bg-indigo-100 text-indigo-700 font-semibold'
-                                                            : 'text-slate-600 font-medium hover:bg-slate-200'
-                                                    }`}
-                                                >
-                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${esSeleccionado ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                                                        {esSeleccionado && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                                                    </div>
-                                                    <span className="flex-1 text-base lg:text-sm 2xl:text-base">{nombreDia}</span>
-                                                    <span className={`text-sm lg:text-xs 2xl:text-sm font-medium shrink-0 ${esSeleccionado ? 'text-indigo-600' : estaAbierto ? 'text-slate-700' : 'text-slate-400'}`}>
-                                                        {estaAbierto ? 'Abierto' : 'Cerrado'}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
+                    {/* MÓVIL */}
+                    <div ref={dropdownDiasRef} className="relative lg:hidden">
+                        <div
+                            onClick={() => setDropdownDiasAbierto(!dropdownDiasAbierto)}
+                            className="flex items-center h-11 bg-slate-100 rounded-lg pl-3 pr-2.5 border-2 border-slate-300 hover:border-slate-400 cursor-pointer gap-2"
+                            style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+                        >
+                            <span className="flex-1 text-base font-semibold text-slate-800 truncate">{diasSemana[diaSeleccionado]}</span>
+                            <span className={`text-sm font-medium shrink-0 ${horarioDia.abierto ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {horarioDia.abierto ? 'Abierto' : 'Cerrado'}
+                            </span>
+                            <ChevronDown className={`w-5 h-5 text-slate-500 shrink-0 transition-transform ${dropdownDiasAbierto ? 'rotate-180' : ''}`} />
                         </div>
 
-                        {/* DESKTOP */}
-                        <div className="hidden lg:flex gap-1.5 overflow-x-auto flex-1">
+                        {dropdownDiasAbierto && (
+                            <div className="absolute z-30 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
+                                <div className="py-1">
+                                    {diasSemana.map((nombreDia, indiceVisual) => {
+                                        const diaBD_iter = visualADiaSemana(indiceVisual);
+                                        const horarioDelDia = horarios.find(h => h.diaSemana === diaBD_iter);
+                                        const estaAbierto = horarioDelDia?.abierto ?? true;
+                                        const esSeleccionado = indiceVisual === diaSeleccionado;
+
+                                        return (
+                                            <button
+                                                key={indiceVisual}
+                                                type="button"
+                                                onClick={() => { setDiaSeleccionado(indiceVisual); setDropdownDiasAbierto(false); }}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer ${
+                                                    esSeleccionado
+                                                        ? 'bg-indigo-100 text-indigo-700 font-semibold'
+                                                        : 'text-slate-600 font-medium hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${esSeleccionado ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                                    {esSeleccionado && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                                                </div>
+                                                <span className="flex-1 text-base">{nombreDia}</span>
+                                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${estaAbierto ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* DESKTOP: días + botones en la misma fila */}
+                    <div className="hidden lg:flex gap-1.5 items-center">
+                        <div className="flex gap-1.5 overflow-x-auto flex-1">
                             {diasSemana.map((nombreDia, indiceVisual) => {
                                 const diaBD_iter = visualADiaSemana(indiceVisual);
                                 const horarioDelDia = horarios.find(h => h.diaSemana === diaBD_iter);
@@ -264,22 +262,34 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
                                 );
                             })}
                         </div>
-
-                        {/* Botones rápidos */}
-                        <div className="flex gap-2 shrink-0">
+                        <div className="flex gap-1.5 shrink-0">
                             <button type="button" onClick={duplicarHorario}
-                                className="flex items-center gap-1.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-bold bg-slate-600 hover:bg-slate-700 text-white rounded-lg cursor-pointer">
-                                <Copy className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
+                                className="flex items-center gap-1.5 px-3 py-2 lg:text-sm 2xl:text-base font-semibold bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 text-white rounded-lg cursor-pointer transition-all">
+                                <Copy className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                                 Duplicar
                             </button>
                             <button type="button" onClick={establecer24_7}
-                                className="flex items-center gap-1.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-bold bg-slate-600 hover:bg-slate-700 text-white rounded-lg cursor-pointer">
-                                <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
+                                className="flex items-center gap-1.5 px-3 py-2 lg:text-sm 2xl:text-base font-semibold bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 text-white rounded-lg cursor-pointer transition-all">
+                                <Clock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                                 24/7
                             </button>
                         </div>
-
                     </div>
+
+                    {/* MÓVIL: botones debajo */}
+                    <div className="flex gap-2 lg:hidden">
+                        <button type="button" onClick={duplicarHorario}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 text-white rounded-lg cursor-pointer transition-all">
+                            <Copy className="w-4 h-4" />
+                            Duplicar
+                        </button>
+                        <button type="button" onClick={establecer24_7}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 text-white rounded-lg cursor-pointer transition-all">
+                            <Clock className="w-4 h-4" />
+                            24/7
+                        </button>
+                    </div>
+
                 </div>
             </div>
 
@@ -322,22 +332,17 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 2xl:gap-3 lg:items-start">
 
-                            {/* Horario de Atención */}
                             <div>
-                                <div className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-2">
-                                    <Clock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />
-                                    Horario de Atención
-                                </div>
                                 <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
                                     <div>
-                                        <span className="block text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-600 mb-1.5">Apertura</span>
+                                        <span className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5"><Clock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500" />Apertura</span>
                                         <TimePicker
                                             hora={formatearHora(horarioDia.horaApertura)}
                                             onChange={(nuevaHora) => actualizarHorarioDia(diaSeleccionado, { horaApertura: nuevaHora + ':00' })}
                                         />
                                     </div>
                                     <div>
-                                        <span className="block text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-600 mb-1.5">Cierre</span>
+                                        <span className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5"><Clock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-500" />Cierre</span>
                                         <TimePicker
                                             hora={formatearHora(horarioDia.horaCierre)}
                                             onChange={(nuevaHora) => actualizarHorarioDia(diaSeleccionado, { horaCierre: nuevaHora + ':00' })}

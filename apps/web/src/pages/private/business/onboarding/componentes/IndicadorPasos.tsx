@@ -16,7 +16,7 @@
  * - ALTURA FIJA: El contenedor mantiene el mismo tamaño con 8 pasos
  */
 
-import { Check } from 'lucide-react';
+import { Check, Home, MapPin, Phone, Clock, Image as ImageIcon, CreditCard, Star, ShoppingCart } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useState } from 'react';
 
@@ -25,14 +25,14 @@ import { useState } from 'react';
 // =============================================================================
 
 const PASOS_INFO = [
-  { numero: 1, label: 'Categorías' },
-  { numero: 2, label: 'Ubicación' },
-  { numero: 3, label: 'Contacto' },
-  { numero: 4, label: 'Horarios' },
-  { numero: 5, label: 'Imágenes' },
-  { numero: 6, label: 'Pagos' },
-  { numero: 7, label: 'Puntos' },
-  { numero: 8, label: 'Productos' },
+  { numero: 1, label: 'Categorías', icono: Home },
+  { numero: 2, label: 'Ubicación', icono: MapPin },
+  { numero: 3, label: 'Contacto', icono: Phone },
+  { numero: 4, label: 'Horarios', icono: Clock },
+  { numero: 5, label: 'Imágenes', icono: ImageIcon },
+  { numero: 6, label: 'Pagos', icono: CreditCard },
+  { numero: 7, label: 'Puntos', icono: Star },
+  { numero: 8, label: 'Productos', icono: ShoppingCart },
 ];
 
 // =============================================================================
@@ -217,15 +217,22 @@ export function IndicadorPasos() {
                   )}
                 </div>
 
-                {/* Label */}
-                <div className="flex-1">
+                {/* Ícono + Label */}
+                <div className="flex items-center gap-2 flex-1">
+                  {(() => {
+                    const info = PASOS_INFO[paso.numero - 1];
+                    const Icono = info.icono;
+                    return <Icono className={`w-5 h-5 2xl:w-6 2xl:h-6 shrink-0 ${
+                      paso.esActual || paso.esCompletado ? 'text-slate-700' : 'text-slate-400'
+                    }`} />;
+                  })()}
                   <p
                     className={`
-                      text-sm 2xl:text-base font-semibold transition-colors
+                      text-base 2xl:text-lg font-semibold transition-colors
                       ${paso.esActual
                         ? 'text-slate-800'
                         : paso.esCompletado
-                          ? 'text-emerald-600'
+                          ? 'text-slate-800'
                           : 'text-slate-600'
                       }
                       ${esClickeable(paso) && !guardando && !paso.esActual
@@ -235,6 +242,7 @@ export function IndicadorPasos() {
                     `}
                   >
                     {paso.label}
+                    {paso.esActual && <span className="w-1.5 h-1.5 rounded-full bg-slate-800 inline-block ml-1.5 mb-0.5" />}
                   </p>
                 </div>
               </button>

@@ -479,7 +479,7 @@ export const agregarImagenesGaleria = async (
         const imagenesInsertadas = await db
             .insert(negocioGaleria)
             .values(imagenesData)
-            .returning({  // ← IMPORTANTE: Retornar los registros insertados
+            .returning({
                 id: negocioGaleria.id,
                 url: negocioGaleria.url,
                 orden: negocioGaleria.orden,

@@ -407,6 +407,34 @@ router.get('/:id', obtenerNegocioController);
 router.get('/:id/galeria', obtenerGaleriaController);
 
 /**
+ * POST /api/negocios/upload-imagen
+ * Genera presigned URL para subir imagen directamente a R2
+ * Body: { nombreArchivo: string, contentType: string, carpeta?: string }
+ */
+router.post('/upload-imagen', verificarToken, async (req, res) => {
+  const { generarPresignedUrl } = await import('../services/r2.service');
+  const { nombreArchivo, contentType, carpeta = 'negocios' } = req.body;
+
+  if (!nombreArchivo || !contentType) {
+    res.status(400).json({ success: false, message: 'nombreArchivo y contentType son requeridos' });
+    return;
+  }
+
+  const carpetasPermitidas = ['logos', 'portadas', 'perfiles', 'galeria', 'negocios'];
+  const carpetaFinal = carpetasPermitidas.includes(carpeta) ? carpeta : 'negocios';
+
+  const resultado = await generarPresignedUrl(
+    carpetaFinal,
+    nombreArchivo,
+    contentType,
+    300,
+    ['image/jpeg', 'image/png', 'image/webp']
+  );
+
+  res.status(resultado.code).json(resultado);
+});
+
+/**
  * DELETE /api/negocios/:id/logo
  * Elimina el logo del negocio (pone NULL en BD)
  * 

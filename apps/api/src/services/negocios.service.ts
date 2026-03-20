@@ -680,7 +680,7 @@ export async function obtenerGaleriaNegocio(negocioId: string) {
                 cloudinaryPublicId: negocioGaleria.cloudinaryPublicId,
             })
             .from(negocioGaleria)
-            .where(eq(negocioGaleria.sucursalId, negocioId))
+            .where(eq(negocioGaleria.negocioId, negocioId))
             .orderBy(negocioGaleria.orden);
 
         return {

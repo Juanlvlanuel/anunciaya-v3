@@ -61,10 +61,10 @@ const estilosBase = `
  */
 const variantes = {
   primario: `
-    bg-gradient-to-r from-blue-700 to-blue-900 text-white
-    shadow-lg shadow-blue-800/30
-    hover:shadow-blue-800/40 hover:from-blue-800 hover:to-blue-950
-    active:shadow-blue-800/50 active:scale-[0.98]
+    bg-linear-to-r from-slate-700 to-slate-800 text-white
+    shadow-lg shadow-slate-700/30
+    hover:shadow-slate-700/40 hover:from-slate-800 hover:to-slate-900
+    active:shadow-slate-700/50 active:scale-[0.98]
   `,
   secundario: `
     bg-slate-200 text-slate-700

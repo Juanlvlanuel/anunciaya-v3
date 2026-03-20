@@ -495,7 +495,7 @@ export function FormularioRegistro({
           {/* Grid: Nombre + Apellidos */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-2 2xl:gap-3">
             <InputField
-              label="Nombre"
+              label="Nombre(s)"
               icon={<User className="w-[18px] h-[18px]" />}
               type="text"
               placeholder="Tu nombre"
@@ -521,7 +521,7 @@ export function FormularioRegistro({
           {/* Grid: Email + Teléfono */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-2 2xl:gap-3">
             <InputField
-              label="Correo electrónico"
+              label="Correo personal"
               icon={<Mail className="w-[18px] h-[18px]" />}
               type="email"
               placeholder="tu@email.com"
