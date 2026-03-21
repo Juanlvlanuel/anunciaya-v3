@@ -80,13 +80,24 @@ export async function getRecompensaPorId(id: string) {
 }
 
 /**
+ * Genera presigned URL para subir imagen de recompensa a R2.
+ * POST /api/puntos/recompensas/upload-imagen
+ */
+export async function generarUrlUploadImagenRecompensa(nombreArchivo: string, contentType: string) {
+  return post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>(
+    '/puntos/recompensas/upload-imagen',
+    { nombreArchivo, contentType }
+  );
+}
+
+/**
  * Crea una nueva recompensa.
  * POST /api/puntos/recompensas
  *
  * Solo dueños pueden crear. Gerentes reciben 403.
  *
  * FLUJO DE IMAGEN:
- *   1. Frontend sube imagen a Cloudinary primero
+ *   1. Frontend sube imagen a R2 via presigned URL
  *   2. Frontend envía la URL resultante en datos.imagenUrl
  *   3. Backend solo guarda la URL en BD
  *

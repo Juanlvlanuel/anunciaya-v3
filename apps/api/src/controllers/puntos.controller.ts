@@ -29,6 +29,7 @@ import {
   actualizarRecompensa,
   eliminarRecompensa,
   obtenerEstadisticasPuntos,
+  generarUrlUploadImagenRecompensa,
 } from '../services/puntos.service.js';
 import {
   actualizarConfigPuntosSchema,
@@ -468,6 +469,41 @@ export async function eliminarRecompensaController(
     res.status(500).json({
       success: false,
       message: 'Error al eliminar recompensa',
+    });
+  }
+}
+
+// =============================================================================
+// 7.1 GENERAR PRESIGNED URL PARA IMAGEN DE RECOMPENSA (R2)
+// =============================================================================
+
+/**
+ * POST /api/puntos/recompensas/upload-imagen
+ * Genera presigned URL para subir imagen de recompensa a R2
+ * Acceso: SOLO DUEÑOS
+ */
+export async function uploadImagenRecompensaController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const { nombreArchivo, contentType } = req.body;
+
+    if (!nombreArchivo || !contentType) {
+      res.status(400).json({
+        success: false,
+        message: 'Se requiere nombreArchivo y contentType',
+      });
+      return;
+    }
+
+    const resultado = await generarUrlUploadImagenRecompensa(nombreArchivo, contentType);
+    res.status(resultado.success ? 200 : 400).json(resultado);
+  } catch (error) {
+    console.error('Error en uploadImagenRecompensaController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al generar URL de subida',
     });
   }
 }

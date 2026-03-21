@@ -961,6 +961,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 <ModalHorarios
                     horarios={negocio.horarios}
                     onClose={() => setModalHorariosAbierto(false)}
+                    centrado={esModoPreview}
                 />
             )}
 

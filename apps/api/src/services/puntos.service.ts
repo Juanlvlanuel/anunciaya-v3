@@ -55,7 +55,7 @@ import type {
   TransaccionPuntos,
   PeriodoEstadisticas
 } from '../types/puntos.types.js';
-import { eliminarImagen } from './cloudinary.service.js';
+import { generarPresignedUrl, eliminarArchivo } from './r2.service.js';
 import { startOfDay, subDays, subMonths, subYears } from 'date-fns';
 import { crearNotificacion, obtenerSucursalPrincipal } from './notificaciones.service.js';
 
@@ -450,7 +450,7 @@ export async function crearRecompensa(
         .where(eq(puntosBilletera.negocioId, negocioId));
 
       const [negocioInfo] = await db
-        .select({ nombre: negocios.nombre })
+        .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
         .from(negocios)
         .where(eq(negocios.id, negocioId))
         .limit(1);
@@ -469,6 +469,8 @@ export async function crearRecompensa(
           referenciaId: recompensa.id,
           referenciaTipo: 'recompensa',
           icono: '🎁',
+          actorImagenUrl: recompensa.imagenUrl ?? negocioInfo?.logoUrl ?? undefined,
+          actorNombre: negocioInfo?.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación nueva recompensa:', err));
       }
     }
@@ -554,16 +556,16 @@ export async function actualizarRecompensa(
 
     // Manejo de imagen
     if (datos.eliminarImagen && recompensaActual.imagenUrl) {
-      // Eliminar imagen actual de Cloudinary
-      await eliminarImagen(recompensaActual.imagenUrl);
+      // Eliminar imagen actual de R2
+      await eliminarArchivo(recompensaActual.imagenUrl);
       datosActualizar.imagenUrl = null;
     } else if (datos.imagenUrl && datos.imagenUrl !== recompensaActual.imagenUrl) {
       // Nueva imagen (ya subida por frontend)
       datosActualizar.imagenUrl = datos.imagenUrl;
 
-      // Eliminar imagen anterior de Cloudinary
+      // Eliminar imagen anterior de R2
       if (recompensaActual.imagenUrl) {
-        await eliminarImagen(recompensaActual.imagenUrl);
+        await eliminarArchivo(recompensaActual.imagenUrl);
       }
     }
 
@@ -640,9 +642,9 @@ export async function eliminarRecompensa(
       .delete(recompensas)
       .where(eq(recompensas.id, id));
 
-    // Eliminar imagen de Cloudinary
+    // Eliminar imagen de R2
     if (recompensa.imagenUrl) {
-      await eliminarImagen(recompensa.imagenUrl);
+      await eliminarArchivo(recompensa.imagenUrl);
     }
 
     return {
@@ -658,6 +660,15 @@ export async function eliminarRecompensa(
       code: 500,
     };
   }
+}
+
+// =============================================================================
+// 7.1 GENERAR PRESIGNED URL PARA IMAGEN DE RECOMPENSA (R2)
+// =============================================================================
+
+export async function generarUrlUploadImagenRecompensa(nombreArchivo: string, contentType: string) {
+    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    return generarPresignedUrl('recompensas', nombreArchivo, contentType, 300, TIPOS_PERMITIDOS);
 }
 
 // =============================================================================

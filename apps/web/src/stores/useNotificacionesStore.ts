@@ -9,12 +9,7 @@
  * - Controla el panel de notificaciones (abierto/cerrado)
  * - Marca notificaciones como leídas (individual y masivo)
  * - Filtra por modo activo (personal/comercial)
- *
- * ¿Para qué se usa?
- * - Badge de notificaciones en Navbar (desktop)
- * - Badge de notificaciones en MobileHeader (móvil)
- * - Panel de notificaciones (dropdown/overlay)
- * - Página dedicada de notificaciones (/notificaciones)
+ * - Paginación con "Cargar más"
  *
  * Ubicación: apps/web/src/stores/useNotificacionesStore.ts
  */
@@ -33,6 +28,12 @@ import type {
 } from '../types/notificaciones';
 
 // =============================================================================
+// CONSTANTES
+// =============================================================================
+
+const NOTIFICACIONES_POR_PAGINA = 15;
+
+// =============================================================================
 // TIPOS DEL STORE
 // =============================================================================
 
@@ -42,10 +43,13 @@ interface NotificacionesState {
   totalNoLeidas: number;
   panelAbierto: boolean;
   cargando: boolean;
+  cargandoMas: boolean;
+  hayMas: boolean;
   modoActual: ModoNotificacion;
 
   // Acciones - Carga
   cargarNotificaciones: (modo: ModoNotificacion) => Promise<void>;
+  cargarMas: () => Promise<void>;
   cargarConteoNoLeidas: (modo: ModoNotificacion) => Promise<void>;
 
   // Acciones - Panel
@@ -74,21 +78,24 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
   totalNoLeidas: 0,
   panelAbierto: false,
   cargando: false,
+  cargandoMas: false,
+  hayMas: false,
   modoActual: 'personal',
 
   // ---------------------------------------------------------------------------
-  // ACCIÓN: Cargar notificaciones desde la API
+  // ACCIÓN: Cargar notificaciones desde la API (primera página)
   // ---------------------------------------------------------------------------
   cargarNotificaciones: async (modo: ModoNotificacion) => {
     set({ cargando: true, modoActual: modo });
 
     try {
-      const respuesta = await getNotificaciones(modo, 10);
+      const respuesta = await getNotificaciones(modo, NOTIFICACIONES_POR_PAGINA, 0);
 
       if (respuesta.success && respuesta.data) {
         set({
           notificaciones: respuesta.data.notificaciones,
           totalNoLeidas: respuesta.data.totalNoLeidas,
+          hayMas: respuesta.data.notificaciones.length >= NOTIFICACIONES_POR_PAGINA,
           cargando: false,
         });
       } else {
@@ -97,6 +104,36 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     } catch (error) {
       console.error('Error cargando notificaciones:', error);
       set({ cargando: false });
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // ACCIÓN: Cargar más notificaciones (siguiente página)
+  // ---------------------------------------------------------------------------
+  cargarMas: async () => {
+    const { modoActual, notificaciones, cargandoMas, hayMas } = get();
+
+    if (cargandoMas || !hayMas) return;
+
+    set({ cargandoMas: true });
+
+    try {
+      const offset = notificaciones.length;
+      const respuesta = await getNotificaciones(modoActual, NOTIFICACIONES_POR_PAGINA, offset);
+
+      if (respuesta.success && respuesta.data) {
+        const nuevas = respuesta.data.notificaciones;
+        set({
+          notificaciones: [...notificaciones, ...nuevas],
+          hayMas: nuevas.length >= NOTIFICACIONES_POR_PAGINA,
+          cargandoMas: false,
+        });
+      } else {
+        set({ cargandoMas: false });
+      }
+    } catch (error) {
+      console.error('Error cargando más notificaciones:', error);
+      set({ cargandoMas: false });
     }
   },
 

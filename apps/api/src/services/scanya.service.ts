@@ -1600,6 +1600,7 @@ export async function otorgarPuntos(
                 id: usuarios.id,
                 nombre: usuarios.nombre,
                 apellidos: usuarios.apellidos,
+                avatarUrl: usuarios.avatarUrl,
             })
             .from(usuarios)
             .where(eq(usuarios.id, datos.clienteId))
@@ -1879,7 +1880,7 @@ export async function otorgarPuntos(
         // Paso 13.6: Notificar al cliente (puntos ganados)
         // -------------------------------------------------------------------------
         const [negocioInfo] = await db
-            .select({ nombre: negocios.nombre })
+            .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
             .from(negocios)
             .where(eq(negocios.id, payload.negocioId))
             .limit(1);
@@ -1895,6 +1896,8 @@ export async function otorgarPuntos(
             referenciaId: transaccion.id,
             referenciaTipo: 'transaccion',
             icono: '🎯',
+            actorImagenUrl: negocioInfo?.logoUrl ?? undefined,
+            actorNombre: negocioInfo?.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación puntos:', err));
 
         // Notificar al dueño del negocio (nueva venta)
@@ -1916,6 +1919,8 @@ export async function otorgarPuntos(
                 referenciaId: transaccion.id,
                 referenciaTipo: 'transaccion',
                 icono: '🎯',
+                actorImagenUrl: cliente.avatarUrl ?? undefined,
+                actorNombre: `${cliente.nombre} ${cliente.apellidos || ''}`.trim(),
             }).catch((err) => console.error('Error notificación dueño:', err));
         }
 
@@ -2547,6 +2552,7 @@ export async function validarVoucher(
                 id: usuarios.id,
                 nombre: usuarios.nombre,
                 apellidos: usuarios.apellidos,
+                avatarUrl: usuarios.avatarUrl,
             })
             .from(usuarios)
             .where(eq(usuarios.id, voucher.usuarioId))
@@ -2585,6 +2591,13 @@ export async function validarVoucher(
         // -------------------------------------------------------------------------
         // Paso 5.5: Notificar al cliente (voucher cobrado)
         // -------------------------------------------------------------------------
+        // Obtener logo del negocio para notificación personal
+        const [negocioDueno] = await db
+            .select({ usuarioId: negocios.usuarioId, logoUrl: negocios.logoUrl, nombre: negocios.nombre })
+            .from(negocios)
+            .where(eq(negocios.id, voucher.negocioId))
+            .limit(1);
+
         crearNotificacion({
             usuarioId: voucher.usuarioId,
             modo: 'personal',
@@ -2596,15 +2609,11 @@ export async function validarVoucher(
             referenciaId: voucher.id,
             referenciaTipo: 'voucher',
             icono: '🎟️',
+            actorImagenUrl: recompensa.imagenUrl ?? negocioDueno?.logoUrl ?? undefined,
+            actorNombre: negocioDueno?.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación voucher:', err));
 
         // Notificar al dueño (voucher entregado)
-        const [negocioDueno] = await db
-            .select({ usuarioId: negocios.usuarioId })
-            .from(negocios)
-            .where(eq(negocios.id, voucher.negocioId))
-            .limit(1);
-
         if (negocioDueno) {
             crearNotificacion({
                 usuarioId: negocioDueno.usuarioId,
@@ -2617,6 +2626,8 @@ export async function validarVoucher(
                 referenciaId: voucher.id,
                 referenciaTipo: 'voucher',
                 icono: '✅',
+                actorImagenUrl: cliente?.avatarUrl ?? undefined,
+                actorNombre: cliente ? `${cliente.nombre} ${cliente.apellidos || ''}`.trim() : undefined,
             }).catch((err) => console.error('Error notificación dueño voucher entregado:', err));
         }
 

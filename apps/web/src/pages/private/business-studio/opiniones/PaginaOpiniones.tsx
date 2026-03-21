@@ -31,7 +31,9 @@
 import { useState, useMemo, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import {
     MessageSquare,
+    MessageCircle,
     Search,
+    Send,
     Star,
     User,
     Clock,
@@ -668,89 +670,102 @@ export function PaginaOpiniones() {
                     <>
                     {/* Desktop: card contenedor con scroll interno */}
                     <div className="hidden lg:block bg-white rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 overflow-hidden">
-                        <div className="overflow-y-auto max-h-[42vh] 2xl:max-h-[61vh] p-2.5 2xl:p-3">
+                        <div className="overflow-y-auto max-h-[42vh] 2xl:max-h-[56.7vh] p-2.5 2xl:p-3">
                             <div className="grid grid-cols-2 2xl:grid-cols-3 gap-2 2xl:gap-2.5">
                                 {resenasFiltradas.map((resena) => (
                                     <div
                                         key={resena.id}
-                                        className={`rounded-lg 2xl:rounded-xl p-2.5 2xl:p-3 ${
-                                            resena.respuesta
-                                                ? 'bg-amber-50 border-2 border-slate-300'
-                                                : 'bg-amber-50 border-2 border-orange-300'
-                                        }`}
+                                        className="bg-white rounded-lg 2xl:rounded-xl border-2 border-slate-300 overflow-hidden"
                                     >
-                                        {/* Header: avatar + nombre + estrellas + badge */}
-                                        <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
+                                        {/* Header: avatar + info + badge */}
+                                        <div className="flex items-start gap-2 lg:gap-1.5 2xl:gap-2 p-2.5 2xl:p-3 pb-0 2xl:pb-0">
                                             {resena.autor.avatarUrl ? (
                                                 <img
                                                     src={resena.autor.avatarUrl}
                                                     alt={resena.autor.nombre}
-                                                    className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full object-cover shrink-0"
+                                                    className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full object-cover shrink-0 ring-2 ring-amber-200"
                                                 />
                                             ) : (
-                                                <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                                                    <User className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-600" />
+                                                <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 ring-2 ring-indigo-200">
+                                                    <User className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-indigo-700" />
                                                 </div>
                                             )}
-                                            <span className="font-bold text-sm lg:text-xs 2xl:text-sm text-slate-900 truncate flex-1 min-w-0">
-                                                {resena.autor.nombre}
-                                            </span>
-                                            <div className="flex gap-0.5 shrink-0">
-                                                {[1, 2, 3, 4, 5].map((s) => (
-                                                    <Star key={s} className={`w-3 h-3 ${resena.rating && s <= resena.rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
-                                                ))}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm text-slate-900 truncate">
+                                                        {resena.autor.nombre}
+                                                    </span>
+                                                    <span className={`shrink-0 inline-flex items-center gap-0.5 text-sm lg:text-[11px] 2xl:text-sm px-1.5 py-0.5 rounded-full font-bold ${resena.respuesta ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                        {resena.respuesta ? <><CheckCircle2 className="w-3 h-3" />Respondida</> : <><Clock className="w-3 h-3" />Pendiente</>}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <div className="flex gap-0.5">
+                                                        {[1, 2, 3, 4, 5].map((s) => (
+                                                            <Star key={s} className={`w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${resena.rating && s <= resena.rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+                                                        {formatearFecha(resena.createdAt)}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <span className={`shrink-0 inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm px-1.5 py-0.5 rounded-full font-bold ${resena.respuesta ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                {resena.respuesta ? <><CheckCircle2 className="w-3 h-3" />Respondida</> : <><Clock className="w-3 h-3" />Pendiente</>}
-                                            </span>
                                         </div>
 
-                                        {/* Burbuja cliente (izquierda) */}
-                                        {resena.texto && (
-                                            <div className="flex justify-start mb-2 lg:mb-1.5 2xl:mb-2">
-                                                <div className="max-w-[88%] bg-white border-2 border-slate-200 rounded-2xl rounded-tl-sm px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 shadow-sm">
-                                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700 italic leading-snug">
-                                                        "{resena.texto}"
-                                                    </p>
-                                                    <p className="text-sm lg:text-[10px] 2xl:text-sm font-medium text-slate-600 mt-0.5">
-                                                        {formatearFecha(resena.createdAt)}{resena.sucursalNombre && ` · ${resena.sucursalNombre}`}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Burbuja negocio (derecha) */}
-                                        {resena.respuesta && (
-                                            <div className="flex justify-end">
-                                                <div className="max-w-[88%] bg-slate-800 rounded-2xl rounded-tr-sm px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 shadow-sm">
-                                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-white leading-snug">
-                                                        {resena.respuesta.texto}
-                                                    </p>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-sm lg:text-[10px] 2xl:text-sm font-medium text-slate-400">
-                                                            {formatearFecha(resena.respuesta.createdAt)}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => abrirResponder(resena)}
-                                                            className="inline-flex items-center gap-1 text-slate-300 text-sm lg:text-[10px] 2xl:text-sm font-semibold cursor-pointer hover:text-white ml-auto"
-                                                        >
-                                                            <Pencil className="w-3 h-3" />
-                                                            Editar
-                                                        </button>
+                                        {/* Zona de conversación */}
+                                        <div className="p-2.5 2xl:p-3 space-y-2 lg:space-y-1.5 2xl:space-y-2">
+                                            {/* Burbuja del cliente (izquierda) */}
+                                            {resena.texto && (
+                                                <div className="flex gap-1.5 items-end">
+                                                    <div className="bg-amber-100 rounded-2xl rounded-bl-sm px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 flex-1">
+                                                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-800 leading-snug">
+                                                            {resena.texto}
+                                                        </p>
+                                                        {resena.sucursalNombre && (
+                                                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-0.5">
+                                                                {resena.sucursalNombre}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
 
-                                        {/* Botón responder */}
+                                            {/* Burbuja de respuesta del negocio (derecha) */}
+                                            {resena.respuesta && (
+                                                <div className="flex justify-end">
+                                                    <div className="max-w-[88%] bg-linear-to-br from-slate-800 to-slate-900 rounded-2xl rounded-br-sm px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 shadow-sm">
+                                                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-white leading-snug">
+                                                            {resena.respuesta.texto}
+                                                        </p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-400">
+                                                                {formatearFecha(resena.respuesta.createdAt)}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => abrirResponder(resena)}
+                                                                className="inline-flex items-center gap-1 text-slate-300 text-sm lg:text-[11px] 2xl:text-sm font-semibold lg:cursor-pointer hover:text-white ml-auto"
+                                                            >
+                                                                <Pencil className="w-3 h-3" />
+                                                                Editar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* CTA estilo input de chat */}
                                         {!resena.respuesta && (
-                                            <div className="flex justify-end">
+                                            <div className="px-2.5 2xl:px-3 pb-2.5 2xl:pb-3">
                                                 <button
                                                     onClick={() => abrirResponder(resena)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1 lg:px-2.5 lg:py-0.5 2xl:px-3 2xl:py-1 rounded-xl text-sm lg:text-[11px] 2xl:text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-sm cursor-pointer"
+                                                    className="w-full flex items-center gap-2 px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 rounded-xl border-2 border-slate-300 bg-slate-200 hover:bg-slate-300 lg:cursor-pointer"
                                                 >
-                                                    <Pencil className="w-3 h-3" />
-                                                    Responder
+                                                    <MessageCircle className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-600" />
+                                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600">
+                                                        Responder esta reseña...
+                                                    </span>
+                                                    <Send className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-600 ml-auto" />
                                                 </button>
                                             </div>
                                         )}
@@ -765,84 +780,97 @@ export function PaginaOpiniones() {
                         {resenasMostradas.map((resena) => (
                             <div
                                 key={resena.id}
-                                className={`rounded-xl p-3 ${
-                                    resena.respuesta
-                                        ? 'bg-amber-50 border-2 border-slate-300'
-                                        : 'bg-amber-50 border-2 border-orange-300'
-                                }`}
+                                className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden"
                             >
-                                {/* Header: avatar + nombre + estrellas + badge */}
-                                <div className="flex items-center gap-2 mb-2">
+                                {/* Header: avatar + info + badge */}
+                                <div className="flex items-start gap-2 p-3 pb-0">
                                     {resena.autor.avatarUrl ? (
                                         <img
                                             src={resena.autor.avatarUrl}
                                             alt={resena.autor.nombre}
-                                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                                            className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-amber-200"
                                         />
                                     ) : (
-                                        <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                                            <User className="w-3.5 h-3.5 text-slate-600" />
+                                        <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 ring-2 ring-indigo-200">
+                                            <User className="w-4 h-4 text-indigo-700" />
                                         </div>
                                     )}
-                                    <span className="font-bold text-sm text-slate-900 truncate flex-1 min-w-0">
-                                        {resena.autor.nombre}
-                                    </span>
-                                    <div className="flex gap-0.5 shrink-0">
-                                        {[1, 2, 3, 4, 5].map((s) => (
-                                            <Star key={s} className={`w-3 h-3 ${resena.rating && s <= resena.rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
-                                        ))}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-sm text-slate-900 truncate">
+                                                {resena.autor.nombre}
+                                            </span>
+                                            <span className={`shrink-0 inline-flex items-center gap-0.5 text-sm px-1.5 py-0.5 rounded-full font-bold ${resena.respuesta ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                {resena.respuesta ? <><CheckCircle2 className="w-3 h-3" />Respondida</> : <><Clock className="w-3 h-3" />Pendiente</>}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <div className="flex gap-0.5">
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <Star key={s} className={`w-3.5 h-3.5 ${resena.rating && s <= resena.rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
+                                                ))}
+                                            </div>
+                                            <span className="text-sm font-medium text-slate-600">
+                                                {formatearFecha(resena.createdAt)}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <span className={`shrink-0 inline-flex items-center gap-1 text-sm px-1.5 py-0.5 rounded-full font-bold ${resena.respuesta ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                                        {resena.respuesta ? <><CheckCircle2 className="w-3 h-3" />Respondida</> : <><Clock className="w-3 h-3" />Pendiente</>}
-                                    </span>
                                 </div>
 
-                                {/* Burbuja cliente */}
-                                {resena.texto && (
-                                    <div className="flex justify-start mb-2">
-                                        <div className="max-w-[88%] bg-white border-2 border-slate-200 rounded-2xl rounded-tl-sm px-3 py-2 shadow-sm">
-                                            <p className="text-sm font-medium text-slate-700 italic leading-snug">
-                                                "{resena.texto}"
-                                            </p>
-                                            <p className="text-sm font-medium text-slate-600 mt-0.5">
-                                                {formatearFecha(resena.createdAt)}{resena.sucursalNombre && ` · ${resena.sucursalNombre}`}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Burbuja negocio */}
-                                {resena.respuesta && (
-                                    <div className="flex justify-end">
-                                        <div className="max-w-[88%] bg-slate-800 rounded-2xl rounded-tr-sm px-3 py-2 shadow-sm">
-                                            <p className="text-sm font-medium text-white leading-snug">
-                                                {resena.respuesta.texto}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-sm font-medium text-slate-400">
-                                                    {formatearFecha(resena.respuesta.createdAt)}
-                                                </span>
-                                                <button
-                                                    onClick={() => abrirResponder(resena)}
-                                                    className="inline-flex items-center gap-1 text-slate-300 text-sm font-semibold cursor-pointer hover:text-white ml-auto"
-                                                >
-                                                    <Pencil className="w-3 h-3" />
-                                                    Editar
-                                                </button>
+                                {/* Zona de conversación */}
+                                <div className="p-3 space-y-2">
+                                    {/* Burbuja del cliente (izquierda) */}
+                                    {resena.texto && (
+                                        <div className="flex gap-1.5 items-end">
+                                            <div className="bg-amber-100 rounded-2xl rounded-bl-sm px-3 py-2 flex-1">
+                                                <p className="text-sm font-medium text-slate-800 leading-snug">
+                                                    {resena.texto}
+                                                </p>
+                                                {resena.sucursalNombre && (
+                                                    <p className="text-sm font-medium text-slate-600 mt-0.5">
+                                                        {resena.sucursalNombre}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* Botón responder */}
+                                    {/* Burbuja de respuesta del negocio (derecha) */}
+                                    {resena.respuesta && (
+                                        <div className="flex justify-end">
+                                            <div className="max-w-[88%] bg-linear-to-br from-slate-800 to-slate-900 rounded-2xl rounded-br-sm px-3 py-2 shadow-sm">
+                                                <p className="text-sm font-medium text-white leading-snug">
+                                                    {resena.respuesta.texto}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-sm font-medium text-slate-400">
+                                                        {formatearFecha(resena.respuesta.createdAt)}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => abrirResponder(resena)}
+                                                        className="inline-flex items-center gap-1 text-slate-300 text-sm font-semibold cursor-pointer hover:text-white ml-auto"
+                                                    >
+                                                        <Pencil className="w-3 h-3" />
+                                                        Editar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* CTA estilo input de chat */}
                                 {!resena.respuesta && (
-                                    <div className="flex justify-end">
+                                    <div className="px-3 pb-3">
                                         <button
                                             onClick={() => abrirResponder(resena)}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-sm cursor-pointer"
+                                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-slate-300 bg-slate-200 hover:bg-slate-300 cursor-pointer"
                                         >
-                                            <Pencil className="w-3 h-3" />
-                                            Responder
+                                            <MessageCircle className="w-4 h-4 text-slate-600" />
+                                            <span className="text-sm font-semibold text-slate-600">
+                                                Responder esta reseña...
+                                            </span>
+                                            <Send className="w-4 h-4 text-slate-600 ml-auto" />
                                         </button>
                                     </div>
                                 )}

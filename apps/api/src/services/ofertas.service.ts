@@ -431,7 +431,7 @@ export async function crearOferta(
           .where(eq(puntosBilletera.negocioId, negocioId));
 
         const [negocioInfo] = await tx
-          .select({ nombre: negocios.nombre })
+          .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
           .from(negocios)
           .where(eq(negocios.id, negocioId))
           .limit(1);
@@ -448,6 +448,8 @@ export async function crearOferta(
             referenciaId: nuevaOferta.id,
             referenciaTipo: 'oferta',
             icono: '🏷️',
+            actorImagenUrl: nuevaOferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+            actorNombre: negocioInfo?.nombre ?? undefined,
           }).catch((err) => console.error('Error notificación nueva oferta:', err));
         }
       }
@@ -663,7 +665,7 @@ export async function actualizarOferta(
           .where(eq(puntosBilletera.negocioId, negocioId));
 
         const [negocioInfo] = await tx
-          .select({ nombre: negocios.nombre })
+          .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
           .from(negocios)
           .where(eq(negocios.id, negocioId))
           .limit(1);
@@ -680,6 +682,8 @@ export async function actualizarOferta(
             referenciaId: ofertaId,
             referenciaTipo: 'oferta',
             icono: '🏷️',
+            actorImagenUrl: ofertaActualizada.imagen ?? negocioInfo?.logoUrl ?? undefined,
+            actorNombre: negocioInfo?.nombre ?? undefined,
           }).catch((err) => console.error('Error notificación oferta activada:', err));
         }
       }

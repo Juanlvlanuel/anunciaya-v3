@@ -957,7 +957,7 @@ export function InputMensaje({
 
       {/* ── Error de imagen ── */}
       {errorImagen && (
-        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
+        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-100 border-2 border-red-300 rounded-full text-sm text-red-600 font-medium">
           <button type="button" onClick={limpiarImagen} className="shrink-0 hover:text-red-800">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -967,7 +967,7 @@ export function InputMensaje({
 
       {/* ── Error de documento ── */}
       {errorDocumento && (
-        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
+        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-100 border-2 border-red-300 rounded-full text-sm text-red-600 font-medium">
           <button type="button" onClick={limpiarDocumento} className="shrink-0 hover:text-red-800">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -977,7 +977,7 @@ export function InputMensaje({
 
       {/* ── Error de audio ── */}
       {errorAudio && (
-        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
+        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-100 border-2 border-red-300 rounded-full text-sm text-red-600 font-medium">
           <button type="button" onClick={limpiarAudio} className="shrink-0 hover:text-red-800">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -987,7 +987,7 @@ export function InputMensaje({
 
       {/* ── Error de upload ── */}
       {errorUpload && (
-        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-600">
+        <div className="flex items-center gap-2 mx-4 mb-2 px-3 py-1.5 bg-red-100 border-2 border-red-300 rounded-full text-sm text-red-600 font-medium">
           <button type="button" onClick={() => setErrorUpload(null)} className="shrink-0 hover:text-red-800">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -997,13 +997,13 @@ export function InputMensaje({
 
       {/* ── Preview de imágenes seleccionadas (strip horizontal) ── */}
       {imagenesListas.length > 0 && (
-        <div className="mx-4 mb-2 px-3 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-sm">
+        <div className="mx-4 mb-2 px-3 py-2 bg-white/80 backdrop-blur-sm border-2 border-slate-300 rounded-2xl shadow-sm">
           {/* Fila: thumbnails + badge + botón limpiar todo */}
           <div className="flex items-center gap-2">
             {/* Strip horizontal con scroll */}
             <div className="flex-1 flex items-center gap-2 overflow-x-auto min-w-0" style={{ scrollbarWidth: 'none' }}>
               {imagenesListas.map((img, i) => (
-                <div key={img.blobUrl} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-gray-100 group">
+                <div key={img.blobUrl} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-slate-200 group">
                   <img
                     src={img.blobUrl}
                     alt={`Preview ${i + 1}`}
@@ -1022,8 +1022,8 @@ export function InputMensaje({
 
               {/* Spinner si está procesando más imágenes */}
               {procesandoImagen && (
-                <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                  <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-14 h-14 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
                 </div>
               )}
 
@@ -1031,16 +1031,16 @@ export function InputMensaje({
               {puedeAgregarMas && !procesandoImagen && (
                 <button
                   onClick={() => inputArchivoRef.current?.click()}
-                  className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center shrink-0 cursor-pointer hover:bg-blue-50/50"
+                  className="w-14 h-14 rounded-lg border-2 border-dashed border-slate-300 hover:border-blue-400 flex items-center justify-center shrink-0 cursor-pointer hover:bg-blue-100/50"
                 >
-                  <ImageIcon className="w-5 h-5 text-gray-400" />
+                  <ImageIcon className="w-5 h-5 text-slate-600" />
                 </button>
               )}
             </div>
 
             {/* Badge contador */}
             {imagenesListas.length > 1 && (
-              <span className="text-xs font-semibold text-gray-500 shrink-0">
+              <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 shrink-0">
                 {imagenesListas.length}/{maxImagenes}
               </span>
             )}
@@ -1048,9 +1048,9 @@ export function InputMensaje({
             {/* Botón limpiar todo */}
             <button
               onClick={limpiarImagen}
-              className="w-7 h-7 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 cursor-pointer shrink-0"
+              className="w-7 h-7 rounded-full flex items-center justify-center bg-slate-300 hover:bg-slate-400 cursor-pointer shrink-0"
             >
-              <X className="w-3.5 h-3.5 text-gray-500" />
+              <X className="w-3.5 h-3.5 text-slate-700" />
             </button>
           </div>
 
@@ -1061,42 +1061,42 @@ export function InputMensaje({
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Agregar pie de foto..."
             maxLength={200}
-            className="w-full mt-1.5 bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-400"
+            className="w-full mt-1.5 bg-transparent border-none outline-none text-sm font-medium text-slate-800 placeholder:text-slate-500"
           />
         </div>
       )}
 
       {/* ── Preview de documento seleccionado ── */}
       {documentoListo && (
-        <div className="flex items-center gap-3 mx-4 mb-2 px-3 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-sm">
+        <div className="flex items-center gap-3 mx-4 mb-2 px-3 py-2 bg-white backdrop-blur-sm border-2 border-slate-300 rounded-2xl shadow-sm">
           {/* Icono según extensión */}
           <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
             documentoListo.extension === 'pdf' ? 'bg-red-100 text-red-600' :
             ['doc', 'docx'].includes(documentoListo.extension) ? 'bg-blue-100 text-blue-600' :
             ['xls', 'xlsx', 'csv'].includes(documentoListo.extension) ? 'bg-green-100 text-green-600' :
             ['ppt', 'pptx'].includes(documentoListo.extension) ? 'bg-orange-100 text-orange-600' :
-            'bg-gray-100 text-gray-600'
+            'bg-slate-200 text-slate-600'
           }`}>
             <FileText className="w-5 h-5" />
           </div>
           {/* Nombre + tamaño */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-800 truncate">{documentoListo.nombre}</p>
-            <p className="text-xs text-gray-500">{formatearTamano(documentoListo.tamano)} · {documentoListo.extension.toUpperCase()}</p>
+            <p className="text-sm font-medium text-slate-800 truncate">{documentoListo.nombre}</p>
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">{formatearTamano(documentoListo.tamano)} · {documentoListo.extension.toUpperCase()}</p>
           </div>
           {/* Botón cancelar */}
           <button
             onClick={limpiarDocumento}
-            className="w-7 h-7 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 cursor-pointer shrink-0"
+            className="w-7 h-7 rounded-full flex items-center justify-center bg-slate-300 hover:bg-slate-400 cursor-pointer shrink-0"
           >
-            <X className="w-3.5 h-3.5 text-gray-500" />
+            <X className="w-3.5 h-3.5 text-slate-700" />
           </button>
         </div>
       )}
 
       {/* ── Barra de edición ── */}
       {mensajeEditando && (
-        <div className="flex items-stretch mx-3 lg:mx-4 mb-1.5 bg-gray-800/90 lg:bg-amber-50 rounded-lg overflow-hidden">
+        <div className="flex items-stretch mx-3 lg:mx-4 mb-1.5 bg-gray-800/90 lg:bg-amber-100 rounded-lg overflow-hidden">
           {/* Borde lateral izquierdo */}
           <div className="w-1 bg-amber-400 shrink-0" />
 
@@ -1109,8 +1109,8 @@ export function InputMensaje({
 
           {/* Contenido */}
           <div className="flex-1 min-w-0 px-3 py-2">
-            <p className="text-[13px] font-semibold text-amber-400 lg:text-amber-600 leading-tight">Editando</p>
-            <p className="text-[13px] text-white/50 lg:text-gray-500 truncate mt-0.5">
+            <p className="text-sm font-semibold text-amber-400 lg:text-amber-600 leading-tight">Editando</p>
+            <p className="text-sm text-white/50 lg:text-slate-600 truncate mt-0.5">
               <TextoConEmojis texto={mensajeEditando.contenido || ''} tamañoEmoji={18} />
             </p>
           </div>
@@ -1120,14 +1120,14 @@ export function InputMensaje({
             onClick={() => { setTexto(''); onCancelarEdicion?.(); }}
             className="px-2.5 flex items-center justify-center hover:bg-white/5 lg:hover:bg-black/5 cursor-pointer shrink-0"
           >
-            <X className="w-4 h-4 text-gray-400 lg:text-gray-500" />
+            <X className="w-4 h-4 text-gray-400 lg:text-slate-600" />
           </button>
         </div>
       )}
 
       {/* ── Barra de respuesta (estilo WhatsApp) ── */}
       {mensajeRespondiendo && !mensajeEditando && (
-        <div className="flex items-stretch mx-3 lg:mx-4 mb-1.5 bg-gray-800/90 lg:bg-gray-100 rounded-lg overflow-hidden">
+        <div className="flex items-stretch mx-3 lg:mx-4 mb-1.5 bg-gray-800/90 lg:bg-slate-100 rounded-lg overflow-hidden">
           {/* Borde lateral izquierdo */}
           <div className="w-1 bg-blue-400 lg:bg-blue-500 shrink-0" />
 
@@ -1140,10 +1140,10 @@ export function InputMensaje({
 
           {/* Contenido */}
           <div className="flex-1 min-w-0 px-3 py-2">
-              <p className="text-[13px] font-semibold text-blue-400 lg:text-blue-600 leading-tight">
+              <p className="text-sm font-semibold text-blue-400 lg:text-blue-600 leading-tight">
                 {mensajeRespondiendo.emisorId === miId ? 'Tú' : nombreContacto || 'Mensaje'}
               </p>
-              <p className="text-[13px] text-gray-400 lg:text-gray-500 truncate mt-0.5">
+              <p className="text-sm text-gray-400 lg:text-slate-600 truncate mt-0.5">
                 {mensajeRespondiendo.tipo === 'imagen' ? (() => {
                   let d: { caption?: string } = {};
                   try { d = JSON.parse(mensajeRespondiendo.contenido); } catch { /* ignore */ }
@@ -1172,7 +1172,7 @@ export function InputMensaje({
             onClick={() => onCancelarRespuesta?.()}
             className="px-2.5 flex items-center justify-center hover:bg-white/5 lg:hover:bg-black/5 cursor-pointer shrink-0"
           >
-            <X className="w-4 h-4 text-gray-400 lg:text-gray-500" />
+            <X className="w-4 h-4 text-gray-400 lg:text-slate-600" />
           </button>
         </div>
       )}
@@ -1269,7 +1269,7 @@ export function InputMensaje({
             {/* ═══ MODO NORMAL: pill + botón enviar/mic ═══ */}
 
             {/* Pill: emoji(desktop) + input + clip + cámara */}
-            <div className="flex-1 flex items-center gap-0.5 pl-2 pr-0 py-2 bg-white/10 border-0 lg:border lg:bg-gray-200 lg:border-gray-300 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.25)] focus-within:shadow-[0_4px_22px_rgba(0,0,0,0.45)]">
+            <div className="flex-1 flex items-center gap-0.5 pl-2 pr-0 py-2 bg-white/10 border-0 lg:border lg:bg-slate-100 lg:border-slate-300 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.25)] focus-within:shadow-[0_4px_22px_rgba(0,0,0,0.45)]">
 
               {/* Botón emoji (solo desktop) */}
               <button
@@ -1367,35 +1367,35 @@ export function InputMensaje({
             {menuClipAbierto && menuClipPos && createPortal(
                 <div ref={menuClipRef} className="fixed z-9999" style={{ right: window.innerWidth - menuClipPos.x, top: menuClipPos.y - 16, transform: 'translateY(-100%)' }}>
                   <div className="rounded-2xl overflow-hidden shadow-2xl min-w-48 lg:min-w-40 py-1"
-                    style={{ background: window.innerWidth >= 1024 ? '#ffffff' : '#0d1b2e', border: window.innerWidth >= 1024 ? '1px solid #f0f0f0' : '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ background: window.innerWidth >= 1024 ? '#ffffff' : '#0d1b2e', border: window.innerWidth >= 1024 ? '2px solid #cbd5e1' : '1px solid rgba(255,255,255,0.06)' }}
                   >
                   <button
                     onClick={() => { setMenuClipAbierto(false); setMenuClipPos(null); inputGaleriaRef.current?.click(); }}
-                    className="flex items-center gap-3.5 lg:gap-3 px-5 lg:px-4 py-2.5 lg:py-2.5 w-full hover:bg-white/5 lg:hover:bg-gray-50"
+                    className="flex items-center gap-3.5 lg:gap-3 px-5 lg:px-4 py-2.5 lg:py-2.5 w-full hover:bg-white/5 lg:hover:bg-slate-200 cursor-pointer"
                   >
                     <ImageIcon className="w-5 h-5 lg:w-4 lg:h-4 text-blue-400 lg:text-blue-500" />
-                    <span className="text-base lg:text-sm font-medium text-white/80 lg:text-gray-700">Galería</span>
+                    <span className="text-base lg:text-sm font-medium text-white/80 lg:text-slate-700">Galería</span>
                   </button>
                   <button
                     onClick={() => { setMenuClipAbierto(false); setMenuClipPos(null); inputCamaraRef.current?.click(); }}
-                    className="flex items-center gap-3.5 lg:gap-3 px-5 lg:px-4 py-2.5 lg:py-2.5 w-full hover:bg-white/5 lg:hover:bg-gray-50"
+                    className="flex items-center gap-3.5 lg:gap-3 px-5 lg:px-4 py-2.5 lg:py-2.5 w-full hover:bg-white/5 lg:hover:bg-slate-200 cursor-pointer"
                   >
                     <Camera className="w-5 h-5 lg:w-4 lg:h-4 text-purple-400 lg:text-purple-500" />
-                    <span className="text-base lg:text-sm font-medium text-white/80 lg:text-gray-700">Cámara</span>
+                    <span className="text-base lg:text-sm font-medium text-white/80 lg:text-slate-700">Cámara</span>
                   </button>
                   <button
                     onClick={() => { setMenuClipAbierto(false); setMenuClipPos(null); inputDocumentoRef.current?.click(); }}
-                    className="flex items-center gap-3.5 lg:gap-3 px-5 lg:px-4 py-2.5 lg:py-2.5 w-full hover:bg-white/5 lg:hover:bg-gray-50"
+                    className="flex items-center gap-3.5 lg:gap-3 px-5 lg:px-4 py-2.5 lg:py-2.5 w-full hover:bg-white/5 lg:hover:bg-slate-200 cursor-pointer"
                   >
                     <FileText className="w-5 h-5 lg:w-4 lg:h-4 text-orange-400 lg:text-orange-500" />
-                    <span className="text-base lg:text-sm font-medium text-white/80 lg:text-gray-700">Documento</span>
+                    <span className="text-base lg:text-sm font-medium text-white/80 lg:text-slate-700">Documento</span>
                   </button>
                   <button
                     onClick={() => { setMenuClipAbierto(false); setMenuClipPos(null); setModalUbicacionAbierto(true); }}
-                    className="flex items-center gap-3.5 lg:gap-3 px-5 lg:px-4 py-2.5 lg:py-2.5 w-full hover:bg-white/5 lg:hover:bg-gray-50"
+                    className="flex items-center gap-3.5 lg:gap-3 px-5 lg:px-4 py-2.5 lg:py-2.5 w-full hover:bg-white/5 lg:hover:bg-slate-200 cursor-pointer"
                   >
                     <MapPin className="w-5 h-5 lg:w-4 lg:h-4 text-emerald-400 lg:text-emerald-500" />
-                    <span className="text-base lg:text-sm font-medium text-white/80 lg:text-gray-700">Ubicación</span>
+                    <span className="text-base lg:text-sm font-medium text-white/80 lg:text-slate-700">Ubicación</span>
                   </button>
                 </div>
               </div>,

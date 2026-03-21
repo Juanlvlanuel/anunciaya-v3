@@ -202,7 +202,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
       <div className="flex bg-white/10 rounded-lg p-0.5">
         <button
           onClick={() => setTabActivo('card')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${tabActivo === 'card'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${tabActivo === 'card'
             ? 'bg-white text-blue-600 shadow-sm'
             : 'text-white/80 hover:text-white hover:bg-white/10'
             }`}
@@ -212,7 +212,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
         </button>
         <button
           onClick={() => setTabActivo('perfil')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${tabActivo === 'perfil'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${tabActivo === 'perfil'
             ? 'bg-white text-blue-600 shadow-sm'
             : 'text-white/80 hover:text-white hover:bg-white/10'
             }`}

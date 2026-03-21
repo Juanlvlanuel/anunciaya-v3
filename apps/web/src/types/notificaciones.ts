@@ -56,6 +56,8 @@ export interface Notificacion {
   referenciaId: string | null;
   referenciaTipo: ReferenciaTipo | null;
   icono: string | null;
+  actorImagenUrl: string | null;
+  actorNombre: string | null;
   leida: boolean;
   leidaAt: string | null;
   createdAt: string;

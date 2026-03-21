@@ -341,7 +341,7 @@ export async function crearResena(
 
         // 6. Notificar al dueño del negocio
         const [negocioDueno] = await db
-            .select({ usuarioId: negocios.usuarioId, nombre: negocios.nombre })
+            .select({ usuarioId: negocios.usuarioId, nombre: negocios.nombre, logoUrl: negocios.logoUrl })
             .from(negocios)
             .where(eq(negocios.id, sucursal.negocioId))
             .limit(1);
@@ -362,6 +362,8 @@ export async function crearResena(
                 referenciaId: row.id as string,
                 referenciaTipo: 'resena',
                 icono: '⭐',
+                actorImagenUrl: autor?.avatarUrl ?? undefined,
+                actorNombre: autor?.nombre ?? undefined,
             }).catch((err) => console.error('Error notificación reseña dueño:', err));
         }
 
@@ -591,7 +593,7 @@ export async function responderResena(
         // 4. Notificar al cliente (solo en respuesta nueva, no en edición)
         if (!esEdicion && original.autor_id) {
             const [negocio] = await db
-                .select({ nombre: negocios.nombre })
+                .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
                 .from(negocios)
                 .where(eq(negocios.id, negocioId))
                 .limit(1);
@@ -609,6 +611,8 @@ export async function responderResena(
                 referenciaId: datos.resenaId,
                 referenciaTipo: 'resena',
                 icono: '💬',
+                actorImagenUrl: negocio?.logoUrl ?? undefined,
+                actorNombre: negocio?.nombre ?? undefined,
             }).catch((err) => console.error('Error notificación respuesta reseña:', err));
         }
 

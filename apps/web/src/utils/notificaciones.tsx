@@ -1,8 +1,8 @@
 /**
- * notificaciones.tsx
- * =================
- * Sistema de notificaciones Soft Pastel para AnunciaYA v3.0
- * Fondos pastel · Bordes coloreados · Iconos sólidos · Progress bar
+ * notificaciones.tsx (v4.0 - Tokens corregidos + estilo congruente)
+ * ==================================================================
+ * Sistema de notificaciones para AnunciaYA v3.0
+ * Toasts con progress bar · Modal confirmación · Modal sesión expirada
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
@@ -55,45 +55,45 @@ const configTipo: Record<TipoNotificacion, {
   icon: React.ReactNode;
 }> = {
   exito: {
-    color: '#22c55e',
-    bg: '#dcfce7',
-    border: 'rgba(34,197,94,0.35)',
+    color: '#059669',
+    bg: '#d1fae5',
+    border: '#6ee7b7',
     icon: (
       <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="10" fill="#22c55e" />
+        <circle cx="10" cy="10" r="10" fill="#059669" />
         <path d="M6 10.5L8.5 13L14 7.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
   error: {
-    color: '#ef4444',
-    bg: '#fee2e2',
-    border: 'rgba(239,68,68,0.35)',
+    color: '#dc2626',
+    bg: '#fecaca',
+    border: '#fca5a5',
     icon: (
       <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="10" fill="#ef4444" />
+        <circle cx="10" cy="10" r="10" fill="#dc2626" />
         <path d="M7 7L13 13M13 7L7 13" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
   },
   advertencia: {
-    color: '#f59e0b',
-    bg: '#fef3c7',
-    border: 'rgba(245,158,11,0.35)',
+    color: '#d97706',
+    bg: '#fde68a',
+    border: '#fbbf24',
     icon: (
       <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="10" fill="#f59e0b" />
+        <circle cx="10" cy="10" r="10" fill="#d97706" />
         <path d="M10 6V11M10 13.5V14" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
   },
   info: {
-    color: '#3b82f6',
-    bg: '#dbeafe',
-    border: 'rgba(59,130,246,0.35)',
+    color: '#2563eb',
+    bg: '#bfdbfe',
+    border: '#93c5fd',
     icon: (
       <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="10" fill="#3b82f6" />
+        <circle cx="10" cy="10" r="10" fill="#2563eb" />
         <path d="M10 9V14M10 6.5V7" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
@@ -195,8 +195,8 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
         className="relative overflow-hidden rounded-xl"
         style={{
           background: config.bg,
-          border: `1.5px solid ${config.border}`,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+          border: `2px solid ${config.border}`,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)',
           maxWidth: 'min(420px, calc(100vw - 32px))',
           minWidth: 'min(300px, calc(100vw - 32px))',
           width: 'fit-content',
@@ -212,13 +212,13 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
           {/* Texto */}
           <div className="min-w-0">
             {notificacion.titulo && (
-              <p className="text-base font-semibold text-slate-800 leading-tight">
+              <p className="text-base font-bold text-slate-800 leading-tight">
                 {notificacion.titulo}
               </p>
             )}
             <p
               className={`text-base leading-snug line-clamp-2 ${
-                notificacion.titulo ? 'text-slate-500 mt-0.5' : 'text-slate-700 font-medium'
+                notificacion.titulo ? 'text-slate-600 font-medium mt-0.5' : 'text-slate-700 font-semibold'
               }`}
             >
               {notificacion.mensaje}
@@ -228,20 +228,20 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
           {/* Cerrar */}
           <button
             onClick={cerrar}
-            className="shrink-0 p-1 rounded-md text-slate-400 hover:text-slate-600 transition-colors duration-150"
+            className="shrink-0 p-1 rounded-md text-slate-600 hover:text-slate-800"
           >
-            <X className="w-4.5 h-4.5" strokeWidth={2} />
+            <X className="w-4.5 h-4.5" strokeWidth={2.5} />
           </button>
         </div>
 
         {/* Barra de progreso */}
-        <div className="h-0.5 w-full" style={{ background: `${config.color}15` }}>
+        <div className="h-1 w-full" style={{ background: `${config.color}20` }}>
           <div
-            className="h-full"
+            className="h-full rounded-full"
             style={{
               width: `${progreso}%`,
               background: config.color,
-              opacity: 0.4,
+              opacity: 0.6,
               transition: 'width 0.05s linear',
             }}
           />
@@ -275,7 +275,7 @@ const ContenedorNotificaciones: React.FC<ContenedorNotificacionesProps> = ({ not
 };
 
 // =============================================================================
-// COMPONENTE: MODAL DE CONFIRMACIÓN ESTILO TOAST (RESPONSIVE)
+// COMPONENTE: MODAL DE CONFIRMACIÓN
 // =============================================================================
 
 interface ModalConfirmacionToastProps {
@@ -302,9 +302,9 @@ const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options
           ${saliendo ? 'opacity-0 -translate-y-3 scale-95' : 'animate-[confirmIn_0.3s_cubic-bezier(0.22,1,0.36,1)]'}
         `}
         style={{
-          background: '#fef3c7',
-          border: '1.5px solid rgba(245,158,11,0.35)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06)',
+          background: '#fde68a',
+          border: '2px solid #fbbf24',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08)',
         }}
       >
         {/* Contenido */}
@@ -312,23 +312,23 @@ const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options
           <div className="flex items-start gap-3 mb-3.5">
             <div className="shrink-0 mt-0.5">
               <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-                <circle cx="10" cy="10" r="10" fill="#f59e0b" />
+                <circle cx="10" cy="10" r="10" fill="#d97706" />
                 <path d="M10 6V11M10 13.5V14" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm lg:text-base font-semibold text-slate-800 leading-tight">
+              <h3 className="text-base font-bold text-slate-800 leading-tight">
                 {options.titulo}
               </h3>
               {options.descripcion && (
-                <p className="text-xs lg:text-sm text-slate-500 leading-relaxed mt-1">
+                <p className="text-sm text-slate-600 font-medium leading-relaxed mt-1">
                   {options.descripcion}
                 </p>
               )}
             </div>
             <button
               onClick={() => handleClose(onCancel)}
-              className="shrink-0 p-1 rounded-md text-slate-400 hover:text-slate-600 transition-colors duration-150"
+              className="shrink-0 p-1 rounded-md text-slate-600 hover:text-slate-800"
             >
               <X className="w-4 h-4" strokeWidth={2.5} />
             </button>
@@ -338,14 +338,13 @@ const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options
           <div className="flex gap-2.5">
             <button
               onClick={() => handleClose(onCancel)}
-              className="flex-1 py-2 lg:py-2.5 px-4 rounded-lg text-xs lg:text-sm font-medium text-slate-600 bg-white/70 border border-slate-200 hover:bg-white transition-colors duration-150"
+              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-bold text-slate-600 bg-white border-2 border-slate-300 hover:bg-slate-200"
             >
               {i18n.t('common:confirmacion.cancelar')}
             </button>
             <button
               onClick={() => handleClose(onConfirm)}
-              className="flex-1 py-2 lg:py-2.5 px-4 rounded-lg text-xs lg:text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors duration-150"
-              style={{ boxShadow: '0 2px 8px rgba(239,68,68,0.25)' }}
+              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/30 active:scale-[0.98]"
             >
               {i18n.t('common:confirmacion.confirmar')}
             </button>
@@ -371,26 +370,19 @@ const ModalSesionExpirada: React.FC<ModalSesionExpiradaProps> = ({ onConfirm }) 
       style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
     >
       <div
-        className="w-full max-w-sm lg:max-w-md overflow-hidden rounded-2xl animate-[scaleIn_0.3s_cubic-bezier(0.34,1.56,0.64,1)]"
-        style={{
-          background: '#fff',
-          border: '1px solid rgba(0,0,0,0.06)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06)',
-        }}
+        className="w-full max-w-sm lg:max-w-md overflow-hidden rounded-2xl border-2 border-slate-300 shadow-lg animate-[scaleIn_0.3s_cubic-bezier(0.34,1.56,0.64,1)]"
+        style={{ background: '#fff' }}
       >
         <div className="p-6 pb-4">
           <div className="flex items-start gap-4">
-            <div
-              className="shrink-0 flex items-center justify-center w-11 h-11 rounded-xl"
-              style={{ background: '#fef3c7' }}
-            >
-              <Lock className="w-5 h-5 text-amber-500" strokeWidth={2} />
+            <div className="shrink-0 flex items-center justify-center w-11 h-11 rounded-xl bg-amber-100">
+              <Lock className="w-5 h-5 text-amber-600" strokeWidth={2} />
             </div>
             <div className="flex-1">
               <h3 className="text-slate-800 font-bold text-base lg:text-lg leading-tight mb-1.5">
                 Sesión expirada
               </h3>
-              <p className="text-slate-400 text-sm leading-relaxed">
+              <p className="text-slate-600 text-sm font-medium leading-relaxed">
                 Tu sesión ha expirado por inactividad.
                 <br />
                 Por favor, inicia sesión nuevamente.
@@ -402,8 +394,8 @@ const ModalSesionExpirada: React.FC<ModalSesionExpiradaProps> = ({ onConfirm }) 
         <div className="p-6 pt-2">
           <button
             onClick={onConfirm}
-            className="w-full py-3 px-4 rounded-xl text-sm lg:text-base font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors duration-150 active:scale-[0.98]"
-            style={{ boxShadow: '0 4px 14px rgba(59,130,246,0.3)' }}
+            className="w-full py-3 px-4 rounded-xl text-sm lg:text-base font-bold text-white shadow-lg shadow-slate-700/30 active:scale-[0.98] lg:cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, #334155, #1e293b)' }}
           >
             Ir al login
           </button>
@@ -423,7 +415,6 @@ export const NotificacionesProvider: React.FC<{ children: React.ReactNode }> = (
 
   const agregar = useCallback((tipo: TipoNotificacion, mensaje: string, titulo?: string) => {
     // Si hay un rate limit activo (429), suprimir toasts de error
-    // El banner y modal de rate limit ya le informan al usuario lo que pasó
     if (tipo === 'error') {
       const hasta = localStorage.getItem('ay_rate_limit_hasta');
       const rateLimitActivo = hasta && parseInt(hasta) > Date.now();

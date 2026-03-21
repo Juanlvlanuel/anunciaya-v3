@@ -95,14 +95,14 @@ function formatearTamano(bytes: number): string {
 
 /** Color del ícono según extensión */
 function colorExtension(ext?: string): string {
-  if (!ext) return 'text-white/50 lg:text-gray-400';
+  if (!ext) return 'text-white/50 lg:text-slate-600';
   const e = ext.toLowerCase();
   if (e === 'pdf') return 'text-red-400';
   if (['doc', 'docx'].includes(e)) return 'text-blue-400';
   if (['xls', 'xlsx'].includes(e)) return 'text-green-400';
   if (['ppt', 'pptx'].includes(e)) return 'text-orange-400';
   if (['zip', 'rar', '7z'].includes(e)) return 'text-yellow-400';
-  return 'text-white/50 lg:text-gray-400';
+  return 'text-white/50 lg:text-slate-600';
 }
 
 // =============================================================================
@@ -240,20 +240,20 @@ export function GaleriaArchivosCompartidos({
     <div className={`flex-1 flex flex-col min-h-0 ${esMobile ? 'bg-linear-to-b from-[#0B358F] to-[#050d1a]' : 'bg-transparent'}`}>
 
       {/* ═══ Header ═══ */}
-      <div className="flex items-center gap-3 px-4 py-3 lg:py-3.5 shrink-0 border-b border-white/10 lg:border-gray-300">
+      <div className="flex items-center gap-3 px-4 py-3 lg:py-3.5 shrink-0 border-b border-white/10 lg:border-slate-300">
         <button
           onClick={onCerrar}
-          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 lg:hover:bg-gray-200 cursor-pointer"
+          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 lg:hover:bg-slate-200 cursor-pointer"
         >
-          <ArrowLeft className="w-6 h-6 text-white/70 lg:text-gray-600" />
+          <ArrowLeft className="w-6 h-6 text-white/70 lg:text-slate-600" />
         </button>
-        <span className="text-[15px] lg:text-[16px] font-semibold text-white lg:text-gray-800 flex-1">
+        <span className="text-base lg:text-base font-semibold text-white lg:text-slate-800 flex-1">
           Archivos, enlaces y documentos
         </span>
       </div>
 
       {/* ═══ Tabs ═══ */}
-      <div className="flex shrink-0 border-b border-white/10 lg:border-gray-300">
+      <div className="flex shrink-0 border-b border-white/10 lg:border-slate-300">
         {TABS.map((tab) => {
           const activa = tabActiva === tab.id;
           const count = conteoTab(tab.id);
@@ -271,21 +271,21 @@ export function GaleriaArchivosCompartidos({
                 }
                 setTabActiva(tab.id);
               }}
-              className={`flex-1 py-2.5 text-[13px] font-semibold cursor-pointer transition-colors relative ${
+              className={`flex-1 py-2.5 text-sm font-semibold cursor-pointer relative ${
                 activa
-                  ? 'text-white lg:text-gray-900'
-                  : 'text-white/40 lg:text-gray-500 hover:text-white/60 lg:hover:text-gray-700'
+                  ? 'text-white lg:text-slate-900'
+                  : 'text-white/40 lg:text-slate-600 hover:text-white/60 lg:hover:text-slate-800'
               }`}
             >
               {tab.label}
               {count > 0 && (
-                <span className={`ml-1 text-[11px] ${activa ? 'text-white/60 lg:text-gray-600' : 'text-white/25 lg:text-gray-400'}`}>
+                <span className={`ml-1 text-[11px] ${activa ? 'text-white/60 lg:text-slate-600' : 'text-white/25 lg:text-slate-600'}`}>
                   {count}
                 </span>
               )}
               {/* Indicador activo */}
               {activa && (
-                <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-white lg:bg-gray-700 rounded-full" />
+                <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-white lg:bg-slate-700 rounded-full" />
               )}
             </button>
           );
@@ -301,10 +301,10 @@ export function GaleriaArchivosCompartidos({
         {/* Estado vacío */}
         {!cargando && items.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-            {tabActiva === 'imagenes' && <ImageIcon className="w-12 h-12 text-white/15 lg:text-gray-400 mb-3" />}
-            {tabActiva === 'documentos' && <FileText className="w-12 h-12 text-white/15 lg:text-gray-400 mb-3" />}
-            {tabActiva === 'enlaces' && <Link2 className="w-12 h-12 text-white/15 lg:text-gray-400 mb-3" />}
-            <p className="text-sm text-white/30 lg:text-gray-500">
+            {tabActiva === 'imagenes' && <ImageIcon className="w-12 h-12 text-white/15 lg:text-slate-600 mb-3" />}
+            {tabActiva === 'documentos' && <FileText className="w-12 h-12 text-white/15 lg:text-slate-600 mb-3" />}
+            {tabActiva === 'enlaces' && <Link2 className="w-12 h-12 text-white/15 lg:text-slate-600 mb-3" />}
+            <p className="text-sm text-white/30 lg:text-slate-600 font-medium">
               {tabActiva === 'imagenes' && 'No hay imágenes compartidas'}
               {tabActiva === 'documentos' && 'No hay documentos compartidos'}
               {tabActiva === 'enlaces' && 'No hay enlaces compartidos'}
@@ -317,7 +317,7 @@ export function GaleriaArchivosCompartidos({
           <div key={grupo.label}>
             {/* Label del mes */}
             <div className={`px-4 py-2 sticky top-0 z-20 backdrop-blur-sm ${esMobile ? 'bg-[#0B358F]/90' : 'bg-transparent'}`}>
-              <span className="text-sm lg:text-[13px] font-bold text-white/50 lg:text-gray-500 uppercase tracking-wider">
+              <span className="text-sm lg:text-[13px] font-bold text-white/50 lg:text-slate-600 uppercase tracking-wider">
                 {grupo.label}
               </span>
             </div>
@@ -339,13 +339,13 @@ export function GaleriaArchivosCompartidos({
                   return (
                     <div
                       key={archivo.id}
-                      className="aspect-square overflow-hidden relative cursor-pointer bg-white/5 lg:bg-gray-100"
+                      className="aspect-square overflow-hidden relative cursor-pointer bg-white/5 lg:bg-slate-200 group"
                       onClick={() => onAbrirVisorArchivos(archivo.id)}
                     >
                       {lqip && (
                         <img src={lqip} alt="" className="absolute inset-0 w-full h-full object-cover blur-sm scale-110" />
                       )}
-                      <img src={imgUrl} alt="" className="absolute inset-0 w-full h-full object-cover z-1" loading="lazy" />
+                      <img src={imgUrl} alt="" className="absolute inset-0 w-full h-full object-cover z-1 group-hover:scale-110 duration-500" loading="lazy" />
                     </div>
                   );
                 })}
@@ -369,18 +369,18 @@ export function GaleriaArchivosCompartidos({
                       href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 lg:hover:bg-blue-50 transition-colors"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 lg:hover:bg-blue-100"
                     >
-                      <div className={`w-10 h-10 rounded-lg bg-white/10 lg:bg-gray-200 flex items-center justify-center shrink-0 ${colorExtension(doc.extension)}`}>
+                      <div className={`w-10 h-10 rounded-lg bg-white/10 lg:bg-slate-200 flex items-center justify-center shrink-0 ${colorExtension(doc.extension)}`}>
                         <FileText className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] text-white/80 lg:text-gray-700 truncate">{doc.nombre || 'Documento'}</p>
-                        <p className="text-[12px] text-white/30 lg:text-gray-500">
+                        <p className="text-[14px] text-white/80 lg:text-slate-700 truncate">{doc.nombre || 'Documento'}</p>
+                        <p className="text-[12px] text-white/30 lg:text-slate-600 font-medium">
                           {doc.extension ? doc.extension.toUpperCase() : 'ARCHIVO'}{doc.tamano ? ` · ${formatearTamano(doc.tamano)}` : ''}
                         </p>
                       </div>
-                      <Download className="w-4 h-4 text-white/20 lg:text-gray-500 shrink-0" />
+                      <Download className="w-4 h-4 text-white/20 lg:text-slate-600 shrink-0" />
                     </a>
                   );
                 })}
@@ -402,16 +402,16 @@ export function GaleriaArchivosCompartidos({
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 lg:hover:bg-blue-50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 lg:hover:bg-blue-100"
                       >
-                        <div className="w-10 h-10 rounded-lg bg-white/10 lg:bg-gray-200 flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-white/10 lg:bg-slate-200 flex items-center justify-center shrink-0">
                           <Link2 className="w-5 h-5 text-blue-400 lg:text-blue-500" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[14px] text-white/80 lg:text-gray-700 truncate">{url}</p>
+                          <p className="text-[14px] text-white/80 lg:text-slate-700 truncate">{url}</p>
                           <p className="text-[12px] text-white/30 lg:text-gray-500">{dominio}</p>
                         </div>
-                        <ExternalLink className="w-4 h-4 text-white/20 lg:text-gray-500 shrink-0" />
+                        <ExternalLink className="w-4 h-4 text-white/20 lg:text-slate-600 shrink-0" />
                       </a>
                     );
                   });
@@ -424,7 +424,7 @@ export function GaleriaArchivosCompartidos({
         {/* Loading más */}
         {cargando && (
           <div className="flex justify-center py-6">
-            <div className="w-6 h-6 border-2 border-white/20 lg:border-gray-400 border-t-white lg:border-t-gray-600 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-white/20 lg:border-slate-300 border-t-white lg:border-t-slate-600 rounded-full animate-spin" />
           </div>
         )}
       </div>

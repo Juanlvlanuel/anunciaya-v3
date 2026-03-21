@@ -611,11 +611,12 @@ function VentanaChatInner() {
     }
   }, [panelInfoAbiertoStore, panelAbierto]);
 
-  // Cerrar panel info al cambiar de conversación (desmontaje completo)
+  // Cerrar panel info y búsqueda al cambiar de conversación (desmontaje completo)
   useEffect(() => {
     setPanelAbierto(false);
     setPanelInfoAbiertoStore(false);
     panelMontado.current = false;
+    setBusquedaAbierta(false);
   }, [conversacionActivaId]);
 
   // ---------------------------------------------------------------------------
@@ -1146,7 +1147,7 @@ function VentanaChatInner() {
         {/* Textura doodle de fondo */}
         <TexturaDoodle oscuro={esMobile} />
         {/* ═══ Header del chat ═══ */}
-        <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 shrink-0 border-b border-white/10 bg-[#0a1628] lg:border-slate-200 lg:bg-linear-to-b lg:from-slate-100 lg:to-blue-50`}>
+        <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 shrink-0 border-b border-white/10 bg-[#0a1628] lg:border-slate-300 lg:bg-slate-100`}>
 
           {/* ── Zona izquierda: Avatar+Info  ó  Input búsqueda  ó  Acciones mensaje (móvil) ── */}
           {mostrarAccionesEnHeader ? (
@@ -1177,7 +1178,7 @@ function VentanaChatInner() {
               {esMobile && (
                 <button
                   onClick={volverALista}
-                  className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 lg:hover:bg-slate-200 text-white/70 lg:text-gray-500 shrink-0"
+                  className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 lg:hover:bg-slate-200 text-white/70 lg:text-slate-600 shrink-0"
                 >
                   <ArrowLeft className="w-6 h-6" />
                 </button>
@@ -1202,7 +1203,7 @@ function VentanaChatInner() {
                   <img src={avatarUrl} alt={nombreMostrar} className="w-full h-full rounded-full object-cover" />
                 ) : (
                   <div className="w-full h-full rounded-full bg-linear-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">{iniciales}</span>
+                    <span className="text-white text-sm font-bold">{iniciales}</span>
                   </div>
                 )}
               </button>
@@ -1216,9 +1217,9 @@ function VentanaChatInner() {
                   <p className="text-base font-bold text-white lg:text-gray-800 truncate leading-tight">{nombreMostrar}</p>
                 </div>
                 {esMisNotas ? (
-                  <p className="text-xs text-white/50 lg:text-gray-400 font-medium">Notas personales</p>
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-white/50 lg:text-slate-600 font-medium">Notas personales</p>
                 ) : esBloqueado ? (
-                  <p className="text-xs text-red-500 font-semibold flex items-center gap-1">
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-semibold flex items-center gap-1">
                     <ShieldBan className="w-3 h-3" />
                     Bloqueado
                   </p>
@@ -1251,15 +1252,15 @@ function VentanaChatInner() {
                           })()}
                         </span>
                         {/* Desktop: texto estático completo */}
-                        <span className="hidden lg:inline text-gray-500 font-semibold text-[13px]">{formatearUltimaVez(estadoOtro.timestamp)}</span>
+                        <span className="hidden lg:inline text-slate-600 font-semibold text-sm lg:text-[11px] 2xl:text-sm">{formatearUltimaVez(estadoOtro.timestamp)}</span>
                       </>
                     ) : (
-                      <span className="text-white/30 lg:text-gray-400">...</span>
+                      <span className="text-white/30 lg:text-slate-600">...</span>
                     )}
                     {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && conversacion.participante1Id !== miId && (
                       <>
                         <span className="text-white/30 lg:text-gray-300">·</span>
-                        <span className="text-white/40 lg:text-gray-400 truncate">
+                        <span className="text-white/40 lg:text-slate-600 truncate">
                           {conversacion.contextoTipo === 'negocio' && modoActivo === 'comercial' && 'Desde: Tu perfil'}
                           {conversacion.contextoTipo === 'oferta' && `Desde oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
                           {conversacion.contextoTipo === 'marketplace' && `Desde publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
@@ -1283,7 +1284,7 @@ function VentanaChatInner() {
                   {!busquedaAbierta && !esMobile && (
                     <button
                       onClick={() => setBusquedaAbierta(true)}
-                      className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 text-gray-500 hover:text-blue-500"
+                      className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 text-slate-600 hover:text-blue-600"
                     >
                       <Search className="w-5 h-5" />
                     </button>
@@ -1294,8 +1295,8 @@ function VentanaChatInner() {
                       <button
                         onClick={handleToggleContacto}
                         className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${contactoExistente
-                          ? 'hover:bg-red-100 text-green-600 hover:text-red-500'
-                          : 'hover:bg-slate-200 text-gray-500 hover:text-blue-500'
+                          ? 'hover:bg-red-100 text-green-600 hover:text-red-600'
+                          : 'hover:bg-slate-200 text-slate-600 hover:text-blue-600'
                           }`}
                       >
                         {contactoExistente ? (
@@ -1313,8 +1314,8 @@ function VentanaChatInner() {
                           data-menu-trigger="true"
                           onClick={() => setMenuAbierto((v) => !v)}
                           className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer ${menuAbierto
-                            ? 'bg-white/20 lg:bg-gray-200 text-white lg:text-blue-500'
-                            : 'hover:bg-white/10 lg:hover:bg-slate-200 text-white/70 lg:text-gray-500 hover:text-white lg:hover:text-blue-500'
+                            ? 'bg-white/20 lg:bg-slate-200 text-white lg:text-blue-600'
+                            : 'hover:bg-white/10 lg:hover:bg-slate-200 text-white/70 lg:text-slate-600 hover:text-white lg:hover:text-blue-600'
                             }`}
                         >
                           <MoreVertical className="w-6 h-6 lg:w-5 lg:h-5" />
@@ -1335,7 +1336,7 @@ function VentanaChatInner() {
               {!esMobile && (
                 <button
                   onClick={cerrarChatYA}
-                  className="w-9 h-9 rounded-lg hover:bg-slate-200 flex items-center justify-center text-gray-500 hover:text-red-400 cursor-pointer"
+                  className="w-9 h-9 rounded-lg hover:bg-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1346,14 +1347,14 @@ function VentanaChatInner() {
 
         {/* ═══ Banner: Contacto bloqueado ═══ */}
         {esBloqueado && (
-          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-50 border-b border-red-200 shrink-0">
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-100 border-b-2 border-red-300 shrink-0">
             <div className="flex items-center gap-2">
               <ShieldBan className="w-4 h-4 text-red-500 shrink-0" />
-              <p className="text-xs text-red-600 font-medium">Has bloqueado a este contacto. No puede enviarte mensajes.</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm text-red-700 font-medium">Has bloqueado a este contacto. No puede enviarte mensajes.</p>
             </div>
             <button
               onClick={() => otro?.id && desbloquearUsuario(otro.id)}
-              className="text-xs font-semibold text-red-500 hover:text-red-700 whitespace-nowrap cursor-pointer shrink-0"
+              className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-600 hover:text-red-700 whitespace-nowrap cursor-pointer shrink-0"
             >
               Desbloquear
             </button>
@@ -1375,7 +1376,7 @@ function VentanaChatInner() {
             <>
               <div
                 ref={fijadosRef}
-                className="flex items-center gap-2.5 px-3.5 py-2.5 bg-black/40 lg:bg-white border-b border-white/10 lg:border-gray-200 shrink-0 cursor-pointer active:bg-black/50 lg:active:bg-gray-50 select-none overflow-hidden"
+                className="flex items-center gap-2.5 px-3.5 py-2.5 bg-black/40 lg:bg-white border-b border-white/10 lg:border-slate-300 shrink-0 cursor-pointer active:bg-black/50 lg:active:bg-slate-200 select-none overflow-hidden"
                 onClick={async () => {
                   if (bannerLongPressed) { bannerLongPressed = false; return; }
                   // Navegar al mensaje — carga antiguos si no está en DOM
@@ -1431,7 +1432,7 @@ function VentanaChatInner() {
                   </p>
                 </div>
                 {totalFijados > 1 && (
-                  <span className="text-xs text-white/50 lg:text-gray-400 font-medium shrink-0">
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm text-white/50 lg:text-slate-600 font-medium shrink-0">
                     {indiceSeguro + 1} de {totalFijados}
                   </span>
                 )}
@@ -1458,7 +1459,7 @@ function VentanaChatInner() {
                   <div className="fixed inset-0 z-80" onClick={() => setMenuFijadoPos(null)} />
                   <div
                     ref={menuFijadoRef}
-                    className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border border-gray-200 overflow-hidden min-w-[180px]"
+                    className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border-2 border-slate-300 overflow-hidden min-w-[180px]"
                     style={{
                       left: Math.min(menuFijadoPos.x, window.innerWidth - 200),
                       top: menuFijadoPos.y + 4,
@@ -1473,10 +1474,10 @@ function VentanaChatInner() {
                           setMensajeResaltadoId(fijadoActual.mensajeId);
                           resaltadoTimerRef.current = setTimeout(() => setMensajeResaltadoId(null), 3500);
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 active:bg-gray-100 cursor-pointer"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 active:bg-slate-200 cursor-pointer"
                       >
-                        <MessageSquare className="w-4.5 h-4.5 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-700">Ir al mensaje</span>
+                        <MessageSquare className="w-4.5 h-4.5 text-slate-600" />
+                        <span className="text-sm font-medium text-slate-700">Ir al mensaje</span>
                       </button>
                       <button
                         onClick={() => {
@@ -1485,10 +1486,10 @@ function VentanaChatInner() {
                             desfijarMensaje(conversacionActivaId, fijadoActual.mensajeId);
                           }
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 active:bg-gray-100 cursor-pointer"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 active:bg-slate-200 cursor-pointer"
                       >
-                        <PinOff className="w-4.5 h-4.5 text-red-500" />
-                        <span className="text-sm font-medium text-red-500">Desfijar mensaje</span>
+                        <PinOff className="w-4.5 h-4.5 text-red-600" />
+                        <span className="text-sm font-medium text-red-600">Desfijar mensaje</span>
                       </button>
                     </div>
                   </div>
@@ -1582,8 +1583,8 @@ function VentanaChatInner() {
         {/* ═══ Input de mensaje / Barra de bloqueado ═══ */}
         {esBloqueado ? (
           <div className="border-t border-blue-300/40 shrink-0 px-4 py-3.5 flex items-center justify-center gap-2">
-            <ShieldBan className="w-4 h-4 text-gray-400 shrink-0" />
-            <p className="text-[13px] text-gray-500">No puedes enviar mensajes a este contacto.</p>
+            <ShieldBan className="w-4 h-4 text-slate-600 shrink-0" />
+            <p className="text-sm text-slate-600 font-medium">No puedes enviar mensajes a este contacto.</p>
             <button
               onClick={() => otro?.id && desbloquearUsuario(otro.id)}
               className="text-[13px] font-semibold text-blue-500 hover:text-blue-700 cursor-pointer"
@@ -1856,18 +1857,18 @@ function AccionesHeaderMobile({
         <button
           key={accion.label}
           onClick={accion.onClick}
-          className="flex flex-col items-center justify-center gap-1 py-1 rounded-lg active:bg-gray-100 cursor-pointer min-w-12"
+          className="flex flex-col items-center justify-center gap-1 py-1 rounded-lg active:bg-white/10 cursor-pointer min-w-12"
         >
-          <accion.icono className={`w-6 h-6 ${accion.color || 'text-gray-600'}`} />
-          <span className={`text-[10px] font-semibold ${accion.color || 'text-gray-500'}`}>{accion.label}</span>
+          <accion.icono className={`w-6 h-6 ${accion.color ? accion.color.replace('text-red-500', 'text-red-400') : 'text-white/70'}`} />
+          <span className={`text-[11px] font-semibold ${accion.color ? accion.color.replace('text-red-500', 'text-red-400') : 'text-white/60'}`}>{accion.label}</span>
         </button>
       ))}
       <button
         onClick={onCerrar}
-        className="flex flex-col items-center justify-center gap-1 py-1 rounded-lg active:bg-gray-100 cursor-pointer min-w-12"
+        className="flex flex-col items-center justify-center gap-1 py-1 rounded-lg active:bg-white/10 cursor-pointer min-w-12"
       >
-        <X className="w-6 h-6 text-gray-400" />
-        <span className="text-[10px] font-semibold text-gray-400">Cerrar</span>
+        <X className="w-6 h-6 text-white/70" />
+        <span className="text-[11px] font-semibold text-white/60">Cerrar</span>
       </button>
     </div>
   );

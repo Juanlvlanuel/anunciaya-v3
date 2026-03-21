@@ -45,6 +45,8 @@ export async function crearNotificacion(
                 referenciaId: input.referenciaId ?? null,
                 referenciaTipo: input.referenciaTipo ?? null,
                 icono: input.icono ?? null,
+                actorImagenUrl: input.actorImagenUrl ?? null,
+                actorNombre: input.actorNombre ?? null,
             })
             .returning();
 
@@ -59,6 +61,8 @@ export async function crearNotificacion(
             referenciaId: nueva.referenciaId,
             referenciaTipo: nueva.referenciaTipo as NotificacionResponse['referenciaTipo'],
             icono: nueva.icono,
+            actorImagenUrl: nueva.actorImagenUrl ?? null,
+            actorNombre: nueva.actorNombre ?? null,
             leida: nueva.leida,
             leidaAt: nueva.leidaAt,
             createdAt: nueva.createdAt ?? new Date().toISOString(),
@@ -124,6 +128,8 @@ export async function obtenerNotificaciones(
             referenciaId: n.referenciaId,
             referenciaTipo: n.referenciaTipo as NotificacionResponse['referenciaTipo'],
             icono: n.icono,
+            actorImagenUrl: n.actorImagenUrl ?? null,
+            actorNombre: n.actorNombre ?? null,
             leida: n.leida,
             leidaAt: n.leidaAt,
             createdAt: n.createdAt ?? new Date().toISOString(),

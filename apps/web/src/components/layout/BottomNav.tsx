@@ -155,7 +155,7 @@ export function BottomNav() {
                       }`}
                   >
                     <img
-                      src="/IconoChatYA.webp"
+                      src="/IconoRojoChatYA.webp"
                       alt="ChatYA"
                       className={`w-auto h-15 object-contain transition-transform duration-300 ${chatYAAbierto ? 'scale-110 rotate-12' : ''
                         }`}

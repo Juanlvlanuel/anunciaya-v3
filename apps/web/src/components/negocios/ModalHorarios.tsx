@@ -1,24 +1,19 @@
 /**
  * ============================================================================
- * COMPONENTE: ModalHorarios - VERSIÓN 2.0 (Patrón Adaptativo)
+ * COMPONENTE: ModalHorarios (v3.0 - Header gradiente + tokens corregidos)
  * ============================================================================
- * 
+ *
  * UBICACIÓN: apps/web/src/components/negocios/ModalHorarios.tsx
- * 
+ *
  * PROPÓSITO:
- * Modal reutilizable para mostrar los horarios de un negocio
- * 
- * COMPORTAMIENTO:
- * - MÓVIL (< 1024px): ModalBottom (slide up con drag)
- * - PC/LAPTOP (≥ 1024px): Modal centrado tradicional
- * 
- * ESTILO: Timeline vertical con indicadores visuales
+ * Modal reutilizable para mostrar los horarios de un negocio.
+ * Usa ModalAdaptativo (TC-6A — Modal de Detalle).
+ *
+ * ESTILO: Timeline vertical con indicadores visuales + footer de estado
  */
 
-import { Calendar, X, UtensilsCrossed } from 'lucide-react';
-import { Modal } from '../ui/Modal';
-import { ModalBottom } from '../ui/ModalBottom';
-import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { Calendar, X, UtensilsCrossed, Clock } from 'lucide-react';
+import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 
 // =============================================================================
 // TIPOS
@@ -45,6 +40,8 @@ export interface InfoHorario {
 interface ModalHorariosProps {
   horarios: Horario[];
   onClose: () => void;
+  /** Fuerza modal centrado (desktop) aunque esté dentro de BreakpointOverride móvil */
+  centrado?: boolean;
 }
 
 // =============================================================================
@@ -52,6 +49,12 @@ interface ModalHorariosProps {
 // =============================================================================
 
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+const GRADIENTE = {
+  bg: 'linear-gradient(135deg, #1e40af, #2563eb)',
+  shadow: 'rgba(37,99,235,0.4)',
+  handle: '#1e40af',
+};
 
 // =============================================================================
 // UTILIDADES
@@ -109,7 +112,6 @@ export function calcularEstadoNegocio(horarios: Horario[], zonaHoraria?: string)
 
   const { horaApertura, horaCierre, tieneHorarioComida, comidaInicio, comidaFin } = horarioHoy;
 
-  // Protección defensiva: Si no hay horarios, tratar como cerrado
   if (!horaApertura || !horaCierre) {
     const proximoHorario = encontrarProximaApertura(horarios, diaActual);
     return {
@@ -118,7 +120,7 @@ export function calcularEstadoNegocio(horarios: Horario[], zonaHoraria?: string)
     };
   }
 
-  const horaAperturaCorta = horaApertura.substring(0, 5);  
+  const horaAperturaCorta = horaApertura.substring(0, 5);
   const horaCierreCorta = horaCierre.substring(0, 5);
 
   if (horaActual < horaAperturaCorta) {
@@ -155,15 +157,10 @@ export function calcularEstadoNegocio(horarios: Horario[], zonaHoraria?: string)
 }
 
 // =============================================================================
-// COMPONENTE: Timeline de Horarios (reutilizable)
+// COMPONENTE: Timeline de Horarios
 // =============================================================================
 
-interface TimelineHorariosProps {
-  horarios: Horario[];
-}
-
-function TimelineHorarios({ horarios }: TimelineHorariosProps) {
-  // Ordenar horarios (Lunes a Domingo)
+function TimelineHorarios({ horarios }: { horarios: Horario[] }) {
   const horariosOrdenados = [...horarios].sort((a, b) => {
     const diaA = a.diaSemana === 0 ? 7 : a.diaSemana;
     const diaB = b.diaSemana === 0 ? 7 : b.diaSemana;
@@ -175,7 +172,7 @@ function TimelineHorarios({ horarios }: TimelineHorariosProps) {
   return (
     <div className="relative">
       {/* Línea vertical */}
-      <div className="absolute left-[11px] lg:left-[9px] 2xl:left-[11px] top-3 bottom-3 lg:top-2 lg:bottom-2 2xl:top-3 2xl:bottom-3 w-0.5 bg-slate-200" />
+      <div className="absolute left-[11px] lg:left-[9px] 2xl:left-[11px] top-3 bottom-3 lg:top-2 lg:bottom-2 2xl:top-3 2xl:bottom-3 w-0.5 bg-slate-300" />
 
       <div className="space-y-1 lg:space-y-0.5 2xl:space-y-1">
         {horariosOrdenados.map((horario, index) => {
@@ -196,11 +193,11 @@ function TimelineHorarios({ horarios }: TimelineHorariosProps) {
                 </div>
               ) : esCerrado ? (
                 <div className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 bg-red-100 rounded-full flex items-center justify-center z-10 shrink-0">
-                  <X className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-red-400" />
+                  <X className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-red-600" />
                 </div>
               ) : (
                 <div className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 bg-slate-200 rounded-full flex items-center justify-center z-10 shrink-0">
-                  <div className="w-2 h-2 lg:w-1.5 lg:h-1.5 2xl:w-2 2xl:h-2 bg-slate-400 rounded-full" />
+                  <div className="w-2 h-2 lg:w-1.5 lg:h-1.5 2xl:w-2 2xl:h-2 bg-slate-600 rounded-full" />
                 </div>
               )}
 
@@ -209,23 +206,23 @@ function TimelineHorarios({ horarios }: TimelineHorariosProps) {
                 <div className="flex items-center justify-between">
                   {esHoy ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-blue-700 font-semibold lg:text-sm 2xl:text-base">
+                      <span className="text-blue-700 font-semibold text-base lg:text-sm 2xl:text-base">
                         {DIAS_SEMANA[horario.diaSemana]}
                       </span>
-                      <span className="text-xs lg:text-[10px] 2xl:text-xs text-blue-500">(Hoy)</span>
+                      <span className="text-sm lg:text-[11px] 2xl:text-sm text-blue-500 font-medium">(Hoy)</span>
                     </div>
                   ) : (
-                    <span className={`lg:text-sm 2xl:text-base ${esCerrado ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <span className={`text-base lg:text-sm 2xl:text-base font-medium ${esCerrado ? 'text-slate-600' : 'text-slate-700'}`}>
                       {DIAS_SEMANA[horario.diaSemana]}
                     </span>
                   )}
 
                   {horario.abierto ? (
-                    <span className={`text-sm lg:text-xs 2xl:text-sm font-medium ${esHoy ? 'text-blue-700 font-semibold' : 'text-slate-700'}`}>
+                    <span className={`text-sm lg:text-[11px] 2xl:text-sm font-medium ${esHoy ? 'text-blue-700 font-semibold' : 'text-slate-700'}`}>
                       {formatearHora(horario.horaApertura)} - {formatearHora(horario.horaCierre)}
                     </span>
                   ) : (
-                    <span className="text-sm lg:text-xs 2xl:text-sm text-red-500 font-medium">Cerrado</span>
+                    <span className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-medium">Cerrado</span>
                   )}
                 </div>
 
@@ -233,7 +230,7 @@ function TimelineHorarios({ horarios }: TimelineHorariosProps) {
                 {tieneComida && esHoy && (
                   <div className="flex items-center gap-1.5 mt-1">
                     <UtensilsCrossed className="w-3 h-3 text-amber-500" />
-                    <span className="text-xs lg:text-[10px] 2xl:text-xs text-amber-600">
+                    <span className="text-sm lg:text-[11px] 2xl:text-sm text-amber-600 font-medium">
                       Comida: {formatearHora(horario.comidaInicio!)} - {formatearHora(horario.comidaFin!)}
                     </span>
                   </div>
@@ -251,19 +248,15 @@ function TimelineHorarios({ horarios }: TimelineHorariosProps) {
 // COMPONENTE: Footer con Estado Actual
 // =============================================================================
 
-interface FooterEstadoProps {
-  info: InfoHorario;
-}
-
-function FooterEstado({ info }: FooterEstadoProps) {
+function FooterEstado({ info }: { info: InfoHorario }) {
   switch (info.estado) {
     case 'abierto':
       return (
-        <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-green-50 border border-green-200 rounded-xl">
-          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-green-700 text-sm font-medium">Abierto</span>
+        <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-emerald-100 border-2 border-emerald-300 rounded-xl">
+          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-emerald-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">Abierto</span>
           {info.proximoCierre && (
-            <span className="text-green-600 text-sm">
+            <span className="text-emerald-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">
               - Cierra a las {formatearHora(info.proximoCierre)}
             </span>
           )}
@@ -271,11 +264,11 @@ function FooterEstado({ info }: FooterEstadoProps) {
       );
     case 'cerrado':
       return (
-        <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-slate-100 border border-slate-200 rounded-xl">
-          <div className="w-3 h-3 lg:w-2 lg:h-2 2xl:w-3 2xl:h-3 rounded-full bg-slate-400" />
-          <span className="text-slate-700 text-sm lg:text-xs 2xl:text-sm font-medium">Cerrado</span>
+        <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-slate-200 border-2 border-slate-300 rounded-xl">
+          <div className="w-3 h-3 lg:w-2 lg:h-2 2xl:w-3 2xl:h-3 rounded-full bg-slate-600" />
+          <span className="text-slate-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">Cerrado</span>
           {info.proximaApertura && (
-            <span className="text-slate-500 text-sm lg:text-xs 2xl:text-sm">
+            <span className="text-slate-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">
               - Abre a las {formatearHora(info.proximaApertura)}
             </span>
           )}
@@ -283,11 +276,11 @@ function FooterEstado({ info }: FooterEstadoProps) {
       );
     case 'cerrado_hoy':
       return (
-        <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-red-50 border border-red-200 rounded-xl">
+        <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-red-100 border-2 border-red-300 rounded-xl">
           <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-red-700 text-sm font-medium">Cerrado hoy</span>
+          <span className="text-red-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">Cerrado hoy</span>
           {info.proximaApertura && (
-            <span className="text-red-600 text-sm">
+            <span className="text-red-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">
               - Abre mañana {formatearHora(info.proximaApertura)}
             </span>
           )}
@@ -295,11 +288,11 @@ function FooterEstado({ info }: FooterEstadoProps) {
       );
     case 'comida':
       return (
-        <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-amber-50 border border-amber-200 rounded-xl">
+        <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-amber-100 border-2 border-amber-300 rounded-xl">
           <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
-          <span className="text-amber-700 text-sm font-medium">Horario de comida</span>
+          <span className="text-amber-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">Horario de comida</span>
           {info.proximaApertura && (
-            <span className="text-amber-600 text-sm">
+            <span className="text-amber-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">
               - Regresa a las {formatearHora(info.proximaApertura)}
             </span>
           )}
@@ -311,84 +304,59 @@ function FooterEstado({ info }: FooterEstadoProps) {
 }
 
 // =============================================================================
-// COMPONENTE: Modal Desktop (centrado)
-// =============================================================================
-
-interface ModalDesktopProps {
-  horarios: Horario[];
-  info: InfoHorario;
-  onClose: () => void;
-}
-
-function ModalDesktop({ horarios, info, onClose }: ModalDesktopProps) {
-  return (
-    <Modal
-      abierto={true}
-      onCerrar={onClose}
-      titulo="Horarios"
-      iconoTitulo={<Calendar className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />}
-      ancho="sm"
-      className="max-w-sm lg:max-w-xs 2xl:max-w-sm"
-      paddingContenido="md"
-    >
-      {/* Timeline */}
-      <TimelineHorarios horarios={horarios} />
-
-      {/* Footer con estado actual */}
-      <div className="pt-4">
-        <FooterEstado info={info} />
-      </div>
-    </Modal>
-  );
-}
-
-// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalHorarios({ horarios, onClose }: ModalHorariosProps) {
-  const { esMobile } = useBreakpoint();
+export function ModalHorarios({ horarios, onClose, centrado }: ModalHorariosProps) {
   const info = calcularEstadoNegocio(horarios);
 
-  // -------------------------------------------------------------------------
-  // MÓVIL: ModalBottom
-  // -------------------------------------------------------------------------
-  if (esMobile) {
-    return (
-      <ModalBottom
-        abierto={true}
-        onCerrar={onClose}
-        titulo="Horarios"
-        iconoTitulo={<Calendar className="w-5 h-5 text-slate-400" />}
-        mostrarHeader={false}
-        sinScrollInterno={true}
-        alturaMaxima="sm"
-      >
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-500" />
-            <h3 className="text-slate-800 font-bold text-lg">Horarios</h3>
+  return (
+    <ModalAdaptativo
+      abierto
+      onCerrar={onClose}
+      ancho="sm"
+      mostrarHeader={false}
+      paddingContenido="none"
+      sinScrollInterno
+      alturaMaxima="lg"
+      colorHandle={GRADIENTE.handle}
+      headerOscuro
+      centrado={centrado}
+    >
+      <div className="flex flex-col max-h-[80vh] lg:max-h-[75vh]">
+
+        {/* ── Header dark gradiente ── */}
+        <div
+          className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl"
+          style={{ background: GRADIENTE.bg, boxShadow: `0 4px 16px ${GRADIENTE.shadow}` }}
+        >
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+          <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
+
+          <div className="relative flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
+            <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
+              <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white">Horarios</h3>
+              <span className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">Días y horarios de atención</span>
+            </div>
           </div>
         </div>
 
-        {/* Timeline con scroll */}
-        <div className="flex-1 overflow-y-auto min-h-0 p-4">
+        {/* ── Timeline con scroll ── */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-3 2xl:p-4">
           <TimelineHorarios horarios={horarios} />
         </div>
 
-        {/* Footer con estado - FIJO */}
-        <div className="px-4 pb-4 pt-2 shrink-0 border-t border-slate-100 bg-white">
+        {/* ── Footer con estado actual ── */}
+        <div className="px-4 lg:px-3 2xl:px-4 pb-4 lg:pb-3 2xl:pb-4 pt-2 shrink-0">
           <FooterEstado info={info} />
         </div>
-      </ModalBottom>
-    );
-  }
 
-  // -------------------------------------------------------------------------
-  // DESKTOP: Modal centrado
-  // -------------------------------------------------------------------------
-  return <ModalDesktop horarios={horarios} info={info} onClose={onClose} />;
+      </div>
+    </ModalAdaptativo>
+  );
 }
 
 export default ModalHorarios;

@@ -665,28 +665,28 @@ export function ChatOverlay() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => accionEnLote('fijar')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
-                        <Pin className="w-5 h-5 text-white/70" />
+                        <Pin className="w-6 h-6 text-white/70" />
                       </button>
                       <button onClick={() => accionEnLote('silenciar')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
-                        <BellOff className="w-5 h-5 text-white/70" />
+                        <BellOff className="w-6 h-6 text-white/70" />
                       </button>
                       <button onClick={() => accionEnLote('archivar')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
-                        <Archive className="w-5 h-5 text-white/70" />
+                        <Archive className="w-6 h-6 text-white/70" />
                       </button>
                       <button onClick={() => accionEnLote('contacto')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
                         {yaEsContacto
-                          ? <UserMinus className="w-5 h-5 text-white/70" />
-                          : <UserPlus className="w-5 h-5 text-white/70" />
+                          ? <UserMinus className="w-6 h-6 text-white/70" />
+                          : <UserPlus className="w-6 h-6 text-white/70" />
                         }
                       </button>
                       <button onClick={() => accionEnLote('bloquear')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
                         {yaEstaBloqueado
-                          ? <ShieldOff className="w-5 h-5 text-green-400/80" />
-                          : <ShieldBan className="w-5 h-5 text-red-400/80" />
+                          ? <ShieldOff className="w-6 h-6 text-green-400/80" />
+                          : <ShieldBan className="w-6 h-6 text-red-400/80" />
                         }
                       </button>
                       <button onClick={() => accionEnLote('eliminar')} className="p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 cursor-pointer">
-                        <Trash2 className="w-5 h-5 text-red-400/80" />
+                        <Trash2 className="w-6 h-6 text-red-400/80" />
                       </button>
                     </div>
                   </div>

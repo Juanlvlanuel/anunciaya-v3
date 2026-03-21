@@ -105,17 +105,17 @@ export function MenuContextualContacto({ contacto, posicion, onCerrar }: MenuCon
       <div
         ref={menuRef}
         style={style}
-        className="w-64 bg-white rounded-xl shadow-2xl border border-black/8 overflow-hidden"
+        className="w-64 bg-white rounded-xl shadow-lg border-2 border-slate-300 overflow-hidden"
       >
         {/* Header con info del contacto */}
-        <div className="px-3.5 py-3 border-b border-gray-100 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-            <Pencil className="w-3.5 h-3.5 text-blue-500" />
+        <div className="px-3.5 py-3 border-b border-slate-300 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+            <Pencil className="w-3.5 h-3.5 text-blue-600" />
           </div>
           <div className="min-w-0">
-            <p className="text-[14px] font-bold text-gray-800 truncate">{nombreReal}</p>
+            <p className="text-sm font-bold text-slate-800 truncate">{nombreReal}</p>
             {contacto.sucursalNombre && (
-              <p className="text-[12px] text-gray-400 font-medium truncate">suc. {contacto.sucursalNombre}</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate">suc. {contacto.sucursalNombre}</p>
             )}
           </div>
         </div>
@@ -131,12 +131,12 @@ export function MenuContextualContacto({ contacto, posicion, onCerrar }: MenuCon
               onKeyDown={handleKeyDown}
               placeholder="Escribe un alias..."
               maxLength={60}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-800 placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white transition-colors pr-7"
+              className="w-full bg-slate-100 border-2 border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30 focus:bg-white font-medium pr-7"
             />
             {valorAlias && (
               <button
                 onClick={() => setValorAlias('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-800 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -147,13 +147,13 @@ export function MenuContextualContacto({ contacto, posicion, onCerrar }: MenuCon
           <div className="flex gap-2 mt-2.5">
             <button
               onClick={onCerrar}
-              className="flex-1 py-1.5 rounded-lg border border-gray-200 text-gray-500 text-[12px] font-medium hover:bg-gray-50 cursor-pointer transition-colors"
+              className="flex-1 py-1.5 rounded-lg border-2 border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-200 cursor-pointer"
             >
               Cancelar
             </button>
             <button
               onClick={handleGuardar}
-              className="flex-1 py-1.5 rounded-lg bg-blue-500 text-white text-[12px] font-semibold hover:bg-blue-600 cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+              className="flex-1 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" />
               Guardar
@@ -171,21 +171,21 @@ export function MenuContextualContacto({ contacto, posicion, onCerrar }: MenuCon
     <div
       ref={menuRef}
       style={style}
-      className="w-44 bg-white rounded-xl shadow-2xl border border-black/8 py-1 overflow-hidden"
+      className="w-44 bg-white rounded-xl shadow-lg border-2 border-slate-300 py-1 overflow-hidden"
     >
       <button
         onClick={handleEditarAlias}
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-medium text-gray-700 hover:bg-gray-100 cursor-pointer"
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-200 cursor-pointer"
       >
-        <Pencil className="w-4 h-4 text-gray-400 shrink-0" />
+        <Pencil className="w-4 h-4 text-slate-600 shrink-0" />
         Editar alias
       </button>
-      <div className="border-t border-gray-100 mx-2" />
+      <div className="border-t border-slate-300 mx-2" />
       <button
         onClick={handleEliminar}
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-medium text-red-500 hover:bg-red-50 cursor-pointer"
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-100 cursor-pointer"
       >
-        <UserMinus className="w-4 h-4 text-red-400 shrink-0" />
+        <UserMinus className="w-4 h-4 text-red-600 shrink-0" />
         Quitar contacto
       </button>
     </div>

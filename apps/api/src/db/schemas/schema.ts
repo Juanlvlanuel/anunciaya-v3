@@ -1909,6 +1909,8 @@ export const notificaciones = pgTable("notificaciones", {
 	referenciaId: varchar("referencia_id", { length: 100 }),
 	referenciaTipo: varchar("referencia_tipo", { length: 30 }),
 	icono: varchar({ length: 20 }),
+	actorImagenUrl: text("actor_imagen_url"),
+	actorNombre: varchar("actor_nombre", { length: 100 }),
 	leida: boolean().default(false).notNull(),
 	leidaAt: timestamp("leida_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),

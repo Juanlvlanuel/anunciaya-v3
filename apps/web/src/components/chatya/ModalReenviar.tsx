@@ -1,8 +1,10 @@
 /**
- * ModalReenviar.tsx
- * ==================
+ * ModalReenviar.tsx (v2.0 - Rediseño con header gradiente + tokens)
+ * ==================================================================
  * Modal para seleccionar a quién reenviar un mensaje.
  * Soporta selección múltiple con chips y envío simultáneo.
+ *
+ * PATRÓN: TC-6A (Modal de Detalle) con header gradiente azul
  *
  * UBICACIÓN: apps/web/src/components/chatya/ModalReenviar.tsx
  */
@@ -27,16 +29,25 @@ interface ModalReenviarProps {
 
 /** Destinatario seleccionado (puede ser conversación, persona o negocio) */
 interface Destinatario {
-  key: string; // ID único para el Set de seleccionados
+  key: string;
   label: string;
   iniciales: string;
   avatarUrl?: string | null;
   esNegocio: boolean;
-  // Datos para el envío
   destinatarioId: string;
   destinatarioModo?: ModoChatYA;
   destinatarioSucursalId?: string | null;
 }
+
+// =============================================================================
+// CONSTANTES
+// =============================================================================
+
+const GRADIENTE = {
+  bg: 'linear-gradient(135deg, #1e40af, #2563eb)',
+  shadow: 'rgba(37,99,235,0.4)',
+  handle: '#1e40af',
+};
 
 // =============================================================================
 // COMPONENTE
@@ -116,8 +127,6 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [busqueda, estaBuscando, ciudad, latitud, longitud]);
-
-
 
   // ---------------------------------------------------------------------------
   // Preview
@@ -237,7 +246,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
   );
 
   const renderCheckbox = (key: string) => (
-    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors
+    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0
       ${estaSeleccionado(key) ? 'bg-blue-500 border-blue-500' : 'border-slate-400'}`}>
       {estaSeleccionado(key) && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
     </div>
@@ -248,8 +257,8 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
       key={dest.key}
       onClick={() => toggleSeleccion(dest)}
       disabled={enviando}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors disabled:opacity-50
-        ${estaSeleccionado(dest.key) ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 lg:cursor-pointer disabled:opacity-50
+        ${estaSeleccionado(dest.key) ? 'bg-blue-100' : 'hover:bg-slate-200'}`}
     >
       {renderAvatar(dest)}
       <div className="flex-1 min-w-0 text-left">
@@ -257,7 +266,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
           {dest.esNegocio && <Store className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
           <p className="text-sm font-semibold text-slate-800 truncate">{dest.label}</p>
         </div>
-        {sub && <p className="text-xs text-slate-500 truncate mt-0.5">{sub}</p>}
+        {sub && <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate mt-0.5">{sub}</p>}
       </div>
       {renderCheckbox(dest.key)}
     </button>
@@ -270,28 +279,47 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
     <ModalAdaptativo
       abierto
       onCerrar={onCerrar}
-      titulo="Reenviar mensaje"
-      iconoTitulo={<Forward className="w-5 h-5 text-blue-500" />}
       ancho="sm"
+      mostrarHeader={false}
+      paddingContenido="none"
       sinScrollInterno
       alturaMaxima="lg"
+      colorHandle={GRADIENTE.handle}
+      headerOscuro
       zIndice="z-90"
     >
-      <div className="flex flex-col h-[65vh] lg:h-[50vh]">
+      <div className="flex flex-col max-h-[80vh] lg:max-h-[75vh]">
 
-        {/* ── Preview del mensaje ── */}
-        <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 shrink-0 flex items-center gap-2">
-          <div className="w-1 h-6 bg-blue-500 rounded-full shrink-0" />
-          <p className="text-xs text-slate-600 font-medium truncate">{previewMensaje}</p>
+        {/* ── Header dark gradiente ── */}
+        <div
+          className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl"
+          style={{ background: GRADIENTE.bg, boxShadow: `0 4px 16px ${GRADIENTE.shadow}` }}
+        >
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+          <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
+
+          <div className="relative flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
+            <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+              <Forward className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
+              <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
+                Reenviar mensaje
+              </h3>
+              <p className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium truncate">
+                {previewMensaje}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* ── Chips de seleccionados ── */}
         {seleccionados.size > 0 && (
-          <div className="px-4 pt-2.5 pb-1 flex flex-wrap gap-1.5 shrink-0 border-b border-slate-200">
+          <div className="px-4 pt-2.5 pb-1 flex flex-wrap gap-1.5 shrink-0 border-b-2 border-slate-300">
             {Array.from(seleccionados.values()).map((d) => (
               <span
                 key={d.key}
-                className="inline-flex items-center gap-1.5 bg-blue-100 border border-blue-300 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full"
+                className="inline-flex items-center gap-1.5 bg-blue-100 border-2 border-blue-300 text-blue-800 text-sm lg:text-[11px] 2xl:text-sm font-semibold px-2 py-1 rounded-full"
               >
                 <div className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0
                   ${d.esNegocio ? 'bg-amber-500' : 'bg-blue-500'}`}>
@@ -300,7 +328,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
                 <span className="max-w-80px truncate">{d.label}</span>
                 <button
                   onClick={() => toggleSeleccion(d)}
-                  className="text-blue-400 hover:text-blue-600 cursor-pointer"
+                  className="text-blue-600 hover:text-blue-800 lg:cursor-pointer"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -310,21 +338,21 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
         )}
 
         {/* ── Buscador ── */}
-        <div className="px-4 py-2.5 border-b border-slate-200 shrink-0">
+        <div className="px-4 py-2.5 border-b-2 border-slate-300 shrink-0">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
             <input
               ref={inputRef}
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar persona o negocio..."
-              className="w-full pl-9 pr-3 py-2.5 lg:py-2 text-base lg:text-sm bg-slate-100 border border-slate-300 rounded-xl outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 placeholder:text-slate-400 text-slate-800"
+              className="w-full pl-9 pr-3 py-2.5 lg:py-2 text-base lg:text-sm 2xl:text-base bg-slate-100 border-2 border-slate-300 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30 placeholder:text-slate-500 text-slate-800 font-medium"
             />
             {busqueda && (
               <button
                 onClick={() => setBusqueda('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 lg:w-5 lg:h-5 rounded-full bg-gray-300 hover:bg-gray-400 flex items-center justify-center cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 lg:w-5 lg:h-5 rounded-full bg-slate-300 hover:bg-slate-400 flex items-center justify-center lg:cursor-pointer"
               >
                 <X className="w-4 h-4 lg:w-3 lg:h-3 text-white" />
               </button>
@@ -350,7 +378,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
           {/* Conversaciones recientes / filtradas */}
           {conversacionesFiltradas.length > 0 && (
             <div>
-              <p className="px-4 pt-3 pb-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <p className="px-4 pt-3 pb-1.5 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                 {estaBuscando ? 'Chats' : 'Recientes'}
               </p>
               {conversacionesFiltradas.map((conv) => {
@@ -367,7 +395,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
           {/* Personas de búsqueda */}
           {estaBuscando && personasSinDuplicar.length > 0 && (
             <div>
-              <p className="px-4 pt-3 pb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Personas</p>
+              <p className="px-4 pt-3 pb-1.5 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Personas</p>
               {personasSinDuplicar.map((p) => {
                 const dest = destDePersona(p);
                 const sub  = p.alias ? `@${p.alias}` : undefined;
@@ -379,7 +407,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
           {/* Negocios de búsqueda */}
           {estaBuscando && negociosResultados.length > 0 && (
             <div>
-              <p className="px-4 pt-3 pb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Negocios</p>
+              <p className="px-4 pt-3 pb-1.5 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Negocios</p>
               {negociosResultados.map((n) => {
                 const dest = destDeNegocio(n);
                 const meta = [
@@ -402,33 +430,33 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
             && personasSinDuplicar.length === 0
             && negociosResultados.length === 0 && (
             <div className="flex flex-col items-center justify-center py-8 gap-2">
-              <Search className="w-8 h-8 text-gray-300" />
-              <p className="text-sm text-slate-500">No se encontraron resultados</p>
+              <Search className="w-8 h-8 text-slate-300" />
+              <p className="text-sm text-slate-600 font-medium">No se encontraron resultados</p>
             </div>
           )}
 
           {/* Estado vacío — sin conversaciones */}
           {!estaBuscando && conversacionesRecientes.length === 0 && (
             <div className="flex flex-col items-center justify-center py-8 gap-2">
-              <Forward className="w-8 h-8 text-gray-300" />
-              <p className="text-sm text-slate-500">Busca a quién reenviar</p>
+              <Forward className="w-8 h-8 text-slate-300" />
+              <p className="text-sm text-slate-600 font-medium">Busca a quién reenviar</p>
             </div>
           )}
         </div>
 
         {/* ── Footer con botón de envío ── */}
-        <div className={`px-4 py-3 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0 transition-opacity
+        <div className={`px-4 py-3 border-t-2 border-slate-300 flex items-center justify-between gap-3 shrink-0
           ${seleccionados.size === 0 ? 'opacity-50' : ''}`}>
-          <span className="text-sm text-slate-500">
+          <span className="text-sm font-medium text-slate-600">
             {seleccionados.size === 0
               ? 'Selecciona destinatarios'
-              : <><span className="font-bold text-blue-500">{seleccionados.size}</span> seleccionado{seleccionados.size !== 1 ? 's' : ''}</>
+              : <><span className="font-bold text-blue-600">{seleccionados.size}</span> seleccionado{seleccionados.size !== 1 ? 's' : ''}</>
             }
           </span>
           <button
             onClick={handleEnviar}
             disabled={seleccionados.size === 0 || enviando}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-bold px-4 py-2 rounded-xl cursor-pointer disabled:cursor-not-allowed transition-colors shadow-sm disabled:shadow-none"
+            className="flex items-center gap-2 bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 disabled:from-slate-300 disabled:to-slate-400 text-white text-sm font-bold px-4 py-2 rounded-xl lg:cursor-pointer disabled:cursor-not-allowed shadow-lg shadow-slate-700/30 disabled:shadow-none"
           >
             <Forward className="w-4 h-4" />
             Reenviar{seleccionados.size > 0 ? ` (${seleccionados.size})` : ''}

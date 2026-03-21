@@ -46,6 +46,8 @@ export interface CrearNotificacionInput {
   referenciaId?: string;
   referenciaTipo?: ReferenciaTipo;
   icono?: string;
+  actorImagenUrl?: string;
+  actorNombre?: string;
 }
 
 export interface NotificacionResponse {
@@ -59,6 +61,8 @@ export interface NotificacionResponse {
   referenciaId: string | null;
   referenciaTipo: ReferenciaTipo | null;
   icono: string | null;
+  actorImagenUrl: string | null;
+  actorNombre: string | null;
   leida: boolean;
   leidaAt: string | null;
   createdAt: string;

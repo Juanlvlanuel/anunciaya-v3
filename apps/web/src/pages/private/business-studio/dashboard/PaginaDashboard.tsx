@@ -227,17 +227,6 @@ export default function PaginaDashboard() {
     setOfertaSeleccionada(null);
   };
 
-  // Abrir modal para crear nueva oferta
-  const handleNuevaOferta = () => {
-    setOfertaSeleccionada(null);
-    setModalOfertaAbierto(true);
-  };
-
-  // Abrir modal para crear nuevo artículo
-  const handleNuevoArticulo = () => {
-    setModalArticuloAbierto(true);
-  };
-
   // Guardar oferta (crear o actualizar)
   const handleGuardarOferta = async (datos: CrearOfertaInput | ActualizarOfertaInput) => {
     try {
@@ -498,7 +487,7 @@ export default function PaginaDashboard() {
         {/* ================================================================= */}
         {/* LAYOUT DESKTOP                                                    */}
         {/* ================================================================= */}
-        <div className="hidden lg:block space-y-3 2xl:space-y-4 lg:mt-7 2xl:mt-14">
+        <div className="hidden lg:block space-y-3 2xl:space-y-3 lg:mt-7 2xl:mt-14">
 
           {/* Stats animados (izq) + Periodo + Refresh (der) */}
           <div className="flex items-center justify-between">
@@ -572,7 +561,7 @@ export default function PaginaDashboard() {
           </div>
 
           {/* Campañas + Alertas + Ventas | Actividad Reciente */}
-          <div className="flex gap-3 2xl:gap-4 lg:h-[520px] 2xl:h-[640px]">
+          <div className="flex gap-3 2xl:gap-4 lg:h-[520px] 2xl:h-[630px]">
             {/* Columna izquierda */}
             <div className="w-[55%] 2xl:w-[58%] shrink-0 flex flex-col gap-2 lg:gap-1.5 2xl:gap-2">
               <div className="flex-1 min-h-0">

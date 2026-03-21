@@ -1027,7 +1027,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
           }}
         >
           <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm ${
-            swipeX >= SWIPE_THRESHOLD ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+            swipeX >= SWIPE_THRESHOLD ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'
           }`}>
             <Reply className="w-4 h-4 scale-x-[-1]" />
           </div>
@@ -1419,7 +1419,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                   key={r.emoji}
                   onClick={() => onReaccionar?.(mensaje.id, r.emoji)}
                   className={`inline-flex items-center justify-center rounded-full cursor-pointer hover:scale-110 shadow-sm border ${r.cantidad > 1 ? 'gap-0.5 px-1.5 h-7' : 'w-7 h-7'} ${esMio
-                    ? 'bg-blue-50 border-blue-200'
+                    ? 'bg-blue-100 border-blue-300'
                     : 'bg-[linear-gradient(135deg,#0f2a6b,#0a1d4e)] border-blue-900/50'
                   }`}
                 >

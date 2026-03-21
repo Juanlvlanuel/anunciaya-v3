@@ -405,7 +405,7 @@ export function VisorImagenesChat({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-gray-700 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden bg-slate-700 flex items-center justify-center">
             {emisor.avatarUrl ? (
               <img src={emisor.avatarUrl} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -414,7 +414,7 @@ export function VisorImagenesChat({
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white truncate">{emisor.nombre}</p>
-            <p className="text-xs text-white/50">{formatearFechaHora(mensajeActual.createdAt)}</p>
+            <p className="text-sm text-white/50 font-medium">{formatearFechaHora(mensajeActual.createdAt)}</p>
           </div>
         </div>
 
@@ -428,7 +428,7 @@ export function VisorImagenesChat({
               </BotonAccion>
               {/* Popup emojis rápidos */}
               {emojiPickerAbierto && (
-                <div className="absolute top-full right-0 mt-1 flex items-center gap-1 bg-gray-900/95 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-xl z-20">
+                <div className="absolute top-full right-0 mt-1 flex items-center gap-1 bg-slate-900/95 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-xl z-20">
                   {EMOJIS_RAPIDOS.map((emoji) => (
                     <button
                       key={emoji}
@@ -634,7 +634,7 @@ export function VisorImagenesChat({
               </button>
               {/* Popup emojis rápidos (móvil) */}
               {emojiPickerAbierto && (
-                <div className="absolute bottom-full left-0 mb-2 flex items-center gap-1 bg-gray-900/95 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-xl z-20">
+                <div className="absolute bottom-full left-0 mb-2 flex items-center gap-1 bg-slate-900/95 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-xl z-20">
                   {EMOJIS_RAPIDOS.map((emoji) => (
                     <button
                       key={emoji}
@@ -666,7 +666,7 @@ export function VisorImagenesChat({
         )}
 
         {/* Contador */}
-        <p className="text-xs text-white/40 text-center pb-2">
+        <p className="text-sm text-white/40 text-center pb-2 font-medium">
           {indice + 1} de {imagenesChat.length}
         </p>
 

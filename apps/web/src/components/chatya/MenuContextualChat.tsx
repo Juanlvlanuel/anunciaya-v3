@@ -243,12 +243,12 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
                     className={`
             w-full flex items-center gap-3 lg:gap-2.5 px-4 lg:px-3.5 py-3 lg:py-2.5 text-left text-[15px] lg:text-sm font-medium cursor-pointer
             ${opcion.destructivo
-                            ? 'text-red-400 lg:text-red-500 hover:bg-white/5 lg:hover:bg-red-50 active:bg-white/10 lg:active:bg-red-100'
-                            : 'text-white/80 lg:text-gray-700 hover:bg-white/5 lg:hover:bg-gray-100 active:bg-white/10 lg:active:bg-gray-200'
+                            ? 'text-red-400 lg:text-red-600 hover:bg-white/5 lg:hover:bg-red-100 active:bg-white/10 lg:active:bg-red-200'
+                            : 'text-white/80 lg:text-slate-700 hover:bg-white/5 lg:hover:bg-slate-200 active:bg-white/10 lg:active:bg-slate-300'
                         }
           `}
                 >
-                    <opcion.icono className={`w-[18px] h-[18px] shrink-0 ${opcion.colorIcono}`} />
+                    <opcion.icono className={`w-5 h-5 lg:w-[18px] lg:h-[18px] shrink-0 ${opcion.colorIcono}`} />
                     {opcion.texto}
                 </button>
             ))}

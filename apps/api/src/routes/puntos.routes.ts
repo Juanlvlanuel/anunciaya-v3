@@ -28,6 +28,7 @@ import {
   crearRecompensaController,
   actualizarRecompensaController,
   eliminarRecompensaController,
+  uploadImagenRecompensaController,
   obtenerEstadisticasController,
 } from '../controllers/puntos.controller.js';
 
@@ -82,6 +83,13 @@ router.get('/recompensas', obtenerRecompensasController);
  * Acceso: Dueños y Gerentes
  */
 router.get('/recompensas/:id', obtenerRecompensaPorIdController);
+
+/**
+ * POST /api/puntos/recompensas/upload-imagen
+ * Genera presigned URL para subir imagen de recompensa a R2
+ * Acceso: SOLO DUEÑOS
+ */
+router.post('/recompensas/upload-imagen', uploadImagenRecompensaController);
 
 /**
  * POST /api/puntos/recompensas

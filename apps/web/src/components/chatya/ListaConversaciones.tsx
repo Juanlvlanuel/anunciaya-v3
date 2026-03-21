@@ -477,9 +477,9 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
           {busqueda && (
             <button
               onClick={limpiarBusqueda}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-white/15 rounded-full cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 hover:bg-white/15 rounded-full cursor-pointer"
             >
-              <X className="w-4 h-4 text-white/40" />
+              <X className="w-5 h-5 text-white/50" />
             </button>
           )}
         </div>
@@ -493,7 +493,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
               key={tab}
               onClick={() => setTabActivo(tab)}
               className={`
-                px-4 py-1 rounded-full text-[13px] font-bold capitalize cursor-pointer transition-colors duration-75
+                px-4 py-1 rounded-full text-sm font-bold capitalize cursor-pointer
                 ${tabActivo === tab
                   ? 'bg-white text-[#0B358F]'
                   : 'bg-white/12 text-white/55 hover:bg-white/20 hover:text-white/80'
@@ -862,7 +862,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
             {/* Contactos */}
             <button
               onClick={verContactos}
-              className="flex items-center gap-2 text-white/60 hover:text-white/70 cursor-pointer transition-colors duration-75"
+              className="flex items-center gap-2 text-white/60 hover:text-white/70 cursor-pointer"
             >
               <Users className="w-4.5 h-4.5" />
               <span className="2xl:text-[13px] text-[14px]  font-bold">Contactos</span>
@@ -871,7 +871,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
             {/* Archivados */}
             <button
               onClick={verArchivados}
-              className="flex items-center gap-2 text-white/60 hover:text-white/70 cursor-pointer transition-colors duration-75"
+              className="flex items-center gap-2 text-white/60 hover:text-white/70 cursor-pointer"
             >
               <Archive className="w-4.5 h-4.5" />
               <span className="2xl:text-[13px] text-[14px] font-bold">Archivados</span>

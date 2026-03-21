@@ -537,6 +537,8 @@ export async function generarVoucher(
           referenciaId: recompensaId,
           referenciaTipo: 'recompensa',
           icono: '⚠️',
+          actorImagenUrl: recomp.imagenUrl ?? undefined,
+          actorNombre: recomp.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación stock bajo:', err));
       }
     }
@@ -561,6 +563,8 @@ export async function generarVoucher(
           referenciaId: recompensaId,
           referenciaTipo: 'recompensa',
           icono: '🚫',
+          actorImagenUrl: recomp.imagenUrl ?? undefined,
+          actorNombre: recomp.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación agotada:', err));
       }
     }
@@ -577,7 +581,16 @@ export async function generarVoucher(
       referenciaId: resultado.id,
       referenciaTipo: 'voucher',
       icono: '🎟️',
+      actorImagenUrl: recomp.imagenUrl ?? negocio[0]?.logo ?? undefined,
+      actorNombre: negocio[0]?.nombre ?? undefined,
     }).catch((err) => console.error('Error notificación voucher generado:', err));
+
+    // Obtener avatar y nombre del cliente para notificaciones comerciales
+    const [clienteParaAvatar] = await db
+      .select({ avatarUrl: usuarios.avatarUrl, nombre: usuarios.nombre, apellidos: usuarios.apellidos })
+      .from(usuarios)
+      .where(eq(usuarios.id, usuarioId))
+      .limit(1);
 
     // Notificar al dueño (voucher pendiente de entregar)
     const [negocioDueno] = await db
@@ -598,6 +611,8 @@ export async function generarVoucher(
         referenciaId: resultado.id,
         referenciaTipo: 'voucher',
         icono: '🎟️',
+        actorImagenUrl: clienteParaAvatar?.avatarUrl ?? undefined,
+        actorNombre: clienteParaAvatar ? `${clienteParaAvatar.nombre} ${clienteParaAvatar.apellidos || ''}`.trim() : undefined,
       }).catch((err) => console.error('Error notificación dueño voucher:', err));
 
       // Notificar a empleados de TODAS las sucursales (cualquiera puede entregar)
@@ -610,6 +625,8 @@ export async function generarVoucher(
         referenciaId: resultado.id,
         referenciaTipo: 'voucher',
         icono: '🎟️',
+        actorImagenUrl: clienteParaAvatar?.avatarUrl ?? undefined,
+        actorNombre: clienteParaAvatar ? `${clienteParaAvatar.nombre} ${clienteParaAvatar.apellidos || ''}`.trim() : undefined,
       }).catch((err) => console.error('Error notificación empleados voucher:', err));
     }
 

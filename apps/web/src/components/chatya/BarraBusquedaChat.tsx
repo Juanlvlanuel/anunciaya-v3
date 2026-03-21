@@ -181,9 +181,9 @@ export function BarraBusquedaChat({
       )}
 
       {/* Input con fondo sutil */}
-      <div className={`flex-1 flex items-center gap-2 px-3 ${esMobile ? 'h-11 bg-white/10' : 'h-10 bg-white/60 border border-slate-300'} rounded-full min-w-0`}>
+      <div className={`flex-1 flex items-center gap-2 px-3 ${esMobile ? 'h-11 bg-white/10' : 'h-10 bg-slate-100 border-2 border-slate-300'} rounded-full min-w-0`}>
         {/* Lupa — solo desktop */}
-        {!esMobile && <Search className="w-4 h-4 text-slate-500 shrink-0" />}
+        {!esMobile && <Search className="w-4 h-4 text-slate-600 shrink-0" />}
 
         <input
           ref={inputRef}
@@ -192,7 +192,7 @@ export function BarraBusquedaChat({
           onChange={(e) => handleCambioTexto(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Buscar en la conversación..."
-          className={`flex-1 text-[16px] font-medium bg-transparent outline-none min-w-0 ${esMobile ? 'text-white placeholder:text-white/40' : 'text-gray-700 placeholder:text-slate-400'}`}
+          className={`flex-1 text-[16px] font-medium bg-transparent outline-none min-w-0 ${esMobile ? 'text-white placeholder:text-white/40' : 'text-slate-800 placeholder:text-slate-500'}`}
         />
 
         {/* Spinner de carga */}
@@ -202,7 +202,7 @@ export function BarraBusquedaChat({
 
         {/* Contador de resultados */}
         {textoContador && (
-          <span className={`text-xs whitespace-nowrap shrink-0 ${esMobile ? 'text-white/50' : 'text-slate-500'}`}>
+          <span className={`text-sm whitespace-nowrap shrink-0 ${esMobile ? 'text-white/50' : 'text-slate-600 font-medium'}`}>
             {textoContador}
           </span>
         )}
@@ -212,17 +212,17 @@ export function BarraBusquedaChat({
           <>
             <button
               onClick={irAnterior}
-              className={`w-6 h-6 rounded flex items-center justify-center cursor-pointer ${esMobile ? 'text-white/50 hover:text-white active:text-blue-400 active:bg-white/10' : 'text-gray-500 hover:text-blue-500'}`}
+              className={`w-6 h-6 rounded flex items-center justify-center cursor-pointer ${esMobile ? 'text-white/50 hover:text-white active:text-blue-400 active:bg-white/10' : 'text-slate-600 hover:text-blue-600'}`}
               title="Anterior (Shift+Enter)"
             >
-              <ChevronUp className="w-4 h-4" />
+              <ChevronUp className="w-5 h-5" />
             </button>
             <button
               onClick={irSiguiente}
-              className={`w-6 h-6 rounded flex items-center justify-center cursor-pointer ${esMobile ? 'text-white/50 hover:text-white active:text-blue-400 active:bg-white/10' : 'text-gray-500 hover:text-blue-500'}`}
+              className={`w-6 h-6 rounded flex items-center justify-center cursor-pointer ${esMobile ? 'text-white/50 hover:text-white active:text-blue-400 active:bg-white/10' : 'text-slate-600 hover:text-blue-600'}`}
               title="Siguiente (Enter)"
             >
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-5 h-5" />
             </button>
           </>
         )}
@@ -233,7 +233,7 @@ export function BarraBusquedaChat({
             onClick={() => handleCambioTexto('')}
             className="w-6 h-6 rounded-full flex items-center justify-center text-white/40 hover:text-white cursor-pointer shrink-0"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         )}
 
@@ -241,10 +241,10 @@ export function BarraBusquedaChat({
         {!esMobile && (
           <button
             onClick={onCerrar}
-            className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-400 cursor-pointer"
+            className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:text-red-600 cursor-pointer"
             title="Cerrar búsqueda (ESC)"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         )}
       </div>

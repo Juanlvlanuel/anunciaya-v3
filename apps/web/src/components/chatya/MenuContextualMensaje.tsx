@@ -315,12 +315,12 @@ export function MenuContextualMensaje({
         <div className="fixed bottom-0 left-0 right-0 z-80 bg-white rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.15)] animate-slide-up">
           {/* Handle */}
           <div className="flex justify-center py-2.5">
-            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            <div className="w-10 h-1 bg-slate-300 rounded-full" />
           </div>
 
           {/* Preview del mensaje */}
-          <div className="px-4 pb-3 border-b border-gray-100">
-            <p className="text-xs text-gray-400 truncate">
+          <div className="px-4 pb-3 border-b border-slate-300">
+            <p className="text-sm text-slate-600 font-medium truncate">
               {mensaje.contenido?.slice(0, 60)}{mensaje.contenido && mensaje.contenido.length > 60 ? '...' : ''}
             </p>
           </div>
@@ -331,10 +331,10 @@ export function MenuContextualMensaje({
               <button
                 key={opcion.label}
                 onClick={opcion.onClick}
-                className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-100 active:bg-gray-200 cursor-pointer"
+                className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-slate-200 active:bg-slate-300 cursor-pointer"
               >
-                <opcion.icono className={`w-5 h-5 ${opcion.color || 'text-gray-500'}`} />
-                <span className={`text-sm font-medium ${opcion.color === 'text-red-500' ? 'text-red-500' : 'text-gray-700'}`}>
+                <opcion.icono className={`w-5 h-5 ${opcion.color || 'text-slate-600'}`} />
+                <span className={`text-sm font-medium ${opcion.color === 'text-red-500' ? 'text-red-600' : 'text-slate-700'}`}>
                   {opcion.label}
                 </span>
               </button>
@@ -351,7 +351,7 @@ export function MenuContextualMensaje({
   return (
     <div
       ref={menuRef}
-      className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border border-gray-200 overflow-hidden w-48"
+      className="fixed z-80 bg-white rounded-xl shadow-[0_4px_24px_rgba(15,29,58,0.18)] border-2 border-slate-300 overflow-hidden w-48"
       style={{ left: posicion.x, top: posicion.y }}
     >
       {/* Opciones */}
@@ -360,10 +360,10 @@ export function MenuContextualMensaje({
           <button
             key={opcion.label}
             onClick={opcion.onClick}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-100 active:bg-gray-200 cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-200 active:bg-slate-300 cursor-pointer"
           >
-            <opcion.icono className={`w-[18px] h-[18px] shrink-0 ${opcion.color || 'text-gray-400'}`} />
-            <span className={`text-sm font-medium ${opcion.color === 'text-red-500' ? 'text-red-500' : 'text-gray-700'}`}>
+            <opcion.icono className={`w-[18px] h-[18px] shrink-0 ${opcion.color || 'text-slate-600'}`} />
+            <span className={`text-sm font-medium ${opcion.color === 'text-red-500' ? 'text-red-600' : 'text-slate-700'}`}>
               {opcion.label}
             </span>
           </button>
