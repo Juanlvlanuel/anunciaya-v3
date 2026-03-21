@@ -1168,3 +1168,20 @@ export async function contarArchivosCompartidosController(req: Request, res: Res
 
   res.status(resultado.code || (resultado.success ? 200 : 500)).json(resultado);
 }
+
+// =============================================================================
+// GET /api/chatya/og-preview?url=https://example.com
+// =============================================================================
+
+export async function obtenerOgPreviewController(req: Request, res: Response) {
+  const url = req.query.url as string;
+
+  if (!url) {
+    return res.status(400).json({ success: false, message: 'URL requerida' });
+  }
+
+  const { obtenerOgPreview } = await import('../services/ogPreview.service.js');
+  const resultado = await obtenerOgPreview(url);
+
+  return res.status(resultado.code || (resultado.success ? 200 : 500)).json(resultado);
+}

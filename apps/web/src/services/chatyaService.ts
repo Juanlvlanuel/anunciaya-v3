@@ -51,6 +51,7 @@ import type {
   ArchivoCompartido,
   ConteoArchivosCompartidos,
   CategoriaArchivo,
+  DatosOgPreview,
 } from '../types/chatya';
 
 // =============================================================================
@@ -684,4 +685,16 @@ export async function getConteoArchivosCompartidos(conversacionId: string) {
   return get<ConteoArchivosCompartidos>(
     `/chatya/conversaciones/${conversacionId}/archivos-compartidos/conteo`
   );
+}
+
+// =============================================================================
+// OPEN GRAPH PREVIEW
+// =============================================================================
+
+/**
+ * GET /api/chatya/og-preview?url=https://example.com
+ * Obtiene metadatos Open Graph de una URL externa.
+ */
+export async function getOgPreview(url: string) {
+  return get<DatosOgPreview>(`/chatya/og-preview?url=${encodeURIComponent(url)}`);
 }

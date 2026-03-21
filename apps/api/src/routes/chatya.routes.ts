@@ -66,8 +66,10 @@ import {
   uploadAudioChatController,
   listarArchivosCompartidosController,
   contarArchivosCompartidosController,
+  obtenerOgPreviewController,
 } from '../controllers/chatya.controller.js';
 import { verificarTokenChatYA } from '../middleware/auth.js';
+import { limitadorOgPreview } from '../middleware/rateLimiter.js';
 
 // =============================================================================
 // CREAR ROUTER
@@ -222,6 +224,9 @@ router.get('/buscar-personas', buscarPersonasController);
 
 /** GET /api/chatya/buscar-negocios?q=texto&ciudad=Ciudad de México&lat=19.43&lng=-99.13&limit=10 */
 router.get('/buscar-negocios', buscarNegociosController);
+
+/** GET /api/chatya/og-preview?url=https://example.com */
+router.get('/og-preview', limitadorOgPreview, obtenerOgPreviewController);
 
 // =============================================================================
 // ARCHIVOS COMPARTIDOS (PanelInfoContacto)

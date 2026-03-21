@@ -546,3 +546,16 @@ export interface ConteoArchivosCompartidos {
   enlaces: number;
   total: number;
 }
+
+// =============================================================================
+// OPEN GRAPH PREVIEW
+// =============================================================================
+
+/** Datos de Open Graph preview para URLs en mensajes */
+export interface DatosOgPreview {
+  titulo: string | null;
+  descripcion: string | null;
+  imagen: string | null;
+  dominio: string;
+  url: string;
+}

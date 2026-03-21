@@ -26,3 +26,15 @@ export const limitadorLogin = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Límite para OG previews: 500 en desarrollo, 30 en producción
+export const limitadorOgPreview = rateLimit({
+  windowMs: 60 * 1000,
+  max: isDev ? 500 : 30,
+  message: {
+    success: false,
+    message: 'Demasiadas solicitudes de preview, intenta en un momento',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

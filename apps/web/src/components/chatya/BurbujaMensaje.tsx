@@ -13,7 +13,7 @@
  * UBICACIÓN: apps/web/src/components/chatya/BurbujaMensaje.tsx
  */
 
-import { memo, useRef, useCallback, useState, useEffect } from 'react';
+import { memo, useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -22,6 +22,9 @@ import type { Mensaje, ContenidoImagen } from '../../types/chatya';
 import { SelectorEmojis } from './SelectorEmojis';
 import { EmojiNoto } from './EmojiNoto';
 import { TextoConEmojis } from './TextoConEmojis';
+import { TextoConEnlaces } from './TextoConEnlaces';
+import { PreviewEnlace } from './PreviewEnlace';
+import { extraerPrimeraUrl } from './enlacesUtils';
 import { analizarEmojis, tamañoEmojiSolo } from './emojiUtils';
 import { Howl, Howler } from 'howler';
 // =============================================================================
@@ -786,6 +789,12 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
   const infoEmoji = !mensaje.eliminado ? analizarEmojis(mensaje.contenido) : { soloEmojis: false, cantidad: 0 };
   const esSoloEmojis = infoEmoji.soloEmojis && !mensaje.respuestaA;
 
+  // URL para preview OG (solo mensajes de texto no eliminados, no solo emojis)
+  const primeraUrl = useMemo(() => {
+    if (mensaje.tipo !== 'texto' || mensaje.eliminado || esSoloEmojis) return null;
+    return extraerPrimeraUrl(mensaje.contenido);
+  }, [mensaje.contenido, mensaje.tipo, mensaje.eliminado, esSoloEmojis]);
+
   /** Emoji con el que ya reaccioné a este mensaje (si existe) */
   const miReaccionActual = mensaje.reacciones?.find((r) =>
     (r.usuarios as string[])?.includes(miId || '')
@@ -1035,7 +1044,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
       )}
 
       <div
-        className={`relative max-w-[84%] select-none lg:select-text`}
+        className={`relative ${primeraUrl ? 'max-w-80 lg:max-w-72 2xl:max-w-80' : 'max-w-[84%]'} select-none lg:select-text`}
         style={{
           transform: swipeX > 0 ? `translateX(${swipeX}px)` : undefined,
           transition: swipeReturning ? 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)' : 'none',
@@ -1379,7 +1388,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
               <>
                 <div className="flex items-end justify-between gap-2">
                   <p className="text-[15px] lg:text-[14px] leading-relaxed wrap-break-word whitespace-pre-wrap font-medium">
-                    <TextoConEmojis texto={mensaje.contenido} tamañoEmoji={26} />
+                    <TextoConEnlaces texto={mensaje.contenido} tamañoEmoji={26} esMio={esMio} />
                     {!mensaje.respuestaA && (
                       <span className={`inline-flex items-center gap-0.5 align-bottom ml-1.5 translate-y-[5px] text-[11px] lg:text-[11px] ${esMio ? 'text-white/70' : 'text-white/55'}`}>
                         {mensaje.editado && <span className="italic">editado</span>}
@@ -1396,6 +1405,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                     </span>
                   )}
                 </div>
+                {primeraUrl && <PreviewEnlace url={primeraUrl} esMio={esMio} />}
               </>
             ))}
           </div>
