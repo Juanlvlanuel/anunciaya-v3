@@ -7,6 +7,58 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [20 Marzo 2026] - Rediseño PanelNotificaciones + Open Graph Previews ChatYA
+
+### ✨ Agregado
+
+**Panel de Notificaciones — Rediseño completo**
+- Iconos Lucide con gradientes de color en lugar de emojis genéricos
+- Estilo Facebook: avatar/iniciales del actor + mini badge de tipo superpuesto
+- Campos `actor_imagen_url` y `actor_nombre` en tabla `notificaciones`
+- Imagen contextual: foto de recompensa/oferta para notificaciones de items, logo del negocio para modo personal, avatar del cliente para modo comercial
+- Paginación con botón "Cargar más" (15 por página)
+- Eliminación individual de notificaciones (icono basura con hover)
+- Formato de mensajes con salto de línea para separar nombre del negocio
+
+**Notificaciones — Deep Links inteligentes**
+- Click en notificación abre el modal/detalle específico del item referenciado
+- Transacciones BS: `?transaccionId=UUID` abre modal de detalle
+- Canjes BS: `?tab=canjes&canjeId=UUID` abre tab canjes + modal
+- Recompensas BS: `?recompensaId=UUID` abre tab recompensas + modal de edición
+- Opiniones BS: `?resenaId=UUID` abre modal de responder
+- Ofertas/Reseñas públicas: `?ofertaId=UUID`, `?resenaId=UUID` con deep link
+- Toast informativo cuando el item ya no existe ("Esta reseña ya no está disponible")
+- Patrón robusto con state pendiente para funcionar estando ya en la página
+
+**Notificaciones — Cleanup automático**
+- Al eliminar oferta/recompensa: borrado automático de notificaciones asociadas
+- Al revocar transacción: borrado automático de notificaciones
+- Al cancelar voucher: borrado automático de notificaciones
+- Prevención de duplicados: `notificarNegocioCompleto` y `notificarSucursal` excluyen al dueño
+
+**ChatYA — Open Graph Previews (Sprint 7)**
+- Endpoint `GET /api/chatya/og-preview?url=...` con fetch HTTP + parseo HTML (node-html-parser)
+- Extracción de og:title, og:description, og:image con fallbacks (title tag, meta description, twitter:image)
+- Cache Redis 24h para resultados exitosos, 1h para cache negativa
+- Validación SSRF: bloqueo de IPs privadas en producción
+- Rate limiting: 30 requests/minuto por usuario
+- URLs clicables en mensajes (links azules) via `TextoConEnlaces.tsx`
+- Preview card visual con imagen, título, descripción y dominio via `PreviewEnlace.tsx`
+- Skeleton animado mientras carga
+- Cache frontend en Map a nivel de módulo
+- Ancho de burbuja limitado para mensajes con preview
+
+### 🔧 Mejorado
+- CardYA deep links: reemplazado `setTimeout(1500)` por patrón de state pendiente (más robusto)
+- `GaleriaArchivosCompartidos`: regex de URLs extraída a `enlacesUtils.ts` compartido
+
+### 📊 Métricas
+- ChatYA: Sprint 7 → **98%** (falta: E2E testing)
+- Backend: 2 archivos nuevos, ~15 archivos modificados
+- Frontend: 4 archivos nuevos, ~12 archivos modificados
+
+---
+
 ## [7 Marzo 2026] - Business Studio: Transacciones + Clientes + Opiniones ✅
 
 ### ✨ Agregado

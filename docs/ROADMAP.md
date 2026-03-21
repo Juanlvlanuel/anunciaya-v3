@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 7 Marzo 2026  
-> **Progreso global:** 93% completado  
-> **Fase actual:** ChatYA Sprint 7 Pulido (96%) — próximo: BS Alertas / Cupones
+> **Última actualización:** 20 Marzo 2026
+> **Progreso global:** 94% completado
+> **Fase actual:** ChatYA Sprint 7 Pulido (98%) — próximo: BS Alertas / Cupones
 
 ---
 
@@ -14,7 +14,7 @@
 | **Backend + Negocios** (5.0-5.3) | ✅ 100% | - |
 | **Business Studio** (5.4) | ⏳ 53% (8/15 módulos) | ~15 días |
 | **ScanYA + PWA** (5.5) | ✅ 100% | Fase 14 completada (7 Mar 2026) |
-| **ChatYA** (5.10) | ⏳ 96% (Sprint 7 en progreso) | ~2 días |
+| **ChatYA** (5.10) | ⏳ 98% (Sprint 7 — falta E2E testing) | ~1 día |
 | **Sistema Lealtad** (5.6-5.7) | ✅ 100% (Puntos + CardYA + Notificaciones) | - |
 | **Secciones Públicas + BS** (6.x) | ⏳ 0% | ~3-4 semanas |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | ~1-2 semanas |
@@ -74,7 +74,7 @@
 - [x] Palomitas "Entregado" (2 grises)
 - [x] Estados de usuario (conectado/ausente/desconectado/últ. vez)
 - [x] Sonido notificación + vibración háptica
-- [ ] Preview de enlaces (Open Graph)
+- [x] Preview de enlaces (Open Graph) ✅ (20 Mar 2026)
 - [ ] Testing end-to-end
 
 **Integraciones completadas (7 Mar):**

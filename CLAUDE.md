@@ -261,7 +261,7 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 
 ### En Progreso
 
-- **ChatYA Sprint 7** (96%) — Falta: Open Graph previews + E2E testing
+- **ChatYA Sprint 7** (98%) — Falta: E2E testing
 - **Business Studio** (53%) — 8/15 módulos completados
 
 ### BS Módulos Completados (8/15)

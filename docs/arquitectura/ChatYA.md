@@ -54,9 +54,13 @@
 
 ### Aprobadas pendientes 🔲
 
+_Ninguna pendiente._
+
+### Implementadas recientemente (20 Mar 2026)
+
 | Decisión | Detalle | Razón |
 |----------|---------|-------|
-| **Open Graph** | Preview de enlaces con título + imagen | Cuando se pega URL en el chat |
+| **Open Graph** | Preview de enlaces con título, descripción e imagen. Endpoint `GET /api/chatya/og-preview`, cache Redis 24h, validación SSRF. Frontend: `TextoConEnlaces.tsx` (URLs clicables), `PreviewEnlace.tsx` (card visual), `enlacesUtils.ts` (helpers compartidos) | Cuando se pega URL en el chat |
 
 ---
 
