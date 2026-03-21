@@ -14,6 +14,7 @@ import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { useCardyaStore } from '../../../stores/useCardyaStore';
 import { useUiStore } from '../../../stores/useUiStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { notificar } from '../../../utils/notificaciones';
 
 // Componentes
 import CardBilletera from './componentes/CardBilletera';
@@ -220,71 +221,64 @@ export function PaginaCardYA() {
     // Después se limpian los params para no repetir al re-renderizar.
     // =========================================================================
 
+    // Deep link: guardar tab e ID pendientes en state
+    const [deepLinkTab, setDeepLinkTab] = useState<TabCardYA | null>(() => {
+        const tab = searchParams.get('tab') as TabCardYA | null;
+        const tabsValidos: TabCardYA[] = ['billeteras', 'recompensas', 'vouchers', 'historial'];
+        return tab && tabsValidos.includes(tab) ? tab : null;
+    });
+    const [deepLinkId, setDeepLinkId] = useState(() => searchParams.get('id') || '');
+
+    // Detectar nuevos deep links (cuando ya estamos en la página)
     useEffect(() => {
         const tab = searchParams.get('tab') as TabCardYA | null;
         const id = searchParams.get('id');
-
-        if (!tab) return;
-
-        // Validar que sea un tab válido
         const tabsValidos: TabCardYA[] = ['billeteras', 'recompensas', 'vouchers', 'historial'];
-        if (!tabsValidos.includes(tab)) return;
 
-        // Activar el tab
-        setTabActivaInterno(tab);
-
-        // Limpiar params de la URL (evita re-trigger)
-        setSearchParams({}, { replace: true });
-
-        // Si no hay ID, solo cambia de tab
-        if (!id) return;
-
-        if (tab === 'recompensas' && id) {
-            setRecompensaDestacadaId(id);
-            setTimeout(() => setRecompensaDestacadaId(null), 3000);
-            return;
+        if (tab && tabsValidos.includes(tab)) {
+            setDeepLinkTab(tab);
+            setTabActivaInterno(tab);
+            if (id) setDeepLinkId(id);
         }
-
-        // Abrir modal del recurso según el tab
-        if (tab === 'historial') {
-            // Asegurar que los datos estén cargados antes de buscar
-            const buscarTransaccion = () => {
-                const todas = [...transaccionesUnificadas];
-                const encontrada = todas.find((t) => t.id === id);
-                if (encontrada) {
-                    setTransaccionSeleccionada(encontrada);
-                }
-            };
-
-            // Si ya hay datos, buscar inmediato
-            if (transaccionesUnificadas.length > 0) {
-                buscarTransaccion();
-            } else {
-                // Si no, cargar y esperar un momento
-                cargarHistorialCompras();
-                cargarHistorialCanjes();
-                const timer = setTimeout(buscarTransaccion, 1500);
-                return () => clearTimeout(timer);
-            }
-        }
-
-        if (tab === 'vouchers') {
-            const buscarVoucher = () => {
-                const encontrado = vouchersHistorial.find((v) => v.id === id);
-                if (encontrado) {
-                    setVoucherSeleccionado(encontrado);
-                }
-            };
-
-            if (vouchersHistorial.length > 0) {
-                buscarVoucher();
-            } else {
-                cargarVouchers();
-                const timer = setTimeout(buscarVoucher, 1500);
-                return () => clearTimeout(timer);
-            }
+        if (tab || id) {
+            setSearchParams({}, { replace: true });
         }
     }, [searchParams]);
+
+    // Procesar deep link: historial
+    useEffect(() => {
+        if (deepLinkTab !== 'historial' || !deepLinkId || transaccionesUnificadas.length === 0) return;
+        const encontrada = transaccionesUnificadas.find((t) => t.id === deepLinkId);
+        if (encontrada) {
+            setTransaccionSeleccionada(encontrada);
+        } else {
+            notificar.info('Esta transacción ya no está disponible');
+        }
+        setDeepLinkId('');
+        setDeepLinkTab(null);
+    }, [deepLinkTab, deepLinkId, transaccionesUnificadas]);
+
+    // Procesar deep link: vouchers
+    useEffect(() => {
+        if (deepLinkTab !== 'vouchers' || !deepLinkId || vouchersHistorial.length === 0) return;
+        const encontrado = vouchersHistorial.find((v) => v.id === deepLinkId);
+        if (encontrado) {
+            setVoucherSeleccionado(encontrado);
+        } else {
+            notificar.info('Este voucher ya no está disponible');
+        }
+        setDeepLinkId('');
+        setDeepLinkTab(null);
+    }, [deepLinkTab, deepLinkId, vouchersHistorial]);
+
+    // Procesar deep link: recompensas (highlight)
+    useEffect(() => {
+        if (deepLinkTab !== 'recompensas' || !deepLinkId) return;
+        setRecompensaDestacadaId(deepLinkId);
+        setTimeout(() => setRecompensaDestacadaId(null), 3000);
+        setDeepLinkId('');
+        setDeepLinkTab(null);
+    }, [deepLinkTab, deepLinkId]);
 
     // =============================================================================
     // HANDLERS

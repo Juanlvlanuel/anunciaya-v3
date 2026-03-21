@@ -6,7 +6,7 @@
  * UBICACIÓN: apps/web/src/services/notificacionesService.ts
  */
 
-import { get, patch } from './api';
+import { get, patch, del } from './api';
 import type { ModoNotificacion, NotificacionesResponse } from '../types/notificaciones';
 
 // =============================================================================
@@ -43,4 +43,12 @@ export async function marcarLeida(id: string) {
  */
 export async function marcarTodasLeidas(modo: ModoNotificacion) {
   return patch<void>(`/notificaciones/marcar-todas?modo=${modo}`);
+}
+
+/**
+ * DELETE /api/notificaciones/:id
+ * Elimina una notificación específica
+ */
+export async function eliminarNotificacion(id: string) {
+  return del<void>(`/notificaciones/${id}`);
 }

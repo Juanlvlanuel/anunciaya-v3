@@ -1175,8 +1175,8 @@ return createPortal(
 // ❌ Incorrecto — z-index atrapado por el padre
 return (
   <>
-    <div className="fixed inset-0 bg-black/50 z-[1001]" />
-    <div className="fixed ... z-[1002]">{children}</div>
+    <div className="fixed inset-0 bg-black/50 z-1001" />
+    <div className="fixed ... z-1002">{children}</div>
   </>
 );
 ```

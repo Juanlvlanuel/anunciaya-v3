@@ -27,6 +27,7 @@
  */
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
   Star, Ticket, Clock, Users, Settings, Lock, Save,
@@ -307,6 +308,19 @@ export default function PaginaPuntos() {
   const [animandoGuardarDesktop, setAnimandoGuardarDesktop] = useState(false);
   const btnGuardarDesktopRef = useRef<HTMLButtonElement>(null);
 
+  // ─── URL params ────────────────────────────────────────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [recompensaIdPendiente, setRecompensaIdPendiente] = useState(() => searchParams.get('recompensaId') || '');
+
+  // Detectar nuevos deep links cuando ya estamos en la página
+  useEffect(() => {
+    const nuevoId = searchParams.get('recompensaId');
+    if (nuevoId) {
+      setRecompensaIdPendiente(nuevoId);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]);
+
   // ─── Estado: Modal recompensas ────────────────────────────────────────
   const [modalAbierto, setModalAbierto]             = useState(false);
   const [modalKey, setModalKey]                     = useState(0);
@@ -319,6 +333,24 @@ export default function PaginaPuntos() {
     if (recompensas.length === 0) cargarRecompensas();
     // No limpiar al desmontar - los datos persisten en el store
   }, []);
+
+  // ─── Abrir recompensa desde URL (notificaciones) ─────────────────────
+  useEffect(() => {
+    if (!recompensaIdPendiente || recompensas.length === 0) return;
+    const recompensa = recompensas.find((r) => r.id === recompensaIdPendiente);
+    if (recompensa) {
+      setTabActiva('recompensas');
+      setTabDesktop('recompensas');
+      setRecompensaEditando(recompensa);
+      setModalKey((k) => k + 1);
+      setModalAbierto(true);
+    } else {
+      setTabActiva('recompensas');
+      setTabDesktop('recompensas');
+      notificar.info('Esta recompensa ya no está disponible');
+    }
+    setRecompensaIdPendiente('');
+  }, [recompensaIdPendiente, recompensas]);
 
   // ─── Estadísticas: se recargan cuando cambia sucursal ──────────────────
   const recargarEstadisticas = useCallback(() => {

@@ -30,6 +30,7 @@ import {
   Star,
   Megaphone,
   Settings,
+  Trash2,
   type LucideProps,
 } from 'lucide-react';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
@@ -130,17 +131,28 @@ const obtenerRutaDestino = (notificacion: Notificacion): string | null => {
 
   if (modo === 'comercial') {
     switch (referenciaTipo) {
-      case 'transaccion':
-      case 'voucher':
-        return '/business-studio/transacciones';
-      case 'resena':
-        return '/business-studio/opiniones';
+      case 'transaccion': {
+        const txId = referenciaId ? `transaccionId=${referenciaId}` : '';
+        return `/business-studio/transacciones${txId ? `?${txId}` : ''}`;
+      }
+      case 'voucher': {
+        const canjeId = referenciaId ? `canjeId=${referenciaId}` : '';
+        const busqueda = notificacion.actorNombre ? `busqueda=${encodeURIComponent(notificacion.actorNombre)}` : '';
+        const params = ['tab=canjes', canjeId, busqueda].filter(Boolean).join('&');
+        return `/business-studio/transacciones?${params}`;
+      }
+      case 'resena': {
+        const resenaParam = referenciaId ? `?resenaId=${referenciaId}` : '';
+        return `/business-studio/opiniones${resenaParam}`;
+      }
       default:
         break;
     }
     switch (tipo) {
-      case 'stock_bajo':
-        return '/business-studio/puntos';
+      case 'stock_bajo': {
+        const recompId = notificacion.referenciaId ? `?recompensaId=${notificacion.referenciaId}` : '';
+        return `/business-studio/puntos${recompId}`;
+      }
       case 'nuevo_cliente':
         return '/business-studio/clientes';
       default:
@@ -234,6 +246,7 @@ function IconoNotificacion({ notificacion }: { notificacion: Notificacion }) {
 interface ContenidoNotificacionesProps {
   notificaciones: Notificacion[];
   onClickNotificacion: (notificacion: Notificacion) => void;
+  onEliminar: (id: string) => void;
   hayMas: boolean;
   cargandoMas: boolean;
   onCargarMas: () => void;
@@ -242,6 +255,7 @@ interface ContenidoNotificacionesProps {
 function ContenidoNotificaciones({
   notificaciones,
   onClickNotificacion,
+  onEliminar,
   hayMas,
   cargandoMas,
   onCargarMas,
@@ -268,7 +282,7 @@ function ContenidoNotificaciones({
                 key={notificacion.id}
                 onClick={() => onClickNotificacion(notificacion)}
                 className={`
-                  w-full flex items-center gap-3 lg:gap-2.5 2xl:gap-3 px-4 py-2 lg:py-1.5 2xl:py-2
+                  group w-full flex items-center gap-3 lg:gap-2.5 2xl:gap-3 px-4 py-2 lg:py-1.5 2xl:py-2
                   hover:bg-slate-100
                   text-left lg:cursor-pointer
                   ${!notificacion.leida ? 'bg-blue-50' : ''}
@@ -291,12 +305,23 @@ function ContenidoNotificaciones({
                       <span className="w-2.5 h-2.5 lg:w-2 lg:h-2 2xl:w-2.5 2xl:h-2.5 bg-blue-500 rounded-full shrink-0 mt-1" />
                     )}
                   </div>
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mb-0.5 line-clamp-2">
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mb-0.5 whitespace-pre-line line-clamp-3">
                     {notificacion.mensaje}
                   </p>
                   <p className="text-sm lg:text-[11px] 2xl:text-sm text-blue-700 font-medium">
                     {formatearFechaRelativa(notificacion.createdAt)}
                   </p>
+                </div>
+
+                {/* Botón eliminar */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); onEliminar(notificacion.id); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onEliminar(notificacion.id); } }}
+                  className="shrink-0 p-1.5 lg:p-1 2xl:p-1.5 text-slate-600 hover:text-red-600 hover:bg-red-100 rounded-lg lg:cursor-pointer lg:opacity-0 lg:group-hover:opacity-100"
+                >
+                  <Trash2 className="w-5 h-5 lg:w-4.5 lg:h-4.5 2xl:w-5 2xl:h-5" />
                 </div>
               </button>
             ))}
@@ -359,6 +384,7 @@ interface DropdownDesktopProps {
   hayMas: boolean;
   cargandoMas: boolean;
   onCargarMas: () => void;
+  onEliminar: (id: string) => void;
 }
 
 function DropdownDesktop({
@@ -370,6 +396,7 @@ function DropdownDesktop({
   hayMas,
   cargandoMas,
   onCargarMas,
+  onEliminar,
 }: DropdownDesktopProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -447,6 +474,7 @@ function DropdownDesktop({
         <ContenidoNotificaciones
           notificaciones={notificaciones}
           onClickNotificacion={onClickNotificacion}
+          onEliminar={onEliminar}
           hayMas={hayMas}
           cargandoMas={cargandoMas}
           onCargarMas={onCargarMas}
@@ -475,6 +503,7 @@ export function PanelNotificaciones() {
   const hayMas = useNotificacionesStore((state) => state.hayMas);
   const cargandoMas = useNotificacionesStore((state) => state.cargandoMas);
   const cargarMas = useNotificacionesStore((state) => state.cargarMas);
+  const eliminarPorId = useNotificacionesStore((state) => state.eliminarPorId);
   const { esMobile } = useBreakpoint();
   const navigate = useNavigate();
   const cantidadNoLeidas = useNotificacionesStore((state) => state.totalNoLeidas);
@@ -532,6 +561,7 @@ export function PanelNotificaciones() {
           <ContenidoNotificaciones
             notificaciones={notificaciones}
             onClickNotificacion={handleClickNotificacion}
+            onEliminar={eliminarPorId}
             hayMas={hayMas}
             cargandoMas={cargandoMas}
             onCargarMas={cargarMas}
@@ -552,6 +582,7 @@ export function PanelNotificaciones() {
           hayMas={hayMas}
           cargandoMas={cargandoMas}
           onCargarMas={cargarMas}
+          onEliminar={eliminarPorId}
         />
       )}
     </>

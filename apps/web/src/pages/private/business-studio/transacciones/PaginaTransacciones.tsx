@@ -62,6 +62,7 @@ import ModalDetalleTransaccionBS from './ModalDetalleTransaccionBS';
 import ModalDetalleCanjeBS from './ModalDetalleCanjeBS';
 import type { TransaccionPuntos, PeriodoEstadisticas } from '../../../../types/puntos';
 import type { VoucherCanje } from '../../../../types/transacciones';
+import { notificar } from '../../../../utils/notificaciones';
 
 // =============================================================================
 // CSS — Animación del icono del header
@@ -416,6 +417,19 @@ export default function PaginaTransacciones() {
   // Leer parámetro de búsqueda de la URL
   const [searchParams, setSearchParams] = useSearchParams();
   const busquedaInicial = searchParams.get('busqueda') || '';
+  const tabInicial = searchParams.get('tab') || '';
+
+  // Guardar IDs de deep link en state para que sobrevivan al limpiar searchParams
+  const [transaccionIdPendiente, setTransaccionIdPendiente] = useState(() => searchParams.get('transaccionId') || '');
+  const [canjeIdPendiente, setCanjeIdPendiente] = useState(() => searchParams.get('canjeId') || '');
+
+  // Detectar nuevos deep links cuando ya estamos en la página
+  useEffect(() => {
+    const nuevoTxId = searchParams.get('transaccionId');
+    const nuevoCanjeId = searchParams.get('canjeId');
+    if (nuevoTxId) setTransaccionIdPendiente(nuevoTxId);
+    if (nuevoCanjeId) setCanjeIdPendiente(nuevoCanjeId);
+  }, [searchParams]);
 
   // Store
   const {
@@ -483,22 +497,52 @@ export default function PaginaTransacciones() {
   // Si hay búsqueda inicial (desde URL), setBusqueda llama cargarHistorial internamente.
   // Así evitamos dos cargas paralelas que causan condición de carrera.
   useEffect(() => {
+    if (tabInicial === 'canjes') {
+      setTabActivo('canjes');
+    }
     cargarKPIs();
     cargarOperadores();
     if (busquedaInicial) {
-      const busquedaEnStore = useTransaccionesStore.getState().busqueda;
-      if (busquedaEnStore !== busquedaInicial) {
-        // Sin pre-fetch: limpiar historial y cargar con filtro
-        useTransaccionesStore.setState({ historial: [], totalResultados: 0 });
-        setBusqueda(busquedaInicial);
+      if (tabInicial === 'canjes') {
+        // Búsqueda en tab canjes
+        setTextoBusquedaCanjes(busquedaInicial);
+        setBusquedaCanjes(busquedaInicial);
+      } else {
+        // Búsqueda en tab ventas
+        const busquedaEnStore = useTransaccionesStore.getState().busqueda;
+        if (busquedaEnStore !== busquedaInicial) {
+          useTransaccionesStore.setState({ historial: [], totalResultados: 0 });
+          setBusqueda(busquedaInicial);
+        }
       }
-      // Con pre-fetch activo (busqueda ya coincide): solo limpiar la URL,
-      // la carga ya está en vuelo desde ChatOverlay
       setSearchParams({}, { replace: true });
     } else {
       cargarHistorial();
     }
   }, [sucursalActiva]);
+
+  // ——— Abrir transacción/canje desde URL (notificaciones) ———
+  useEffect(() => {
+    if (!transaccionIdPendiente || historial.length === 0) return;
+    const tx = historial.find((t) => t.id === transaccionIdPendiente);
+    if (tx) {
+      setTxSeleccionada(tx);
+    } else {
+      notificar.info('Esta transacción ya no está disponible');
+    }
+    setTransaccionIdPendiente('');
+  }, [transaccionIdPendiente, historial]);
+
+  useEffect(() => {
+    if (!canjeIdPendiente || historialCanjes.length === 0) return;
+    const canje = historialCanjes.find((c) => c.id === canjeIdPendiente);
+    if (canje) {
+      setCanjeSeleccionado(canje);
+    } else {
+      notificar.info('Este canje ya no está disponible');
+    }
+    setCanjeIdPendiente('');
+  }, [canjeIdPendiente, historialCanjes]);
 
   // ——— Limpiar filtros al salir (sin disparar cargarHistorial) ———
   useEffect(() => {

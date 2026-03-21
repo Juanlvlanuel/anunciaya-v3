@@ -10,7 +10,7 @@
 
 import { db } from '../db/index.js';
 import { notificaciones } from '../db/schemas/schema.js';
-import { empleados, negocioSucursales } from '../db/schemas/schema.js';
+import { empleados, negocioSucursales, negocios } from '../db/schemas/schema.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { emitirAUsuario } from '../socket.js';
 import type {
@@ -182,6 +182,34 @@ export async function marcarComoLeida(
 }
 
 // =============================================================================
+// ELIMINAR NOTIFICACIÓN INDIVIDUAL
+// =============================================================================
+
+export async function eliminarNotificacion(
+    notificacionId: string,
+    usuarioId: string
+): Promise<RespuestaServicio> {
+    try {
+        const resultado = await db
+            .delete(notificaciones)
+            .where(and(
+                eq(notificaciones.id, notificacionId),
+                eq(notificaciones.usuarioId, usuarioId)
+            ))
+            .returning({ id: notificaciones.id });
+
+        if (resultado.length === 0) {
+            return { success: false, message: 'Notificación no encontrada', code: 404 };
+        }
+
+        return { success: true, message: 'Notificación eliminada' };
+    } catch (error) {
+        console.error('Error en eliminarNotificacion:', error);
+        return { success: false, message: 'Error al eliminar notificación', code: 500 };
+    }
+}
+
+// =============================================================================
 // MARCAR TODAS COMO LEÍDAS
 // =============================================================================
 
@@ -279,7 +307,8 @@ export async function obtenerSucursalPrincipal(negocioId: string): Promise<strin
  */
 export async function notificarSucursal(
     sucursalId: string,
-    input: Omit<CrearNotificacionInput, 'usuarioId'>
+    input: Omit<CrearNotificacionInput, 'usuarioId'>,
+    excluirUsuarioId?: string
 ): Promise<void> {
     try {
         // Buscar empleados activos de la sucursal
@@ -291,8 +320,9 @@ export async function notificarSucursal(
                 eq(empleados.activo, true)
             ));
 
-        // Crear notificación para cada empleado
+        // Crear notificación para cada empleado (excluyendo al dueño si se indica)
         for (const emp of empleadosActivos) {
+            if (excluirUsuarioId && emp.usuarioId === excluirUsuarioId) continue;
             crearNotificacion({
                 ...input,
                 usuarioId: emp.usuarioId,
@@ -323,13 +353,22 @@ export async function notificarNegocioCompleto(
     input: Omit<CrearNotificacionInput, 'usuarioId'>
 ): Promise<void> {
     try {
+        // Obtener el dueño para excluirlo (ya se notifica aparte)
+        const [negocio] = await db
+            .select({ usuarioId: negocios.usuarioId })
+            .from(negocios)
+            .where(eq(negocios.id, negocioId))
+            .limit(1);
+
+        const duenoId = negocio?.usuarioId;
+
         // Buscar todas las sucursales del negocio
         const sucursales = await db
             .select({ id: negocioSucursales.id })
             .from(negocioSucursales)
             .where(eq(negocioSucursales.negocioId, negocioId));
 
-        // Buscar empleados activos de todas las sucursales
+        // Buscar empleados activos de todas las sucursales (excluyendo al dueño)
         for (const suc of sucursales) {
             const empleadosActivos = await db
                 .select({ usuarioId: empleados.usuarioId })
@@ -340,6 +379,7 @@ export async function notificarNegocioCompleto(
                 ));
 
             for (const emp of empleadosActivos) {
+                if (emp.usuarioId === duenoId) continue;
                 crearNotificacion({
                     ...input,
                     usuarioId: emp.usuarioId,

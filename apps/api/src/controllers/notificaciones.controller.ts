@@ -12,6 +12,7 @@ import {
   marcarComoLeida,
   marcarTodasComoLeidas,
   contarNoLeidas,
+  eliminarNotificacion,
 } from '../services/notificaciones.service.js';
 import type { ModoNotificacion } from '../types/notificaciones.types.js';
 
@@ -119,6 +120,44 @@ export async function marcarTodasLeidasController(req: Request, res: Response) {
     });
   } catch (error) {
     console.error('Error en marcarTodasLeidasController:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+}
+
+// =============================================================================
+// DELETE /api/notificaciones/:id
+// =============================================================================
+
+export async function eliminarNotificacionController(req: Request, res: Response) {
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'El ID de la notificación es requerido',
+      });
+    }
+
+    const resultado = await eliminarNotificacion(id, usuarioId);
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+    });
+  } catch (error) {
+    console.error('Error en eliminarNotificacionController:', error);
     return res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

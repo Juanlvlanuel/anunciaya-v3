@@ -21,6 +21,7 @@ import {
   getConteoNoLeidas,
   marcarLeida as marcarLeidaAPI,
   marcarTodasLeidas as marcarTodasLeidasAPI,
+  eliminarNotificacion as eliminarNotificacionAPI,
 } from '../services/notificacionesService';
 import type {
   Notificacion,
@@ -61,6 +62,7 @@ interface NotificacionesState {
   agregarNotificacion: (notificacion: Notificacion) => void;
   marcarLeidaPorId: (id: string) => void;
   marcarTodasLeidas: () => void;
+  eliminarPorId: (id: string) => void;
 
   // Acciones - Modo
   cambiarModo: (modo: ModoNotificacion) => void;
@@ -218,6 +220,29 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     // Sincronizar con backend (sin esperar)
     marcarTodasLeidasAPI(modoActual).catch((error) => {
       console.error('Error marcando todas como leídas:', error);
+    });
+  },
+
+  // ---------------------------------------------------------------------------
+  // ACCIÓN: Eliminar una notificación
+  // ---------------------------------------------------------------------------
+  eliminarPorId: (id: string) => {
+    // Optimista: eliminar de UI inmediatamente
+    set((state) => {
+      const notificacion = state.notificaciones.find((n) => n.id === id);
+      const eraNoLeida = notificacion && !notificacion.leida;
+
+      return {
+        notificaciones: state.notificaciones.filter((n) => n.id !== id),
+        totalNoLeidas: eraNoLeida
+          ? Math.max(0, state.totalNoLeidas - 1)
+          : state.totalNoLeidas,
+      };
+    });
+
+    // Sincronizar con backend (sin esperar)
+    eliminarNotificacionAPI(id).catch((error) => {
+      console.error('Error eliminando notificación:', error);
     });
   },
 

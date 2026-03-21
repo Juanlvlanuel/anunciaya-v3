@@ -26,7 +26,7 @@ import type {
   DuplicarOfertaInput,
   FiltrosFeedOfertas,
 } from '../types/ofertas.types';
-import { negocios, puntosBilletera } from '../db/schemas/schema';
+import { negocios, puntosBilletera, notificaciones } from '../db/schemas/schema';
 import { crearNotificacion } from './notificaciones.service.js';
 
 // =============================================================================
@@ -442,7 +442,7 @@ export async function crearOferta(
             modo: 'personal',
             tipo: 'nueva_oferta',
             titulo: '¡Nueva oferta!',
-            mensaje: `${nuevaOferta.titulo} en ${negocioInfo?.nombre ?? 'un negocio'}`,
+            mensaje: `${nuevaOferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
             negocioId,
             sucursalId,
             referenciaId: nuevaOferta.id,
@@ -676,7 +676,7 @@ export async function actualizarOferta(
             modo: 'personal',
             tipo: 'nueva_oferta',
             titulo: '¡Nueva oferta!',
-            mensaje: `${ofertaActualizada.titulo} en ${negocioInfo?.nombre ?? 'un negocio'}`,
+            mensaje: `${ofertaActualizada.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
             negocioId,
             sucursalId,
             referenciaId: ofertaId,
@@ -740,7 +740,15 @@ export async function eliminarOferta(
         WHERE entity_type = 'oferta' AND entity_id = ${ofertaId}
       `);
 
-      // 3. Eliminar oferta (CASCADE eliminará registros relacionados)
+      // 3. Limpiar notificaciones que referencian esta oferta
+      await tx.delete(notificaciones).where(
+        and(
+          eq(notificaciones.referenciaId, ofertaId),
+          eq(notificaciones.referenciaTipo, 'oferta')
+        )
+      );
+
+      // 4. Eliminar oferta (CASCADE eliminará registros relacionados)
       await tx.delete(ofertas).where(eq(ofertas.id, ofertaId));
 
       return {

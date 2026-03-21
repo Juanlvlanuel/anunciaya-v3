@@ -39,7 +39,8 @@ import {
   negocioSucursales,
   vouchersCanje,
   negocios,
-  scanyaTurnos
+  scanyaTurnos,
+  notificaciones,
 } from '../db/schemas/schema.js';
 import type {
   ActualizarConfigPuntosInput,
@@ -463,7 +464,7 @@ export async function crearRecompensa(
           modo: 'personal',
           tipo: 'nueva_recompensa',
           titulo: '¡Nueva recompensa disponible!',
-          mensaje: `${recompensa.nombre} en ${negocioInfo?.nombre ?? 'un negocio'} (${recompensa.puntosRequeridos} pts)`,
+          mensaje: `${recompensa.nombre} (${recompensa.puntosRequeridos} pts)\n${negocioInfo?.nombre ?? 'un negocio'}`,
           negocioId,
           sucursalId: sucursalPrincipalId ?? undefined,
           referenciaId: recompensa.id,
@@ -636,6 +637,14 @@ export async function eliminarRecompensa(
         code: 404,
       };
     }
+
+    // Limpiar notificaciones que referencian esta recompensa
+    await db.delete(notificaciones).where(
+      and(
+        eq(notificaciones.referenciaId, id),
+        eq(notificaciones.referenciaTipo, 'recompensa')
+      )
+    );
 
     // Hard delete — la confirmación del frontend ya advierte que no se puede deshacer
     await db
@@ -1120,6 +1129,14 @@ export async function revocarTransaccion(
           puntosAcumuladosTotal: sql`puntos_acumulados_total - ${transaccion.puntosOtorgados}`,
         })
         .where(eq(puntosBilletera.id, transaccion.billeteraId));
+
+      // Limpiar notificaciones de esta transacción
+      await tx.delete(notificaciones).where(
+        and(
+          eq(notificaciones.referenciaId, transaccionId),
+          eq(notificaciones.referenciaTipo, 'transaccion')
+        )
+      );
     });
 
     return {

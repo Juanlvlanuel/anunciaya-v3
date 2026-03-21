@@ -58,6 +58,7 @@ import { useAuthStore } from '../../../stores/useAuthStore';
 import { useNegociosCacheStore } from '../../../stores/useNegociosCacheStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { useUiStore } from '../../../stores/useUiStore';
+import { notificar } from '../../../utils/notificaciones';
 import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
 import { DropdownCompartir, ModalAuthRequerido } from '../../../components/compartir';
@@ -727,41 +728,68 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     // =========================================================================
     // DEEP LINK: Abrir modal de oferta desde notificación (?ofertaId=xxx)
     // =========================================================================
+    const [ofertaIdPendiente, setOfertaIdPendiente] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('ofertaId') || '';
+    });
+
+    // Detectar nuevos deep links de oferta
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const ofertaId = params.get('ofertaId');
-
-        if (!ofertaId || ofertas.length === 0) return;
-
-        const encontrada = ofertas.find((o) => o.id === ofertaId);
-        if (encontrada) {
-            setOfertaDeepLink(encontrada);
-            // Limpiar el param de la URL sin recargar
+        const nuevoId = params.get('ofertaId');
+        if (nuevoId) {
+            setOfertaIdPendiente(nuevoId);
             params.delete('ofertaId');
             const nuevaUrl = params.toString()
                 ? `${window.location.pathname}?${params.toString()}`
                 : window.location.pathname;
             window.history.replaceState({}, '', nuevaUrl);
         }
-    }, [ofertas, window.location.search]);
+    }, [location.search]);
+
+    useEffect(() => {
+        if (!ofertaIdPendiente || ofertas.length === 0) return;
+        const encontrada = ofertas.find((o) => o.id === ofertaIdPendiente);
+        if (encontrada) {
+            setOfertaDeepLink(encontrada);
+        } else {
+            notificar.info('Esta oferta ya no está disponible');
+        }
+        setOfertaIdPendiente('');
+    }, [ofertaIdPendiente, ofertas]);
 
     // =========================================================================
     // DEEP LINK: Abrir modal de reseñas desde notificación (?resenaId=xxx)
     // =========================================================================
+    const [resenaIdPendiente, setResenaIdPendiente] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('resenaId') || '';
+    });
+
+    // Detectar nuevos deep links de reseña
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const resenaId = params.get('resenaId');
+        const nuevoId = params.get('resenaId');
+        if (nuevoId) {
+            setResenaIdPendiente(nuevoId);
+            params.delete('resenaId');
+            const nuevaUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
+            window.history.replaceState({}, '', nuevaUrl);
+        }
+    }, [location.search]);
 
-        if (!resenaId || resenas.length === 0) return;
-
-        setResenaDeepLinkId(resenaId);
-        // Limpiar el param de la URL sin recargar
-        params.delete('resenaId');
-        const nuevaUrl = params.toString()
-            ? `${window.location.pathname}?${params.toString()}`
-            : window.location.pathname;
-        window.history.replaceState({}, '', nuevaUrl);
-    }, [resenas, window.location.search]);
+    useEffect(() => {
+        if (!resenaIdPendiente || resenas.length === 0) return;
+        const encontrada = resenas.find((r) => r.id === resenaIdPendiente);
+        if (encontrada) {
+            setResenaDeepLinkId(resenaIdPendiente);
+        } else {
+            notificar.info('Esta reseña ya no está disponible');
+        }
+        setResenaIdPendiente('');
+    }, [resenaIdPendiente, resenas]);
 
     // =============================================================================
     // HANDLERS

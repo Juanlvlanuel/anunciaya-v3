@@ -29,6 +29,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     MessageSquare,
     MessageCircle,
@@ -117,6 +118,19 @@ export function PaginaOpiniones() {
     const [filtroEstrellas, setFiltroEstrellas] = useState<number | null>(null); // null = todas, 1-5
     const [busqueda, setBusqueda] = useState('');
 
+    // URL params
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [resenaIdPendiente, setResenaIdPendiente] = useState(() => searchParams.get('resenaId') || '');
+
+    // Detectar nuevos deep links cuando ya estamos en la página
+    useEffect(() => {
+        const nuevoId = searchParams.get('resenaId');
+        if (nuevoId) {
+            setResenaIdPendiente(nuevoId);
+            setSearchParams({}, { replace: true });
+        }
+    }, [searchParams]);
+
     // Modal
     const [modalResponder, setModalResponder] = useState(false);
     const [resenaSeleccionada, setResenaSeleccionada] = useState<ResenaBS | null>(null);
@@ -203,6 +217,19 @@ export function PaginaOpiniones() {
 
         cargarDatos();
     }, [hidratado, sucursalId, cargarDatos]);
+
+    // Abrir reseña desde URL (notificaciones)
+    useEffect(() => {
+        if (!resenaIdPendiente || resenas.length === 0) return;
+        const resena = resenas.find((r) => r.id === resenaIdPendiente);
+        if (resena) {
+            setResenaSeleccionada(resena);
+            setModalResponder(true);
+        } else {
+            notificar.info('Esta reseña ya no está disponible');
+        }
+        setResenaIdPendiente('');
+    }, [resenaIdPendiente, resenas]);
 
     // Limpiar búsqueda al desmontar (navegar fuera)
     useEffect(() => {

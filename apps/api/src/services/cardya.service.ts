@@ -18,6 +18,7 @@ import {
   empleados,
   scanyaTurnos,
   usuarios,
+  notificaciones,
 } from '../db/schemas/schema.js';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import type {
@@ -575,7 +576,7 @@ export async function generarVoucher(
       modo: 'personal',
       tipo: 'voucher_generado',
       titulo: '¡Recompensa canjeada!',
-      mensaje: `Canjeaste: ${recomp.nombre} en ${negocio[0]?.nombre ?? 'un negocio'}`,
+      mensaje: `Canjeaste: ${recomp.nombre}\n${negocio[0]?.nombre ?? 'un negocio'}`,
       negocioId: recomp.negocioId,
       sucursalId: sucursalPrincipalId ?? undefined,
       referenciaId: resultado.id,
@@ -605,7 +606,7 @@ export async function generarVoucher(
         modo: 'comercial',
         tipo: 'voucher_pendiente',
         titulo: 'Nuevo voucher por entregar',
-        mensaje: `Un cliente canjeó: ${recomp.nombre}`,
+        mensaje: `${clienteParaAvatar ? `${clienteParaAvatar.nombre} ${clienteParaAvatar.apellidos || ''}`.trim() : 'Un cliente'} canjeó: ${recomp.nombre}`,
         negocioId: recomp.negocioId,
         sucursalId: sucursalPrincipalId ?? undefined,
         referenciaId: resultado.id,
@@ -620,7 +621,7 @@ export async function generarVoucher(
         modo: 'comercial',
         tipo: 'voucher_pendiente',
         titulo: 'Nuevo voucher por entregar',
-        mensaje: `Un cliente canjeó: ${recomp.nombre}`,
+        mensaje: `${clienteParaAvatar ? `${clienteParaAvatar.nombre} ${clienteParaAvatar.apellidos || ''}`.trim() : 'Un cliente'} canjeó: ${recomp.nombre}`,
         negocioId: recomp.negocioId,
         referenciaId: resultado.id,
         referenciaTipo: 'voucher',
@@ -778,6 +779,14 @@ export async function cancelarVoucher(
         .update(vouchersCanje)
         .set({ estado: 'cancelado', usadoAt: new Date().toISOString() })
         .where(eq(vouchersCanje.id, voucherId));
+
+      // Limpiar notificaciones de este voucher
+      await tx.delete(notificaciones).where(
+        and(
+          eq(notificaciones.referenciaId, voucherId),
+          eq(notificaciones.referenciaTipo, 'voucher')
+        )
+      );
     });
 
     return { success: true, message: `Voucher cancelado. Puntos devueltos: +${v.puntosUsados}` };

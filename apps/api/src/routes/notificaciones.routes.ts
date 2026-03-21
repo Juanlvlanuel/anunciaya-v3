@@ -18,6 +18,7 @@ import {
   contarNoLeidasController,
   marcarTodasLeidasController,
   marcarLeidaController,
+  eliminarNotificacionController,
 } from '../controllers/notificaciones.controller.js';
 
 // Importar middlewares
@@ -61,6 +62,12 @@ router.patch('/marcar-todas', marcarTodasLeidasController);
  * Marca una notificación específica como leída
  */
 router.patch('/:id/leida', marcarLeidaController);
+
+/**
+ * DELETE /api/notificaciones/:id
+ * Elimina una notificación específica
+ */
+router.delete('/:id', eliminarNotificacionController);
 
 // =============================================================================
 // EXPORTAR ROUTER

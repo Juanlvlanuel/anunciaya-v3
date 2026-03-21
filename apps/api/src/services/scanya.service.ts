@@ -1890,7 +1890,7 @@ export async function otorgarPuntos(
             modo: 'personal',
             tipo: 'puntos_ganados',
             titulo: `+${puntosFinales} puntos`,
-            mensaje: `Compraste en ${negocioInfo?.nombre ?? 'un negocio'}`,
+            mensaje: `Compraste en\n${negocioInfo?.nombre ?? 'un negocio'}`,
             negocioId: payload.negocioId,
             sucursalId: payload.sucursalId,
             referenciaId: transaccion.id,
