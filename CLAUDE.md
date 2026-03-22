@@ -170,6 +170,29 @@ NO usar SweetAlert2 directo en componentes nuevos. Siempre usar `notificar.*`.
 - Variables no usadas: eliminar completamente
 - `delete obj[key]` preferido sobre destructuring con `_`
 
+### Testing — `data-testid` obligatorio
+
+Todo componente interactivo DEBE incluir `data-testid` desde su creación. Esto permite E2E testing con Playwright sin depender de clases CSS o texto.
+
+```tsx
+// ✅ Correcto — testeable desde el inicio
+<button data-testid="btn-guardar" onClick={guardar}>Guardar</button>
+<input data-testid="input-nombre" placeholder="Nombre" />
+<div data-testid={`item-${id}`} onClick={seleccionar}>...</div>
+
+// ❌ Incorrecto — no testeable
+<button onClick={guardar}>Guardar</button>
+```
+
+**Convención de nombres:** `data-testid="contexto-elemento"` o `data-testid="contexto-${id}"`.
+Ejemplos: `chat-input`, `chat-enviar`, `conversacion-${id}`, `mensaje-${id}`, `menu-editar`.
+
+**Infraestructura existente:**
+- API tests: `apps/api/src/__tests__/` con Vitest (`cd apps/api && pnpm test`)
+- E2E tests: `apps/web/e2e/` con Playwright (`cd apps/web && pnpm test:e2e`)
+- Detalle completo: `docs/estandares/REGLAS_TESTING.md`
+- Helpers reutilizables: tokens JWT, usuarios de prueba, HTTP requests
+
 ---
 
 ## Sistema de Diseño — Tokens
@@ -194,6 +217,7 @@ docs/
 │   ├── Guia_Responsive_Laptop_AnunciaYA.md
 │   ├── REGLAS_ESTILO_CODIGO.md
 │   ├── REGLAS_MANEJO_ARCHIVOS.md
+│   ├── REGLAS_TESTING.md
 │   ├── Criterios_de_Uso_de_Modales.md
 │   ├── Patron_Scroll_Lateral.md
 │   ├── Sistema_Transformacion_snake_camelCase.md
