@@ -622,7 +622,7 @@ export function ChatOverlay() {
 
   return (
     <>
-    <div className={!chatYAAbierto ? 'hidden' : ''}>
+    <div data-testid="chatya-overlay" className={!chatYAAbierto ? 'hidden' : ''}>
       {/* Sin overlay oscuro en móvil — el chat es fullscreen */}
 
       {/* Panel principal */}

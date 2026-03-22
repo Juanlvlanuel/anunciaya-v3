@@ -1296,6 +1296,7 @@ export function InputMensaje({
 
               {/* Input de texto */}
               <input
+                data-testid="chat-input"
                 ref={inputRef}
                 type="text"
                 value={texto}
@@ -1445,6 +1446,7 @@ export function InputMensaje({
                 }
                 // En móvil: tap se maneja en pointerDown+pointerUp (timer <300ms)
               }}
+              data-testid="chat-enviar"
               onPointerDown={!puedeEnviar && esMobile ? handleMicPointerDownWrapped : undefined}
               disabled={!puedeEnviar && (texto.trim().length > 0 || imagenesListas.length > 0 || !!documentoListo)}
               className={`

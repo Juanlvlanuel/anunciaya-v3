@@ -359,6 +359,7 @@ export function MenuContextualMensaje({
         {opciones.map((opcion) => (
           <button
             key={opcion.label}
+            data-testid={`menu-${opcion.label.toLowerCase().replace(/\s+/g, '-')}`}
             onClick={opcion.onClick}
             className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-200 active:bg-slate-300 cursor-pointer"
           >

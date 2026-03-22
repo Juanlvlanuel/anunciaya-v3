@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
 > **Última actualización:** 20 Marzo 2026
-> **Progreso global:** 94% completado
-> **Fase actual:** ChatYA Sprint 7 Pulido (98%) — próximo: BS Alertas / Cupones
+> **Progreso global:** 95% completado
+> **Fase actual:** ChatYA ✅ 100% completado — próximo: BS Alertas / Cupones
 
 ---
 
@@ -14,7 +14,7 @@
 | **Backend + Negocios** (5.0-5.3) | ✅ 100% | - |
 | **Business Studio** (5.4) | ⏳ 53% (8/15 módulos) | ~15 días |
 | **ScanYA + PWA** (5.5) | ✅ 100% | Fase 14 completada (7 Mar 2026) |
-| **ChatYA** (5.10) | ⏳ 98% (Sprint 7 — falta E2E testing) | ~1 día |
+| **ChatYA** (5.10) | ✅ 100% (Sprint 7 completado — 20 Mar 2026) | - |
 | **Sistema Lealtad** (5.6-5.7) | ✅ 100% (Puntos + CardYA + Notificaciones) | - |
 | **Secciones Públicas + BS** (6.x) | ⏳ 0% | ~3-4 semanas |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | ~1-2 semanas |
@@ -50,6 +50,8 @@
 | Sprint 1 | BS Puntos Config + Expiración + Recompensas | 5 Feb 2026 |
 | Sprint 2 | CardYA + Socket.io + Notificaciones + Reseñas públicas | 12 Feb 2026 |
 | Sprint 3 | BS Clientes + Transacciones + Opiniones | 7 Mar 2026 |
+| Sprint 4 | Rediseño PanelNotificaciones + deep links + cleanup | 20 Mar 2026 |
+| Sprint 5 | ChatYA Sprint 7: OG Previews + Testing E2E (51 tests) | 20 Mar 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -57,27 +59,25 @@
 
 ## 🚀 En Progreso y Próximos Sprints
 
-### Sprint actual: 5.10.- ChatYA ⏳ 96% (Sprint 7 Pulido en progreso)
+### ✅ Completado: 5.10.- ChatYA — 100% (20 Mar 2026)
 
-**Objetivo:** Sistema de mensajería tiempo real completo
+**Sistema de mensajería tiempo real completo**
 
-**Sprints internos completados (6/7):**
+**7 Sprints internos completados (7/7):**
 - [x] Sprint 1: Base de datos — 6 tablas PostgreSQL (13 Feb)
 - [x] Sprint 2: Backend Core — 13 endpoints + 11 eventos Socket.io (15-17 Feb)
 - [x] Sprint 3: Backend Complementario — contactos, bloqueo, reacciones, búsqueda full-text (18-19 Feb)
 - [x] Sprint 4: Frontend Core — store, overlay, lista conversaciones, burbujas, tiempo real (20-22 Feb)
 - [x] Sprint 5: Frontend Complementario — buscador, menú contextual, reacciones, contactos, archivados (23-25 Feb)
 - [x] Sprint 6: Multimedia — imágenes, audio, documentos, ubicación, R2, rendimiento (26 Feb - 5 Mar)
+- [x] Sprint 7: Pulido — escribiendo, palomitas, estados, sonido, OG previews, testing (5-20 Mar)
 
-**Sprint 7: Pulido (en progreso)**
-- [x] Indicador "Escribiendo..."
-- [x] Palomitas "Entregado" (2 grises)
-- [x] Estados de usuario (conectado/ausente/desconectado/últ. vez)
-- [x] Sonido notificación + vibración háptica
-- [x] Preview de enlaces (Open Graph) ✅ (20 Mar 2026)
-- [ ] Testing end-to-end
+**Testing:**
+- 41 API tests (Vitest) — endpoints, lógica de negocio
+- 10 E2E tests (Playwright) — flujos de UI en navegador real
+- Comando: `cd apps/api && npm test` + `cd apps/web && JWT_SECRET=<secret> npx playwright test`
 
-**Integraciones completadas (7 Mar):**
+**Integraciones:**
 - [x] ScanYA — empleados responden como el negocio; badge no leídos en IndicadoresRapidos
 - [x] PaginaPerfilNegocio — botón "Enviar mensaje" + perfil embebido en PanelInfoContacto
 
@@ -85,7 +85,7 @@
 
 ---
 
-### Próximos Sprints: BS Alertas + Cupones
+### Sprint actual: BS Alertas + Cupones
 
 **Objetivo:** Sistema de cupones temporales con validación
 

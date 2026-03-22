@@ -1013,6 +1013,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
 
   return (
     <div
+      data-testid={`mensaje-${mensaje.id}`}
       className={`group relative flex select-none lg:select-auto ${esMio ? 'justify-end' : 'justify-start'}`}
       onMouseLeave={() => {
         if (emojiPickerAbierto && !emojiPickerSaliendo) {

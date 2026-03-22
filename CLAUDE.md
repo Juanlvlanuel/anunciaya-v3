@@ -261,7 +261,7 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 
 ### En Progreso
 
-- **ChatYA Sprint 7** (98%) — Falta: E2E testing
+- **ChatYA** ✅ 100% — Sprint 7 completado (20 Mar 2026). 41 API tests + 10 E2E tests
 - **Business Studio** (53%) — 8/15 módulos completados
 
 ### BS Módulos Completados (8/15)

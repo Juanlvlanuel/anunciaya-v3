@@ -7,6 +7,46 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [20 Marzo 2026] - ChatYA 100% completado + Testing E2E
+
+### ✨ Agregado
+
+**Testing — Infraestructura completa**
+- Vitest configurado en `apps/api/` — primer framework de testing del proyecto
+- Playwright configurado en `apps/web/` — tests E2E con navegador real (Chromium)
+- Helpers reutilizables: generación de tokens JWT, usuarios de prueba, HTTP requests
+- `data-testid` agregados en componentes clave de ChatYA (ChatOverlay, ConversacionItem, InputMensaje, BurbujaMensaje, MenuContextualMensaje, BarraBusquedaChat, VentanaChat)
+
+**ChatYA — 41 API Tests (Vitest)**
+- Conversaciones: crear, retomar, listar, obtener, fijar/desfijar, archivar/desarchivar, silenciar, eliminar
+- Mensajes: enviar texto, enviar con URL, listar, editar, edición no autorizada, marcar leídos, reenviar, eliminar
+- Reacciones: agregar, obtener, quitar (toggle)
+- Mensajes fijados: fijar, listar, desfijar
+- Búsqueda: full-text en conversación, buscar personas
+- Contactos: agregar, listar, eliminar
+- Bloqueo: bloquear, listar, desbloquear, verificar post-desbloqueo
+- Badge no leídos, Mis Notas
+- OG Preview: URL válida, protocolo inválido, URL inválida, sin parámetro
+
+**ChatYA — 10 E2E Tests (Playwright)**
+- Abrir ChatYA y ver conversaciones
+- Abrir conversación y ver mensajes
+- Enviar mensaje de texto
+- URL clicable en mensaje
+- Editar mensaje propio
+- Eliminar mensaje propio
+- Buscar en conversación
+- Reaccionar a un mensaje
+- Fijar/desfijar conversación
+- Silenciar/desilenciar conversación
+
+### 📊 Métricas
+- **ChatYA Sprint 7: 100% completado** — módulo cerrado
+- 51 tests totales (41 API + 10 E2E), todos pasan
+- Infraestructura de testing reutilizable para futuros módulos
+
+---
+
 ## [20 Marzo 2026] - Rediseño PanelNotificaciones + Open Graph Previews ChatYA
 
 ### ✨ Agregado

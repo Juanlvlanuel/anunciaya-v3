@@ -1283,6 +1283,7 @@ function VentanaChatInner() {
                   {/* Lupita: abre búsqueda — solo desktop (en móvil está en menú contextual) */}
                   {!busquedaAbierta && !esMobile && (
                     <button
+                      data-testid="chat-buscar"
                       onClick={() => setBusquedaAbierta(true)}
                       className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 text-slate-600 hover:text-blue-600"
                     >
@@ -1322,6 +1323,7 @@ function VentanaChatInner() {
                         </button>
                         {menuAbierto && conversacion && (
                           <MenuContextualChat
+                            data-testid="chat-menu"
                             conversacion={conversacion}
                             onCerrar={() => setMenuAbierto(false)}
                             onBuscar={esMobile ? () => { setMenuAbierto(false); setBusquedaAbierta(true); } : undefined}

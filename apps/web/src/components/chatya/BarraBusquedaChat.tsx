@@ -186,6 +186,7 @@ export function BarraBusquedaChat({
         {!esMobile && <Search className="w-4 h-4 text-slate-600 shrink-0" />}
 
         <input
+          data-testid="chat-busqueda-input"
           ref={inputRef}
           type="text"
           value={texto}

@@ -190,6 +190,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
 
   return (
     <button
+      data-testid={`conversacion-${conversacion.id}`}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}

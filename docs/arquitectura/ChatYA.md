@@ -1,9 +1,9 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v6.6 — Actualizado 2026-03-11
+> **Versión:** v7.0 — Actualizado 2026-03-20 — **MÓDULO COMPLETADO ✅**
 
-**Fecha:** 11 Marzo 2026
-**Versión:** 6.6  
+**Fecha:** 20 Marzo 2026
+**Versión:** 7.0
 **Proyecto:** AnunciaYA v3.0  
 **Chat de origen:** Chat Cerebro del Proyecto (Opus 4.6)  
 **Propósito:** Documento de referencia para implementar ChatYA en múltiples sesiones de chat. Contiene TODAS las decisiones, especificaciones, progreso y referencia técnica completa.
@@ -1571,13 +1571,13 @@ useEffect(() => {
 - ✅ Hold-to-record: fix deslizar para cancelar — `touchAction: 'none'` en botón mic evita que el browser intercepte el swipe como scroll. Dirección: deslizar hacia arriba (deltaY). Bug: browser enviaba `pointercancel` antes de que `cancelZonaRef` se actualizara, causando envío accidental del audio
 - ✅ Enviar ubicación — `ModalUbicacionChat.tsx`: GPS automático + mapa Leaflet con pin arrastrable + reverse geocoding Nominatim. Botón clip convertido en menú (Galería / Cámara / Documento / Ubicación) via `createPortal`. `UbicacionBurbuja` en BurbujaMensaje: `MapContainer` sin controles (zoomControl/dragging/scroll/touch desactivados) + botón Google Maps
 
-### Sprint 7: Pulido — EN PROGRESO
+### Sprint 7: Pulido — ✅ COMPLETADO (20 Mar 2026)
 - ✅ Indicador "Escribiendo..." — `InputMensaje` emite `chatya:escribiendo` / `chatya:dejar-escribir` con `destinatarioId` + debounce 2s. Store soporta múltiples conversaciones simultáneas (`Record<string, EstadoEscribiendo>`). Visible en header de VentanaChat + preview en ConversacionItem (reemplaza último mensaje en azul). Componente `IndicadorEscribiendo.tsx` removido del área de mensajes
 - ✅ Palomitas "Entregado" (2 grises) — Receptor emite `chatya:entregado` al recibir mensaje via Socket.io. Store actualiza estado `enviado` → `entregado`. BurbujaMensaje renderiza 3 estados: Check (enviado), CheckCheck gris (entregado), CheckCheck azul (leído). Palomitas unificadas a `w-4 h-4 scale-y-[1.1]` en burbujas y ConversacionItem
 - ✅ Estados de usuario (conectado/ausente/desconectado/últ. vez) — Backend: `socket.ts` broadcast `'conectado'` al unirse, `'desconectado'` al disconnect con `ultimaConexion` en BD. Nuevo evento `chatya:consultar-estado` consulta rooms de Socket.io + BD para estado inicial. Frontend: `socketService.ts` timer inactividad 15 min con throttle 30s (mousemove/keydown/touchstart/scroll) emite `'ausente'`/`'conectado'`. Store: `estadosUsuarios` Record con estado + timestamp. VentanaChat + PanelInfoContacto muestran estado real con colores (green-600/amber-400/gray). Formato: "últ. vez hoy a la(s) 10:08 a.m.". En VentanaChat el texto "últ. vez..." se muestra con animación de scroll horizontal (componente `UltimaVezAnimada`): `useLayoutEffect` mide el ancho del prefijo en un span invisible, lo asigna como CSS custom property `--prefix-w`, y el keyframe hace `translateX(calc(-1 * var(--prefix-w)))` para revelar la hora. El ancho del contenedor es dinámico según el texto real.
 - ✅ Sonido de notificación + vibración — `reproducirSonidoNotificacion()` en listener `chatya:mensaje-nuevo`. Suena cuando mensaje NO es propio + conversación NO activa (o pestaña no visible) + NO silenciada. HTMLAudioElement reutilizable, volumen 50%. 5 tonos disponibles (`tono_mensaje_1` a `tono_mensaje_5`). Preferencias en localStorage: `ay_tono_chat` (tono) + `ay_sonido_chat` (on/off). Vibración 300ms en móvil (`navigator.vibrate`)
-- 🔲 Preview de enlaces (Open Graph)
-- 🔲 Testing end-to-end
+- ✅ Preview de enlaces (Open Graph) — Backend: `ogPreview.service.ts` hace fetch HTTP + parseo con `node-html-parser`, cache Redis 24h, validación SSRF. Endpoint: `GET /api/chatya/og-preview?url=...` con rate limiting 30 req/min. Frontend: `TextoConEnlaces.tsx` renderiza URLs como links clicables, `PreviewEnlace.tsx` muestra card visual (imagen, título, descripción, dominio) con skeleton, `enlacesUtils.ts` helpers compartidos. Cache frontend en Map. Ancho de burbuja limitado para mensajes con preview
+- ✅ Testing E2E — 41 API tests (Vitest): conversaciones, mensajes, reacciones, fijados, búsqueda, contactos, bloqueo, OG preview. 10 E2E tests (Playwright): flujos UI en Chromium con `data-testid`. Infraestructura reutilizable para futuros módulos
 
 ---
 
@@ -1585,10 +1585,7 @@ useEffect(() => {
 
 ### 14.1 Funcionalidad pendiente
 
-| Item | Sprint | Prioridad |
-|------|--------|-----------|
-| Preview enlaces (Open Graph) | 7 | Media |
-| Testing end-to-end | 7 | Media |
+_Ninguna — todos los sprints completados (7/7)._
 
 ### 14.2 Deuda técnica
 
@@ -1755,6 +1752,6 @@ useEffect(() => {
 
 ---
 
-**Estado actual:** Sprints 1-6 COMPLETADOS. Sprint 7 EN PROGRESO (4/6 features completadas).
+**Estado actual:** Sprints 1-7 COMPLETADOS. Módulo ChatYA cerrado (20 Mar 2026). 41 API tests + 10 E2E tests.
 **Backend:** 34 endpoints + 11 eventos Socket.io + 1 evento consulta estado + cron job activo.
 **Última actualización:** 11 Marzo 2026
