@@ -168,6 +168,42 @@ export async function registrarVistaOferta(ofertaId: string) {
 }
 
 // =============================================================================
+// OFERTAS CON CÓDIGO (ANTES CUPONES)
+// =============================================================================
+
+/**
+ * Asignar oferta exclusiva a usuarios
+ * POST /api/ofertas/:id/asignar
+ */
+export async function asignarOferta(ofertaId: string, datos: { usuariosIds: string[]; motivo?: string }) {
+  return post(`/ofertas/${ofertaId}/asignar`, datos);
+}
+
+/**
+ * Obtener ofertas exclusivas del usuario
+ * GET /api/ofertas/mis-exclusivas
+ */
+export async function obtenerMisExclusivas() {
+  return get('/ofertas/mis-exclusivas');
+}
+
+/**
+ * Obtener oferta pública por código
+ * GET /api/ofertas/publico/:codigo
+ */
+/**
+ * Reenviar cupón a clientes asignados
+ * POST /api/ofertas/:id/reenviar
+ */
+export async function reenviarCupon(ofertaId: string) {
+  return post(`/ofertas/${ofertaId}/reenviar`, {});
+}
+
+export async function obtenerOfertaPublica(codigo: string) {
+  return get(`/ofertas/publico/${codigo}`);
+}
+
+// =============================================================================
 // EXPORT DEFAULT
 // =============================================================================
 
@@ -185,4 +221,10 @@ export default {
   obtenerFeedOfertas,
   obtenerDetalleOferta,
   registrarVistaOferta,
+
+  // Código de descuento + ofertas exclusivas
+  asignarOferta,
+  obtenerMisExclusivas,
+  obtenerOfertaPublica,
+  reenviarCupon,
 };

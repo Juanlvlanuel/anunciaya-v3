@@ -32,6 +32,7 @@ import { db } from '../db/index.js';
 import {
   puntosConfiguracion,
   recompensas,
+  recompensaProgreso,
   puntosTransacciones,
   puntosBilletera,
   usuarios,
@@ -424,6 +425,9 @@ export async function crearRecompensa(
         requiereAprobacion: datos.requiereAprobacion ?? false,
         activa: datos.activa ?? true,
         orden: datos.orden ?? 0,
+        tipo: datos.tipo || 'basica',
+        numeroComprasRequeridas: datos.numeroComprasRequeridas || null,
+        requierePuntos: datos.requierePuntos ?? true,
       })
       .returning();
 
@@ -1453,6 +1457,178 @@ export async function obtenerOperadoresTransacciones(
     return {
       success: false,
       message: 'Error al obtener operadores',
+      code: 500,
+    };
+  }
+}
+
+// =============================================================================
+// VERIFICAR RECOMPENSAS POR COMPRAS FRECUENTES (N+1)
+// =============================================================================
+
+/**
+ * Verifica si el usuario ha desbloqueado alguna recompensa de tipo 'compras_frecuentes'
+ * Se llama después de cada transacción confirmada en otorgarPuntos
+ */
+export async function verificarRecompensasDesbloqueadas(
+  usuarioId: string,
+  negocioId: string
+): Promise<void> {
+  try {
+    // 1. Obtener recompensas tipo 'compras_frecuentes' activas del negocio
+    const recompensasCondicionales = await db
+      .select()
+      .from(recompensas)
+      .where(
+        and(
+          eq(recompensas.negocioId, negocioId),
+          eq(recompensas.tipo, 'compras_frecuentes'),
+          eq(recompensas.activa, true)
+        )
+      );
+
+    if (recompensasCondicionales.length === 0) return;
+
+    // 2. Contar transacciones confirmadas del usuario en este negocio
+    const [resultado] = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(puntosTransacciones)
+      .where(
+        and(
+          eq(puntosTransacciones.clienteId, usuarioId),
+          eq(puntosTransacciones.negocioId, negocioId),
+          eq(puntosTransacciones.estado, 'confirmado')
+        )
+      );
+
+    const totalCompras = resultado?.total ?? 0;
+
+    // 3. Para cada recompensa condicional, verificar si se desbloquea
+    for (const recompensa of recompensasCondicionales) {
+      const comprasRequeridas = recompensa.numeroComprasRequeridas;
+      if (!comprasRequeridas || totalCompras < comprasRequeridas) continue;
+
+      // Verificar si ya fue desbloqueada y no canjeada
+      const [progresoExistente] = await db
+        .select()
+        .from(recompensaProgreso)
+        .where(
+          and(
+            eq(recompensaProgreso.usuarioId, usuarioId),
+            eq(recompensaProgreso.recompensaId, recompensa.id)
+          )
+        )
+        .limit(1);
+
+      if (progresoExistente?.desbloqueada && !progresoExistente.canjeada) {
+        // Ya desbloqueada y pendiente de canjear, solo actualizar conteo
+        await db
+          .update(recompensaProgreso)
+          .set({ comprasAcumuladas: totalCompras })
+          .where(eq(recompensaProgreso.id, progresoExistente.id));
+        continue;
+      }
+
+      if (progresoExistente?.canjeada) {
+        // Ya fue canjeada, verificar si acumuló suficientes para otro ciclo
+        // (Compras desde el último canje)
+        continue;
+      }
+
+      // Crear o actualizar progreso
+      await db
+        .insert(recompensaProgreso)
+        .values({
+          usuarioId,
+          recompensaId: recompensa.id,
+          negocioId,
+          comprasAcumuladas: totalCompras,
+          desbloqueada: true,
+          desbloqueadaAt: new Date().toISOString(),
+        })
+        .onConflictDoUpdate({
+          target: [recompensaProgreso.usuarioId, recompensaProgreso.recompensaId],
+          set: {
+            comprasAcumuladas: totalCompras,
+            desbloqueada: true,
+            desbloqueadaAt: new Date().toISOString(),
+          },
+        });
+
+      // Notificar al usuario
+      const [negocioInfo] = await db
+        .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+        .from(negocios)
+        .where(eq(negocios.id, negocioId))
+        .limit(1);
+
+      await crearNotificacion({
+        usuarioId,
+        modo: 'personal',
+        tipo: 'recompensa_desbloqueada',
+        titulo: '¡Recompensa desbloqueada!',
+        mensaje: `${recompensa.nombre} — completaste ${totalCompras} compras en ${negocioInfo?.nombre ?? 'un negocio'}`,
+        negocioId,
+        referenciaId: recompensa.id,
+        referenciaTipo: 'recompensa',
+        icono: '🎉',
+        actorImagenUrl: recompensa.imagenUrl ?? negocioInfo?.logoUrl ?? undefined,
+        actorNombre: negocioInfo?.nombre ?? undefined,
+      });
+    }
+  } catch (error) {
+    console.error('Error al verificar recompensas desbloqueadas:', error);
+    // No lanzar error — esto es secondary logic, no debe bloquear otorgarPuntos
+  }
+}
+
+// =============================================================================
+// OBTENER PROGRESO DE RECOMPENSAS (para CardYA frontend)
+// =============================================================================
+
+/**
+ * Lista recompensas tipo 'compras_frecuentes' de un negocio con el progreso del usuario
+ */
+export async function obtenerProgresoRecompensas(
+  usuarioId: string,
+  negocioId: string
+): Promise<RespuestaServicio> {
+  try {
+    const query = sql`
+      SELECT
+        r.*,
+        rp.compras_acumuladas,
+        rp.desbloqueada,
+        rp.desbloqueada_at,
+        rp.canjeada,
+        rp.canjeada_at,
+        (SELECT count(*)::int FROM puntos_transacciones
+         WHERE cliente_id = ${usuarioId}
+           AND negocio_id = ${negocioId}
+           AND estado = 'confirmado') as total_compras_usuario
+      FROM recompensas r
+      LEFT JOIN recompensa_progreso rp
+        ON rp.recompensa_id = r.id
+        AND rp.usuario_id = ${usuarioId}
+      WHERE r.negocio_id = ${negocioId}
+        AND r.tipo = 'compras_frecuentes'
+        AND r.activa = true
+      ORDER BY r.orden ASC
+    `;
+
+    const resultado = await db.execute(query);
+
+    return {
+      success: true,
+      message: 'Progreso obtenido',
+      data: resultado.rows,
+      code: 200,
+    };
+  } catch (error) {
+    console.error('Error al obtener progreso recompensas:', error);
+    return {
+      success: false,
+      message: 'Error al obtener progreso',
       code: 500,
     };
   }

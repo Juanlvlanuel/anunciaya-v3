@@ -117,6 +117,5 @@ router.use('/chatya', chatyaRoutes);
 
 // Aquí se agregarán más rutas:
 // router.use('/marketplace', marketplaceRoutes);
-// router.use('/cupones', cuponesRoutes);
 
 export default router;

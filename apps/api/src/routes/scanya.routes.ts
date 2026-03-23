@@ -81,8 +81,8 @@ router.post('/turno/cerrar', verificarTokenScanYA, cerrarTurnoController);
 // POST /api/scanya/identificar-cliente - Buscar cliente por teléfono
 router.post('/identificar-cliente', verificarTokenScanYA, identificarClienteController);
 
-// POST /api/scanya/validar-cupon - Verificar cupón antes de aplicar
-router.post('/validar-cupon', verificarTokenScanYA, validarCuponController);
+// POST /api/scanya/validar-codigo - Verificar código de descuento antes de aplicar
+router.post('/validar-codigo', verificarTokenScanYA, validarCuponController);
 
 // POST /api/scanya/otorgar-puntos - Registrar venta y dar puntos
 router.post('/otorgar-puntos', verificarTokenScanYA, otorgarPuntosController);

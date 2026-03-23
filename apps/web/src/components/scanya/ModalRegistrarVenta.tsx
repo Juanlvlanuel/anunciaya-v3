@@ -394,14 +394,14 @@ export function ModalRegistrarVenta({
     };
 
     // ---------------------------------------------------------------------------
-    // Validar cupón
+    // Validar código de descuento
     // ---------------------------------------------------------------------------
     const handleValidarCupon = async () => {
         if (!codigoCupon.trim() || !cliente) return;
 
         setValidandoCupon(true);
         try {
-            const respuesta = await scanyaService.validarCupon({
+            const respuesta = await scanyaService.validarCodigo({
                 codigo: codigoCupon.trim().toUpperCase(),
                 clienteId: cliente.id,
             });
@@ -416,12 +416,12 @@ export function ModalRegistrarVenta({
                     descuento: c.valor,
                     esPorcentaje: c.tipo === 'porcentaje',
                 });
-                notificar.exito('Cupón aplicado');
+                notificar.exito('Código aplicado');
             } else {
-                notificar.error(respuesta.message || 'Cupón no válido');
+                notificar.error(respuesta.message || 'Código no válido');
             }
         } catch {
-            notificar.error('Error al validar cupón');
+            notificar.error('Error al validar código');
         } finally {
             setValidandoCupon(false);
         }
@@ -506,7 +506,7 @@ export function ModalRegistrarVenta({
 
         let montoFinal = montoNum;
 
-        // Aplicar descuento de cupón si existe
+        // Aplicar descuento de código si existe
         if (cupon) {
             if (cupon.esPorcentaje) {
                 montoFinal = montoNum * (1 - cupon.descuento / 100);
@@ -1501,7 +1501,7 @@ export function ModalRegistrarVenta({
                                     </div>
                                     <div className="flex-1 text-left">
                                         <p className="text-white font-medium text-base lg:text-sm 2xl:text-base">
-                                            Cupón <span className="text-[#606060] text-xs">(opcional)</span>
+                                            Código de descuento <span className="text-[#606060] text-xs">(opcional)</span>
                                         </p>
                                         {cupon && (
                                             <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm">
@@ -1536,7 +1536,7 @@ export function ModalRegistrarVenta({
                                                     type="text"
                                                     value={codigoCupon}
                                                     onChange={(e) => setCodigoCupon(e.target.value.toUpperCase())}
-                                                    placeholder="Código del cupón"
+                                                    placeholder="Código de descuento"
                                                     className="flex-1 py-2 lg:py-1.5 2xl:py-2 px-3 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[#1A1A1A] border border-[#333] text-white uppercase"
                                                 />
                                                 <button

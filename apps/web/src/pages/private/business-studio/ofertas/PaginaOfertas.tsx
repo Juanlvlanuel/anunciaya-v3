@@ -49,6 +49,11 @@ import {
     ChevronUp,
     Inbox,
     Layers,
+    Globe,
+    Lock,
+    Megaphone,
+    Ticket,
+    Send,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useOfertas } from '../../../../hooks/useOfertas';
@@ -60,6 +65,7 @@ import Tooltip from '../../../../components/ui/Tooltip';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { Boton } from '../../../../components/ui/Boton';
 import { notificar } from '../../../../utils/notificaciones';
+import { reenviarCupon } from '../../../../services/ofertasService';
 import { ModalOferta } from './ModalOferta';
 import { ModalDuplicarOferta } from './ModalDuplicarOferta';
 import type { Oferta, TipoOferta, EstadoOferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../../types/ofertas';
@@ -72,6 +78,7 @@ interface FiltrosLocales {
     busqueda: string;
     tipo: TipoOferta | 'todos';
     estado: EstadoOferta | 'todos';
+    visibilidad: 'todos' | 'publico' | 'privado';
 }
 
 // =============================================================================
@@ -257,6 +264,7 @@ function FilaMovilOferta({
     onEditar,
     onEliminar,
     onDuplicar,
+    onReenviar,
     onImagenClick,
     esDueno,
 }: {
@@ -265,6 +273,7 @@ function FilaMovilOferta({
     onEditar: (oferta: Oferta) => void;
     onEliminar: (id: string, titulo: string) => void;
     onDuplicar: (oferta: Oferta) => void;
+    onReenviar: (oferta: Oferta) => void;
     onImagenClick?: (url: string) => void;
     esDueno: boolean;
 }) {
@@ -322,6 +331,14 @@ function FilaMovilOferta({
                         </span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
+                        {oferta.visibilidad === 'privado' && (
+                            <button
+                                onClick={() => onReenviar(oferta)}
+                                className="cursor-pointer text-blue-600"
+                            >
+                                <Send className="w-6 h-6" />
+                            </button>
+                        )}
                         {esDueno && (
                             <button
                                 onClick={() => onDuplicar(oferta)}
@@ -389,7 +406,12 @@ export function PaginaOfertas() {
         busqueda: '',
         tipo: 'todos',
         estado: 'todos',
+        visibilidad: 'todos',
     });
+
+    // Dropdown visibilidad (solo desktop)
+    const [dropdownVisibilidadAbierto, setDropdownVisibilidadAbierto] = useState(false);
+    const dropdownVisibilidadRef = useRef<HTMLDivElement>(null);
 
     // Limpiar búsqueda al desmontar
     useEffect(() => {
@@ -436,6 +458,10 @@ export function PaginaOfertas() {
             if (filtros.tipo !== 'todos' && oferta.tipo !== filtros.tipo) return false;
             if (filtros.estado !== 'todos') {
                 if (calcularEstado(oferta) !== filtros.estado) return false;
+            }
+            if (filtros.visibilidad !== 'todos') {
+                const vis = oferta.visibilidad || 'publico';
+                if (vis !== filtros.visibilidad) return false;
             }
             return true;
         });
@@ -509,6 +535,18 @@ export function PaginaOfertas() {
         }
     }, [dropdownEstadoAbierto]);
 
+    useEffect(() => {
+        const handleClickFuera = (e: MouseEvent) => {
+            if (dropdownVisibilidadRef.current && !dropdownVisibilidadRef.current.contains(e.target as Node)) {
+                setDropdownVisibilidadAbierto(false);
+            }
+        };
+        if (dropdownVisibilidadAbierto) {
+            document.addEventListener('mousedown', handleClickFuera);
+            return () => document.removeEventListener('mousedown', handleClickFuera);
+        }
+    }, [dropdownVisibilidadAbierto]);
+
     // Resetear al cambiar filtros
     useEffect(() => { setOfertasCargadas(OFERTAS_POR_PAGINA); }, [filtros]);
     useEffect(() => { setOfertasCargadas(OFERTAS_POR_PAGINA); }, [isMobile]);
@@ -566,6 +604,19 @@ export function PaginaOfertas() {
         if (confirmado) await eliminar(id);
     };
 
+    const handleReenviarCupon = async (oferta: Oferta) => {
+        if (oferta.visibilidad !== 'privado') return;
+        const confirmado = await notificar.confirmar(`¿Reenviar cupón "${oferta.titulo}" a todos los clientes asignados?`);
+        if (!confirmado) return;
+        try {
+            const res = await reenviarCupon(oferta.id);
+            if (res.success) notificar.exito(res.message || 'Cupón reenviado');
+            else notificar.error(res.message || 'Error al reenviar');
+        } catch {
+            notificar.error('Error al reenviar cupón');
+        }
+    };
+
     const handleToggleActivo = async (id: string, activo: boolean) => {
         await actualizar(id, { activo });
     };
@@ -587,7 +638,7 @@ export function PaginaOfertas() {
     };
 
     const limpiarFiltros = () => {
-        setFiltros({ busqueda: '', tipo: 'todos', estado: 'todos' });
+        setFiltros({ busqueda: '', tipo: 'todos', estado: 'todos', visibilidad: 'todos' });
     };
 
     const alternarOrden = (columna: ColumnaOrden) => {
@@ -600,10 +651,11 @@ export function PaginaOfertas() {
     };
 
     const hayFiltrosActivos =
-        filtros.busqueda !== '' || filtros.tipo !== 'todos' || filtros.estado !== 'todos';
+        filtros.busqueda !== '' || filtros.tipo !== 'todos' || filtros.estado !== 'todos' || filtros.visibilidad !== 'todos';
 
     // Texto dinámico del tipo para contador
-    const textoTipoFiltro = filtros.tipo !== 'todos' ? getLabelTipo(filtros.tipo as TipoOferta).toLowerCase() : 'ofertas';
+    const textoVisibilidad = filtros.visibilidad === 'publico' ? 'ofertas' : filtros.visibilidad === 'privado' ? 'cupones' : 'promociones';
+    const textoTipoFiltro = filtros.tipo !== 'todos' ? getLabelTipo(filtros.tipo as TipoOferta).toLowerCase() : textoVisibilidad;
     const textoEstadoFiltro = filtros.estado !== 'todos' ? getBadgeEstado(filtros.estado as EstadoOferta).label.toLowerCase() + 's' : '';
 
     // ===========================================================================
@@ -649,14 +701,14 @@ export function PaginaOfertas() {
                         </div>
                         <div className="hidden lg:block">
                             <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
-                                Ofertas
+                                Promociones
                             </h1>
                             <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium whitespace-nowrap">
-                                Crea promociones
+                                Ofertas y cupones
                             </p>
                         </div>
 
-                        {/* Botón Nueva Oferta — solo móvil */}
+                        {/* Botón Nueva Promoción — solo móvil */}
                         <div className="lg:hidden flex-1 flex justify-end">
                             <button
                                 onClick={handleCrear}
@@ -667,7 +719,7 @@ export function PaginaOfertas() {
                                 }}
                             >
                                 <Plus className="w-4 h-4" />
-                                Nueva Oferta
+                                Nueva Promoción
                             </button>
                         </div>
                     </div>
@@ -797,7 +849,7 @@ export function PaginaOfertas() {
                         }}
                     >
                         <Plus className="w-4 h-4" />
-                        Nueva Oferta
+                        Nueva Promoción
                     </button>
                 </div>
 
@@ -859,8 +911,51 @@ export function PaginaOfertas() {
                             {/* Separador desktop */}
                             <div className="hidden lg:block w-px h-6 bg-slate-300 shrink-0" />
 
-                            {/* Dropdown de tipo */}
-                            <div ref={dropdownTipoRef} className="relative flex-1 lg:flex-none">
+                            {/* Dropdown de visibilidad (móvil + desktop) */}
+                            <div ref={dropdownVisibilidadRef} className="relative flex-1 lg:flex-none shrink-0">
+                                <button
+                                    data-testid="dropdown-visibilidad"
+                                    onClick={() => setDropdownVisibilidadAbierto(prev => !prev)}
+                                    className={`flex items-center justify-between w-full lg:w-40 2xl:w-44 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${filtros.visibilidad !== 'todos'
+                                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                                        : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        {filtros.visibilidad === 'privado' ? <Ticket className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" /> : filtros.visibilidad === 'publico' ? <Megaphone className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" /> : <Layers className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />}
+                                        <span className="truncate">
+                                            {filtros.visibilidad === 'todos' ? 'Todas' : filtros.visibilidad === 'publico' ? 'Ofertas' : 'Cupones'}
+                                        </span>
+                                    </div>
+                                    <ChevronDown className={`w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${dropdownVisibilidadAbierto ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {dropdownVisibilidadAbierto && (
+                                    <div className="absolute top-full right-0 mt-1.5 w-44 bg-white rounded-xl border-2 border-slate-300 shadow-lg z-50 py-1 overflow-hidden">
+                                        {([
+                                            { value: 'todos' as const, label: 'Todas', icono: Layers },
+                                            { value: 'publico' as const, label: 'Ofertas', icono: Megaphone },
+                                            { value: 'privado' as const, label: 'Cupones', icono: Ticket },
+                                        ]).map(({ value, label, icono: Icono }) => (
+                                            <button
+                                                key={value}
+                                                data-testid={`filtro-visibilidad-${value}`}
+                                                onClick={() => { setFiltros(prev => ({ ...prev, visibilidad: value })); setDropdownVisibilidadAbierto(false); }}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.visibilidad === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                            >
+                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${filtros.visibilidad === value ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                                    {filtros.visibilidad === value && <div className="w-2 h-2 rounded-full bg-white" />}
+                                                </div>
+                                                <Icono className="w-3.5 h-3.5 shrink-0" />
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Dropdown de tipo (solo desktop) */}
+                            <div ref={dropdownTipoRef} className="relative hidden lg:block lg:flex-none">
                                 <button
                                     onClick={() => setDropdownTipoAbierto(prev => !prev)}
                                     className={`flex items-center gap-1.5 w-full lg:w-48 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo !== 'todos'
@@ -936,7 +1031,7 @@ export function PaginaOfertas() {
                                     ) : undefined}
                                 />
                             </div>
-                            {/* Nueva Oferta — desktop */}
+                            {/* Nueva Promoción — desktop */}
                             <button
                                 onClick={handleCrear}
                                 className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-4 2xl:px-5 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
@@ -946,7 +1041,7 @@ export function PaginaOfertas() {
                                 }}
                             >
                                 <Plus className="w-4 h-4" />
-                                Nueva Oferta
+                                Nueva Promoción
                             </button>
                         </div>
                     </div>
@@ -984,7 +1079,7 @@ export function PaginaOfertas() {
                             className="grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
-                            <span>Oferta</span>
+                            <span>Promoción</span>
                             <span className="flex justify-center pr-5">Tipo</span>
                             <span className="flex justify-center pr-5">Estado</span>
                             <span className="flex justify-center pr-5">
@@ -1008,12 +1103,12 @@ export function PaginaOfertas() {
                                     <p className="text-sm font-medium">
                                         {hayFiltrosActivos
                                             ? `No se encontraron ${textoTipoFiltro}${filtros.estado !== 'todos' ? ` ${textoEstadoFiltro}` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
-                                            : 'Aún no tienes ofertas creadas'
+                                            : 'Aún no tienes promociones'
                                         }
                                     </p>
                                     {!hayFiltrosActivos && (
                                         <Boton variante="primario" iconoIzquierda={<Plus className="w-4 h-4" />} onClick={handleCrear} className="mt-3">
-                                            Crear Primera Oferta
+                                            Crear Primera Promoción
                                         </Boton>
                                     )}
                                 </div>
@@ -1114,6 +1209,17 @@ export function PaginaOfertas() {
                                                         }
                                                     </button>
                                                 </Tooltip>
+                                                {oferta.visibilidad === 'privado' && (
+                                                    <Tooltip text="Reenviar cupón">
+                                                        <button
+                                                            data-testid={`btn-reenviar-${oferta.id}`}
+                                                            onClick={(e) => { e.stopPropagation(); handleReenviarCupon(oferta); }}
+                                                            className="p-1.5 rounded-lg cursor-pointer text-blue-600 hover:bg-blue-100"
+                                                        >
+                                                            <Send className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                        </button>
+                                                    </Tooltip>
+                                                )}
                                                 <Tooltip text="Eliminar">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleEliminar(oferta.id, oferta.titulo); }}
@@ -1178,17 +1284,17 @@ export function PaginaOfertas() {
                             <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-8 text-center">
                                 <Tag className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                                 <p className="text-base font-bold text-slate-800 mb-1">
-                                    {hayFiltrosActivos ? 'Sin resultados' : 'Sin ofertas'}
+                                    {hayFiltrosActivos ? 'Sin resultados' : 'Sin promociones'}
                                 </p>
                                 <p className="text-sm text-slate-600 font-medium">
                                     {hayFiltrosActivos
                                         ? `No se encontraron ${textoTipoFiltro}${filtros.estado !== 'todos' ? ` ${textoEstadoFiltro}` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
-                                        : 'Crea tu primera oferta para atraer más clientes'
+                                        : 'Crea tu primera promoción para atraer más clientes'
                                     }
                                 </p>
                                 {!hayFiltrosActivos && (
                                     <Boton variante="primario" iconoIzquierda={<Plus className="w-5 h-5" />} onClick={handleCrear} className="mt-4">
-                                        Crear Primera Oferta
+                                        Crear Primera Promoción
                                     </Boton>
                                 )}
                             </div>
@@ -1201,6 +1307,7 @@ export function PaginaOfertas() {
                                     onEditar={handleEditar}
                                     onEliminar={handleEliminar}
                                     onDuplicar={handleDuplicar}
+                                    onReenviar={handleReenviarCupon}
                                     onImagenClick={abrirImagenUnica}
                                     esDueno={esDueno}
                                 />

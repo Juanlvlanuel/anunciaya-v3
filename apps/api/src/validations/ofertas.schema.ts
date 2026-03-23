@@ -103,6 +103,40 @@ const campoLimiteUsos = z
   .nullable();
 
 /**
+ * Campo: límite de usos por usuario (opcional)
+ * NULL = sin límite por persona
+ */
+const campoLimiteUsosPorUsuario = z
+  .number()
+  .int('El límite por usuario debe ser un número entero')
+  .positive('El límite por usuario debe ser mayor a 0')
+  .optional()
+  .nullable();
+
+/**
+ * Campo: código de descuento (opcional)
+ * Se transforma a MAYÚSCULAS, máximo 50 caracteres
+ */
+const campoCodigo = z
+  .string()
+  .trim()
+  .min(3, 'El código debe tener al menos 3 caracteres')
+  .max(50, 'El código no puede exceder 50 caracteres')
+  .transform((val) => val.toUpperCase())
+  .optional()
+  .nullable();
+
+/**
+ * Campo: visibilidad
+ */
+const campoVisibilidad = z
+  .enum(['publico', 'privado'], {
+    message: 'La visibilidad debe ser: publico o privado',
+  })
+  .optional()
+  .default('publico');
+
+/**
  * Campo: UUID (para validar IDs)
  * Permisivo: acepta cualquier formato UUID (incluyendo UUIDs de testing)
  */
@@ -129,12 +163,15 @@ export const crearOfertaSchema = z
     fechaInicio: campoFecha,
     fechaFin: campoFecha,
     limiteUsos: campoLimiteUsos,
+    limiteUsosPorUsuario: campoLimiteUsosPorUsuario,
     articuloId: campoUUID.optional().nullable(),
     activo: z.boolean().optional().default(true),
+    visibilidad: campoVisibilidad,
+    usuariosIds: z.array(campoUUID).min(1).max(500).optional(),
+    motivoAsignacion: z.string().trim().max(200).optional(),
   })
   .refine(
     (data) => {
-      // Validación: fechaFin debe ser mayor o igual a fechaInicio
       const inicio = new Date(data.fechaInicio);
       const fin = new Date(data.fechaFin);
       return fin >= inicio;
@@ -146,7 +183,6 @@ export const crearOfertaSchema = z
   )
   .refine(
     (data) => {
-      // Validación: si tipo es 'porcentaje', valor debe estar entre 1 y 100
       if (data.tipo === 'porcentaje' && typeof data.valor === 'number') {
         return data.valor >= 1 && data.valor <= 100;
       }
@@ -159,7 +195,6 @@ export const crearOfertaSchema = z
   )
   .refine(
     (data) => {
-      // Validación: si tipo es 'monto_fijo', valor debe estar presente y ser número
       if (data.tipo === 'monto_fijo') {
         return typeof data.valor === 'number' && data.valor > 0;
       }
@@ -172,7 +207,6 @@ export const crearOfertaSchema = z
   )
   .refine(
     (data) => {
-      // Validación: si tipo es 'otro', valor debe estar presente y ser string
       if (data.tipo === 'otro') {
         return typeof data.valor === 'string' && data.valor.trim().length > 0;
       }
@@ -181,6 +215,19 @@ export const crearOfertaSchema = z
     {
       message: 'Para tipo otro, debes especificar el concepto',
       path: ['valor'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Si visibilidad es 'privado', debe tener usuariosIds
+      if (data.visibilidad === 'privado') {
+        return data.usuariosIds && data.usuariosIds.length > 0;
+      }
+      return true;
+    },
+    {
+      message: 'Las ofertas privadas deben tener al menos un usuario asignado',
+      path: ['usuariosIds'],
     }
   );
 
@@ -203,8 +250,10 @@ export const actualizarOfertaSchema = z
     fechaInicio: campoFecha.optional(),
     fechaFin: campoFecha.optional(),
     limiteUsos: campoLimiteUsos,
+    limiteUsosPorUsuario: campoLimiteUsosPorUsuario,
     articuloId: campoUUID.optional().nullable(),
     activo: z.boolean().optional(),
+    visibilidad: z.enum(['publico', 'privado']).optional(),
   })
   .refine(
     // Validación: al menos un campo debe estar presente
@@ -321,10 +370,51 @@ export function formatearErroresZod(error: z.ZodError): string[] {
 // EXPORTS
 // =============================================================================
 
+// =============================================================================
+// SCHEMA 5: ASIGNAR OFERTA A USUARIOS
+// =============================================================================
+// Para: POST /api/ofertas/:id/asignar
+
+export const asignarOfertaSchema = z.object({
+  usuariosIds: z
+    .array(campoUUID)
+    .min(1, 'Debes seleccionar al menos un usuario')
+    .max(500, 'No puedes asignar a más de 500 usuarios a la vez'),
+  motivo: z
+    .string()
+    .trim()
+    .max(200, 'El motivo no puede exceder 200 caracteres')
+    .optional(),
+});
+
+export type AsignarOfertaInput = z.infer<typeof asignarOfertaSchema>;
+
+// =============================================================================
+// SCHEMA 6: VALIDAR CÓDIGO DE DESCUENTO
+// =============================================================================
+// Para: GET /api/ofertas/validar/:codigo
+
+export const validarCodigoSchema = z.object({
+  codigo: z
+    .string()
+    .min(1, 'El código es requerido')
+    .max(50, 'El código no puede exceder 50 caracteres')
+    .transform((val) => val.toUpperCase().trim()),
+  clienteId: campoUUID,
+});
+
+export type ValidarCodigoInput = z.infer<typeof validarCodigoSchema>;
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
 export default {
   crearOfertaSchema,
   actualizarOfertaSchema,
   duplicarOfertaSchema,
   filtrosFeedSchema,
+  asignarOfertaSchema,
+  validarCodigoSchema,
   formatearErroresZod,
 };

@@ -12,7 +12,7 @@ import {
   loginEmpleadoSchema,
   cerrarTurnoSchema,
   identificarClienteSchema,
-  validarCuponSchema,
+  validarCodigoSchema,
   otorgarPuntosSchema,
   historialSchema,
   validarVoucherSchema,
@@ -462,7 +462,7 @@ export async function validarCuponController(req: Request, res: Response): Promi
   // ---------------------------------------------------------------------------
   // Paso 2: Validar datos con Zod
   // ---------------------------------------------------------------------------
-  const validacion = validarCuponSchema.safeParse(req.body);
+  const validacion = validarCodigoSchema.safeParse(req.body);
 
   if (!validacion.success) {
     res.status(400).json({

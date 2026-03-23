@@ -214,7 +214,38 @@ export const crearRecompensaSchema = z.object({
     .min(0)
     .default(0)
     .optional(),
-});
+
+  tipo: z
+    .enum(['basica', 'compras_frecuentes'], {
+      message: 'El tipo debe ser: basica o compras_frecuentes',
+    })
+    .default('basica')
+    .optional(),
+
+  numeroComprasRequeridas: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(2, 'Mínimo 2 compras requeridas')
+    .max(1000, 'Máximo 1000 compras')
+    .optional()
+    .nullable(),
+
+  requierePuntos: z
+    .boolean()
+    .default(true)
+    .optional(),
+}).refine(
+  (data) => {
+    if (data.tipo === 'compras_frecuentes') {
+      return data.numeroComprasRequeridas !== undefined && data.numeroComprasRequeridas !== null;
+    }
+    return true;
+  },
+  {
+    message: 'Las recompensas por compras frecuentes requieren número de compras',
+    path: ['numeroComprasRequeridas'],
+  }
+);
 
 // =============================================================================
 // SCHEMA: ACTUALIZAR RECOMPENSA
@@ -273,6 +304,22 @@ export const actualizarRecompensaSchema = z.object({
     .number()
     .int('Debe ser un número entero')
     .min(0)
+    .optional(),
+
+  tipo: z
+    .enum(['basica', 'compras_frecuentes'])
+    .optional(),
+
+  numeroComprasRequeridas: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(2, 'Mínimo 2 compras requeridas')
+    .max(1000, 'Máximo 1000 compras')
+    .optional()
+    .nullable(),
+
+  requierePuntos: z
+    .boolean()
     .optional(),
 });
 

@@ -20,7 +20,7 @@ export type TipoNotificacion =
   | 'voucher_cobrado'
   | 'nueva_oferta'
   | 'nueva_recompensa'
-  | 'nuevo_cupon'
+  | 'recompensa_desbloqueada'
   | 'nuevo_cliente'
   | 'voucher_pendiente'
   | 'stock_bajo'
@@ -36,7 +36,6 @@ export type ReferenciaTipo =
   | 'oferta'
   | 'recompensa'
   | 'resena'
-  | 'cupon'
   | 'marketplace'
   | 'dinamica'
   | 'empleo';

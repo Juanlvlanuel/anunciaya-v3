@@ -22,7 +22,6 @@ import {
   Tag,
   Users,
   Receipt,
-  Ticket,
   UserCog,
   FileBarChart,
   Gift,
@@ -81,8 +80,7 @@ const opcionesMenu = [
 
   // =========== CATÁLOGO & PROMOCIONES ===========
   { id: 'catalogo', label: 'Catálogo', icono: ShoppingBag, ruta: '/business-studio/catalogo' },
-  { id: 'ofertas', label: 'Ofertas', icono: Tag, ruta: '/business-studio/ofertas' },
-  { id: 'cupones', label: 'Cupones', icono: Ticket, ruta: '/business-studio/cupones' },
+  { id: 'ofertas', label: 'Promociones', icono: Tag, ruta: '/business-studio/ofertas' },
 
   // =========== ENGAGEMENT & RECOMPENSAS ===========
   { id: 'puntos', label: 'Puntos', icono: Coins, ruta: '/business-studio/puntos' },

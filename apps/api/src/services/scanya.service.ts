@@ -18,8 +18,9 @@ import {
     puntosBilletera,
     puntosConfiguracion,
     puntosTransacciones,
-    cupones,
-    cuponUsos,
+    ofertas,
+    ofertaUsos,
+    ofertaUsuarios,
     vouchersCanje,
     recompensas,
     scanyaRecordatorios,
@@ -46,7 +47,7 @@ import {
     obtenerSucursalesNegocio,
     listarOperadoresNegocio
 } from './negocios.service.js';
-import { verificarExpiraciones, expirarVouchersVencidos } from './puntos.service.js';
+import { verificarExpiraciones, expirarVouchersVencidos, verificarRecompensasDesbloqueadas } from './puntos.service.js';
 import { crearNotificacion } from './notificaciones.service.js';
 
 // =============================================================================
@@ -1307,8 +1308,8 @@ export async function identificarCliente(
  * Verifica: existencia, estado, fechas, lÃ­mites, sucursal.
  * 
  * @param payload - Datos del usuario autenticado
- * @param datos - Código del cupón y clienteId
- * @returns Información del cupón si es válido
+ * @param datos - Código de descuento y clienteId
+ * @returns Información de la oferta si el código es válido
  */
 export async function validarCupon(
     payload: PayloadTokenScanYA,
@@ -1327,45 +1328,62 @@ export async function validarCupon(
 }>> {
     try {
         // -------------------------------------------------------------------------
-        // Paso 1: Buscar cupón por código
+        // Paso 1: Buscar código personal en oferta_usuarios
         // -------------------------------------------------------------------------
-        const [cupon] = await db
-            .select({
-                id: cupones.id,
-                negocioId: cupones.negocioId,
-                sucursalId: cupones.sucursalId,
-                codigo: cupones.codigo,
-                titulo: cupones.titulo,
-                descripcion: cupones.descripcion,
-                tipo: cupones.tipo,
-                valor: cupones.valor,
-                compraMinima: cupones.compraMinima,
-                fechaInicio: cupones.fechaInicio,
-                fechaExpiracion: cupones.fechaExpiracion,
-                limiteUsosTotal: cupones.limiteUsosTotal,
-                limiteUsosPorUsuario: cupones.limiteUsosPorUsuario,
-                usosActuales: cupones.usosActuales,
-                estado: cupones.estado,
-            })
-            .from(cupones)
-            .where(eq(cupones.codigo, datos.codigo))
-            .limit(1);
+        const resultadoBusqueda = await db.execute(sql`
+            SELECT o.*, ou.usuario_id as asignado_a, ou.codigo_personal
+            FROM oferta_usuarios ou
+            JOIN ofertas o ON o.id = ou.oferta_id
+            WHERE UPPER(ou.codigo_personal) = UPPER(${datos.codigo})
+            LIMIT 1
+        `);
 
-        if (!cupon) {
+        if (resultadoBusqueda.rows.length === 0) {
             return {
                 success: false,
-                message: 'Cupón no encontrado',
+                message: 'Código no encontrado',
                 code: 404,
             };
         }
 
+        const fila = resultadoBusqueda.rows[0] as Record<string, unknown>;
+        const oferta = {
+            id: fila.id as string,
+            negocioId: fila.negocio_id as string,
+            sucursalId: fila.sucursal_id as string | null,
+            titulo: fila.titulo as string,
+            descripcion: fila.descripcion as string | null,
+            tipo: fila.tipo as string,
+            valor: fila.valor as string | null,
+            compraMinima: fila.compra_minima as string | null,
+            fechaInicio: fila.fecha_inicio as string | null,
+            fechaFin: fila.fecha_fin as string | null,
+            limiteUsos: fila.limite_usos as number | null,
+            limiteUsosPorUsuario: fila.limite_usos_por_usuario as number | null,
+            usosActuales: fila.usos_actuales as number | null,
+            activo: fila.activo as boolean | null,
+            asignadoA: fila.asignado_a as string,
+            codigoPersonal: fila.codigo_personal as string,
+        };
+
         // -------------------------------------------------------------------------
-        // Paso 2: Verificar que el cupón pertenezca a este negocio
+        // Paso 2: Verificar que el código pertenece al cliente
         // -------------------------------------------------------------------------
-        if (cupon.negocioId !== payload.negocioId) {
+        if (oferta.asignadoA !== datos.clienteId) {
             return {
                 success: false,
-                message: 'Este cupón no es válido para este negocio',
+                message: 'Este código no pertenece a este cliente',
+                code: 403,
+            };
+        }
+
+        // -------------------------------------------------------------------------
+        // Paso 3: Verificar que la oferta pertenezca a este negocio
+        // -------------------------------------------------------------------------
+        if (oferta.negocioId !== payload.negocioId) {
+            return {
+                success: false,
+                message: 'Este código no es válido para este negocio',
                 code: 400,
             };
         }
@@ -1373,21 +1391,21 @@ export async function validarCupon(
         // -------------------------------------------------------------------------
         // Paso 3: Verificar sucursal (null = todas las sucursales)
         // -------------------------------------------------------------------------
-        if (cupon.sucursalId && cupon.sucursalId !== payload.sucursalId) {
+        if (oferta.sucursalId && oferta.sucursalId !== payload.sucursalId) {
             return {
                 success: false,
-                message: 'Este cupón no es válido para esta sucursal',
+                message: 'Este código no es válido para esta sucursal',
                 code: 400,
             };
         }
 
         // -------------------------------------------------------------------------
-        // Paso 4: Verificar estado
+        // Paso 4: Verificar que esté activa
         // -------------------------------------------------------------------------
-        if (cupon.estado !== 'publicado') {
+        if (!oferta.activo) {
             return {
                 success: false,
-                message: 'Este cupón no está¡ activo',
+                message: 'Esta oferta no está activa',
                 code: 400,
             };
         }
@@ -1396,55 +1414,54 @@ export async function validarCupon(
         // Paso 5: Verificar fechas
         // -------------------------------------------------------------------------
         const ahora = new Date();
-        const fechaInicio = cupon.fechaInicio ? new Date(cupon.fechaInicio) : null;
-        const fechaExpiracion = cupon.fechaExpiracion ? new Date(cupon.fechaExpiracion) : null;
+        const fechaInicio = oferta.fechaInicio ? new Date(oferta.fechaInicio) : null;
+        const fechaFin = oferta.fechaFin ? new Date(oferta.fechaFin) : null;
 
         if (fechaInicio && ahora < fechaInicio) {
             return {
                 success: false,
-                message: 'Este cupón aún no está¡ vigente',
+                message: 'Esta oferta aún no está vigente',
                 code: 400,
             };
         }
 
-        if (fechaExpiracion && ahora > fechaExpiracion) {
+        if (fechaFin && ahora > fechaFin) {
             return {
                 success: false,
-                message: 'Este cupón ha expirado',
+                message: 'Esta oferta ha expirado',
                 code: 400,
             };
         }
 
         // -------------------------------------------------------------------------
-        // Paso 6: Verificar lÃ­mite de usos totales
+        // Paso 6: Verificar límite de usos totales
         // -------------------------------------------------------------------------
-        if (cupon.limiteUsosTotal !== null && (cupon.usosActuales ?? 0) >= cupon.limiteUsosTotal) {
+        if (oferta.limiteUsos !== null && (oferta.usosActuales ?? 0) >= oferta.limiteUsos) {
             return {
                 success: false,
-                message: 'Este cupón ha alcanzado su límite de usos',
+                message: 'Esta oferta ha alcanzado su límite de usos',
                 code: 400,
             };
         }
 
         // -------------------------------------------------------------------------
-        // Paso 7: Verificar lÃ­mite de usos por usuario
+        // Paso 7: Verificar límite de usos por usuario
         // -------------------------------------------------------------------------
-        if (cupon.limiteUsosPorUsuario !== null) {
+        if (oferta.limiteUsosPorUsuario !== null) {
             const [usosUsuario] = await db
                 .select({ count: sql<number>`count(*)::int` })
-                .from(cuponUsos)
+                .from(ofertaUsos)
                 .where(
                     and(
-                        eq(cuponUsos.cuponId, cupon.id),
-                        eq(cuponUsos.usuarioId, datos.clienteId),
-                        eq(cuponUsos.estado, 'usado')
+                        eq(ofertaUsos.ofertaId, oferta.id),
+                        eq(ofertaUsos.usuarioId, datos.clienteId)
                     )
                 );
 
-            if (usosUsuario && usosUsuario.count >= cupon.limiteUsosPorUsuario) {
+            if (usosUsuario && usosUsuario.count >= oferta.limiteUsosPorUsuario) {
                 return {
                     success: false,
-                    message: 'Ya has usado este cupón el máximo de veces permitido',
+                    message: 'Ya has usado este código el máximo de veces permitido',
                     code: 400,
                 };
             }
@@ -1454,9 +1471,9 @@ export async function validarCupon(
         // Paso 8: Construir mensaje de descuento
         // -------------------------------------------------------------------------
         let descuentoInfo = '';
-        const valorNumerico = cupon.valor ? parseFloat(cupon.valor) : 0;
+        const valorNumerico = oferta.valor ? parseFloat(oferta.valor) : 0;
 
-        switch (cupon.tipo) {
+        switch (oferta.tipo) {
             case 'porcentaje':
                 descuentoInfo = `${valorNumerico}% de descuento`;
                 break;
@@ -1473,24 +1490,24 @@ export async function validarCupon(
                 descuentoInfo = 'Envío gratis';
                 break;
             default:
-                descuentoInfo = cupon.descripcion || 'Descuento especial';
+                descuentoInfo = oferta.descripcion || 'Descuento especial';
         }
 
         // -------------------------------------------------------------------------
-        // Paso 9: Retornar cupón válido
+        // Paso 10: Retornar código válido (mantiene formato "cupon" para compatibilidad frontend)
         // -------------------------------------------------------------------------
         return {
             success: true,
-            message: 'Cupón válido',
+            message: 'Código válido',
             data: {
                 cupon: {
-                    id: cupon.id,
-                    codigo: cupon.codigo,
-                    titulo: cupon.titulo,
-                    tipo: cupon.tipo,
+                    id: oferta.id,
+                    codigo: oferta.codigoPersonal,
+                    titulo: oferta.titulo,
+                    tipo: oferta.tipo,
                     valor: valorNumerico,
-                    compraMinima: cupon.compraMinima ? parseFloat(cupon.compraMinima) : 0,
-                    descripcion: cupon.descripcion,
+                    compraMinima: oferta.compraMinima ? parseFloat(oferta.compraMinima) : 0,
+                    descripcion: oferta.descripcion,
                 },
                 descuentoInfo,
             },
@@ -1501,7 +1518,7 @@ export async function validarCupon(
         console.error('Error en validarCupon:', error);
         return {
             success: false,
-            message: 'Error interno al validar cupón',
+            message: 'Error interno al validar código',
             code: 500,
         };
     }
@@ -1644,64 +1661,62 @@ export async function otorgarPuntos(
         }
 
         // -------------------------------------------------------------------------
-        // Paso 5: Procesar cupón si viene
+        // Paso 5: Procesar código de descuento si viene (migrado de cupones a ofertas)
         // -------------------------------------------------------------------------
         let descuentoAplicado = 0;
         let cuponUsadoInfo: { codigo: string; descuento: number; usoId: number } | null = null;
 
         if (datos.cuponId) {
-            const [cupon] = await db
+            // Buscar en tabla ofertas (antes era cupones)
+            const [oferta] = await db
                 .select({
-                    id: cupones.id,
-                    codigo: cupones.codigo,
-                    tipo: cupones.tipo,
-                    valor: cupones.valor,
-                    usosActuales: cupones.usosActuales,
+                    id: ofertas.id,
+                    tipo: ofertas.tipo,
+                    valor: ofertas.valor,
+                    usosActuales: ofertas.usosActuales,
                 })
-                .from(cupones)
-                .where(eq(cupones.id, datos.cuponId))
+                .from(ofertas)
+                .where(eq(ofertas.id, datos.cuponId))
                 .limit(1);
 
-            if (cupon) {
-                const valorCupon = cupon.valor ? parseFloat(cupon.valor) : 0;
+            if (oferta) {
+                const valorOferta = oferta.valor ? parseFloat(oferta.valor) : 0;
 
                 // Calcular descuento según tipo
-                switch (cupon.tipo) {
+                switch (oferta.tipo) {
                     case 'porcentaje':
-                        descuentoAplicado = (datos.montoTotal * valorCupon) / 100;
+                        descuentoAplicado = (datos.montoTotal * valorOferta) / 100;
                         break;
                     case 'monto_fijo':
-                        descuentoAplicado = Math.min(valorCupon, datos.montoTotal);
+                        descuentoAplicado = Math.min(valorOferta, datos.montoTotal);
                         break;
-                    // Para 2x1, 3x2 el descuento se calcula diferente (simplificado aquÃ­)
+                    // Para 2x1, 3x2 el descuento se aplica a criterio del comerciante
                     default:
                         descuentoAplicado = 0;
                 }
 
-                // Registrar uso del cupón
-                const [cuponUsoCreado] = await db.insert(cuponUsos).values({
-                    cuponId: cupon.id,
+                // Registrar uso en oferta_usos (antes era cupon_usos)
+                const [ofertaUsoCreado] = await db.insert(ofertaUsos).values({
+                    ofertaId: oferta.id,
                     usuarioId: datos.clienteId,
-                    estado: 'usado',
                     metodoCanje: 'qr_presencial',
                     montoCompra: datos.montoTotal.toString(),
                     descuentoAplicado: descuentoAplicado.toString(),
                     empleadoId: empleadoId,
                     sucursalId: payload.sucursalId,
-                    usadoAt: new Date().toISOString(),
-                }).returning({ id: cuponUsos.id });
+                }).returning({ id: ofertaUsos.id });
 
                 cuponUsadoInfo = {
-                    codigo: cupon.codigo,
+                    codigo: '',
                     descuento: descuentoAplicado,
-                    usoId: Number(cuponUsoCreado.id),
+                    usoId: Number(ofertaUsoCreado.id),
                 };
 
-                // Incrementar usos_actuales del cupón
+                // Incrementar usos_actuales de la oferta
                 await db
-                    .update(cupones)
-                    .set({ usosActuales: (cupon.usosActuales ?? 0) + 1 })
-                    .where(eq(cupones.id, cupon.id));
+                    .update(ofertas)
+                    .set({ usosActuales: (oferta.usosActuales ?? 0) + 1 })
+                    .where(eq(ofertas.id, oferta.id));
             }
         }
 
@@ -1799,7 +1814,7 @@ export async function otorgarPuntos(
                 concepto: datos.concepto || null,
                 tipo: 'presencial',
                 estado: 'confirmado',
-                cuponUsoId: cuponUsadoInfo?.usoId || null,
+                ofertaUsoId: cuponUsadoInfo?.usoId || null,
             })
             .returning({ id: puntosTransacciones.id });
 
@@ -1926,6 +1941,12 @@ export async function otorgarPuntos(
 
         // -------------------------------------------------------------------------
         // Paso 14: Retornar resumen
+        // -------------------------------------------------------------------------
+        // Verificar recompensas por compras frecuentes (N+1)
+        // -------------------------------------------------------------------------
+        verificarRecompensasDesbloqueadas(datos.clienteId, payload.negocioId)
+            .catch((err) => console.error('Error verificando recompensas N+1:', err));
+
         // -------------------------------------------------------------------------
         return {
             success: true,
@@ -2175,7 +2196,7 @@ export async function obtenerHistorial(
                 empleadoId: puntosTransacciones.empleadoId,
                 turnoId: puntosTransacciones.turnoId,
                 createdAt: puntosTransacciones.createdAt,
-                cuponUsoId: puntosTransacciones.cuponUsoId,
+                ofertaUsoId: puntosTransacciones.ofertaUsoId,
                 concepto: puntosTransacciones.concepto,
                 // Cliente
                 clienteNombre: sql<string>`concat(${usuarios.nombre}, ' ', coalesce(${usuarios.apellidos}, ''))`,
@@ -2213,8 +2234,8 @@ export async function obtenerHistorial(
         // Paso 6: Obtener datos adicionales (billeteras y cupones)
         // -------------------------------------------------------------------------
         const cuponUsoIds = transaccionesRaw
-            .filter(t => t.cuponUsoId !== null)
-            .map(t => t.cuponUsoId as number);
+            .filter(t => t.ofertaUsoId !== null)
+            .map(t => t.ofertaUsoId as number);
 
         // Obtener niveles de clientes
         const billeterasMap = new Map<string, string>();
@@ -2234,22 +2255,22 @@ export async function obtenerHistorial(
             });
         }
 
-        // Obtener datos de cupones usados
+        // Obtener datos de ofertas usadas (antes cupones)
         const cuponesMap = new Map<number, { codigo: string; descuento: number }>();
         if (cuponUsoIds.length > 0) {
-            const cuponesUsados = await db
+            const ofertasUsadas = await db
                 .select({
-                    usoId: cuponUsos.id,
-                    codigo: cupones.codigo,
-                    descuento: cuponUsos.descuentoAplicado,
+                    usoId: ofertaUsos.id,
+                    codigo: ofertas.titulo,
+                    descuento: ofertaUsos.descuentoAplicado,
                 })
-                .from(cuponUsos)
-                .innerJoin(cupones, eq(cuponUsos.cuponId, cupones.id))
-                .where(sql`${cuponUsos.id} IN (${sql.join(cuponUsoIds.map(id => sql`${id}`), sql`, `)})`);
+                .from(ofertaUsos)
+                .innerJoin(ofertas, eq(ofertaUsos.ofertaId, ofertas.id))
+                .where(sql`${ofertaUsos.id} IN (${sql.join(cuponUsoIds.map(id => sql`${id}`), sql`, `)})`);
 
-            cuponesUsados.forEach(c => {
+            ofertasUsadas.forEach(c => {
                 cuponesMap.set(Number(c.usoId), {
-                    codigo: c.codigo,
+                    codigo: c.codigo || '',
                     descuento: c.descuento ? parseFloat(c.descuento) : 0,
                 });
             });
@@ -2287,7 +2308,7 @@ export async function obtenerHistorial(
         // Paso 8: Mapear resultados
         // -------------------------------------------------------------------------
         const transacciones = transaccionesRaw.map(t => {
-            const cuponInfo = t.cuponUsoId ? cuponesMap.get(Number(t.cuponUsoId)) : null;
+            const cuponInfo = t.ofertaUsoId ? cuponesMap.get(Number(t.ofertaUsoId)) : null;
 
             // Determinar quién registró
             let registradoPor = 'Desconocido';

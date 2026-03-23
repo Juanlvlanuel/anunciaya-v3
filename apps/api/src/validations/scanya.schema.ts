@@ -79,9 +79,10 @@ export const identificarClienteSchema = z.object({
 });
 
 /**
- * Validar Cupón - Verificar antes de aplicar
+ * Validar Código de Descuento - Verificar antes de aplicar
+ * (Antes era validarCuponSchema — migrado a ofertas con código)
  */
-export const validarCuponSchema = z.object({
+export const validarCodigoSchema = z.object({
   codigo: z
     .string()
     .min(1, 'El código es requerido')
@@ -91,6 +92,7 @@ export const validarCuponSchema = z.object({
     .string()
     .uuid('ID de cliente inválido'),
 });
+
 
 /**
  * Otorgar Puntos - Registrar venta y dar puntos
@@ -300,7 +302,7 @@ export type LoginDuenoInput = z.infer<typeof loginDuenoSchema>;
 export type LoginEmpleadoInput = z.infer<typeof loginEmpleadoSchema>;
 export type CerrarTurnoInput = z.infer<typeof cerrarTurnoSchema>;
 export type IdentificarClienteInput = z.infer<typeof identificarClienteSchema>;
-export type ValidarCuponInput = z.infer<typeof validarCuponSchema>;
+export type ValidarCuponInput = z.infer<typeof validarCodigoSchema>;
 export type OtorgarPuntosInput = z.infer<typeof otorgarPuntosSchema>;
 export type HistorialInput = z.infer<typeof historialSchema>;
 export type ValidarVoucherInput = z.infer<typeof validarVoucherSchema>;

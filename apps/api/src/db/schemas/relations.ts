@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, regiones, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, cupones, ofertas, cuponGaleria, cuponUsos, cuponUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, dinamicas, dinamicaPremios, dinamicaParticipaciones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
+import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, regiones, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, ofertas, ofertaUsos, ofertaUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, dinamicas, dinamicaPremios, dinamicaParticipaciones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
 
 export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	embajadore: one(embajadores, {
@@ -17,8 +17,8 @@ export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	direccionesUsuarios: many(direccionesUsuario),
 	carritos: many(carrito),
 	pedidos: many(pedidos),
-	cuponUsos: many(cuponUsos),
-	cuponUsuarios: many(cuponUsuarios),
+	ofertaUsos: many(ofertaUsos),
+	ofertaUsuarios: many(ofertaUsuarios),
 	marketplaces: many(marketplace),
 	planReglas: many(planReglas),
 	bitacoraUsos: many(bitacoraUso),
@@ -99,7 +99,7 @@ export const negociosRelations = relations(negocios, ({ one, many }) => ({
 	articulos: many(articulos),
 	citas: many(citas),
 	ofertas: many(ofertas),
-	cupones: many(cupones),
+	ofertaUsosList: many(ofertaUsos),
 	marketplaces: many(marketplace),
 	bitacoraUsos: many(bitacoraUso),
 	embajadorComisiones: many(embajadorComisiones),
@@ -129,7 +129,7 @@ export const negocioSucursalesRelations = relations(negocioSucursales, ({ one, m
 	pedidos: many(pedidos),
 	resenas: many(resenas),
 	ofertas: many(ofertas),
-	cupones: many(cupones),
+	ofertaUsosList: many(ofertaUsos),
 	negocioGalerias: many(negocioGaleria),
 	negocioMetodosPagos: many(negocioMetodosPago),
 	bolsaTrabajos: many(bolsaTrabajo),
@@ -321,9 +321,9 @@ export const pedidoArticulosRelations = relations(pedidoArticulos, ({ one }) => 
 
 export const pedidosRelations = relations(pedidos, ({ one, many }) => ({
 	pedidoArticulos: many(pedidoArticulos),
-	cupone: one(cupones, {
-		fields: [pedidos.cuponId],
-		references: [cupones.id]
+	oferta: one(ofertas, {
+		fields: [pedidos.ofertaId],
+		references: [ofertas.id]
 	}),
 	usuario: one(usuarios, {
 		fields: [pedidos.compradorId],
@@ -348,22 +348,6 @@ export const carritoRelations = relations(carrito, ({ one, many }) => ({
 	carritoArticulos: many(carritoArticulos),
 }));
 
-export const cuponesRelations = relations(cupones, ({ one, many }) => ({
-	pedidos: many(pedidos),
-	cuponGalerias: many(cuponGaleria),
-	cuponUsos: many(cuponUsos),
-	cuponUsuarios: many(cuponUsuarios),
-	negocio: one(negocios, {
-		fields: [cupones.negocioId],
-		references: [negocios.id]
-	}),
-	// 🆕 AGREGAR ESTA RELACIÓN:
-	sucursal: one(negocioSucursales, {
-		fields: [cupones.sucursalId],
-		references: [negocioSucursales.id]
-	}),
-}));
-
 export const ofertasRelations = relations(ofertas, ({ one }) => ({
 	articulo: one(articulos, {
 		fields: [ofertas.articuloId],
@@ -380,31 +364,24 @@ export const ofertasRelations = relations(ofertas, ({ one }) => ({
 	}),
 }));
 
-export const cuponGaleriaRelations = relations(cuponGaleria, ({ one }) => ({
-	cupone: one(cupones, {
-		fields: [cuponGaleria.cuponId],
-		references: [cupones.id]
-	}),
-}));
-
-export const cuponUsosRelations = relations(cuponUsos, ({ one }) => ({
-	cupone: one(cupones, {
-		fields: [cuponUsos.cuponId],
-		references: [cupones.id]
+export const ofertaUsosRelations = relations(ofertaUsos, ({ one }) => ({
+	oferta: one(ofertas, {
+		fields: [ofertaUsos.ofertaId],
+		references: [ofertas.id]
 	}),
 	usuario: one(usuarios, {
-		fields: [cuponUsos.usuarioId],
+		fields: [ofertaUsos.usuarioId],
 		references: [usuarios.id]
 	}),
 }));
 
-export const cuponUsuariosRelations = relations(cuponUsuarios, ({ one }) => ({
-	cupone: one(cupones, {
-		fields: [cuponUsuarios.cuponId],
-		references: [cupones.id]
+export const ofertaUsuariosRelations = relations(ofertaUsuarios, ({ one }) => ({
+	oferta: one(ofertas, {
+		fields: [ofertaUsuarios.ofertaId],
+		references: [ofertas.id]
 	}),
 	usuario: one(usuarios, {
-		fields: [cuponUsuarios.usuarioId],
+		fields: [ofertaUsuarios.usuarioId],
 		references: [usuarios.id]
 	}),
 }));

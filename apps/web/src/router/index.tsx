@@ -34,7 +34,6 @@ import PaginaOfertaPublico from '../pages/public/PaginaOfertaPublico';
 import PaginaInicio from '../pages/private/PaginaInicio';
 
 // Páginas de usuario (nuevas - Fase 4)
-import PaginaMisCupones from '../pages/private/cupones/PaginaMisCupones';
 import PaginaGuardados from '../pages/private/guardados/PaginaGuardados';
 import PaginaMisPublicaciones from '../pages/private/publicaciones/PaginaMisPublicaciones';
 import { PaginaNegocios, PaginaPerfilNegocio } from '../pages/private/negocios';
@@ -90,7 +89,6 @@ const PaginaConfigurarNegocio = () => <PlaceholderPage nombre="🏪 Configurar N
 
 // Páginas de Business Studio (ordenadas según menú)
 const BSPaginaAlertas = () => <PlaceholderPage nombre="🔔 Alertas" />;
-const BSPaginaCupones = () => <PlaceholderPage nombre="🎟️ Cupones" />;
 const BSPaginaRifas = () => <PlaceholderPage nombre="🎁 Rifas" />;
 const BSPaginaEmpleados = () => <PlaceholderPage nombre="👷 Empleados" />;
 const BSPaginaVacantes = () => <PlaceholderPage nombre="💼 Vacantes" />;
@@ -272,14 +270,6 @@ const router = createBrowserRouter([
             element: <PaginaConfiguracion />,
           },
           {
-            path: '/cupones',
-            element: (
-              <ModoGuard requiereModo="personal">
-                <PaginaMisCupones />
-              </ModoGuard>
-            ),
-          },
-          {
             path: '/guardados',
             element: <PaginaGuardados />,
           },
@@ -364,14 +354,6 @@ const router = createBrowserRouter([
             element: (
               <ModoGuard requiereModo="comercial">
                 <BSPaginaOfertas />
-              </ModoGuard>
-            ),
-          },
-          {
-            path: '/business-studio/cupones',
-            element: (
-              <ModoGuard requiereModo="comercial">
-                <BSPaginaCupones />
               </ModoGuard>
             ),
           },

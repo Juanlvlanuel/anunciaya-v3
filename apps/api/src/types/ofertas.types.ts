@@ -35,6 +35,16 @@ export type EstadoOferta =
   | 'activa'   // En vigencia
   | 'vencida'; // Ya terminó
 
+/**
+ * Visibilidad de la oferta
+ */
+export type VisibilidadOferta = 'publico' | 'privado';
+
+/**
+ * Método de canje cuando la oferta tiene código
+ */
+export type MetodoCanje = 'qr_presencial' | 'codigo_online';
+
 // =============================================================================
 // INPUT TYPES (para crear/actualizar)
 // =============================================================================
@@ -52,8 +62,12 @@ export interface CrearOfertaInput {
   fechaInicio: string; // ISO string
   fechaFin: string;    // ISO string
   limiteUsos?: number | null;
+  limiteUsosPorUsuario?: number | null;
   articuloId?: string | null;
   activo?: boolean;
+  visibilidad?: VisibilidadOferta;
+  usuariosIds?: string[];       // Para ofertas privadas: IDs de usuarios asignados
+  motivoAsignacion?: string;    // Motivo de la asignación exclusiva
 }
 
 /**
@@ -63,15 +77,17 @@ export interface CrearOfertaInput {
 export interface ActualizarOfertaInput {
   titulo?: string;
   descripcion?: string | null;
-  imagen?: string | null;  // ← AGREGADO: URL de imagen en Cloudinary
+  imagen?: string | null;
   tipo?: TipoOferta;
-  valor?: string | number | null;  // Acepta string (para "otro") o number (para porcentaje/monto_fijo)
+  valor?: string | number | null;
   compraMinima?: number;
   fechaInicio?: string;
   fechaFin?: string;
   limiteUsos?: number | null;
+  limiteUsosPorUsuario?: number | null;
   articuloId?: string | null;
   activo?: boolean;
+  visibilidad?: VisibilidadOferta;
 }
 
 /**
@@ -105,8 +121,58 @@ export interface OfertaBasica {
   limiteUsos: number | null;
   usosActuales: number;
   activo: boolean;
+  visibilidad: VisibilidadOferta;
+  limiteUsosPorUsuario: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Registro de uso de una oferta con código
+ */
+export interface OfertaUso {
+  id: string;
+  ofertaId: string;
+  usuarioId: string;
+  metodoCanje: MetodoCanje | null;
+  montoCompra: string | null;
+  descuentoAplicado: string | null;
+  empleadoId: string | null;
+  sucursalId: string | null;
+  createdAt: string;
+}
+
+/**
+ * Asignación de oferta exclusiva a usuario
+ */
+export interface OfertaUsuario {
+  id: string;
+  ofertaId: string;
+  usuarioId: string;
+  motivo: string | null;
+  asignadoAt: string;
+  vista: boolean;
+}
+
+/**
+ * Datos para registrar un uso de oferta
+ */
+export interface RegistrarUsoOfertaInput {
+  ofertaId: string;
+  usuarioId: string;
+  metodoCanje: MetodoCanje;
+  montoCompra?: number;
+  descuentoAplicado?: number;
+  empleadoId?: string;
+  sucursalId?: string;
+}
+
+/**
+ * Datos para asignar oferta a usuarios
+ */
+export interface AsignarOfertaInput {
+  usuariosIds: string[];
+  motivo?: string;
 }
 
 /**

@@ -23,12 +23,17 @@ import {
   eliminarOferta,
   duplicarOfertaASucursales,
   generarUrlUploadImagenOferta,
+  asignarOfertaAUsuarios,
+  obtenerOfertasExclusivasUsuario,
+  obtenerOfertaPublica,
+  reenviarCupon,
 } from '../services/ofertas.service.js';
 import {
   crearOfertaSchema,
   actualizarOfertaSchema,
   duplicarOfertaSchema,
   filtrosFeedSchema,
+  asignarOfertaSchema,
   formatearErroresZod,
 } from '../validations/ofertas.schema.js';
 
@@ -557,6 +562,143 @@ export async function postRegistrarVista(req: Request, res: Response) {
 }
 
 // =============================================================================
+// ASIGNAR OFERTA A USUARIOS (OFERTAS EXCLUSIVAS)
+// =============================================================================
+
+/**
+ * POST /api/ofertas/:id/asignar
+ * Asigna una oferta privada a clientes selectos
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ */
+export async function postAsignarOferta(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ success: false, message: 'El ID de la oferta no es válido' });
+    }
+
+    const validacion = asignarOfertaSchema.safeParse(req.body);
+    if (!validacion.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos inválidos',
+        errores: formatearErroresZod(validacion.error),
+      });
+    }
+
+    const negocioId = req.negocioId;
+    if (!negocioId) {
+      return res.status(400).json({ success: false, message: 'No se pudo identificar el negocio' });
+    }
+
+    const resultado = await asignarOfertaAUsuarios(
+      id,
+      negocioId,
+      validacion.data.usuariosIds,
+      validacion.data.motivo
+    );
+
+    if (!resultado.success) {
+      return res.status(404).json(resultado);
+    }
+
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en postAsignarOferta:', error);
+    return res.status(500).json({ success: false, message: 'Error al asignar oferta' });
+  }
+}
+
+// =============================================================================
+// OFERTAS EXCLUSIVAS DEL USUARIO
+// =============================================================================
+
+/**
+ * GET /api/ofertas/mis-exclusivas
+ * Obtiene ofertas privadas asignadas al usuario autenticado
+ *
+ * Middlewares: verificarToken
+ */
+export async function getMisExclusivas(req: Request, res: Response) {
+  try {
+    const usuarioId = req.usuario?.usuarioId;
+    if (!usuarioId) {
+      return res.status(401).json({ success: false, message: 'No autenticado' });
+    }
+
+    const resultado = await obtenerOfertasExclusivasUsuario(usuarioId);
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getMisExclusivas:', error);
+    return res.status(500).json({ success: false, message: 'Error al obtener ofertas exclusivas' });
+  }
+}
+
+// =============================================================================
+// OFERTA PÚBLICA POR CÓDIGO
+// =============================================================================
+
+/**
+ * GET /api/ofertas/publico/:codigo
+ * Obtiene detalle público de una oferta por su código
+ * Sin autenticación requerida
+ */
+export async function getOfertaPublica(req: Request, res: Response) {
+  try {
+    const { codigo } = req.params;
+    if (!codigo || codigo.length > 50) {
+      return res.status(400).json({ success: false, message: 'Código inválido' });
+    }
+
+    const resultado = await obtenerOfertaPublica(codigo);
+    if (!resultado.success) {
+      return res.status(404).json(resultado);
+    }
+
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getOfertaPublica:', error);
+    return res.status(500).json({ success: false, message: 'Error al obtener oferta' });
+  }
+}
+
+// =============================================================================
+// REENVIAR CUPÓN
+// =============================================================================
+
+/**
+ * POST /api/ofertas/:id/reenviar
+ * Reenvía notificaciones del cupón a todos los clientes asignados
+ */
+export async function postReenviarCupon(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ success: false, message: 'ID inválido' });
+    }
+
+    const negocioId = req.negocioId;
+    if (!negocioId) {
+      return res.status(400).json({ success: false, message: 'No se pudo identificar el negocio' });
+    }
+
+    const resultado = await reenviarCupon(id, negocioId);
+    if (!resultado.success) {
+      return res.status(400).json(resultado);
+    }
+
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en postReenviarCupon:', error);
+    return res.status(500).json({ success: false, message: 'Error al reenviar cupón' });
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -573,4 +715,10 @@ export default {
   putActualizarOferta,
   deleteOferta,
   postDuplicarOferta,
+
+  // Código de descuento + ofertas exclusivas
+  postReenviarCupon,
+  postAsignarOferta,
+  getMisExclusivas,
+  getOfertaPublica,
 };

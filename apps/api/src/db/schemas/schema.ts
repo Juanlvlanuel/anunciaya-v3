@@ -622,8 +622,8 @@ export const pedidos = pgTable("pedidos", {
 	descuento: numeric({ precision: 10, scale: 2 }).default('0'),
 	costoEnvio: numeric("costo_envio", { precision: 10, scale: 2 }).default('0'),
 	total: numeric({ precision: 10, scale: 2 }).notNull(),
-	cuponId: uuid("cupon_id"),
-	codigoCuponUsado: varchar("codigo_cupon_usado", { length: 50 }),
+	ofertaId: uuid("cupon_id"),
+	codigoDescuentoUsado: varchar("codigo_cupon_usado", { length: 50 }),
 	notasComprador: text("notas_comprador"),
 	notasVendedor: text("notas_vendedor"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
@@ -636,9 +636,9 @@ export const pedidos = pgTable("pedidos", {
 	index("idx_pedidos_sucursal").using("btree", table.sucursalId.asc().nullsLast(), table.estado.asc().nullsLast()),
 	index("idx_pedidos_negocio").using("btree", table.negocioId.asc().nullsLast(), table.estado.asc().nullsLast()),
 	foreignKey({
-		columns: [table.cuponId],
-		foreignColumns: [cupones.id],
-		name: "fk_pedidos_cupon"
+		columns: [table.ofertaId],
+		foreignColumns: [ofertas.id],
+		name: "fk_pedidos_oferta"
 	}).onDelete("set null"),
 	foreignKey({
 		columns: [table.compradorId],
@@ -667,6 +667,8 @@ export const ofertas = pgTable("ofertas", {
 	limiteUsos: integer("limite_usos"),
 	usosActuales: integer("usos_actuales").default(0),
 	activo: boolean().default(true),
+	visibilidad: varchar({ length: 15 }).default('publico'),
+	limiteUsosPorUsuario: integer("limite_usos_por_usuario"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
@@ -686,130 +688,75 @@ export const ofertas = pgTable("ofertas", {
 		name: "ofertas_negocio_id_fkey"
 	}).onDelete("cascade"),
 	check("ofertas_tipo_check", sql`(tipo)::text = ANY ((ARRAY['porcentaje'::character varying, 'monto_fijo'::character varying, '2x1'::character varying, '3x2'::character varying, 'envio_gratis'::character varying, 'otro'::character varying])::text[])`),
+	check("ofertas_visibilidad_check", sql`(visibilidad IS NULL) OR ((visibilidad)::text = ANY ((ARRAY['publico'::character varying, 'privado'::character varying])::text[]))`),
 ]);
 
-export const cuponGaleria = pgTable("cupon_galeria", {
-	id: serial().primaryKey().notNull(),
-	cuponId: uuid("cupon_id").notNull(),
-	url: text().notNull(),
-	publicId: varchar("public_id", { length: 100 }),
-	thumbUrl: text("thumb_url"),
-	orden: smallint().default(0),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	esLogo: boolean("es_logo").default(false),
-}, (table) => [
-	index("idx_cupon_galeria_cupon_id").using("btree", table.cuponId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.cuponId],
-		foreignColumns: [cupones.id],
-		name: "cupon_galeria_cupon_id_fkey"
-	}).onDelete("cascade"),
-]);
-
-export const cuponUsos = pgTable("cupon_usos", {
+export const ofertaUsos = pgTable("oferta_usos", {
 	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
-	cuponId: uuid("cupon_id").notNull(),
+	ofertaId: uuid("oferta_id").notNull(),
 	usuarioId: uuid("usuario_id").notNull(),
-	estado: varchar({ length: 20 }).default('asignado'),
-	codigoGenerado: varchar("codigo_generado", { length: 50 }),
 	metodoCanje: varchar("metodo_canje", { length: 20 }),
 	montoCompra: numeric("monto_compra", { precision: 10, scale: 2 }),
 	descuentoAplicado: numeric("descuento_aplicado", { precision: 10, scale: 2 }),
-	pedidoId: uuid("pedido_id"),
-	notas: text(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	usadoAt: timestamp("usado_at", { withTimezone: true, mode: 'string' }),
-	// Campos nuevos para ScanYA
 	empleadoId: uuid("empleado_id"),
 	sucursalId: uuid("sucursal_id"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_cupon_usos_created_at").using("btree", table.createdAt.asc().nullsLast()),
-	index("idx_cupon_usos_cupon_usuario").using("btree", table.cuponId.asc().nullsLast(), table.usuarioId.asc().nullsLast()),
-	index("idx_cupon_usos_usado_at").using("btree", table.usadoAt.asc().nullsLast()),
-	index("idx_cupon_usos_usuario_estado").using("btree", table.usuarioId.asc().nullsLast(), table.estado.asc().nullsLast()),
-	index("idx_cupon_usos_sucursal").using("btree", table.sucursalId.asc().nullsLast()),
-	index("idx_cupon_usos_empleado").using("btree", table.empleadoId.asc().nullsLast()),
+	index("idx_oferta_usos_oferta_usuario").using("btree", table.ofertaId.asc().nullsLast(), table.usuarioId.asc().nullsLast()),
+	index("idx_oferta_usos_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_oferta_usos_created_at").using("btree", table.createdAt.asc().nullsLast()),
 	foreignKey({
-		columns: [table.cuponId],
-		foreignColumns: [cupones.id],
-		name: "cupon_usos_cupon_id_fkey"
+		columns: [table.ofertaId],
+		foreignColumns: [ofertas.id],
+		name: "oferta_usos_oferta_id_fkey"
 	}).onDelete("cascade"),
 	foreignKey({
 		columns: [table.usuarioId],
 		foreignColumns: [usuarios.id],
-		name: "cupon_usos_usuario_id_fkey"
+		name: "oferta_usos_usuario_id_fkey"
 	}).onDelete("cascade"),
 	foreignKey({
 		columns: [table.empleadoId],
 		foreignColumns: [empleados.id],
-		name: "fk_cupon_usos_empleado"
+		name: "fk_oferta_usos_empleado"
 	}).onDelete("set null"),
 	foreignKey({
 		columns: [table.sucursalId],
 		foreignColumns: [negocioSucursales.id],
-		name: "fk_cupon_usos_sucursal"
+		name: "fk_oferta_usos_sucursal"
 	}).onDelete("set null"),
-	unique("cupon_usos_codigo_generado_key").on(table.codigoGenerado),
-	check("cupon_usos_estado_check", sql`(estado)::text = ANY ((ARRAY['asignado'::character varying, 'usado'::character varying, 'expirado'::character varying])::text[])`),
-	check("cupon_usos_metodo_check", sql`(metodo_canje IS NULL) OR ((metodo_canje)::text = ANY ((ARRAY['qr_presencial'::character varying, 'codigo_online'::character varying, 'carrito'::character varying])::text[]))`),
+	check("oferta_usos_metodo_check", sql`(metodo_canje IS NULL) OR ((metodo_canje)::text = ANY ((ARRAY['qr_presencial'::character varying, 'codigo_online'::character varying])::text[]))`),
 ]);
 
-export const cuponUsuarios = pgTable("cupon_usuarios", {
+export const ofertaUsuarios = pgTable("oferta_usuarios", {
 	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
-	cuponId: uuid("cupon_id").notNull(),
+	ofertaId: uuid("oferta_id").notNull(),
 	usuarioId: uuid("usuario_id").notNull(),
 	motivo: varchar({ length: 200 }),
 	asignadoAt: timestamp("asignado_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	vista: boolean().default(false),
+	codigoPersonal: varchar("codigo_personal", { length: 50 }),
 }, (table) => [
-	index("idx_cupon_usuarios_cupon_id").using("btree", table.cuponId.asc().nullsLast()),
-	index("idx_cupon_usuarios_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_oferta_usuarios_oferta_id").using("btree", table.ofertaId.asc().nullsLast()),
+	index("idx_oferta_usuarios_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_oferta_usuarios_codigo").using("btree", table.codigoPersonal.asc().nullsLast()).where(sql`codigo_personal IS NOT NULL`),
 	foreignKey({
-		columns: [table.cuponId],
-		foreignColumns: [cupones.id],
-		name: "cupon_usuarios_cupon_id_fkey"
+		columns: [table.ofertaId],
+		foreignColumns: [ofertas.id],
+		name: "oferta_usuarios_oferta_id_fkey"
 	}).onDelete("cascade"),
 	foreignKey({
 		columns: [table.usuarioId],
 		foreignColumns: [usuarios.id],
-		name: "cupon_usuarios_usuario_id_fkey"
+		name: "oferta_usuarios_usuario_id_fkey"
 	}).onDelete("cascade"),
-	unique("cupon_usuarios_unique").on(table.cuponId, table.usuarioId),
+	unique("oferta_usuarios_unique").on(table.ofertaId, table.usuarioId),
+	unique("oferta_usuarios_codigo_key").on(table.codigoPersonal),
 ]);
 
-export const cupones = pgTable("cupones", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	negocioId: uuid("negocio_id").notNull(),
-	sucursalId: uuid("sucursal_id").references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'cascade' }),
-	codigo: varchar({ length: 50 }).notNull(),
-	titulo: varchar({ length: 150 }).notNull(),
-	descripcion: varchar({ length: 200 }),
-	tipo: varchar({ length: 20 }).notNull(),
-	valor: numeric({ precision: 10, scale: 2 }),
-	compraMinima: numeric("compra_minima", { precision: 10, scale: 2 }).default('0'),
-	fechaInicio: timestamp("fecha_inicio", { withTimezone: true, mode: 'string' }).notNull(),
-	fechaExpiracion: timestamp("fecha_expiracion", { withTimezone: true, mode: 'string' }).notNull(),
-	limiteUsosTotal: integer("limite_usos_total"),
-	limiteUsosPorUsuario: integer("limite_usos_por_usuario").default(1),
-	usosActuales: integer("usos_actuales").default(0),
-	estado: varchar({ length: 20 }).default('borrador'),
-	activo: boolean().default(true),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	visibilidad: varchar({ length: 15 }).default('publico'),
-}, (table) => [
-	index("idx_cupones_activo").using("btree", table.activo.asc().nullsLast()),
-	index("idx_cupones_negocio_id").using("btree", table.negocioId.asc().nullsLast()),
-	index("idx_cupones_sucursal_id").using("btree", table.sucursalId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "cupones_negocio_id_fkey"
-	}).onDelete("cascade"),
-	unique("cupones_codigo_key").on(table.codigo),
-	check("cupones_estado_check", sql`(estado)::text = ANY ((ARRAY['borrador'::character varying, 'publicado'::character varying, 'pausado'::character varying, 'archivado'::character varying])::text[])`),
-	check("cupones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['porcentaje'::character varying, 'monto_fijo'::character varying, '2x1'::character varying, '3x2'::character varying, 'envio_gratis'::character varying, 'otro'::character varying])::text[])`),
-	check("cupones_visibilidad_check", sql`(visibilidad)::text = ANY ((ARRAY['publico'::character varying, 'privado'::character varying])::text[])`),
-]);
+// Tablas de cupones ELIMINADAS — migradas a ofertas con código
+// Ver: ofertaUsos, ofertaUsuarios (arriba)
+
 
 export const marketplace = pgTable("marketplace", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -1564,11 +1511,15 @@ export const recompensas = pgTable("recompensas", {
 	requiereAprobacion: boolean("requiere_aprobacion").default(false).notNull(),
 	activa: boolean().default(true).notNull(),
 	orden: integer().default(0).notNull(),
+	tipo: varchar({ length: 30 }).default('basica'),
+	numeroComprasRequeridas: integer("numero_compras_requeridas"),
+	requierePuntos: boolean("requiere_puntos").default(true),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_recompensas_negocio_activa").using("btree", table.negocioId.asc().nullsLast(), table.activa.asc().nullsLast()).where(sql`(activa = true)`),
 	index("idx_recompensas_orden").using("btree", table.negocioId.asc().nullsLast(), table.orden.asc().nullsLast()),
+	index("idx_recompensas_tipo").using("btree", table.negocioId.asc().nullsLast(), table.tipo.asc().nullsLast()),
 	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
@@ -1576,8 +1527,40 @@ export const recompensas = pgTable("recompensas", {
 	}).onDelete("cascade"),
 	check("recompensas_puntos_requeridos_check", sql`puntos_requeridos > 0`),
 	check("recompensas_stock_check", sql`stock >= '-1'::integer`),
+	check("recompensas_tipo_check", sql`(tipo IS NULL) OR ((tipo)::text = ANY ((ARRAY['basica'::character varying, 'compras_frecuentes'::character varying])::text[]))`),
 ]);
 
+export const recompensaProgreso = pgTable("recompensa_progreso", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	recompensaId: uuid("recompensa_id").notNull(),
+	negocioId: uuid("negocio_id").notNull(),
+	comprasAcumuladas: integer("compras_acumuladas").default(0),
+	desbloqueada: boolean().default(false),
+	desbloqueadaAt: timestamp("desbloqueada_at", { withTimezone: true, mode: 'string' }),
+	canjeada: boolean().default(false),
+	canjeadaAt: timestamp("canjeada_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_recompensa_progreso_usuario_negocio").using("btree", table.usuarioId.asc().nullsLast(), table.negocioId.asc().nullsLast()),
+	index("idx_recompensa_progreso_recompensa").using("btree", table.recompensaId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "recompensa_progreso_usuario_id_fkey"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.recompensaId],
+		foreignColumns: [recompensas.id],
+		name: "recompensa_progreso_recompensa_id_fkey"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.negocioId],
+		foreignColumns: [negocios.id],
+		name: "recompensa_progreso_negocio_id_fkey"
+	}).onDelete("cascade"),
+	unique("recompensa_progreso_unique").on(table.usuarioId, table.recompensaId),
+]);
 
 export const scanyaTurnos = pgTable("scanya_turnos", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -1722,7 +1705,7 @@ export const puntosTransacciones = pgTable("puntos_transacciones", {
 	turnoId: uuid("turno_id"),
 	fotoTicketUrl: text("foto_ticket_url"),
 	multiplicadorAplicado: numeric("multiplicador_aplicado", { precision: 3, scale: 2 }).default('1.0'),
-	cuponUsoId: bigint("cupon_uso_id", { mode: 'number' }),
+	ofertaUsoId: bigint("cupon_uso_id", { mode: 'number' }),
 	nota: text("nota"),
 	concepto: varchar("concepto", { length: 200 }),
 	motivoRevocacion: text("motivo_revocacion"),
@@ -1766,9 +1749,9 @@ export const puntosTransacciones = pgTable("puntos_transacciones", {
 		name: "fk_puntos_transacciones_turno"
 	}).onDelete("set null"),
 	foreignKey({
-		columns: [table.cuponUsoId],
-		foreignColumns: [cuponUsos.id],
-		name: "fk_puntos_transacciones_cupon_uso"
+		columns: [table.ofertaUsoId],
+		foreignColumns: [ofertaUsos.id],
+		name: "fk_puntos_transacciones_oferta_uso"
 	}).onDelete("set null"),
 	foreignKey({
 		columns: [table.revocadoPor],

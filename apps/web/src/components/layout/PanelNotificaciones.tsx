@@ -75,9 +75,9 @@ const getConfigPorTipo = (tipo: Notificacion['tipo']): ConfigTipo => {
     case 'voucher_pendiente':
       return { icono: Ticket, gradiente: 'linear-gradient(135deg, #f59e0b, #b45309)' };
     case 'nueva_oferta':
-    case 'nuevo_cupon':
       return { icono: Tag, gradiente: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' };
     case 'nueva_recompensa':
+    case 'recompensa_desbloqueada':
       return { icono: Gift, gradiente: 'linear-gradient(135deg, #10b981, #047857)' };
     case 'nuevo_cliente':
       return { icono: UserPlus, gradiente: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' };

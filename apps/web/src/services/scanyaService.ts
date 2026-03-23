@@ -144,13 +144,14 @@ export async function identificarCliente(datos: IdentificarClienteInput): Promis
 }
 
 /**
- * Validar cupón
- * POST /api/scanya/validar-cupon
+ * Validar código de descuento
+ * POST /api/scanya/validar-codigo
  */
-export async function validarCupon(datos: ValidarCuponInput): Promise<RespuestaAPI<CuponValidado>> {
-  const response = await api.post<RespuestaAPI<CuponValidado>>(`${BASE}/validar-cupon`, datos);
+export async function validarCodigo(datos: ValidarCuponInput): Promise<RespuestaAPI<CuponValidado>> {
+  const response = await api.post<RespuestaAPI<CuponValidado>>(`${BASE}/validar-codigo`, datos);
   return response.data;
 }
+
 
 /**
  * Otorgar puntos (registrar venta)
@@ -515,7 +516,7 @@ const scanyaService = {
 
   // Clientes y Puntos
   identificarCliente,
-  validarCupon,
+  validarCodigo,
   otorgarPuntos,
   obtenerHistorial,
   obtenerVouchersPendientes,

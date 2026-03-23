@@ -133,7 +133,6 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   const inicialUsuario = usuario?.nombre?.charAt(0).toUpperCase() || 'U';
 
   // TODO: Estos datos deben venir del store o API
-  const cuponesActivos = 3;
 
   // ---------------------------------------------------------------------------
   // Render
@@ -339,16 +338,6 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 onClick={() => handleNavegar('/cardya')}
               />
 
-              {/* Mis Cupones */}
-              <MenuDrawerItem
-                icon={Gift}
-                label="Mis Cupones"
-                badge={cuponesActivos}
-                bgColor="bg-gradient-to-br from-emerald-400 to-emerald-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-emerald-50"
-                onClick={() => handleNavegar('/cupones')}
-              />
 
               {/* Mis Publicaciones */}
               <MenuDrawerItem

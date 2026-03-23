@@ -15,9 +15,9 @@
  * CREADO: Fase 5.4.2 - Sistema Completo de Ofertas
  */
 
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, count } from 'drizzle-orm';
 import { db } from '../db';
-import { ofertas } from '../db/schemas/schema';
+import { ofertas, ofertaUsos, ofertaUsuarios } from '../db/schemas/schema';
 import { duplicarImagen } from './cloudinary.service';
 import { generarPresignedUrl, duplicarArchivo, esUrlR2 } from './r2.service.js';
 import type {
@@ -25,6 +25,7 @@ import type {
   ActualizarOfertaInput,
   DuplicarOfertaInput,
   FiltrosFeedOfertas,
+  RegistrarUsoOfertaInput,
 } from '../types/ofertas.types';
 import { negocios, puntosBilletera, notificaciones } from '../db/schemas/schema';
 import { crearNotificacion } from './notificaciones.service.js';
@@ -418,13 +419,50 @@ export async function crearOferta(
           fechaInicio: datos.fechaInicio,
           fechaFin: datos.fechaFin,
           limiteUsos: datos.limiteUsos || null,
+          limiteUsosPorUsuario: datos.limiteUsosPorUsuario || null,
           usosActuales: 0,
           activo: datos.activo ?? true,
+          visibilidad: datos.visibilidad || 'publico',
         })
         .returning();
 
-      // Notificar a clientes con billetera en este negocio
-      if (nuevaOferta.activo) {
+      // Si es oferta privada, asignar a usuarios con código único
+      if (datos.visibilidad === 'privado' && datos.usuariosIds?.length) {
+        const asignaciones = datos.usuariosIds.map((uid) => ({
+          ofertaId: nuevaOferta.id,
+          usuarioId: uid,
+          motivo: datos.motivoAsignacion || null,
+          codigoPersonal: generarCodigoAleatorio(),
+        }));
+        await tx.insert(ofertaUsuarios).values(asignaciones);
+
+        // Notificar a usuarios asignados
+        const [negocioInfo] = await tx
+          .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+          .from(negocios)
+          .where(eq(negocios.id, negocioId))
+          .limit(1);
+
+        for (const uid of datos.usuariosIds) {
+          crearNotificacion({
+            usuarioId: uid,
+            modo: 'personal',
+            tipo: 'nueva_oferta',
+            titulo: '¡Oferta exclusiva para ti!',
+            mensaje: `${nuevaOferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
+            negocioId,
+            sucursalId,
+            referenciaId: nuevaOferta.id,
+            referenciaTipo: 'oferta',
+            icono: '🎟️',
+            actorImagenUrl: nuevaOferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+            actorNombre: negocioInfo?.nombre ?? undefined,
+          }).catch((err) => console.error('Error notificación oferta exclusiva:', err));
+        }
+      }
+
+      // Notificar a clientes con billetera (solo ofertas públicas)
+      if (nuevaOferta.activo && datos.visibilidad !== 'privado') {
         const clientesConBilletera = await tx
           .select({ usuarioId: puntosBilletera.usuarioId })
           .from(puntosBilletera)
@@ -648,6 +686,12 @@ export async function actualizarOferta(
       }
       if (datos.activo !== undefined) {
         datosActualizacion.activo = datos.activo;
+      }
+      if (datos.visibilidad !== undefined) {
+        datosActualizacion.visibilidad = datos.visibilidad;
+      }
+      if (datos.limiteUsosPorUsuario !== undefined) {
+        datosActualizacion.limiteUsosPorUsuario = datos.limiteUsosPorUsuario;
       }
 
       // 3. Actualizar oferta
@@ -902,6 +946,409 @@ export async function registrarVistaOferta(ofertaId: string) {
 }
 
 // =============================================================================
+// HELPER: GENERAR CÓDIGO ALEATORIO
+// =============================================================================
+
+function generarCodigoAleatorio(): string {
+  const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let codigo = 'ANUN-';
+  for (let i = 0; i < 6; i++) {
+    codigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+  }
+  return codigo;
+}
+
+// =============================================================================
+// VALIDAR OFERTA POR CÓDIGO (para ScanYA)
+// =============================================================================
+
+export async function validarOfertaPorCodigo(
+  codigo: string,
+  clienteId: string,
+  negocioId: string,
+  sucursalId: string
+) {
+  try {
+    // 1. Buscar código personal en oferta_usuarios
+    const query = sql`
+      SELECT o.*, ou.usuario_id as asignado_a, ou.codigo_personal
+      FROM oferta_usuarios ou
+      JOIN ofertas o ON o.id = ou.oferta_id
+      WHERE UPPER(ou.codigo_personal) = UPPER(${codigo})
+      LIMIT 1
+    `;
+    const resultado = await db.execute(query);
+
+    if (resultado.rows.length === 0) {
+      return { success: false, message: 'Código no encontrado', code: 404 };
+    }
+
+    const oferta = resultado.rows[0] as Record<string, unknown>;
+
+    // Verificar que el código pertenece a este cliente
+    if (oferta.asignado_a !== clienteId) {
+      return { success: false, message: 'Este código no te pertenece', code: 403 };
+    }
+
+    // 2. Verificar que pertenece al negocio
+    if (oferta.negocio_id !== negocioId) {
+      return { success: false, message: 'Este código no es válido para este negocio', code: 400 };
+    }
+
+    // 3. Verificar sucursal (null = todas las sucursales)
+    if (oferta.sucursal_id && oferta.sucursal_id !== sucursalId) {
+      return { success: false, message: 'Este código no es válido para esta sucursal', code: 400 };
+    }
+
+    // 4. Verificar que está activa
+    if (!oferta.activo) {
+      return { success: false, message: 'Esta oferta no está activa', code: 400 };
+    }
+
+    // 5. Verificar fechas
+    const ahora = new Date();
+    const fechaInicio = new Date(oferta.fecha_inicio as string);
+    const fechaFin = new Date(oferta.fecha_fin as string);
+
+    if (ahora < fechaInicio) {
+      return { success: false, message: 'Esta oferta aún no está vigente', code: 400 };
+    }
+    if (ahora > fechaFin) {
+      return { success: false, message: 'Esta oferta ha expirado', code: 400 };
+    }
+
+    // 6. Verificar límite de usos totales
+    const limiteUsos = oferta.limite_usos as number | null;
+    const usosActuales = oferta.usos_actuales as number;
+    if (limiteUsos !== null && usosActuales >= limiteUsos) {
+      return { success: false, message: 'Esta oferta ha alcanzado su límite de usos', code: 400 };
+    }
+
+    // 7. Verificar límite por usuario
+    const limiteUsosPorUsuario = oferta.limite_usos_por_usuario as number | null;
+    if (limiteUsosPorUsuario !== null) {
+      const usosDelUsuario = await db
+        .select({ total: count() })
+        .from(ofertaUsos)
+        .where(
+          and(
+            eq(ofertaUsos.ofertaId, oferta.id as string),
+            eq(ofertaUsos.usuarioId, clienteId)
+          )
+        );
+      const totalUsosUsuario = Number(usosDelUsuario[0]?.total ?? 0);
+      if (totalUsosUsuario >= limiteUsosPorUsuario) {
+        return { success: false, message: 'Ya has usado esta oferta el máximo de veces permitido', code: 400 };
+      }
+    }
+
+    // 8. Verificar visibilidad privada
+    if (oferta.visibilidad === 'privado') {
+      const asignacion = await db
+        .select()
+        .from(ofertaUsuarios)
+        .where(
+          and(
+            eq(ofertaUsuarios.ofertaId, oferta.id as string),
+            eq(ofertaUsuarios.usuarioId, clienteId)
+          )
+        )
+        .limit(1);
+      if (asignacion.length === 0) {
+        return { success: false, message: 'No tienes acceso a esta oferta', code: 403 };
+      }
+    }
+
+    // 9. Construir info de descuento
+    const tipo = oferta.tipo as string;
+    const valor = parseFloat(oferta.valor as string) || 0;
+    let descuentoInfo = '';
+    switch (tipo) {
+      case 'porcentaje': descuentoInfo = `${valor}% de descuento`; break;
+      case 'monto_fijo': descuentoInfo = `$${valor} de descuento`; break;
+      case '2x1': descuentoInfo = '2x1 (segundo artículo gratis)'; break;
+      case '3x2': descuentoInfo = '3x2 (tercer artículo gratis)'; break;
+      case 'envio_gratis': descuentoInfo = 'Envío gratis'; break;
+      default: descuentoInfo = oferta.valor as string || 'Descuento especial';
+    }
+
+    return {
+      success: true,
+      message: 'Código válido',
+      data: {
+        oferta: {
+          id: oferta.id,
+          codigo: oferta.codigo,
+          titulo: oferta.titulo,
+          tipo,
+          valor,
+          compraMinima: parseFloat(oferta.compra_minima as string) || 0,
+          descripcion: oferta.descripcion,
+        },
+        descuentoInfo,
+      },
+      code: 200,
+    };
+  } catch (error) {
+    console.error('Error al validar código de oferta:', error);
+    return { success: false, message: 'Error interno al validar código', code: 500 };
+  }
+}
+
+// =============================================================================
+// REGISTRAR USO DE OFERTA
+// =============================================================================
+
+export async function registrarUsoOferta(datos: RegistrarUsoOfertaInput) {
+  try {
+    return await db.transaction(async (tx) => {
+      // Registrar uso
+      const [uso] = await tx
+        .insert(ofertaUsos)
+        .values({
+          ofertaId: datos.ofertaId,
+          usuarioId: datos.usuarioId,
+          metodoCanje: datos.metodoCanje,
+          montoCompra: datos.montoCompra?.toString() || null,
+          descuentoAplicado: datos.descuentoAplicado?.toString() || null,
+          empleadoId: datos.empleadoId || null,
+          sucursalId: datos.sucursalId || null,
+        })
+        .returning();
+
+      // Incrementar usos actuales
+      await tx.execute(sql`
+        UPDATE ofertas
+        SET usos_actuales = usos_actuales + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${datos.ofertaId}
+      `);
+
+      return {
+        success: true,
+        message: 'Uso registrado correctamente',
+        data: uso,
+      };
+    });
+  } catch (error) {
+    console.error('Error al registrar uso de oferta:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// ASIGNAR OFERTA A USUARIOS (OFERTAS EXCLUSIVAS)
+// =============================================================================
+
+export async function asignarOfertaAUsuarios(
+  ofertaId: string,
+  negocioId: string,
+  usuariosIds: string[],
+  motivo?: string
+) {
+  try {
+    // Verificar que la oferta existe y pertenece al negocio
+    const [oferta] = await db
+      .select()
+      .from(ofertas)
+      .where(and(eq(ofertas.id, ofertaId), eq(ofertas.negocioId, negocioId)))
+      .limit(1);
+
+    if (!oferta) {
+      return { success: false, error: 'Oferta no encontrada' };
+    }
+
+    // Insertar asignaciones con código personal único
+    for (const uid of usuariosIds) {
+      try {
+        await db.insert(ofertaUsuarios).values({
+          ofertaId,
+          usuarioId: uid,
+          motivo: motivo || null,
+          codigoPersonal: generarCodigoAleatorio(),
+        });
+      } catch {
+        // Ignorar duplicados (ON CONFLICT)
+      }
+    }
+
+    // Notificar a usuarios asignados
+    const [negocioInfo] = await db
+      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+      .from(negocios)
+      .where(eq(negocios.id, negocioId))
+      .limit(1);
+
+    for (const uid of usuariosIds) {
+      crearNotificacion({
+        usuarioId: uid,
+        modo: 'personal',
+        tipo: 'nueva_oferta',
+        titulo: '¡Oferta exclusiva para ti!',
+        mensaje: `${oferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
+        negocioId,
+        referenciaId: ofertaId,
+        referenciaTipo: 'oferta',
+        icono: '🎟️',
+        actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+        actorNombre: negocioInfo?.nombre ?? undefined,
+      }).catch((err) => console.error('Error notificación oferta exclusiva:', err));
+    }
+
+    return {
+      success: true,
+      message: `Oferta asignada a ${usuariosIds.length} usuario(s)`,
+    };
+  } catch (error) {
+    console.error('Error al asignar oferta a usuarios:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// OBTENER OFERTAS EXCLUSIVAS DEL USUARIO
+// =============================================================================
+
+export async function obtenerOfertasExclusivasUsuario(usuarioId: string) {
+  try {
+    const query = sql`
+      SELECT
+        o.*,
+        ou.motivo,
+        ou.asignado_at,
+        ou.vista,
+        n.nombre as negocio_nombre,
+        n.logo_url,
+        ns.nombre as sucursal_nombre,
+        CASE
+          WHEN CURRENT_TIMESTAMP < o.fecha_inicio THEN 'proxima'
+          WHEN CURRENT_TIMESTAMP > o.fecha_fin THEN 'vencida'
+          WHEN o.limite_usos IS NOT NULL AND o.usos_actuales >= o.limite_usos THEN 'agotada'
+          ELSE 'activa'
+        END as estado
+      FROM oferta_usuarios ou
+      JOIN ofertas o ON o.id = ou.oferta_id
+      JOIN negocios n ON n.id = o.negocio_id
+      LEFT JOIN negocio_sucursales ns ON ns.id = o.sucursal_id
+      WHERE ou.usuario_id = ${usuarioId}
+        AND o.activo = true
+      ORDER BY ou.asignado_at DESC
+    `;
+
+    const resultado = await db.execute(query);
+
+    // Marcar como vistas
+    await db.execute(sql`
+      UPDATE oferta_usuarios SET vista = true
+      WHERE usuario_id = ${usuarioId} AND vista = false
+    `);
+
+    return {
+      success: true,
+      data: resultado.rows,
+    };
+  } catch (error) {
+    console.error('Error al obtener ofertas exclusivas:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// OBTENER OFERTA PÚBLICA POR CÓDIGO
+// =============================================================================
+
+export async function obtenerOfertaPublica(codigo: string) {
+  try {
+    const query = sql`
+      SELECT
+        o.id, o.titulo, o.descripcion, o.imagen, o.tipo, o.valor,
+        o.compra_minima, o.fecha_inicio, o.fecha_fin,
+        o.limite_usos, o.usos_actuales,
+        n.nombre as negocio_nombre, n.logo_url,
+        ns.nombre as sucursal_nombre, ns.direccion, ns.ciudad
+      FROM ofertas o
+      JOIN negocios n ON n.id = o.negocio_id
+      LEFT JOIN negocio_sucursales ns ON ns.id = o.sucursal_id
+      WHERE UPPER(o.codigo) = UPPER(${codigo})
+        AND o.activo = true
+        AND o.visibilidad = 'publico'
+      LIMIT 1
+    `;
+
+    const resultado = await db.execute(query);
+
+    if (resultado.rows.length === 0) {
+      return { success: false, error: 'Oferta no encontrada' };
+    }
+
+    return {
+      success: true,
+      data: resultado.rows[0],
+    };
+  } catch (error) {
+    console.error('Error al obtener oferta pública:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// REENVIAR CUPÓN (notificaciones a usuarios asignados)
+// =============================================================================
+
+export async function reenviarCupon(ofertaId: string, negocioId: string) {
+  try {
+    // Verificar oferta
+    const [oferta] = await db
+      .select()
+      .from(ofertas)
+      .where(and(eq(ofertas.id, ofertaId), eq(ofertas.negocioId, negocioId)))
+      .limit(1);
+
+    if (!oferta) return { success: false, error: 'Oferta no encontrada' };
+    if (oferta.visibilidad !== 'privado') return { success: false, error: 'Solo se pueden reenviar cupones privados' };
+
+    // Obtener usuarios asignados
+    const asignados = await db
+      .select({ usuarioId: ofertaUsuarios.usuarioId, codigoPersonal: ofertaUsuarios.codigoPersonal })
+      .from(ofertaUsuarios)
+      .where(eq(ofertaUsuarios.ofertaId, ofertaId));
+
+    if (asignados.length === 0) return { success: false, error: 'No hay clientes asignados' };
+
+    // Info del negocio
+    const [negocioInfo] = await db
+      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+      .from(negocios)
+      .where(eq(negocios.id, negocioId))
+      .limit(1);
+
+    // Reenviar notificación a cada usuario
+    for (const asignado of asignados) {
+      crearNotificacion({
+        usuarioId: asignado.usuarioId,
+        modo: 'personal',
+        tipo: 'nueva_oferta',
+        titulo: '¡Cupón exclusivo para ti!',
+        mensaje: `${oferta.titulo}\nCódigo: ${asignado.codigoPersonal}\n${negocioInfo?.nombre ?? 'un negocio'}`,
+        negocioId,
+        referenciaId: ofertaId,
+        referenciaTipo: 'oferta',
+        icono: '🎟️',
+        actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+        actorNombre: negocioInfo?.nombre ?? undefined,
+      }).catch((err) => console.error('Error reenvío cupón:', err));
+    }
+
+    return {
+      success: true,
+      message: `Cupón reenviado a ${asignados.length} cliente(s)`,
+    };
+  } catch (error) {
+    console.error('Error al reenviar cupón:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -919,4 +1366,12 @@ export default {
   actualizarOferta,
   eliminarOferta,
   duplicarOfertaASucursales,
+
+  // Código de descuento + ofertas exclusivas
+  validarOfertaPorCodigo,
+  registrarUsoOferta,
+  asignarOfertaAUsuarios,
+  obtenerOfertasExclusivasUsuario,
+  obtenerOfertaPublica,
+  reenviarCupon,
 };

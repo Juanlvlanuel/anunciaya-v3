@@ -38,6 +38,11 @@ export type EstadoOferta =
   | 'inactiva';
 
 /**
+ * Visibilidad de la oferta
+ */
+export type VisibilidadOferta = 'publico' | 'privado';
+
+/**
  * Oferta completa (Business Studio)
  */
 export interface Oferta {
@@ -56,6 +61,8 @@ export interface Oferta {
   limiteUsos: number | null; // NULL = ilimitado
   usosActuales: number;
   activo: boolean;
+  visibilidad: VisibilidadOferta;
+  limiteUsosPorUsuario: number | null;
   createdAt: string;
   updatedAt: string;
   // Métricas (solo si vienen del backend)
@@ -139,8 +146,12 @@ export interface CrearOfertaInput {
   fechaInicio: string; // ISO string
   fechaFin: string; // ISO string
   limiteUsos?: number | null;
+  limiteUsosPorUsuario?: number | null;
   articuloId?: string | null;
   activo?: boolean;
+  visibilidad?: VisibilidadOferta;
+  usuariosIds?: string[];
+  motivoAsignacion?: string;
 }
 
 /**
@@ -151,13 +162,23 @@ export interface ActualizarOfertaInput {
   descripcion?: string | null;
   imagen?: string | null;
   tipo?: TipoOferta;
-  valor?: string | number | null; // String para "otro", number para porcentaje/monto_fijo
+  valor?: string | number | null;
   compraMinima?: number;
   fechaInicio?: string;
   fechaFin?: string;
   limiteUsos?: number | null;
+  limiteUsosPorUsuario?: number | null;
   articuloId?: string | null;
   activo?: boolean;
+  visibilidad?: VisibilidadOferta;
+}
+
+/**
+ * Input para asignar oferta a usuarios
+ */
+export interface AsignarOfertaInput {
+  usuariosIds: string[];
+  motivo?: string;
 }
 
 /**

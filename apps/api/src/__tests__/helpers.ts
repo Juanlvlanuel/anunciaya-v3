@@ -148,7 +148,7 @@ export async function request(ruta: string, opciones: RequestOpciones = {}): Pro
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const data = await respuesta.json();
+  const data = await respuesta.json() as Record<string, unknown>;
 
   return { status: respuesta.status, data };
 }

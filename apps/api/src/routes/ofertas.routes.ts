@@ -30,6 +30,10 @@ import {
   deleteOferta,
   postDuplicarOferta,
   postUploadImagenOferta,
+  postAsignarOferta,
+  postReenviarCupon,
+  getMisExclusivas,
+  getOfertaPublica,
 } from '../controllers/ofertas.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -75,6 +79,28 @@ router.get('/detalle/:ofertaId', verificarTokenOpcional, getOfertaDetalle);
  * - Llamado cuando se abre el modal de detalle
  */
 router.post('/:id/vista', verificarToken, postRegistrarVista);
+
+// =============================================================================
+// RUTAS PÚBLICAS SIN AUTH (código de oferta)
+// =============================================================================
+
+/**
+ * GET /api/ofertas/publico/:codigo
+ * Vista pública de una oferta por código
+ * Sin autenticación requerida
+ */
+router.get('/publico/:codigo', getOfertaPublica);
+
+// =============================================================================
+// RUTAS USUARIO AUTENTICADO (ofertas exclusivas)
+// =============================================================================
+
+/**
+ * GET /api/ofertas/mis-exclusivas
+ * Ofertas privadas asignadas al usuario
+ * IMPORTANTE: Debe ir ANTES de /:id para evitar colisión
+ */
+router.get('/mis-exclusivas', verificarToken, getMisExclusivas);
 
 // =============================================================================
 // RUTAS BUSINESS STUDIO (REQUIEREN AUTH + MODO COMERCIAL + SUCURSAL)
@@ -214,6 +240,30 @@ router.post(
   verificarToken,
   verificarNegocio,
   postDuplicarOferta
+);
+
+/**
+ * POST /api/ofertas/:id/asignar
+ * Asignar oferta privada a clientes selectos
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ */
+router.post(
+  '/:id/asignar',
+  verificarToken,
+  verificarNegocio,
+  postAsignarOferta
+);
+
+/**
+ * POST /api/ofertas/:id/reenviar
+ * Reenviar notificaciones del cupón a clientes asignados
+ */
+router.post(
+  '/:id/reenviar',
+  verificarToken,
+  verificarNegocio,
+  postReenviarCupon
 );
 
 // =============================================================================
