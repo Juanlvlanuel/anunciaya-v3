@@ -19,7 +19,8 @@ export type TipoMensaje =
   | 'documento'
   | 'ubicacion'
   | 'contacto'
-  | 'sistema';
+  | 'sistema'
+  | 'cupon';
 
 export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 

@@ -338,6 +338,8 @@ export function MobileHeader() {
               >
                 <input
                   ref={inputRef}
+                  id="busqueda-movil"
+                  name="busquedaMovil"
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}

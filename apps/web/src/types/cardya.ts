@@ -97,6 +97,12 @@ export interface RecompensaDisponible {
   tienesPuntosSuficientes: boolean;
   puntosFaltantes: number;
   estaAgotada: boolean;
+  // N+1 (compras frecuentes)
+  tipo?: 'basica' | 'compras_frecuentes';
+  numeroComprasRequeridas?: number | null;
+  comprasAcumuladas?: number;
+  desbloqueada?: boolean;
+  requierePuntos?: boolean;
 }
 
 export interface FiltrosRecompensas {

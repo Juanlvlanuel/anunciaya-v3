@@ -48,6 +48,7 @@ function FilaToggle({ icono, iconoActivo, label, descripcion, activo, onChange }
         <label className="shrink-0 cursor-pointer group" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
+            name="toggleOperacion"
             checked={activo}
             onChange={(e) => { e.stopPropagation(); onChange(e.target.checked); }}
             className="sr-only"

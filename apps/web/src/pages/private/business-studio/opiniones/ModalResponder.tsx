@@ -210,6 +210,8 @@ export function ModalResponder({
                         {/* ─── Textarea ─── */}
                         <div>
                             <textarea
+                                id="respuesta-opinion"
+                                name="respuestaOpinion"
                                 value={texto}
                                 onChange={(e) => setTexto(e.target.value.slice(0, MAX_CARACTERES))}
                                 placeholder="Escribe tu respuesta..."

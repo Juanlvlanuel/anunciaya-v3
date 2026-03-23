@@ -594,6 +594,8 @@ export default function PaginaClientes() {
             <div className="flex items-center gap-2 lg:flex-1 min-w-0">
               <div className="flex-1 min-w-0">
                 <Input
+                  id="buscar-cliente"
+                  name="buscarCliente"
                   placeholder="Nombre o Celular..."
                   value={textoBusqueda}
                   onChange={(e) => handleBusquedaChange(e.target.value)}

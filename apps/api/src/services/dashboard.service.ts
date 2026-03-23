@@ -17,10 +17,11 @@
  * 
  * TABLAS UTILIZADAS:
  * - puntos_transacciones → Ventas, clientes, transacciones
- * - cupon_usos → Cupones canjeados
+ * - oferta_usuarios → Cupones canjeados (ofertas privadas usadas)
  * - negocio_sucursales → Rating, vistas, likes
- * - ofertas → Ofertas activas
- * - cupones → Cupones activos
+ * - ofertas → Ofertas públicas activas + cupones (visibilidad='privado')
+ * - metricas_entidad → Followers
+ * - votos → Likes, seguidores
  * - resenas → Reseñas recientes
  * - alertas_seguridad → Alertas del negocio
  * - articulos → Productos (para actividad)
@@ -431,27 +432,28 @@ export async function obtenerKPIs(
             LEFT JOIN clientes_anteriores ca ON cp.cliente_id = ca.cliente_id
         `;
 
-        // Query para cupones canjeados
+        // Query para cupones canjeados (ofertas privadas usadas)
         const cuponesQuery = sql`
-            SELECT 
-                COUNT(CASE 
-                    WHEN cu.usado_at >= ${inicio.toISOString()} 
-                     AND cu.usado_at <= ${fin.toISOString()}
-                     AND cu.estado = 'usado'
-                    THEN 1 
+            SELECT
+                COUNT(CASE
+                    WHEN ou.usado_at >= ${inicio.toISOString()}
+                     AND ou.usado_at <= ${fin.toISOString()}
+                     AND ou.estado = 'usado'
+                    THEN 1
                 END)::int as cupones_actual,
-                
-                COUNT(CASE 
-                    WHEN cu.usado_at >= ${inicioAnterior.toISOString()} 
-                     AND cu.usado_at <= ${finAnterior.toISOString()}
-                     AND cu.estado = 'usado'
-                    THEN 1 
+
+                COUNT(CASE
+                    WHEN ou.usado_at >= ${inicioAnterior.toISOString()}
+                     AND ou.usado_at <= ${finAnterior.toISOString()}
+                     AND ou.estado = 'usado'
+                    THEN 1
                 END)::int as cupones_anterior
-                
-            FROM cupon_usos cu
-            JOIN cupones c ON c.id = cu.cupon_id
-            WHERE c.negocio_id = ${negocioId}
-                AND (${sucursalIdParam}::uuid IS NULL OR cu.sucursal_id = ${sucursalIdParam}::uuid)
+
+            FROM oferta_usuarios ou
+            JOIN ofertas o ON o.id = ou.oferta_id
+            WHERE o.negocio_id = ${negocioId}
+                AND o.visibilidad = 'privado'
+                AND (${sucursalIdParam}::uuid IS NULL OR o.sucursal_id = ${sucursalIdParam}::uuid)
         `;
 
         // Query para ofertas y campañas activas (counts)
@@ -464,13 +466,13 @@ export async function obtenerKPIs(
                    AND fecha_inicio <= ${ahora} 
                    AND fecha_fin >= ${ahora}) as ofertas_activas,
                    
-                (SELECT COUNT(*)::int FROM cupones 
+                (SELECT COUNT(*)::int FROM ofertas
                  WHERE negocio_id = ${negocioId}
-                   AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid) 
-                   AND activo = true 
-                   AND estado = 'publicado'
-                   AND fecha_inicio <= ${ahora} 
-                   AND fecha_expiracion >= ${ahora}) as cupones_activos
+                   AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid)
+                   AND visibilidad = 'privado'
+                   AND activo = true
+                   AND fecha_inicio <= ${ahora}
+                   AND fecha_fin >= ${ahora}) as cupones_activos
         `;
 
         // Query para métricas de engagement
@@ -745,19 +747,20 @@ export async function obtenerCampanasActivas(
         `;
 
         const cuponesQuery = sql`
-            SELECT 
+            SELECT
                 id, titulo, tipo, valor,
-                fecha_inicio, fecha_expiracion as fecha_fin,
-                usos_actuales, limite_usos_total as limite_usos,
+                fecha_inicio, fecha_fin,
+                usos_actuales, limite_usos,
                 'cupon' as tipo_campana,
-                CASE WHEN fecha_expiracion < NOW() THEN true ELSE false END as expirada
-            FROM cupones
+                CASE WHEN fecha_fin < NOW() THEN true ELSE false END as expirada
+            FROM ofertas
             WHERE negocio_id = ${negocioId}
               AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid)
+              AND visibilidad = 'privado'
               AND activo = true
-            ORDER BY 
-                CASE WHEN fecha_expiracion >= NOW() THEN 0 ELSE 1 END,
-                fecha_expiracion ASC
+            ORDER BY
+                CASE WHEN fecha_fin >= NOW() THEN 0 ELSE 1 END,
+                fecha_fin ASC
             LIMIT ${limite}
         `;
 
@@ -777,7 +780,6 @@ export async function obtenerCampanasActivas(
             limiteUsos: row.limite_usos ? Number(row.limite_usos) : null,
             tipoCampana: row.tipo_campana,
             expirada: row.expirada,
-            // Métricas (solo ofertas las tienen, cupones = 0)
             totalVistas: Number(row.total_vistas) || 0,
             totalClicks: Number(row.total_clicks) || 0,
             totalShares: Number(row.total_shares) || 0,
@@ -835,24 +837,25 @@ export async function obtenerInteracciones(
             LIMIT 5
         `;
 
-        // 2. Cupones canjeados recientes
+        // 2. Cupones canjeados recientes (ofertas privadas usadas)
         const cuponesQuery = sql`
-            SELECT 
+            SELECT
                 'cupon_canjeado' as tipo,
-                cu.id,
-                c.titulo as descripcion,
+                ou.id,
+                o.titulo as descripcion,
                 u.nombre as usuario_nombre,
                 u.avatar_url as usuario_avatar,
-                cu.usado_at as created_at
-            FROM cupon_usos cu
-            JOIN cupones c ON c.id = cu.cupon_id
-            JOIN usuarios u ON u.id = cu.usuario_id
-            WHERE c.negocio_id = ${negocioId}
-              AND (${sucursalIdParam}::uuid IS NULL OR c.sucursal_id = ${sucursalIdParam}::uuid)
-              AND cu.estado = 'usado'
-              AND cu.usado_at >= ${fechaInicio}::timestamptz
-              AND cu.usado_at <= ${fechaFin}::timestamptz
-            ORDER BY cu.usado_at DESC
+                ou.usado_at as created_at
+            FROM oferta_usuarios ou
+            JOIN ofertas o ON o.id = ou.oferta_id
+            JOIN usuarios u ON u.id = ou.usuario_id
+            WHERE o.negocio_id = ${negocioId}
+              AND (${sucursalIdParam}::uuid IS NULL OR o.sucursal_id = ${sucursalIdParam}::uuid)
+              AND o.visibilidad = 'privado'
+              AND ou.estado = 'usado'
+              AND ou.usado_at >= ${fechaInicio}::timestamptz
+              AND ou.usado_at <= ${fechaFin}::timestamptz
+            ORDER BY ou.usado_at DESC
             LIMIT 5
         `;
 

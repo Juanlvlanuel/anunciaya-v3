@@ -251,4 +251,36 @@ test.describe('Mis Cupones — Vista Cliente', () => {
     await expect(page.locator('[data-testid="tab-usados"]')).toBeAttached();
     await expect(page.locator('[data-testid="tab-historial"]')).toBeAttached();
   });
+
+  test('debe cambiar entre tabs', async ({ page }) => {
+    if (!JWT_SECRET) return;
+
+    const jwt = await import('jsonwebtoken');
+    const token = jwt.default.sign(
+      { usuarioId: USUARIO_COMERCIAL.id, correo: USUARIO_COMERCIAL.correo, perfil: 'personal', membresia: 0, modoActivo: 'personal' },
+      JWT_SECRET, { expiresIn: '1h' }
+    );
+
+    await page.goto(BASE_URL);
+    await page.evaluate(({ token, id, correo }) => {
+      localStorage.setItem('ay_access_token', token);
+      localStorage.setItem('ay_refresh_token', token);
+      localStorage.setItem('ay_usuario', JSON.stringify({ usuarioId: id, correo, nombre: 'Test', perfil: 'personal', membresia: 0, modoActivo: 'personal' }));
+    }, { token, id: USUARIO_COMERCIAL.id, correo: USUARIO_COMERCIAL.correo });
+
+    await page.goto(`${BASE_URL}/mis-cupones`);
+    await page.waitForTimeout(2000);
+
+    // Click tab Usados
+    await page.locator('[data-testid="tab-usados"]').click();
+    await page.waitForTimeout(500);
+
+    // Click tab Historial
+    await page.locator('[data-testid="tab-historial"]').click();
+    await page.waitForTimeout(500);
+
+    // Volver a Activos
+    await page.locator('[data-testid="tab-activos"]').click();
+    await page.waitForTimeout(500);
+  });
 });

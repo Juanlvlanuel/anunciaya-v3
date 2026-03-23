@@ -135,6 +135,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
     desktop: 300,
   }[breakpoint];
 
+
   const crecimientoPositivo = (estadisticas?.crecimiento ?? 0) >= 0;
 
   // Formatear "Mejor día" en español si viene del backend
@@ -198,7 +199,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
         {/* Gráfica vertical — ocupa todo el alto disponible */}
         {datosGrafica.length > 0 ? (
           <div className="flex-1 px-2 lg:px-1.5 2xl:px-2 pb-2" style={{ minHeight: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
               <AreaChart
                 data={datosGrafica}
                 margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
@@ -306,7 +307,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
       {/* Gráfica */}
       {datosGrafica.length > 0 ? (
         <div style={{ width: '100%', height: 220 }}>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={220} initialDimension={{ width: 1, height: 1 }}>
             <AreaChart
               data={datosGrafica}
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}

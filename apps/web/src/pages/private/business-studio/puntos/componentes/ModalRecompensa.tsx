@@ -303,6 +303,8 @@ export default function ModalRecompensa({
                       <label className="flex items-center gap-1.5 cursor-pointer group">
                         <input
                           type="checkbox"
+                          id="mr-stock-ilimitado-movil"
+                          name="stockIlimitadoMovil"
                           checked={stockIlimitado}
                           onChange={(e) => setStockIlimitado(e.target.checked)}
                           className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer"
@@ -471,9 +473,9 @@ export default function ModalRecompensa({
 
               {/* Tipo de recompensa */}
               <div className="mt-3 lg:mt-2 2xl:mt-3">
-                <label className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                   Tipo de recompensa
-                </label>
+                </span>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -500,6 +502,8 @@ export default function ModalRecompensa({
                         Número de compras para desbloquear
                       </label>
                       <input
+                        id="input-compras-requeridas"
+                        name="comprasRequeridas"
                         data-testid="input-compras-requeridas"
                         type="number"
                         value={comprasRequeridas}
@@ -512,6 +516,8 @@ export default function ModalRecompensa({
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
+                        id="toggle-requiere-puntos"
+                        name="requierePuntos"
                         data-testid="toggle-requiere-puntos"
                         type="checkbox"
                         checked={!requierePuntos}

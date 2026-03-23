@@ -75,8 +75,35 @@ export default function CardRecompensaCliente({
     </div>
   ) : null;
 
-  // ─── Badge de puntos ───
-  const badgePuntos = (
+  const esN1 = recompensa.tipo === 'compras_frecuentes';
+  const comprasRequeridas = recompensa.numeroComprasRequeridas || 0;
+  const comprasActuales = recompensa.comprasAcumuladas || 0;
+  const progresoN1 = comprasRequeridas > 0 ? Math.min(comprasActuales / comprasRequeridas, 1) : 0;
+  const desbloqueadaN1 = recompensa.desbloqueada || false;
+
+  // ─── Badge de puntos / progreso N+1 ───
+  const badgePuntos = esN1 ? (
+    <div className="flex items-center gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg"
+      style={{
+        background: desbloqueadaN1 ? 'linear-gradient(135deg, #ecfdf5, #d1fae5)' : '#f8fafc',
+        border: desbloqueadaN1 ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+      }}>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-xs lg:text-xs 2xl:text-[13px] font-bold"
+          style={{ color: desbloqueadaN1 ? '#065f46' : '#64748b' }}>
+          {desbloqueadaN1 ? '¡Desbloqueada!' : `${comprasActuales}/${comprasRequeridas} compras`}
+        </span>
+        {!desbloqueadaN1 && (
+          <div className="h-1.5 w-16 lg:w-20 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-full rounded-full" style={{
+              width: `${progresoN1 * 100}%`,
+              background: progresoN1 >= 0.8 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+            }} />
+          </div>
+        )}
+      </div>
+    </div>
+  ) : (
     <div
       className="flex items-center gap-1 px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg"
       style={{
@@ -101,6 +128,9 @@ export default function CardRecompensaCliente({
       </span>
     </div>
   );
+
+  // ─── Botón de acción para N+1 desbloqueada ───
+  const botonN1 = esN1 && desbloqueadaN1 && !stockAgotado;
 
   return (
     <>

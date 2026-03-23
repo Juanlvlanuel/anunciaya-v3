@@ -302,6 +302,8 @@ export default function TabUbicacion({
             <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
               style={{ border: '2px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
               <input
+                id="ubicacion-direccion"
+                name="direccion"
                 type="text"
                 value={datosUbicacion.direccion}
                 onChange={(e) => setDatosUbicacion({ ...datosUbicacion, direccion: e.target.value })}
@@ -339,6 +341,8 @@ export default function TabUbicacion({
                     style={{ border: '2px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
                     <Search className="w-4 h-4 text-slate-400 shrink-0 mr-2" />
                     <input
+                      id="ubicacion-ciudad"
+                      name="ciudad"
                       type="text"
                       value={ciudadEnfocada ? busquedaCiudad : (busquedaCiudad || datosUbicacion.ciudad)}
                       onChange={(e) => handleBusquedaCiudad(e.target.value)}

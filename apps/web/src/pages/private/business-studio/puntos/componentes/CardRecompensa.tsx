@@ -62,6 +62,7 @@ export default function CardRecompensa({
     <label className="group shrink-0" onClick={(e) => e.stopPropagation()}>
       <input
         type="checkbox"
+        name={`toggle-recompensa-movil-${recompensa.id}`}
         checked={recompensa.activa}
         onChange={() => onToggleActiva(recompensa)}
         className="sr-only"
@@ -177,6 +178,7 @@ export default function CardRecompensa({
               <label className="group shrink-0">
                 <input
                   type="checkbox"
+                  name={`toggle-recompensa-desktop-${recompensa.id}`}
                   checked={recompensa.activa}
                   onChange={() => onToggleActiva(recompensa)}
                   className="sr-only"

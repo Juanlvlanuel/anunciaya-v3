@@ -1291,6 +1291,8 @@ export default function PaginaTransacciones() {
                 <div className="flex items-center gap-2 w-full">
                   <div className="flex-1 min-w-0 relative">
                     <Input
+                      id="buscar-transaccion"
+                      name="buscarTransaccion"
                       placeholder="Nombre o Celular..."
                       value={textoBusqueda}
                       onChange={(e) => handleBusqueda(e.target.value)}
@@ -1432,6 +1434,8 @@ export default function PaginaTransacciones() {
               {/* Fila 2: Solo búsqueda */}
               <div className="relative w-full">
                 <Input
+                  id="buscar-canje"
+                  name="buscarCanje"
                   placeholder="Nombre o Celular..."
                   value={textoBusquedaCanjes}
                   onChange={(e) => handleBusquedaCanjes(e.target.value)}

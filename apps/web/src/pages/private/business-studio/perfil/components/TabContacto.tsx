@@ -42,13 +42,15 @@ function normalizarTelefono(tel: string): { lada: string; numero: string } {
   return { lada: '+52', numero: tel.replace(/[^0-9]/g, '') };
 }
 
-function InputTelefono({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function InputTelefono({ value, onChange, prefijo = 'contacto' }: { value: string; onChange: (v: string) => void; prefijo?: string }) {
   const { lada, numero } = normalizarTelefono(value);
   return (
     <div className="flex gap-2 min-w-0">
       <div className="flex items-center justify-center w-20 lg:w-16 2xl:w-20 h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 shrink-0"
         style={ESTILO_INPUT}>
         <input
+          id={`${prefijo}-lada`}
+          name={`${prefijo}-lada`}
           type="text"
           value={lada}
           onChange={(e) => {
@@ -66,6 +68,8 @@ function InputTelefono({ value, onChange }: { value: string; onChange: (v: strin
       <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4 flex-1 min-w-0"
         style={ESTILO_INPUT}>
         <input
+          id={`${prefijo}-telefono`}
+          name={`${prefijo}-telefono`}
           type="tel"
           value={numero}
           onChange={(e) => {
@@ -134,6 +138,8 @@ export default function TabContacto({
               <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
                 style={ESTILO_INPUT}>
                 <input
+                  id="contacto-nombre-sucursal"
+                  name="nombreSucursal"
                   type="text"
                   value={datosInformacion.nombreSucursal}
                   onChange={(e) => setDatosInformacion({ ...datosInformacion, nombreSucursal: e.target.value })}
@@ -151,6 +157,7 @@ export default function TabContacto({
               icono={<Phone className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500" />}
             >
               <InputTelefono
+                prefijo="contacto-tel"
                 value={datosContacto.telefono}
                 onChange={(v) => setDatosContacto({ ...datosContacto, telefono: v })}
               />
@@ -165,6 +172,7 @@ export default function TabContacto({
               }
             >
               <InputTelefono
+                prefijo="contacto-whatsapp"
                 value={datosContacto.whatsapp || ''}
                 onChange={(v) => setDatosContacto({ ...datosContacto, whatsapp: v })}
               />
@@ -180,6 +188,9 @@ export default function TabContacto({
               <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
                 style={ESTILO_INPUT}>
                 <input
+                  id="contacto-email"
+                  name="email"
+                  autoComplete="email"
                   type="email"
                   value={datosContacto.email || ''}
                   onChange={(e) => setDatosContacto({ ...datosContacto, email: e.target.value })}
@@ -197,6 +208,8 @@ export default function TabContacto({
                 <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
                   style={ESTILO_INPUT}>
                   <input
+                    id="contacto-sitio-web"
+                    name="sitioWeb"
                     type="url"
                     value={datosContacto.sitioWeb || ''}
                     onChange={(e) => setDatosContacto({ ...datosContacto, sitioWeb: e.target.value })}
@@ -243,6 +256,8 @@ export default function TabContacto({
               <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
                 style={ESTILO_INPUT}>
                 <input
+                  id="contacto-facebook"
+                  name="facebook"
                   type="text"
                   value={datosContacto.redesSociales.facebook || ''}
                   onChange={(e) => setDatosContacto({ ...datosContacto, redesSociales: { ...datosContacto.redesSociales, facebook: e.target.value } })}
@@ -264,6 +279,8 @@ export default function TabContacto({
               <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
                 style={ESTILO_INPUT}>
                 <input
+                  id="contacto-instagram"
+                  name="instagram"
                   type="text"
                   value={datosContacto.redesSociales.instagram || ''}
                   onChange={(e) => setDatosContacto({ ...datosContacto, redesSociales: { ...datosContacto.redesSociales, instagram: e.target.value } })}
@@ -285,6 +302,8 @@ export default function TabContacto({
               <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
                 style={ESTILO_INPUT}>
                 <input
+                  id="contacto-tiktok"
+                  name="tiktok"
                   type="text"
                   value={datosContacto.redesSociales.tiktok || ''}
                   onChange={(e) => setDatosContacto({ ...datosContacto, redesSociales: { ...datosContacto.redesSociales, tiktok: e.target.value } })}
@@ -306,6 +325,8 @@ export default function TabContacto({
               <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-4 lg:px-3 2xl:px-4"
                 style={ESTILO_INPUT}>
                 <input
+                  id="contacto-twitter"
+                  name="twitter"
                   type="text"
                   value={datosContacto.redesSociales.twitter || ''}
                   onChange={(e) => setDatosContacto({ ...datosContacto, redesSociales: { ...datosContacto.redesSociales, twitter: e.target.value } })}

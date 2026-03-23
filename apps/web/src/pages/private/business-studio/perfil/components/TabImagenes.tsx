@@ -504,7 +504,7 @@ export default function TabImagenes({
             <label className={`h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-auto px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-blue-600 bg-blue-100 border-2 border-blue-300 rounded-lg hover:bg-blue-200 cursor-pointer whitespace-nowrap ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <Camera className="w-3.5 h-3.5 shrink-0" />
               <span className="lg:hidden 2xl:inline">{imageUrl ? 'Cambiar' : 'Subir'}</span>
-              <input type="file" accept=".png,.jpg,.jpeg,.webp"
+              <input type="file" accept=".png,.jpg,.jpeg,.webp" name="imagenPerfil"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }}
                 disabled={isUploading || disabled} className="hidden" />
             </label>
@@ -733,7 +733,7 @@ export default function TabImagenes({
             </span>
             <label className={`w-7 h-7 flex items-center justify-center rounded-lg transition-opacity cursor-pointer ${galeriaUrls.length < 10 ? 'bg-white/15 hover:bg-white/25 opacity-100' : 'opacity-30 cursor-not-allowed pointer-events-none'}`}>
               <Plus className="w-4 h-4 text-white" />
-              <input type="file" accept=".png,.jpg,.jpeg,.webp" multiple
+              <input type="file" accept=".png,.jpg,.jpeg,.webp" multiple name="imagenGaleria"
                 onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length > 0) handleSubirGaleria(files); e.target.value = ''; }}
                 disabled={galeriaUrls.length >= 10 || subiendoGaleria} className="hidden" />
             </label>
@@ -853,7 +853,7 @@ export default function TabImagenes({
               <p className="text-base font-bold text-white">Galería de fotos</p>
               <p className="text-sm text-slate-400 font-medium">Elegir desde tu dispositivo</p>
             </div>
-            <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={handleArchivoSeleccionado} className="hidden" />
+            <input type="file" accept=".png,.jpg,.jpeg,.webp" name="fotoGaleria" onChange={handleArchivoSeleccionado} className="hidden" />
           </label>
 
           <label className="flex items-center gap-3 p-3.5 rounded-xl active:bg-white/10 cursor-pointer">
@@ -864,7 +864,7 @@ export default function TabImagenes({
               <p className="text-base font-bold text-white">Tomar foto</p>
               <p className="text-sm text-slate-400 font-medium">Usar la cámara</p>
             </div>
-            <input type="file" accept=".png,.jpg,.jpeg,.webp" capture="environment" onChange={handleArchivoSeleccionado} className="hidden" />
+            <input type="file" accept=".png,.jpg,.jpeg,.webp" capture="environment" name="fotoCamara" onChange={handleArchivoSeleccionado} className="hidden" />
           </label>
 
           <button type="button" onClick={() => setMenuCamara(null)}

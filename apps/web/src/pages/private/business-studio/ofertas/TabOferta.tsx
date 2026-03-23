@@ -75,13 +75,14 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
     // Componentes internos reutilizados en ambos layouts
     // =========================================================================
 
-    const renderTitulo = () => (
+    const renderTitulo = (sufijo = '') => (
         <div>
-            <label htmlFor="input-titulo-oferta" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+            <label htmlFor={`input-titulo-oferta${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                 Título <span className="text-red-500">*</span>
             </label>
             <input
-                id="input-titulo-oferta"
+                id={`input-titulo-oferta${sufijo}`}
+                name="titulo"
                 data-testid="input-titulo-oferta"
                 type="text"
                 value={formulario.titulo}
@@ -127,10 +128,10 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
         </div>
     );
 
-    const renderValorCompraMinima = () => (
+    const renderValorCompraMinima = (sufijo = '') => (
         <div className="grid grid-cols-2 gap-2 lg:gap-1.5 2xl:gap-2 items-end">
             <div>
-                <label htmlFor="input-valor-oferta" className={`block text-sm lg:text-xs 2xl:text-sm font-bold mb-1.5 lg:mb-1 2xl:mb-2 ${mostrarValor ? 'text-slate-700' : 'text-slate-400'}`}>
+                <label htmlFor={`input-valor-oferta${sufijo}`} className={`block text-sm lg:text-xs 2xl:text-sm font-bold mb-1.5 lg:mb-1 2xl:mb-2 ${mostrarValor ? 'text-slate-700' : 'text-slate-400'}`}>
                     {formulario.tipo === 'otro' ? 'Concepto' : 'Valor'} {mostrarValor && <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
@@ -140,7 +141,8 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                         </span>
                     )}
                     <input
-                        id="input-valor-oferta"
+                        id={`input-valor-oferta${sufijo}`}
+                        name="valor"
                         data-testid="input-valor-oferta"
                         type={formulario.tipo === 'otro' ? 'text' : 'number'}
                         value={formulario.valor}
@@ -155,13 +157,14 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                 {errores.valor && mostrarValor && <p className="text-xs text-red-500 font-medium mt-1">{errores.valor}</p>}
             </div>
             <div>
-                <label htmlFor="input-compra-minima" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+                <label htmlFor={`input-compra-minima${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                     Compra mín. <span className="text-slate-400 font-normal">(opc.)</span>
                 </label>
                 <div className="relative">
                     <span className="absolute left-3 lg:left-2.5 2xl:left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base lg:text-sm 2xl:text-base font-medium">$</span>
                     <input
-                        id="input-compra-minima"
+                        id={`input-compra-minima${sufijo}`}
+                        name="compraMinima"
                         data-testid="input-compra-minima"
                         type="number"
                         value={formulario.compraMinima}
@@ -205,7 +208,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                 </>
             ) : (
                 <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200/50 gap-1.5" data-testid="btn-agregar-imagen">
-                    <input type="file" accept="image/*" onChange={handleImagenChange} className="hidden" />
+                    <input type="file" accept="image/*" name="imagenOferta" onChange={handleImagenChange} className="hidden" />
                     <ImagePlus className="w-6 h-6 2xl:w-7 2xl:h-7 text-slate-400" />
                     <p className="text-xs 2xl:text-sm text-slate-500 font-medium text-center leading-tight px-2">Agregar imagen</p>
                 </label>
@@ -213,13 +216,14 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
         </div>
     );
 
-    const renderDescripcion = () => (
+    const renderDescripcion = (sufijo = '') => (
         <div className="flex-1 flex flex-col">
-            <label htmlFor="textarea-descripcion-oferta" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+            <label htmlFor={`textarea-descripcion-oferta${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                 Descripción <span className="text-slate-400 font-normal">(opcional)</span>
             </label>
             <textarea
-                id="textarea-descripcion-oferta"
+                id={`textarea-descripcion-oferta${sufijo}`}
+                name="descripcion"
                 data-testid="input-descripcion-oferta"
                 value={formulario.descripcion}
                 onChange={(e) => setFormulario(prev => ({ ...prev, descripcion: e.target.value }))}
@@ -240,9 +244,9 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
         <>
             {/* ── MÓVIL: columna única con orden optimizado ── */}
             <div className="lg:hidden p-4 flex flex-col gap-3">
-                {renderTitulo()}
+                {renderTitulo('-movil')}
                 {renderTipoOferta()}
-                {renderValorCompraMinima()}
+                {renderValorCompraMinima('-movil')}
                 {/* Imagen chica + Fechas apiladas lado a lado */}
                 <div className="flex gap-2.5 items-stretch">
                     <div className="shrink-0 flex" style={{ width: '40%' }}>
@@ -255,7 +259,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                                 </>
                             ) : (
                                 <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200/50 gap-1" data-testid="btn-agregar-imagen-movil">
-                                    <input type="file" accept="image/*" onChange={handleImagenChange} className="hidden" />
+                                    <input type="file" accept="image/*" name="imagenOfertaMovil" onChange={handleImagenChange} className="hidden" />
                                     <ImagePlus className="w-6 h-6 text-slate-600" />
                                     <p className="text-sm text-slate-600 font-medium text-center leading-tight px-1">Agregar imagen</p>
                                 </label>
@@ -266,7 +270,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                         {renderFechas(true)}
                     </div>
                 </div>
-                {renderDescripcion()}
+                {renderDescripcion('-movil')}
             </div>
 
             {/* ── DESKTOP: 2 columnas (layout original) ── */}

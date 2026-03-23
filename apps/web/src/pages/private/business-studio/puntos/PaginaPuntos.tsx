@@ -716,7 +716,7 @@ export default function PaginaPuntos() {
             <div>
               <div className="flex items-center h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300"
                 style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                <input type="number" min={1} max={365} value={noExpiran ? '' : diasExpiracionPuntos}
+                <input id="pp-exp-puntos-m" name="diasExpiracionPuntosMovil" type="number" min={1} max={365} value={noExpiran ? '' : diasExpiracionPuntos}
                   onChange={(e) => setDiasExpiracionPuntos(Number(e.target.value))}
                   onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                   disabled={esGerente || noExpiran} placeholder={noExpiran ? '∞' : undefined}
@@ -726,7 +726,7 @@ export default function PaginaPuntos() {
                   style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}>DÍAS</span>
               </div>
               <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
-                <input type="checkbox" checked={noExpiran} onChange={(e) => setNoExpiran(e.target.checked)}
+                <input id="pp-no-expiran-m" name="noExpiranMovil" type="checkbox" checked={noExpiran} onChange={(e) => setNoExpiran(e.target.checked)}
                   disabled={esGerente} className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer disabled:opacity-50" />
                 <span className="text-sm text-slate-600 font-semibold">No expiran</span>
               </label>
@@ -753,7 +753,7 @@ export default function PaginaPuntos() {
               <div>
                 <div className="flex items-center h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300"
                   style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <input type="number" min={1} max={365} value={diasExpiracionVoucher}
+                  <input id="pp-exp-voucher-m" name="diasExpVoucherMovil" type="number" min={1} max={365} value={diasExpiracionVoucher}
                     onChange={(e) => setDiasExpiracionVoucher(Number(e.target.value))}
                     onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                     disabled={esGerente}
@@ -1048,7 +1048,7 @@ export default function PaginaPuntos() {
                       <div className="flex items-center lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 flex-1 min-w-0 border-2 border-slate-300"
                         style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
                         <span className="text-sm font-bold text-slate-600 mr-0.5">$</span>
-                        <input type="number" min={1} value={textoPesosPor}
+                        <input id="pp-pesosPor" name="pesosPor" type="number" min={1} value={textoPesosPor}
                           onChange={(e) => { const raw = e.target.value; setTextoPesosPor(raw); const v = Number(raw); if (v > 0) setPesosPor(v); }}
                           onBlur={() => { if (!textoPesosPor || Number(textoPesosPor) <= 0) { setPesosPor(10); setTextoPesosPor('10'); } }}
                           onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
@@ -1061,7 +1061,7 @@ export default function PaginaPuntos() {
                       <span className="text-sm font-semibold text-slate-600 shrink-0">Gana</span>
                       <div className="flex items-center lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 flex-1 min-w-0 border-2 border-slate-300"
                         style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                        <input type="number" min={1} value={textoPuntosGanados}
+                        <input id="pp-puntosGanados" name="puntosGanados" type="number" min={1} value={textoPuntosGanados}
                           onChange={(e) => { const raw = e.target.value; setTextoPuntosGanados(raw); const v = Number(raw); if (v > 0) setPuntosGanados(v); }}
                           onBlur={() => { if (!textoPuntosGanados || Number(textoPuntosGanados) <= 0) { setPuntosGanados(1); setTextoPuntosGanados('1'); } }}
                           onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
@@ -1096,7 +1096,7 @@ export default function PaginaPuntos() {
                   <div>
                     <div className="flex items-center lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300"
                       style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <input type="number" min={1} max={365} value={noExpiran ? '' : diasExpiracionPuntos}
+                      <input id="pp-exp-puntos" name="diasExpiracionPuntos" type="number" min={1} max={365} value={noExpiran ? '' : diasExpiracionPuntos}
                         onChange={(e) => setDiasExpiracionPuntos(Number(e.target.value))}
                         onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                         disabled={esGerente || noExpiran} placeholder={noExpiran ? '∞' : undefined}
@@ -1106,7 +1106,7 @@ export default function PaginaPuntos() {
                         style={{ background: 'linear-gradient(135deg, #eef2ff, #c7d2fe)', border: '1px solid #c7d2fe' }}>DÍAS</span>
                     </div>
                     <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
-                      <input type="checkbox" checked={noExpiran} onChange={(e) => setNoExpiran(e.target.checked)}
+                      <input id="pp-no-expiran" name="noExpiran" type="checkbox" checked={noExpiran} onChange={(e) => setNoExpiran(e.target.checked)}
                         disabled={esGerente} className="w-3 h-3 accent-indigo-600 cursor-pointer disabled:opacity-50" />
                       <span className="text-sm text-slate-600 font-semibold">No expiran</span>
                     </label>
@@ -1133,7 +1133,7 @@ export default function PaginaPuntos() {
                   <div>
                     <div className="flex items-center lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300"
                       style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <input type="number" min={1} max={365} value={diasExpiracionVoucher}
+                      <input id="pp-exp-voucher" name="diasExpiracionVoucher" type="number" min={1} max={365} value={diasExpiracionVoucher}
                         onChange={(e) => setDiasExpiracionVoucher(Number(e.target.value))}
                         onKeyDown={(e) => { if (e.key === '.' || e.key === ',') e.preventDefault(); }}
                         disabled={esGerente}
