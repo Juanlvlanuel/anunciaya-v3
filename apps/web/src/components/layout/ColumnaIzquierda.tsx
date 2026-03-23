@@ -32,6 +32,7 @@ import {
   Tag,
   Clock,
   Lock,
+  Ticket,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { obtenerSucursalesNegocio } from '../../services/negociosService';
@@ -453,6 +454,23 @@ function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
       <div className={`p-4 lg:p-3 2xl:p-4  `}>
         <WidgetCardYA dark={tema.widgetDark} />
       </div>
+
+      {/* Mis Cupones */}
+      <button
+        data-testid="btn-mis-cupones"
+        onClick={() => navigate('/mis-cupones')}
+        className={`w-full flex items-center gap-3 px-4 py-3 lg:py-2.5 2xl:py-3 cursor-pointer
+                 transition-all border-l-4 border-l-transparent ${tema.listHoverBg} ${tema.listHoverBorder}`}
+      >
+        <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+          <Ticket className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white`} />
+        </div>
+        <div className="flex-1 text-left">
+          <p className={`font-semibold text-sm lg:text-sm 2xl:text-base ${tema.textPrimary}`}>Mis Cupones</p>
+        </div>
+        <ChevronRight className={`w-5 h-5 ${tema.chevronColor}`} />
+      </button>
 
       {/* Espacio flexible */}
       <div className="flex-1" />

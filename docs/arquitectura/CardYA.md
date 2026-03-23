@@ -51,7 +51,8 @@ Este documento describe la **arquitectura del sistema CardYA**:
 11. [Store Zustand](#store-zustand)
 12. [Integración con ScanYA](#integración-con-scanya)
 13. [Flujos de Usuario](#flujos-de-usuario)
-14. [Decisiones Arquitectónicas](#decisiones-arquitectónicas)
+14. [Recompensas N+1 (Compras Frecuentes)](#recompensas-n1-compras-frecuentes)
+15. [Decisiones Arquitectónicas](#decisiones-arquitectónicas)
 
 ---
 
@@ -700,6 +701,61 @@ Voucher desaparece de lista
 Puntos devueltos a billetera
 Stock de recompensa +1
 ```
+
+---
+
+## 🎯 Recompensas N+1 (Compras Frecuentes)
+
+**Agregado:** 22 Marzo 2026
+
+**Concepto:** Recompensas que se desbloquean después de N compras acumuladas. Ejemplo: "Después de 5 compras, la 6ª es gratis".
+
+### Campos en tabla `recompensas`
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `tipo` | VARCHAR(30) | `basica` (default) o `compras_frecuentes` |
+| `numero_compras_requeridas` | INTEGER nullable | N compras para desbloquear |
+| `requiere_puntos` | BOOLEAN | `false` = gratis al llegar a N, `true` = necesita puntos + compras |
+
+### Tabla `recompensa_progreso`
+
+Tracking de compras acumuladas por usuario por recompensa:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID PK | Identificador |
+| usuario_id | UUID FK | Cliente |
+| recompensa_id | UUID FK | Recompensa tipo N+1 |
+| negocio_id | UUID FK | Negocio |
+| compras_acumuladas | INTEGER | Contador actual |
+| desbloqueada | BOOLEAN | Si alcanzó N |
+| desbloqueada_at | TIMESTAMPTZ | Cuándo se desbloqueó |
+| canjeada | BOOLEAN | Si ya canjeó |
+
+### Flujo
+
+1. Comerciante crea recompensa tipo "Por compras frecuentes" (N=5) en BS Puntos
+2. Cliente compra → ScanYA registra venta → `otorgarPuntos()`
+3. Después de otorgar puntos, se llama `verificarRecompensasDesbloqueadas()`
+4. Sistema cuenta transacciones confirmadas del usuario en ese negocio
+5. Si alcanza N → marca como desbloqueada en `recompensa_progreso`
+6. Notifica al usuario: "¡Recompensa desbloqueada!"
+7. Si `requiere_puntos=false` → auto-genera voucher sin gastar puntos
+
+### UI en Business Studio
+
+En el modal de crear/editar recompensa (BS Puntos):
+- Selector de tipo: "Canjear con puntos" vs "Por compras frecuentes"
+- Campo "Número de compras requeridas" (solo tipo N+1)
+- Toggle "Gratis al completar compras (sin gastar puntos)"
+
+### Archivos relevantes
+
+- Backend: `apps/api/src/services/puntos.service.ts` → `verificarRecompensasDesbloqueadas()`, `obtenerProgresoRecompensas()`
+- Backend: `apps/api/src/services/scanya.service.ts` → llamada automática en `otorgarPuntos()`
+- Frontend: `apps/web/src/pages/private/business-studio/puntos/componentes/ModalRecompensa.tsx`
+- Schema: `apps/api/src/db/schemas/schema.ts` → tabla `recompensa_progreso`
 
 ---
 

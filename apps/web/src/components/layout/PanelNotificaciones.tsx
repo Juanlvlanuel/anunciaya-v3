@@ -76,6 +76,10 @@ const getConfigPorTipo = (tipo: Notificacion['tipo']): ConfigTipo => {
       return { icono: Ticket, gradiente: 'linear-gradient(135deg, #f59e0b, #b45309)' };
     case 'nueva_oferta':
       return { icono: Tag, gradiente: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' };
+    case 'cupon_asignado':
+      return { icono: Ticket, gradiente: 'linear-gradient(135deg, #10b981, #059669)' };
+    case 'cupon_revocado':
+      return { icono: Ticket, gradiente: 'linear-gradient(135deg, #ef4444, #b91c1c)' };
     case 'nueva_recompensa':
     case 'recompensa_desbloqueada':
       return { icono: Gift, gradiente: 'linear-gradient(135deg, #10b981, #047857)' };
@@ -120,6 +124,8 @@ const obtenerRutaDestino = (notificacion: Notificacion): string | null => {
           : null;
       case 'recompensa':
         return referenciaId ? `/cardya?tab=recompensas&id=${referenciaId}` : '/cardya?tab=recompensas';
+      case 'cupon':
+        return referenciaId ? `/mis-cupones?id=${referenciaId}` : '/mis-cupones';
       case 'resena':
         return notificacion.sucursalId && referenciaId
           ? `/negocios/${notificacion.sucursalId}?resenaId=${referenciaId}`

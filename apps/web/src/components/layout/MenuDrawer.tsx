@@ -39,6 +39,7 @@ import {
   MapPin,
   Briefcase,
   Lock,
+  Ticket,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -338,6 +339,16 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 onClick={() => handleNavegar('/cardya')}
               />
 
+
+              {/* Mis Cupones */}
+              <MenuDrawerItem
+                icon={Ticket}
+                label="Mis Cupones"
+                bgColor="bg-gradient-to-br from-emerald-400 to-emerald-600"
+                iconColor="text-white"
+                hoverGradient="hover:from-emerald-50"
+                onClick={() => handleNavegar('/mis-cupones')}
+              />
 
               {/* Mis Publicaciones */}
               <MenuDrawerItem

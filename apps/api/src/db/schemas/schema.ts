@@ -736,10 +736,16 @@ export const ofertaUsuarios = pgTable("oferta_usuarios", {
 	asignadoAt: timestamp("asignado_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	vista: boolean().default(false),
 	codigoPersonal: varchar("codigo_personal", { length: 50 }),
+	estado: varchar({ length: 20 }).default('activo'),
+	usadoAt: timestamp("usado_at", { withTimezone: true, mode: 'string' }),
+	revocadoAt: timestamp("revocado_at", { withTimezone: true, mode: 'string' }),
+	revocadoPor: uuid("revocado_por"),
+	motivoRevocacion: varchar("motivo_revocacion", { length: 200 }),
 }, (table) => [
 	index("idx_oferta_usuarios_oferta_id").using("btree", table.ofertaId.asc().nullsLast()),
 	index("idx_oferta_usuarios_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
 	index("idx_oferta_usuarios_codigo").using("btree", table.codigoPersonal.asc().nullsLast()).where(sql`codigo_personal IS NOT NULL`),
+	index("idx_oferta_usuarios_estado").using("btree", table.usuarioId.asc().nullsLast(), table.estado.asc().nullsLast()),
 	foreignKey({
 		columns: [table.ofertaId],
 		foreignColumns: [ofertas.id],
@@ -750,8 +756,14 @@ export const ofertaUsuarios = pgTable("oferta_usuarios", {
 		foreignColumns: [usuarios.id],
 		name: "oferta_usuarios_usuario_id_fkey"
 	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.revocadoPor],
+		foreignColumns: [usuarios.id],
+		name: "oferta_usuarios_revocado_por_fkey"
+	}).onDelete("set null"),
 	unique("oferta_usuarios_unique").on(table.ofertaId, table.usuarioId),
 	unique("oferta_usuarios_codigo_key").on(table.codigoPersonal),
+	check("oferta_usuarios_estado_check", sql`(estado IS NULL) OR ((estado)::text = ANY ((ARRAY['activo'::character varying, 'usado'::character varying, 'expirado'::character varying, 'revocado'::character varying])::text[]))`),
 ]);
 
 // Tablas de cupones ELIMINADAS — migradas a ofertas con código
@@ -1918,7 +1930,7 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'nuevo_cupon'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nueva_dinamica'::character varying, 'nuevo_empleo'::character varying])::text[])`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nueva_dinamica'::character varying, 'nuevo_empleo'::character varying])::text[])`),
 	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'dinamica'::character varying, 'empleo'::character varying])::text[]))`),
 ]);
 

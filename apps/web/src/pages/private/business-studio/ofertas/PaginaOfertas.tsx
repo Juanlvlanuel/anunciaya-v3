@@ -54,6 +54,7 @@ import {
     Megaphone,
     Ticket,
     Send,
+    Ban,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useOfertas } from '../../../../hooks/useOfertas';
@@ -265,6 +266,7 @@ function FilaMovilOferta({
     onEliminar,
     onDuplicar,
     onReenviar,
+    onRevocar,
     onImagenClick,
     esDueno,
 }: {
@@ -274,6 +276,7 @@ function FilaMovilOferta({
     onEliminar: (id: string, titulo: string) => void;
     onDuplicar: (oferta: Oferta) => void;
     onReenviar: (oferta: Oferta) => void;
+    onRevocar: (oferta: Oferta) => void;
     onImagenClick?: (url: string) => void;
     esDueno: boolean;
 }) {
@@ -332,12 +335,22 @@ function FilaMovilOferta({
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         {oferta.visibilidad === 'privado' && (
-                            <button
-                                onClick={() => onReenviar(oferta)}
-                                className="cursor-pointer text-blue-600"
-                            >
-                                <Send className="w-6 h-6" />
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => onReenviar(oferta)}
+                                    className="cursor-pointer text-blue-600"
+                                >
+                                    <Send className="w-6 h-6" />
+                                </button>
+                                {oferta.activo && (
+                                    <button
+                                        onClick={() => onRevocar(oferta)}
+                                        className="cursor-pointer text-orange-600"
+                                    >
+                                        <Ban className="w-6 h-6" />
+                                    </button>
+                                )}
+                            </>
                         )}
                         {esDueno && (
                             <button
@@ -617,6 +630,14 @@ export function PaginaOfertas() {
         }
     };
 
+    const handleRevocarCupon = async (oferta: Oferta) => {
+        if (oferta.visibilidad !== 'privado') return;
+        const confirmado = await notificar.confirmar(`¿Desactivar cupón "${oferta.titulo}"? Los clientes ya no podrán canjearlo.`);
+        if (!confirmado) return;
+        await actualizar(oferta.id, { activo: false });
+        notificar.exito('Cupón desactivado');
+    };
+
     const handleToggleActivo = async (id: string, activo: boolean) => {
         await actualizar(id, { activo });
     };
@@ -841,6 +862,7 @@ export function PaginaOfertas() {
 
                 <div className="lg:hidden">
                     <button
+                        data-testid="btn-nueva-promocion"
                         onClick={handleCrear}
                         className="w-full flex items-center justify-center gap-1.5 h-11 rounded-xl text-base font-semibold text-white cursor-pointer"
                         style={{
@@ -1033,6 +1055,7 @@ export function PaginaOfertas() {
                             </div>
                             {/* Nueva Promoción — desktop */}
                             <button
+                                data-testid="btn-nueva-promocion-desktop"
                                 onClick={handleCrear}
                                 className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-4 2xl:px-5 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
                                 style={{
@@ -1210,15 +1233,28 @@ export function PaginaOfertas() {
                                                     </button>
                                                 </Tooltip>
                                                 {oferta.visibilidad === 'privado' && (
-                                                    <Tooltip text="Reenviar cupón">
-                                                        <button
-                                                            data-testid={`btn-reenviar-${oferta.id}`}
-                                                            onClick={(e) => { e.stopPropagation(); handleReenviarCupon(oferta); }}
-                                                            className="p-1.5 rounded-lg cursor-pointer text-blue-600 hover:bg-blue-100"
-                                                        >
-                                                            <Send className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                                        </button>
-                                                    </Tooltip>
+                                                    <>
+                                                        <Tooltip text="Reenviar cupón">
+                                                            <button
+                                                                data-testid={`btn-reenviar-${oferta.id}`}
+                                                                onClick={(e) => { e.stopPropagation(); handleReenviarCupon(oferta); }}
+                                                                className="p-1.5 rounded-lg cursor-pointer text-blue-600 hover:bg-blue-100"
+                                                            >
+                                                                <Send className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                            </button>
+                                                        </Tooltip>
+                                                        {oferta.activo && (
+                                                            <Tooltip text="Revocar cupón">
+                                                                <button
+                                                                    data-testid={`btn-revocar-${oferta.id}`}
+                                                                    onClick={(e) => { e.stopPropagation(); handleRevocarCupon(oferta); }}
+                                                                    className="p-1.5 rounded-lg cursor-pointer text-orange-600 hover:bg-orange-100"
+                                                                >
+                                                                    <Ban className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                                </button>
+                                                            </Tooltip>
+                                                        )}
+                                                    </>
                                                 )}
                                                 <Tooltip text="Eliminar">
                                                     <button
@@ -1308,6 +1344,7 @@ export function PaginaOfertas() {
                                     onEliminar={handleEliminar}
                                     onDuplicar={handleDuplicar}
                                     onReenviar={handleReenviarCupon}
+                                    onRevocar={handleRevocarCupon}
                                     onImagenClick={abrirImagenUnica}
                                     esDueno={esDueno}
                                 />

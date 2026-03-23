@@ -32,6 +32,9 @@ import {
   postUploadImagenOferta,
   postAsignarOferta,
   postReenviarCupon,
+  postRevocarCupon,
+  getMisCupones,
+  postRevelarCodigo,
   getMisExclusivas,
   getOfertaPublica,
 } from '../controllers/ofertas.controller.js';
@@ -98,9 +101,21 @@ router.get('/publico/:codigo', getOfertaPublica);
 /**
  * GET /api/ofertas/mis-exclusivas
  * Ofertas privadas asignadas al usuario
- * IMPORTANTE: Debe ir ANTES de /:id para evitar colisión
  */
 router.get('/mis-exclusivas', verificarToken, getMisExclusivas);
+
+/**
+ * GET /api/ofertas/mis-cupones
+ * Lista de cupones del usuario (vista cliente)
+ * Query: ?estado=activo|usado|expirado|revocado
+ */
+router.get('/mis-cupones', verificarToken, getMisCupones);
+
+/**
+ * POST /api/ofertas/mis-cupones/:id/revelar
+ * Revela el código personal del cupón
+ */
+router.post('/mis-cupones/:id/revelar', verificarToken, postRevelarCodigo);
 
 // =============================================================================
 // RUTAS BUSINESS STUDIO (REQUIEREN AUTH + MODO COMERCIAL + SUCURSAL)
@@ -264,6 +279,18 @@ router.post(
   verificarToken,
   verificarNegocio,
   postReenviarCupon
+);
+
+/**
+ * POST /api/ofertas/:id/revocar
+ * Revocar cupón de un usuario específico
+ * Body: { usuarioId, motivo? }
+ */
+router.post(
+  '/:id/revocar',
+  verificarToken,
+  verificarNegocio,
+  postRevocarCupon
 );
 
 // =============================================================================

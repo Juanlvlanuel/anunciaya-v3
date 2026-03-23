@@ -1,6 +1,6 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 12 Febrero 2026  
+**Última actualización:** 22 Marzo 2026  
 **Versión:** 1.1 (Completamente Verificado)
 
 ---
@@ -9,7 +9,7 @@
 
 Este documento describe la **arquitectura conceptual** del sistema Business Studio:
 - ✅ Arquitectura general y flujos
-- ✅ Los 15 módulos del sistema
+- ✅ Los 14 módulos del sistema
 - ✅ Endpoints principales verificados contra código real
 - ✅ Sistema de sucursales y roles
 - ✅ Servicio centralizado compartido
@@ -34,7 +34,7 @@ Este documento describe la **arquitectura conceptual** del sistema Business Stud
 2. [¿Para qué sirve?](#para-qué-sirve)
 3. [¿Quién lo usa?](#quién-lo-usa)
 4. [Arquitectura del Sistema](#arquitectura-del-sistema)
-5. [Los 15 Módulos](#los-15-módulos)
+5. [Los 14 Módulos](#los-14-módulos)
 6. [Sistema de Sucursales](#sistema-de-sucursales)
 7. [Servicio Centralizado](#servicio-centralizado)
 8. [Panel de Preview](#panel-de-preview)
@@ -49,13 +49,13 @@ Este documento describe la **arquitectura conceptual** del sistema Business Stud
 Business Studio es el **centro de administración completo** para negocios registrados en AnunciaYA. Es una interfaz web dedicada que permite a dueños y gerentes gestionar todos los aspectos de su negocio desde un solo lugar.
 
 **Características principales:**
-- 15 módulos especializados de gestión
+- 14 módulos especializados de gestión
 - Sistema multi-sucursal integrado
 - Interfaz responsive (móvil, laptop 1366x768, desktop 1920x1080+)
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 5 de 15 módulos completados (33%)
+**Progreso actual:** 8 de 14 módulos completados (57%)
 
 ---
 
@@ -169,31 +169,30 @@ Si onboarding_completado = true → Business Studio Dashboard
 
 ---
 
-## 📦 Los 15 Módulos
+## 📦 Los 14 Módulos
 
 > ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (30 Enero 2026)
 
 ### Organización del Menú
 
-Los 15 módulos están organizados en 5 secciones lógicas:
+Los 14 módulos están organizados en 5 secciones lógicas:
 
 #### 1. Operación Diaria (5 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
 | 1 | Dashboard | `/business-studio` | LayoutDashboard | ✅ 100% |
-| 2 | Transacciones | `/business-studio/transacciones` | Receipt | ⏳ Pendiente |
-| 3 | Clientes | `/business-studio/clientes` | Users | ⏳ Pendiente |
-| 4 | Opiniones | `/business-studio/opiniones` | MessageSquare | ⏳ Pendiente |
+| 2 | Transacciones | `/business-studio/transacciones` | Receipt | ✅ 100% |
+| 3 | Clientes | `/business-studio/clientes` | Users | ✅ 100% |
+| 4 | Opiniones | `/business-studio/opiniones` | MessageSquare | ✅ 100% |
 | 5 | Alertas | `/business-studio/alertas` | Bell | ⏳ Pendiente |
 
-#### 2. Catálogo & Promociones (3 módulos)
+#### 2. Catálogo & Promociones (2 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
 | 6 | Catálogo | `/business-studio/catalogo` | ShoppingBag | ✅ 100% |
-| 7 | Ofertas | `/business-studio/ofertas` | Tag | ✅ 100% |
-| 8 | Cupones | `/business-studio/cupones` | Ticket | ⏳ Pendiente |
+| 7 | Promociones | `/business-studio/ofertas` | Tag | ✅ 100% (Ofertas + Cupones unificados) |
 
 #### 3. Engagement & Recompensas (2 módulos)
 
@@ -219,7 +218,7 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ✅ Módulos Completados (5/15)
+## ✅ Módulos Completados (8/14)
 
 ### 1. Dashboard ✅
 
@@ -342,36 +341,49 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### 4. Ofertas ✅
+### 4. Promociones ✅ (antes "Ofertas")
 
-**Ruta:** `/business-studio/ofertas`  
-**Completado:** 16 Enero 2026 (Fase 5.4.2)
+**Ruta:** `/business-studio/ofertas`
+**Completado:** 22 Marzo 2026 (Ofertas + Cupones unificados)
 
-**Funcionalidad:**
-- Lista de ofertas con filtros
-- Modal crear/editar oferta
-- 6 tipos: 2x1, 3x2, Descuento %, Descuento $, Envío gratis, Otro
-- Configuración días y horarios de vigencia
-- Duplicar oferta a otras sucursales (solo dueños)
-- Vista previa pública `/p/oferta/:id`
+**Concepto:** Módulo unificado que maneja ofertas públicas y cupones privados.
+- Toggle Oferta (📢) / Cupón (🎟️) en el modal
+- Cupones: código único por usuario, validación ScanYA
+- Ver documento completo: `docs/arquitectura/Promociones.md`
 
-> **Almacenamiento de imágenes:** Pendiente de migrar Cloudinary → R2 (mismo patrón que Catálogo).
+**Funcionalidad Ofertas (públicas):**
+- Lista con filtros (estado, visibilidad, tipo, búsqueda)
+- Modal crear/editar con imagen R2
+- 6 tipos: 2x1, 3x2, Desc. %, Monto $, Envío gratis, Otro
+- Duplicar a otras sucursales (solo dueños)
 
-**Endpoints:**
+**Funcionalidad Cupones (privados):**
+- Modal con 3 tabs: Detalles | Ajustes | Enviar a
+- Selector de clientes con filtros (nivel CardYA, actividad)
+- Código único auto-generado por cliente (VIP-XXXXX)
+- Reenviar cupón a clientes asignados
+- Revocar cupón (desactiva la oferta)
+- Notificaciones automáticas al asignar
+
+**Endpoints principales:**
 
 | Método | Endpoint | Propósito |
 |--------|----------|-----------|
-| POST | `/api/ofertas` | Crear oferta |
-| GET | `/api/ofertas` | Listar ofertas de la sucursal |
-| GET | `/api/ofertas/:id` | Obtener oferta específica |
-| PUT | `/api/ofertas/:id` | Actualizar oferta |
-| DELETE | `/api/ofertas/:id` | Eliminar oferta |
-| POST | `/api/ofertas/:id/duplicar` | Duplicar a otras sucursales |
+| POST | `/api/ofertas` | Crear oferta/cupón |
+| GET | `/api/ofertas` | Listar por sucursal |
+| PUT | `/api/ofertas/:id` | Actualizar |
+| DELETE | `/api/ofertas/:id` | Eliminar |
+| POST | `/api/ofertas/:id/duplicar` | Duplicar a sucursales |
+| POST | `/api/ofertas/:id/asignar` | Asignar cupón a clientes |
+| POST | `/api/ofertas/:id/reenviar` | Reenviar notificación cupón |
+| POST | `/api/ofertas/:id/revocar` | Revocar cupón |
 
 **Componentes:**
-- `PaginaOfertas.tsx` - Lista con filtros
-- `CardOferta.tsx` - Tarjeta de oferta
-- `ModalOferta.tsx` - Crear/editar
+- `PaginaOfertas.tsx` - Lista con filtros y acciones
+- `ModalOferta.tsx` - Contenedor con tabs
+- `TabOferta.tsx` - Formulario principal
+- `TabExclusiva.tsx` - Ajustes cupón + preview
+- `TabClientes.tsx` - Selector clientes con dropdowns
 - `ModalDuplicarOferta.tsx` - Duplicar a sucursales
 
 ---
@@ -393,6 +405,9 @@ Los 15 módulos están organizados en 5 secciones lógicas:
   - Imagen, nombre, descripción
   - Puntos requeridos
   - Stock (limitado o ilimitado)
+  - Tipo: "Básica" (canjear con puntos) o "Por compras frecuentes" (N+1)
+  - N+1: número de compras requeridas + toggle "requiere puntos"
+  - Verificación automática en ScanYA al registrar venta
   - Activo/inactivo
 
 **Endpoints:**
@@ -420,55 +435,13 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ⏳ Módulos Pendientes (10/15)
+## ⏳ Módulos Pendientes (6/14)
 
-### 6. Transacciones ⏳
+### Alertas ⏳
 
-**Dependencias:** ScanYA (Fase 5.5)  
-**Tiempo estimado:** ~1 día  
-**Prioridad:** ALTA
-
-**Funcionalidad esperada:**
-- Historial completo de ventas registradas en ScanYA
-- Filtros: fecha, sucursal, empleado, método de pago
-- Exportar CSV/Excel
-- Detalle de cada transacción
-
----
-
-### 7. Clientes ⏳
-
-**Dependencias:** ScanYA (Fase 5.5)  
-**Tiempo estimado:** ~2 días  
-**Prioridad:** ALTA
-
-**Funcionalidad esperada:**
-- Lista de clientes que han comprado
-- Detalle por cliente: visitas, puntos, nivel CardYA, última compra
-- Historial de transacciones por cliente
-- Exportar base de clientes
-
----
-
-### 8. Opiniones ⏳
-
-**Dependencias:** Transacciones + Clientes  
-**Tiempo estimado:** ~3 días  
-**Prioridad:** MEDIA
-
-**Funcionalidad esperada:**
-- Ver reseñas con calificación ⭐ 1-5
-- Responder desde Business Studio
-- Dashboard de métricas (promedio, total, tasa de respuesta)
-- Templates de respuesta pre-escritos
-
----
-
-### 9. Alertas ⏳
-
-**Dependencias:** Ninguna  
-**Tiempo estimado:** ~1-2 días  
-**Prioridad:** MEDIA
+**Dependencias:** Ninguna
+**Tiempo estimado:** ~1-2 días
+**Prioridad:** ALTA (siguiente sprint)
 
 **Funcionalidad esperada:**
 - Panel completo de alertas de seguridad
@@ -478,16 +451,38 @@ Los 15 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### 10-15. Otros Módulos Pendientes
+### Empleados ⏳
 
-Los módulos restantes están documentados en el RoadMap con sus dependencias y tiempos estimados:
-- **Cupones** - Fase 5.11
-- **Puntos** - Fase 5.9
-- **Rifas** - Fase 6.2
-- **Empleados** - Fase 6.4
-- **Vacantes** - Fase 6.3
-- **Reportes** - Fase 6.6
-- **Sucursales** - Fase 6.5
+**Dependencias:** ScanYA ✅
+**Tiempo estimado:** ~2 días
+
+**Funcionalidad esperada:**
+- Gestión de empleados, Nick+PIN para ScanYA, permisos
+
+---
+
+### Reportes ⏳
+
+**Tiempo estimado:** ~3 días
+
+**Funcionalidad esperada:**
+- Ventas, productos top, horarios pico, export CSV
+
+---
+
+### Sucursales ⏳
+
+**Tiempo estimado:** ~2 días
+
+**Funcionalidad esperada:**
+- Gestión multi-sucursal completa
+
+---
+
+### Módulos Bloqueados
+
+- **Rifas** — Bloqueado: espera implementación de Dinámicas (sección pública)
+- **Vacantes** — Bloqueado: espera implementación de Empleos (sección pública)
 
 ---
 
@@ -850,7 +845,7 @@ export async function actualizarInfoGeneral() { ... }
 
 ---
 
-### 3. ¿Por qué 15 módulos separados?
+### 3. ¿Por qué 14 módulos separados?
 
 **Alternativa A (descartada):** Módulo único gigante
 ```
@@ -858,7 +853,7 @@ export async function actualizarInfoGeneral() { ... }
   - Todo en un solo archivo de 5,000+ líneas
 ```
 
-**Alternativa B (elegida):** 15 módulos separados
+**Alternativa B (elegida):** 14 módulos separados
 ```
 /business-studio/
   - dashboard
@@ -994,14 +989,17 @@ export async function actualizarInfoGeneral() { ... }
 - Puntos: 6 endpoints principales
 - **TOTAL:** 31 endpoints principales ✅
 
-**Módulos verificados:** 5/5 completados ✅
+**Módulos verificados:** 8/14 completados ✅
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
-- Ofertas (16/01/2026)
-- Puntos (05/02/2026)
+- Promociones — antes Ofertas (16/01/2026, potenciado 22/03/2026 con Cupones)
+- Puntos (05/02/2026, N+1 agregado 22/03/2026)
+- Transacciones (07/03/2026)
+- Clientes (07/03/2026)
+- Opiniones (07/03/2026)
 
-**Progreso:** 5/15 módulos = 33.33% (redondeado 33%)
+**Progreso:** 8/14 módulos = 57%
 
 **Métodos de verificación:**
 1. Comparación con RoadMap oficial
@@ -1012,6 +1010,6 @@ export async function actualizarInfoGeneral() { ... }
 
 ---
 
-**Última actualización:** 12 Febrero 2026  
+**Última actualización:** 22 Marzo 2026  
 **Autor:** Equipo AnunciaYA  
 **Versión:** 1.1 (100% Verificado contra código real)

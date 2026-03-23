@@ -7,6 +7,88 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [22 Marzo 2026] - Promociones (Ofertas + Cupones) + Mis Cupones + N+1 CardYA
+
+### ✨ Agregado
+
+**Promociones — Ofertas potenciadas con cupones privados**
+- Toggle Oferta (📢) / Cupón (🎟️) en modal de crear promoción
+- Cupones privados: código único por usuario (VIP-XXXXX), intransferible
+- Selector de clientes con filtros por nivel (Bronce/Plata/Oro) y actividad (Activos/Inactivos)
+- Modal refactorizado con 3 tabs: Detalles | Ajustes | Enviar a
+- 2 dropdowns TC-4 para filtros de clientes
+- Preview de notificación en vivo en tab Ajustes
+- Botón "Enviar cupón" dinámico
+- Reenviar cupón a clientes asignados
+- Revocar cupón desde BS (desactiva oferta)
+- Filtro visibilidad en PaginaOfertas: Todas / Ofertas / Cupones (solo desktop)
+
+**Mis Cupones — Vista cliente**
+- Página `/mis-cupones` con header dark emerald + 3 tabs (Activos/Usados/Historial)
+- CardCupon: layout horizontal móvil + vertical desktop (patrón CardRecompensaCliente)
+- ModalDetalleCupon: detalle completo + botón "Revelar código" (copiable)
+- Deep link desde notificaciones
+- Enlace en ColumnaIzquierda + MenuDrawer
+
+**Recompensas N+1 en CardYA**
+- Tipo de recompensa "Por compras frecuentes" (N compras → desbloqueo)
+- Toggle "Requiere gastar puntos" (gratis al completar N)
+- Verificación automática en ScanYA al registrar venta
+- Tabla `recompensa_progreso` para tracking
+
+**ScanYA — Migración cupones → ofertas**
+- Validación migrada de tabla `cupones` → `oferta_usuarios.codigo_personal`
+- Labels: "Cupón" → "Código de descuento"
+- Endpoint: `/validar-cupon` → `/validar-codigo`
+- Puntos se calculan sobre monto PAGADO (post-descuento)
+
+**Notificaciones**
+- Tipos: `cupon_asignado` (Ticket verde), `cupon_revocado` (Ticket rojo), `recompensa_desbloqueada`
+- Deep link: `/mis-cupones?id={id}` desde panel de notificaciones
+
+**UI / Renombrado**
+- Menú BS: "Ofertas" → "Promociones"
+- Subtítulo: "Ofertas y cupones"
+- Iconos: Megaphone (oferta) / Ticket (cupón)
+- Tabla header: "PROMOCIÓN"
+- Conteo dinámico: "11 promociones" / "8 ofertas" / "3 cupones"
+
+**Testing**
+- 21 tests Zod ofertas (visibilidad, asignar, validar código)
+- 14 tests Zod recompensas N+1
+- 7 tests E2E Playwright (modal tabs, filtro visibilidad, Mis Cupones)
+- Login E2E via JWT inyectado en localStorage
+
+### 🗑️ Eliminado
+
+**Limpieza total de Cupones (módulo separado)**
+- 4 tablas BD eliminadas: `cupones`, `cupon_usos`, `cupon_usuarios`, `cupon_galeria`
+- FKs migradas: `pedidos` y `puntos_transacciones` apuntan a `ofertas`/`oferta_usos`
+- Placeholder `BSPaginaCupones` eliminado del router
+- `PaginaMisCupones.tsx` placeholder eliminada
+- "Cupones" removido del menú BS (sidebar + drawer)
+- Botón "Mis Cupones" removido de ColumnaIzquierda y MenuDrawer
+- Imports `cupones`/`cuponUsos` removidos de scanya.service.ts
+- Tipos `nuevo_cupon` y referencia `cupon` legacy removidos de notificaciones
+
+### 🔧 Modificado
+
+**Base de datos (4 migraciones SQL)**
+1. Tablas nuevas: `oferta_usos`, `oferta_usuarios`, `recompensa_progreso`
+2. Columnas en `ofertas`: `visibilidad`, `limite_usos_por_usuario`
+3. Columnas en `recompensas`: `tipo`, `numero_compras_requeridas`, `requiere_puntos`
+4. Columnas en `oferta_usuarios`: `codigo_personal`, `estado`, `usado_at`, `revocado_at`, `revocado_por`, `motivo_revocacion`
+5. DROP 4 tablas cupones + migrar FKs
+
+**Tokens de diseño**
+- Tabs: dark gradient activo (TC-4)
+- Checkboxes/indicadores: indigo
+- Chips filtro: `bg-indigo-100 border-indigo-300`
+- Responsive 3 niveles en todos los componentes
+- Inputs: sin focus ring, con boxShadow inset
+
+---
+
 ## [20 Marzo 2026] - ChatYA 100% completado + Testing E2E
 
 ### ✨ Agregado

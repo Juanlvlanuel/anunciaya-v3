@@ -39,6 +39,7 @@ import PaginaMisPublicaciones from '../pages/private/publicaciones/PaginaMisPubl
 import { PaginaNegocios, PaginaPerfilNegocio } from '../pages/private/negocios';
 // ⭐ NUEVO: CardYA (Fase X)
 import PaginaCardYA from '../pages/private/cardya/PaginaCardYA';
+import PaginaMisCupones from '../pages/private/cupones/PaginaMisCupones';
 
 // ⭐ NUEVO: Onboarding de negocio (Fase 5)
 import PaginaOnboarding from '../pages/private/business/onboarding/PaginaOnboarding';
@@ -290,12 +291,12 @@ const router = createBrowserRouter([
             ),
           },
 
-          // Cuenta personal (requieren modo Personal)
+          // Mis Cupones
           {
-            path: '/cardya',
+            path: '/mis-cupones',
             element: (
               <ModoGuard requiereModo="personal">
-                <PaginaCardYA />
+                <PaginaMisCupones />
               </ModoGuard>
             ),
           },

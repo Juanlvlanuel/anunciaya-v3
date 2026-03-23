@@ -54,7 +54,7 @@ Este documento describe la **arquitectura conceptual** del sistema ScanYA:
 ScanYA es un **sistema de punto de venta (POS) PWA independiente** diseñado para empleados, gerentes y dueños de negocios registrados en AnunciaYA. Es una aplicación web progresiva (PWA) que funciona offline y permite:
 
 - Registrar ventas y otorgar puntos CardYA
-- Validar y canjear cupones de descuento
+- Validar y canjear códigos de descuento (cupones privados → tabla `oferta_usuarios`)
 - Validar vouchers de premios canjeables
 - Gestionar turnos de trabajo
 - Trabajar sin conexión con sincronización automática
@@ -79,12 +79,12 @@ ScanYA es un **sistema de punto de venta (POS) PWA independiente** diseñado par
 - Otorga puntos a billetera del cliente
 - Opcionalmente sube foto del ticket (Cloudflare R2)
 
-#### 2. Validar Cupones de Descuento
-- Cliente presenta cupón (código)
+#### 2. Validar Código de Descuento (antes "Cupones")
+- Cliente presenta código personal (asignado desde BS Promociones)
 - Empleado valida código en sistema
 - Sistema verifica vigencia y condiciones
 - Aplica descuento automáticamente
-- Marca cupón como usado
+- Registra uso en `oferta_usos` y marca código como usado
 
 #### 3. Validar Vouchers (Premios Canjeables)
 - Cliente llega con voucher de premio
@@ -347,11 +347,11 @@ ALTER TABLE puntos_transacciones ADD COLUMN (
   foto_ticket_url VARCHAR(500),
   multiplicador_aplicado DECIMAL(3,2),
   numero_orden VARCHAR(50),
-  cupon_uso_id BIGINT REFERENCES cupon_usos(id)
+  cupon_uso_id BIGINT REFERENCES oferta_usos(id)  -- migrado: antes referenciaba cupon_usos
 );
 ```
 
-**Razón:** Detalle completo de métodos de pago, comprobantes y cupones aplicados.
+**Razón:** Detalle completo de métodos de pago, comprobantes y códigos de descuento aplicados.
 
 ---
 
@@ -484,7 +484,7 @@ Response: {
 
 ```
 POST   /api/scanya/identificar-cliente
-POST   /api/scanya/validar-cupon
+POST   /api/scanya/validar-codigo    (migrado de /validar-cupon → busca en oferta_usuarios.codigo_personal)
 POST   /api/scanya/otorgar-puntos
 GET    /api/scanya/historial
 POST   /api/scanya/validar-voucher
@@ -517,7 +517,7 @@ Body: {
   montoEfectivo?: number,
   montoTarjeta?: number,
   montoTransferencia?: number,
-  cuponId?: string,
+  cuponId?: string,        // ID de oferta con código (antes cupón)
   fotoTicketUrl?: string,
   numeroOrden?: string
 }
@@ -538,7 +538,7 @@ Response: {
     {
       id, monto, puntos, cliente, nivel,
       metodoPago, operador, sucursal, fecha,
-      cuponAplicado?, fotoTicketUrl?
+      codigoAplicado?, fotoTicketUrl?   // antes cuponAplicado
     }
   ],
   total: number
@@ -1028,19 +1028,19 @@ export function IndicadorOffline() {
 ```typescript
 function calcularPuntos(
   monto: number,
-  cupon: Cupon | null,
+  descuento: { valor: number; esPorcentaje: boolean } | null,  // antes: cupon: Cupon | null
   config: PuntosConfig,
   nivelCliente: 'bronce' | 'plata' | 'oro'
 ): number {
-  
-  // 1. Aplicar descuento cupón (si existe)
+
+  // 1. Aplicar descuento de código (si existe)
   let montoFinal = monto;
-  
-  if (cupon) {
-    if (cupon.esPorcentaje) {
-      montoFinal = monto * (1 - cupon.descuento / 100);
+
+  if (descuento) {
+    if (descuento.esPorcentaje) {
+      montoFinal = monto * (1 - descuento.valor / 100);
     } else {
-      montoFinal = monto - cupon.descuento;
+      montoFinal = monto - descuento.valor;
     }
   }
 

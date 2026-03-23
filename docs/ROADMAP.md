@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 20 Marzo 2026
-> **Progreso global:** 95% completado
-> **Fase actual:** ChatYA ✅ 100% completado — próximo: BS Alertas / Cupones
+> **Última actualización:** 22 Marzo 2026
+> **Progreso global:** 96% completado
+> **Fase actual:** Promociones ✅ (Ofertas + Cupones unificados) — próximo: BS Alertas
 
 ---
 
@@ -12,7 +12,7 @@
 |--------|----------|-----------------|
 | **Fundamentos** (Fases 1-4) | ✅ 100% | - |
 | **Backend + Negocios** (5.0-5.3) | ✅ 100% | - |
-| **Business Studio** (5.4) | ⏳ 53% (8/15 módulos) | ~15 días |
+| **Business Studio** (5.4) | ⏳ 57% (8/14 módulos) | ~12 días |
 | **ScanYA + PWA** (5.5) | ✅ 100% | Fase 14 completada (7 Mar 2026) |
 | **ChatYA** (5.10) | ✅ 100% (Sprint 7 completado — 20 Mar 2026) | - |
 | **Sistema Lealtad** (5.6-5.7) | ✅ 100% (Puntos + CardYA + Notificaciones) | - |
@@ -27,6 +27,7 @@
 - [x] Sistema ScanYA completo
 - [x] Migración cloud $0/mes
 - [x] Business Studio Base (8/15 módulos) ✅ (7 Mar 2026)
+- [x] Promociones (Ofertas + Cupones) ✅ (22 Mar 2026) — 8/14 módulos
 - [ ] Business Studio 80% completo (12/15 módulos)
 - [x] Sistema CardYA completo ✅ (12 Feb 2026)
 - [x] Socket.io + Notificaciones tiempo real ✅ (12 Feb 2026)
@@ -85,50 +86,52 @@
 
 ---
 
-### Sprint actual: BS Alertas + Cupones
+### Sprint completado: Promociones (Ofertas + Cupones) ✅ 22 Mar 2026
 
-**Objetivo:** Sistema de cupones temporales con validación
+**Decisión:** No se creó módulo separado de Cupones. Se fusionaron con Ofertas bajo "Promociones".
 
-**Features Core:**
-- CRUD cupones en BS (%, $, 2x1)
-- Vista pública `/p/cupon/:codigo`
-- Validación en ScanYA con QR
-- Cuponera usuario `/mis-cupones`
-- Notificaciones expiración
-- Filtros: Vigentes/Usados/Expirados
+**Completado:**
+- [x] Toggle Oferta/Cupón en modal (Megaphone/Ticket)
+- [x] Cupones: código único por usuario, selector clientes, tabs
+- [x] Validación ScanYA migrada (cupones → ofertas con código personal)
+- [x] Vista cliente "Mis Cupones" (`/mis-cupones`) con cards + modal revelar código
+- [x] Revocación desde BS + reenvío de cupones
+- [x] Notificaciones: cupon_asignado, cupon_revocado + deep links
+- [x] Recompensas N+1 (compras frecuentes) en CardYA
+- [x] Limpieza total: 4 tablas cupones eliminadas, código purgado
+- [x] Tests: 84 API + 7 E2E
+- [x] Tokens de diseño aplicados (TC-4 dropdowns, indigo, responsive)
 
-**Criterios de Éxito:**
-- [ ] CRUD operativo
-- [ ] Validación ScanYA funcional
-- [ ] Notificaciones disparan
+**Pendiente menor:**
+- [ ] Burbuja ChatYA tipo 'cupon' (mensaje especial)
+- [ ] Barra progreso N+1 en CardYA usuario
 
-**Diferencia vs Ofertas:** Cupones son temporales, 1 uso, personales
+### Sprint siguiente: BS Alertas
 
 ---
 
 ## 📅 Backlog Priorizado
 
-### Business Studio - Módulos Pendientes (7/15)
+### Business Studio - Módulos Pendientes (6/14)
 
-**Completados (8/15):**
+**Completados (8/14):**
 - ✅ Dashboard
 - ✅ Mi Perfil
 - ✅ Catálogo
-- ✅ Ofertas
-- ✅ Puntos (Config + Expiración + Recompensas)
+- ✅ Promociones (Ofertas + Cupones unificados, 22 Mar 2026)
+- ✅ Puntos (Config + Expiración + Recompensas + N+1)
 - ✅ Transacciones (7 Mar 2026)
 - ✅ Clientes (7 Mar 2026)
 - ✅ Opiniones (7 Mar 2026)
 
-**Pendientes (7/15):**
+**Pendientes (6/14):**
 
 **🟢 Disponibles ahora:**
 
 | # | Módulo | Tiempo Estimado | Depende de | Descripción |
 |---|--------|-----------------|------------|-------------|
-| 1 | **Alertas** | ~1 día | - | Notificaciones configurables (ventas, cupones) |
-| 2 | **Cupones** | ~3 días | ScanYA ✅ | CRUD cupones, validación, cuponera usuario |
-| 3 | **Empleados** | ~2 días | ScanYA ✅ | Gestión empleados, Nick+PIN, permisos |
+| 1 | **Alertas** | ~1 día | - | Notificaciones configurables |
+| 2 | **Empleados** | ~2 días | ScanYA ✅ | Gestión empleados, Nick+PIN, permisos |
 | 4 | **Reportes** | ~3 días | ScanYA ✅ | Ventas, productos top, horarios pico, export |
 | 5 | **Sucursales** | ~2 días | - | Gestión multi-sucursal completa |
 
@@ -256,7 +259,7 @@
 |------|-----------------|
 | Sprint 1-6 (Sistema Lealtad + Chat) | ✅ Completado |
 | Secciones Públicas (6.0-6.3) | ~10-13 días |
-| BS Módulos Pendientes (7/15) | ~15 días |
+| BS Módulos Pendientes (6/14) | ~12 días |
 | Pre-lanzamiento (7.1) | ~5 días |
 | Beta (7.2) | ~21 días |
 | **TOTAL OPTIMISTA** | **~6-8 semanas** |

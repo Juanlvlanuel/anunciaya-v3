@@ -1349,6 +1349,179 @@ export async function reenviarCupon(ofertaId: string, negocioId: string) {
 }
 
 // =============================================================================
+// REVOCAR CUPÓN (desde BS)
+// =============================================================================
+
+export async function revocarCupon(
+  ofertaId: string,
+  usuarioId: string,
+  negocioId: string,
+  revocadoPorId: string,
+  motivo?: string
+) {
+  try {
+    // Verificar oferta
+    const [oferta] = await db
+      .select()
+      .from(ofertas)
+      .where(and(eq(ofertas.id, ofertaId), eq(ofertas.negocioId, negocioId)))
+      .limit(1);
+
+    if (!oferta) return { success: false, error: 'Oferta no encontrada' };
+
+    // Verificar asignación
+    const [asignacion] = await db
+      .select()
+      .from(ofertaUsuarios)
+      .where(and(eq(ofertaUsuarios.ofertaId, ofertaId), eq(ofertaUsuarios.usuarioId, usuarioId)))
+      .limit(1);
+
+    if (!asignacion) return { success: false, error: 'El usuario no tiene este cupón asignado' };
+    if (asignacion.estado === 'revocado') return { success: false, error: 'Este cupón ya fue revocado' };
+    if (asignacion.estado === 'usado') return { success: false, error: 'Este cupón ya fue usado' };
+
+    // Revocar
+    await db
+      .update(ofertaUsuarios)
+      .set({
+        estado: 'revocado',
+        revocadoAt: new Date().toISOString(),
+        revocadoPor: revocadoPorId,
+        motivoRevocacion: motivo || null,
+      })
+      .where(eq(ofertaUsuarios.id, asignacion.id));
+
+    // Notificar al usuario
+    const [negocioInfo] = await db
+      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+      .from(negocios)
+      .where(eq(negocios.id, negocioId))
+      .limit(1);
+
+    crearNotificacion({
+      usuarioId,
+      modo: 'personal',
+      tipo: 'cupon_revocado',
+      titulo: 'Cupón revocado',
+      mensaje: `${oferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}${motivo ? `\nMotivo: ${motivo}` : ''}`,
+      negocioId,
+      referenciaId: ofertaId,
+      referenciaTipo: 'cupon',
+      icono: '❌',
+      actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+      actorNombre: negocioInfo?.nombre ?? undefined,
+    }).catch((err) => console.error('Error notificación cupón revocado:', err));
+
+    return { success: true, message: 'Cupón revocado correctamente' };
+  } catch (error) {
+    console.error('Error al revocar cupón:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// OBTENER MIS CUPONES (vista cliente)
+// =============================================================================
+
+export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string) {
+  try {
+    const condiciones = [eq(ofertaUsuarios.usuarioId, usuarioId)];
+
+    if (filtroEstado && filtroEstado !== 'todos') {
+      condiciones.push(eq(ofertaUsuarios.estado, filtroEstado));
+    }
+
+    const query = sql`
+      SELECT
+        ou.id as cupón_id,
+        ou.oferta_id,
+        ou.codigo_personal,
+        ou.estado,
+        ou.motivo,
+        ou.asignado_at,
+        ou.usado_at,
+        ou.revocado_at,
+        ou.motivo_revocacion,
+        o.titulo,
+        o.descripcion,
+        o.imagen,
+        o.tipo,
+        o.valor,
+        o.compra_minima,
+        o.fecha_inicio,
+        o.fecha_fin,
+        n.id as negocio_id,
+        n.nombre as negocio_nombre,
+        n.logo_url as negocio_logo,
+        ns.nombre as sucursal_nombre
+      FROM oferta_usuarios ou
+      JOIN ofertas o ON o.id = ou.oferta_id
+      JOIN negocios n ON n.id = o.negocio_id
+      LEFT JOIN negocio_sucursales ns ON ns.id = o.sucursal_id
+      WHERE ou.usuario_id = ${usuarioId}
+      ${filtroEstado && filtroEstado !== 'todos' ? sql`AND ou.estado = ${filtroEstado}` : sql``}
+      ORDER BY
+        CASE ou.estado
+          WHEN 'activo' THEN 1
+          WHEN 'usado' THEN 2
+          WHEN 'expirado' THEN 3
+          WHEN 'revocado' THEN 4
+        END,
+        ou.asignado_at DESC
+    `;
+
+    const resultado = await db.execute(query);
+
+    return {
+      success: true,
+      data: resultado.rows,
+    };
+  } catch (error) {
+    console.error('Error al obtener mis cupones:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// REVELAR CÓDIGO DE CUPÓN (vista cliente)
+// =============================================================================
+
+export async function revelarCodigoCupon(ofertaUsuarioId: string, usuarioId: string) {
+  try {
+    const query = sql`
+      SELECT ou.codigo_personal, ou.estado, ou.oferta_id
+      FROM oferta_usuarios ou
+      WHERE ou.id = ${ofertaUsuarioId}
+        AND ou.usuario_id = ${usuarioId}
+      LIMIT 1
+    `;
+
+    const resultado = await db.execute(query);
+
+    if (resultado.rows.length === 0) {
+      return { success: false, error: 'Cupón no encontrado', code: 404 };
+    }
+
+    const cupon = resultado.rows[0] as Record<string, unknown>;
+
+    if (cupon.estado === 'revocado') {
+      return { success: false, error: 'Este cupón fue revocado', code: 400 };
+    }
+
+    return {
+      success: true,
+      data: {
+        codigo: cupon.codigo_personal,
+        estado: cupon.estado,
+      },
+    };
+  } catch (error) {
+    console.error('Error al revelar código:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -1374,4 +1547,7 @@ export default {
   obtenerOfertasExclusivasUsuario,
   obtenerOfertaPublica,
   reenviarCupon,
+  revocarCupon,
+  obtenerMisCupones,
+  revelarCodigoCupon,
 };

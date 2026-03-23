@@ -27,6 +27,9 @@ import {
   obtenerOfertasExclusivasUsuario,
   obtenerOfertaPublica,
   reenviarCupon,
+  revocarCupon,
+  obtenerMisCupones,
+  revelarCodigoCupon,
 } from '../services/ofertas.service.js';
 import {
   crearOfertaSchema,
@@ -699,6 +702,74 @@ export async function postReenviarCupon(req: Request, res: Response) {
 }
 
 // =============================================================================
+// REVOCAR CUPÓN
+// =============================================================================
+
+export async function postRevocarCupon(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { usuarioId, motivo } = req.body;
+    const negocioId = req.negocioId;
+    const revocadoPorId = req.usuario?.usuarioId;
+
+    if (!negocioId || !revocadoPorId) {
+      return res.status(400).json({ success: false, message: 'Faltan parámetros' });
+    }
+    if (!usuarioId) {
+      return res.status(400).json({ success: false, message: 'El ID del usuario es requerido' });
+    }
+
+    const resultado = await revocarCupon(id, usuarioId, negocioId, revocadoPorId, motivo);
+    if (!resultado.success) {
+      return res.status(400).json(resultado);
+    }
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en postRevocarCupon:', error);
+    return res.status(500).json({ success: false, message: 'Error al revocar cupón' });
+  }
+}
+
+// =============================================================================
+// MIS CUPONES (VISTA CLIENTE)
+// =============================================================================
+
+export async function getMisCupones(req: Request, res: Response) {
+  try {
+    const usuarioId = req.usuario?.usuarioId;
+    if (!usuarioId) {
+      return res.status(401).json({ success: false, message: 'No autenticado' });
+    }
+
+    const estado = req.query.estado as string | undefined;
+    const resultado = await obtenerMisCupones(usuarioId, estado);
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getMisCupones:', error);
+    return res.status(500).json({ success: false, message: 'Error al obtener cupones' });
+  }
+}
+
+export async function postRevelarCodigo(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const usuarioId = req.usuario?.usuarioId;
+    if (!usuarioId) {
+      return res.status(401).json({ success: false, message: 'No autenticado' });
+    }
+
+    const resultado = await revelarCodigoCupon(id, usuarioId);
+    if (!resultado.success) {
+      return res.status(resultado.code ?? 400).json(resultado);
+    }
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en postRevelarCodigo:', error);
+    return res.status(500).json({ success: false, message: 'Error al revelar código' });
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -718,7 +789,10 @@ export default {
 
   // Código de descuento + ofertas exclusivas
   postReenviarCupon,
+  postRevocarCupon,
   postAsignarOferta,
+  getMisCupones,
+  postRevelarCodigo,
   getMisExclusivas,
   getOfertaPublica,
 };
