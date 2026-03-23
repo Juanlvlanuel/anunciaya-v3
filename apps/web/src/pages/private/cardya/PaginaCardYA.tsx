@@ -439,7 +439,7 @@ export function PaginaCardYA() {
                                 <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         <button
-                                            onClick={() => navigate(-1)}
+                                            onClick={() => navigate('/inicio')}
                                             className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                                         >
                                             <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />

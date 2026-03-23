@@ -481,12 +481,12 @@ export async function crearObtenerConversacion(
             if (pos === 'p1' && existente.eliminadaPorP1) {
                 await db
                     .update(chatConversaciones)
-                    .set({ eliminadaPorP1: false })
+                    .set({ eliminadaPorP1: false, mensajesVisiblesDesdeP1: new Date().toISOString() })
                     .where(eq(chatConversaciones.id, existente.id));
             } else if (pos === 'p2' && existente.eliminadaPorP2) {
                 await db
                     .update(chatConversaciones)
-                    .set({ eliminadaPorP2: false })
+                    .set({ eliminadaPorP2: false, mensajesVisiblesDesdeP2: new Date().toISOString() })
                     .where(eq(chatConversaciones.id, existente.id));
             }
 

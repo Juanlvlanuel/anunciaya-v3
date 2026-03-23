@@ -19,7 +19,7 @@ import { sql, eq, and, count } from 'drizzle-orm';
 import { db } from '../db';
 import { ofertas, ofertaUsos, ofertaUsuarios } from '../db/schemas/schema';
 import { duplicarImagen } from './cloudinary.service';
-import { generarPresignedUrl, duplicarArchivo, esUrlR2 } from './r2.service.js';
+import { generarPresignedUrl, duplicarArchivo, esUrlR2, eliminarArchivo } from './r2.service.js';
 import type {
   CrearOfertaInput,
   ActualizarOfertaInput,
@@ -28,7 +28,9 @@ import type {
   RegistrarUsoOfertaInput,
 } from '../types/ofertas.types';
 import { negocios, puntosBilletera, notificaciones } from '../db/schemas/schema';
+import { emitirAUsuario } from '../socket.js';
 import { crearNotificacion } from './notificaciones.service.js';
+import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
 
 // =============================================================================
 // HELPER: DUPLICAR IMAGEN (R2 o Cloudinary)
@@ -438,26 +440,39 @@ export async function crearOferta(
 
         // Notificar a usuarios asignados
         const [negocioInfo] = await tx
-          .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+          .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl, usuarioId: negocios.usuarioId })
           .from(negocios)
           .where(eq(negocios.id, negocioId))
           .limit(1);
 
         for (const uid of datos.usuariosIds) {
+          // Notificación panel
           crearNotificacion({
             usuarioId: uid,
             modo: 'personal',
-            tipo: 'nueva_oferta',
-            titulo: '¡Oferta exclusiva para ti!',
+            tipo: 'cupon_asignado',
+            titulo: '¡Cupón exclusivo para ti!',
             mensaje: `${nuevaOferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
             negocioId,
             sucursalId,
             referenciaId: nuevaOferta.id,
-            referenciaTipo: 'oferta',
+            referenciaTipo: 'cupon',
             icono: '🎟️',
             actorImagenUrl: nuevaOferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
             actorNombre: negocioInfo?.nombre ?? undefined,
-          }).catch((err) => console.error('Error notificación oferta exclusiva:', err));
+          }).catch((err) => console.error('Error notificación cupón asignado:', err));
+
+          // Mensaje ChatYA con burbuja especial
+          const asignacion = asignaciones.find(a => a.usuarioId === uid);
+          enviarCuponPorChatYA(
+            negocioInfo?.usuarioId ?? negocioId, sucursalId, uid,
+            { id: nuevaOferta.id, titulo: nuevaOferta.titulo, imagen: nuevaOferta.imagen, tipo: nuevaOferta.tipo, valor: nuevaOferta.valor, fechaFin: nuevaOferta.fechaFin },
+            asignacion?.codigoPersonal ? String(asignacion.codigoPersonal) : '',
+            negocioInfo?.nombre ?? 'un negocio'
+          ).catch((err) => console.error('Error ChatYA cupón:', err));
+
+          // Notificar al frontend en tiempo real
+          emitirAUsuario(uid, 'cupon:actualizado', { ofertaId: nuevaOferta.id, estado: 'activo' });
         }
       }
 
@@ -765,9 +780,9 @@ export async function eliminarOferta(
 ) {
   try {
     return await db.transaction(async (tx) => {
-      // 1. Verificar que la oferta existe y pertenece a la sucursal
+      // 1. Verificar que la oferta existe y obtener imagen
       const verificacion = await tx.execute(sql`
-        SELECT o.id
+        SELECT o.id, o.imagen
         FROM ofertas o
         WHERE o.id = ${ofertaId}
           AND o.negocio_id = ${negocioId}
@@ -778,22 +793,81 @@ export async function eliminarOferta(
         throw new Error('Oferta no encontrada o no pertenece a esta sucursal');
       }
 
+      const imagenUrl = (verificacion.rows[0] as Record<string, unknown>).imagen as string | null;
+
       // 2. Limpiar guardados de esta oferta (no hay FK CASCADE hacia guardados)
       await tx.execute(sql`
         DELETE FROM guardados 
         WHERE entity_type = 'oferta' AND entity_id = ${ofertaId}
       `);
 
-      // 3. Limpiar notificaciones que referencian esta oferta
+      // 3. Limpiar notificaciones que referencian esta oferta (tipo 'oferta' y 'cupon')
       await tx.delete(notificaciones).where(
         and(
           eq(notificaciones.referenciaId, ofertaId),
-          eq(notificaciones.referenciaTipo, 'oferta')
         )
       );
 
-      // 4. Eliminar oferta (CASCADE eliminará registros relacionados)
+      // 4. Obtener conversaciones afectadas + clientes asignados antes de eliminar
+      const conversacionesAfectadas = await tx.execute(sql`
+        SELECT DISTINCT conversacion_id FROM chat_mensajes
+        WHERE tipo = 'cupon' AND contenido::jsonb->>'ofertaId' = ${ofertaId}
+      `);
+
+      const asignados = await tx
+        .select({ usuarioId: ofertaUsuarios.usuarioId })
+        .from(ofertaUsuarios)
+        .where(eq(ofertaUsuarios.ofertaId, ofertaId));
+
+      // 5. Eliminar mensajes de chat tipo 'cupon' asociados a esta oferta
+      await tx.execute(sql`
+        DELETE FROM chat_mensajes
+        WHERE tipo = 'cupon' AND contenido::jsonb->>'ofertaId' = ${ofertaId}
+      `);
+
+      // 6. Actualizar preview de conversaciones afectadas
+      for (const row of conversacionesAfectadas.rows) {
+        const convId = (row as Record<string, unknown>).conversacion_id as string;
+        const tiene = await tx.execute(sql`
+          SELECT 1 FROM chat_mensajes WHERE conversacion_id = ${convId} AND eliminado = false LIMIT 1
+        `);
+        if (tiene.rows.length > 0) {
+          await tx.execute(sql`
+            UPDATE chat_conversaciones SET
+              ultimo_mensaje_texto = sub.contenido,
+              ultimo_mensaje_tipo = sub.tipo,
+              ultimo_mensaje_fecha = sub.created_at,
+              ultimo_mensaje_estado = sub.estado,
+              ultimo_mensaje_emisor_id = sub.emisor_id
+            FROM (
+              SELECT contenido, tipo, created_at, estado, emisor_id
+              FROM chat_mensajes
+              WHERE conversacion_id = ${convId} AND eliminado = false
+              ORDER BY created_at DESC LIMIT 1
+            ) sub
+            WHERE chat_conversaciones.id = ${convId}
+          `);
+        } else {
+          await tx.execute(sql`DELETE FROM chat_mensajes WHERE conversacion_id = ${convId}`);
+          await tx.execute(sql`DELETE FROM chat_conversaciones WHERE id = ${convId}`);
+        }
+      }
+
+      // 7. Emitir sockets para actualización en tiempo real
+      const convIds = conversacionesAfectadas.rows.map(r => (r as Record<string, unknown>).conversacion_id as string);
+      for (const a of asignados) {
+        emitirAUsuario(a.usuarioId, 'cupon:actualizado', { ofertaId, estado: 'eliminado' });
+        emitirAUsuario(a.usuarioId, 'chatya:cupon-eliminado', { ofertaId, conversacionIds: convIds });
+        emitirAUsuario(a.usuarioId, 'notificacion:recargar', {});
+      }
+
+      // 8. Eliminar oferta (CASCADE eliminará registros relacionados)
       await tx.delete(ofertas).where(eq(ofertas.id, ofertaId));
+
+      // 9. Eliminar imagen de R2 (fuera de la transacción no bloquea)
+      if (imagenUrl && esUrlR2(imagenUrl)) {
+        eliminarArchivo(imagenUrl).catch(err => console.error('Error eliminando imagen de oferta:', err));
+      }
 
       return {
         success: true,
@@ -942,6 +1016,62 @@ export async function registrarVistaOferta(ofertaId: string) {
   } catch (error) {
     console.error('Error al registrar vista:', error);
     throw error;
+  }
+}
+
+// =============================================================================
+// HELPER: GENERAR CÓDIGO ALEATORIO
+// =============================================================================
+
+// =============================================================================
+// HELPER: ENVIAR CUPÓN POR CHATYA
+// =============================================================================
+
+async function enviarCuponPorChatYA(
+  negocioUsuarioId: string,
+  sucursalId: string | null,
+  clienteId: string,
+  oferta: { id: string; titulo: string; imagen: string | null; tipo: string; valor: string | null; fechaFin: string },
+  ofertaUsuarioId: string,
+  negocioNombre: string
+) {
+  try {
+    // Buscar/crear conversación negocio↔cliente
+    const convRes = await crearObtenerConversacion({
+      participante2Id: clienteId,
+      participante2Modo: 'personal',
+      participante1Modo: 'comercial',
+      participante1SucursalId: sucursalId || undefined,
+      contextoTipo: 'oferta',
+      contextoReferenciaId: oferta.id,
+    }, negocioUsuarioId);
+
+    if (!convRes.success || !convRes.data) return;
+
+    // Contenido JSON del mensaje tipo 'cupon'
+    const contenidoCupon = JSON.stringify({
+      ofertaId: oferta.id,
+      ofertaUsuarioId,
+      titulo: oferta.titulo,
+      imagen: oferta.imagen,
+      tipo: oferta.tipo,
+      valor: oferta.valor,
+      fechaExpiracion: oferta.fechaFin,
+      negocioNombre,
+      mensajeMotivador: '¡Felicidades! Tienes un cupón exclusivo 🎉',
+      accionUrl: `/mis-cupones?id=${ofertaUsuarioId}`,
+    });
+
+    await enviarMensaje({
+      conversacionId: convRes.data.id,
+      emisorId: negocioUsuarioId,
+      emisorModo: 'comercial',
+      emisorSucursalId: sucursalId || undefined,
+      tipo: 'cupon',
+      contenido: contenidoCupon,
+    });
+  } catch (err) {
+    console.error('Error enviando cupón por ChatYA:', err);
   }
 }
 
@@ -1314,28 +1444,40 @@ export async function reenviarCupon(ofertaId: string, negocioId: string) {
 
     if (asignados.length === 0) return { success: false, error: 'No hay clientes asignados' };
 
-    // Info del negocio
+    // Info del negocio (incluye usuarioId para ChatYA)
     const [negocioInfo] = await db
-      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl, usuarioId: negocios.usuarioId })
       .from(negocios)
       .where(eq(negocios.id, negocioId))
       .limit(1);
 
-    // Reenviar notificación a cada usuario
+    // Reenviar notificación + mensaje ChatYA a cada usuario
     for (const asignado of asignados) {
+      // Notificación (sin código — dato sensible)
       crearNotificacion({
         usuarioId: asignado.usuarioId,
         modo: 'personal',
-        tipo: 'nueva_oferta',
-        titulo: '¡Cupón exclusivo para ti!',
-        mensaje: `${oferta.titulo}\nCódigo: ${asignado.codigoPersonal}\n${negocioInfo?.nombre ?? 'un negocio'}`,
+        tipo: 'cupon_asignado',
+        titulo: '¡Recordatorio de cupón!',
+        mensaje: `${oferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
         negocioId,
+        sucursalId: oferta.sucursalId ?? undefined,
         referenciaId: ofertaId,
-        referenciaTipo: 'oferta',
+        referenciaTipo: 'cupon',
         icono: '🎟️',
         actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
         actorNombre: negocioInfo?.nombre ?? undefined,
-      }).catch((err) => console.error('Error reenvío cupón:', err));
+      }).catch((err) => console.error('Error reenvío notificación cupón:', err));
+
+      // Mensaje ChatYA
+      enviarCuponPorChatYA(
+        negocioInfo?.usuarioId ?? negocioId,
+        oferta.sucursalId,
+        asignado.usuarioId,
+        { id: oferta.id, titulo: oferta.titulo, imagen: oferta.imagen, tipo: oferta.tipo, valor: oferta.valor, fechaFin: oferta.fechaFin },
+        asignado.codigoPersonal ? String(asignado.codigoPersonal) : '',
+        negocioInfo?.nombre ?? 'un negocio'
+      ).catch((err) => console.error('Error reenvío ChatYA cupón:', err));
     }
 
     return {
@@ -1391,6 +1533,21 @@ export async function revocarCupon(
       })
       .where(eq(ofertaUsuarios.id, asignacion.id));
 
+    // Eliminar mensajes de chat y notificaciones originales de este cupón para este usuario
+    await db.execute(sql`
+      DELETE FROM chat_mensajes
+      WHERE tipo = 'cupon' AND contenido::jsonb->>'ofertaId' = ${ofertaId}
+        AND emisor_id != ${usuarioId}
+    `);
+
+    await db.delete(notificaciones).where(
+      and(
+        eq(notificaciones.usuarioId, usuarioId),
+        eq(notificaciones.referenciaId, ofertaId),
+        eq(notificaciones.referenciaTipo, 'cupon')
+      )
+    );
+
     // Notificar al usuario
     const [negocioInfo] = await db
       .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
@@ -1412,9 +1569,210 @@ export async function revocarCupon(
       actorNombre: negocioInfo?.nombre ?? undefined,
     }).catch((err) => console.error('Error notificación cupón revocado:', err));
 
+    // Notificar al frontend en tiempo real
+    emitirAUsuario(usuarioId, 'cupon:actualizado', { ofertaId, estado: 'revocado' });
+
     return { success: true, message: 'Cupón revocado correctamente' };
   } catch (error) {
     console.error('Error al revocar cupón:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// REVOCAR CUPÓN MASIVO — revoca TODOS los usuarios activos de un cupón
+// =============================================================================
+
+export async function revocarCuponMasivo(
+  ofertaId: string,
+  negocioId: string,
+  revocadoPorId: string,
+  motivo?: string
+) {
+  try {
+    const [oferta] = await db
+      .select()
+      .from(ofertas)
+      .where(and(eq(ofertas.id, ofertaId), eq(ofertas.negocioId, negocioId)))
+      .limit(1);
+
+    if (!oferta) return { success: false, error: 'Oferta no encontrada' };
+    if (oferta.visibilidad !== 'privado') return { success: false, error: 'Solo se pueden revocar cupones privados' };
+
+    // Obtener usuarios activos
+    const asignados = await db
+      .select({ id: ofertaUsuarios.id, usuarioId: ofertaUsuarios.usuarioId })
+      .from(ofertaUsuarios)
+      .where(and(eq(ofertaUsuarios.ofertaId, ofertaId), eq(ofertaUsuarios.estado, 'activo')));
+
+    if (asignados.length === 0) return { success: false, error: 'No hay cupones activos para revocar' };
+
+    // Revocar todos
+    await db
+      .update(ofertaUsuarios)
+      .set({
+        estado: 'revocado',
+        revocadoAt: new Date().toISOString(),
+        revocadoPor: revocadoPorId,
+        motivoRevocacion: motivo || 'Cupón desactivado por el negocio',
+      })
+      .where(and(eq(ofertaUsuarios.ofertaId, ofertaId), eq(ofertaUsuarios.estado, 'activo')));
+
+    // Desactivar la oferta
+    await db
+      .update(ofertas)
+      .set({ activo: false })
+      .where(eq(ofertas.id, ofertaId));
+
+    // Obtener conversaciones afectadas antes de eliminar mensajes
+    const conversacionesAfectadas = await db.execute(sql`
+      SELECT DISTINCT conversacion_id FROM chat_mensajes
+      WHERE tipo = 'cupon' AND contenido::jsonb->>'ofertaId' = ${ofertaId}
+    `);
+
+    // Eliminar mensajes de chat tipo 'cupon' de esta oferta
+    await db.execute(sql`
+      DELETE FROM chat_mensajes
+      WHERE tipo = 'cupon' AND contenido::jsonb->>'ofertaId' = ${ofertaId}
+    `);
+
+    // Actualizar preview de conversaciones afectadas (poner el último mensaje real)
+    for (const row of conversacionesAfectadas.rows) {
+      const convId = (row as Record<string, unknown>).conversacion_id as string;
+      await db.execute(sql`
+        UPDATE chat_conversaciones SET
+          ultimo_mensaje_texto = sub.contenido,
+          ultimo_mensaje_tipo = sub.tipo,
+          ultimo_mensaje_fecha = sub.created_at,
+          ultimo_mensaje_estado = sub.estado,
+          ultimo_mensaje_emisor_id = sub.emisor_id
+        FROM (
+          SELECT contenido, tipo, created_at, estado, emisor_id
+          FROM chat_mensajes
+          WHERE conversacion_id = ${convId} AND eliminado = false
+          ORDER BY created_at DESC LIMIT 1
+        ) sub
+        WHERE chat_conversaciones.id = ${convId}
+      `);
+      // Si no quedan mensajes, eliminar la conversación completa
+      const tiene = await db.execute(sql`
+        SELECT 1 FROM chat_mensajes WHERE conversacion_id = ${convId} AND eliminado = false LIMIT 1
+      `);
+      if (tiene.rows.length === 0) {
+        await db.execute(sql`DELETE FROM chat_mensajes WHERE conversacion_id = ${convId}`);
+        await db.execute(sql`DELETE FROM chat_conversaciones WHERE id = ${convId}`);
+      }
+    }
+
+    // Eliminar notificaciones originales de asignación (cupon_asignado)
+    await db.delete(notificaciones).where(
+      and(
+        eq(notificaciones.referenciaId, ofertaId),
+        eq(notificaciones.referenciaTipo, 'cupon')
+      )
+    );
+
+    // Notificar revocación a cada usuario
+    const [negocioInfo] = await db
+      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+      .from(negocios)
+      .where(eq(negocios.id, negocioId))
+      .limit(1);
+
+    for (const a of asignados) {
+      await crearNotificacion({
+        usuarioId: a.usuarioId,
+        modo: 'personal',
+        tipo: 'cupon_revocado',
+        titulo: 'Cupón revocado',
+        mensaje: `${oferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}${motivo ? `\nMotivo: ${motivo}` : ''}`,
+        negocioId,
+        referenciaId: ofertaId,
+        referenciaTipo: 'cupon',
+        icono: '❌',
+        actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+        actorNombre: negocioInfo?.nombre ?? undefined,
+      }).catch((err) => console.error('Error notificación revocar masivo:', err));
+    }
+
+    // Emitir sockets después de que todo esté guardado en BD
+    const convIds = conversacionesAfectadas.rows.map(r => (r as Record<string, unknown>).conversacion_id as string);
+    for (const a of asignados) {
+      emitirAUsuario(a.usuarioId, 'cupon:actualizado', { ofertaId, estado: 'revocado' });
+      emitirAUsuario(a.usuarioId, 'chatya:cupon-eliminado', { ofertaId, conversacionIds: convIds });
+      emitirAUsuario(a.usuarioId, 'notificacion:recargar', {});
+    }
+
+    return { success: true, message: `Cupón revocado para ${asignados.length} cliente(s)` };
+  } catch (error) {
+    console.error('Error al revocar cupón masivo:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// REACTIVAR CUPÓN MASIVO
+// =============================================================================
+
+export async function reactivarCupon(ofertaId: string, negocioId: string) {
+  try {
+    const [oferta] = await db
+      .select()
+      .from(ofertas)
+      .where(and(eq(ofertas.id, ofertaId), eq(ofertas.negocioId, negocioId)))
+      .limit(1);
+
+    if (!oferta) return { success: false, error: 'Oferta no encontrada' };
+    if (oferta.visibilidad !== 'privado') return { success: false, error: 'Solo cupones privados' };
+
+    const revocados = await db
+      .select({ id: ofertaUsuarios.id, usuarioId: ofertaUsuarios.usuarioId, codigoPersonal: ofertaUsuarios.codigoPersonal })
+      .from(ofertaUsuarios)
+      .where(and(eq(ofertaUsuarios.ofertaId, ofertaId), eq(ofertaUsuarios.estado, 'revocado')));
+
+    if (revocados.length === 0) return { success: false, error: 'No hay cupones revocados para reactivar' };
+
+    await db.update(ofertaUsuarios)
+      .set({ estado: 'activo', revocadoAt: null, revocadoPor: null, motivoRevocacion: null })
+      .where(and(eq(ofertaUsuarios.ofertaId, ofertaId), eq(ofertaUsuarios.estado, 'revocado')));
+
+    await db.update(ofertas).set({ activo: true }).where(eq(ofertas.id, ofertaId));
+
+    // Eliminar notificaciones de revocación previas
+    await db.delete(notificaciones).where(
+      and(eq(notificaciones.referenciaId, ofertaId), eq(notificaciones.referenciaTipo, 'cupon'))
+    );
+
+    const [negocioInfo] = await db
+      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl, usuarioId: negocios.usuarioId })
+      .from(negocios)
+      .where(eq(negocios.id, negocioId))
+      .limit(1);
+
+    for (const r of revocados) {
+      await crearNotificacion({
+        usuarioId: r.usuarioId, modo: 'personal', tipo: 'cupon_asignado',
+        titulo: '¡Tu cupón fue reactivado!',
+        mensaje: `${oferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
+        negocioId, sucursalId: oferta.sucursalId ?? undefined,
+        referenciaId: ofertaId, referenciaTipo: 'cupon', icono: '🎟️',
+        actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+        actorNombre: negocioInfo?.nombre ?? undefined,
+      }).catch(err => console.error('Error notificación reactivar:', err));
+
+      enviarCuponPorChatYA(
+        negocioInfo?.usuarioId ?? negocioId, oferta.sucursalId, r.usuarioId,
+        { id: oferta.id, titulo: oferta.titulo, imagen: oferta.imagen, tipo: oferta.tipo, valor: oferta.valor, fechaFin: oferta.fechaFin },
+        r.codigoPersonal ? String(r.codigoPersonal) : '', negocioInfo?.nombre ?? 'un negocio'
+      ).catch(err => console.error('Error ChatYA reactivar:', err));
+
+      emitirAUsuario(r.usuarioId, 'cupon:actualizado', { ofertaId, estado: 'activo' });
+      emitirAUsuario(r.usuarioId, 'notificacion:recargar', {});
+    }
+
+    return { success: true, message: `Cupón reactivado para ${revocados.length} cliente(s)` };
+  } catch (error) {
+    console.error('Error al reactivar cupón:', error);
     throw error;
   }
 }
@@ -1433,7 +1791,7 @@ export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string
 
     const query = sql`
       SELECT
-        ou.id as cupón_id,
+        ou.id as cupon_id,
         ou.oferta_id,
         ou.codigo_personal,
         ou.estado,
@@ -1451,8 +1809,10 @@ export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string
         o.fecha_inicio,
         o.fecha_fin,
         n.id as negocio_id,
+        n.usuario_id as negocio_usuario_id,
         n.nombre as negocio_nombre,
         n.logo_url as negocio_logo,
+        o.sucursal_id,
         ns.nombre as sucursal_nombre
       FROM oferta_usuarios ou
       JOIN ofertas o ON o.id = ou.oferta_id
@@ -1486,8 +1846,26 @@ export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string
 // REVELAR CÓDIGO DE CUPÓN (vista cliente)
 // =============================================================================
 
-export async function revelarCodigoCupon(ofertaUsuarioId: string, usuarioId: string) {
+export async function revelarCodigoCupon(ofertaUsuarioId: string, usuarioId: string, contrasena?: string) {
   try {
+    // Verificar contraseña si se proporciona
+    if (contrasena) {
+      const resultado = await db.execute(sql`
+        SELECT contrasena_hash FROM usuarios WHERE id = ${usuarioId} LIMIT 1
+      `);
+
+      const usuario = resultado.rows[0] as Record<string, unknown> | undefined;
+      if (!usuario?.contrasena_hash) {
+        return { success: false, message: 'Usuario sin contraseña configurada', code: 400 };
+      }
+
+      const bcrypt = await import('bcrypt');
+      const valida = await bcrypt.compare(contrasena, usuario.contrasena_hash as string);
+      if (!valida) {
+        return { success: false, message: 'Contraseña incorrecta', code: 401 };
+      }
+    }
+
     const query = sql`
       SELECT ou.codigo_personal, ou.estado, ou.oferta_id
       FROM oferta_usuarios ou
@@ -1522,6 +1900,45 @@ export async function revelarCodigoCupon(ofertaUsuarioId: string, usuarioId: str
 }
 
 // =============================================================================
+// OBTENER CLIENTES ASIGNADOS A UN CUPÓN (BS)
+// =============================================================================
+
+export async function obtenerClientesAsignados(ofertaId: string, negocioId: string) {
+  try {
+    const resultado = await db.execute(sql`
+      SELECT
+        u.id,
+        u.nombre,
+        u.telefono,
+        u.correo,
+        u.avatar_url,
+        ou.id as cupon_id,
+        ou.estado,
+        ou.codigo_personal,
+        ou.motivo,
+        ou.asignado_at,
+        ou.usado_at,
+        ou.revocado_at,
+        ou.motivo_revocacion
+      FROM oferta_usuarios ou
+      JOIN usuarios u ON u.id = ou.usuario_id
+      JOIN ofertas o ON o.id = ou.oferta_id
+      WHERE ou.oferta_id = ${ofertaId}
+        AND o.negocio_id = ${negocioId}
+      ORDER BY ou.asignado_at DESC
+    `);
+
+    return {
+      success: true,
+      data: resultado.rows,
+    };
+  } catch (error) {
+    console.error('Error al obtener clientes asignados:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -1550,4 +1967,6 @@ export default {
   revocarCupon,
   obtenerMisCupones,
   revelarCodigoCupon,
+  obtenerClientesAsignados,
+  reactivarCupon,
 };

@@ -872,6 +872,8 @@ export function ModalRegistrarVenta({
                                             <div className="flex gap-2 lg:gap-1.5 2xl:gap-2 items-center">
                                                 {/* Input de lada */}
                                                 <input
+                                                    id="venta-lada-offline"
+                                                    name="ladaOffline"
                                                     type="text"
                                                     value={lada}
                                                     onChange={(e) => {
@@ -893,6 +895,8 @@ export function ModalRegistrarVenta({
                                                 />
                                                 {/* Input de teléfono */}
                                                 <input
+                                                    id="venta-telefono-offline"
+                                                    name="telefonoOffline"
                                                     type="tel"
                                                     inputMode="numeric"
                                                     value={telefono}
@@ -931,6 +935,8 @@ export function ModalRegistrarVenta({
                                             <div className="flex gap-2 lg:gap-1.5 2xl:gap-2 items-center">
                                                 {/* Input de lada */}
                                                 <input
+                                                    id="venta-lada-online"
+                                                    name="ladaOnline"
                                                     type="text"
                                                     value={lada}
                                                     onChange={(e) => {
@@ -951,6 +957,8 @@ export function ModalRegistrarVenta({
 
                                                 {/* Input de teléfono */}
                                                 <input
+                                                    id="venta-telefono-online"
+                                                    name="telefonoOnline"
                                                     type="tel"
                                                     inputMode="numeric"
                                                     maxLength={10}
@@ -1091,6 +1099,8 @@ export function ModalRegistrarVenta({
                             {seccionActiva === 'concepto' && seccionCompletada('cliente') && (
                                 <div className="px-4 pb-4">
                                     <input
+                                        id="venta-concepto"
+                                        name="concepto"
                                         type="text"
                                         value={concepto}
                                         onChange={(e) => setConcepto(e.target.value)}
@@ -1165,6 +1175,8 @@ export function ModalRegistrarVenta({
                                         <div className="flex items-center justify-center">
                                             <span className="text-[#94A3B8] text-2xl lg:text-xl 2xl:text-2xl mr-1">$</span>
                                             <input
+                                                id="venta-monto"
+                                                name="monto"
                                                 type="text"
                                                 inputMode="decimal"
                                                 value={monto}
@@ -1273,6 +1285,8 @@ export function ModalRegistrarVenta({
                                                             $
                                                         </span>
                                                         <input
+                                                            id={`venta-desglose-${tipo}`}
+                                                            name={`desglose-${tipo}`}
                                                             type="text"
                                                             inputMode="decimal"
                                                             value={desglose[tipo as keyof DesglosePago] || ''}
@@ -1371,6 +1385,8 @@ export function ModalRegistrarVenta({
                             {seccionActiva === 'nota' && seccionCompletada('cliente') && seccionCompletada('metodoPago') && (
                                 <div className="px-4 pb-4">
                                     <textarea
+                                        id="venta-nota"
+                                        name="nota"
                                         value={nota}
                                         onChange={(e) => setNota(e.target.value)}
                                         placeholder="Ej: Cliente frecuente, le faltó $20..."
@@ -1458,6 +1474,8 @@ export function ModalRegistrarVenta({
                                                     )}
                                                 </div>
                                                 <input
+                                                    id="venta-foto"
+                                                    name="fotoVenta"
                                                     type="file"
                                                     accept="image/*"
                                                     capture="environment"
@@ -1501,7 +1519,7 @@ export function ModalRegistrarVenta({
                                     </div>
                                     <div className="flex-1 text-left">
                                         <p className="text-white font-medium text-base lg:text-sm 2xl:text-base">
-                                            Código de descuento <span className="text-[#606060] text-xs">(opcional)</span>
+                                            Código de cupón <span className="text-[#606060] text-xs">(opcional)</span>
                                         </p>
                                         {cupon && (
                                             <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm">
@@ -1533,10 +1551,12 @@ export function ModalRegistrarVenta({
                                         ) : (
                                             <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
                                                 <input
+                                                    id="venta-codigo-cupon"
+                                                    name="codigoCupon"
                                                     type="text"
                                                     value={codigoCupon}
                                                     onChange={(e) => setCodigoCupon(e.target.value.toUpperCase())}
-                                                    placeholder="Código de descuento"
+                                                    placeholder="Código de cupón"
                                                     className="flex-1 py-2 lg:py-1.5 2xl:py-2 px-3 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[#1A1A1A] border border-[#333] text-white uppercase"
                                                 />
                                                 <button

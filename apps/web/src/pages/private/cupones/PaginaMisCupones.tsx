@@ -2,19 +2,21 @@
  * PaginaMisCupones.tsx
  * =====================
  * Página "Mis Cupones" — vista cliente.
- * Estructura similar a CardYA con identidad visual emerald/teal.
+ * Estructura idéntica a CardYA con identidad visual emerald/teal.
  *
  * 3 tabs: Activos | Usados | Historial
  *
  * UBICACIÓN: apps/web/src/pages/private/cupones/PaginaMisCupones.tsx
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { Ticket, Gift, CheckCircle, Clock } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Ticket, Gift, CheckCircle, Clock, ChevronLeft, Menu } from 'lucide-react';
 import { Spinner } from '../../../components/ui/Spinner';
-import { notificar } from '../../../utils/notificaciones';
-import { obtenerMisCupones } from '../../../services/misCuponesService';
 import type { CuponCliente } from '../../../services/misCuponesService';
+import { useUiStore } from '../../../stores/useUiStore';
+import { useMisCuponesStore } from '../../../stores/useMisCuponesStore';
+import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import CardCupon from './componentes/CardCupon';
 import ModalDetalleCupon from './componentes/ModalDetalleCupon';
 
@@ -39,6 +41,8 @@ const ESTILOS = `
     0%, 100% { box-shadow: 0 0 20px rgba(16,185,129,0.3); }
     50% { box-shadow: 0 0 30px rgba(16,185,129,0.5); }
   }
+  .cupones-tabs::-webkit-scrollbar { display: none; }
+  .cupones-tabs { -ms-overflow-style: none; scrollbar-width: none; }
 `;
 
 // =============================================================================
@@ -46,46 +50,51 @@ const ESTILOS = `
 // =============================================================================
 
 export default function PaginaMisCupones() {
-    const [tabActivo, setTabActivo] = useState<TabCupones>('activos');
-    const [cupones, setCupones] = useState<CuponCliente[]>([]);
-    const [cargando, setCargando] = useState(true);
+    const navigate = useNavigate();
+    const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+    const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
+    const headerRef = useRef<HTMLDivElement>(null);
+
+    const [searchParams, setSearchParams] = useSearchParams();
+    const cupones = useMisCuponesStore((s) => s.cupones);
+    const cargando = useMisCuponesStore((s) => s.cargando);
+    const cargarCupones = useMisCuponesStore((s) => s.cargarCupones);
+    const iniciarListener = useMisCuponesStore((s) => s.iniciarListener);
+
+    const [tabActivo, setTabActivoInterno] = useState<TabCupones>('activos');
     const [cuponSeleccionado, setCuponSeleccionado] = useState<CuponCliente | null>(null);
     const [modalAbierto, setModalAbierto] = useState(false);
 
-    // Deep link desde notificación
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const cuponId = params.get('id');
-        if (cuponId) {
-            // Abrir modal del cupón específico cuando se carguen
-            const buscarYAbrir = () => {
-                const cupon = cupones.find(c => c.cuponId === cuponId || c.ofertaId === cuponId);
-                if (cupon) {
-                    setCuponSeleccionado(cupon);
-                    setModalAbierto(true);
-                    window.history.replaceState({}, '', window.location.pathname);
-                }
-            };
-            if (!cargando) buscarYAbrir();
+    const setTabActivo = (tab: TabCupones) => {
+        setTabActivoInterno(tab);
+        if (mainScrollRef?.current) {
+            mainScrollRef.current.scrollTo({ top: 0 });
         }
-    }, [cupones, cargando]);
+    };
 
-    // Cargar cupones
-    const cargar = useCallback(async () => {
-        setCargando(true);
-        try {
-            const res = await obtenerMisCupones();
-            if (res.success && Array.isArray(res.data)) {
-                setCupones(res.data);
-            }
-        } catch {
-            notificar.error('Error al cargar cupones');
-        } finally {
-            setCargando(false);
-        }
+    // Carga inicial + listener socket para actualizaciones en tiempo real
+    useEffect(() => {
+        cargarCupones();
+        const detener = iniciarListener();
+        return detener;
     }, []);
 
-    useEffect(() => { cargar(); }, [cargar]);
+    // Deep link desde notificación (reacciona a cambios en searchParams)
+    useEffect(() => {
+        const cuponId = searchParams.get('id');
+        if (cuponId && !cargando && cupones.length > 0) {
+            const cupon = cupones.find(c => c.cuponId === cuponId || c.ofertaId === cuponId);
+            if (cupon) {
+                // Cambiar al tab correcto según estado
+                if (cupon.estado === 'activo') setTabActivoInterno('activos');
+                else if (cupon.estado === 'usado') setTabActivoInterno('usados');
+                else setTabActivoInterno('historial');
+                setCuponSeleccionado(cupon);
+                setModalAbierto(true);
+            }
+            setSearchParams({}, { replace: true });
+        }
+    }, [searchParams, cupones, cargando]);
 
     // Filtrar por tab
     const cuponesFiltrados = cupones.filter(c => {
@@ -106,86 +115,181 @@ export default function PaginaMisCupones() {
     return (
         <>
             <style>{ESTILOS}</style>
-            <div className="flex flex-col min-h-screen bg-slate-50">
+            <div className="min-h-full bg-transparent">
 
-                {/* ── Header dark ── */}
-                <div
-                    className="relative overflow-hidden shrink-0"
-                    style={{
-                        background: '#000000',
-                        backgroundImage: 'radial-gradient(ellipse at 85% 20%, rgba(16,185,129,0.07) 0%, transparent 50%)',
-                    }}
-                >
-                    {/* Grid pattern sutil */}
-                    <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                            backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)',
-                            backgroundSize: '20px 20px',
-                        }}
-                    />
-
-                    <div className="relative px-4 lg:px-6 2xl:px-8 pt-6 lg:pt-5 2xl:pt-6 pb-0">
-                        {/* Top: Logo + Título + KPIs */}
-                        <div className="flex items-center gap-3 lg:gap-4 2xl:gap-5 mb-4 lg:mb-3 2xl:mb-4">
-                            {/* Logo */}
+                {/* ── Header sticky — mismo patrón que CardYA ── */}
+                <div ref={headerRef} className="sticky top-0 z-20">
+                    <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
+                        <div
+                            className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                            style={{ background: '#000000' }}
+                        >
+                            {/* Glow sutil emerald */}
                             <div
-                                className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-xl flex items-center justify-center shrink-0"
-                                style={{ background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 4px 12px rgba(16,185,129,0.4)' }}
-                            >
-                                <Ticket className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
-                            </div>
+                                className="absolute inset-0 pointer-events-none"
+                                style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(16,185,129,0.07) 0%, transparent 50%)' }}
+                            />
+                            {/* Grid pattern sutil */}
+                            <div
+                                className="absolute inset-0 pointer-events-none"
+                                style={{
+                                    opacity: 0.08,
+                                    backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                                 repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                                }}
+                            />
 
-                            <div className="flex-1">
-                                <h1 className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold text-white tracking-tight">Mis Cupones</h1>
-                                <p className="text-sm lg:text-xs 2xl:text-sm text-white/50 font-medium">Tus descuentos exclusivos</p>
-                            </div>
+                            <div className="relative z-10">
 
-                            {/* KPIs desktop */}
-                            <div className="hidden lg:flex items-center gap-4 2xl:gap-6">
-                                <div className="text-right">
-                                    <p className="text-2xl lg:text-xl 2xl:text-2xl font-black text-emerald-400">{totalActivos}</p>
-                                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-white/50 font-semibold">Activos</p>
+                                {/* ══ MOBILE HEADER (< lg) ══ */}
+                                <div className="lg:hidden">
+                                    <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <button
+                                                data-testid="btn-volver-cupones"
+                                                onClick={() => navigate('/inicio')}
+                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                            >
+                                                <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                                            </button>
+                                            <div
+                                                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                                                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                                            >
+                                                <Ticket className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+                                            </div>
+                                            <span className="text-2xl font-extrabold text-white tracking-tight">
+                                                Mis <span className="text-emerald-400">Cupones</span>
+                                            </span>
+                                        </div>
+                                        <button
+                                            data-testid="btn-menu-cupones"
+                                            onClick={abrirMenuDrawer}
+                                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                        >
+                                            <Menu className="w-6 h-6" strokeWidth={2.5} />
+                                        </button>
+                                    </div>
+                                    {/* Subtítulo móvil */}
+                                    <div className="flex items-center justify-center gap-2.5 pb-2">
+                                        <div
+                                            className="h-0.5 w-14 rounded-full"
+                                            style={{ background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.7))' }}
+                                        />
+                                        <span className="text-base font-light text-white/70 tracking-wide">
+                                            Tus <span className="font-bold text-white">descuentos</span> exclusivos
+                                        </span>
+                                        <div
+                                            className="h-0.5 w-14 rounded-full"
+                                            style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.7), transparent)' }}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="w-px h-8 bg-white/20" />
-                                <div className="text-right">
-                                    <p className="text-2xl lg:text-xl 2xl:text-2xl font-black text-white/60">{totalUsados}</p>
-                                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-white/50 font-semibold">Usados</p>
+
+                                {/* ══ DESKTOP HEADER (>= lg) ══ */}
+                                <div className="hidden lg:block">
+                                    <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
+                                        {/* Logo */}
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <div
+                                                className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
+                                                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                                            >
+                                                <Ticket className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
+                                            </div>
+                                            <div className="flex items-baseline">
+                                                <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
+                                                    Mis{' '}
+                                                </span>
+                                                <span className="text-2xl 2xl:text-3xl font-extrabold text-emerald-400 tracking-tight">
+                                                    Cupones
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Centro: Subtítulo */}
+                                        <div className="flex-1 text-center min-w-0">
+                                            <h1 className="text-3xl 2xl:text-[34px] font-light text-white/70 leading-tight truncate">
+                                                Tus{' '}
+                                                <span className="font-bold text-white">descuentos</span>
+                                                {' '}exclusivos
+                                            </h1>
+                                            <div className="flex items-center justify-center gap-3 mt-1.5">
+                                                <div
+                                                    className="h-0.5 w-20 2xl:w-24 rounded-full"
+                                                    style={{ background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.7))' }}
+                                                />
+                                                <span className="text-xs 2xl:text-[13px] font-semibold text-emerald-400/70 uppercase tracking-[3px]">
+                                                    cuponera digital
+                                                </span>
+                                                <div
+                                                    className="h-0.5 w-20 2xl:w-24 rounded-full"
+                                                    style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.7), transparent)' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* KPIs */}
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-2xl 2xl:text-3xl font-extrabold text-emerald-400 leading-none">
+                                                    {totalActivos}
+                                                </span>
+                                                <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                                    Activos
+                                                </span>
+                                            </div>
+                                            <div className="w-1 h-16 rounded-full" style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.25) 30%, rgba(255,255,255,0.25) 70%, transparent)' }} />
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none">
+                                                    {totalUsados}
+                                                </span>
+                                                <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                                    Usados
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── TABS ── */}
+                                <div className="flex items-center">
+                                    <div className="cupones-tabs flex lg:flex-none overflow-x-auto flex-1">
+                                        {TABS.map(tab => {
+                                            const Icono = tab.icono;
+                                            const esActivo = tabActivo === tab.id;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    data-testid={`tab-${tab.id}`}
+                                                    onClick={() => setTabActivo(tab.id)}
+                                                    className="flex items-center gap-1.5 lg:gap-2.5 px-2 lg:px-7 2xl:px-9 py-2.5 lg:py-3.5 text-sm lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
+                                                    style={{
+                                                        color: esActivo ? '#10b981' : 'rgba(255,255,255,0.50)',
+                                                        fontWeight: esActivo ? 700 : 500,
+                                                        background: 'transparent',
+                                                    }}
+                                                >
+                                                    <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" />
+                                                    {tab.label}
+                                                    {tab.id === 'activos' && totalActivos > 0 && (
+                                                        <span className="text-[10px] font-bold bg-emerald-500 text-white px-1.5 rounded-full">{totalActivos}</span>
+                                                    )}
+                                                    {esActivo && (
+                                                        <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-emerald-400" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Tabs */}
-                        <div className="flex" data-testid="tabs-cupones">
-                            {TABS.map(tab => {
-                                const Icono = tab.icono;
-                                const esActivo = tabActivo === tab.id;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        data-testid={`tab-${tab.id}`}
-                                        onClick={() => setTabActivo(tab.id)}
-                                        className={`flex-1 flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-1.5 py-3 lg:py-2.5 2xl:py-3 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer relative ${
-                                            esActivo ? 'text-emerald-400' : 'text-white/40 hover:text-white/60'
-                                        }`}
-                                    >
-                                        <Icono className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                                        {tab.label}
-                                        {tab.id === 'activos' && totalActivos > 0 && (
-                                            <span className="text-[10px] font-bold bg-emerald-500 text-white px-1.5 rounded-full">{totalActivos}</span>
-                                        )}
-                                        {esActivo && (
-                                            <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 rounded-full bg-emerald-400" />
-                                        )}
-                                    </button>
-                                );
-                            })}
                         </div>
                     </div>
                 </div>
 
                 {/* ── Body ── */}
-                <div className="flex-1 p-4 lg:p-6 2xl:p-8">
+                <div className="p-4 lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto">
                     {cargando ? (
                         <div className="flex items-center justify-center py-20">
                             <Spinner tamanio="lg" />

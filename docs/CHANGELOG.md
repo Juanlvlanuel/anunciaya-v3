@@ -7,13 +7,138 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [23 Marzo 2026] - Rediseño Mis Cupones/Guardados + ChatYA Cupones + Flujos Revocar/Reactivar
+
+### ✨ Agregado
+
+**ChatYA — Burbuja de cupón**
+- Nuevo tipo de mensaje `cupon` en `chat_mensajes` (check constraint actualizado en BD)
+- Burbuja especial: imagen + emoji 🎁 animado + "¡Felicidades!" + botón "Reclamar cupón" con efecto shine
+- Preview en lista de chats: icono Ticket + 🎁 + título (en vez de JSON crudo)
+- Envío automático al crear, reenviar y reactivar cupón
+- Fix: emisor usa `usuario_id` del negocio (no `negocio_id`)
+
+**Reactivación de cupones**
+- Nuevo endpoint `POST /api/ofertas/:id/reactivar` — reactiva todos los usuarios revocados
+- Reactiva oferta + envía notificación "¡Tu cupón fue reactivado!" + mensaje ChatYA
+- Botón RefreshCw verde en tabla BS y en header del modal de edición
+- Elimina notificaciones de revocación previas antes de reactivar
+
+**Revocación masiva mejorada**
+- Nuevo endpoint `POST /api/ofertas/:id/revocar-todos` — revoca todos los usuarios activos
+- Limpieza cascada: elimina mensajes chat + notificaciones originales + conversaciones vacías
+- Socket `chatya:cupon-eliminado` para eliminación de burbujas sin parpadeo
+
+**Clientes asignados a cupón**
+- Nuevo endpoint `GET /api/ofertas/:id/clientes-asignados`
+- TabClientes en modo edición: lista readonly con avatar, fecha, badge estado
+- Click en cliente abre ModalDetalleCliente
+
+**CarouselCupones en ColumnaIzquierda**
+- Carousel automático (5s) de cupones activos con cronómetro animado (Timer + ring)
+- Unificado con botón "Mis Cupones" (badge rojo circular con conteo)
+- Se oculta en `/mis-cupones`
+
+**Store useMisCuponesStore (Zustand)**
+- Persistencia de datos entre navegaciones
+- Pre-carga de imágenes (logos + imágenes de cupón)
+- Listener socket `cupon:actualizado` para tiempo real
+
+**Actualización en tiempo real (Socket.io)**
+- Evento `chatya:cupon-eliminado` — elimina burbujas sin parpadeo
+- Evento `chatya:recargar-conversaciones` — recarga chats + mensajes activos
+- Evento `notificacion:recargar` — recarga panel de notificaciones
+- Evento `cupon:actualizado` — refresca store de cupones
+- Principio: sockets se emiten después de `await` en todas las operaciones de BD
+
+**Mis Guardados — Rediseño visual**
+- Header dark estilo CardYA con identidad rose
+- Icono Bookmark → Heart
+- Branding: "Mis **Guardados**" (blanco + rose-400)
+- Subtítulo: "Tus favoritos en un solo lugar" + "COLECCIÓN PERSONAL"
+- Header propio en móvil (MobileHeader oculto)
+- KPIs desktop + tabs estilo CardYA + ordenamiento integrado en tabs
+- Estados vacíos unificados a rose
+- Tema ColumnaIzquierda dark con acentos rose
+
+### 🔧 Modificado
+
+**ModalDetalleCupon — Rediseño**
+- Gradiente unificado slate (no varía por tipo)
+- Toggle ver/ocultar contraseña
+- Botón ChatYA con icono `/IconoRojoChatYA.webp` + tooltip PC
+- Info como lista con divisores (Tag, Calendar, DollarSign, Gift)
+- Badge "Activo": sólido verde + letra blanca
+- "Código de descuento" → "Código de cupón"
+
+**CardCupon — Rediseño**
+- Logo negocio circular dentro de la imagen (overlay con sombra blanca)
+- Móvil: logo arriba-izq, badge abajo-izq, metadata vertical
+- Desktop: imagen h-32/h-40, línea gradiente emerald→negro h-1.5
+- Solo botón "Ver cupón" abre modal (activos); card completa clickeable (no activos)
+- Hover en botón: fondo oscurece + texto blanco
+
+**PaginaMisCupones — Rediseño estilo CardYA**
+- Header dark sticky con glow emerald, esquinas curvas `lg:rounded-b-3xl`
+- Branding dual: "Mis **Cupones**" + "CUPONERA DIGITAL"
+- Header propio en móvil (MobileHeader oculto)
+- Deep link inteligente: cambia al tab correcto según estado del cupón
+
+**ModalOferta — Edición de cupones**
+- Toggle visibilidad oculto en edición
+- Campos readonly cuando cupón inactivo (opacity-60, pointer-events-none)
+- Tab Ajustes siempre readonly en edición (motivo + límite)
+- Carga motivo desde clientes asignados
+- Prop `onRecargar` para actualizar tabla después de reactivar/revocar
+
+**Tabla Promociones BS**
+- Cupones: ocultar iconos Duplicar y Ocultar/Mostrar
+- Orden acciones cupones: Revocar/Reactivar → Eliminar → Reenviar
+- Mensaje al crear cupón: "Cupón enviado exitosamente"
+
+**ScanYA**
+- "Código de descuento" → "Código de cupón" (label + placeholder)
+
+**Reenviar cupón**
+- Ahora envía notificación + mensaje ChatYA (antes solo notificación)
+- Código personal removido de notificación (dato sensible)
+- Tipo corregido: `nueva_oferta` → `cupon_asignado`
+
+**Eliminar oferta/cupón — Limpieza cascada**
+- Elimina mensajes chat tipo `cupon` + notificaciones + conversaciones vacías
+- Elimina imagen de R2 (si `esUrlR2`)
+- Socket para actualización en tiempo real
+
+**Limpieza imágenes huérfanas R2**
+- ModalOferta + ModalArticulo: al cerrar sin guardar, elimina imagen subida de R2
+- Al guardar: marca como no huérfana antes de cerrar
+
+**ColumnaIzquierda**
+- Nuevos temas: `cupones` (emerald) y `guardados` (rose), mismo fondo azul que CardYA
+- CTA "Empezar ahora": gradiente azul del header
+- "7 días": color azul fijo en todas las páginas
+- Colores TabClientes: indigo → blue
+
+**ChatYA**
+- Fix: restaurar conversación eliminada actualiza `mensajes_visibles_desde` (no muestra mensajes viejos)
+- Fix: `enviarCuponPorChatYA` usa `negocioUsuarioId` (no `negocioId`) como emisor
+
+**Navegación**
+- Flechas atrás en CardYA y Mis Cupones: `navigate(-1)` → `navigate('/inicio')`
+
+**Base de datos**
+- Tipo `cupon` agregado a `chat_msg_tipo_check` y `chat_conv_ultimo_mensaje_tipo_check`
+- Aplicado en local (Docker) y producción (Supabase)
+
+---
+
 ## [22 Marzo 2026] - Promociones (Ofertas + Cupones) + Mis Cupones + N+1 CardYA
 
 ### ✨ Agregado
 
 **Promociones — Ofertas potenciadas con cupones privados**
 - Toggle Oferta (📢) / Cupón (🎟️) en modal de crear promoción
-- Cupones privados: código único por usuario (VIP-XXXXX), intransferible
+- Cupones privados: código único por usuario (ANUN-XXXXXX), intransferible
 - Selector de clientes con filtros por nivel (Bronce/Plata/Oro) y actividad (Activos/Inactivos)
 - Modal refactorizado con 3 tabs: Detalles | Ajustes | Enviar a
 - 2 dropdowns TC-4 para filtros de clientes
@@ -38,7 +163,7 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 **ScanYA — Migración cupones → ofertas**
 - Validación migrada de tabla `cupones` → `oferta_usuarios.codigo_personal`
-- Labels: "Cupón" → "Código de descuento"
+- Labels: "Cupón" → "Código de cupón"
 - Endpoint: `/validar-cupon` → `/validar-codigo`
 - Puntos se calculan sobre monto PAGADO (post-descuento)
 

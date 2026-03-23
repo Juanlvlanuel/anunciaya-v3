@@ -1,46 +1,45 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 22 Marzo 2026
+> **Última actualización:** 23 Marzo 2026
 > **Progreso global:** 96% completado
-> **Fase actual:** Promociones ✅ (Ofertas + Cupones unificados) — próximo: BS Alertas
+> **Fase actual:** Promociones ✅ + Rediseño Cupones/Guardados ✅ — próximo: BS Alertas
 
 ---
 
 ## 📊 Estado Global
 
-| Bloque | Progreso | Tiempo Estimado |
-|--------|----------|-----------------|
-| **Fundamentos** (Fases 1-4) | ✅ 100% | - |
+| Bloque | Progreso | Pendiente |
+|--------|----------|-----------|
+| **Landing Page** | ✅ 100% | - |
+| **Autenticación** (registro, login, recuperación) | ✅ 100% | - |
+| **Onboarding** (crear negocio) | ✅ 100% | - |
 | **Backend + Negocios** (5.0-5.3) | ✅ 100% | - |
-| **Business Studio** (5.4) | ⏳ 57% (8/14 módulos) | ~12 días |
-| **ScanYA + PWA** (5.5) | ✅ 100% | Fase 14 completada (7 Mar 2026) |
-| **ChatYA** (5.10) | ✅ 100% (Sprint 7 completado — 20 Mar 2026) | - |
-| **Sistema Lealtad** (5.6-5.7) | ✅ 100% (Puntos + CardYA + Notificaciones) | - |
-| **Secciones Públicas + BS** (6.x) | ⏳ 0% | ~3-4 semanas |
-| **Lanzamiento Beta** (7.x) | ⏳ 50% | ~1-2 semanas |
+| **ScanYA + PWA** (5.5) | ✅ 100% | - |
+| **ChatYA** (5.10) | ✅ 100% | - |
+| **Sistema Lealtad + CardYA** (5.6-5.7) | ✅ 100% | - |
+| **Promociones** (Ofertas + Cupones) | ✅ 100% | Barra progreso N+1 |
+| **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
+| **Business Studio** (5.4) | ⏳ 57% (8/14 módulos) | Alertas, Empleados, Reportes, Sucursales, Rifas, Vacantes |
+| **Secciones Públicas** (6.x) | ⏳ 0% | Ofertas, MarketPlace, Dinámicas, Empleos |
+| **Panel Admin** (6.7) | ⏳ 0% | ~2 semanas. Vendedores, métricas, gestión negocios/usuarios, Stripe, reportes |
+| **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
 
 ---
 
-## 🎯 Q1-Q2 2026 Objetivos
+## 🎯 Objetivos por Trimestre
 
-**Q1 (Enero-Marzo):**
-- [x] Sistema ScanYA completo
-- [x] Migración cloud $0/mes
-- [x] Business Studio Base (8/15 módulos) ✅ (7 Mar 2026)
-- [x] Promociones (Ofertas + Cupones) ✅ (22 Mar 2026) — 8/14 módulos
-- [ ] Business Studio 80% completo (12/15 módulos)
-- [x] Sistema CardYA completo ✅ (12 Feb 2026)
-- [x] Socket.io + Notificaciones tiempo real ✅ (12 Feb 2026)
-- [x] Reseñas verificadas en PaginaPerfilNegocio ✅ (12 Feb 2026)
-- [x] ChatYA base operativo ✅ (7 Mar 2026)
+**Q1 (Enero-Marzo) — Cierre:**
+- ✅ ScanYA, CardYA, Socket.io, Notificaciones, Reseñas, ChatYA, Promociones
+- ✅ Business Studio 8/14 módulos
+- ⏳ BS 80% (12/14) — no alcanzado, pasa a Q2
 
-**Q2 (Abril-Junio):**
-- [ ] Business Studio 100% (15/15 módulos)
-- [ ] Todas las secciones públicas activas
+**Q2 (Abril-Junio) — Meta:**
+- [ ] Business Studio 100% (14/14 módulos) — faltan: Alertas, Empleados, Reportes, Sucursales, Rifas, Vacantes
+- [ ] Secciones públicas: Ofertas, MarketPlace, Dinámicas, Empleos
 - [ ] Panel Admin funcional
-- [ ] Beta 50 negocios exitosa
+- [ ] Beta privada: 50 negocios piloto
 - [ ] Lanzamiento público
-- [ ] 100+ negocios registrados
+- [ ] Stripe modo LIVE + dominio + SSL
 
 ---
 
@@ -53,60 +52,31 @@
 | Sprint 3 | BS Clientes + Transacciones + Opiniones | 7 Mar 2026 |
 | Sprint 4 | Rediseño PanelNotificaciones + deep links + cleanup | 20 Mar 2026 |
 | Sprint 5 | ChatYA Sprint 7: OG Previews + Testing E2E (51 tests) | 20 Mar 2026 |
+| Sprint 6 | Promociones: Ofertas + Cupones unificados + N+1 | 22 Mar 2026 |
+| Sprint 7 | Rediseño Cupones/Guardados + ChatYA Cupones + Revocar/Reactivar | 23 Mar 2026 |
 
 > Detalle completo en el CHANGELOG.
 
 ---
 
-## 🚀 En Progreso y Próximos Sprints
+## 🚀 Módulos Completados (resumen)
 
-### ✅ Completado: 5.10.- ChatYA — 100% (20 Mar 2026)
+> Detalle de cada sprint en CHANGELOG.md y docs de arquitectura correspondientes.
 
-**Sistema de mensajería tiempo real completo**
+| Módulo | Estado | Fecha | Doc de referencia |
+|--------|--------|-------|-------------------|
+| ChatYA | ✅ 100% (7 sprints) | 20 Mar 2026 | `docs/arquitectura/ChatYA.md` |
+| Promociones (Ofertas + Cupones) | ✅ 100% | 22 Mar 2026 | `docs/arquitectura/Promociones.md` |
+| Cupones: ChatYA + Revocar/Reactivar + Rediseño | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Promociones.md` |
+| Mis Guardados: Rediseño estilo CardYA (rose) | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Guardados.md` |
 
-**7 Sprints internos completados (7/7):**
-- [x] Sprint 1: Base de datos — 6 tablas PostgreSQL (13 Feb)
-- [x] Sprint 2: Backend Core — 13 endpoints + 11 eventos Socket.io (15-17 Feb)
-- [x] Sprint 3: Backend Complementario — contactos, bloqueo, reacciones, búsqueda full-text (18-19 Feb)
-- [x] Sprint 4: Frontend Core — store, overlay, lista conversaciones, burbujas, tiempo real (20-22 Feb)
-- [x] Sprint 5: Frontend Complementario — buscador, menú contextual, reacciones, contactos, archivados (23-25 Feb)
-- [x] Sprint 6: Multimedia — imágenes, audio, documentos, ubicación, R2, rendimiento (26 Feb - 5 Mar)
-- [x] Sprint 7: Pulido — escribiendo, palomitas, estados, sonido, OG previews, testing (5-20 Mar)
+### Pendientes menores
 
-**Testing:**
-- 41 API tests (Vitest) — endpoints, lógica de negocio
-- 10 E2E tests (Playwright) — flujos de UI en navegador real
-- Comando: `cd apps/api && npm test` + `cd apps/web && JWT_SECRET=<secret> npx playwright test`
-
-**Integraciones:**
-- [x] ScanYA — empleados responden como el negocio; badge no leídos en IndicadoresRapidos
-- [x] PaginaPerfilNegocio — botón "Enviar mensaje" + perfil embebido en PanelInfoContacto
-
-**Nota:** ChatYA usa PostgreSQL (no MongoDB). Prerequisito para MarketPlace, Empleos, Dinámicas — ✅ desbloqueado
+- [ ] Barra progreso N+1 en CardYA usuario
 
 ---
 
-### Sprint completado: Promociones (Ofertas + Cupones) ✅ 22 Mar 2026
-
-**Decisión:** No se creó módulo separado de Cupones. Se fusionaron con Ofertas bajo "Promociones".
-
-**Completado:**
-- [x] Toggle Oferta/Cupón en modal (Megaphone/Ticket)
-- [x] Cupones: código único por usuario, selector clientes, tabs
-- [x] Validación ScanYA migrada (cupones → ofertas con código personal)
-- [x] Vista cliente "Mis Cupones" (`/mis-cupones`) con cards + modal revelar código
-- [x] Revocación desde BS + reenvío de cupones
-- [x] Notificaciones: cupon_asignado, cupon_revocado + deep links
-- [x] Recompensas N+1 (compras frecuentes) en CardYA
-- [x] Limpieza total: 4 tablas cupones eliminadas, código purgado
-- [x] Tests: 84 API + 7 E2E
-- [x] Tokens de diseño aplicados (TC-4 dropdowns, indigo, responsive)
-
-**Pendiente menor:**
-- [ ] Burbuja ChatYA tipo 'cupon' (mensaje especial)
-- [ ] Barra progreso N+1 en CardYA usuario
-
-### Sprint siguiente: BS Alertas
+## ⏭️ Sprint siguiente: BS Alertas
 
 ---
 
@@ -257,15 +227,16 @@
 
 | Fase | Tiempo Estimado |
 |------|-----------------|
-| Sprint 1-6 (Sistema Lealtad + Chat) | ✅ Completado |
-| Secciones Públicas (6.0-6.3) | ~10-13 días |
+| Sistema Lealtad + ChatYA + Promociones | ✅ Completado |
 | BS Módulos Pendientes (6/14) | ~12 días |
+| Secciones Públicas (6.0-6.3) | ~10-13 días |
+| Panel Admin (6.7) | ~14 días |
 | Pre-lanzamiento (7.1) | ~5 días |
 | Beta (7.2) | ~21 días |
-| **TOTAL OPTIMISTA** | **~6-8 semanas** |
-| **TOTAL REALISTA** | **~8-10 semanas** |
+| **TOTAL OPTIMISTA** | **~8-10 semanas** |
+| **TOTAL REALISTA** | **~10-12 semanas** |
 
-**Fecha lanzamiento público proyectada:** Abril-Mayo 2026
+**Fecha lanzamiento público proyectada:** Mayo-Junio 2026
 
 ---
 
@@ -297,8 +268,8 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 
 ## 📅 Próxima Revisión
 
-**Fecha:** 20 Marzo 2026  
-**Alcance:** Re-evaluar después de completar ChatYA Sprint 7 (Open Graph + Testing) y definir siguiente módulo BS
+**Fecha:** Al completar BS Alertas
+**Alcance:** Definir siguiente módulo BS (Empleados o Reportes) y evaluar inicio de secciones públicas
 
 ---
 

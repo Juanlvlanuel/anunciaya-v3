@@ -15,7 +15,7 @@
 
 import { memo, useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic } from 'lucide-react';
+import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic, Ticket } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import type { Mensaje, ContenidoImagen } from '../../types/chatya';
@@ -1366,8 +1366,74 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
               </>
             )}
 
+            {/* Contenido cupón (burbuja especial — estilo regalo) */}
+            {mensaje.tipo === 'cupon' && !mensaje.eliminado && (() => {
+              try {
+                const datos = JSON.parse(mensaje.contenido);
+                return (
+                  <>
+                    <style>{`
+                      @keyframes cupon-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+                      @keyframes cupon-shine { 0%{left:-100%} 100%{left:200%} }
+                      @keyframes cupon-confetti { 0%{opacity:1;transform:translateY(0) rotate(0)} 100%{opacity:0;transform:translateY(-20px) rotate(25deg)} }
+                      .cupon-regalo { animation: cupon-bounce 2s ease-in-out infinite; }
+                      .cupon-btn-shine { position:relative; overflow:hidden; }
+                      .cupon-btn-shine::after { content:''; position:absolute; top:0; left:-100%; width:60%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent); animation:cupon-shine 3s ease-in-out infinite; }
+                    `}</style>
+                    <div className="w-64 lg:w-56 2xl:w-64 rounded-xl overflow-hidden" style={{ border: '2px solid #10b981', boxShadow: '0 4px 20px rgba(16,185,129,0.2)' }}>
+                      {/* Imagen */}
+                      {datos.imagen && (
+                        <img src={datos.imagen} alt={datos.titulo} className="w-full h-32 lg:h-28 2xl:h-32 object-cover" />
+                      )}
+
+                      {/* Cinta decorativa */}
+                      <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, #10b981, #059669, #10b981)' }} />
+
+                      {/* Contenido */}
+                      <div className="bg-white p-3 lg:p-2.5 2xl:p-3">
+                        {/* Header: emoji izq + texto der */}
+                        <div className="flex items-center gap-2.5">
+                          <div className="cupon-regalo text-5xl lg:text-4xl 2xl:text-5xl shrink-0">🎁</div>
+                          <div>
+                            <p className="text-lg lg:text-base 2xl:text-lg font-extrabold text-emerald-700">¡Felicidades!</p>
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700">Tienes un cupón exclusivo</p>
+                          </div>
+                        </div>
+
+                        {/* Datos del cupón — centrado */}
+                        <div className="mt-2.5 pt-2.5 border-t-2 border-slate-300 text-center">
+                          <p className="text-lg lg:text-base 2xl:text-lg font-extrabold text-slate-800">{datos.titulo}</p>
+                          {datos.fechaExpiracion && (
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 mt-0.5">
+                              Vence {new Date(datos.fechaExpiracion).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Botón con brillo */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); window.location.href = datos.accionUrl || '/mis-cupones'; }}
+                        className="cupon-btn-shine w-full py-2.5 lg:py-2 2xl:py-2.5 flex items-center justify-center gap-1.5 font-bold cursor-pointer"
+                        style={{ background: 'linear-gradient(135deg, #064e3b, #065f46)', color: '#a7f3d0' }}
+                      >
+                        <Ticket className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 shrink-0" />
+                        <span className="text-base lg:text-sm 2xl:text-base">Reclamar cupón</span>
+                      </button>
+                    </div>
+                    <div className={`flex justify-end mt-1 ${esMio ? 'text-white/70' : 'text-white/55'}`}>
+                      <span className="text-[11px]">{hora}</span>
+                      {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
+                    </div>
+                  </>
+                );
+              } catch {
+                return <p className="text-sm font-medium text-slate-600">Cupón no disponible</p>;
+              }
+            })()}
+
             {/* Contenido + hora (texto normal) */}
-            {mensaje.tipo !== 'imagen' && mensaje.tipo !== 'documento' && mensaje.tipo !== 'audio' && mensaje.tipo !== 'ubicacion' && (esSoloEmojis ? (
+            {mensaje.tipo !== 'imagen' && mensaje.tipo !== 'documento' && mensaje.tipo !== 'audio' && mensaje.tipo !== 'ubicacion' && mensaje.tipo !== 'cupon' && (esSoloEmojis ? (
               <>
                 {/* Emojis grandes sin burbuja */}
                 <p className={`leading-none lg:pr-7 ${esMio ? 'text-right' : 'text-left'} ${infoEmoji.cantidad === 1 ? 'py-1' : 'py-0.5'}`}>

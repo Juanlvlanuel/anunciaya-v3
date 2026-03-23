@@ -79,7 +79,7 @@ ScanYA es un **sistema de punto de venta (POS) PWA independiente** diseñado par
 - Otorga puntos a billetera del cliente
 - Opcionalmente sube foto del ticket (Cloudflare R2)
 
-#### 2. Validar Código de Descuento (antes "Cupones")
+#### 2. Validar Código de Cupón
 - Cliente presenta código personal (asignado desde BS Promociones)
 - Empleado valida código en sistema
 - Sistema verifica vigencia y condiciones

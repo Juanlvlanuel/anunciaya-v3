@@ -14,40 +14,47 @@ interface TabExclusivaProps {
     formulario: FormularioState;
     setFormulario: React.Dispatch<React.SetStateAction<FormularioState>>;
     guardando: boolean;
+    soloLectura?: boolean;
 }
 
-export function TabExclusiva({ formulario, setFormulario, guardando }: TabExclusivaProps) {
+export function TabExclusiva({ formulario, setFormulario, guardando, soloLectura }: TabExclusivaProps) {
     return (
         <div className="p-4 lg:p-3 2xl:p-4 space-y-4 lg:space-y-3 2xl:space-y-4">
 
             {/* Motivo */}
             <div>
-                <label className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">Motivo</label>
+                <label htmlFor="input-motivo-exclusiva" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">Motivo</label>
                 <input
+                    id="input-motivo-exclusiva"
+                    name="motivoAsignacion"
                     data-testid="input-motivo-exclusiva"
                     type="text"
                     value={formulario.motivoAsignacion}
                     onChange={(e) => setFormulario(prev => ({ ...prev, motivoAsignacion: e.target.value }))}
                     placeholder="Ej: Cliente fiel, Cumpleaños, Primera compra"
                     maxLength={200}
-                    disabled={guardando}
-                    className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                    disabled={guardando || soloLectura}
+                    readOnly={soloLectura}
+                    className={`w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 ${soloLectura ? 'opacity-50 cursor-not-allowed' : ''}`}
                     style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 />
             </div>
 
             {/* Límite por persona */}
             <div>
-                <label className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">Límite por persona</label>
+                <label htmlFor="input-limite-por-usuario" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">Límite por persona</label>
                 <input
+                    id="input-limite-por-usuario"
+                    name="limiteUsosPorUsuario"
                     data-testid="input-limite-por-usuario"
                     type="number"
                     value={formulario.limiteUsosPorUsuario}
                     onChange={(e) => setFormulario(prev => ({ ...prev, limiteUsosPorUsuario: e.target.value }))}
                     placeholder="Ej: 1 uso por cliente (vacío = ilimitado)"
                     min={1}
-                    disabled={guardando}
-                    className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                    disabled={guardando || soloLectura}
+                    readOnly={soloLectura}
+                    className={`w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 ${soloLectura ? 'opacity-50 cursor-not-allowed' : ''}`}
                     style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 />
             </div>

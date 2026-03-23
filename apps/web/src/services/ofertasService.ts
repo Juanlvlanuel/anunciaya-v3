@@ -199,6 +199,34 @@ export async function reenviarCupon(ofertaId: string) {
   return post(`/ofertas/${ofertaId}/reenviar`, {});
 }
 
+export async function revocarCuponMasivo(ofertaId: string, motivo?: string) {
+  return post(`/ofertas/${ofertaId}/revocar-todos`, { motivo });
+}
+
+export async function reactivarCuponService(ofertaId: string) {
+  return post(`/ofertas/${ofertaId}/reactivar`, {});
+}
+
+export interface ClienteAsignado {
+  id: string;
+  nombre: string;
+  telefono: string | null;
+  correo: string | null;
+  avatarUrl: string | null;
+  cuponId: string;
+  estado: string;
+  codigoPersonal: string | null;
+  motivo: string | null;
+  asignadoAt: string;
+  usadoAt: string | null;
+  revocadoAt: string | null;
+  motivoRevocacion: string | null;
+}
+
+export async function obtenerClientesAsignados(ofertaId: string) {
+  return get<ClienteAsignado[]>(`/ofertas/${ofertaId}/clientes-asignados`);
+}
+
 export async function obtenerOfertaPublica(codigo: string) {
   return get(`/ofertas/publico/${codigo}`);
 }
@@ -227,4 +255,6 @@ export default {
   obtenerMisExclusivas,
   obtenerOfertaPublica,
   reenviarCupon,
+  revocarCuponMasivo,
+  reactivarCuponService,
 };

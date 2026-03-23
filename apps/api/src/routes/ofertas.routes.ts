@@ -33,6 +33,9 @@ import {
   postAsignarOferta,
   postReenviarCupon,
   postRevocarCupon,
+  postRevocarCuponMasivo,
+  postReactivarCupon,
+  getClientesAsignados,
   getMisCupones,
   postRevelarCodigo,
   getMisExclusivas,
@@ -291,6 +294,40 @@ router.post(
   verificarToken,
   verificarNegocio,
   postRevocarCupon
+);
+
+/**
+ * POST /api/ofertas/:id/revocar-todos
+ * Revocar cupón para TODOS los usuarios activos
+ * Body: { motivo? }
+ */
+router.post(
+  '/:id/revocar-todos',
+  verificarToken,
+  verificarNegocio,
+  postRevocarCuponMasivo
+);
+
+/**
+ * POST /api/ofertas/:id/reactivar
+ * Reactivar cupón para todos los usuarios revocados
+ */
+router.post(
+  '/:id/reactivar',
+  verificarToken,
+  verificarNegocio,
+  postReactivarCupon
+);
+
+/**
+ * GET /api/ofertas/:id/clientes-asignados
+ * Obtener clientes a los que se asignó un cupón
+ */
+router.get(
+  '/:id/clientes-asignados',
+  verificarToken,
+  verificarNegocio,
+  getClientesAsignados
 );
 
 // =============================================================================

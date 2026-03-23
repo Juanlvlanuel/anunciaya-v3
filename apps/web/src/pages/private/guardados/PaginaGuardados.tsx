@@ -16,16 +16,19 @@
 
 import { useState, useEffect } from 'react';
 import { useGpsStore } from '@/stores/useGpsStore';
+import { useUiStore } from '@/stores/useUiStore';
 import {
-    Bookmark,
+    Heart,
     Store,
     Tag,
     ChevronRight,
+    ChevronLeft,
     Trash2,
     X,
     Check,
     Briefcase,
     FileText,
+    Menu,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { OfertaCard, ModalOfertaDetalle } from '@/components/negocios';
@@ -81,6 +84,7 @@ interface NegocioSeguido {
 
 export function PaginaGuardados() {
     const navigate = useNavigate();
+    const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const { latitud, longitud } = useGpsStore();
 
     // ---------------------------------------------------------------------------
@@ -351,127 +355,220 @@ export function PaginaGuardados() {
     // ---------------------------------------------------------------------------
     // Render
     // ---------------------------------------------------------------------------
+    const TABS_GUARDADOS: { id: TabGuardado; label: string; Icono: typeof Tag }[] = [
+        { id: 'ofertas', label: 'Ofertas', Icono: Tag },
+        { id: 'negocios', label: 'Negocios', Icono: Store },
+        { id: 'empleos', label: 'Empleos', Icono: Briefcase },
+        { id: 'articulos', label: 'Artículos', Icono: FileText },
+    ];
+
+    const badgePorTab = (id: TabGuardado) => {
+        if (id === 'ofertas') return ofertas.length;
+        if (id === 'negocios') return negocios.length;
+        return 0;
+    };
+
     return (
-        <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-50">
-            {/* Header Sticky - Nivel superior */}
-            <div className="sticky top-0 bg-white/95 backdrop-blur-sm z-40 border-b border-slate-200 shadow-sm will-change-transform" style={{ transform: 'translateZ(0)' }}>
-                <div className="max-w-7xl mx-auto px-4 lg:px-2.5 2xl:px-6">
-                    {/* Título y botones de ordenamiento */}
-                    <div className="pt-4 pb-4 lg:pt-2.5 lg:pb-2.5 2xl:pt-4 2xl:pb-4">
-                        <div className="flex items-center justify-between">
-                        <h1 className="text-xl lg:text-base 2xl:text-3xl font-bold text-gray-900 flex items-center gap-3 lg:gap-2 2xl:gap-3">
-                            <Bookmark className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-8 2xl:h-8 text-amber-500" />
-                            Mis Guardados
-                        </h1>
-                        
-                        {/* Botones de ordenamiento */}
-                        {!loading && totalGuardados > 0 && (
-                            <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
-                                <button
-                                    onClick={() => setOrdenamiento('recientes')}
-                                    className={`px-4 lg:px-3 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 rounded-xl lg:rounded-lg 2xl:rounded-xl text-sm lg:text-xs 2xl:text-sm font-semibold transition-all lg:cursor-pointer ${
-                                        ordenamiento === 'recientes'
-                                            ? 'bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-orange-500/30'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    Recientes
-                                </button>
-                                <button
-                                    onClick={() => setOrdenamiento('antiguos')}
-                                    className={`px-4 lg:px-3 2xl:px-4 py-2.5 lg:py-2 2xl:py-2.5 rounded-xl lg:rounded-lg 2xl:rounded-xl text-sm lg:text-xs 2xl:text-sm font-semibold transition-all lg:cursor-pointer ${
-                                        ordenamiento === 'antiguos'
-                                            ? 'bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-orange-500/30'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    Antiguos
-                                </button>
+        <div className="min-h-full bg-transparent">
+
+            {/* ── Header sticky — estilo CardYA/MisCupones ── */}
+            <div className="sticky top-0 z-20">
+                <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
+                    <div
+                        className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                        style={{ background: '#000000' }}
+                    >
+                        {/* Glow sutil rose */}
+                        <div
+                            className="absolute inset-0 pointer-events-none"
+                            style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(244,63,94,0.07) 0%, transparent 50%)' }}
+                        />
+                        {/* Grid pattern */}
+                        <div
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                                opacity: 0.08,
+                                backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                             repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                            }}
+                        />
+
+                        <div className="relative z-10">
+
+                            {/* ══ MOBILE HEADER ══ */}
+                            <div className="lg:hidden">
+                                <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <button
+                                            data-testid="btn-volver-guardados"
+                                            onClick={() => navigate('/inicio')}
+                                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                                        </button>
+                                        <div
+                                            className="w-9 h-9 rounded-lg flex items-center justify-center"
+                                            style={{ background: 'linear-gradient(135deg, #f43f5e, #e11d48)' }}
+                                        >
+                                            <Heart className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+                                        </div>
+                                        <span className="text-2xl font-extrabold text-white tracking-tight">
+                                            Mis <span className="text-rose-400">Guardados</span>
+                                        </span>
+                                    </div>
+                                    <button
+                                        data-testid="btn-menu-guardados"
+                                        onClick={abrirMenuDrawer}
+                                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                    >
+                                        <Menu className="w-6 h-6" strokeWidth={2.5} />
+                                    </button>
+                                </div>
+                                {/* Subtítulo móvil */}
+                                <div className="flex items-center justify-center gap-2.5 pb-2">
+                                    <div
+                                        className="h-0.5 w-14 rounded-full"
+                                        style={{ background: 'linear-gradient(90deg, transparent, rgba(244,63,94,0.7))' }}
+                                    />
+                                    <span className="text-base font-light text-white/70 tracking-wide">
+                                        Tus <span className="font-bold text-white">favoritos</span> en un solo lugar
+                                    </span>
+                                    <div
+                                        className="h-0.5 w-14 rounded-full"
+                                        style={{ background: 'linear-gradient(90deg, rgba(244,63,94,0.7), transparent)' }}
+                                    />
+                                </div>
                             </div>
-                        )}
-                    </div>
-                    </div>
 
-                    {/* Tabs - Pills en móvil, horizontales en desktop */}
-                    <div>
-                    {/* Mobile: Pills con scroll */}
-                    <div className="lg:hidden flex gap-1.5 overflow-x-auto pb-2.5 scrollbar-hide px-0.5">
-                        <TabPill
-                            activo={tabActivo === 'ofertas'}
-                            onClick={() => handleCambiarTab('ofertas')}
-                            icon={<Tag className="w-4 h-4" />}
-                            badge={ofertas.length}
-                        >
-                            Ofertas
-                        </TabPill>
-                        <TabPill
-                            activo={tabActivo === 'negocios'}
-                            onClick={() => handleCambiarTab('negocios')}
-                            icon={<Store className="w-4 h-4" />}
-                            badge={negocios.length}
-                        >
-                            Negocios
-                        </TabPill>
-                        <TabPill
-                            activo={tabActivo === 'empleos'}
-                            onClick={() => handleCambiarTab('empleos')}
-                            icon={<Briefcase className="w-4 h-4" />}
-                            badge={0}
-                        >
-                            Empleos
-                        </TabPill>
-                        <TabPill
-                            activo={tabActivo === 'articulos'}
-                            onClick={() => handleCambiarTab('articulos')}
-                            icon={<FileText className="w-4 h-4" />}
-                            badge={0}
-                        >
-                            Artículos
-                        </TabPill>
-                    </div>
+                            {/* ══ DESKTOP HEADER ══ */}
+                            <div className="hidden lg:block">
+                                <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
+                                    {/* Logo */}
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <div
+                                            className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
+                                            style={{ background: 'linear-gradient(135deg, #f43f5e, #e11d48)' }}
+                                        >
+                                            <Heart className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
+                                        </div>
+                                        <div className="flex items-baseline">
+                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
+                                                Mis{' '}
+                                            </span>
+                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-rose-400 tracking-tight">
+                                                Guardados
+                                            </span>
+                                        </div>
+                                    </div>
 
-                    {/* Desktop: Tabs horizontales */}
-                    <div className="hidden lg:flex border-b border-gray-200">
-                        <TabButton
-                            activo={tabActivo === 'ofertas'}
-                            onClick={() => handleCambiarTab('ofertas')}
-                            icon={<Tag className="w-5 h-5" />}
-                            badge={ofertas.length}
-                        >
-                            Ofertas
-                        </TabButton>
-                        <TabButton
-                            activo={tabActivo === 'negocios'}
-                            onClick={() => handleCambiarTab('negocios')}
-                            icon={<Store className="w-5 h-5" />}
-                            badge={negocios.length}
-                        >
-                            Negocios
-                        </TabButton>
-                        <TabButton
-                            activo={tabActivo === 'empleos'}
-                            onClick={() => handleCambiarTab('empleos')}
-                            icon={<Briefcase className="w-5 h-5" />}
-                            badge={0}
-                        >
-                            Empleos
-                        </TabButton>
-                        <TabButton
-                            activo={tabActivo === 'articulos'}
-                            onClick={() => handleCambiarTab('articulos')}
-                            icon={<FileText className="w-5 h-5" />}
-                            badge={0}
-                        >
-                            Artículos
-                        </TabButton>
+                                    {/* Centro: Subtítulo */}
+                                    <div className="flex-1 text-center min-w-0">
+                                        <h1 className="text-3xl 2xl:text-[34px] font-light text-white/70 leading-tight truncate">
+                                            Tus{' '}
+                                            <span className="font-bold text-white">favoritos</span>
+                                            {' '}en un solo lugar
+                                        </h1>
+                                        <div className="flex items-center justify-center gap-3 mt-1.5">
+                                            <div
+                                                className="h-0.5 w-20 2xl:w-24 rounded-full"
+                                                style={{ background: 'linear-gradient(90deg, transparent, rgba(244,63,94,0.7))' }}
+                                            />
+                                            <span className="text-xs 2xl:text-[13px] font-semibold text-rose-400/70 uppercase tracking-[3px]">
+                                                colección personal
+                                            </span>
+                                            <div
+                                                className="h-0.5 w-20 2xl:w-24 rounded-full"
+                                                style={{ background: 'linear-gradient(90deg, rgba(244,63,94,0.7), transparent)' }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* KPIs */}
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-rose-400 leading-none">
+                                                {ofertas.length}
+                                            </span>
+                                            <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                                Ofertas
+                                            </span>
+                                        </div>
+                                        <div className="w-1 h-16 rounded-full" style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.25) 30%, rgba(255,255,255,0.25) 70%, transparent)' }} />
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none">
+                                                {negocios.length}
+                                            </span>
+                                            <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                                Negocios
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ── TABS ── */}
+                            <div className="flex items-center">
+                                <div className="flex lg:flex-none overflow-x-auto flex-1" style={{ scrollbarWidth: 'none' }}>
+                                    {TABS_GUARDADOS.map(({ id, label, Icono }) => {
+                                        const badge = badgePorTab(id);
+                                        return (
+                                            <button
+                                                key={id}
+                                                data-testid={`tab-guardados-${id}`}
+                                                onClick={() => handleCambiarTab(id)}
+                                                className="flex items-center gap-1.5 lg:gap-2.5 px-2 lg:px-7 2xl:px-9 py-2.5 lg:py-3.5 text-sm lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
+                                                style={{
+                                                    color: tabActivo === id ? '#fb7185' : 'rgba(255,255,255,0.50)',
+                                                    fontWeight: tabActivo === id ? 700 : 500,
+                                                    background: 'transparent',
+                                                }}
+                                            >
+                                                <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" />
+                                                {label}
+                                                {badge > 0 && (
+                                                    <span className="text-[10px] font-bold bg-rose-500 text-white px-1.5 rounded-full">{badge}</span>
+                                                )}
+                                                {tabActivo === id && (
+                                                    <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-rose-400" />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Ordenamiento desktop */}
+                                {!loading && totalGuardados > 0 && (
+                                    <div className="hidden lg:flex items-center gap-1.5 ml-auto pr-6 2xl:pr-8">
+                                        <button
+                                            onClick={() => setOrdenamiento('recientes')}
+                                            className={`px-3 2xl:px-4 py-1.5 2xl:py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
+                                                ordenamiento === 'recientes'
+                                                    ? 'bg-rose-500 text-white'
+                                                    : 'text-white/50 hover:text-white/80'
+                                            }`}
+                                        >
+                                            Recientes
+                                        </button>
+                                        <button
+                                            onClick={() => setOrdenamiento('antiguos')}
+                                            className={`px-3 2xl:px-4 py-1.5 2xl:py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
+                                                ordenamiento === 'antiguos'
+                                                    ? 'bg-rose-500 text-white'
+                                                    : 'text-white/50 hover:text-white/80'
+                                            }`}
+                                        >
+                                            Antiguos
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                </div>
                 </div>
             </div>
-            {/* Fin Header Sticky */}
 
-            {/* Contenedor del contenido con max-width */}
-            <div className="max-w-7xl mx-auto px-4 lg:px-2.5 2xl:px-6 pt-4 pb-0 lg:py-4 2xl:py-6">
+            {/* Contenedor del contenido */}
+            <div className="p-4 lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto">
                     {/* Contenido según tab activo */}
                     {tabActivo === 'ofertas' && (
                         <div className="animate-fade-in">
@@ -509,7 +606,7 @@ export function PaginaGuardados() {
                     {modoSeleccion && idsSeleccionados.size > 0 && (
                 <div className="fixed bottom-20 lg:bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom duration-200">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-linear-to-r from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                        <div className="w-6 h-6 rounded-full bg-linear-to-r from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/30">
                             <Check className="w-4 h-4 text-white" />
                         </div>
                         <span className="font-semibold text-sm">{idsSeleccionados.size}</span>
@@ -517,13 +614,13 @@ export function PaginaGuardados() {
                     <div className="h-5 w-px bg-gray-700"></div>
                     <button
                         onClick={seleccionarTodos}
-                        className="text-sm font-medium hover:text-amber-400 transition-colors lg:cursor-pointer"
+                        className="text-sm font-medium hover:text-rose-400 transition-colors lg:cursor-pointer"
                     >
                         Todos
                     </button>
                     <button
                         onClick={limpiarSeleccion}
-                        className="text-sm font-medium hover:text-amber-400 transition-colors lg:cursor-pointer"
+                        className="text-sm font-medium hover:text-rose-400 transition-colors lg:cursor-pointer"
                     >
                         Limpiar
                     </button>
@@ -577,72 +674,6 @@ export function PaginaGuardados() {
 }
 
 // =============================================================================
-// SUBCOMPONENTE: TabButton (Desktop)
-// =============================================================================
-
-interface TabButtonProps {
-    activo: boolean;
-    onClick: () => void;
-    icon?: React.ReactNode;
-    badge?: number;
-    children: React.ReactNode;
-}
-
-function TabButton({ activo, onClick, icon, badge, children }: TabButtonProps) {
-    return (
-        <button
-            onClick={onClick}
-            className={`relative flex items-center gap-2 lg:gap-2 2xl:gap-2.5 px-4 lg:px-5 2xl:px-6 py-3 lg:py-3.5 2xl:py-4 text-sm lg:text-sm 2xl:text-base font-semibold transition-all lg:cursor-pointer ${
-                activo
-                    ? 'text-amber-600 border-b-3 border-amber-500'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-        >
-            {icon}
-            {children}
-            {badge !== undefined && badge > 0 && (
-                <span
-                    className={`ml-1.5 lg:ml-2 px-1.5 lg:px-2 py-0.5 text-[10px] lg:text-xs font-bold rounded-full ${
-                        activo ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600'
-                    }`}
-                >
-                    {badge}
-                </span>
-            )}
-        </button>
-    );
-}
-
-// =============================================================================
-// SUBCOMPONENTE: TabPill (Mobile)
-// =============================================================================
-
-function TabPill({ activo, onClick, icon, badge, children }: TabButtonProps) {
-    return (
-        <button
-            onClick={onClick}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-full font-semibold whitespace-nowrap text-xs transition-all shrink-0 ${
-                activo
-                    ? 'bg-linear-to-r from-amber-500 to-amber-600 text-white shadow-lg'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-        >
-            {icon}
-            {children}
-            {badge !== undefined && badge > 0 && (
-                <span
-                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                        activo ? 'bg-white/30 text-white' : 'bg-gray-300 text-gray-700'
-                    }`}
-                >
-                    {badge}
-                </span>
-            )}
-        </button>
-    );
-}
-
-// =============================================================================
 // SUBCOMPONENTE: ContenidoOfertas
 // =============================================================================
 
@@ -669,8 +700,8 @@ function ContenidoOfertas({
     if (!loading && ofertas.length === 0) {
         return (
             <div className="text-center py-12 lg:py-16">
-                <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-amber-100 to-amber-50 rounded-full flex items-center justify-center ring-8 ring-amber-50">
-                    <Tag className="w-12 h-12 lg:w-16 lg:h-16 text-amber-500" />
+                <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-rose-100 to-rose-50 rounded-full flex items-center justify-center ring-8 ring-rose-50">
+                    <Tag className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />
                 </div>
 
                 <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">
@@ -683,7 +714,7 @@ function ContenidoOfertas({
 
                 <button
                     onClick={() => navigate('/ofertas')}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
                     Ver Ofertas
                     <ChevronRight className="w-5 h-5" />
@@ -707,14 +738,14 @@ function ContenidoOfertas({
                             onClick={(e) => onClickBookmark(guardado.id, e)}
                             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all lg:cursor-pointer ${
                                 modoSeleccion && idsSeleccionados.has(guardado.id)
-                                    ? 'bg-amber-500 border-2 border-amber-500'
-                                    : 'bg-white/90 backdrop-blur border-2 border-white hover:bg-amber-50'
+                                    ? 'bg-rose-500 border-2 border-rose-500'
+                                    : 'bg-white/90 backdrop-blur border-2 border-white hover:bg-rose-50'
                             }`}
                         >
                             {modoSeleccion && idsSeleccionados.has(guardado.id) ? (
                                 <Check className="w-4 h-4 text-white" />
                             ) : (
-                                <Bookmark className="w-4 h-4 text-amber-500 fill-amber-500" />
+                                <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
                             )}
                         </button>
                     </div>
@@ -759,8 +790,8 @@ function ContenidoNegocios({
     if (!loading && negocios.length === 0) {
         return (
             <div className="text-center py-12 lg:py-16">
-                <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-blue-100 to-blue-50 rounded-full flex items-center justify-center ring-8 ring-blue-50">
-                    <Store className="w-12 h-12 lg:w-16 lg:h-16 text-blue-500" />
+                <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-rose-100 to-rose-50 rounded-full flex items-center justify-center ring-8 ring-rose-50">
+                    <Store className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />
                 </div>
 
                 <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">
@@ -773,7 +804,7 @@ function ContenidoNegocios({
 
                 <button
                     onClick={() => navigate('/negocios')}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
                     Explorar Negocios
                     <ChevronRight className="w-5 h-5" />
@@ -811,26 +842,22 @@ interface EstadoProximamenteProps {
 function EstadoProximamente({ tipo }: EstadoProximamenteProps) {
     const config = {
         empleos: {
-            icon: <Briefcase className="w-12 h-12 lg:w-16 lg:h-16 text-purple-500" />,
+            icon: <Briefcase className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />,
             titulo: 'Empleos guardados',
             descripcion: 'Pronto podrás guardar tus ofertas de empleo favoritas',
-            color: 'purple',
         },
         articulos: {
-            icon: <FileText className="w-12 h-12 lg:w-16 lg:h-16 text-emerald-500" />,
+            icon: <FileText className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />,
             titulo: 'Artículos guardados',
             descripcion: 'Pronto podrás guardar artículos interesantes para leer después',
-            color: 'emerald',
         },
     };
 
-    const { icon, titulo, descripcion, color } = config[tipo];
+    const { icon, titulo, descripcion } = config[tipo];
 
     return (
         <div className="text-center py-12 lg:py-16">
-            <div
-                className={`w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-${color}-100 to-${color}-50 rounded-full flex items-center justify-center ring-8 ring-${color}-50`}
-            >
+            <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-rose-100 to-rose-50 rounded-full flex items-center justify-center ring-8 ring-rose-50">
                 {icon}
             </div>
 
@@ -839,7 +866,7 @@ function EstadoProximamente({ tipo }: EstadoProximamenteProps) {
                 {descripcion}
             </p>
 
-            <div className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium">
+            <div className="inline-flex items-center gap-2 px-6 py-3 bg-rose-100 text-rose-700 rounded-xl font-semibold">
                 Próximamente disponible
             </div>
         </div>

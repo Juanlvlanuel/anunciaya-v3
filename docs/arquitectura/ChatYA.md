@@ -1,9 +1,9 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v7.0 — Actualizado 2026-03-20 — **MÓDULO COMPLETADO ✅**
+> **Versión:** v7.1 — Actualizado 2026-03-23 — **MÓDULO COMPLETADO ✅**
 
-**Fecha:** 20 Marzo 2026
-**Versión:** 7.0
+**Fecha:** 23 Marzo 2026
+**Versión:** 7.1
 **Proyecto:** AnunciaYA v3.0  
 **Chat de origen:** Chat Cerebro del Proyecto (Opus 4.6)  
 **Propósito:** Documento de referencia para implementar ChatYA en múltiples sesiones de chat. Contiene TODAS las decisiones, especificaciones, progreso y referencia técnica completa.
@@ -98,7 +98,7 @@ _Ninguna pendiente._
 | contexto_referencia_id | UUID | Nullable. ID del recurso de origen |
 | ultimo_mensaje_texto | VARCHAR(100) | Preview truncado del último mensaje |
 | ultimo_mensaje_fecha | TIMESTAMPTZ | Para ordenar la lista de chats |
-| ultimo_mensaje_tipo | VARCHAR(20) | 'texto' \| 'imagen' \| 'audio' \| 'documento' \| 'ubicacion' \| 'contacto' \| 'sistema' |
+| ultimo_mensaje_tipo | VARCHAR(20) | 'texto' \| 'imagen' \| 'audio' \| 'documento' \| 'ubicacion' \| 'contacto' \| 'sistema' \| 'cupon' |
 | ultimo_mensaje_estado | VARCHAR(20) | Estado del último mensaje ('enviado', 'entregado', 'leido') |
 | ultimo_mensaje_emisor_id | UUID (FK → usuarios) | Quién envió el último mensaje. Se usa para preview de reacciones ("Reaccionó con ❤️ a...") y para saber si el preview lo escribí yo o el otro |
 | no_leidos_p1 | INT DEFAULT 0 | Mensajes no leídos por participante 1 |
@@ -128,7 +128,7 @@ _Ninguna pendiente._
 | emisor_modo | VARCHAR(15) | Nullable. 'personal' \| 'comercial'. NULL para mensajes de sistema |
 | emisor_sucursal_id | UUID FK → negocio_sucursales | Nullable |
 | **empleado_id** | **UUID FK → empleados** | **Nullable. Cuando un empleado de ScanYA responde como el negocio** |
-| tipo | VARCHAR(20) | 'texto' \| 'imagen' \| 'audio' \| 'documento' \| 'ubicacion' \| 'contacto' \| 'sistema' |
+| tipo | VARCHAR(20) | 'texto' \| 'imagen' \| 'audio' \| 'documento' \| 'ubicacion' \| 'contacto' \| 'sistema' \| 'cupon' |
 | contenido | TEXT NOT NULL | Texto, URL R2, o JSON según tipo (ver detalle abajo) |
 | estado | VARCHAR(15) | 'enviado' \| 'entregado' \| 'leido' |
 | editado | BOOLEAN DEFAULT false | |
@@ -147,6 +147,7 @@ _Ninguna pendiente._
 - `audio`: JSON `{ url, duracion, tamano, waveform }` — URL de R2, duración en segundos, tamaño en bytes, 50 barras normalizadas 0-1
 - `documento`: JSON `{ url, nombre, tamano, tipoArchivo, extension }`
 - `ubicacion`: JSON `{ latitud, longitud, nombre? }`
+- `cupon`: JSON `{ ofertaId, ofertaUsuarioId, titulo, imagen?, tipo, valor?, fechaExpiracion, negocioNombre, mensajeMotivador, accionUrl }` — Burbuja especial con imagen, emoji 🎁 animado, botón "Reclamar cupón". Enviado automáticamente al crear/reenviar/reactivar cupón. Ver `docs/arquitectura/Promociones.md §11`
 - `contacto`: JSON `{ usuario_id?, negocio_id?, nombre, avatar? }`
 - `sistema`: texto del mensaje de sistema
 
@@ -850,7 +851,7 @@ Se abre al hacer click en el header de la ventana del chat (nombre/avatar del co
 - Validar bloqueo: no permitir enviar si estás bloqueado por el receptor
 - Actualizar `updated_at`, `ultimo_mensaje_texto`, `ultimo_mensaje_fecha`, `ultimo_mensaje_tipo`, `ultimo_mensaje_estado`, `ultimo_mensaje_emisor_id` en la conversación
 - Incrementar `no_leidos` del receptor
-- Si la conversación estaba eliminada por el receptor (`eliminada_por_pX = true`), restaurarla automáticamente
+- Si la conversación estaba eliminada por el receptor (`eliminada_por_pX = true`), restaurarla automáticamente y actualizar `mensajes_visibles_desde_pX = now()` para que solo vea mensajes nuevos (no los anteriores a la eliminación)
 - Mensaje optimista debe tener `emisorId: miId` (si es null, la burbuja aparece a la izquierda y salta a la derecha)
 
 ### 6.3 Reenvío de Mensajes
@@ -1069,7 +1070,7 @@ ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `
 | `obtenerModo(req)` | Extrae `modoActivo` del token, default `'personal'` |
 | `obtenerSucursalId(req)` | Gerente: `sucursalAsignada` del token. Dueño: `sucursalId` del query param (interceptor Axios). Default `null` |
 
-### 9.4 Eventos Socket.io — 11 total
+### 9.4 Eventos Socket.io — 13 total
 
 | Evento | Dirección | Payload |
 |--------|-----------|---------|
@@ -1085,6 +1086,8 @@ ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `
 | `chatya:reaccion` | Server → Client | `{ conversacionId, mensajeId, emoji, usuarioId, accion }` |
 | `chatya:mensaje-fijado` | Server → Client | `{ conversacionId, mensajeId, fijadoPor }` |
 | `chatya:mensaje-desfijado` | Server → Client | `{ conversacionId, mensajeId }` |
+| `chatya:cupon-eliminado` | Server → Client | `{ ofertaId, conversacionIds }` — Elimina burbujas de cupón del state sin parpadeo |
+| `chatya:recargar-conversaciones` | Server → Client | `{}` — Fuerza recarga de conversaciones + mensajes activos |
 
 ### 9.5 Cron Job
 
@@ -1426,7 +1429,7 @@ useEffect(() => {
 | `chatya.routes.ts` | `apps/api/src/routes/` | — | 34 endpoints registrados bajo `/api/chatya` |
 | `chatya.cron.ts` | `apps/api/src/cron/` | — | Limpieza TTL 6 meses, diario 3 AM |
 | `r2.service.ts` | `apps/api/src/services/` | — | Modificado: `generarPresignedUrl()` con param `tiposPermitidos` |
-| `socket.ts` | `apps/api/src/` | — | Modificado: 11 eventos ChatYA + disconnect handler + `ultima_conexion` |
+| `socket.ts` | `apps/api/src/` | — | Modificado: 13 eventos ChatYA + disconnect handler + `ultima_conexion` |
 | `schema.ts` | `apps/api/src/db/` | — | Modificado: 6 tablas ChatYA + 2 columnas visibilidad + sucursalId contactos |
 | `relations.ts` | `apps/api/src/db/` | — | Modificado: relaciones ChatYA con relationName para p1/p2 |
 | `index.ts` (principal) | `apps/api/src/` | — | Modificado: ruta `/api/chatya` + `inicializarCronChatYA()` |
@@ -1510,7 +1513,7 @@ useEffect(() => {
 
 ### Sprint 2: Backend Core — Mensajería ✅ COMPLETADO (3 días)
 - Types, Service (13 funciones), Controller (13), Routes (13 endpoints)
-- Socket.io: 11 eventos con multi-dispositivo
+- Socket.io: 13 eventos con multi-dispositivo
 - `socket.data.usuarioId` + `ultima_conexion` al disconnect
 - Soporte empleados ScanYA (`empleado_id`)
 
@@ -1586,6 +1589,16 @@ useEffect(() => {
 ### 14.1 Funcionalidad pendiente
 
 _Ninguna — todos los sprints completados (7/7)._
+
+### 14.1b Integraciones post-sprint (23 Mar 2026)
+
+| Integración | Detalle |
+|-------------|---------|
+| **Tipo `cupon`** | Nuevo tipo de mensaje agregado a `chat_msg_tipo_check` y `chat_conv_ultimo_mensaje_tipo_check`. Burbuja especial en `BurbujaMensaje.tsx`. Preview en `ConversacionItem.tsx` (icono Ticket + 🎁 + título) |
+| **Socket `chatya:cupon-eliminado`** | Evento que elimina burbujas de cupón del state local sin parpadeo. Recibe `{ ofertaId, conversacionIds }`. Filtra mensajes + limpia caché + recarga lista conversaciones |
+| **Socket `chatya:recargar-conversaciones`** | Fuerza recarga de conversaciones + mensajes activos. Usado al revocar/eliminar cupones |
+| **Fix restaurar conversación** | Al restaurar conversación eliminada (`crearObtenerConversacion`), se actualiza `mensajes_visibles_desde` para que no reaparezcan mensajes pre-eliminación |
+| **Limpieza cascada** | Revocar/eliminar cupón elimina mensajes tipo `cupon` de las conversaciones + actualiza preview + elimina conversaciones vacías. Ver `docs/arquitectura/Promociones.md §14` |
 
 ### 14.2 Deuda técnica
 
@@ -1753,5 +1766,5 @@ _Ninguna — todos los sprints completados (7/7)._
 ---
 
 **Estado actual:** Sprints 1-7 COMPLETADOS. Módulo ChatYA cerrado (20 Mar 2026). 41 API tests + 10 E2E tests.
-**Backend:** 34 endpoints + 11 eventos Socket.io + 1 evento consulta estado + cron job activo.
+**Backend:** 34 endpoints + 13 eventos Socket.io + 1 evento consulta estado + cron job activo.
 **Última actualización:** 11 Marzo 2026

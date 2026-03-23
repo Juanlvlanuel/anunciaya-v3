@@ -9,7 +9,7 @@
  */
 
 import { useRef, useCallback } from 'react';
-import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText } from 'lucide-react';
+import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText, Ticket } from 'lucide-react';
 import type { Conversacion } from '../../types/chatya';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -276,6 +276,14 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
                     if (tipo === 'documento') {
                       const label = texto.replace('📎 ', '').replace('📎', '').trim() || 'Documento';
                       return <><FileText className="w-3.5 h-3.5 text-blue-400 shrink-0 inline align-[-3px] mr-0.5" />{label}</>;
+                    }
+                    if (tipo === 'cupon') {
+                      try {
+                        const datos = JSON.parse(texto);
+                        return <><Ticket className="w-3.5 h-3.5 shrink-0 inline align-[-3px] mr-0.5" />🎁 {datos.titulo || 'Cupón'}</>;
+                      } catch {
+                        return <><Ticket className="w-3.5 h-3.5 shrink-0 inline align-[-3px] mr-0.5" />Cupón</>;
+                      }
                     }
                     return <TextoConEmojis texto={texto} tamañoEmoji={22} />;
                   })()

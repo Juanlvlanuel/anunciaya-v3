@@ -28,6 +28,9 @@ import {
   obtenerOfertaPublica,
   reenviarCupon,
   revocarCupon,
+  revocarCuponMasivo,
+  reactivarCupon,
+  obtenerClientesAsignados,
   obtenerMisCupones,
   revelarCodigoCupon,
 } from '../services/ofertas.service.js';
@@ -731,6 +734,69 @@ export async function postRevocarCupon(req: Request, res: Response) {
 }
 
 // =============================================================================
+// REVOCAR CUPÓN MASIVO (todos los usuarios)
+// =============================================================================
+
+export async function postRevocarCuponMasivo(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { motivo } = req.body;
+    const negocioId = req.negocioId;
+    const revocadoPorId = req.usuario?.usuarioId;
+
+    if (!negocioId || !revocadoPorId) {
+      return res.status(400).json({ success: false, message: 'Faltan parámetros' });
+    }
+
+    const resultado = await revocarCuponMasivo(id, negocioId, revocadoPorId, motivo);
+    if (!resultado.success) {
+      return res.status(400).json(resultado);
+    }
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en postRevocarCuponMasivo:', error);
+    return res.status(500).json({ success: false, message: 'Error al revocar cupón' });
+  }
+}
+
+// =============================================================================
+// REACTIVAR CUPÓN
+// =============================================================================
+
+export async function postReactivarCupon(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const negocioId = req.negocioId;
+    if (!negocioId) return res.status(400).json({ success: false, message: 'Faltan parámetros' });
+
+    const resultado = await reactivarCupon(id, negocioId);
+    if (!resultado.success) return res.status(400).json(resultado);
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en postReactivarCupon:', error);
+    return res.status(500).json({ success: false, message: 'Error al reactivar cupón' });
+  }
+}
+
+// =============================================================================
+// CLIENTES ASIGNADOS A UN CUPÓN
+// =============================================================================
+
+export async function getClientesAsignados(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const negocioId = req.negocioId;
+    if (!negocioId) return res.status(400).json({ success: false, message: 'Faltan parámetros' });
+
+    const resultado = await obtenerClientesAsignados(id, negocioId);
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getClientesAsignados:', error);
+    return res.status(500).json({ success: false, message: 'Error al obtener clientes' });
+  }
+}
+
+// =============================================================================
 // MIS CUPONES (VISTA CLIENTE)
 // =============================================================================
 
@@ -758,7 +824,8 @@ export async function postRevelarCodigo(req: Request, res: Response) {
       return res.status(401).json({ success: false, message: 'No autenticado' });
     }
 
-    const resultado = await revelarCodigoCupon(id, usuarioId);
+    const contrasena = req.body?.contrasena as string | undefined;
+    const resultado = await revelarCodigoCupon(id, usuarioId, contrasena);
     if (!resultado.success) {
       return res.status(resultado.code ?? 400).json(resultado);
     }

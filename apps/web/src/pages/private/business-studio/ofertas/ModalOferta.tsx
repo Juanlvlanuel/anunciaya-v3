@@ -17,7 +17,7 @@ import { useState, useLayoutEffect, useEffect, useCallback } from 'react';
 import {
     Eye, EyeOff,
     Gift, Truck, Percent, DollarSign, ShoppingBag, Tag,
-    Lock, Globe, FileText, Users, Settings, Megaphone, Ticket,
+    Lock, Globe, FileText, Users, Settings, Megaphone, Ticket, RefreshCw,
 } from 'lucide-react';
 import { useR2Upload } from '../../../../hooks/useR2Upload';
 import { generarUrlUploadImagenOferta } from '../../../../services/ofertasService';
@@ -34,6 +34,9 @@ import { TabClientes } from './TabClientes';
 import type { ClienteItem } from './TabClientes';
 import type { FormularioState, Errores } from './TabOferta';
 import { getClientes } from '../../../../services/clientesService';
+import { obtenerClientesAsignados } from '../../../../services/ofertasService';
+import type { ClienteAsignado } from '../../../../services/ofertasService';
+import ModalDetalleCliente from '@/pages/private/business-studio/clientes/ModalDetalleCliente';
 
 // =============================================================================
 // TIPOS
@@ -44,6 +47,7 @@ interface ModalOfertaProps {
     onCerrar: () => void;
     oferta: Oferta | null;
     onGuardar: (datos: CrearOfertaInput | ActualizarOfertaInput) => Promise<void>;
+    onRecargar?: () => void;
 }
 
 type OfertaConImagen = Oferta & {
@@ -85,7 +89,7 @@ const extraerFecha = (fechaISO: string): string => fechaISO.substring(0, 10);
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfertaProps) {
+export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar }: ModalOfertaProps) {
     const esEdicion = !!oferta;
 
     // Estados
@@ -97,6 +101,12 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
     const [clientesDisponibles, setClientesDisponibles] = useState<ClienteItem[]>([]);
     const [cargandoClientes, setCargandoClientes] = useState(false);
     const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number }>({ isOpen: false, images: [], initialIndex: 0 });
+    const [clientesAsignados, setClientesAsignados] = useState<ClienteAsignado[]>([]);
+    const [cargandoAsignados, setCargandoAsignados] = useState(false);
+    const [clienteDetalleId, setClienteDetalleId] = useState<string | null>(null);
+
+    const esCupon = formulario.visibilidad === 'privado';
+    const cuponInactivo = esEdicion && esCupon && !formulario.activo;
 
     // Upload R2
     const imagen = useR2Upload({
@@ -126,8 +136,10 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
             setErrores({});
             setTabActivo('oferta');
             setClientesSeleccionados([]);
-            imagen.setImageUrl(null);
-            imagen.setR2Url(null);
+            imagen.reset();
+        } else if (!abierto) {
+            // Modal cerrado sin guardar — limpiar imagen huérfana de R2
+            imagen.reset();
         }
     }, [abierto, oferta]);
 
@@ -154,6 +166,29 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
     useEffect(() => {
         if (abierto && clientesDisponibles.length === 0) cargarClientes();
     }, [abierto]);
+
+    // Cargar clientes asignados al abrir cupón en edición
+    useEffect(() => {
+        if (abierto && esEdicion && oferta?.visibilidad === 'privado') {
+            setCargandoAsignados(true);
+            obtenerClientesAsignados(oferta.id)
+                .then(res => {
+                    if (res.success && Array.isArray(res.data)) {
+                        setClientesAsignados(res.data);
+                        // Cargar motivo desde el primer cliente asignado
+                        const motivo = res.data[0]?.motivo;
+                        if (motivo) {
+                            setFormulario(prev => ({ ...prev, motivoAsignacion: motivo }));
+                        }
+                    }
+                })
+                .catch(() => {})
+                .finally(() => setCargandoAsignados(false));
+        } else if (!abierto) {
+            setClientesAsignados([]);
+            setClienteDetalleId(null);
+        }
+    }, [abierto, esEdicion, oferta?.id]);
 
     // Handlers clientes
     const toggleCliente = (id: string) => {
@@ -210,6 +245,9 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                 usuariosIds: esExclusiva && clientesSeleccionados.length > 0 ? clientesSeleccionados : undefined,
             };
             await onGuardar(datos);
+            // Imagen guardada — limpiar estado sin eliminar de R2
+            imagen.setImageUrl(null);
+            imagen.setR2Url(null);
         } finally {
             setGuardando(false);
         }
@@ -276,37 +314,69 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                 </span>
                             </div>
 
-                            {/* Toggles: Visibilidad + Activo */}
+                            {/* Toggles: Visibilidad (solo creación) + Activo */}
                             <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
-                                <div className="flex bg-white/10 rounded-xl p-0.5" data-testid="toggle-visibilidad">
-                                    <Tooltip text="Oferta" position="bottom" autoHide={2500}>
-                                        <button type="button" data-testid="btn-visibilidad-publico"
-                                            onClick={() => { setFormulario(prev => ({ ...prev, visibilidad: 'publico' })); setTabActivo('oferta'); }}
+                                {!esEdicion && (
+                                    <div className="flex bg-white/10 rounded-xl p-0.5" data-testid="toggle-visibilidad">
+                                        <Tooltip text="Oferta" position="bottom" autoHide={2500}>
+                                            <button type="button" data-testid="btn-visibilidad-publico"
+                                                onClick={() => { setFormulario(prev => ({ ...prev, visibilidad: 'publico' })); setTabActivo('oferta'); }}
+                                                disabled={guardando}
+                                                className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 ${formulario.visibilidad === 'publico' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+                                            >
+                                                <Megaphone className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${formulario.visibilidad === 'publico' ? 'text-white' : 'text-white/40'}`} />
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip text="Cupón" position="bottom" autoHide={2500}>
+                                            <button type="button" data-testid="btn-visibilidad-privado"
+                                                onClick={() => setFormulario(prev => ({ ...prev, visibilidad: 'privado' }))}
+                                                disabled={guardando}
+                                                className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 ${formulario.visibilidad === 'privado' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+                                            >
+                                                <Ticket className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${formulario.visibilidad === 'privado' ? 'text-white' : 'text-white/40'}`} />
+                                            </button>
+                                        </Tooltip>
+                                    </div>
+                                )}
+                                {esEdicion && esCupon && !formulario.activo ? (
+                                    <Tooltip text="Reactivar cupón" position="bottom" autoHide={2500}>
+                                        <button type="button" data-testid="btn-reactivar-cupon"
+                                            onClick={async () => {
+                                                if (!oferta) return;
+                                                const confirmado = await notificar.confirmar(`¿Reactivar cupón "${oferta.titulo}" para todos los clientes?`);
+                                                if (!confirmado) return;
+                                                try {
+                                                    const { reactivarCuponService } = await import('../../../../services/ofertasService');
+                                                    const res = await reactivarCuponService(oferta.id);
+                                                    if (res.success) {
+                                                        notificar.exito(res.message || 'Cupón reactivado');
+                                                        setFormulario(prev => ({ ...prev, activo: true }));
+                                                        onRecargar?.();
+                                                        obtenerClientesAsignados(oferta.id)
+                                                            .then(r => { if (r.success && Array.isArray(r.data)) setClientesAsignados(r.data); })
+                                                            .catch(() => {});
+                                                    } else {
+                                                        notificar.error(res.message || 'Error al reactivar');
+                                                    }
+                                                } catch { notificar.error('Error al reactivar cupón'); }
+                                            }}
                                             disabled={guardando}
-                                            className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl transition-all cursor-pointer disabled:opacity-50 ${formulario.visibilidad === 'publico' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+                                            className="p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 bg-emerald-500/20 hover:bg-emerald-500/30"
                                         >
-                                            <Megaphone className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${formulario.visibilidad === 'publico' ? 'text-white' : 'text-white/40'}`} />
+                                            <RefreshCw className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-emerald-400" />
                                         </button>
                                     </Tooltip>
-                                    <Tooltip text="Cupón" position="bottom" autoHide={2500}>
-                                        <button type="button" data-testid="btn-visibilidad-privado"
-                                            onClick={() => setFormulario(prev => ({ ...prev, visibilidad: 'privado' }))}
-                                            disabled={guardando}
-                                            className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl transition-all cursor-pointer disabled:opacity-50 ${formulario.visibilidad === 'privado' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+                                ) : (
+                                    <Tooltip text={formulario.activo ? 'Activa' : 'Inactiva'} position="bottom" autoHide={2500}>
+                                        <button type="button" data-testid="btn-toggle-activo"
+                                            onClick={() => setFormulario(prev => ({ ...prev, activo: !prev.activo }))}
+                                            disabled={guardando || (esEdicion && esCupon)}
+                                            className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 ${formulario.activo ? 'bg-white/20 hover:bg-white/30' : 'bg-white/10 hover:bg-white/20'}`}
                                         >
-                                            <Ticket className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${formulario.visibilidad === 'privado' ? 'text-white' : 'text-white/40'}`} />
+                                            {formulario.activo ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" /> : <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/60" />}
                                         </button>
                                     </Tooltip>
-                                </div>
-                                <Tooltip text={formulario.activo ? 'Activa' : 'Inactiva'} position="bottom" autoHide={2500}>
-                                    <button type="button" data-testid="btn-toggle-activo"
-                                        onClick={() => setFormulario(prev => ({ ...prev, activo: !prev.activo }))}
-                                        disabled={guardando}
-                                        className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl transition-all cursor-pointer disabled:opacity-50 ${formulario.activo ? 'bg-white/20 hover:bg-white/30' : 'bg-white/10 hover:bg-white/20'}`}
-                                    >
-                                        {formulario.activo ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" /> : <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/60" />}
-                                    </button>
-                                </Tooltip>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -343,12 +413,12 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                     <form onSubmit={handleSubmit} data-testid="form-oferta" className="flex-1 flex flex-col min-h-0">
                         {/* Contenido scrollable */}
                         <div className="flex-1 overflow-y-auto">
-                            {tabActivo === 'oferta' && (
+                            {tabActivo === 'oferta' && (<div className={cuponInactivo ? 'opacity-60 pointer-events-none' : ''}>
                                 <TabOferta
                                     formulario={formulario}
                                     setFormulario={setFormulario}
                                     errores={errores}
-                                    guardando={guardando}
+                                    guardando={guardando || cuponInactivo}
                                     imagen={imagen}
                                     onAbrirImagen={(url) => setModalImagenes({ isOpen: true, images: [url], initialIndex: 0 })}
                                     botonesDesktop={
@@ -372,14 +442,15 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                         </div>
                                     }
                                 />
-                            )}
-                            {tabActivo === 'exclusiva' && (
+                            </div>)}
+                            {tabActivo === 'exclusiva' && (<div className={cuponInactivo ? 'opacity-60 pointer-events-none' : ''}>
                                 <TabExclusiva
                                     formulario={formulario}
                                     setFormulario={setFormulario}
                                     guardando={guardando}
+                                    soloLectura={esEdicion && esCupon}
                                 />
-                            )}
+                            </div>)}
                             {tabActivo === 'clientes' && (
                                 <TabClientes
                                     clientes={clientesDisponibles}
@@ -388,6 +459,10 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                                     onToggleCliente={toggleCliente}
                                     onSeleccionarTodos={seleccionarTodos}
                                     onLimpiarSeleccion={limpiarSeleccion}
+                                    modoEdicion={esEdicion && oferta?.visibilidad === 'privado'}
+                                    clientesAsignados={clientesAsignados}
+                                    cargandoAsignados={cargandoAsignados}
+                                    onClickCliente={(id) => setClienteDetalleId(id)}
                                 />
                             )}
                         </div>
@@ -422,6 +497,12 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar }: ModalOfert
                 initialIndex={modalImagenes.initialIndex}
                 isOpen={modalImagenes.isOpen}
                 onClose={() => setModalImagenes({ isOpen: false, images: [], initialIndex: 0 })}
+            />
+
+            <ModalDetalleCliente
+                abierto={!!clienteDetalleId}
+                onCerrar={() => setClienteDetalleId(null)}
+                clienteId={clienteDetalleId}
             />
         </>
     );

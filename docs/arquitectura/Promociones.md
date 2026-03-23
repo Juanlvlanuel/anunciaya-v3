@@ -1,8 +1,8 @@
 # 🏷️ Promociones — Ofertas y Cupones
 
-**Última actualización:** 22 Marzo 2026
-**Versión:** 1.0
-**Estado:** ✅ Operacional (Ofertas públicas + Cupones privados)
+**Última actualización:** 23 Marzo 2026
+**Versión:** 2.0
+**Estado:** ✅ Operacional (Ofertas públicas + Cupones privados + ChatYA + Tiempo real)
 
 ---
 
@@ -15,13 +15,17 @@ Este documento describe la **arquitectura del módulo de Promociones**:
 - ✅ Selector de clientes con filtros (nivel, actividad)
 - ✅ Validación en ScanYA con código personal
 - ✅ Vista cliente "Mis Cupones" con revelación de código
-- ✅ Revocación de cupones desde BS
-- ✅ Reenvío de cupones
-- ✅ Notificaciones (panel + deep link)
+- ✅ Revocación masiva de cupones desde BS
+- ✅ Reactivación de cupones revocados
+- ✅ Reenvío de cupones (notificación + ChatYA)
+- ✅ Notificaciones (panel + deep link + tiempo real via Socket.io)
+- ✅ Burbuja especial de cupón en ChatYA
+- ✅ Carousel de cupones activos en ColumnaIzquierda
+- ✅ Actualización en tiempo real (Socket.io)
+- ✅ Limpieza cascada al revocar/eliminar (chat + notificaciones + R2)
 - ✅ Recompensas N+1 (compras frecuentes) en CardYA
 
 **NO incluye:**
-- ❌ Burbuja especial en ChatYA (pendiente)
 - ❌ Barra progreso N+1 en CardYA usuario (pendiente)
 
 **Para implementación exacta:**
@@ -34,6 +38,8 @@ Este documento describe la **arquitectura del módulo de Promociones**:
 - Frontend Cliente: `apps/web/src/pages/private/cupones/`
 - Frontend Service: `apps/web/src/services/ofertasService.ts`
 - Frontend Service: `apps/web/src/services/misCuponesService.ts`
+- Frontend Store: `apps/web/src/stores/useMisCuponesStore.ts`
+- Frontend Carousel: `apps/web/src/components/layout/CarouselCupones.tsx`
 
 ---
 
@@ -44,13 +50,18 @@ Este documento describe la **arquitectura del módulo de Promociones**:
 3. [Base de Datos](#base-de-datos)
 4. [API Endpoints](#api-endpoints)
 5. [Business Studio — Crear Promoción](#business-studio--crear-promoción)
-6. [Cupones — Flujo Completo](#cupones--flujo-completo)
-7. [Mis Cupones — Vista Cliente](#mis-cupones--vista-cliente)
-8. [ScanYA — Validación de Código](#scanya--validación-de-código)
-9. [Notificaciones](#notificaciones)
-10. [Recompensas N+1](#recompensas-n1)
-11. [Frontend — Componentes](#frontend--componentes)
-12. [Decisiones de Diseño](#decisiones-de-diseño)
+6. [Business Studio — Editar Cupón](#business-studio--editar-cupón)
+7. [Cupones — Flujo Completo](#cupones--flujo-completo)
+8. [Revocación y Reactivación](#revocación-y-reactivación)
+9. [Mis Cupones — Vista Cliente](#mis-cupones--vista-cliente)
+10. [ScanYA — Validación de Código](#scanya--validación-de-código)
+11. [ChatYA — Burbuja de Cupón](#chatya--burbuja-de-cupón)
+12. [Notificaciones](#notificaciones)
+13. [Actualización en Tiempo Real](#actualización-en-tiempo-real)
+14. [Limpieza Cascada](#limpieza-cascada)
+15. [Recompensas N+1](#recompensas-n1)
+16. [Frontend — Componentes](#frontend--componentes)
+17. [Decisiones de Diseño](#decisiones-de-diseño)
 
 ---
 
@@ -82,7 +93,11 @@ Un solo módulo, un solo CRUD, una sola tabla (`ofertas`). La diferencia es el c
 | Límite por persona | ❌ No | ✅ Opcional |
 | Validación ScanYA | ❌ No | ✅ Sí (código personal) |
 | Notificación al cliente | ❌ No | ✅ Automática |
-| Revocable | ❌ No | ✅ Sí (desde BS) |
+| Mensaje ChatYA | ❌ No | ✅ Burbuja especial |
+| Revocable | ❌ No | ✅ Sí (masivo desde BS) |
+| Reactivable | ❌ No | ✅ Sí (después de revocar) |
+| Duplicable | ✅ Solo dueños | ❌ No |
+| Ocultable | ✅ Eye/EyeOff | ❌ No (se revoca en su lugar) |
 | 6 tipos descuento | ✅ Sí | ✅ Sí |
 | Fechas vigencia | ✅ Sí | ✅ Sí |
 | Imagen | ✅ Opcional | ✅ Opcional |
@@ -131,7 +146,7 @@ Un solo módulo, un solo CRUD, una sola tabla (`ofertas`). La diferencia es el c
 | motivo | VARCHAR(200) | Motivo de asignación (VIP, cumpleaños, etc.) |
 | asignado_at | TIMESTAMPTZ | Fecha de asignación |
 | vista | BOOLEAN | Si el cliente ya lo vio |
-| codigo_personal | VARCHAR(50) UNIQUE | Código único (auto-generado: VIP-XXXXX) |
+| codigo_personal | VARCHAR(50) UNIQUE | Código único (auto-generado: ANUN-XXXXXX) |
 | estado | VARCHAR(20) | activo, usado, expirado, revocado |
 | usado_at | TIMESTAMPTZ nullable | Fecha de uso |
 | revocado_at | TIMESTAMPTZ nullable | Fecha de revocación |
@@ -152,6 +167,10 @@ Un solo módulo, un solo CRUD, una sola tabla (`ofertas`). La diferencia es el c
 | sucursal_id | UUID FK SET NULL | Sucursal donde se usó |
 | created_at | TIMESTAMPTZ | Timestamp |
 
+### Tipo `cupon` en chat_mensajes
+
+El tipo `cupon` fue agregado al check constraint `chat_msg_tipo_check` de la tabla `chat_mensajes` y al constraint `chat_conv_ultimo_mensaje_tipo_check` de `chat_conversaciones`. Esto permite enviar mensajes de tipo cupón con contenido JSON estructurado.
+
 ---
 
 ## 4. API Endpoints
@@ -164,11 +183,14 @@ Un solo módulo, un solo CRUD, una sola tabla (`ofertas`). La diferencia es el c
 | GET | `/api/ofertas` | Listar por sucursal |
 | GET | `/api/ofertas/:id` | Detalle |
 | PUT | `/api/ofertas/:id` | Actualizar |
-| DELETE | `/api/ofertas/:id` | Eliminar |
-| POST | `/api/ofertas/:id/duplicar` | Duplicar a sucursales |
+| DELETE | `/api/ofertas/:id` | Eliminar (cascada: chat + notificaciones + R2) |
+| POST | `/api/ofertas/:id/duplicar` | Duplicar a sucursales (solo ofertas públicas) |
 | POST | `/api/ofertas/:id/asignar` | Asignar cupón a clientes |
-| POST | `/api/ofertas/:id/reenviar` | Reenviar notificación |
-| POST | `/api/ofertas/:id/revocar` | Revocar cupón |
+| POST | `/api/ofertas/:id/reenviar` | Reenviar notificación + ChatYA |
+| POST | `/api/ofertas/:id/revocar` | Revocar cupón (usuario individual) |
+| POST | `/api/ofertas/:id/revocar-todos` | Revocar cupón (todos los usuarios activos) |
+| POST | `/api/ofertas/:id/reactivar` | Reactivar cupón (todos los revocados) |
+| GET | `/api/ofertas/:id/clientes-asignados` | Clientes asignados a un cupón |
 | POST | `/api/ofertas/upload-imagen` | Presigned URL R2 |
 
 ### Vista Cliente (requiere auth)
@@ -199,7 +221,7 @@ Un solo módulo, un solo CRUD, una sola tabla (`ofertas`). La diferencia es el c
 
 ### Modal con Tabs (solo modo Cupón)
 
-**Oferta pública:** formulario simple sin tabs.
+**Oferta pública:** formulario simple sin tabs. Toggle de visibilidad solo disponible en creación.
 
 **Cupón privado:** 3 tabs.
 
@@ -207,7 +229,7 @@ Un solo módulo, un solo CRUD, una sola tabla (`ofertas`). La diferencia es el c
 |-----|-----------|
 | **Detalles** | Imagen, tipo, valor, fechas, título, descripción |
 | **Ajustes** | Motivo, límite por persona, preview notificación, "¿Cómo funciona?" |
-| **Enviar a** | Búsqueda, dropdown nivel (Bronce/Plata/Oro), dropdown actividad (Activos/Inactivos), lista checkboxes, pill informativo |
+| **Enviar a** | Búsqueda, dropdown nivel (Bronce/Plata/Oro), dropdown actividad (Activos/Inactivos), lista checkboxes |
 
 ### Componentes del modal
 
@@ -215,10 +237,10 @@ Un solo módulo, un solo CRUD, una sola tabla (`ofertas`). La diferencia es el c
 ModalOferta.tsx         — Contenedor: header + tabs + botones
 ├── TabOferta.tsx       — Formulario principal
 ├── TabExclusiva.tsx    — Ajustes privados + preview
-└── TabClientes.tsx     — Selector de clientes con filtros
+└── TabClientes.tsx     — Selector de clientes (creación) / Lista asignados (edición)
 ```
 
-### Acciones en tabla
+### Acciones en tabla — Ofertas públicas
 
 | Acción | Icono | Disponible |
 |--------|-------|-----------|
@@ -226,8 +248,17 @@ ModalOferta.tsx         — Contenedor: header + tabs + botones
 | Ocultar/Mostrar | Eye/EyeOff | Siempre |
 | Eliminar | Trash2 rojo | Siempre |
 | Duplicar | Copy verde | Solo dueños |
-| Reenviar cupón | Send azul | Solo cupones privados |
-| Revocar cupón | Ban naranja | Solo cupones activos |
+
+### Acciones en tabla — Cupones privados
+
+| Acción | Icono | Orden | Disponible |
+|--------|-------|-------|-----------|
+| Revocar | Ban naranja | 1 | Solo cupones activos |
+| Reactivar | RefreshCw verde | 1 | Solo cupones inactivos |
+| Eliminar | Trash2 rojo | 2 | Siempre |
+| Reenviar | Send azul | 3 | Siempre |
+
+> **Nota:** Los cupones NO muestran Duplicar ni Ocultar/Mostrar. El control de activación se hace mediante Revocar/Reactivar.
 
 ### Filtros en PaginaOfertas
 
@@ -240,11 +271,42 @@ ModalOferta.tsx         — Contenedor: header + tabs + botones
 
 ---
 
-## 6. Cupones — Flujo Completo
+## 6. Business Studio — Editar Cupón
+
+Al abrir un cupón existente en el modal, el comportamiento cambia:
+
+### Toggle de visibilidad
+- **Oculto** en modo edición — no se puede convertir oferta↔cupón después de crear.
+
+### Campos del formulario
+- **Cupón activo:** Tab Detalles editable, Tab Ajustes readonly (motivo y límite no se pueden cambiar)
+- **Cupón inactivo (revocado):** Todos los campos readonly (opacity-60, pointer-events-none), excepto Tab Clientes
+
+### Tab Clientes — Modo edición
+En lugar del selector con checkboxes, muestra una **lista readonly** de clientes asignados con:
+- Avatar, nombre, fecha de asignación
+- Badge de estado (Activo/Usado/Expirado/Revocado)
+- Click en un cliente abre `ModalDetalleCliente` con información completa
+- Datos se cargan desde `GET /api/ofertas/:id/clientes-asignados`
+
+### Botón Reactivar
+- Cuando el cupón está inactivo, el icono Eye/EyeOff del header se reemplaza por **RefreshCw verde** ("Reactivar cupón")
+- Muestra confirmación antes de ejecutar
+- Llama a `POST /api/ofertas/:id/reactivar`
+- Actualiza la tabla de BS instantáneamente
+
+### Limpieza de imágenes huérfanas
+- Al cerrar el modal sin guardar, si se subió imagen a R2, se elimina automáticamente
+- Al guardar exitosamente, la imagen se marca como no huérfana antes de cerrar
+- Aplica también al modal de artículos (`ModalArticulo.tsx`)
+
+---
+
+## 7. Cupones — Flujo Completo
 
 ```
 1. Comerciante abre BS → Promociones → + Nueva Promoción
-2. Toggle: Oferta → Cupón (icono Ticket)
+2. Toggle: Oferta → Cupón (icono Ticket) — solo en creación
 3. Llena: Detalles (título, tipo, valor, fechas)
 4. Tab Ajustes: motivo, límite por persona
 5. Tab Enviar a: filtra por nivel/actividad → selecciona clientes
@@ -252,14 +314,20 @@ ModalOferta.tsx         — Contenedor: header + tabs + botones
    ↓
 7. Backend:
    - Crea oferta con visibilidad='privado'
-   - Genera código único VIP-XXXXX por cada cliente
+   - Genera código único ANUN-XXXXXX por cada cliente
    - Inserta en oferta_usuarios
-   - Envía notificación a cada cliente
+   - Envía notificación "¡Cupón exclusivo para ti!" a cada cliente
+   - Envía mensaje tipo 'cupon' por ChatYA (burbuja especial)
+   - Emite socket 'cupon:actualizado' para actualización en tiempo real
    ↓
-8. Cliente recibe notificación: "¡Cupón exclusivo para ti!"
+8. Cliente recibe:
+   - Notificación en panel: "¡Cupón exclusivo para ti!"
+   - Mensaje en ChatYA: burbuja con imagen + "¡Felicidades!" + botón "Reclamar cupón"
+   - Cupón aparece en Mis Cupones y en CarouselCupones (columna izquierda)
+   ↓
 9. Cliente va a Mis Cupones → ve cupón activo
 10. Click "Ver cupón" → modal con detalles
-11. Click "Revelar código" → muestra VIP-A3K9X (copiable)
+11. Ingresa contraseña → Revelar código → muestra ANUN-XXXXXX (copiable)
 12. Cliente va al negocio → muestra código
 13. Empleado ingresa código en ScanYA
 14. ScanYA valida: código → oferta_usuarios → ofertas
@@ -275,39 +343,99 @@ Cuando un cliente usa un cupón:
 
 ---
 
-## 7. Mis Cupones — Vista Cliente
+## 8. Revocación y Reactivación
+
+### Revocar cupón (masivo)
+
+**Endpoint:** `POST /api/ofertas/:id/revocar-todos`
+
+**Flujo:**
+1. Cambia `oferta_usuarios.estado` → `revocado` para todos los usuarios activos
+2. Desactiva la oferta (`activo: false`)
+3. Elimina mensajes de chat tipo `cupon` asociados
+4. Actualiza preview de conversaciones (o elimina si no quedan mensajes)
+5. Elimina notificaciones originales de asignación
+6. Crea notificación "Cupón revocado" para cada cliente (`await` para garantizar timing)
+7. Emite sockets: `cupon:actualizado`, `chatya:cupon-eliminado`, `notificacion:recargar`
+
+> **Importante:** Los sockets se emiten DESPUÉS de que todas las operaciones de BD se completen, para evitar que el frontend recargue antes de que los datos estén actualizados.
+
+### Reactivar cupón
+
+**Endpoint:** `POST /api/ofertas/:id/reactivar`
+
+**Flujo:**
+1. Cambia `oferta_usuarios.estado` → `activo` para todos los revocados (limpia revocadoAt, revocadoPor, motivoRevocacion)
+2. Activa la oferta (`activo: true`)
+3. Elimina notificaciones de revocación previas
+4. Crea notificación "¡Tu cupón fue reactivado!" para cada cliente
+5. Envía nuevo mensaje tipo `cupon` por ChatYA
+6. Emite sockets: `cupon:actualizado`, `notificacion:recargar`
+
+> **Nota:** No emite `chatya:recargar-conversaciones` porque el mensaje nuevo ya llega por el canal estándar `chatya:mensaje-nuevo`.
+
+### Revocar individual
+
+**Endpoint:** `POST /api/ofertas/:id/revocar`
+
+Revoca un solo usuario específico. Mismo flujo pero para un `usuarioId` del body.
+
+---
+
+## 9. Mis Cupones — Vista Cliente
 
 **Ruta:** `/mis-cupones`
 
-**Estructura:**
-- Header dark con gradiente emerald (#10b981 → #059669)
+**Estructura — Estilo CardYA:**
+- Header dark sticky (#000000) con glow emerald, grid pattern, esquinas curvas (`lg:rounded-b-3xl`)
+- Branding: "Mis **Cupones**" (blanco + emerald-400)
+- Subtítulo decorativo: "Tus **descuentos** exclusivos" + "CUPONERA DIGITAL"
+- Móvil: header propio con ChevronLeft → `/inicio` + botón Menu (MobileHeader oculto)
 - 3 tabs: Activos | Usados | Historial (expirados + revocados)
-- KPIs: cupones activos, cupones usados
+- KPIs desktop: cupones activos (emerald-400), cupones usados (blanco)
 - Grid de CardCupon (1 col móvil, 3 lg, 4 2xl)
-- Deep link desde notificaciones: `/mis-cupones?id=uuid`
+- Deep link desde notificaciones: `/mis-cupones?id=uuid` (cambia al tab correcto según estado)
+
+**Store:** `useMisCuponesStore` (Zustand)
+- Persiste datos entre navegaciones (no recarga cada vez)
+- Pre-carga logos e imágenes al cargar datos (`new Image()`)
+- Listener socket `cupon:actualizado` para actualización en tiempo real
+- Recarga en background sin spinner si ya tiene datos
 
 **CardCupon:**
-- Móvil: horizontal (imagen izq + info der, 185px alto)
-- Desktop: vertical (imagen arriba, info abajo)
-- Badge estado: Activo (emerald), Usado (slate), Expirado (amber), Revocado (red)
-- Línea separadora gradiente emerald → negro (móvil)
+- Móvil: horizontal (imagen izq + info der, 185px alto), logo circular arriba-izq, badge estado abajo-izq
+- Desktop: vertical (imagen h-32/h-40, overlay negocio con logo circular + sombra blanca, línea gradiente emerald→negro h-1.5)
+- Solo el botón "Ver cupón" abre el modal en cupones activos
+- Cupones no activos: toda la card clickeable para ver detalle
+- Metadata vertical: tipo descuento + fecha + motivo
 
 **ModalDetalleCupon:**
-- Header con gradiente del tipo de oferta
-- Info: negocio, descripción, tipo/valor, fecha expiración, motivo
-- Botón "Revelar código" → muestra código grande + copiar
-- Si revocado: motivo + fecha
+- Header con gradiente slate unificado (no varía por tipo)
+- Toggle ver/ocultar contraseña
+- Botón ChatYA con icono `/IconoRojoChatYA.webp` + tooltip en PC
+- Info como lista con divisores (Tag, Calendar, DollarSign, Gift)
+- Badge "Activo": fondo sólido verde + letra blanca
+- Texto "Tu código de cupón" (no "código de descuento")
+
+**CarouselCupones (ColumnaIzquierda):**
+- Carousel automático (cada 5s) de cupones activos
+- Unificado con botón "Mis Cupones" (badge rojo circular con conteo)
+- Cronómetro animado (Timer con animación ring) abajo-derecha
+- Se oculta en `/mis-cupones`
+- Usa el store `useMisCuponesStore`
 
 **Componentes:**
 ```
 PaginaMisCupones.tsx
 ├── componentes/CardCupon.tsx
 └── componentes/ModalDetalleCupon.tsx
+
+CarouselCupones.tsx (en components/layout/)
 ```
 
 ---
 
-## 8. ScanYA — Validación de Código
+## 10. ScanYA — Validación de Código
 
 **Endpoint:** `POST /api/scanya/validar-codigo`
 
@@ -322,7 +450,7 @@ PaginaMisCupones.tsx
 8. Verificar límite por usuario
 9. Retornar datos del descuento
 
-**UI en ScanYA:** Sección "Código de descuento (opcional)" en ModalRegistrarVenta.
+**UI en ScanYA:** Sección "Código de cupón (opcional)" en ModalRegistrarVenta.
 
 **Al registrar venta con código:**
 - Busca oferta por ID
@@ -333,15 +461,64 @@ PaginaMisCupones.tsx
 
 ---
 
-## 9. Notificaciones
+## 11. ChatYA — Burbuja de Cupón
+
+### Tipo de mensaje
+
+Los mensajes de cupón usan `tipo: 'cupon'` en `chat_mensajes`. El contenido es un JSON con:
+
+```json
+{
+  "ofertaId": "uuid",
+  "ofertaUsuarioId": "ANUN-XXXXXX",
+  "titulo": "Pizza Gratis",
+  "imagen": "https://...",
+  "tipo": "otro",
+  "valor": "GRATIS",
+  "fechaExpiracion": "2026-03-31...",
+  "negocioNombre": "Mi Negocio",
+  "mensajeMotivador": "¡Felicidades! Tienes un cupón exclusivo 🎉",
+  "accionUrl": "/mis-cupones?id=..."
+}
+```
+
+### Burbuja visual
+
+- Fondo blanco con borde emerald + sombra verde
+- Imagen del cupón arriba (si existe)
+- Cinta gradiente emerald→negro (h-1.5)
+- Emoji 🎁 animado (bounce) a la izquierda + "¡Felicidades!" + "Tienes un cupón exclusivo" a la derecha
+- Datos centrados: título + fecha expiración
+- Botón "Reclamar cupón" con icono Ticket + efecto shine
+- Hora fuera del card (hereda color de burbuja)
+
+### Preview en lista de chats
+
+- Muestra icono Ticket + 🎁 + título del cupón (parsea el JSON)
+- En vez del JSON crudo
+
+### Envío automático
+
+El mensaje ChatYA se envía automáticamente al:
+- Crear cupón (asignación inicial)
+- Reenviar cupón
+- Reactivar cupón
+
+El participante emisor es el `usuario_id` del negocio (NO el `negocio_id`).
+
+---
+
+## 12. Notificaciones
 
 ### Tipos
 
 | Tipo | Modo | Cuándo | Icono |
 |------|------|--------|-------|
-| `cupon_asignado` | personal | Al crear cupón privado | Ticket verde |
-| `cupon_revocado` | personal | Al revocar cupón | Ticket rojo |
+| `cupon_asignado` | personal | Al crear/reenviar/reactivar cupón | 🎟️ |
+| `cupon_revocado` | personal | Al revocar cupón | ❌ |
 | `nueva_oferta` | personal | Al crear oferta pública | Tag azul |
+
+> **Importante:** La notificación de cupón NUNCA incluye el código personal (dato sensible). Solo título + nombre del negocio.
 
 ### Deep Links
 
@@ -350,9 +527,73 @@ PaginaMisCupones.tsx
 | `cupon` | `/mis-cupones?id={referenciaId}` |
 | `oferta` | `/negocios/{sucursalId}?ofertaId={referenciaId}` |
 
+El deep link cambia automáticamente al tab correcto según el estado del cupón (Activos, Usados, Historial).
+
+### Reenvío
+
+`POST /api/ofertas/:id/reenviar` ahora envía:
+1. Notificación "¡Recordatorio de cupón!" (sin código)
+2. Mensaje tipo `cupon` por ChatYA
+
 ---
 
-## 10. Recompensas N+1
+## 13. Actualización en Tiempo Real
+
+### Eventos Socket.io
+
+| Evento | Emisor | Receptor | Descripción |
+|--------|--------|----------|-------------|
+| `cupon:actualizado` | Backend | Cliente | Refresca store de cupones (`useMisCuponesStore`) |
+| `chatya:cupon-eliminado` | Backend | Cliente | Elimina burbujas de cupón del state sin parpadeo |
+| `chatya:recargar-conversaciones` | Backend | Cliente | Recarga lista de chats + mensajes activos |
+| `notificacion:recargar` | Backend | Cliente | Recarga panel de notificaciones |
+
+### Listeners
+
+- `useMisCuponesStore` — escucha `cupon:actualizado` → recarga cupones
+- `useChatYAStore` — escucha `chatya:cupon-eliminado` → filtra mensajes tipo cupón del state local
+- `useChatYAStore` — escucha `chatya:recargar-conversaciones` → recarga conversaciones + mensajes activos
+- `useNotificacionesStore` — escucha `notificacion:recargar` → recarga lista de notificaciones
+
+### Principio de timing
+
+Los sockets se emiten **después** de que todas las operaciones de BD se completen. Las notificaciones usan `await crearNotificacion()` (no fire-and-forget) para garantizar que el dato existe cuando el frontend recarga.
+
+### Eliminación sin parpadeo
+
+`chatya:cupon-eliminado` recibe `{ ofertaId, conversacionIds }` y filtra los mensajes localmente sin hacer fetch. Esto evita el parpadeo visual de recargar todos los mensajes.
+
+---
+
+## 14. Limpieza Cascada
+
+### Al revocar cupón
+
+1. Mensajes de chat tipo `cupon` → **DELETE** (`contenido::jsonb->>'ofertaId'`)
+2. Conversaciones vacías → **DELETE** (si no quedan mensajes)
+3. Conversaciones con mensajes → Actualiza preview con último mensaje real
+4. Notificaciones originales (`cupon_asignado`) → **DELETE**
+5. Notificación nueva de revocación → **INSERT**
+
+### Al eliminar cupón/oferta
+
+1. Guardados → **DELETE** (`entity_type='oferta'`)
+2. Notificaciones → **DELETE** (`referenciaId`)
+3. Mensajes chat → **DELETE** (`contenido::jsonb->>'ofertaId'`)
+4. Conversaciones vacías → **DELETE**
+5. Oferta → **DELETE CASCADE** (elimina `oferta_usuarios`, `oferta_usos`)
+6. Imagen R2 → **DELETE** (si `esUrlR2`, fire-and-forget)
+
+### Limpieza de imágenes huérfanas R2
+
+Cuando el usuario sube una imagen al modal pero cierra sin guardar:
+- `useR2Upload.reset()` detecta `esSubidaNueva` y elimina la imagen de R2
+- Al guardar exitosamente: `setImageUrl(null)` + `setR2Url(null)` antes de cerrar → `reset()` no elimina nada
+- Aplica a `ModalOferta` y `ModalArticulo`
+
+---
+
+## 15. Recompensas N+1
 
 **Concepto:** "Compra N veces, la N+1 es gratis" — implementado como tipo de recompensa en CardYA.
 
@@ -378,37 +619,49 @@ Tracking de compras acumuladas por usuario por recompensa.
 
 ---
 
-## 11. Frontend — Componentes
+## 16. Frontend — Componentes
 
 ### Business Studio (ofertas/)
 
-| Archivo | Líneas | Propósito |
-|---------|--------|-----------|
-| PaginaOfertas.tsx | ~1400 | Página principal con tabla, filtros, KPIs |
-| ModalOferta.tsx | ~400 | Contenedor modal con tabs |
-| TabOferta.tsx | ~290 | Formulario: imagen, tipo, valor, fechas |
-| TabExclusiva.tsx | ~90 | Ajustes: motivo, límite, preview |
-| TabClientes.tsx | ~230 | Selector clientes con dropdowns |
-| ModalDuplicarOferta.tsx | - | Modal duplicar a sucursales |
+| Archivo | Propósito |
+|---------|-----------|
+| PaginaOfertas.tsx | Página principal con tabla, filtros, KPIs |
+| ModalOferta.tsx | Contenedor modal con tabs + reactivar |
+| TabOferta.tsx | Formulario: imagen, tipo, valor, fechas |
+| TabExclusiva.tsx | Ajustes: motivo, límite, preview (readonly en edición) |
+| TabClientes.tsx | Selector clientes (creación) / Lista asignados (edición) |
+| ModalDuplicarOferta.tsx | Modal duplicar a sucursales |
 
 ### Vista Cliente (cupones/)
 
 | Archivo | Propósito |
 |---------|-----------|
-| PaginaMisCupones.tsx | Página con tabs + grid cards |
-| componentes/CardCupon.tsx | Card móvil/desktop |
-| componentes/ModalDetalleCupon.tsx | Detalle + revelar código |
+| PaginaMisCupones.tsx | Página estilo CardYA con tabs + grid |
+| componentes/CardCupon.tsx | Card móvil/desktop con overlay negocio |
+| componentes/ModalDetalleCupon.tsx | Detalle + revelar código + ChatYA |
 
 ### Servicios
 
 | Archivo | Propósito |
 |---------|-----------|
-| ofertasService.ts | CRUD BS + feed + asignar + reenviar |
-| misCuponesService.ts | Mis cupones + revelar + revocar |
+| ofertasService.ts | CRUD BS + feed + asignar + reenviar + revocar masivo + reactivar + clientes asignados |
+| misCuponesService.ts | Mis cupones + revelar |
+
+### Stores
+
+| Archivo | Propósito |
+|---------|-----------|
+| useMisCuponesStore.ts | Persistencia + pre-carga imágenes + listener socket |
+
+### Layout
+
+| Archivo | Propósito |
+|---------|-----------|
+| CarouselCupones.tsx | Carousel automático en ColumnaIzquierda |
 
 ---
 
-## 12. Decisiones de Diseño
+## 17. Decisiones de Diseño
 
 ### ¿Por qué no un módulo separado de Cupones?
 - Ofertas y cupones comparten 90% de la estructura (tipo, valor, fechas, imagen)
@@ -419,7 +672,12 @@ Tracking de compras acumuladas por usuario por recompensa.
 ### ¿Por qué código único por usuario?
 - Intransferible: si comparte el código, no funciona para otro
 - Tracking individual: se sabe exactamente quién usó qué
-- Seguridad: no se pueden adivinar códigos (VIP-XXXXX aleatorio)
+- Seguridad: no se pueden adivinar códigos (ANUN-XXXXXX aleatorio)
+
+### ¿Por qué revocar vs eliminar?
+- **Eliminar** = desaparece todo (cupón, notificaciones, mensajes, imagen R2). Sin historial.
+- **Revocar** = desactiva pero mantiene registro. Útil para historial, disputas, métricas. Se puede reactivar.
+- Los cupones no se "ocultan" (Eye/EyeOff) como las ofertas — se revocan/reactivan.
 
 ### ¿Por qué N+1 en CardYA y no en Cupones?
 - El patrón "N compras → recompensa" es acumulativo y progresivo
@@ -430,3 +688,8 @@ Tracking de compras acumuladas por usuario por recompensa.
 - Estándar en comercio: puntos solo por lo que realmente pagas
 - Justo para el negocio: no regala puntos sobre descuento
 - El cliente acumula menos pero el valor es real
+
+### ¿Por qué sockets después de await?
+- Si se emiten en paralelo con las operaciones de BD, el frontend recarga antes de que los datos existan
+- Patrón: primero `await` todas las escrituras, luego emitir sockets
+- Las notificaciones usan `await crearNotificacion()` para garantizar timing

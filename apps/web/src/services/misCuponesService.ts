@@ -31,8 +31,10 @@ export interface CuponCliente {
   fechaInicio: string;
   fechaFin: string;
   negocioId: string;
+  negocioUsuarioId: string;
   negocioNombre: string;
   negocioLogo: string | null;
+  sucursalId: string | null;
   sucursalNombre: string | null;
 }
 
@@ -53,8 +55,8 @@ export async function obtenerMisCupones(estado?: string) {
  * Revelar código personal del cupón
  * POST /api/ofertas/mis-cupones/:id/revelar
  */
-export async function revelarCodigo(cuponId: string) {
-  return post<{ codigo: string; estado: string }>(`/ofertas/mis-cupones/${cuponId}/revelar`, {});
+export async function revelarCodigo(cuponId: string, contrasena?: string) {
+  return post<{ codigo: string; estado: string }>(`/ofertas/mis-cupones/${cuponId}/revelar`, { contrasena });
 }
 
 /**

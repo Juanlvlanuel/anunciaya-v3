@@ -271,6 +271,10 @@ export function registrarListenerNotificaciones(): void {
       useNotificacionesStore.getState().agregarNotificacion(notificacion);
     }
   );
+
+  escucharEvento('notificacion:recargar', () => {
+    useNotificacionesStore.getState().cargarNotificaciones('personal');
+  });
 }
 
 export default useNotificacionesStore;

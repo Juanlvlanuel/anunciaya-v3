@@ -10,8 +10,9 @@
 
 ---
 
-**Última actualización:** 08 Marzo 2026  
+**Última actualización:** 23 Marzo 2026
 **Estado:** ✅ 100% Operacional
+**Identidad visual:** Rose (rosa) — Header dark estilo CardYA
 
 ---
 
@@ -118,32 +119,20 @@ El usuario **nunca pierde el guardado** por caducidad — si el comerciante reac
 
 ## 📱 Estructura de la Página
 
-### Layout Principal
+### Header — Estilo CardYA (dark)
 
-```
-┌──────────────────────────────────────────────┐
-│  Mis Guardados                               │
-├──────────────────────────────────────────────┤
-│                                              │
-│  [Ofertas(5)] [Negocios(3)] [Empleos] [Art] │  ← 4 Tabs
-│  ╚═══════════                                │
-│                                              │
-│  [Recientes] [Antiguos] [A-Z] [Z-A]         │  ← Ordenamiento
-│                                              │
-│  ┌────────────────────────────────────────┐  │
-│  │ 🔖  HAPPY HOUR                         │  │
-│  │ 2x1 en bebidas · Bar El Rincón         │  │
-│  │ Quedan 3 días                          │  │
-│  └────────────────────────────────────────┘  │
-│                                              │
-│  ┌────────────────────────────────────────┐  │
-│  │ 🔖  25% OFF                            │  │
-│  │ Descuento en menú · Restaurante Luna   │  │
-│  │ Quedan 7 días                          │  │
-│  └────────────────────────────────────────┘  │
-│                                              │
-└──────────────────────────────────────────────┘
-```
+La página usa el mismo patrón visual que CardYA y Mis Cupones:
+
+- **Header dark sticky** (#000000) con glow rose, grid pattern, `lg:rounded-b-3xl`
+- **Icono:** Heart (corazón) con gradiente rose (`#f43f5e → #e11d48`)
+- **Branding:** "Mis **Guardados**" (blanco + rose-400)
+- **Subtítulo decorativo:** "Tus **favoritos** en un solo lugar" + "COLECCIÓN PERSONAL"
+- **Móvil:** header propio con ChevronLeft → `/inicio` + botón Menu (MobileHeader oculto)
+- **KPIs desktop:** ofertas (rose-400) + negocios (blanco) con separador vertical gradiente
+- **Tabs:** estilo CardYA (fondo negro, tab activo rose, mismos tamaños/padding)
+- **Ordenamiento desktop:** integrado en la fila de tabs (derecha), pills rose
+
+**Tema ColumnaIzquierda:** dark con acentos rose (`#0B358F → #000000`, mismo fondo azul que CardYA)
 
 ### Estados Posibles
 
@@ -153,20 +142,9 @@ El usuario **nunca pierde el guardado** por caducidad — si el comerciante reac
 - Botones de acción en cada tarjeta
 
 **Estado 2: Lista vacía**
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│            🔔                                │
-│                                              │
-│     No tienes ofertas guardadas              │
-│                                              │
-│  Explora ofertas y guarda tus favoritas      │
-│         para encontrarlas fácilmente         │
-│                                              │
-│     [Explorar Ofertas]                      │
-│                                              │
-└──────────────────────────────────────────────┘
-```
+- Círculo gradiente rose con icono del tab (Tag/Store/Briefcase/FileText) en `text-rose-500`
+- Título + descripción + botón de acción rose
+- Mismo estilo rose unificado para los 4 tabs
 
 **Estado 3: Cargando**
 - Spinner/skeleton mientras carga datos
@@ -175,7 +153,7 @@ El usuario **nunca pierde el guardado** por caducidad — si el comerciante reac
 
 ## 🗂️ Sistema de Tabs
 
-La página tiene 4 tabs: **Ofertas**, **Negocios**, **Empleos**, **Artículos**. Los dos últimos muestran estado "Próximamente disponible" hasta que se implemente su funcionalidad.
+La página tiene 4 tabs: **Ofertas**, **Negocios**, **Empleos**, **Artículos**. Los dos últimos muestran estado "Próximamente disponible" con estilo rose unificado. Los tabs usan el patrón CardYA: fondo negro, tab activo en rose (`#fb7185`), badges de conteo en `bg-rose-500`.
 
 ### Tab 1: Ofertas
 
@@ -577,10 +555,14 @@ pages/private/guardados/
 ```
 
 **`PaginaGuardados.tsx`:**
+- Header dark estilo CardYA con identidad rose, icono Heart
+- Tabs inline (sin subcomponentes TabButton/TabPill — eliminados)
+- Ordenamiento integrado en la fila de tabs (desktop)
 - Tipo `NegocioSeguido` incluye `usuarioId` del negocio (necesario para abrir ChatYA)
 - Fetch de negocios usa `/seguidos` con coordenadas GPS y sin `incluirTodosModos` — el interceptor agrega `votanteSucursalId` automáticamente
 - DELETE envía el `votanteSucursalId` almacenado en el registro original (no el del modo activo)
 - Ambos fetches (negocios y ofertas) se ejecutan en paralelo al montar el componente
+- MobileHeader oculto — usa header propio con ChevronLeft + Menu
 
 #### Componentes Reutilizados
 
@@ -828,7 +810,7 @@ Lista se reordena instantáneamente
 
 ---
 
-**Última actualización:** 08 Marzo 2026  
+**Última actualización:** 23 Marzo 2026
 **Autor:** Equipo AnunciaYA
 
 **Próximo hito:** Expansión a más tipos de contenido (Artículos, Dinámicas)

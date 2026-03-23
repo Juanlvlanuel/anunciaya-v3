@@ -2074,7 +2074,7 @@ export const chatMensajes = pgTable("chat_mensajes", {
 		name: "fk_chat_msg_empleado"
 	}).onDelete("set null"),
 	check("chat_msg_modo_check", sql`(emisor_modo IS NULL OR (emisor_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[]))`),
-	check("chat_msg_tipo_check", sql`(tipo)::text = ANY ((ARRAY['texto'::character varying, 'imagen'::character varying, 'audio'::character varying, 'documento'::character varying, 'ubicacion'::character varying, 'contacto'::character varying, 'sistema'::character varying])::text[])`),
+	check("chat_msg_tipo_check", sql`(tipo)::text = ANY ((ARRAY['texto'::character varying, 'imagen'::character varying, 'audio'::character varying, 'documento'::character varying, 'ubicacion'::character varying, 'contacto'::character varying, 'sistema'::character varying, 'cupon'::character varying])::text[])`),
 	check("chat_msg_estado_check", sql`(estado)::text = ANY ((ARRAY['enviado'::character varying, 'entregado'::character varying, 'leido'::character varying])::text[])`),
 ]);
 

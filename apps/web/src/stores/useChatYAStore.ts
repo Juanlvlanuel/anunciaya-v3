@@ -2240,3 +2240,41 @@ useAuthStore.subscribe((state, prev) => {
     useChatYAStore.setState({ conversacionActivaId: null });
   }
 });
+
+/** chatya:recargar-conversaciones — Forzar recarga (ej: al revocar cupón) */
+escucharEvento('chatya:recargar-conversaciones', () => {
+  const state = useChatYAStore.getState();
+  state.cargarConversaciones('personal', 0, true);
+  // Si hay conversación activa, recargar sus mensajes también
+  if (state.conversacionActivaId) {
+    state.cargarMensajes(state.conversacionActivaId);
+  }
+});
+
+/** chatya:cupon-eliminado — Eliminar burbujas de cupón sin parpadeo */
+escucharEvento<{ ofertaId: string; conversacionIds: string[] }>('chatya:cupon-eliminado', ({ ofertaId, conversacionIds }) => {
+  const state = useChatYAStore.getState();
+
+  // Filtrar mensajes tipo cupón de la conversación activa (sin recargar)
+  if (state.conversacionActivaId && conversacionIds.includes(state.conversacionActivaId)) {
+    useChatYAStore.setState((prev) => ({
+      mensajes: prev.mensajes.filter(m => !(m.tipo === 'cupon' && m.contenido.includes(ofertaId))),
+    }));
+  }
+
+  // Limpiar caché de mensajes
+  for (const convId of conversacionIds) {
+    const cached = state.cacheMensajes[convId];
+    if (cached) {
+      useChatYAStore.setState((prev) => ({
+        cacheMensajes: {
+          ...prev.cacheMensajes,
+          [convId]: cached.filter(m => !(m.tipo === 'cupon' && m.contenido.includes(ofertaId))),
+        },
+      }));
+    }
+  }
+
+  // Recargar lista de conversaciones (para actualizar preview)
+  state.cargarConversaciones('personal', 0, true);
+});

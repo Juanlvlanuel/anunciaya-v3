@@ -69,6 +69,8 @@ export function MainLayout() {
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
   const esPerfilNegocio = location.pathname.startsWith('/negocios/');
   const esCardYA = location.pathname.startsWith('/cardya');
+  const esMisCupones = location.pathname.startsWith('/mis-cupones');
+  const esGuardados = location.pathname.startsWith('/guardados');
 
   // Swipe horizontal entre módulos BS (solo móvil)
   useSwipeNavegacionBS(mobileMainRef);
@@ -310,7 +312,7 @@ export function MainLayout() {
           ) : (
             <div className="fixed inset-0 flex flex-col z-0">
               {/* MobileHeader — altura variable (con/sin BS sub-bar) */}
-              {!esCardYA && (
+              {!esCardYA && !esMisCupones && !esGuardados && (
                 <div className="shrink-0 z-50 mobile-header-landscape-hide">
                   <MobileHeader />
                   <BannerRateLimit />

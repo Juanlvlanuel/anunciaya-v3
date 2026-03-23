@@ -38,7 +38,7 @@ interface UseOfertasReturn {
   ofertas: Oferta[];
   loading: boolean;
   error: string | null;
-  recargar: () => Promise<void>;
+  recargar: (forzar?: boolean) => Promise<void>;
   crear: (datos: CrearOfertaInput) => Promise<boolean>;
   actualizar: (id: string, datos: ActualizarOfertaInput) => Promise<boolean>;
   eliminar: (id: string) => Promise<boolean>;
@@ -190,7 +190,7 @@ export function useOfertas(): UseOfertasReturn {
         invalidarCache(sucursalId);
         await cargarOfertas(true);
 
-        notificar.exito('Oferta creada correctamente');
+        notificar.exito(datos.visibilidad === 'privado' ? 'Cupón enviado exitosamente' : 'Oferta creada correctamente');
         return true;
       } else {
         throw new Error(respuesta.message || 'Error al crear oferta');

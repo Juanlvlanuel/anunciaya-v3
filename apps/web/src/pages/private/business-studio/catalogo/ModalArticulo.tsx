@@ -117,6 +117,8 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
     if (articulo?.imagenPrincipal) {
       imagen.setImageUrl(articulo.imagenPrincipal);
       imagen.setR2Url(articulo.imagenPrincipal);
+    } else if (!articulo) {
+      imagen.reset();
     }
   }, [articulo]);
 
@@ -226,6 +228,9 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
         ...(imagenCambio ? { imagenAEliminar: imagenOriginal } : {}),
       };
       await onGuardar(datos);
+      // Imagen guardada — limpiar estado sin eliminar de R2
+      imagen.setImageUrl(null);
+      imagen.setR2Url(null);
     } catch (error) {
       console.error('Error al guardar:', error);
     } finally {
@@ -244,7 +249,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
     <>
       <ModalAdaptativo
         abierto={true}
-        onCerrar={onCerrar}
+        onCerrar={() => { imagen.reset(); onCerrar(); }}
         ancho="xl"
         mostrarHeader={false}
         paddingContenido="none"
@@ -814,7 +819,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                 <div className="flex gap-3 2xl:gap-3 mt-4 mb-2 lg:mb-2 2xl:mb-0 lg:mt-auto 2xl:mt-auto">
                   <button
                     type="button"
-                    onClick={onCerrar}
+                    onClick={() => { imagen.reset(); onCerrar(); }}
                     disabled={guardando}
                     className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer border-2 border-slate-400 text-slate-600 bg-transparent hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100"
                   >
