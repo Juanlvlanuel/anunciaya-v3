@@ -139,7 +139,8 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
             setClientesSeleccionados([]);
             imagen.reset();
         } else if (!abierto) {
-            // Modal cerrado sin guardar — limpiar imagen huérfana de R2
+            // Modal cerrado — resetear tab y limpiar imagen huérfana de R2
+            setTabActivo('oferta');
             imagen.reset();
         }
     }, [abierto, oferta]);
@@ -292,7 +293,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                 headerOscuro
                 className="max-w-xs lg:max-w-2xl 2xl:max-w-3xl"
             >
-                <div className="flex flex-col h-[90vh] lg:h-[75vh] 2xl:h-[75vh]">
+                <div className={`flex flex-col ${esExclusiva ? 'h-[90vh] lg:h-[68vh] 2xl:h-[65vh]' : 'max-h-[90vh] lg:max-h-[75vh] 2xl:max-h-[75vh]'}`}>
 
                     {/* ── Header ── */}
                     <div
@@ -400,6 +401,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                     guardando={guardando || cuponInactivo}
                                     imagen={imagen}
                                     onAbrirImagen={(url) => setModalImagenes({ isOpen: true, images: [url], initialIndex: 0 })}
+                                    esCupon={esCupon}
                                     botonesDesktop={
                                         <div className="flex gap-3">
                                             <button

@@ -294,10 +294,12 @@ export function PaginaCatalogo() {
     // Filtros
     const [filtros, setFiltros] = useState<FiltrosArticulos>({
         busqueda: '',
-        tipo: 'todos',
+        tipo: 'producto',
         categoria: 'todas',
         disponible: 'todos',
     });
+
+    const esServicios = filtros.tipo === 'servicio';
 
     // Limpiar búsqueda al desmontar (navegar fuera)
     useEffect(() => {
@@ -327,24 +329,23 @@ export function PaginaCatalogo() {
     const categoriasUnicas = useMemo(() => {
         const categorias = new Set<string>();
         articulos.forEach((art) => {
-            if (art.categoria && art.categoria !== 'General') {
+            if (art.tipo === (esServicios ? 'servicio' : 'producto') && art.categoria && art.categoria !== 'General') {
                 categorias.add(art.categoria);
             }
         });
         return Array.from(categorias).sort();
-    }, [articulos]);
+    }, [articulos, esServicios]);
 
     // ===========================================================================
     // ESTADÍSTICAS RÁPIDAS
     // ===========================================================================
 
     const estadisticas = useMemo(() => {
-        const productos = articulos.filter((a) => a.tipo === 'producto').length;
-        const servicios = articulos.filter((a) => a.tipo === 'servicio').length;
-        const disponibles = articulos.filter((a) => a.disponible === true).length;
-        const noDisponibles = articulos.filter((a) => a.disponible === false).length;
-        return { productos, servicios, disponibles, noDisponibles, total: articulos.length };
-    }, [articulos]);
+        const filtrados = articulos.filter((a) => a.tipo === (esServicios ? 'servicio' : 'producto'));
+        const disponibles = filtrados.filter((a) => a.disponible === true).length;
+        const noDisponibles = filtrados.filter((a) => a.disponible === false).length;
+        return { disponibles, noDisponibles, total: filtrados.length };
+    }, [articulos, esServicios]);
 
     // ===========================================================================
     // FILTRAR ARTÍCULOS
@@ -461,7 +462,7 @@ export function PaginaCatalogo() {
     };
 
     const handleEliminar = async (id: string, nombre?: string) => {
-        const confirmado = await notificar.confirmar(`¿Eliminar "${nombre || 'artículo'}"?`);
+        const confirmado = await notificar.confirmar(`¿Eliminar "${nombre}"?`);
         if (confirmado) await eliminar(id);
     };
 
@@ -504,7 +505,6 @@ export function PaginaCatalogo() {
 
     const hayFiltrosActivos =
         filtros.busqueda ||
-        filtros.tipo !== 'todos' ||
         filtros.categoria !== 'todas' ||
         filtros.disponible !== 'todos';
 
@@ -535,7 +535,7 @@ export function PaginaCatalogo() {
                 {/* ================================================================= */}
 
                 <div className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
-                    {/* Header con icono animado + Switch móvil */}
+                    {/* Header con icono animado + Toggle Productos/Servicios */}
                     <div className="hidden lg:flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
                         <div
                             className="hidden lg:flex items-center justify-center shrink-0"
@@ -554,50 +554,36 @@ export function PaginaCatalogo() {
                                 Catálogo
                             </h1>
                             <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium whitespace-nowrap">
-                                Productos y servicios
+                                Tus productos y servicios
                             </p>
                         </div>
 
-                        {/* Switch tipo móvil — estilo Transacciones */}
-                        <div className="lg:hidden shrink-0 ml-auto flex justify-end">
-                            <div className="flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
-                                <Tooltip text="Todos" position="bottom" autoHide={1500}>
-                                    <button
-                                        onClick={() => setFiltros(prev => ({ ...prev, tipo: 'todos' }))}
-                                        className={`h-10 w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${filtros.tipo === 'todos'
-                                            ? 'text-white shadow-md'
-                                            : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
-                                        }`}
-                                        style={filtros.tipo === 'todos' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                                    >
-                                        <Layers className="w-5 h-5" />
-                                    </button>
-                                </Tooltip>
-                                <Tooltip text="Productos" position="bottom" autoHide={1500}>
-                                    <button
-                                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
-                                        className={`h-10 w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${filtros.tipo === 'producto'
-                                            ? 'text-white shadow-md'
-                                            : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
-                                        }`}
-                                        style={filtros.tipo === 'producto' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                                    >
-                                        <Package className="w-5 h-5" />
-                                    </button>
-                                </Tooltip>
-                                <Tooltip text="Servicios" position="bottom" autoHide={1500}>
-                                    <button
-                                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
-                                        className={`h-10 w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${filtros.tipo === 'servicio'
-                                            ? 'text-white shadow-md'
-                                            : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
-                                        }`}
-                                        style={filtros.tipo === 'servicio' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                                    >
-                                        <Wrench className="w-5 h-5" />
-                                    </button>
-                                </Tooltip>
-                            </div>
+                        {/* Toggle Productos / Servicios — desktop */}
+                        <div className="hidden lg:flex items-center bg-slate-200 rounded-xl p-0.5 border-2 border-slate-300 ml-2">
+                            <Tooltip text="Productos" position="bottom">
+                                <button
+                                    data-testid="toggle-productos"
+                                    onClick={() => setFiltros(prev => ({ ...prev, tipo: 'producto', categoria: 'todas' }))}
+                                    className={`h-9 w-9 2xl:h-10 2xl:w-10 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                                        !esServicios ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'
+                                    }`}
+                                    style={!esServicios ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                                >
+                                    <Package className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                                </button>
+                            </Tooltip>
+                            <Tooltip text="Servicios" position="bottom">
+                                <button
+                                    data-testid="toggle-servicios"
+                                    onClick={() => setFiltros(prev => ({ ...prev, tipo: 'servicio', categoria: 'todas' }))}
+                                    className={`h-9 w-9 2xl:h-10 2xl:w-10 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                                        esServicios ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'
+                                    }`}
+                                    style={esServicios ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                                >
+                                    <Wrench className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                                </button>
+                            </Tooltip>
                         </div>
                     </div>
 
@@ -617,53 +603,14 @@ export function PaginaCatalogo() {
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
                                 >
-                                    <Layers className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                    {esServicios
+                                    ? <Wrench className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                    : <Package className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                }
                                 </div>
                                 <div className="text-left">
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
                                     <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Total</div>
-                                </div>
-                            </div>
-
-                            {/* Productos */}
-                            <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
-                                style={{
-                                    background: 'linear-gradient(135deg, #ecfeff, #fff)',
-                                    border: '2px solid #67e8f9',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                                }}
-                            >
-                                <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
-                                    style={{ background: 'linear-gradient(135deg, #a5f3fc, #67e8f9)', boxShadow: '0 3px 8px rgba(6,182,212,0.25)' }}
-                                >
-                                    <Package className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-cyan-700" />
-                                </div>
-                                <div className="text-left">
-                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-cyan-700">{estadisticas.productos}</div>
-                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Productos</div>
-                                </div>
-                            </div>
-
-                            {/* Servicios */}
-                            <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
-                                style={{
-                                    background: 'linear-gradient(135deg, #faf5ff, #fff)',
-                                    border: '2px solid #d8b4fe',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                                }}
-                            >
-                                <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
-                                    style={{ background: 'linear-gradient(135deg, #e9d5ff, #d8b4fe)', boxShadow: '0 3px 8px rgba(147,51,234,0.25)' }}
-                                >
-                                    <Wrench className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-purple-700" />
-                                </div>
-                                <div className="text-left">
-                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-purple-700">{estadisticas.servicios}</div>
-                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Servicios</div>
                                 </div>
                             </div>
 
@@ -713,86 +660,48 @@ export function PaginaCatalogo() {
                 </div>
 
                 {/* ================================================================= */}
-                {/* SWITCH Tipo — solo móvil                                          */}
+                {/* TOGGLE Productos/Servicios — solo móvil, fuera del contenedor     */}
                 {/* ================================================================= */}
 
                 <div className="lg:hidden flex w-full bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
                     <button
-                        onClick={() => setFiltros(prev => ({ ...prev, tipo: 'todos' }))}
-                        className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-semibold cursor-pointer ${filtros.tipo === 'todos' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
-                        style={filtros.tipo === 'todos' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                        onClick={() => setFiltros(prev => ({ ...prev, tipo: 'producto', categoria: 'todas' }))}
+                        className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
+                            !esServicios ? 'text-white shadow-md' : 'text-slate-700'
+                        }`}
+                        style={!esServicios ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                     >
-                        <Layers className="w-5 h-5" />
-                        Todos
-                    </button>
-                    <button
-                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
-                        className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-semibold cursor-pointer ${filtros.tipo === 'producto' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
-                        style={filtros.tipo === 'producto' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                    >
-                        <Package className="w-5 h-5" />
+                        <Package className="w-4 h-4" />
                         Productos
                     </button>
                     <button
-                        onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
-                        className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-semibold cursor-pointer ${filtros.tipo === 'servicio' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
-                        style={filtros.tipo === 'servicio' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                        onClick={() => setFiltros(prev => ({ ...prev, tipo: 'servicio', categoria: 'todas' }))}
+                        className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
+                            esServicios ? 'text-white shadow-md' : 'text-slate-700'
+                        }`}
+                        style={esServicios ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                     >
-                        <Wrench className="w-5 h-5" />
+                        <Wrench className="w-4 h-4" />
                         Servicios
                     </button>
                 </div>
 
                 {/* ================================================================= */}
-                {/* FILTROS: Tipo (desktop) + Categoría + Búsqueda + Nuevo            */}
+                {/* FILTROS: Categoría + Búsqueda + Nuevo                             */}
                 {/* ================================================================= */}
 
                 <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
                     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
-                        {/* Chips de tipo — solo desktop */}
-                        <div className="hidden lg:flex flex-row gap-1.5 shrink-0">
-                            <button
-                                onClick={() => setFiltros(prev => ({ ...prev, tipo: 'todos' }))}
-                                className={`flex items-center justify-center px-3 2xl:px-4 h-10 2xl:h-11 rounded-lg text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'todos'
-                                    ? 'bg-slate-800 text-white border-slate-800'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
-                                }`}
-                            >
-                                Todos
-                            </button>
-                            <button
-                                onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'producto' ? 'todos' : 'producto' }))}
-                                className={`flex items-center justify-center gap-1 px-3 2xl:px-4 h-10 2xl:h-11 rounded-lg text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'producto'
-                                    ? 'bg-blue-100 text-blue-700 border-blue-400'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
-                                }`}
-                            >
-                                <Package className="w-3.5 h-3.5" />
-                                Productos
-                            </button>
-                            <button
-                                onClick={() => setFiltros(prev => ({ ...prev, tipo: prev.tipo === 'servicio' ? 'todos' : 'servicio' }))}
-                                className={`flex items-center justify-center gap-1 px-3 2xl:px-4 h-10 2xl:h-11 rounded-lg text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo === 'servicio'
-                                    ? 'bg-slate-200 text-slate-800 border-slate-500'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-400'
-                                }`}
-                            >
-                                <Wrench className="w-3.5 h-3.5" />
-                                Servicios
-                            </button>
-                        </div>
-
                         {/* Móvil línea 1: Categoría + Nuevo | Desktop: Categoría inline */}
                         <div className="flex items-center gap-2 lg:contents">
                             {/* Dropdown de categoría */}
                             {categoriasUnicas.length > 0 && (
                             <>
-                                <div className="hidden lg:block w-px h-6 bg-slate-300 shrink-0" />
                                 <div ref={dropdownCatRef} className="relative flex-1 min-w-0 lg:flex-none lg:shrink-0">
                                     <button
                                         onClick={() => setDropdownCatAbierto(prev => !prev)}
                                         className={`flex items-center gap-1.5 w-full lg:w-48 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.categoria !== 'todas'
-                                            ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                                            ? 'bg-blue-100 border-blue-300 text-blue-700'
                                             : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                                         }`}
                                     >
@@ -806,10 +715,10 @@ export function PaginaCatalogo() {
                                         <div className="absolute top-full left-0 lg:left-auto lg:right-0 mt-1.5 w-44 lg:w-48 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                                             <button
                                                 onClick={() => { setFiltros(prev => ({ ...prev, categoria: 'todas' })); setDropdownCatAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.categoria === 'todas' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.categoria === 'todas' ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                                             >
-                                                <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.categoria === 'todas' ? 'border-indigo-500' : 'border-slate-300'}`}>
-                                                    {filtros.categoria === 'todas' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
+                                                <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.categoria === 'todas' ? 'border-blue-500' : 'border-slate-300'}`}>
+                                                    {filtros.categoria === 'todas' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
                                                 </div>
                                                 Todas
                                             </button>
@@ -817,10 +726,10 @@ export function PaginaCatalogo() {
                                                 <button
                                                     key={cat}
                                                     onClick={() => { setFiltros(prev => ({ ...prev, categoria: cat })); setDropdownCatAbierto(false); }}
-                                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.categoria === cat ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.categoria === cat ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                                                 >
-                                                    <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.categoria === cat ? 'border-indigo-500' : 'border-slate-300'}`}>
-                                                        {filtros.categoria === cat && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
+                                                    <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.categoria === cat ? 'border-blue-500' : 'border-slate-300'}`}>
+                                                        {filtros.categoria === cat && <div className="w-2 h-2 rounded-full bg-blue-500" />}
                                                     </div>
                                                     {cat}
                                                 </button>
@@ -842,7 +751,7 @@ export function PaginaCatalogo() {
                                 }}
                             >
                                 <Plus className="w-4 h-4" />
-                                Nuevo Artículo
+                                {esServicios ? 'Nuevo Servicio' : 'Nuevo Producto'}
                             </button>
                         </div>
 
@@ -869,7 +778,7 @@ export function PaginaCatalogo() {
                                     ) : undefined}
                                 />
                             </div>
-                            {/* Nuevo Artículo — desktop */}
+                            {/* Nuevo — desktop */}
                             <button
                                 onClick={handleCrear}
                                 className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-4 2xl:px-5 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
@@ -879,7 +788,7 @@ export function PaginaCatalogo() {
                                 }}
                             >
                                 <Plus className="w-4 h-4 2xl:w-4 2xl:h-4" />
-                                Nuevo Artículo
+                                {esServicios ? 'Nuevo Servicio' : 'Nuevo Producto'}
                             </button>
                         </div>
                     </div>
@@ -889,8 +798,8 @@ export function PaginaCatalogo() {
                 <div className="flex items-center justify-between px-1 mt-3 lg:mt-2 2xl:mt-3 mb-1">
                     <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                         {hayFiltrosActivos
-                            ? `${articulosOrdenados.length} de ${estadisticas.total} ${filtros.tipo === 'producto' ? 'productos' : filtros.tipo === 'servicio' ? 'servicios' : 'artículos'}`
-                            : `${articulosOrdenados.length} ${filtros.tipo === 'producto' ? 'productos' : filtros.tipo === 'servicio' ? 'servicios' : 'artículos'}`
+                            ? `${articulosOrdenados.length} de ${estadisticas.total} ${esServicios ? 'servicios' : 'productos'}`
+                            : `${articulosOrdenados.length} ${esServicios ? 'servicios' : 'productos'}`
                         }
                     </span>
                     {hayFiltrosActivos && (
@@ -917,7 +826,7 @@ export function PaginaCatalogo() {
                             className="grid grid-cols-[minmax(0,1fr)_90px_100px_80px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
-                            <span>Artículo</span>
+                            <span>{esServicios ? 'Servicio' : 'Producto'}</span>
                             <span className="flex justify-center pr-5">Tipo</span>
                             <span className="flex justify-center pr-5">
                                 <HeaderOrdenable etiqueta="PRECIO" columna="precio" ordenActual={orden} onOrdenar={alternarOrden} />
@@ -940,13 +849,13 @@ export function PaginaCatalogo() {
                                     <Inbox className="w-10 h-10 mb-2" />
                                     <p className="text-sm font-medium">
                                         {hayFiltrosActivos
-                                            ? `No se encontraron ${filtros.tipo === 'producto' ? 'productos' : filtros.tipo === 'servicio' ? 'servicios' : 'artículos'}${filtros.categoria !== 'todas' ? ` en "${filtros.categoria}"` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
-                                            : 'Aún no tienes artículos en tu catálogo'
+                                            ? `No se encontraron ${esServicios ? 'servicios' : 'productos'}${filtros.categoria !== 'todas' ? ` en "${filtros.categoria}"` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
+                                            : esServicios ? 'Aún no tienes servicios' : 'Aún no tienes productos'
                                         }
                                     </p>
                                     {!hayFiltrosActivos && (
                                         <Boton variante="primario" iconoIzquierda={<Plus className="w-4 h-4" />} onClick={handleCrear} className="mt-3">
-                                            Agregar Primer Artículo
+                                            {esServicios ? 'Agregar Primer Servicio' : 'Agregar Primer Producto'}
                                         </Boton>
                                     )}
                                 </div>
@@ -1121,17 +1030,17 @@ export function PaginaCatalogo() {
                             <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-8 text-center">
                                 <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                                 <p className="text-base font-bold text-slate-800 mb-1">
-                                    {hayFiltrosActivos ? 'Sin resultados' : 'Sin artículos'}
+                                    {hayFiltrosActivos ? 'Sin resultados' : esServicios ? 'Sin servicios' : 'Sin productos'}
                                 </p>
                                 <p className="text-sm text-slate-600 font-medium">
                                     {hayFiltrosActivos
-                                        ? `No se encontraron ${filtros.tipo === 'producto' ? 'productos' : filtros.tipo === 'servicio' ? 'servicios' : 'artículos'}${filtros.categoria !== 'todas' ? ` en "${filtros.categoria}"` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
-                                        : 'Aún no tienes artículos en tu catálogo'
+                                        ? `No se encontraron ${esServicios ? 'servicios' : 'productos'}${filtros.categoria !== 'todas' ? ` en "${filtros.categoria}"` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
+                                        : esServicios ? 'Aún no tienes servicios' : 'Aún no tienes productos'
                                     }
                                 </p>
                                 {!hayFiltrosActivos && (
                                     <Boton variante="primario" iconoIzquierda={<Plus className="w-5 h-5" />} onClick={handleCrear} className="mt-4">
-                                        Agregar Primer Artículo
+                                        {esServicios ? 'Agregar Primer Servicio' : 'Agregar Primer Producto'}
                                     </Boton>
                                 )}
                             </div>
@@ -1166,6 +1075,7 @@ export function PaginaCatalogo() {
                     <ModalArticulo
                         articulo={articuloEditando}
                         categoriasExistentes={categoriasUnicas}
+                        tipoInicial={esServicios ? 'servicio' : 'producto'}
                         onGuardar={async (datos) => {
                             const exito = articuloEditando
                                 ? await actualizar(articuloEditando.id, datos)

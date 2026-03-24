@@ -97,7 +97,7 @@ const BOTONES: Boton[] = [
   },
   {
     id: 'historial',
-    label: 'Historial',
+    label: 'Historial de Transacciones',
     icon: History,
     ruta: '/scanya/historial',
     color: 'text-[#94A3B8]',
@@ -120,8 +120,8 @@ export default function IndicadoresRapidos({
       <div
         className="
           grid grid-cols-3 lg:grid-cols-2
-          gap-3 lg:gap-4 2xl:gap-6
-          mt-6 lg:mt-6 2xl:mt-10
+          gap-3 lg:gap-5 2xl:gap-6
+          mt-6 lg:mt-8 2xl:mt-10
         "
       >
         {BOTONES.map((boton) => {
@@ -133,16 +133,15 @@ export default function IndicadoresRapidos({
             <button
               key={boton.id}
               onClick={() => onNavigate(boton.ruta)}
-              className="
+              className={`
                 relative
-                rounded-lg lg:rounded-lg 2xl:rounded-xl
-                p-3 lg:p-3 2xl:p-4
-                flex flex-col items-center justify-center 
-                gap-1.5 lg:gap-2 2xl:gap-2.5
+                rounded-xl lg:rounded-xl 2xl:rounded-2xl
+                p-4 lg:p-5 2xl:p-6
+                flex ${boton.id === 'historial' ? 'flex-row gap-3 lg:gap-4 2xl:gap-4 col-span-2 lg:col-span-2' : 'flex-col gap-2 lg:gap-2.5 2xl:gap-3'} items-center justify-center
                 transition-all duration-200
                 cursor-pointer
                 group
-              "
+              `}
               style={{
                 background: '#011545',
                 border: `3px solid ${boton.borderColor}`,
@@ -191,8 +190,8 @@ export default function IndicadoresRapidos({
                   src={boton.logoSrc}
                   alt={boton.label}
                   className="
-                    w-auto 
-                    h-14 lg:h-12 2xl:h-15
+                    w-auto
+                    h-16 lg:h-14 2xl:h-18
                     object-contain
                     group-hover:scale-110
                     transition-transform duration-200
@@ -203,9 +202,9 @@ export default function IndicadoresRapidos({
                   {/* Ícono */}
                   <Icon
                     className={`
-                      w-8 h-8
-                      lg:w-8 lg:h-8
-                      2xl:w-10 2xl:h-10
+                      w-9 h-9
+                      lg:w-10 lg:h-10
+                      2xl:w-12 2xl:h-12
                       ${boton.color}
                       group-hover:scale-110
                       transition-transform duration-200
@@ -216,8 +215,8 @@ export default function IndicadoresRapidos({
                   {/* Label */}
                   <span
                     className="
-                      text-white font-semibold
-                      text-xs lg:text-xs 2xl:text-sm
+                      text-white font-bold
+                      text-sm lg:text-sm 2xl:text-base
                       text-center
                     "
                   >

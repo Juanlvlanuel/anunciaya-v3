@@ -868,7 +868,8 @@ export async function obtenerHistorialTransacciones(
   offset: number = 0,
   busqueda?: string,
   operadorId?: string,
-  estado?: string
+  estado?: string,
+  filtroCupon?: 'todos' | 'con_cupon' | 'sin_cupon'
 ): Promise<RespuestaServicio<{ historial: TransaccionPuntos[], total: number }>> {
   try {
     const condiciones = [eq(puntosTransacciones.negocioId, negocioId)];
@@ -915,6 +916,13 @@ export async function obtenerHistorialTransacciones(
       );
     }
 
+    // Filtro por cupón
+    if (filtroCupon === 'con_cupon') {
+      condiciones.push(sql`${puntosTransacciones.ofertaUsoId} IS NOT NULL`);
+    } else if (filtroCupon === 'sin_cupon') {
+      condiciones.push(sql`${puntosTransacciones.ofertaUsoId} IS NULL`);
+    }
+
     // Filtro por búsqueda (nombre o teléfono del cliente)
     // Se aplica en el WHERE después del JOIN con usuarios
     const busquedaNormalizada = busqueda?.trim().toLowerCase();
@@ -952,6 +960,13 @@ export async function obtenerHistorialTransacciones(
         nota: puntosTransacciones.nota,
         numeroOrden: puntosTransacciones.numeroOrden,
         motivoRevocacion: puntosTransacciones.motivoRevocacion,
+        // Cupón
+        ofertaUsoId: puntosTransacciones.ofertaUsoId,
+        cuponTitulo: sql<string>`oferta_ref.titulo`,
+        cuponTipo: sql<string>`oferta_ref.tipo`,
+        cuponValor: sql<string>`oferta_ref.valor`,
+        cuponImagen: sql<string>`oferta_ref.imagen`,
+        cuponDescuento: sql<string>`ou_ref.descuento_aplicado`,
       })
       .from(puntosTransacciones)
       .innerJoin(usuarios, eq(puntosTransacciones.clienteId, usuarios.id))
@@ -962,6 +977,15 @@ export async function obtenerHistorialTransacciones(
       .leftJoin(
         sql`usuarios u2`,
         sql`${scanyaTurnos.usuarioId} = u2.id`
+      )
+      // JOIN para datos del cupón
+      .leftJoin(
+        sql`oferta_usos ou_ref`,
+        sql`ou_ref.id = ${puntosTransacciones.ofertaUsoId}`
+      )
+      .leftJoin(
+        sql`ofertas oferta_ref`,
+        sql`oferta_ref.id = ou_ref.oferta_id`
       )
       .where(
         busquedaNormalizada
@@ -1003,6 +1027,12 @@ export async function obtenerHistorialTransacciones(
       nota: t.nota || null,
       numeroOrden: t.numeroOrden || null,
       motivoRevocacion: t.motivoRevocacion || null,
+      // Cupón
+      cuponTitulo: t.cuponTitulo || null,
+      cuponTipo: t.cuponTipo || null,
+      cuponValor: t.cuponValor || null,
+      cuponImagen: t.cuponImagen || null,
+      cuponDescuento: t.cuponDescuento ? Number(t.cuponDescuento) : null,
     }));
 
     // Contar total de registros (mismas condiciones, sin limit/offset)

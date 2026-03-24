@@ -28,6 +28,7 @@ import {
 import {
   obtenerKPIsTransacciones,
   obtenerKPIsCanjes,
+  obtenerKPIsCupones,
   obtenerHistorialCanjes,
 } from '../services/transacciones.service.js';
 import type { PeriodoEstadisticas } from '../types/puntos.types.js';
@@ -138,6 +139,9 @@ export async function obtenerHistorialController(
     // Obtener filtro de estado
     const estado = (req.query.estado as string)?.trim() || undefined;
 
+    // Obtener filtro de cupón
+    const filtroCupon = (req.query.filtroCupon as string)?.trim() || undefined;
+
     // Validar periodo
     if (!PERIODOS_VALIDOS.includes(periodo)) {
       res.status(400).json({
@@ -164,7 +168,8 @@ export async function obtenerHistorialController(
       offset,
       busqueda,
       operadorId,
-      estado
+      estado,
+      filtroCupon as 'todos' | 'con_cupon' | 'sin_cupon' | undefined
     );
 
     res.status(resultado.code || 200).json(resultado);
@@ -661,6 +666,48 @@ export async function obtenerKPIsCanjesController(
 }
 
 // =============================================================================
+// TAB CUPONES - KPIs
+// =============================================================================
+
+/**
+ * GET /api/transacciones/cupones/kpis?periodo=semana
+ * Obtiene 4 KPIs: total cupones, gratis, con compra, total descuentos
+ */
+export async function obtenerKPIsCuponesController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const negocioId = obtenerNegocioId(req);
+    if (!negocioId) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+
+    let sucursalId = obtenerSucursalId(req);
+    if (esGerente(req)) {
+      sucursalId = req.usuario?.sucursalAsignada || undefined;
+      if (!sucursalId) {
+        res.status(403).json({ success: false, message: 'Gerente debe tener sucursal asignada' });
+        return;
+      }
+    }
+
+    const periodo = (req.query.periodo as PeriodoEstadisticas) || 'todo';
+    if (!PERIODOS_VALIDOS.includes(periodo)) {
+      res.status(400).json({ success: false, message: `Periodo inválido. Valores permitidos: ${PERIODOS_VALIDOS.join(', ')}` });
+      return;
+    }
+
+    const resultado = await obtenerKPIsCupones(negocioId, sucursalId, periodo);
+    res.status(resultado.code || 200).json(resultado);
+  } catch (error) {
+    console.error('Error en obtenerKPIsCuponesController:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener KPIs de cupones' });
+  }
+}
+
+// =============================================================================
 // TAB CANJES - HISTORIAL
 // =============================================================================
 
@@ -712,6 +759,9 @@ export async function obtenerHistorialCanjesController(
     // Obtener búsqueda del query param
     const busqueda = (req.query.busqueda as string)?.trim() || undefined;
 
+    // Obtener filtro de operador
+    const operadorId = (req.query.operadorId as string)?.trim() || undefined;
+
     // Validar periodo
     if (!PERIODOS_VALIDOS.includes(periodo)) {
       res.status(400).json({
@@ -737,7 +787,8 @@ export async function obtenerHistorialCanjesController(
       limit,
       offset,
       estado,
-      busqueda
+      busqueda,
+      operadorId
     );
 
     res.status(resultado.code || 200).json(resultado);

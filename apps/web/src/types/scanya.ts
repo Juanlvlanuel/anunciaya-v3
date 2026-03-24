@@ -330,6 +330,7 @@ export interface TransaccionScanYA {
   // CupÃ³n
   cuponCodigo: string | null;
   cuponDescuento: number | null;
+  cuponImagen: string | null;
   // Fecha
   createdAt: string;
 }

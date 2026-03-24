@@ -320,7 +320,7 @@ export default function ModalDetalleCanjeBS({
                     <UserCheck className="w-4 h-4 text-blue-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Validó canje</p>
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Atendido por</p>
                     <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{canje.usadoPorNombre}</p>
                   </div>
                 </div>

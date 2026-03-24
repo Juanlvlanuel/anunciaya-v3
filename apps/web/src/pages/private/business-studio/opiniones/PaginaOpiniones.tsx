@@ -636,8 +636,8 @@ export function PaginaOpiniones() {
                                                     onClick={() => { toggleFiltroEstrellas(n); setDropdownEstrellasAbierto(false); }}
                                                     className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base text-left cursor-pointer ${
                                                         activo
-                                                            ? 'bg-amber-100 text-amber-700 font-semibold'
-                                                            : 'text-slate-600 font-medium hover:bg-slate-200'
+                                                            ? 'bg-blue-100 text-blue-700 font-semibold'
+                                                            : 'text-slate-600 font-medium hover:bg-blue-50'
                                                     }`}
                                                 >
                                                     <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-amber-500' : 'bg-slate-200'}`}>

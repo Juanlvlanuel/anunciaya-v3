@@ -44,6 +44,7 @@ import type { Articulo, CrearArticuloInput, ActualizarArticuloInput } from '../.
 interface ModalArticuloProps {
   articulo?: Articulo | null;
   categoriasExistentes?: string[];
+  tipoInicial?: 'producto' | 'servicio';
   onGuardar: (datos: CrearArticuloInput | ActualizarArticuloInput) => Promise<void>;
   onCerrar: () => void;
 }
@@ -61,14 +62,14 @@ const GRADIENTES_TIPO = {
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, onCerrar }: ModalArticuloProps) {
+export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial = 'producto', onGuardar, onCerrar }: ModalArticuloProps) {
   const esEdicion = !!articulo;
 
   // ===========================================================================
   // ESTADOS
   // ===========================================================================
 
-  const [tipo, setTipo] = useState<'producto' | 'servicio'>(articulo?.tipo || 'producto');
+  const [tipo, setTipo] = useState<'producto' | 'servicio'>(articulo?.tipo || tipoInicial);
   const [nombre, setNombre] = useState(articulo?.nombre || '');
   const [descripcion, setDescripcion] = useState(articulo?.descripcion || '');
   const [categoria, setCategoria] = useState(articulo?.categoria || '');
@@ -281,83 +282,21 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
               {/* Título */}
               <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
                 <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
-                  {esEdicion ? (articulo?.nombre || 'Editar artículo') : 'Nuevo artículo'}
+                  {esEdicion ? (articulo?.nombre || 'Editar') : tipo === 'servicio' ? 'Nuevo servicio' : 'Nuevo producto'}
                 </h3>
                 <span className="text-sm lg:text-xs 2xl:text-sm text-white/70">
-                  {esEdicion ? 'Editando artículo' : 'Completa los campos'}
+                  {esEdicion ? (tipo === 'servicio' ? 'Editando servicio' : 'Editando producto') : 'Completa los campos'}
                 </span>
               </div>
 
-              {/* Toggle tipo (solo al crear) */}
-              {!esEdicion ? (
-                <>
-                  {/* Móvil: texto arriba + toggle abajo */}
-                  <div className="flex flex-col items-center gap-1 shrink-0 lg:hidden">
-                    <span className="text-sm text-white font-semibold">
-                      {tipo === 'servicio' ? 'Servicio' : 'Producto'}
-                    </span>
-                    <div className="flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
-                      <Tooltip text="Artículo" position="bottom" autoHide={2500}>
-                        <button
-                          type="button"
-                          onClick={() => setTipo('producto')}
-                          className={`h-9 w-9 flex items-center justify-center rounded-md transition-all cursor-pointer ${tipo === 'producto' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'}`}
-                          style={tipo === 'producto' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                        >
-                          <Package className="w-4 h-4" />
-                        </button>
-                      </Tooltip>
-                      <Tooltip text="Servicio" position="bottom" autoHide={2500}>
-                        <button
-                          type="button"
-                          onClick={() => setTipo('servicio')}
-                          className={`h-9 w-9 flex items-center justify-center rounded-md transition-all cursor-pointer ${tipo === 'servicio' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'}`}
-                          style={tipo === 'servicio' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                        >
-                          <Wrench className="w-4 h-4" />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  </div>
-
-                  {/* Desktop: texto + toggle */}
-                  <div className="hidden lg:flex items-center gap-2 shrink-0">
-                    <span className="text-sm 2xl:text-base text-white font-semibold">
-                      {tipo === 'servicio' ? 'Servicio' : 'Producto'}
-                    </span>
-                    <div className="flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
-                      <Tooltip text="Artículo" position="bottom" autoHide={2500}>
-                        <button
-                          type="button"
-                          onClick={() => setTipo('producto')}
-                          className={`h-8 w-8 2xl:h-9 2xl:w-9 flex items-center justify-center rounded-md transition-all cursor-pointer ${tipo === 'producto' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'}`}
-                          style={tipo === 'producto' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                        >
-                          <Package className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-                        </button>
-                      </Tooltip>
-                      <Tooltip text="Servicio" position="bottom" autoHide={2500}>
-                        <button
-                          type="button"
-                          onClick={() => setTipo('servicio')}
-                          className={`h-8 w-8 2xl:h-9 2xl:w-9 flex items-center justify-center rounded-md transition-all cursor-pointer ${tipo === 'servicio' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'}`}
-                          style={tipo === 'servicio' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                        >
-                          <Wrench className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <span className="flex items-center gap-1.5 px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 rounded-full border border-white/20 bg-white/15 text-white text-sm lg:text-[11px] 2xl:text-sm font-semibold shrink-0">
-                  {tipoActual === 'servicio'
-                    ? <Wrench className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
-                    : <Package className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
-                  }
-                  {tipoActual === 'servicio' ? 'Servicio' : 'Producto'}
-                </span>
-              )}
+              {/* Badge tipo */}
+              <span className="flex items-center gap-1.5 px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 rounded-full border border-white/20 bg-white/15 text-white text-sm lg:text-[11px] 2xl:text-sm font-semibold shrink-0">
+                {tipo === 'servicio'
+                  ? <Wrench className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+                  : <Package className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+                }
+                {tipo === 'servicio' ? 'Servicio' : 'Producto'}
+              </span>
             </div>
           </div>
 
@@ -522,7 +461,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                 {/* === Íconos Eye + Star (solo móvil) === */}
                 <div className="flex lg:hidden items-center justify-around py-2 border-t border-slate-200">
                   <Tooltip
-                    text={disponible ? 'Artículo visible' : 'Artículo oculto'}
+                    text={disponible ? (tipo === 'servicio' ? 'Servicio visible' : 'Producto visible') : (tipo === 'servicio' ? 'Servicio oculto' : 'Producto oculto')}
                     position="bottom"
                     autoHide={2500}
                   >
@@ -541,7 +480,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                   <div className="w-px h-8 bg-slate-200" />
 
                   <Tooltip
-                    text={destacado ? 'Artículo destacado' : 'Sin destacar'}
+                    text={destacado ? (tipo === 'servicio' ? 'Servicio destacado' : 'Producto destacado') : 'Sin destacar'}
                     position="bottom"
                     autoHide={2500}
                   >
@@ -694,7 +633,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                                   key={cat}
                                   type="button"
                                   onClick={() => { setCategoria(cat); setMostrarDropdown(false); }}
-                                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-100 text-left text-sm lg:text-xs 2xl:text-sm cursor-pointer"
+                                  className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm lg:text-xs 2xl:text-sm cursor-pointer ${categoria === cat ? 'bg-blue-100' : 'hover:bg-blue-50'}`}
                                 >
                                   <span className="text-slate-800 font-medium">{cat}</span>
                                   {categoria === cat && <Check className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-600" />}
@@ -726,7 +665,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                 {/* Íconos Eye + Star (solo PC) */}
                 <div className="hidden lg:flex items-center justify-around py-1.5 2xl:py-2 border-b border-slate-200 mb-0.5">
                   <Tooltip
-                    text={disponible ? 'Artículo visible' : 'Artículo oculto'}
+                    text={disponible ? (tipo === 'servicio' ? 'Servicio visible' : 'Producto visible') : (tipo === 'servicio' ? 'Servicio oculto' : 'Producto oculto')}
                     position="bottom"
                     autoHide={2500}
                   >
@@ -745,7 +684,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                   <div className="w-px h-8 bg-slate-200" />
 
                   <Tooltip
-                    text={destacado ? 'Artículo destacado' : 'Sin destacar'}
+                    text={destacado ? (tipo === 'servicio' ? 'Servicio destacado' : 'Producto destacado') : 'Sin destacar'}
                     position="bottom"
                     autoHide={2500}
                   >
@@ -793,7 +732,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                     name="textarea-descripcion-articulo"
                     value={descripcion}
                     onChange={(e) => setDescripcion(e.target.value)}
-                    placeholder="Describe brevemente el artículo: materiales, características, beneficios…"
+                    placeholder={tipo === 'servicio' ? 'Describe brevemente el servicio: qué incluye, duración, beneficios…' : 'Describe brevemente el producto: materiales, características, beneficios…'}
                     rows={4}
                     maxLength={500}
                     className="flex-1 w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2.5 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
@@ -831,7 +770,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], onGuardar, 
                     className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]"
                   >
                     {guardando && <Spinner tamanio="sm" color="white" />}
-                    {esEdicion ? 'Guardar cambios' : 'Crear artículo'}
+                    {esEdicion ? 'Guardar cambios' : tipo === 'servicio' ? 'Crear servicio' : 'Crear producto'}
                   </button>
                 </div>
               </div>

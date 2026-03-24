@@ -225,6 +225,12 @@ export interface TransaccionPuntos {
   nota: string | null;
   numeroOrden: string | null;
   motivoRevocacion: string | null;
+  // Cupón
+  cuponTitulo: string | null;
+  cuponTipo: string | null;
+  cuponValor: string | null;
+  cuponImagen: string | null;
+  cuponDescuento: number | null;
 }
 
 // =============================================================================

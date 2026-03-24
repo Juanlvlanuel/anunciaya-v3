@@ -110,6 +110,12 @@ export interface TransaccionPuntos {
   nota: string | null;
   numeroOrden: string | null;
   motivoRevocacion: string | null;
+  // Cupón
+  cuponTitulo: string | null;
+  cuponTipo: string | null;
+  cuponValor: string | null;
+  cuponImagen: string | null;
+  cuponDescuento: number | null;
 }
 
 // =============================================================================
@@ -199,6 +205,17 @@ export interface KPIsCanjes {
   usados: number;
   vencidos: number;
   totalCanjes: number;
+}
+
+// =============================================================================
+// KPIs CUPONES (Tab Cupones en Transacciones BS)
+// =============================================================================
+
+export interface KPIsCupones {
+  totalCupones: number;
+  cuponesGratis: number;
+  cuponesConCompra: number;
+  totalDescuentos: number;
 }
 
 // =============================================================================

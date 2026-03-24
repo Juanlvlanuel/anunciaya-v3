@@ -47,6 +47,7 @@ import {
   AlertCircle,
   Calendar,
   LayoutList,
+  Ticket,
 } from 'lucide-react';
 import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
@@ -450,6 +451,8 @@ export default function PaginaTransacciones() {
     setBusqueda,
     setOperadorId,
     operadorId,
+    operadorIdCupones,
+    operadorIdCanjes,
     operadores,
     cargarOperadores,
     estadoFiltro,
@@ -457,6 +460,15 @@ export default function PaginaTransacciones() {
     cargarKPIs,
     cargarHistorial,
     cargarMas,
+    // Cupones
+    kpisCupones,
+    cargandoKpisCupones,
+    historialCupones,
+    cargandoHistorialCupones,
+    cargandoMasCupones,
+    hayMasCupones,
+    totalResultadosCupones,
+    cargarMasCupones,
     // Canjes
     kpisCanjes,
     cargandoKpisCanjes,
@@ -474,6 +486,9 @@ export default function PaginaTransacciones() {
   // Sucursal activa (para recargar al cambiar)
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
 
+  // Operador activo según tab (cada tab tiene su propio filtro)
+  const operadorIdActivo = tabActivo === 'cupones' ? operadorIdCupones : tabActivo === 'canjes' ? operadorIdCanjes : operadorId;
+
   // Estado local
   const [orden, setOrden] = useState<EstadoOrden | null>(null);
   const [textoBusqueda, setTextoBusqueda] = useState(busquedaInicial);
@@ -483,6 +498,9 @@ export default function PaginaTransacciones() {
   const [textoBusquedaCanjes, setTextoBusquedaCanjes] = useState('');
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [dropdownOperadorCanjesAbierto, setDropdownOperadorCanjesAbierto] = useState(false);
+  const dropdownOperadorCanjesRef = useRef<HTMLDivElement | null>(null);
+  const dropdownOperadorCanjesMovilRef = useRef<HTMLDivElement | null>(null);
   const [periodoDropdownAbierto, setPeriodoDropdownAbierto] = useState(false);
   const periodoDropdownRef = useRef<HTMLDivElement | null>(null);
   const [estadoDropdownAbierto, setEstadoDropdownAbierto] = useState(false);
@@ -502,6 +520,11 @@ export default function PaginaTransacciones() {
     }
     cargarKPIs();
     cargarOperadores();
+    // Precargar datos de cupones y vouchers en paralelo para evitar parpadeo de imágenes
+    useTransaccionesStore.getState().cargarHistorialCupones();
+    useTransaccionesStore.getState().cargarKPIsCupones();
+    useTransaccionesStore.getState().cargarHistorialCanjes();
+    useTransaccionesStore.getState().cargarKPIsCanjes();
     if (busquedaInicial) {
       if (tabInicial === 'canjes') {
         // Búsqueda en tab canjes
@@ -547,16 +570,29 @@ export default function PaginaTransacciones() {
   // ——— Limpiar filtros al salir (sin disparar cargarHistorial) ———
   useEffect(() => {
     return () => {
+      const state = useTransaccionesStore.getState();
+      const hayFiltrosSucios = state.operadorId || state.operadorIdCupones || state.operadorIdCanjes || state.estadoFiltro || state.estadoFiltroCanjes || state.busqueda || state.busquedaCanjes;
+
       useTransaccionesStore.setState({
         busqueda: '',
         offset: 0,
         operadorId: '',
+        operadorIdCupones: '',
+        operadorIdCanjes: '',
         estadoFiltro: '',
         estadoFiltroCanjes: '',
         busquedaCanjes: '',
-        periodo: 'todo',
+        offsetCupones: 0,
+        offsetCanjes: 0,
         tabActivo: 'ventas',
       });
+
+      // Si había filtros activos, recargar datos sin filtros para que la próxima visita muestre datos limpios
+      if (hayFiltrosSucios) {
+        useTransaccionesStore.getState().cargarHistorial();
+        // Cupones y canjes se recargan lazy al cambiar de tab
+        useTransaccionesStore.setState({ cargaInicialCuponesCompleta: false, cargaInicialCanjesCompleta: false });
+      }
     };
   }, []);
 
@@ -595,6 +631,16 @@ export default function PaginaTransacciones() {
     }, 400);
   }, [setBusquedaCanjes]);
 
+  // ——— Precargar imágenes de canjes y cupones para evitar parpadeo al cambiar tabs ———
+  useEffect(() => {
+    historialCanjes.forEach((c) => {
+      if (c.recompensaImagenUrl) { const img = new Image(); img.src = c.recompensaImagenUrl; }
+    });
+    historialCupones.forEach((c) => {
+      if (c.cuponImagen) { const img = new Image(); img.src = c.cuponImagen; }
+    });
+  }, [historialCanjes, historialCupones]);
+
   // ——— Infinite scroll mobile canjes ———
   useEffect(() => {
     if (!isMobile || !sentinelaCanjesRef.current || tabActivo !== 'canjes') return;
@@ -621,6 +667,21 @@ export default function PaginaTransacciones() {
     document.addEventListener('mousedown', handleClickFuera);
     return () => document.removeEventListener('mousedown', handleClickFuera);
   }, [dropdownAbierto]);
+
+  // ——— Cerrar dropdown operador canjes al hacer click fuera ———
+  useEffect(() => {
+    if (!dropdownOperadorCanjesAbierto) return;
+    const handleClickFuera = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const dentroPC = dropdownOperadorCanjesRef.current?.contains(target);
+      const dentroMovil = dropdownOperadorCanjesMovilRef.current?.contains(target);
+      if (!dentroPC && !dentroMovil) {
+        setDropdownOperadorCanjesAbierto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickFuera);
+    return () => document.removeEventListener('mousedown', handleClickFuera);
+  }, [dropdownOperadorCanjesAbierto]);
 
   // ——— Cerrar dropdown período al hacer click fuera ———
   useEffect(() => {
@@ -727,11 +788,11 @@ export default function PaginaTransacciones() {
   // ——— Exportar CSV ———
   const handleExportar = useCallback(async () => {
     try {
-      await descargarCSV(periodo, textoBusqueda || undefined, operadorId || undefined, estadoFiltro || undefined);
+      await descargarCSV(periodo, textoBusqueda || undefined, operadorIdActivo || undefined, estadoFiltro || undefined);
     } catch (error) {
       console.error('Error al exportar CSV:', error);
     }
-  }, [periodo, textoBusqueda, operadorId, estadoFiltro]);
+  }, [periodo, textoBusqueda, operadorIdActivo, estadoFiltro]);
 
   // ——— Abrir/cerrar modal detalle ———
   const handleVerDetalle = useCallback((tx: TransaccionPuntos) => {
@@ -819,33 +880,36 @@ export default function PaginaTransacciones() {
                   Transacciones
                 </h1>
                 <p className="lg:hidden text-base lg:text-xs 2xl:text-sm text-slate-600 -mt-1 font-medium">
-                  Ventas y Canjes
+                  Ventas, Cupones y Vouchers
                 </p>
                 <p className="hidden lg:block text-sm lg:text-sm 2xl:text-base text-slate-600 mt-0.5 font-medium">
-                  {tabActivo === 'ventas' ? 'Historial de ventas y canjes' : 'Vouchers de recompensas'}
+                  {tabActivo === 'ventas' ? 'Historial de ventas' : tabActivo === 'cupones' ? 'Cupones canjeados' : 'Vouchers de recompensas'}
                 </p>
               </div>
-              {/* Toggle móvil — centrado respecto al bloque título+subtítulo */}
+              {/* Toggle móvil — header */}
               <div className="lg:hidden flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
-                <Tooltip text="Historial de ventas" position="bottom">
+                <Tooltip text="Ventas" position="bottom">
                   <button
                     onClick={() => setTabActivo('ventas')}
-                    className={`h-10 w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabActivo === 'ventas'
-                        ? 'text-white shadow-md'
-                        : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
-                      }`}
+                    className={`h-10 w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'ventas' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                     style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     <DollarSign className="w-5 h-5" />
                   </button>
                 </Tooltip>
-                <Tooltip text="Vouchers de recompensas" position="bottom">
+                <Tooltip text="Cupones" position="bottom">
+                  <button
+                    onClick={() => setTabActivo('cupones')}
+                    className={`h-10 w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'cupones' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+                    style={tabActivo === 'cupones' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                  >
+                    <Ticket className="w-5 h-5" />
+                  </button>
+                </Tooltip>
+                <Tooltip text="Vouchers" position="bottom">
                   <button
                     onClick={() => setTabActivo('canjes')}
-                    className={`h-10 w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabActivo === 'canjes'
-                        ? 'text-white shadow-md'
-                        : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
-                      }`}
+                    className={`h-10 w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'canjes' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                     style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
                     <Gift className="w-5 h-5" />
@@ -854,27 +918,30 @@ export default function PaginaTransacciones() {
               </div>
             </div>
 
-            {/* Toggle Ventas/Canjes - Desktop */}
+            {/* Toggle Ventas/Cupones/Vouchers - Desktop */}
             <div className="hidden lg:flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
-              <Tooltip text="Historial de ventas" position="bottom">
+              <Tooltip text="Ventas" position="bottom">
                 <button
                   onClick={() => setTabActivo('ventas')}
-                  className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabActivo === 'ventas'
-                      ? 'text-white shadow-md'
-                      : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
-                    }`}
+                  className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'ventas' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                   style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                 >
                   <DollarSign className="w-4 h-4 2xl:w-5 2xl:h-5" />
                 </button>
               </Tooltip>
-              <Tooltip text="Vouchers de recompensas" position="bottom">
+              <Tooltip text="Cupones" position="bottom">
+                <button
+                  onClick={() => setTabActivo('cupones')}
+                  className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'cupones' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+                  style={tabActivo === 'cupones' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                >
+                  <Ticket className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                </button>
+              </Tooltip>
+              <Tooltip text="Vouchers" position="bottom">
                 <button
                   onClick={() => setTabActivo('canjes')}
-                  className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabActivo === 'canjes'
-                      ? 'text-white shadow-md'
-                      : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
-                    }`}
+                  className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'canjes' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                   style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                 >
                   <Gift className="w-4 h-4 2xl:w-5 2xl:h-5" />
@@ -984,6 +1051,67 @@ export default function PaginaTransacciones() {
                 </>
               )}
 
+              {/* ============ KPIs TAB CUPONES ============ */}
+              {tabActivo === 'cupones' && (
+                <>
+                  {/* Total Cupones */}
+                  <div
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    style={{ background: 'linear-gradient(135deg, #eff6ff, #fff)', border: '2px solid #93c5fd', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
+                  >
+                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}>
+                      <Ticket className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{kpisCupones?.totalCupones ?? 0}</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Total</div>
+                    </div>
+                  </div>
+
+                  {/* Gratis */}
+                  <div
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    style={{ background: 'linear-gradient(135deg, #f0fdf4, #fff)', border: '2px solid #86efac', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
+                  >
+                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}>
+                      <Gift className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">{kpisCupones?.cuponesGratis ?? 0}</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Gratis</div>
+                    </div>
+                  </div>
+
+                  {/* Con Compra */}
+                  <div
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    style={{ background: 'linear-gradient(135deg, #fffbeb, #fff)', border: '2px solid #fcd34d', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
+                  >
+                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(217,119,6,0.25)' }}>
+                      <DollarSign className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">{kpisCupones?.cuponesConCompra ?? 0}</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Con compra</div>
+                    </div>
+                  </div>
+
+                  {/* Total Descuentos */}
+                  <div
+                    className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                    style={{ background: 'linear-gradient(135deg, #fef2f2, #fff)', border: '2px solid #fca5a5', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
+                  >
+                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}>
+                      <Receipt className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">${(kpisCupones?.totalDescuentos ?? 0).toLocaleString()}</div>
+                      <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Descuentos</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* ============ KPIs TAB CANJES ============ */}
               {tabActivo === 'canjes' && (
                 <>
@@ -1086,25 +1214,33 @@ export default function PaginaTransacciones() {
         </div>
 
         {/* ================================================================= */}
-        {/* TOGGLE Ventas/Canjes — solo móvil                                */}
+        {/* TOGGLE Ventas/Cupones/Vouchers — solo móvil                      */}
         {/* ================================================================= */}
 
         <div className="lg:hidden flex w-full bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
           <button
             onClick={() => setTabActivo('ventas')}
-            className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'ventas' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+            className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'ventas' ? 'text-white shadow-md' : 'text-slate-700'}`}
             style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
           >
             <DollarSign className="w-4 h-4" />
             Ventas
           </button>
           <button
+            onClick={() => setTabActivo('cupones')}
+            className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'cupones' ? 'text-white shadow-md' : 'text-slate-700'}`}
+            style={tabActivo === 'cupones' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+          >
+            <Ticket className="w-4 h-4" />
+            Cupones
+          </button>
+          <button
             onClick={() => setTabActivo('canjes')}
-            className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'canjes' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
+            className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'canjes' ? 'text-white shadow-md' : 'text-slate-700'}`}
             style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
           >
             <Gift className="w-4 h-4" />
-            Canjes
+            Vouchers
           </button>
         </div>
 
@@ -1113,8 +1249,8 @@ export default function PaginaTransacciones() {
         {/* ================================================================= */}
 
         <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
-          {/* ============ FILTROS TAB VENTAS ============ */}
-          {tabActivo === 'ventas' && (
+          {/* ============ FILTROS TAB VENTAS Y CUPONES ============ */}
+          {(tabActivo === 'ventas' || tabActivo === 'cupones') && (
             <>
               <div className="flex flex-col gap-2 2xl:gap-3">
                 {/* Fila 1: Todos los filtros */}
@@ -1124,7 +1260,7 @@ export default function PaginaTransacciones() {
                   <div className="shrink-0 relative w-36 lg:w-40" ref={periodoDropdownRef}>
                     <button
                       onClick={() => setPeriodoDropdownAbierto(!periodoDropdownAbierto)}
-                      className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
+                      className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
                     >
                       <Calendar className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
                       <span className="flex-1 truncate text-left">{PERIODOS_CONFIG.find(p => p.id === periodo)?.etiqueta ?? 'Período'}</span>
@@ -1138,9 +1274,9 @@ export default function PaginaTransacciones() {
                             <button
                               key={p.id}
                               onClick={() => { handlePeriodo(p.id); setPeriodoDropdownAbierto(false); }}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                             >
-                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                 {activo && <Check className="w-3 h-3 text-white" />}
                               </div>
                               <span>{p.etiqueta}</span>
@@ -1177,7 +1313,7 @@ export default function PaginaTransacciones() {
                     <button
                       onClick={() => setEstadoDropdownAbierto(!estadoDropdownAbierto)}
                       className={`flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltro
-                          ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                          ? 'bg-blue-100 border-blue-300 text-blue-700'
                           : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                         }`}
                     >
@@ -1196,9 +1332,9 @@ export default function PaginaTransacciones() {
                             <button
                               key={e.id}
                               onClick={() => { setEstadoFiltro(e.id); setEstadoDropdownAbierto(false); }}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                             >
-                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                 {activo && <Check className="w-3 h-3 text-white" />}
                               </div>
                               <span>{e.etiqueta}</span>
@@ -1214,15 +1350,15 @@ export default function PaginaTransacciones() {
                     <div className="flex-1 min-w-0 lg:flex-none lg:w-64 relative" ref={dropdownRef}>
                       <button
                         onClick={() => setDropdownAbierto(!dropdownAbierto)}
-                        className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${operadorId
-                            ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                        className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${operadorIdActivo
+                            ? 'bg-blue-100 border-blue-300 text-blue-700'
                             : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                           }`}
                       >
                         <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
                         <span className="flex-1 min-w-0 truncate text-left">
-                          {operadorId
-                            ? operadores.find((o) => o.id === operadorId)?.nombre || 'Todos'
+                          {operadorIdActivo
+                            ? operadores.find((o) => o.id === operadorIdActivo)?.nombre || 'Todos'
                             : 'Operador'}
                         </span>
                         <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${dropdownAbierto ? 'rotate-180' : ''}`} />
@@ -1231,24 +1367,24 @@ export default function PaginaTransacciones() {
                         <div className="absolute top-full right-0 mt-1.5 w-64 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                           <button
                             onClick={() => { setOperadorId(''); setDropdownAbierto(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${!operadorId ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${!operadorIdActivo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                           >
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!operadorId ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                              {!operadorId && <Check className="w-3 h-3 text-white" />}
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!operadorIdActivo ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                              {!operadorIdActivo && <Check className="w-3 h-3 text-white" />}
                             </div>
                             <span>Todos los operadores</span>
                           </button>
                           <div className="h-px bg-slate-200 my-1" />
                           <div className="max-h-48 overflow-y-auto">
                             {operadores.map((op) => {
-                              const seleccionado = operadorId === op.id;
+                              const seleccionado = operadorIdActivo === op.id;
                               return (
                                 <button
                                   key={op.id}
                                   onClick={() => { setOperadorId(op.id); setDropdownAbierto(false); }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${seleccionado ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700 hover:bg-slate-200'}`}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${seleccionado ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:bg-blue-50'}`}
                                 >
-                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${seleccionado ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${seleccionado ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                     {seleccionado && <Check className="w-3 h-3 text-white" />}
                                   </div>
                                   <span className="truncate">{op.nombre}</span>
@@ -1334,7 +1470,7 @@ export default function PaginaTransacciones() {
                 <div className="flex-1 lg:flex-none lg:w-40 lg:shrink-0 relative" ref={periodoDropdownRef}>
                   <button
                     onClick={() => setPeriodoDropdownAbierto(!periodoDropdownAbierto)}
-                    className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
+                    className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
                   >
                     <Calendar className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
                     <span className="truncate">{PERIODOS_CONFIG.find(p => p.id === periodo)?.etiqueta ?? 'Período'}</span>
@@ -1348,9 +1484,9 @@ export default function PaginaTransacciones() {
                           <button
                             key={p.id}
                             onClick={() => { handlePeriodo(p.id); setPeriodoDropdownAbierto(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                           >
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-blue-500' : 'bg-slate-200'}`}>
                               {activo && <Check className="w-3 h-3 text-white" />}
                             </div>
                             <span>{p.etiqueta}</span>
@@ -1383,6 +1519,38 @@ export default function PaginaTransacciones() {
                   ))}
                 </div>
 
+                {/* Operador — solo PC, en fila 1 */}
+                {operadores.length > 0 && (
+                  <div className="hidden lg:block flex-none w-52 2xl:w-64 relative" ref={dropdownOperadorCanjesRef}>
+                    <button
+                      onClick={() => setDropdownOperadorCanjesAbierto(!dropdownOperadorCanjesAbierto)}
+                      className={`w-full flex items-center gap-1.5 h-10 2xl:h-11 pl-2.5 2xl:pl-3 pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm 2xl:text-base font-semibold cursor-pointer ${operadorIdActivo ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
+                    >
+                      <Users className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
+                      <span className="flex-1 min-w-0 truncate text-left">{operadorIdActivo ? operadores.find((o) => o.id === operadorIdActivo)?.nombre || 'Todos' : 'Operador'}</span>
+                      <ChevronDown className={`w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 ${dropdownOperadorCanjesAbierto ? 'rotate-180' : ''}`} />
+                    </button>
+                    {dropdownOperadorCanjesAbierto && (
+                      <div className="absolute top-full right-0 mt-1.5 w-64 bg-white rounded-xl border-2 border-slate-300 shadow-lg z-50 py-1 overflow-hidden">
+                        <button onClick={() => { setOperadorId(''); setDropdownOperadorCanjesAbierto(false); }} className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm 2xl:text-base font-semibold text-left cursor-pointer ${!operadorIdActivo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!operadorIdActivo ? 'bg-blue-500' : 'bg-slate-200'}`}>{!operadorIdActivo && <Check className="w-3 h-3 text-white" />}</div>
+                          Todos los operadores
+                        </button>
+                        <div className="h-px bg-slate-200 my-1" />
+                        <div className="max-h-48 overflow-y-auto">
+                          {operadores.map((op) => (
+                            <button key={op.id} onClick={() => { setOperadorId(op.id); setDropdownOperadorCanjesAbierto(false); }} className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm 2xl:text-base font-semibold text-left cursor-pointer ${operadorIdActivo === op.id ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:bg-blue-50'}`}>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${operadorIdActivo === op.id ? 'bg-blue-500' : 'bg-slate-200'}`}>{operadorIdActivo === op.id && <Check className="w-3 h-3 text-white" />}</div>
+                              <span className="truncate">{op.nombre}</span>
+                              <span className={`ml-auto text-sm px-1.5 py-0.5 rounded-full shrink-0 ${op.tipo === 'empleado' ? 'bg-blue-100 text-blue-600' : op.tipo === 'gerente' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-600'}`}>{op.tipo === 'empleado' ? 'Empleado' : op.tipo === 'gerente' ? 'Gerente' : 'Dueño'}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Estado dropdown — solo móvil */}
                 <div className="lg:hidden flex-1 relative" ref={estadoCanjesDropdownRef}>
                   {(() => {
@@ -1398,7 +1566,7 @@ export default function PaginaTransacciones() {
                         <button
                           onClick={() => setEstadoCanjesDropdownAbierto(!estadoCanjesDropdownAbierto)}
                           className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltroCanjes
-                              ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                              ? 'bg-blue-100 border-blue-300 text-blue-700'
                               : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                             }`}
                         >
@@ -1414,9 +1582,9 @@ export default function PaginaTransacciones() {
                                 <button
                                   key={e.id}
                                   onClick={() => { setEstadoFiltroCanjes(e.id); setEstadoCanjesDropdownAbierto(false); }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                                 >
-                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                     {activo ? <Check className="w-3 h-3 text-white" /> : <e.Icono className={`w-3 h-3 ${e.color}`} />}
                                   </div>
                                   <span>{e.etiqueta}</span>
@@ -1431,8 +1599,42 @@ export default function PaginaTransacciones() {
                 </div>
               </div>
 
-              {/* Fila 2: Solo búsqueda */}
-              <div className="relative w-full">
+              {/* Fila 2: Operador (móvil) + Búsqueda */}
+              <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
+                {/* Operador — solo móvil */}
+                {operadores.length > 0 && (
+                  <div className="flex-1 min-w-0 lg:hidden relative" ref={dropdownOperadorCanjesMovilRef}>
+                    <button
+                      onClick={() => setDropdownOperadorCanjesAbierto(!dropdownOperadorCanjesAbierto)}
+                      className={`w-full flex items-center gap-1.5 h-11 pl-3 pr-2.5 rounded-lg border-2 text-base font-semibold cursor-pointer ${operadorIdActivo ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
+                    >
+                      <Users className="w-4 h-4 shrink-0" />
+                      <span className="flex-1 min-w-0 truncate text-left">{operadorIdActivo ? operadores.find((o) => o.id === operadorIdActivo)?.nombre || 'Todos' : 'Operador'}</span>
+                      <ChevronDown className={`w-5 h-5 shrink-0 ${dropdownOperadorCanjesAbierto ? 'rotate-180' : ''}`} />
+                    </button>
+                    {dropdownOperadorCanjesAbierto && (
+                      <div className="absolute top-full right-0 mt-1.5 w-64 bg-white rounded-xl border-2 border-slate-300 shadow-lg z-50 py-1 overflow-hidden">
+                        <button onClick={() => { setOperadorId(''); setDropdownOperadorCanjesAbierto(false); }} className={`w-full flex items-center gap-2.5 px-3 py-2 text-base font-semibold text-left cursor-pointer ${!operadorIdActivo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!operadorIdActivo ? 'bg-blue-500' : 'bg-slate-200'}`}>{!operadorIdActivo && <Check className="w-3 h-3 text-white" />}</div>
+                          Todos
+                        </button>
+                        <div className="h-px bg-slate-200 my-1" />
+                        <div className="max-h-48 overflow-y-auto">
+                          {operadores.map((op) => (
+                            <button key={op.id} onClick={() => { setOperadorId(op.id); setDropdownOperadorCanjesAbierto(false); }} className={`w-full flex items-center gap-2.5 px-3 py-2 text-base font-semibold text-left cursor-pointer ${operadorIdActivo === op.id ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:bg-blue-50'}`}>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${operadorIdActivo === op.id ? 'bg-blue-500' : 'bg-slate-200'}`}>{operadorIdActivo === op.id && <Check className="w-3 h-3 text-white" />}</div>
+                              <span className="truncate">{op.nombre}</span>
+                              <span className={`ml-auto text-sm px-1.5 py-0.5 rounded-full shrink-0 ${op.tipo === 'empleado' ? 'bg-blue-100 text-blue-600' : op.tipo === 'gerente' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-600'}`}>{op.tipo === 'empleado' ? 'Empleado' : op.tipo === 'gerente' ? 'Gerente' : 'Dueño'}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Búsqueda */}
+                <div className="relative flex-1 min-w-0">
                 <Input
                   id="buscar-canje"
                   name="buscarCanje"
@@ -1450,6 +1652,7 @@ export default function PaginaTransacciones() {
                     <X className="w-4 h-4" />
                   </button>
                 )}
+                </div>
               </div>
             </div>
           )}
@@ -1460,12 +1663,16 @@ export default function PaginaTransacciones() {
           <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
             {tabActivo === 'ventas' ? (
               historial.length < totalResultados
-                ? `${historial.length} de ${totalResultados} resultados`
-                : `${totalResultados} resultados`
+                ? `${historial.length} de ${totalResultados} ventas`
+                : `${totalResultados} ventas`
+            ) : tabActivo === 'cupones' ? (
+              historialCupones.length < totalResultadosCupones
+                ? `${historialCupones.length} de ${totalResultadosCupones} cupones`
+                : `${totalResultadosCupones} cupones`
             ) : (
               historialCanjes.length < totalResultadosCanjes
-                ? `${historialCanjes.length} de ${totalResultadosCanjes} canjes`
-                : `${totalResultadosCanjes} canjes`
+                ? `${historialCanjes.length} de ${totalResultadosCanjes} vouchers`
+                : `${totalResultadosCanjes} vouchers`
             )}
           </span>
         </div>
@@ -1609,6 +1816,116 @@ export default function PaginaTransacciones() {
         )}
 
         {/* ================================================================= */}
+        {/* TABLA DESKTOP CUPONES (≥lg)                                       */}
+        {/* ================================================================= */}
+
+        {!isMobile && tabActivo === 'cupones' && (
+          <div
+            className="rounded-xl overflow-hidden border-2 border-slate-300"
+            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+          >
+            {/* Header dark */}
+            <div
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_100px_100px_110px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_120px_120px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+            >
+              <span>Cliente</span>
+              <span>Cupón</span>
+              <span>Tipo</span>
+              <span>Monto</span>
+              <span>Descuento</span>
+              <span className="flex justify-end">Fecha</span>
+            </div>
+
+            {/* Body */}
+            <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white">
+              {cargandoHistorialCupones ? (
+                <div className="flex items-center justify-center py-16"><Spinner /></div>
+              ) : historialCupones.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
+                  <Inbox className="w-10 h-10 mb-2" />
+                  <p className="text-sm font-medium">No se encontraron cupones canjeados</p>
+                </div>
+              ) : (
+                historialCupones.map((tx, i) => {
+                  const esCuponGratis = tx.montoCompra === 0;
+                  return (
+                    <button
+                      key={tx.id}
+                      onClick={() => setTxSeleccionada(tx)}
+                      className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_100px_100px_110px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_120px_120px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}
+                    >
+                      {/* Cliente */}
+                      <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
+                        {tx.clienteAvatarUrl ? (
+                          <img src={tx.clienteAvatarUrl} alt="" className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">
+                              {tx.clienteNombre?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-800 truncate 2xl:text-[15px]">{tx.clienteNombre}</p>
+                        </div>
+                      </div>
+
+                      {/* Cupón título */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        {tx.cuponImagen && (
+                          <img src={tx.cuponImagen} alt="" className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-md object-cover shrink-0" />
+                        )}
+                        <span className="font-semibold text-slate-700 truncate">{tx.cuponTitulo || 'Cupón'}</span>
+                      </div>
+
+                      {/* Tipo */}
+                      <div className="flex items-center">
+                        <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full truncate">
+                          {esCuponGratis ? 'Gratis' : tx.cuponTipo === 'porcentaje' ? `${tx.cuponValor}%` : tx.cuponTipo === 'monto_fijo' ? `$${tx.cuponValor}` : tx.cuponTipo === '2x1' ? '2×1' : tx.cuponTipo === '3x2' ? '3×2' : tx.cuponTipo || 'Cupón'}
+                        </span>
+                      </div>
+
+                      {/* Monto */}
+                      <div className="flex items-center">
+                        <span className={`font-bold 2xl:text-[15px] ${esCuponGratis ? 'text-slate-600' : 'text-slate-800'}`}>
+                          {esCuponGratis ? 'Gratis' : `$${tx.montoCompra.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+                        </span>
+                      </div>
+
+                      {/* Descuento */}
+                      <div className="flex items-center">
+                        <span className="font-bold 2xl:text-[15px] text-blue-700">
+                          {tx.cuponDescuento ? `-$${tx.cuponDescuento.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
+                        </span>
+                      </div>
+
+                      {/* Fecha */}
+                      <div className="flex items-center justify-end">
+                        <span className="font-medium text-slate-600">
+                          {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '—'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+
+              {/* Cargar más */}
+              {hayMasCupones && (
+                <button
+                  onClick={cargarMasCupones}
+                  disabled={cargandoMasCupones}
+                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-100 cursor-pointer disabled:opacity-50"
+                >
+                  {cargandoMasCupones ? 'Cargando...' : 'Cargar más cupones'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================= */}
         {/* TABLA DESKTOP CANJES (≥lg)                                        */}
         {/* ================================================================= */}
 
@@ -1619,19 +1936,19 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark - Canjes (6 columnas) */}
             <div
-              className="grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_85px_105px_100px_100px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_120px_115px_115px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
-              <span className="flex justify-center">Recompensa</span>
-              <span className="flex justify-center overflow-visible z-10">
+              <span>Recompensa</span>
+              <span className="flex overflow-visible z-10">
                 <HeaderOrdenable etiqueta="PUNTOS" columna="puntos" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
-              <span className="flex justify-center">Estado</span>
-              <span className="flex justify-center overflow-visible z-10">
+              <span>Estado</span>
+              <span className="flex overflow-visible z-10">
                 <HeaderOrdenable etiqueta="EXPIRA" columna="fecha" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
-              <span className="flex justify-end mr-2">Canjeado</span>
+              <span className="flex justify-end">Canjeado</span>
             </div>
 
             {/* Body scrolleable - Canjes */}
@@ -1645,14 +1962,14 @@ export default function PaginaTransacciones() {
               ) : canjesOrdenados.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                   <Inbox className="w-10 h-10 mb-2" />
-                  <p className="text-sm font-medium">No se encontraron canjes</p>
+                  <p className="text-sm font-medium">No se encontraron vouchers</p>
                 </div>
               ) : (
                 canjesOrdenados.map((canje, i) => (
                   <button
                     key={canje.id}
                     onClick={() => handleVerDetalleCanje(canje)}
-                    className={`grid grid-cols-[1.4fr_1.4fr_0.6fr_0.6fr_0.7fr_0.7fr] 2xl:grid-cols-[1fr_240px_90px_120px_110px_110px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
+                    className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_85px_105px_100px_100px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_120px_115px_115px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                       }`}
                   >
                     {/* Cliente */}
@@ -1696,19 +2013,19 @@ export default function PaginaTransacciones() {
                     </div>
 
                     {/* Puntos */}
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center">
                       <span className="font-bold 2xl:text-[15px] text-amber-600">
                         -{canje.puntosUsados}
                       </span>
                     </div>
 
                     {/* Estado */}
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center">
                       <BadgeEstadoCanje estado={canje.estado} />
                     </div>
 
                     {/* Expira (siempre muestra expiración) */}
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center">
                       <span className={`flex items-center gap-1 font-bold 2xl:text-[15px] ${colorExpiracion(canje.expiraAt)}`}>
                         <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
                         {formatearExpiracion(canje.expiraAt)}
@@ -1730,14 +2047,14 @@ export default function PaginaTransacciones() {
                 ))
               )}
 
-              {/* Cargar más canjes en desktop */}
+              {/* Cargar más vouchers en desktop */}
               {hayMasCanjes && (
                 <button
                   onClick={cargarMasCanjes}
                   disabled={cargandoMasCanjes}
                   className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-200 cursor-pointer disabled:opacity-50"
                 >
-                  {cargandoMasCanjes ? 'Cargando...' : 'Cargar más canjes'}
+                  {cargandoMasCanjes ? 'Cargando...' : 'Cargar más vouchers'}
                 </button>
               )}
             </div>
@@ -1800,6 +2117,73 @@ export default function PaginaTransacciones() {
         )}
 
         {/* ================================================================= */}
+        {/* LISTA MOBILE CUPONES (<lg)                                        */}
+        {/* ================================================================= */}
+
+        {isMobile && tabActivo === 'cupones' && (
+          <div className="space-y-2">
+            {cargandoHistorialCupones ? (
+              <div className="flex items-center justify-center py-16"><Spinner /></div>
+            ) : historialCupones.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
+                <Inbox className="w-10 h-10 mb-2" />
+                <p className="text-sm font-medium">No se encontraron cupones canjeados</p>
+              </div>
+            ) : (
+              historialCupones.map((tx) => {
+                const esCuponGratis = tx.montoCompra === 0;
+                return (
+                  <button
+                    key={tx.id}
+                    onClick={() => setTxSeleccionada(tx)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 text-left cursor-pointer"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+                  >
+                    {/* Avatar */}
+                    {tx.clienteAvatarUrl ? (
+                      <img src={tx.clienteAvatarUrl} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <span className="text-sm font-bold text-blue-700">
+                          {tx.clienteNombre?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-bold text-slate-800 truncate">{tx.clienteNombre}</p>
+                      <div className="flex items-center gap-1.5">
+                        <Ticket className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="text-sm font-medium text-slate-600 truncate">{tx.cuponTitulo || 'Cupón'}</span>
+                      </div>
+                    </div>
+                    {/* Derecha */}
+                    <div className="flex flex-col items-end shrink-0 gap-0.5">
+                      <span className={`text-base font-bold ${esCuponGratis ? 'text-blue-700' : 'text-slate-800'}`}>
+                        {esCuponGratis ? 'Gratis' : `$${tx.montoCompra.toFixed(2)}`}
+                      </span>
+                      <span className="text-sm font-medium text-slate-600">
+                        {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : ''}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+            {/* Cargar más */}
+            {hayMasCupones && (
+              <button
+                onClick={cargarMasCupones}
+                disabled={cargandoMasCupones}
+                className="w-full py-3 text-sm text-blue-600 font-semibold cursor-pointer disabled:opacity-50"
+              >
+                {cargandoMasCupones ? 'Cargando...' : 'Cargar más cupones'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================= */}
         {/* LISTA MOBILE CANJES (<lg)                                         */}
         {/* ================================================================= */}
 
@@ -1838,7 +2222,7 @@ export default function PaginaTransacciones() {
             ) : canjesOrdenados.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-600">
                 <Inbox className="w-10 h-10 mb-2" />
-                <p className="text-sm font-medium">No se encontraron canjes</p>
+                <p className="text-sm font-medium">No se encontraron vouchers</p>
               </div>
             ) : (
               canjesOrdenados.map((canje) => (

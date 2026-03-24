@@ -81,7 +81,7 @@ Aplica a: botones de filtro (chips), botones de dropdown (Período, Estado, Oper
 
 **Patrón Tailwind:** `font-semibold text-base lg:text-sm 2xl:text-base`
 
-**Color de fondo:** `bg-white` sin selección / `bg-indigo-100` con selección activa.
+**Color de fondo:** `bg-white` sin selección / `bg-blue-100` con selección activa.
 
 **Regla:** `font-medium` queda prohibido en botones de filtro y dropdown — solo `font-semibold` o superior.
 
@@ -319,15 +319,15 @@ w-full flex items-center gap-2.5 px-3 py-2
 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer
 ```
 
-- Activo: `bg-slate-200 text-slate-800` (neutral) o `bg-indigo-100 text-indigo-700` (indigo)
-- Inactivo: `text-slate-600 hover:bg-slate-200`
+- Activo: `bg-blue-100 text-blue-700`
+- Inactivo: `text-slate-600 hover:bg-blue-50`
 - `font-semibold` siempre — nunca `font-medium`.
 
 ### Indicador de selección (círculo + check)
 
 ```
 w-5 h-5 rounded-full flex items-center justify-center shrink-0  ← fijo, sin variación responsive
-- Activo: bg-slate-700 (neutral) / bg-indigo-500 (indigo)
+- Activo: bg-blue-500
 - Inactivo: bg-slate-200
 Check interior: w-3 h-3 text-white  ← fijo
 ```
@@ -387,18 +387,18 @@ El `ref` va en el `<div>` contenedor que envuelve tanto el botón como el panel.
 
 ### Variantes de color
 
-Todos los dropdowns usan la variante **indigo**:
+Todos los dropdowns usan la variante **blue**:
 
 | Estado ítem | Clases |
 |-------------|--------|
-| Activo | `bg-indigo-100 text-indigo-700 font-semibold` |
-| Inactivo | `text-slate-600 hover:bg-slate-200` |
-| Círculo activo | `bg-indigo-500` |
+| Activo | `bg-blue-100 text-blue-700 font-semibold` |
+| Inactivo | `text-slate-600 hover:bg-blue-50` |
+| Círculo activo | `bg-blue-500` |
 | Círculo inactivo | `bg-slate-200` |
 
 **Regla del botón:**
 - Sin selección → `bg-white border-slate-300 text-slate-600 hover:border-slate-400`
-- Con selección → `bg-indigo-100 border-indigo-300 text-indigo-700`
+- Con selección → `bg-blue-100 border-blue-300 text-blue-700`
 
 **Sin opacidad** en el ícono del botón — color heredado del botón padre.
 

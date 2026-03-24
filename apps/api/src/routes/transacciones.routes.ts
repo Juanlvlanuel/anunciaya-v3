@@ -27,6 +27,7 @@ import {
   exportarTransaccionesController,
   obtenerOperadoresController,
   obtenerKPIsCanjesController,
+  obtenerKPIsCuponesController,
   obtenerHistorialCanjesController,
 } from '../controllers/transacciones.controller.js';
 
@@ -88,6 +89,13 @@ router.get('/operadores', obtenerOperadoresController);
  * Acceso: Dueños y Gerentes
  */
 router.get('/canjes/kpis', obtenerKPIsCanjesController);
+
+/**
+ * GET /api/transacciones/cupones/kpis?periodo=semana
+ * Obtiene 4 KPIs: total cupones, gratis, con compra, total descuentos
+ * Acceso: Dueños y Gerentes
+ */
+router.get('/cupones/kpis', obtenerKPIsCuponesController);
 
 /**
  * GET /api/transacciones/canjes?periodo=semana&limit=20&offset=0&estado=pendiente

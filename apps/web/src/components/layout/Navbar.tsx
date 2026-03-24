@@ -138,8 +138,7 @@ const MODULOS_BS = [
   { nombre: 'Opiniones', ruta: '/business-studio/opiniones' },
   { nombre: 'Alertas', ruta: '/business-studio/alertas' },
   { nombre: 'Catálogo', ruta: '/business-studio/catalogo' },
-  { nombre: 'Ofertas', ruta: '/business-studio/ofertas' },
-  { nombre: 'Cupones', ruta: '/business-studio/cupones' },
+  { nombre: 'Promociones', ruta: '/business-studio/ofertas' },
   { nombre: 'Puntos', ruta: '/business-studio/puntos' },
   { nombre: 'Rifas', ruta: '/business-studio/rifas' },
   { nombre: 'Empleados', ruta: '/business-studio/empleados' },
@@ -325,8 +324,7 @@ export const Navbar = () => {
     if (location.pathname.includes('/opiniones')) return 'Opiniones';
     if (location.pathname.includes('/alertas')) return 'Alertas';
     if (location.pathname.includes('/catalogo')) return 'Catálogo';
-    if (location.pathname.includes('/ofertas')) return 'Ofertas';
-    if (location.pathname.includes('/cupones')) return 'Cupones';
+    if (location.pathname.includes('/ofertas')) return 'Promociones';
     if (location.pathname.includes('/puntos')) return 'Puntos';
     if (location.pathname.includes('/rifas')) return 'Rifas';
     if (location.pathname.includes('/empleados')) return 'Empleados';

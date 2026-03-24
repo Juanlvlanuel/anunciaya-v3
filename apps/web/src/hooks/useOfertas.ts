@@ -290,7 +290,8 @@ export function useOfertas(): UseOfertasReturn {
           // Invalidar caché para reflejar eliminación
           invalidarCache(sucursalId);
           
-          notificar.exito('Oferta eliminada correctamente');
+          const esCupon = ofertaAnterior.visibilidad === 'privado';
+          notificar.exito(esCupon ? 'Cupón eliminado correctamente' : 'Oferta eliminada correctamente');
           return true;
         } else {
           throw new Error(respuesta.message || 'Error al eliminar oferta');

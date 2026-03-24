@@ -28,6 +28,7 @@ import type {
   RespuestaServicio,
   KPIsTransacciones,
   KPIsCanjes,
+  KPIsCupones,
   VoucherCanje,
   PeriodoEstadisticas
 } from '../types/puntos.types.js';
@@ -208,7 +209,74 @@ export async function obtenerKPIsCanjes(
 }
 
 // =============================================================================
-// 3. OBTENER HISTORIAL DE CANJES
+// 3. OBTENER KPIs CUPONES (Tab Cupones)
+// =============================================================================
+
+/**
+ * Obtiene las 4 métricas principales para el Tab Cupones:
+ * - Total cupones canjeados en el periodo
+ * - Cupones gratis (monto $0)
+ * - Cupones con compra (monto > $0)
+ * - Total en descuentos aplicados
+ */
+export async function obtenerKPIsCupones(
+  negocioId: string,
+  sucursalId?: string,
+  periodo: PeriodoEstadisticas = 'todo'
+): Promise<RespuestaServicio<KPIsCupones>> {
+  try {
+    const fechaInicio = calcularFechaInicio(periodo);
+    const fechaFin = new Date();
+
+    const condiciones = [
+      eq(puntosTransacciones.negocioId, negocioId),
+      gte(puntosTransacciones.createdAt, fechaInicio.toISOString()),
+      lte(puntosTransacciones.createdAt, fechaFin.toISOString()),
+      sql`${puntosTransacciones.ofertaUsoId} IS NOT NULL`,
+      eq(puntosTransacciones.estado, 'confirmado'),
+    ];
+
+    if (sucursalId) {
+      condiciones.push(eq(puntosTransacciones.sucursalId, sucursalId));
+    }
+
+    const [metricas] = await db
+      .select({
+        totalCupones: sql<number>`count(*)::int`,
+        cuponesGratis: sql<number>`count(CASE WHEN ${puntosTransacciones.montoCompra}::numeric = 0 THEN 1 END)::int`,
+        cuponesConCompra: sql<number>`count(CASE WHEN ${puntosTransacciones.montoCompra}::numeric > 0 THEN 1 END)::int`,
+        totalDescuentos: sql<number>`COALESCE(SUM(ou_ref.descuento_aplicado::numeric), 0)`,
+      })
+      .from(puntosTransacciones)
+      .leftJoin(
+        sql`oferta_usos ou_ref`,
+        sql`ou_ref.id = ${puntosTransacciones.ofertaUsoId}`
+      )
+      .where(and(...condiciones));
+
+    return {
+      success: true,
+      message: 'KPIs de cupones obtenidos',
+      data: {
+        totalCupones: metricas?.totalCupones || 0,
+        cuponesGratis: metricas?.cuponesGratis || 0,
+        cuponesConCompra: metricas?.cuponesConCompra || 0,
+        totalDescuentos: Number(Number(metricas?.totalDescuentos || 0).toFixed(2)),
+      },
+      code: 200,
+    };
+  } catch (error) {
+    console.error('Error al obtener KPIs cupones:', error);
+    return {
+      success: false,
+      message: 'Error al obtener métricas de cupones',
+      code: 500,
+    };
+  }
+}
+
+// =============================================================================
+// 4. OBTENER HISTORIAL DE CANJES
 // =============================================================================
 
 /**
@@ -225,7 +293,8 @@ export async function obtenerHistorialCanjes(
   limit: number = 20,
   offset: number = 0,
   estado?: string,
-  busqueda?: string
+  busqueda?: string,
+  operadorId?: string
 ): Promise<RespuestaServicio<{ canjes: VoucherCanje[]; total: number }>> {
   try {
     // Expirar vouchers vencidos antes de listar
@@ -265,6 +334,13 @@ export async function obtenerHistorialCanjes(
           LOWER(concat(${usuarios.nombre}, ' ', coalesce(${usuarios.apellidos}, ''))) LIKE ${busquedaLower}
           OR ${usuarios.telefono} LIKE ${busquedaLower}
         )`
+      );
+    }
+
+    // Filtro por operador (empleado o dueño/gerente que canjeó)
+    if (operadorId) {
+      condiciones.push(
+        sql`(${vouchersCanje.usadoPorEmpleadoId}::text = ${operadorId} OR ${vouchersCanje.usadoPorUsuarioId}::text = ${operadorId})`
       );
     }
 

@@ -137,6 +137,12 @@ export default function CardCupon({
                                 {cupon.motivo}
                             </span>
                         )}
+                        {cupon.limiteUsosPorUsuario && cupon.limiteUsosPorUsuario > 1 && (
+                            <span className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-blue-700">
+                                <CheckCircle className="w-4 h-4 shrink-0" />
+                                {cupon.usosRealizados} de {cupon.limiteUsosPorUsuario} usos
+                            </span>
+                        )}
                     </div>
 
                     {esActivo && (
@@ -203,6 +209,12 @@ export default function CardCupon({
                             <span className="inline-flex items-center gap-1.5 text-sm lg:text-[13px] 2xl:text-sm font-semibold text-slate-600">
                                 <Gift className="w-4 h-4 shrink-0" />
                                 {cupon.motivo}
+                            </span>
+                        )}
+                        {cupon.limiteUsosPorUsuario && cupon.limiteUsosPorUsuario > 1 && (
+                            <span className="inline-flex items-center gap-1.5 text-sm lg:text-[13px] 2xl:text-sm font-semibold text-blue-700">
+                                <CheckCircle className="w-4 h-4 shrink-0" />
+                                {cupon.usosRealizados} de {cupon.limiteUsosPorUsuario} usos
                             </span>
                         )}
                     </div>

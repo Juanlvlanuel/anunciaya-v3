@@ -376,7 +376,6 @@ export default function PaginaScanYA() {
       clienteNombre,
       recompensaNombre,
     });
-    setModalActivo('canjear');
   };
 
   /**
@@ -384,7 +383,6 @@ export default function PaginaScanYA() {
    */
   const handleVoucherCanjeado = () => {
     setVoucherACanjear(null);
-    setModalActivo('ninguno');
 
     // Incrementar contador para forzar recarga de vouchers
     setCambiosVouchers(prev => prev + 1);
@@ -673,25 +671,7 @@ export default function PaginaScanYA() {
                     onNavigate={handleNavigate}
                   />
 
-                  {/* Información de ayuda - SOLO DESKTOP */}
-                  <div
-                    className="
-                      hidden lg:block
-                      rounded-xl
-                      p-3 mt-0 lg:p-2 2xl:p-3.5 2xl:mt-6.5
-                    "
-                    style={{
-                      background: 'rgba(15, 23, 42, 0.4)',
-                      border: '1px solid rgba(59, 130, 246, 0.15)',
-                      backdropFilter: 'blur(10px)',
-                    }}
-                  >
-                    <p className="text-[#94A3B8] text-sm lg:text-sm 2xl:text-base text-center">
-                      {turno
-                        ? 'Toca "Otorgar Puntos" para registrar una venta'
-                        : 'Abre un turno para comenzar a otorgar puntos'}
-                    </p>
-                  </div>
+                  {/* Banner de ayuda eliminado — info innecesaria */}
                 </div>
               </div>
             </>
@@ -743,9 +723,8 @@ export default function PaginaScanYA() {
 
         {/* Modal Validar Voucher (centrado) */}
         <ModalCanjearVoucher
-          abierto={modalActivo === 'canjear'}
+          abierto={!!voucherACanjear}
           onClose={() => {
-            setModalActivo('ninguno');
             setVoucherACanjear(null);
           }}
           voucherId={voucherACanjear?.voucherId || null}

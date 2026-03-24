@@ -529,9 +529,6 @@ export function ModalRegistrarVenta({
             }
         }
 
-        // Calcular puntos base usando config real
-        const puntosBase = Math.floor(montoFinal * config.puntosPorPeso);
-
         // Aplicar multiplicador según nivel del cliente
         let multiplicador = 1.0;
         if (config.nivelesActivos && config.multiplicadores) {
@@ -545,7 +542,8 @@ export function ModalRegistrarVenta({
             }
         }
 
-        return Math.floor(puntosBase * multiplicador);
+        // Un solo floor al final para evitar pérdida por redondeo intermedio
+        return Math.floor(montoFinal * config.puntosPorPeso * multiplicador);
     };
 
     // ---------------------------------------------------------------------------
@@ -743,32 +741,51 @@ export function ModalRegistrarVenta({
                             <CheckCircle className="w-16 h-16 text-[#10B981]" />
                         </div>
 
-                        <h2 className="text-white text-2xl lg:text-xl 2xl:text-2xl font-bold mb-2 lg:mb-1.5 2xl:mb-2">¡Puntos otorgados!</h2>
+                        {(() => {
+                            const montoNum = parseFloat(monto) || 0;
+                            const esCuponGratis = !!cupon && montoNum === 0;
+                            const esVentaConCupon = !!cupon && montoNum > 0;
 
-                        <div className="flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 mb-8">
-                            <Coins className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#F59E0B]" />
-                            <span className="text-[#F59E0B] text-4xl lg:text-3xl 2xl:text-4xl font-bold">+{resultadoPuntos}</span>
-                        </div>
+                            return (
+                                <>
+                                    <h2 className="text-white text-2xl lg:text-xl 2xl:text-2xl font-bold mb-2 lg:mb-1.5 2xl:mb-2">
+                                        {esCuponGratis ? '¡Cupón canjeado!' : esVentaConCupon ? '¡Venta con cupón registrada!' : '¡Puntos otorgados!'}
+                                    </h2>
 
-                        <div className="space-y-3">
-                            <button
-                                onClick={resetearFormulario}
-                                className="w-full py-4 rounded-xl lg:rounded-md 2xl:rounded-xl font-bold text-lg lg:text-base 2xl:text-lg text-white cursor-pointer"
-                                style={{
-                                    background: 'linear-gradient(135deg, #F97316, #EA580C)',
-                                    boxShadow: '0 0 20px rgba(249, 115, 22, 0.4)',
-                                }}
-                            >
-                                Nueva Venta
-                            </button>
+                                    {esCuponGratis ? (
+                                        <div className="mb-8">
+                                            <p className="text-[#60A5FA] text-lg lg:text-base 2xl:text-lg font-bold mb-1">{cupon?.titulo}</p>
+                                            <p className="text-[#94A3B8] text-sm lg:text-[11px] 2xl:text-sm font-medium">Entrega el producto al cliente</p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 mb-8">
+                                            <Coins className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#F59E0B]" />
+                                            <span className="text-[#F59E0B] text-4xl lg:text-3xl 2xl:text-4xl font-bold">+{resultadoPuntos}</span>
+                                        </div>
+                                    )}
 
-                            <button
-                                onClick={onClose}
-                                className="w-full py-3 rounded-xl lg:rounded-md 2xl:rounded-xl text-[#94A3B8] border border-[#333] hover:border-[#3B82F6] cursor-pointer"
-                            >
-                                Cerrar
-                            </button>
-                        </div>
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={resetearFormulario}
+                                            className="w-full py-4 rounded-xl lg:rounded-md 2xl:rounded-xl font-bold text-lg lg:text-base 2xl:text-lg text-white cursor-pointer"
+                                            style={{
+                                                background: 'linear-gradient(135deg, #F97316, #EA580C)',
+                                                boxShadow: '0 0 20px rgba(249, 115, 22, 0.4)',
+                                            }}
+                                        >
+                                            {esCuponGratis ? 'Nuevo Registro' : 'Nueva Venta'}
+                                        </button>
+
+                                        <button
+                                            onClick={onClose}
+                                            className="w-full py-3 rounded-xl lg:rounded-md 2xl:rounded-xl text-[#94A3B8] border border-[#333] hover:border-[#3B82F6] cursor-pointer"
+                                        >
+                                            Cerrar
+                                        </button>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             </>
@@ -1609,19 +1626,68 @@ export function ModalRegistrarVenta({
                 {/* ============================================================== */}
                 <div
                     className="
-            absolute bottom-0 left-0 right-0
+            shrink-0
             px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4
             border-t border-white/10
           "
                     style={{ background: 'rgba(0, 0, 0, 0.9)' }}
                 >
-                    {/* Resumen de puntos */}
+                    {/* Resumen cupón + puntos */}
                     {cliente && parseFloat(monto) > 0 && (
-                        <div className="flex items-center justify-between mb-3 lg:mb-2 2xl:mb-3 px-2">
-                            <span className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">Puntos a otorgar:</span>
-                            <div className="flex items-center gap-1">
-                                <Coins className="w-5 h-5 text-[#F59E0B]" />
-                                <span className="text-[#F59E0B] text-xl font-bold">+{calcularPuntos()}</span>
+                        <div className="mb-3 lg:mb-2 2xl:mb-3 px-2">
+                            {/* Desglose cupón */}
+                            {cupon && (
+                                <div className="mb-2 lg:mb-1.5 2xl:mb-2 pb-2 lg:pb-1.5 2xl:pb-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                    {/* Tipo de cupón aplicado */}
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-[#60A5FA] text-sm lg:text-xs 2xl:text-sm font-bold">🎟️ {cupon.titulo}</span>
+                                        <span className="text-[#60A5FA] text-sm lg:text-xs 2xl:text-sm font-bold">{cupon.descuentoInfo}</span>
+                                    </div>
+
+                                    {/* Desglose numérico (solo porcentaje y monto fijo) */}
+                                    {(cupon.tipo === 'porcentaje' || cupon.tipo === 'monto_fijo') && (
+                                        <>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm font-medium">Subtotal:</span>
+                                                <span className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm font-bold">${parseFloat(monto).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[#60A5FA] text-sm lg:text-xs 2xl:text-sm font-medium">Descuento:</span>
+                                                <span className="text-[#60A5FA] text-sm lg:text-xs 2xl:text-sm font-bold">
+                                                    -${cupon.tipo === 'porcentaje'
+                                                        ? (parseFloat(monto) * cupon.descuento / 100).toFixed(2)
+                                                        : Math.min(cupon.descuento, parseFloat(monto)).toFixed(2)
+                                                    }
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-white text-base lg:text-sm 2xl:text-base font-bold">Total a cobrar:</span>
+                                                <span className="text-white text-xl lg:text-lg 2xl:text-xl font-bold">
+                                                    ${cupon.tipo === 'porcentaje'
+                                                        ? (parseFloat(monto) * (1 - cupon.descuento / 100)).toFixed(2)
+                                                        : Math.max(0, parseFloat(monto) - cupon.descuento).toFixed(2)
+                                                    }
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* Para otros tipos: nota informativa */}
+                                    {cupon.tipo !== 'porcentaje' && cupon.tipo !== 'monto_fijo' && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm font-medium">Monto a cobrar:</span>
+                                            <span className="text-white text-xl lg:text-lg 2xl:text-xl font-bold">${parseFloat(monto).toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {/* Puntos */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">Puntos a otorgar:</span>
+                                <div className="flex items-center gap-1">
+                                    <Coins className="w-5 h-5 text-[#F59E0B]" />
+                                    <span className="text-[#F59E0B] text-xl font-bold">+{calcularPuntos()}</span>
+                                </div>
                             </div>
                         </div>
                     )}

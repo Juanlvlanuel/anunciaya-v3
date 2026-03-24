@@ -56,6 +56,7 @@ import {
     Send,
     Ban,
     RefreshCw,
+    CheckCircle2,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useOfertas } from '../../../../hooks/useOfertas';
@@ -250,6 +251,7 @@ function getBadgeEstado(estado: EstadoOferta, cupones = false): { label: string;
     if (cupones) {
         switch (estado) {
             case 'activa': return { label: 'Activo', clases: 'bg-green-100 text-green-700' };
+            case 'agotada': return { label: 'Usado', clases: 'bg-blue-100 text-blue-700' };
             case 'vencida': return { label: 'Vencido', clases: 'bg-slate-200 text-slate-600' };
             case 'inactiva': return { label: 'Revocado', clases: 'bg-red-100 text-red-700' };
             default: return { label: estado, clases: 'bg-slate-200 text-slate-600' };
@@ -462,6 +464,8 @@ export function PaginaOfertas() {
     // ===========================================================================
 
     const calcularEstado = (oferta: Oferta): EstadoOferta => {
+        // Si el backend ya calculó el estado (incluye lógica de oferta_usuarios para cupones), usarlo
+        if (oferta.estado) return oferta.estado;
         if (!oferta.activo) return 'inactiva';
         const comparacionInicio = compararConHoy(oferta.fechaInicio);
         const comparacionFin = compararConHoy(oferta.fechaFin);
@@ -589,12 +593,14 @@ export function PaginaOfertas() {
     // ===========================================================================
 
     const estadisticas = useMemo(() => {
-        const activas = ofertas.filter((o) => calcularEstado(o) === 'activa').length;
-        const proximas = ofertas.filter((o) => calcularEstado(o) === 'proxima').length;
-        const vencidas = ofertas.filter((o) => calcularEstado(o) === 'vencida').length;
-        const inactivas = ofertas.filter((o) => calcularEstado(o) === 'inactiva').length;
-        return { activas, proximas, vencidas, inactivas, total: ofertas.length };
-    }, [ofertas]);
+        const filtradas = ofertas.filter((o) => (o.visibilidad || 'publico') === (esCupones ? 'privado' : 'publico'));
+        const activas = filtradas.filter((o) => calcularEstado(o) === 'activa').length;
+        const proximas = filtradas.filter((o) => calcularEstado(o) === 'proxima').length;
+        const vencidas = filtradas.filter((o) => calcularEstado(o) === 'vencida').length;
+        const inactivas = filtradas.filter((o) => calcularEstado(o) === 'inactiva').length;
+        const agotadas = filtradas.filter((o) => calcularEstado(o) === 'agotada').length;
+        return { activas, proximas, vencidas, inactivas, agotadas, total: filtradas.length };
+    }, [ofertas, esCupones]);
 
     // ===========================================================================
     // HANDLERS
@@ -704,7 +710,7 @@ export function PaginaOfertas() {
     // Texto dinámico del tipo para contador
     const textoVisibilidad = filtros.visibilidad === 'publico' ? 'ofertas' : filtros.visibilidad === 'privado' ? 'cupones' : 'promociones';
     const textoTipoFiltro = filtros.tipo !== 'todos' ? getLabelTipo(filtros.tipo as TipoOferta).toLowerCase() : textoVisibilidad;
-    const textoEstadoFiltro = filtros.estado !== 'todos' ? getBadgeEstado(filtros.estado as EstadoOferta).label.toLowerCase() + 's' : '';
+    const textoEstadoFiltro = filtros.estado !== 'todos' ? getBadgeEstado(filtros.estado as EstadoOferta, esCupones).label.toLowerCase() + 's' : '';
 
     // ===========================================================================
     // RENDER: LOADING
@@ -752,7 +758,7 @@ export function PaginaOfertas() {
                                 Promociones
                             </h1>
                             <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium whitespace-nowrap">
-                                Gestiona tus descuentos y beneficios
+                                Tus ofertas y cupones
                             </p>
                         </div>
 
@@ -784,20 +790,7 @@ export function PaginaOfertas() {
                             </Tooltip>
                         </div>
 
-                        {/* Botón {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'} — solo móvil */}
-                        <div className="lg:hidden flex-1 flex justify-end">
-                            <button
-                                onClick={handleCrear}
-                                className="shrink-0 flex items-center gap-1 h-11 px-2 rounded-lg text-base font-bold text-slate-700 border-2 border-slate-400 cursor-pointer"
-                                style={{
-                                    background: 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.12)',
-                                }}
-                            >
-                                <Plus className="w-4 h-4" />
-                                {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'}
-                            </button>
-                        </div>
+                        {/* Botón — solo móvil, visible en filtros */}
                     </div>
 
                     {/* KPIs COMPACTOS - Carousel en móvil, fila en desktop (INFORMACIONALES) */}
@@ -816,7 +809,10 @@ export function PaginaOfertas() {
                                     className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
                                 >
-                                    <Tag className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                    {esCupones
+                                        ? <Ticket className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                        : <Megaphone className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                    }
                                 </div>
                                 <div className="text-left">
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.total}</div>
@@ -824,7 +820,7 @@ export function PaginaOfertas() {
                                 </div>
                             </div>
 
-                            {/* Activas */}
+                            {/* Activas/Activos */}
                             <div
                                 className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
@@ -841,53 +837,102 @@ export function PaginaOfertas() {
                                 </div>
                                 <div className="text-left">
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-green-700">{estadisticas.activas}</div>
-                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Activas</div>
+                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">{esCupones ? 'Activos' : 'Activas'}</div>
                                 </div>
                             </div>
 
-                            {/* Inactivas */}
-                            <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
-                                style={{
-                                    background: 'linear-gradient(135deg, #fef2f2, #fff)',
-                                    border: '2px solid #fca5a5',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                                }}
-                            >
-                                <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
-                                    style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
-                                >
-                                    <PauseCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
-                                </div>
-                                <div className="text-left">
-                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.inactivas}</div>
-                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Inactivas</div>
-                                </div>
-                            </div>
+                            {/* Inactivas/Revocados — Usados (cupones) / Próximas (ofertas) */}
+                            {esCupones ? (
+                                <>
+                                    {/* Usados */}
+                                    <div
+                                        className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #eff6ff, #fff)',
+                                            border: '2px solid #93c5fd',
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                        }}
+                                    >
+                                        <div
+                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                            style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
+                                        >
+                                            <CheckCircle2 className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.agotadas}</div>
+                                            <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Usados</div>
+                                        </div>
+                                    </div>
 
-                            {/* Próximas */}
-                            <div
-                                className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
-                                style={{
-                                    background: 'linear-gradient(135deg, #fffbeb, #fff)',
-                                    border: '2px solid #fcd34d',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                                }}
-                            >
-                                <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
-                                    style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(217,119,6,0.25)' }}
-                                >
-                                    <Calendar className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
-                                </div>
-                                <div className="text-left">
-                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">{estadisticas.proximas}</div>
-                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Próximas</div>
-                                </div>
-                            </div>
+                                    {/* Revocados */}
+                                    <div
+                                        className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #fef2f2, #fff)',
+                                            border: '2px solid #fca5a5',
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                        }}
+                                    >
+                                        <div
+                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                            style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
+                                        >
+                                            <PauseCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.inactivas}</div>
+                                            <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Revocados</div>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Inactivas */}
+                                    <div
+                                        className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #fef2f2, #fff)',
+                                            border: '2px solid #fca5a5',
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                        }}
+                                    >
+                                        <div
+                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                            style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
+                                        >
+                                            <PauseCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-red-700">{estadisticas.inactivas}</div>
+                                            <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Inactivas</div>
+                                        </div>
+                                    </div>
 
-                            {/* Vencidas */}
+                                    {/* Próximas */}
+                                    <div
+                                        className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #fffbeb, #fff)',
+                                            border: '2px solid #fcd34d',
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                        }}
+                                    >
+                                        <div
+                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                            style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(217,119,6,0.25)' }}
+                                        >
+                                            <Calendar className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">{estadisticas.proximas}</div>
+                                            <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Próximas</div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Vencidas/Vencidos */}
                             <div
                                 className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
@@ -904,7 +949,7 @@ export function PaginaOfertas() {
                                 </div>
                                 <div className="text-left">
                                     <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-slate-600">{estadisticas.vencidas}</div>
-                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Vencidas</div>
+                                    <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">{esCupones ? 'Vencidos' : 'Vencidas'}</div>
                                 </div>
                             </div>
                         </div>
@@ -915,51 +960,39 @@ export function PaginaOfertas() {
                 {/* BOTÓN NUEVA OFERTA — solo móvil                                   */}
                 {/* ================================================================= */}
 
-                <div className="lg:hidden">
+                {/* ================================================================= */}
+                {/* TOGGLE Ofertas/Cupones — solo móvil, fuera del contenedor         */}
+                {/* ================================================================= */}
+
+                <div className="lg:hidden flex w-full bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
                     <button
-                        data-testid="btn-nueva-promocion"
-                        onClick={handleCrear}
-                        className="w-full flex items-center justify-center gap-1.5 h-11 rounded-xl text-base font-semibold text-white cursor-pointer"
-                        style={{
-                            background: 'linear-gradient(135deg, #1e293b, #334155)',
-                            boxShadow: '0 3px 10px rgba(0,0,0,0.25)',
-                        }}
+                        onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, estado: 'todos' as const }))}
+                        className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
+                            !esCupones ? 'text-white shadow-md' : 'text-slate-700'
+                        }`}
+                        style={!esCupones ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                     >
-                        <Plus className="w-4 h-4" />
-                        {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'}
+                        <Megaphone className="w-4 h-4" />
+                        Ofertas
+                    </button>
+                    <button
+                        onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, estado: 'todos' as const }))}
+                        className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
+                            esCupones ? 'text-white shadow-md' : 'text-slate-700'
+                        }`}
+                        style={esCupones ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                    >
+                        <Ticket className="w-4 h-4" />
+                        Cupones
                     </button>
                 </div>
 
                 {/* ================================================================= */}
-                {/* FILTROS: Estado (desktop) + Tipo + Búsqueda + Nueva                */}
+                {/* FILTROS: Estado + Búsqueda + Nueva                                */}
                 {/* ================================================================= */}
 
                 <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
                     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
-                        {/* Toggle Ofertas/Cupones — solo móvil */}
-                        <div className="lg:hidden flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
-                            <button
-                                onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, estado: 'todos' as const }))}
-                                className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-md font-semibold text-sm cursor-pointer ${
-                                    !esCupones ? 'text-white shadow-md' : 'text-slate-700'
-                                }`}
-                                style={!esCupones ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                            >
-                                <Megaphone className="w-4 h-4" />
-                                Ofertas
-                            </button>
-                            <button
-                                onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, estado: 'todos' as const }))}
-                                className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-md font-semibold text-sm cursor-pointer ${
-                                    esCupones ? 'text-white shadow-md' : 'text-slate-700'
-                                }`}
-                                style={esCupones ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
-                            >
-                                <Ticket className="w-4 h-4" />
-                                Cupones
-                            </button>
-                        </div>
-
                         {/* Filtros */}
                         <div className="flex items-center gap-2 lg:contents">
                             {/* Dropdown de estado */}
@@ -967,7 +1000,7 @@ export function PaginaOfertas() {
                                 <button
                                     onClick={() => setDropdownEstadoAbierto(prev => !prev)}
                                     className={`flex items-center gap-1.5 w-full lg:w-40 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.estado !== 'todos'
-                                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                                        ? 'bg-blue-100 border-blue-300 text-blue-700'
                                         : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                                     }`}
                                 >
@@ -978,7 +1011,7 @@ export function PaginaOfertas() {
                                     {filtros.estado === 'vencida'  && <Clock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />}
                                     {filtros.estado === 'agotada'  && <Tag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />}
                                     <span className="truncate">
-                                        {filtros.estado === 'todos' ? 'Estado' : getBadgeEstado(filtros.estado as EstadoOferta).label}
+                                        {filtros.estado === 'todos' ? 'Estado' : getBadgeEstado(filtros.estado as EstadoOferta, esCupones).label}
                                     </span>
                                     <ChevronDown className={`ml-auto w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 transition-transform shrink-0 ${dropdownEstadoAbierto ? 'rotate-180' : ''}`} />
                                 </button>
@@ -988,6 +1021,7 @@ export function PaginaOfertas() {
                                         {(esCupones ? [
                                             { value: 'todos',    label: 'Todos',     icono: Layers },
                                             { value: 'activa',   label: 'Activos',   icono: TrendingUp },
+                                            { value: 'agotada',  label: 'Usados',    icono: CheckCircle2 },
                                             { value: 'inactiva', label: 'Revocados', icono: PauseCircle },
                                             { value: 'vencida',  label: 'Vencidos',  icono: Clock },
                                         ] : [
@@ -1001,10 +1035,10 @@ export function PaginaOfertas() {
                                             <button
                                                 key={value}
                                                 onClick={() => { setFiltros(prev => ({ ...prev, estado: value as FiltrosLocales['estado'] })); setDropdownEstadoAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.estado === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.estado === value ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                                             >
-                                                <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.estado === value ? 'border-indigo-500' : 'border-slate-300'}`}>
-                                                    {filtros.estado === value && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
+                                                <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.estado === value ? 'border-blue-500' : 'border-slate-300'}`}>
+                                                    {filtros.estado === value && <div className="w-2 h-2 rounded-full bg-blue-500" />}
                                                 </div>
                                                 <Icono className="w-3.5 h-3.5 shrink-0" />
                                                 {label}
@@ -1019,7 +1053,7 @@ export function PaginaOfertas() {
                                 <button
                                     onClick={() => setDropdownTipoAbierto(prev => !prev)}
                                     className={`flex items-center gap-1.5 w-full lg:w-48 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 transition-all cursor-pointer ${filtros.tipo !== 'todos'
-                                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                                        ? 'bg-blue-100 border-blue-300 text-blue-700'
                                         : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                                     }`}
                                 >
@@ -1035,10 +1069,10 @@ export function PaginaOfertas() {
                                     <div className="absolute top-full left-0 lg:left-auto lg:right-0 mt-1.5 w-full lg:w-48 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
                                         <button
                                             onClick={() => { setFiltros(prev => ({ ...prev, tipo: 'todos' })); setDropdownTipoAbierto(false); }}
-                                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.tipo === 'todos' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.tipo === 'todos' ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                                         >
-                                            <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.tipo === 'todos' ? 'border-indigo-500' : 'border-slate-300'}`}>
-                                                {filtros.tipo === 'todos' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
+                                            <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.tipo === 'todos' ? 'border-blue-500' : 'border-slate-300'}`}>
+                                                {filtros.tipo === 'todos' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
                                             </div>
                                             Todos
                                         </button>
@@ -1053,10 +1087,10 @@ export function PaginaOfertas() {
                                             <button
                                                 key={value}
                                                 onClick={() => { setFiltros(prev => ({ ...prev, tipo: value })); setDropdownTipoAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.tipo === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.tipo === value ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
                                             >
-                                                <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.tipo === value ? 'border-indigo-500' : 'border-slate-300'}`}>
-                                                    {filtros.tipo === value && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
+                                                <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.tipo === value ? 'border-blue-500' : 'border-slate-300'}`}>
+                                                    {filtros.tipo === value && <div className="w-2 h-2 rounded-full bg-blue-500" />}
                                                 </div>
                                                 <Icon className="w-3.5 h-3.5 shrink-0" />
                                                 {getLabelTipo(value)}
@@ -1066,6 +1100,19 @@ export function PaginaOfertas() {
                                 )}
                             </div>
 
+                            {/* Nuevo — móvil (estilo Catálogo) */}
+                            <button
+                                data-testid="btn-nueva-promocion"
+                                onClick={handleCrear}
+                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-2.5 rounded-lg text-base font-semibold text-slate-600 border-2 border-slate-300 cursor-pointer"
+                                style={{
+                                    background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <Plus className="w-4 h-4" />
+                                {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'}
+                            </button>
                         </div>
 
                         {/* Móvil línea 2: Buscador | Desktop: Buscador + Nueva */}

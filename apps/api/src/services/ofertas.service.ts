@@ -535,27 +535,33 @@ export async function crearOferta(
 export async function obtenerOfertas(negocioId: string, sucursalId: string) {
   try {
     const query = sql`
-      SELECT 
+      SELECT
         o.*,
         COALESCE(me.total_views, 0) as total_vistas,
         COALESCE(me.total_shares, 0) as total_shares,
         COALESCE(me.total_clicks, 0) as total_clicks,
-        
+
         -- Estado calculado
         CASE
           WHEN NOT o.activo THEN 'inactiva'
           WHEN CURRENT_TIMESTAMP < o.fecha_inicio THEN 'proxima'
           WHEN CURRENT_TIMESTAMP > o.fecha_fin THEN 'vencida'
           WHEN o.limite_usos IS NOT NULL AND o.usos_actuales >= o.limite_usos THEN 'agotada'
+          -- Cupones: todos los asignados están usados
+          WHEN o.visibilidad = 'privado' AND (
+            SELECT COUNT(*) FROM oferta_usuarios ou WHERE ou.oferta_id = o.id
+          ) > 0 AND NOT EXISTS (
+            SELECT 1 FROM oferta_usuarios ou WHERE ou.oferta_id = o.id AND ou.estado NOT IN ('usado', 'revocado')
+          ) THEN 'agotada'
           ELSE 'activa'
         END as estado
-        
+
       FROM ofertas o
       LEFT JOIN metricas_entidad me ON me.entity_type = 'oferta' AND me.entity_id = o.id
-      
+
       WHERE o.negocio_id = ${negocioId}
         AND o.sucursal_id = ${sucursalId}
-      
+
       ORDER BY o.created_at DESC
     `;
 
@@ -834,7 +840,7 @@ export async function eliminarOferta(
         if (tiene.rows.length > 0) {
           await tx.execute(sql`
             UPDATE chat_conversaciones SET
-              ultimo_mensaje_texto = sub.contenido,
+              ultimo_mensaje_texto = LEFT(sub.contenido, 100),
               ultimo_mensaje_tipo = sub.tipo,
               ultimo_mensaje_fecha = sub.created_at,
               ultimo_mensaje_estado = sub.estado,
@@ -1820,6 +1826,11 @@ export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string
         o.compra_minima,
         o.fecha_inicio,
         o.fecha_fin,
+        o.limite_usos_por_usuario,
+        COALESCE((
+          SELECT COUNT(*) FROM oferta_usos ouso
+          WHERE ouso.oferta_id = o.id AND ouso.usuario_id = ou.usuario_id
+        ), 0)::int as usos_realizados,
         n.id as negocio_id,
         n.usuario_id as negocio_usuario_id,
         n.nombre as negocio_nombre,

@@ -26,11 +26,29 @@ import {
   RefreshCw,
   ChevronDown,
   Check,
+  User,
+  Phone,
+  Coins,
+  Banknote,
+  CreditCard,
+  Smartphone,
+  Clock,
+  Ticket,
+  Camera,
+  MapPin,
+  Shield,
+  ShieldCheck,
+  Users,
+  Award,
+  MessageCircle,
 } from 'lucide-react';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import scanyaService, { type PeriodoHistorial } from '@/services/scanyaService';
 import type { TransaccionScanYA } from '@/types/scanya';
 import { TarjetaTransaccion } from './TarjetaTransaccion';
+import { useChatYAStore } from '@/stores/useChatYAStore';
+import { useUiStore } from '@/stores/useUiStore';
+import { ModalImagenes } from '@/components/ui/ModalImagenes';
 
 // =============================================================================
 // TIPOS
@@ -278,9 +296,10 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   const prevFiltroEmpleado = useRef(filtroEmpleadoId);
 
   // ---------------------------------------------------------------------------
-  // Estado para ver foto
+  // Estado para ver foto y detalle de transacción
   // ---------------------------------------------------------------------------
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
+  const [transaccionDetalle, setTransaccionDetalle] = useState<TransaccionScanYA | null>(null);
 
   // ---------------------------------------------------------------------------
   // Permisos de filtros según rol
@@ -294,9 +313,9 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   const getTitulo = (): string => {
     switch (tipoUsuario) {
       case 'dueno':
-        return 'Historial de Ventas';
+        return 'Historial de Transacciones';
       case 'gerente':
-        return 'Historial de Ventas';
+        return 'Historial de Transacciones';
       case 'empleado':
         return 'Mi Historial';
       default:
@@ -487,6 +506,308 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   // Si no está abierto, no renderizar
   // ---------------------------------------------------------------------------
   if (!abierto) return null;
+
+  // ---------------------------------------------------------------------------
+  // RENDER: Detalle de transacción
+  // ---------------------------------------------------------------------------
+  if (transaccionDetalle) {
+    const t = transaccionDetalle;
+    const esCuponGratis = t.montoTotal === 0 && !!t.cuponCodigo;
+    const tieneCupon = !!t.cuponCodigo;
+    const esRevocada = t.estado === 'cancelado';
+
+    const formatMonto = (v: number) => v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 });
+    const formatTel = (tel: string) => {
+      const l = tel.replace(/\D/g, '');
+      if (l.length === 10) return `+52 ${l.slice(0, 3)} ${l.slice(3, 6)} ${l.slice(6)}`;
+      return tel;
+    };
+    const formatFechaLarga = (f: string) => {
+      const d = new Date(f);
+      return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) +
+        ', ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+    };
+
+    const nivelConfig = (() => {
+      switch (t.clienteNivel.toLowerCase()) {
+        case 'oro': return { bg: 'rgba(245,158,11,0.2)', text: '#F59E0B', emoji: '🥇' };
+        case 'plata': return { bg: 'rgba(148,163,184,0.2)', text: '#94A3B8', emoji: '🥈' };
+        default: return { bg: 'rgba(205,127,50,0.2)', text: '#CD7F32', emoji: '🥉' };
+      }
+    })();
+
+    const iniciales = (() => {
+      const p = t.clienteNombre.trim().split(/\s+/);
+      return p.length >= 2 ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase() : t.clienteNombre.slice(0, 2).toUpperCase();
+    })();
+
+    const registradorConfig = {
+      empleado: { icono: Users, label: 'Empleado' },
+      gerente: { icono: ShieldCheck, label: 'Gerente' },
+      dueno: { icono: Shield, label: 'Dueño' },
+    }[t.registradoPorTipo] || { icono: Users, label: '' };
+    const RegistradorIcono = registradorConfig.icono;
+
+    const abrirChatTemporal = useChatYAStore.getState().abrirChatTemporal;
+    const abrirChatYA = useUiStore.getState().abrirChatYA;
+
+    const handleContactar = () => {
+      if (!t.clienteId) return;
+      abrirChatTemporal({
+        id: `temp_${Date.now()}`,
+        otroParticipante: { id: t.clienteId, nombre: t.clienteNombre, apellidos: '', avatarUrl: t.clienteAvatarUrl ?? null },
+        datosCreacion: { participante2Id: t.clienteId, participante2Modo: 'personal', contextoTipo: 'directo' },
+      });
+      abrirChatYA();
+      setTransaccionDetalle(null);
+      onClose();
+    };
+
+    // Estilos reutilizables
+    const ROW = 'flex items-center justify-between py-2.5 lg:py-2 2xl:py-2.5';
+    const LABEL = 'text-sm lg:text-[11px] 2xl:text-sm font-medium';
+    const VALUE = 'text-sm lg:text-[11px] 2xl:text-sm font-bold';
+
+    return (
+      <>
+        <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setTransaccionDetalle(null)} />
+        <div
+          className="fixed z-50 inset-x-0 bottom-0 h-[85vh] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px] flex flex-col rounded-t-3xl lg:rounded-none overflow-hidden"
+          style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #001020 100%)', boxShadow: '-4px 0 30px rgba(0,0,0,0.5)' }}
+        >
+          {/* Header */}
+          <header className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10 shrink-0">
+            <button
+              onClick={() => setTransaccionDetalle(null)}
+              className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+            </button>
+            <h2 className="text-base lg:text-sm 2xl:text-base font-bold text-white flex-1">
+              {esCuponGratis ? 'Detalle de cupón' : 'Detalle de venta'}
+            </h2>
+            <button
+              onClick={() => setTransaccionDetalle(null)}
+              className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
+            >
+              <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+            </button>
+          </header>
+
+          {/* Contenido scrollable */}
+          <div className="flex-1 overflow-y-auto px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4">
+
+            {/* ── CLIENTE ── */}
+            <div className="flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
+              {t.clienteAvatarUrl ? (
+                <img src={t.clienteAvatarUrl} alt="" className="w-14 h-14 lg:w-11 lg:h-11 2xl:w-14 2xl:h-14 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-14 h-14 lg:w-11 lg:h-11 2xl:w-14 2xl:h-14 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(96,165,250,0.2)' }}>
+                  <span className="text-xl lg:text-base 2xl:text-xl font-bold" style={{ color: '#60A5FA' }}>{iniciales}</span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className={`text-lg lg:text-base 2xl:text-lg font-bold truncate ${esRevocada ? 'line-through' : ''}`} style={{ color: esRevocada ? '#64748B' : '#F1F5F9' }}>
+                  {t.clienteNombre}
+                </p>
+                {t.clienteTelefono && (
+                  <div className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" style={{ color: '#64748B' }} />
+                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>{formatTel(t.clienteTelefono)}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ background: nivelConfig.bg }}>
+                    <span className="text-sm lg:text-[11px] 2xl:text-sm">{nivelConfig.emoji}</span>
+                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold capitalize" style={{ color: nivelConfig.text }}>{t.clienteNivel}</span>
+                  </div>
+                  {esRevocada && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.2)' }}>
+                      <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-400">Revocada</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Logo ChatYA */}
+              {!esRevocada && t.clienteId && (
+                <button onClick={handleContactar} className="shrink-0 cursor-pointer hover:opacity-80">
+                  <img src="/logo-ChatYA-blanco.webp" alt="ChatYA" className="w-auto h-14 lg:h-11 2xl:h-14" />
+                </button>
+              )}
+            </div>
+
+            {/* ── MONTO / CUPÓN ── */}
+            <div className="mt-4 lg:mt-3 2xl:mt-4 rounded-xl lg:rounded-lg 2xl:rounded-xl p-3 lg:p-2.5 2xl:p-3" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {esCuponGratis ? (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Ticket className="w-5 h-5" style={{ color: '#60A5FA' }} />
+                    <span className="text-base lg:text-sm 2xl:text-base font-bold" style={{ color: '#60A5FA' }}>Cupón canjeado — Gratis</span>
+                  </div>
+                  {/* Imagen + Nombre del cupón */}
+                  <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
+                    {t.cuponImagen && (
+                      <img
+                        src={t.cuponImagen}
+                        alt=""
+                        className="w-16 h-16 lg:w-12 lg:h-12 2xl:w-16 2xl:h-16 rounded-lg object-cover shrink-0"
+                        style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      {t.cuponCodigo && (
+                        <p className="text-base lg:text-sm 2xl:text-base font-bold mb-0.5" style={{ color: '#F1F5F9' }}>{t.cuponCodigo}</p>
+                      )}
+                      {t.concepto && (
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>{t.concepto}</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Monto total */}
+                  <div className={ROW}>
+                    <span className={LABEL} style={{ color: '#94A3B8' }}>Monto total</span>
+                    <span className={`text-xl lg:text-lg 2xl:text-xl font-bold ${esRevocada ? 'line-through' : ''}`} style={{ color: esRevocada ? '#64748B' : '#F1F5F9' }}>
+                      {formatMonto(t.montoTotal)}
+                    </span>
+                  </div>
+
+                  {/* Desglose */}
+                  {t.montoEfectivo > 0 && (
+                    <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-4 h-4" style={{ color: '#64748B' }} />
+                        <span className={LABEL} style={{ color: '#94A3B8' }}>Efectivo</span>
+                      </div>
+                      <span className={VALUE} style={{ color: '#F1F5F9' }}>{formatMonto(t.montoEfectivo)}</span>
+                    </div>
+                  )}
+                  {t.montoTarjeta > 0 && (
+                    <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="flex items-center gap-1.5">
+                        <CreditCard className="w-4 h-4" style={{ color: '#64748B' }} />
+                        <span className={LABEL} style={{ color: '#94A3B8' }}>Tarjeta</span>
+                      </div>
+                      <span className={VALUE} style={{ color: '#F1F5F9' }}>{formatMonto(t.montoTarjeta)}</span>
+                    </div>
+                  )}
+                  {t.montoTransferencia > 0 && (
+                    <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="flex items-center gap-1.5">
+                        <Smartphone className="w-4 h-4" style={{ color: '#64748B' }} />
+                        <span className={LABEL} style={{ color: '#94A3B8' }}>Transferencia</span>
+                      </div>
+                      <span className={VALUE} style={{ color: '#F1F5F9' }}>{formatMonto(t.montoTransferencia)}</span>
+                    </div>
+                  )}
+
+                  {/* Cupón descuento */}
+                  {tieneCupon && t.cuponDescuento && (
+                    <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="flex items-center gap-1.5">
+                        <Ticket className="w-4 h-4" style={{ color: '#60A5FA' }} />
+                        <span className={LABEL} style={{ color: '#60A5FA' }}>Descuento cupón</span>
+                      </div>
+                      <span className={VALUE} style={{ color: '#60A5FA' }}>-{formatMonto(t.cuponDescuento)}</span>
+                    </div>
+                  )}
+
+                  {/* Puntos */}
+                  <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-1.5">
+                      <Coins className="w-4 h-4" style={{ color: '#60A5FA' }} />
+                      <span className={LABEL} style={{ color: '#94A3B8' }}>Puntos otorgados</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`${VALUE} ${esRevocada ? 'line-through' : ''}`} style={{ color: esRevocada ? '#64748B' : '#34D399' }}>
+                        +{t.puntosOtorgados.toLocaleString()}
+                      </span>
+                      {!esRevocada && t.multiplicadorAplicado > 1 && (
+                        <span className="text-sm lg:text-[11px] 2xl:text-sm px-1 rounded font-bold" style={{ background: 'rgba(96,165,250,0.15)', color: '#60A5FA' }}>
+                          x{t.multiplicadorAplicado}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* ── EXTRAS ── */}
+            <div className="mt-3 lg:mt-2 2xl:mt-3 space-y-2 lg:space-y-1.5 2xl:space-y-2">
+
+              {/* Concepto (solo ventas) */}
+              {!esCuponGratis && t.concepto && (
+                <div className={ROW}>
+                  <span className={LABEL} style={{ color: '#94A3B8' }}>Concepto</span>
+                  <span className={VALUE} style={{ color: '#F1F5F9' }}>{t.concepto}</span>
+                </div>
+              )}
+
+              {/* Número de orden */}
+              {t.numeroOrden && (
+                <div className={ROW}>
+                  <div className="flex items-center gap-1.5">
+                    <Award className="w-4 h-4" style={{ color: '#64748B' }} />
+                    <span className={LABEL} style={{ color: '#94A3B8' }}>Nº orden</span>
+                  </div>
+                  <span className={VALUE} style={{ color: '#F1F5F9' }}>#{t.numeroOrden}</span>
+                </div>
+              )}
+
+              {/* Foto ticket */}
+              {t.fotoTicketUrl && (
+                <button
+                  onClick={() => { setFotoUrl(t.fotoTicketUrl!); setTransaccionDetalle(null); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 lg:py-2 2xl:py-2.5 rounded-xl lg:rounded-lg 2xl:rounded-xl font-semibold text-sm lg:text-[11px] 2xl:text-sm cursor-pointer"
+                  style={{ background: 'rgba(255,255,255,0.05)', color: '#60A5FA', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  <Camera className="w-4 h-4" />
+                  Ver foto del ticket
+                </button>
+              )}
+            </div>
+
+            {/* ── METADATA ── */}
+            <div className="mt-4 lg:mt-3 2xl:mt-4 pt-3 lg:pt-2 2xl:pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              {/* Atendido por */}
+              <div className="mb-2 lg:mb-1.5 2xl:mb-2">
+                <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#64748B' }}>Atendido por:</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <RegistradorIcono className="w-4 h-4" style={{ color: '#94A3B8' }} />
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold" style={{ color: '#F1F5F9' }}>
+                    {t.registradoPor}
+                  </span>
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm px-1.5 py-0.5 rounded font-semibold" style={{ background: 'rgba(255,255,255,0.08)', color: '#94A3B8' }}>
+                    {registradorConfig.label}
+                  </span>
+                </div>
+              </div>
+
+              {/* Sucursal */}
+              <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
+                <MapPin className="w-4 h-4" style={{ color: '#64748B' }} />
+                <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>
+                  {t.registradoPorTipo === 'dueno' ? t.negocioNombre : t.sucursalNombre}
+                </span>
+              </div>
+
+              {/* Fecha completa */}
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" style={{ color: '#64748B' }} />
+                <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium capitalize" style={{ color: '#94A3B8' }}>
+                  {formatFechaLarga(t.createdAt)}
+                </span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </>
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // RENDER: Modal de foto
@@ -723,7 +1044,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
                 <TarjetaTransaccion
                   key={transaccion.id}
                   transaccion={transaccion}
-                  onVerFoto={handleVerFoto}
+                  onClick={() => setTransaccionDetalle(transaccion)}
                 />
               ))}
 

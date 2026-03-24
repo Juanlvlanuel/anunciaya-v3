@@ -23,7 +23,7 @@ import type {
   TransaccionPuntos,
   PeriodoEstadisticas,
 } from '../types/puntos';
-import type { KPIsTransacciones, KPIsCanjes, VoucherCanje } from '../types/transacciones';
+import type { KPIsTransacciones, KPIsCanjes, KPIsCupones, VoucherCanje } from '../types/transacciones';
 
 // =============================================================================
 // HISTORIAL DE TRANSACCIONES
@@ -46,7 +46,8 @@ export async function getHistorial(
   offset?: number,
   busqueda?: string,
   operadorId?: string,
-  estado?: string
+  estado?: string,
+  filtroCupon?: 'todos' | 'con_cupon' | 'sin_cupon'
 ) {
   const params = new URLSearchParams();
   if (periodo) params.set('periodo', periodo);
@@ -55,6 +56,7 @@ export async function getHistorial(
   if (busqueda) params.set('busqueda', busqueda);
   if (operadorId) params.set('operadorId', operadorId);
   if (estado) params.set('estado', estado);
+  if (filtroCupon) params.set('filtroCupon', filtroCupon);
   const query = params.toString() ? `?${params.toString()}` : '';
   return get<{ historial: TransaccionPuntos[], total: number }>(`/transacciones/historial${query}`);
 }
@@ -155,6 +157,19 @@ export async function descargarCSV(
 }
 
 // =============================================================================
+// TAB CUPONES - KPIs
+// =============================================================================
+
+/**
+ * Obtiene 4 KPIs: total cupones, gratis, con compra, total descuentos.
+ * GET /api/transacciones/cupones/kpis?periodo=semana
+ */
+export async function getKPIsCupones(periodo?: PeriodoEstadisticas) {
+  const params = periodo ? `?periodo=${periodo}` : '';
+  return get<KPIsCupones>(`/transacciones/cupones/kpis${params}`);
+}
+
+// =============================================================================
 // TAB CANJES - KPIs
 // =============================================================================
 
@@ -188,7 +203,8 @@ export async function getHistorialCanjes(
   limit?: number,
   offset?: number,
   estado?: string,
-  busqueda?: string
+  busqueda?: string,
+  operadorId?: string
 ) {
   const params = new URLSearchParams();
   if (periodo) params.set('periodo', periodo);
@@ -196,6 +212,7 @@ export async function getHistorialCanjes(
   if (offset !== undefined) params.set('offset', offset.toString());
   if (estado) params.set('estado', estado);
   if (busqueda) params.set('busqueda', busqueda);
+  if (operadorId) params.set('operadorId', operadorId);
   const query = params.toString() ? `?${params.toString()}` : '';
   return get<{ canjes: VoucherCanje[]; total: number }>(`/transacciones/canjes${query}`);
 }

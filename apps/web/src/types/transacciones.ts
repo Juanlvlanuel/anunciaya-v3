@@ -48,6 +48,20 @@ export interface KPIsCanjes {
 }
 
 // =============================================================================
+// KPIs CUPONES (Tab Cupones en Transacciones BS)
+// =============================================================================
+
+/**
+ * 4 KPIs retornados por GET /api/transacciones/cupones/kpis?periodo=semana
+ */
+export interface KPIsCupones {
+  totalCupones: number;
+  cuponesGratis: number;
+  cuponesConCompra: number;
+  totalDescuentos: number;
+}
+
+// =============================================================================
 // VOUCHER CANJE (Tabla + Modal Canjes en Transacciones BS)
 // =============================================================================
 

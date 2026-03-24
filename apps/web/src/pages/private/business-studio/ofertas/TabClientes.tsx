@@ -137,7 +137,7 @@ function DropdownFiltro<T extends string>({
                             className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${
                                 valor === op.valor
                                     ? 'bg-blue-100 text-blue-700'
-                                    : 'text-slate-600 hover:bg-slate-200'
+                                    : 'text-slate-600 hover:bg-blue-50'
                             }`}
                         >
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
@@ -294,7 +294,7 @@ export function TabClientes({
             <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3.5 py-2.5 lg:px-3 lg:py-2 2xl:px-3.5 2xl:py-2.5 bg-blue-50 border-2 border-blue-200 rounded-lg">
                 <Info className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600 shrink-0" />
                 <p className="text-sm lg:text-[11px] 2xl:text-sm text-blue-700 font-semibold">
-                    Cada cliente recibirá un código único al crear la oferta.
+                    Cada cliente recibirá un código único al crear el cupón.
                 </p>
             </div>
 

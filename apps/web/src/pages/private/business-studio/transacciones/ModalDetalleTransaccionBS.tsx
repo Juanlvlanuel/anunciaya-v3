@@ -32,6 +32,7 @@ import {
   Image,
   StickyNote,
   MapPin,
+  Ticket,
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { notificar } from '../../../../utils/notificaciones';
@@ -186,7 +187,11 @@ export default function ModalDetalleTransaccionBS({
 
   const tx = transaccion;
   const estado = tx.estado || 'confirmado';
-  const gradiente = GRADIENTES_ESTADO[estado] || GRADIENTES_ESTADO.confirmado;
+  const esCupon = !!tx.cuponTitulo;
+  // Cupones: header slate oscuro, Ventas: según estado
+  const gradiente = esCupon && estado === 'confirmado'
+    ? { bg: 'linear-gradient(135deg, #1e293b, #334155)', shadow: 'rgba(30,41,59,0.4)' }
+    : GRADIENTES_ESTADO[estado] || GRADIENTES_ESTADO.confirmado;
   const puedeRevocar = estado === 'confirmado';
 
   // ─── Handler revocar ───
@@ -305,6 +310,33 @@ export default function ModalDetalleTransaccionBS({
             etiqueta="Concepto"
             valor={tx.concepto}
           />
+        )}
+
+        {/* Cupón (si la transacción usó cupón) */}
+        {tx.cuponTitulo && (
+          <div className="py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
+            <div className="flex items-start gap-3">
+              {tx.cuponImagen ? (
+                <img src={tx.cuponImagen} alt="" className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg object-cover shrink-0 border-2 border-slate-300" />
+              ) : (
+                <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                  <Ticket className="w-4 h-4 text-blue-600" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Cupón aplicado</p>
+                <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 truncate">{tx.cuponTitulo}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                    {tx.montoCompra === 0 ? 'Gratis' : tx.cuponTipo === 'porcentaje' ? `${tx.cuponValor}% desc.` : tx.cuponTipo === 'monto_fijo' ? `$${tx.cuponValor} desc.` : tx.cuponTipo === '2x1' ? '2×1' : tx.cuponTipo === '3x2' ? '3×2' : tx.cuponTipo === 'envio_gratis' ? 'Envío gratis' : tx.cuponTipo || 'Cupón'}
+                  </span>
+                  {tx.cuponDescuento && tx.cuponDescuento > 0 && (
+                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">-{formatearMoneda(tx.cuponDescuento)}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Operador + Sucursal en una fila */}

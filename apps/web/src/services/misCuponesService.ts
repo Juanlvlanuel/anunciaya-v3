@@ -36,6 +36,8 @@ export interface CuponCliente {
   negocioLogo: string | null;
   sucursalId: string | null;
   sucursalNombre: string | null;
+  limiteUsosPorUsuario: number | null;
+  usosRealizados: number;
 }
 
 // =============================================================================

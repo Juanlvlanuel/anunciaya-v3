@@ -35,7 +35,7 @@ import type {
   TransaccionPuntos,
   PeriodoEstadisticas,
 } from '../types/puntos';
-import type { KPIsTransacciones, KPIsCanjes, VoucherCanje } from '../types/transacciones';
+import type { KPIsTransacciones, KPIsCanjes, KPIsCupones, VoucherCanje } from '../types/transacciones';
 
 // =============================================================================
 // CONSTANTES
@@ -49,11 +49,15 @@ const LIMIT_PAGINA = 20;
 
 interface TransaccionesState {
   // Tab activo
-  tabActivo: 'ventas' | 'canjes';
+  tabActivo: 'ventas' | 'cupones' | 'canjes';
 
   // KPIs Ventas
   kpis: KPIsTransacciones | null;
   cargandoKpis: boolean;
+
+  // KPIs Cupones
+  kpisCupones: KPIsCupones | null;
+  cargandoKpisCupones: boolean;
 
   // KPIs Canjes
   kpisCanjes: KPIsCanjes | null;
@@ -68,6 +72,12 @@ interface TransaccionesState {
   historial: TransaccionPuntos[];
   totalResultados: number;
 
+  // Datos Cupones
+  historialCupones: TransaccionPuntos[];
+  totalResultadosCupones: number;
+  offsetCupones: number;
+  hayMasCupones: boolean;
+
   // Datos Canjes
   historialCanjes: VoucherCanje[];
   totalResultadosCanjes: number;
@@ -77,14 +87,18 @@ interface TransaccionesState {
   // Estados de carga
   cargandoHistorial: boolean;
   cargandoMas: boolean;
+  cargandoHistorialCupones: boolean;
+  cargandoMasCupones: boolean;
   cargandoHistorialCanjes: boolean;
   cargandoMasCanjes: boolean;
 
   // Búsqueda
   busqueda: string;
 
-  // Filtro operador
+  // Filtro operador (independiente por tab)
   operadorId: string;
+  operadorIdCupones: string;
+  operadorIdCanjes: string;
   operadores: { id: string; nombre: string; tipo: string }[];
 
   // Filtro estado
@@ -96,6 +110,7 @@ interface TransaccionesState {
 
   // Carga inicial (solo la primera vez)
   cargaInicialCompleta: boolean;
+  cargaInicialCuponesCompleta: boolean;
   cargaInicialCanjesCompleta: boolean;
 
   // Error
@@ -103,10 +118,15 @@ interface TransaccionesState {
 
   // Acciones - KPIs
   cargarKPIs: () => Promise<void>;
+  cargarKPIsCupones: () => Promise<void>;
   cargarKPIsCanjes: () => Promise<void>;
 
   // Acciones - Tab
-  setTabActivo: (tab: 'ventas' | 'canjes') => void;
+  setTabActivo: (tab: 'ventas' | 'cupones' | 'canjes') => void;
+
+  // Acciones - Historial Cupones
+  cargarHistorialCupones: () => Promise<void>;
+  cargarMasCupones: () => Promise<void>;
 
   // Acciones - Historial
   setPeriodo: (periodo: PeriodoEstadisticas) => void;
@@ -139,6 +159,8 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   tabActivo: 'ventas',
   kpis: null,
   cargandoKpis: false,
+  kpisCupones: null,
+  cargandoKpisCupones: false,
   kpisCanjes: null,
   cargandoKpisCanjes: false,
   periodo: 'todo',
@@ -146,6 +168,15 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   hayMas: false,
   historial: [],
   totalResultados: 0,
+  // Cupones (reutiliza TransaccionPuntos con filtroCupon)
+  historialCupones: [] as TransaccionPuntos[],
+  totalResultadosCupones: 0,
+  offsetCupones: 0,
+  hayMasCupones: false,
+  cargandoHistorialCupones: false,
+  cargandoMasCupones: false,
+  cargaInicialCuponesCompleta: false,
+  // Canjes
   historialCanjes: [],
   totalResultadosCanjes: 0,
   offsetCanjes: 0,
@@ -158,6 +189,8 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   cargaInicialCanjesCompleta: false,
   busqueda: '',
   operadorId: '',
+  operadorIdCupones: '',
+  operadorIdCanjes: '',
   operadores: [],
   estadoFiltro: '',
   estadoFiltroCanjes: '',
@@ -186,6 +219,27 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   },
 
   // ---------------------------------------------------------------------------
+  // ACCION: Cargar KPIs Cupones
+  // ---------------------------------------------------------------------------
+  cargarKPIsCupones: async () => {
+    const { periodo, kpisCupones } = get();
+    const esCargaInicial = kpisCupones === null;
+
+    set({ cargandoKpisCupones: esCargaInicial, error: null });
+
+    try {
+      const respuesta = await transaccionesService.getKPIsCupones(periodo);
+      if (respuesta.success && respuesta.data) {
+        set({ kpisCupones: respuesta.data });
+      }
+    } catch (error) {
+      console.error('Error cargando KPIs cupones:', error);
+    } finally {
+      set({ cargandoKpisCupones: false });
+    }
+  },
+
+  // ---------------------------------------------------------------------------
   // ACCION: Cargar KPIs Canjes
   // ---------------------------------------------------------------------------
   cargarKPIsCanjes: async () => {
@@ -209,10 +263,16 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   // ---------------------------------------------------------------------------
   // ACCION: Cambiar tab activo
   // ---------------------------------------------------------------------------
-  setTabActivo: (tab: 'ventas' | 'canjes') => {
+  setTabActivo: (tab: 'ventas' | 'cupones' | 'canjes') => {
     set({ tabActivo: tab });
     // Cargar datos del tab si es la primera vez
-    if (tab === 'canjes') {
+    if (tab === 'cupones') {
+      const { cargaInicialCuponesCompleta } = get();
+      if (!cargaInicialCuponesCompleta) {
+        get().cargarHistorialCupones();
+        get().cargarKPIsCupones();
+      }
+    } else if (tab === 'canjes') {
       const { cargaInicialCanjesCompleta } = get();
       if (!cargaInicialCanjesCompleta) {
         get().cargarHistorialCanjes();
@@ -227,11 +287,14 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   setPeriodo: (periodo: PeriodoEstadisticas) => {
     const { tabActivo } = get();
     // NO vaciar historial aquí para evitar "temblor" en la UI
-    set({ periodo, offset: 0, hayMas: false, offsetCanjes: 0, hayMasCanjes: false });
-    
+    set({ periodo, offset: 0, hayMas: false, offsetCupones: 0, hayMasCupones: false, offsetCanjes: 0, hayMasCanjes: false });
+
     if (tabActivo === 'ventas') {
       get().cargarHistorial();
       get().cargarKPIs();
+    } else if (tabActivo === 'cupones') {
+      get().cargarHistorialCupones();
+      get().cargarKPIsCupones();
     } else {
       get().cargarHistorialCanjes();
       get().cargarKPIsCanjes();
@@ -242,26 +305,37 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   // ACCIÓN: Cambiar búsqueda (resetea paginación y recarga)
   // ---------------------------------------------------------------------------
   setBusqueda: (busqueda: string) => {
-    // NO vaciar historial aquí para evitar "temblor" en la UI
-    // El historial se reemplaza cuando llegan los nuevos datos
-    set({ busqueda, offset: 0, hayMas: false });
-    get().cargarHistorial();
+    const { tabActivo } = get();
+    set({ busqueda, offset: 0, hayMas: false, offsetCupones: 0, hayMasCupones: false });
+    if (tabActivo === 'cupones') get().cargarHistorialCupones();
+    else get().cargarHistorial();
   },
 
   // ---------------------------------------------------------------------------
   // ACCIÓN: Cambiar operador (resetea paginación y recarga)
   // ---------------------------------------------------------------------------
   setOperadorId: (operadorId: string) => {
-    set({ operadorId, offset: 0, hayMas: false });
-    get().cargarHistorial();
+    const { tabActivo } = get();
+    if (tabActivo === 'ventas') {
+      set({ operadorId, offset: 0, hayMas: false });
+      get().cargarHistorial();
+    } else if (tabActivo === 'cupones') {
+      set({ operadorIdCupones: operadorId, offsetCupones: 0, hayMasCupones: false });
+      get().cargarHistorialCupones();
+    } else {
+      set({ operadorIdCanjes: operadorId, offsetCanjes: 0, hayMasCanjes: false });
+      get().cargarHistorialCanjes();
+    }
   },
 
   // ---------------------------------------------------------------------------
   // ACCIÓN: Cambiar estado filtro (resetea paginación y recarga)
   // ---------------------------------------------------------------------------
   setEstadoFiltro: (estadoFiltro: string) => {
-    set({ estadoFiltro, offset: 0, hayMas: false });
-    get().cargarHistorial();
+    const { tabActivo } = get();
+    set({ estadoFiltro, offset: 0, hayMas: false, offsetCupones: 0, hayMasCupones: false });
+    if (tabActivo === 'cupones') get().cargarHistorialCupones();
+    else get().cargarHistorial();
   },
 
   // ---------------------------------------------------------------------------
@@ -293,7 +367,7 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
     set({ cargandoHistorial: esCargaInicial, error: null });
 
     try {
-      const respuesta = await transaccionesService.getHistorial(periodo, LIMIT_PAGINA, 0, busqueda || undefined, operadorId || undefined, estadoFiltro || undefined);
+      const respuesta = await transaccionesService.getHistorial(periodo, LIMIT_PAGINA, 0, busqueda || undefined, operadorId || undefined, estadoFiltro || undefined, 'sin_cupon');
       if (respuesta.success && respuesta.data) {
         const { historial: datos, total } = respuesta.data;
         set({
@@ -324,7 +398,7 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
     set({ cargandoMas: true });
 
     try {
-      const respuesta = await transaccionesService.getHistorial(periodo, LIMIT_PAGINA, offset, busqueda || undefined, operadorId || undefined, estadoFiltro || undefined);
+      const respuesta = await transaccionesService.getHistorial(periodo, LIMIT_PAGINA, offset, busqueda || undefined, operadorId || undefined, estadoFiltro || undefined, 'sin_cupon');
       if (respuesta.success && respuesta.data) {
         const { historial: datos } = respuesta.data;
         set((state) => ({
@@ -376,6 +450,62 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   },
 
   // ---------------------------------------------------------------------------
+  // ACCION: Cargar historial cupones (primera página)
+  // ---------------------------------------------------------------------------
+  cargarHistorialCupones: async () => {
+    const { periodo, busqueda, operadorIdCupones, estadoFiltro, cargandoHistorialCupones, cargaInicialCuponesCompleta } = get();
+    if (cargandoHistorialCupones) return;
+    const esCargaInicial = !cargaInicialCuponesCompleta;
+
+    set({ cargandoHistorialCupones: esCargaInicial, error: null });
+
+    try {
+      const respuesta = await transaccionesService.getHistorial(periodo, LIMIT_PAGINA, 0, busqueda || undefined, operadorIdCupones || undefined, estadoFiltro || undefined, 'con_cupon');
+      if (respuesta.success && respuesta.data) {
+        const { historial: datos, total } = respuesta.data;
+        set({
+          historialCupones: datos,
+          totalResultadosCupones: total,
+          offsetCupones: datos.length,
+          hayMasCupones: datos.length === LIMIT_PAGINA,
+          cargaInicialCuponesCompleta: true,
+        });
+      }
+    } catch (error) {
+      console.error('Error cargando historial cupones:', error);
+      set({ error: 'Error al cargar historial de cupones' });
+    } finally {
+      set({ cargandoHistorialCupones: false });
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // ACCION: Cargar más cupones (siguiente página)
+  // ---------------------------------------------------------------------------
+  cargarMasCupones: async () => {
+    const { periodo, busqueda, operadorIdCupones, estadoFiltro, offsetCupones, hayMasCupones, cargandoMasCupones } = get();
+    if (!hayMasCupones || cargandoMasCupones) return;
+
+    set({ cargandoMasCupones: true });
+
+    try {
+      const respuesta = await transaccionesService.getHistorial(periodo, LIMIT_PAGINA, offsetCupones, busqueda || undefined, operadorIdCupones || undefined, estadoFiltro || undefined, 'con_cupon');
+      if (respuesta.success && respuesta.data) {
+        const { historial: datos } = respuesta.data;
+        set((state) => ({
+          historialCupones: [...state.historialCupones, ...datos],
+          offsetCupones: state.offsetCupones + datos.length,
+          hayMasCupones: datos.length === LIMIT_PAGINA,
+        }));
+      }
+    } catch (error) {
+      console.error('Error cargando más cupones:', error);
+    } finally {
+      set({ cargandoMasCupones: false });
+    }
+  },
+
+  // ---------------------------------------------------------------------------
   // ACCION: Cambiar estado filtro canjes (resetea paginacion y recarga)
   // ---------------------------------------------------------------------------
   setEstadoFiltroCanjes: (estadoFiltroCanjes: string) => {
@@ -395,11 +525,11 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   // ACCION: Cargar historial canjes (primera pagina o recarga completa)
   // ---------------------------------------------------------------------------
   cargarHistorialCanjes: async () => {
-    const { periodo, estadoFiltroCanjes, busquedaCanjes, cargandoHistorialCanjes, cargaInicialCanjesCompleta } = get();
-    
+    const { periodo, estadoFiltroCanjes, busquedaCanjes, operadorIdCanjes, cargandoHistorialCanjes, cargaInicialCanjesCompleta } = get();
+
     // Evitar peticiones duplicadas
     if (cargandoHistorialCanjes) return;
-    
+
     // Solo mostrar spinner en la primera carga absoluta
     const esCargaInicial = !cargaInicialCanjesCompleta;
 
@@ -411,7 +541,8 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
         LIMIT_PAGINA,
         0,
         estadoFiltroCanjes || undefined,
-        busquedaCanjes || undefined
+        busquedaCanjes || undefined,
+        operadorIdCanjes || undefined
       );
       if (respuesta.success && respuesta.data) {
         const { canjes, total } = respuesta.data;
@@ -435,7 +566,7 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
   // ACCION: Cargar mas canjes (siguiente pagina, append al array)
   // ---------------------------------------------------------------------------
   cargarMasCanjes: async () => {
-    const { periodo, estadoFiltroCanjes, busquedaCanjes, offsetCanjes, hayMasCanjes, cargandoMasCanjes } = get();
+    const { periodo, estadoFiltroCanjes, busquedaCanjes, operadorIdCanjes, offsetCanjes, hayMasCanjes, cargandoMasCanjes } = get();
 
     // Evitar peticiones duplicadas o si no hay mas datos
     if (!hayMasCanjes || cargandoMasCanjes) return;
@@ -448,7 +579,8 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
         LIMIT_PAGINA,
         offsetCanjes,
         estadoFiltroCanjes || undefined,
-        busquedaCanjes || undefined
+        busquedaCanjes || undefined,
+        operadorIdCanjes || undefined
       );
       if (respuesta.success && respuesta.data) {
         const { canjes } = respuesta.data;
@@ -473,6 +605,8 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
       tabActivo: 'ventas',
       kpis: null,
       cargandoKpis: false,
+      kpisCupones: null,
+      cargandoKpisCupones: false,
       kpisCanjes: null,
       cargandoKpisCanjes: false,
       periodo: 'todo',
@@ -480,6 +614,13 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
       hayMas: false,
       historial: [],
       totalResultados: 0,
+      historialCupones: [],
+      totalResultadosCupones: 0,
+      offsetCupones: 0,
+      hayMasCupones: false,
+      cargandoHistorialCupones: false,
+      cargandoMasCupones: false,
+      cargaInicialCuponesCompleta: false,
       historialCanjes: [],
       totalResultadosCanjes: 0,
       offsetCanjes: 0,
@@ -492,6 +633,8 @@ export const useTransaccionesStore = create<TransaccionesState>((set, get) => ({
       cargaInicialCanjesCompleta: false,
       busqueda: '',
       operadorId: '',
+      operadorIdCupones: '',
+      operadorIdCanjes: '',
       estadoFiltro: '',
       estadoFiltroCanjes: '',
       busquedaCanjes: '',

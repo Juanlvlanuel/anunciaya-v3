@@ -1688,9 +1688,11 @@ export async function otorgarPuntos(
             const [oferta] = await db
                 .select({
                     id: ofertas.id,
+                    titulo: ofertas.titulo,
                     tipo: ofertas.tipo,
                     valor: ofertas.valor,
                     usosActuales: ofertas.usosActuales,
+                    limiteUsosPorUsuario: ofertas.limiteUsosPorUsuario,
                 })
                 .from(ofertas)
                 .where(eq(ofertas.id, datos.cuponId))
@@ -1724,7 +1726,7 @@ export async function otorgarPuntos(
                 }).returning({ id: ofertaUsos.id });
 
                 cuponUsadoInfo = {
-                    codigo: '',
+                    codigo: oferta.titulo || 'Cupón',
                     descuento: descuentoAplicado,
                     usoId: Number(ofertaUsoCreado.id),
                 };
@@ -1735,12 +1737,45 @@ export async function otorgarPuntos(
                     .set({ usosActuales: (oferta.usosActuales ?? 0) + 1 })
                     .where(eq(ofertas.id, oferta.id));
 
-                // Marcar oferta_usuarios como 'usado'
+                // Marcar oferta_usuarios como 'usado' solo si alcanzó el límite por persona
                 if (datos.cuponOfertaUsuarioId) {
-                    await db
-                        .update(ofertaUsuarios)
-                        .set({ estado: 'usado', usadoAt: new Date().toISOString() })
-                        .where(eq(ofertaUsuarios.id, BigInt(datos.cuponOfertaUsuarioId)));
+                    const limitePersona = oferta.limiteUsosPorUsuario ?? null;
+
+                    if (limitePersona) {
+                        // Contar cuántos usos ya tiene este usuario (incluyendo el que acabamos de crear)
+                        const [{ count: usosUsuario }] = await db
+                            .select({ count: sql<number>`count(*)::int` })
+                            .from(ofertaUsos)
+                            .where(and(
+                                eq(ofertaUsos.ofertaId, oferta.id),
+                                eq(ofertaUsos.usuarioId, datos.clienteId),
+                            ));
+
+                        if (usosUsuario >= limitePersona) {
+                            // Alcanzó el límite → marcar como usado
+                            await db
+                                .update(ofertaUsuarios)
+                                .set({ estado: 'usado', usadoAt: new Date().toISOString() })
+                                .where(eq(ofertaUsuarios.id, BigInt(datos.cuponOfertaUsuarioId)));
+                        } else {
+                            // Aún tiene usos restantes → rotar código para seguridad
+                            const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                            let nuevoCodigo = 'ANUN-';
+                            for (let i = 0; i < 6; i++) {
+                                nuevoCodigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+                            }
+                            await db
+                                .update(ofertaUsuarios)
+                                .set({ codigoPersonal: nuevoCodigo })
+                                .where(eq(ofertaUsuarios.id, BigInt(datos.cuponOfertaUsuarioId)));
+                        }
+                    } else {
+                        // Sin límite por persona → marcar usado al primer uso
+                        await db
+                            .update(ofertaUsuarios)
+                            .set({ estado: 'usado', usadoAt: new Date().toISOString() })
+                            .where(eq(ofertaUsuarios.id, BigInt(datos.cuponOfertaUsuarioId)));
+                    }
                 }
             }
         }
@@ -1925,17 +1960,29 @@ export async function otorgarPuntos(
             .where(eq(negocios.id, payload.negocioId))
             .limit(1);
 
+        // Determinar tipo de transacción para mensajes
+        const esCuponGratis = !!datos.cuponId && datos.montoTotal === 0;
+        const esVentaConCupon = !!datos.cuponId && datos.montoTotal > 0;
+
         crearNotificacion({
             usuarioId: datos.clienteId,
             modo: 'personal',
             tipo: 'puntos_ganados',
-            titulo: `+${puntosFinales} puntos`,
-            mensaje: `Compraste en\n${negocioInfo?.nombre ?? 'un negocio'}`,
+            titulo: esCuponGratis
+                ? '¡Cupón canjeado!'
+                : esVentaConCupon
+                    ? `+${puntosFinales} puntos con cupón`
+                    : `+${puntosFinales} puntos`,
+            mensaje: esCuponGratis
+                ? `${cuponUsadoInfo?.codigo || 'Cupón'}\n${negocioInfo?.nombre ?? 'un negocio'}`
+                : esVentaConCupon
+                    ? `${cuponUsadoInfo?.codigo || 'Cupón'}\n${negocioInfo?.nombre ?? 'un negocio'}`
+                    : `Compraste en\n${negocioInfo?.nombre ?? 'un negocio'}`,
             negocioId: payload.negocioId,
             sucursalId: payload.sucursalId,
             referenciaId: transaccion.id,
             referenciaTipo: 'transaccion',
-            icono: '🎯',
+            icono: esCuponGratis ? '🎟️' : esVentaConCupon ? '🎟️' : '🎯',
             actorImagenUrl: negocioInfo?.logoUrl ?? undefined,
             actorNombre: negocioInfo?.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación puntos:', err));
@@ -1948,19 +1995,29 @@ export async function otorgarPuntos(
             .limit(1);
 
         if (negocioDueno) {
+            const nombreCliente = `${cliente.nombre} ${cliente.apellidos || ''}`.trim();
+
             crearNotificacion({
                 usuarioId: negocioDueno.usuarioId,
                 modo: 'comercial',
                 tipo: 'puntos_ganados',
-                titulo: `Venta: $${montoFinal.toFixed(2)}`,
-                mensaje: `${cliente.nombre} ${cliente.apellidos || ''} ganó ${puntosFinales} puntos`.trim(),
+                titulo: esCuponGratis
+                    ? 'Cupón canjeado'
+                    : esVentaConCupon
+                        ? `Venta con cupón: $${montoFinal.toFixed(2)}`
+                        : `Venta: $${montoFinal.toFixed(2)}`,
+                mensaje: esCuponGratis
+                    ? `${nombreCliente}\n${cuponUsadoInfo?.codigo || 'Cupón'}`
+                    : esVentaConCupon
+                        ? `${nombreCliente}\n${cuponUsadoInfo?.codigo || 'Cupón'} • ${puntosFinales} pts`
+                        : `${nombreCliente} ganó ${puntosFinales} puntos`,
                 negocioId: payload.negocioId,
                 sucursalId: payload.sucursalId,
                 referenciaId: transaccion.id,
                 referenciaTipo: 'transaccion',
-                icono: '🎯',
+                icono: esCuponGratis ? '🎟️' : esVentaConCupon ? '🎟️' : '🎯',
                 actorImagenUrl: cliente.avatarUrl ?? undefined,
-                actorNombre: `${cliente.nombre} ${cliente.apellidos || ''}`.trim(),
+                actorNombre: nombreCliente,
             }).catch((err) => console.error('Error notificación dueño:', err));
         }
 
@@ -1975,9 +2032,11 @@ export async function otorgarPuntos(
         // -------------------------------------------------------------------------
         return {
             success: true,
-            message: subioDeNivel
-                ? `¡${puntosFinales} puntos otorgados! El cliente subió a nivel ${nuevoNivel}`
-                : `${puntosFinales} puntos otorgados`,
+            message: esCuponGratis
+                ? 'Cupón canjeado exitosamente'
+                : subioDeNivel
+                    ? `¡${puntosFinales} puntos otorgados! El cliente subió a nivel ${nuevoNivel}`
+                    : `${puntosFinales} puntos otorgados`,
             data: {
                 transaccion: {
                     id: transaccion.id,
@@ -2281,13 +2340,14 @@ export async function obtenerHistorial(
         }
 
         // Obtener datos de ofertas usadas (antes cupones)
-        const cuponesMap = new Map<number, { codigo: string; descuento: number }>();
+        const cuponesMap = new Map<number, { codigo: string; descuento: number; imagen: string | null }>();
         if (cuponUsoIds.length > 0) {
             const ofertasUsadas = await db
                 .select({
                     usoId: ofertaUsos.id,
                     codigo: ofertas.titulo,
                     descuento: ofertaUsos.descuentoAplicado,
+                    imagen: ofertas.imagen,
                 })
                 .from(ofertaUsos)
                 .innerJoin(ofertas, eq(ofertaUsos.ofertaId, ofertas.id))
@@ -2297,6 +2357,7 @@ export async function obtenerHistorial(
                 cuponesMap.set(Number(c.usoId), {
                     codigo: c.codigo || '',
                     descuento: c.descuento ? parseFloat(c.descuento) : 0,
+                    imagen: c.imagen || null,
                 });
             });
         }
@@ -2380,6 +2441,7 @@ export async function obtenerHistorial(
                 // Cupón
                 cuponCodigo: cuponInfo?.codigo || null,
                 cuponDescuento: cuponInfo?.descuento || null,
+                cuponImagen: cuponInfo?.imagen || null,
                 // Fecha
                 createdAt: t.createdAt || '',
                 // ID del cliente (para ChatYA)

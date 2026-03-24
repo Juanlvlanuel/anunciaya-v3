@@ -57,13 +57,14 @@ interface TabOfertaProps {
     };
     onAbrirImagen: (url: string) => void;
     botonesDesktop?: React.ReactNode;
+    esCupon?: boolean;
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export function TabOferta({ formulario, setFormulario, errores, guardando, imagen, onAbrirImagen, botonesDesktop }: TabOfertaProps) {
+export function TabOferta({ formulario, setFormulario, errores, guardando, imagen, onAbrirImagen, botonesDesktop, esCupon }: TabOfertaProps) {
     const mostrarValor = formulario.tipo === 'porcentaje' || formulario.tipo === 'monto_fijo' || formulario.tipo === 'otro';
 
     const handleImagenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,37 +97,39 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
         </div>
     );
 
-    const renderTipoOferta = () => (
-        <div>
-            <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-2">Tipo de oferta <span className="text-red-500">*</span></span>
-            <div className="grid grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2">
-                {([
-                    { tipo: '2x1' as const, label: '2x1', icono: Gift, color: 'orange' },
-                    { tipo: '3x2' as const, label: '3x2', icono: Gift, color: 'orange' },
-                    { tipo: 'envio_gratis' as const, label: 'Envío', icono: Truck, color: 'blue' },
-                    { tipo: 'porcentaje' as const, label: 'Desc. %', icono: null, color: 'red' },
-                    { tipo: 'monto_fijo' as const, label: 'Monto $', icono: null, color: 'green' },
-                    { tipo: 'otro' as const, label: 'Otro', icono: Tag, color: 'slate' },
-                ] as const).map(({ tipo, label, icono: Icono, color }) => (
-                    <button
-                        key={tipo}
-                        type="button"
-                        data-testid={`btn-tipo-${tipo}`}
-                        onClick={() => setFormulario(prev => ({ ...prev, tipo, valor: tipo === prev.tipo ? prev.valor : '' }))}
-                        disabled={guardando}
-                        className={`flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-1.5 px-2 py-2 lg:px-1.5 2xl:px-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer whitespace-nowrap ${
-                            formulario.tipo === tipo
-                                ? `bg-${color}-500 text-white border-${color}-500 shadow-md`
-                                : `bg-white text-slate-700 border-slate-300 hover:border-${color}-400 hover:bg-${color}-50`
-                        }`}
-                    >
-                        {Icono && <Icono className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />}
-                        {label}
-                    </button>
-                ))}
+    const renderTipoOferta = () => {
+        const tiposConfig: Array<{ tipo: TipoOferta; label: string; icono: typeof Gift | null; activo: string; inactivo: string }> = [
+            { tipo: '2x1',          label: '2x1',     icono: Gift, activo: 'bg-orange-500 text-white border-orange-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-orange-400 hover:bg-orange-50' },
+            { tipo: '3x2',          label: '3x2',     icono: Gift, activo: 'bg-orange-500 text-white border-orange-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-orange-400 hover:bg-orange-50' },
+            { tipo: 'envio_gratis', label: 'Envío',   icono: Truck, activo: 'bg-blue-500 text-white border-blue-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-blue-400 hover:bg-blue-50' },
+            { tipo: 'porcentaje',   label: 'Desc. %', icono: null, activo: 'bg-red-500 text-white border-red-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-red-400 hover:bg-red-50' },
+            { tipo: 'monto_fijo',   label: 'Monto $', icono: null, activo: 'bg-green-500 text-white border-green-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-green-400 hover:bg-green-50' },
+            { tipo: 'otro',         label: 'Otro',    icono: Tag, activo: 'bg-slate-500 text-white border-slate-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-slate-400 hover:bg-slate-50' },
+        ];
+
+        return (
+            <div>
+                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-2">Tipo de {esCupon ? 'cupón' : 'oferta'} <span className="text-red-500">*</span></span>
+                <div className="grid grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2">
+                    {tiposConfig.map(({ tipo, label, icono: Icono, activo, inactivo }) => (
+                        <button
+                            key={tipo}
+                            type="button"
+                            data-testid={`btn-tipo-${tipo}`}
+                            onClick={() => setFormulario(prev => ({ ...prev, tipo, valor: tipo === prev.tipo ? prev.valor : '' }))}
+                            disabled={guardando}
+                            className={`flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-1.5 px-2 py-2 lg:px-1.5 2xl:px-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer whitespace-nowrap ${
+                                formulario.tipo === tipo ? activo : inactivo
+                            }`}
+                        >
+                            {Icono && <Icono className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />}
+                            {label}
+                        </button>
+                    ))}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const renderValorCompraMinima = (sufijo = '') => (
         <div className="grid grid-cols-2 gap-2 lg:gap-1.5 2xl:gap-2 items-end">

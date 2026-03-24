@@ -46,8 +46,11 @@ import {
 } from 'lucide-react';
 import scanyaService from '@/services/scanyaService';
 import { useScanYAStore } from '@/stores/useScanYAStore';
+import { useChatYAStore } from '@/stores/useChatYAStore';
+import { useUiStore } from '@/stores/useUiStore';
 import { TarjetaVoucher } from './TarjetaVoucher';
 import type { VoucherCompleto, ClienteConVouchers } from '@/types/scanya';
+import { Phone, MapPin, Coins, Calendar } from 'lucide-react';
 
 // =============================================================================
 // TIPOS
@@ -346,6 +349,9 @@ export function ModalVouchers({
     const [yaCargo, setYaCargo] = useState(false);
     const [refreshGirando, setRefreshGirando] = useState(false);
 
+    // Detalle de voucher
+    const [voucherDetalle, setVoucherDetalle] = useState<VoucherCompleto | null>(null);
+
     // Refs para detectar cambios
     const prevFiltroSucursal = useRef(filtroSucursalId);
     const prevFiltroOperador = useRef(filtroOperadorId);
@@ -580,6 +586,207 @@ export function ModalVouchers({
     const totalMostrar = clienteBuscado ? clienteBuscado.vouchers.length : total;
 
     if (!abierto) return null;
+
+    // ---------------------------------------------------------------------------
+    // RENDER: Detalle de voucher
+    // ---------------------------------------------------------------------------
+    if (voucherDetalle) {
+        const v = voucherDetalle;
+        const formatTel = (tel: string) => {
+            if (tel.startsWith('+52') && tel.length === 13) return `+52 ${tel.slice(3, 6)} ${tel.slice(6, 9)} ${tel.slice(9)}`;
+            const l = tel.replace(/\D/g, '');
+            if (l.length === 10) return `+52 ${l.slice(0, 3)} ${l.slice(3, 6)} ${l.slice(6)}`;
+            return tel;
+        };
+        const formatFechaLarga = (f: string) => {
+            const d = new Date(f);
+            return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) +
+                ', ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+        };
+        const formatFechaCorta = (f: string) => {
+            const d = new Date(f);
+            return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) +
+                ', ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+        };
+
+        const iniciales = (() => {
+            const p = v.usuarioNombre.trim().split(/\s+/);
+            return p.length >= 2 ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase() : v.usuarioNombre.slice(0, 2).toUpperCase();
+        })();
+
+        const estadoConfig = (() => {
+            switch (v.estado) {
+                case 'usado': return { label: 'Canjeado', color: '#34D399', icon: CheckCircle };
+                case 'vencido': return { label: 'Vencido', color: '#EF4444', icon: XCircle };
+                case 'cancelado': return { label: 'Cancelado', color: '#64748B', icon: Ban };
+                default: return { label: 'Pendiente', color: '#F59E0B', icon: Clock };
+            }
+        })();
+        const EstadoIcono = estadoConfig.icon;
+
+        const abrirChatTemporal = useChatYAStore.getState().abrirChatTemporal;
+        const abrirChatYA = useUiStore.getState().abrirChatYA;
+
+        const handleContactar = () => {
+            if (!v.usuarioId) return;
+            abrirChatTemporal({
+                id: `temp_${Date.now()}`,
+                otroParticipante: { id: v.usuarioId, nombre: v.usuarioNombre, apellidos: '', avatarUrl: v.usuarioAvatarUrl ?? null },
+                datosCreacion: { participante2Id: v.usuarioId, participante2Modo: 'personal', contextoTipo: 'directo' },
+            });
+            abrirChatYA();
+            setVoucherDetalle(null);
+            onClose();
+        };
+
+        const ROW = 'flex items-center justify-between py-2.5 lg:py-2 2xl:py-2.5';
+        const LABEL = 'text-sm lg:text-[11px] 2xl:text-sm font-medium';
+        const VALUE = 'text-sm lg:text-[11px] 2xl:text-sm font-bold';
+
+        return (
+            <>
+                <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setVoucherDetalle(null)} />
+                <div
+                    className="fixed z-50 inset-x-0 bottom-0 h-[85vh] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px] flex flex-col rounded-t-3xl lg:rounded-none overflow-hidden"
+                    style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #001020 100%)', boxShadow: '-4px 0 30px rgba(0,0,0,0.5)' }}
+                >
+                    {/* Header */}
+                    <header className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10 shrink-0">
+                        <button onClick={() => setVoucherDetalle(null)} className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer">
+                            <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                        </button>
+                        <h2 className="text-base lg:text-sm 2xl:text-base font-bold text-white flex-1">Detalle de voucher</h2>
+                        <button onClick={() => setVoucherDetalle(null)} className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer">
+                            <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                        </button>
+                    </header>
+
+                    {/* Contenido */}
+                    <div className="flex-1 overflow-y-auto px-4 lg:px-3 2xl:px-4 py-4 lg:py-3 2xl:py-4">
+
+                        {/* ── CLIENTE ── */}
+                        <div className="flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
+                            {v.usuarioAvatarUrl ? (
+                                <img src={v.usuarioAvatarUrl} alt="" className="w-14 h-14 lg:w-11 lg:h-11 2xl:w-14 2xl:h-14 rounded-full object-cover shrink-0" />
+                            ) : (
+                                <div className="w-14 h-14 lg:w-11 lg:h-11 2xl:w-14 2xl:h-14 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(96,165,250,0.2)' }}>
+                                    <span className="text-xl lg:text-base 2xl:text-xl font-bold" style={{ color: '#60A5FA' }}>{iniciales}</span>
+                                </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <p className="text-lg lg:text-base 2xl:text-lg font-bold truncate" style={{ color: '#F1F5F9' }}>
+                                    {v.usuarioNombre}
+                                </p>
+                                {v.usuarioTelefono && (
+                                    <div className="flex items-center gap-1.5">
+                                        <Phone className="w-3.5 h-3.5" style={{ color: '#64748B' }} />
+                                        <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>{formatTel(v.usuarioTelefono)}</span>
+                                    </div>
+                                )}
+                                {/* Badge estado */}
+                                <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full w-fit" style={{ background: `${estadoConfig.color}20` }}>
+                                    <EstadoIcono className="w-3 h-3" style={{ color: estadoConfig.color }} />
+                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold" style={{ color: estadoConfig.color }}>{estadoConfig.label}</span>
+                                </div>
+                            </div>
+                            {/* Logo ChatYA */}
+                            {v.usuarioId && (
+                                <button onClick={handleContactar} className="shrink-0 cursor-pointer hover:opacity-80">
+                                    <img src="/logo-ChatYA-blanco.webp" alt="ChatYA" className="w-auto h-14 lg:h-11 2xl:h-14" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* ── RECOMPENSA ── */}
+                        <div className="mt-4 lg:mt-3 2xl:mt-4 rounded-xl lg:rounded-lg 2xl:rounded-xl p-3 lg:p-2.5 2xl:p-3" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <div className="flex items-center gap-2 mb-2">
+                                <Gift className="w-5 h-5" style={{ color: '#60A5FA' }} />
+                                <span className="text-base lg:text-sm 2xl:text-base font-bold" style={{ color: '#F1F5F9' }}>{v.recompensaNombre}</span>
+                            </div>
+                            {v.recompensaDescripcion && (
+                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium mb-3 lg:mb-2 2xl:mb-3" style={{ color: '#94A3B8' }}>{v.recompensaDescripcion}</p>
+                            )}
+
+                            {/* Puntos */}
+                            <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                <div className="flex items-center gap-1.5">
+                                    <Coins className="w-4 h-4" style={{ color: '#60A5FA' }} />
+                                    <span className={LABEL} style={{ color: '#94A3B8' }}>Puntos canjeados</span>
+                                </div>
+                                <span className={VALUE} style={{ color: '#60A5FA' }}>{v.puntosUsados.toLocaleString()} pts</span>
+                            </div>
+                        </div>
+
+                        {/* ── FECHAS ── */}
+                        <div className="mt-3 lg:mt-2 2xl:mt-3 space-y-1">
+                            {/* Expiración */}
+                            <div className={ROW}>
+                                <div className="flex items-center gap-1.5">
+                                    <Calendar className="w-4 h-4" style={{ color: '#64748B' }} />
+                                    <span className={LABEL} style={{ color: '#94A3B8' }}>
+                                        {v.estado === 'vencido' ? 'Expiró' : 'Expira'}
+                                    </span>
+                                </div>
+                                <span className={VALUE} style={{ color: '#F1F5F9' }}>
+                                    {new Date(v.expiraAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                </span>
+                            </div>
+
+                            {/* Fecha de canje (si fue usado) */}
+                            {v.estado === 'usado' && v.usadoAt && (
+                                <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                    <div className="flex items-center gap-1.5">
+                                        <CheckCircle className="w-4 h-4" style={{ color: '#34D399' }} />
+                                        <span className={LABEL} style={{ color: '#94A3B8' }}>Canjeado</span>
+                                    </div>
+                                    <span className={VALUE} style={{ color: '#F1F5F9' }}>{formatFechaCorta(v.usadoAt)}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── METADATA ── */}
+                        {(v.usadoPorEmpleadoNombre || v.sucursalNombre) && (
+                            <div className="mt-4 lg:mt-3 2xl:mt-4 pt-3 lg:pt-2 2xl:pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                                {/* Atendido por */}
+                                {v.estado === 'usado' && v.usadoPorEmpleadoNombre && (
+                                    <div className="mb-2 lg:mb-1.5 2xl:mb-2">
+                                        <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#64748B' }}>Atendido por:</span>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <User className="w-4 h-4" style={{ color: '#94A3B8' }} />
+                                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold" style={{ color: '#F1F5F9' }}>{v.usadoPorEmpleadoNombre}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Sucursal */}
+                                <div className="flex items-center gap-2">
+                                    <MapPin className="w-4 h-4" style={{ color: '#64748B' }} />
+                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>{v.sucursalNombre}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── BOTÓN CANJEAR (si pendiente) ── */}
+                        {v.estado === 'pendiente' && (
+                            <button
+                                onClick={() => {
+                                    setVoucherDetalle(null);
+                                    handleCanjearClick(v);
+                                }}
+                                className="w-full mt-4 lg:mt-3 2xl:mt-4 py-3 lg:py-2.5 2xl:py-3 rounded-xl lg:rounded-lg 2xl:rounded-xl flex items-center justify-center gap-2 font-bold text-base lg:text-sm 2xl:text-base text-white cursor-pointer"
+                                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg, #334155, #475569)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg, #1e293b, #334155)'; }}
+                            >
+                                <CheckCircle className="w-5 h-5" />
+                                Canjear Voucher
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </>
+        );
+    }
 
     // ---------------------------------------------------------------------------
     // Render
@@ -905,13 +1112,9 @@ export function ModalVouchers({
                                     key={voucher.id}
                                     voucher={voucher}
                                     onValidar={handleCanjearClick}
+                                    onClick={() => setVoucherDetalle(voucher)}
                                     mostrarBotonValidar={voucher.estado === 'pendiente'}
-                                    mostrarSucursal={!clienteBuscado}
                                     mostrarEstado={!clienteBuscado}
-                                    mostrarEmpleadoQueCanjeo={
-                                        voucher.estado === 'usado' &&
-                                        (usuario?.tipo === 'dueno' || usuario?.tipo === 'gerente')
-                                    }
                                 />
                             ))}
                         </div>
