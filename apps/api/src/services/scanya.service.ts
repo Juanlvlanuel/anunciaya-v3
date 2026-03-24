@@ -1315,8 +1315,9 @@ export async function validarCupon(
     payload: PayloadTokenScanYA,
     datos: ValidarCuponInput
 ): Promise<RespuestaServicio<{
-    cupon: {
+    oferta: {
         id: string;
+        ofertaUsuarioId: string;
         codigo: string;
         titulo: string;
         tipo: string;
@@ -1331,7 +1332,7 @@ export async function validarCupon(
         // Paso 1: Buscar código personal en oferta_usuarios
         // -------------------------------------------------------------------------
         const resultadoBusqueda = await db.execute(sql`
-            SELECT o.*, ou.usuario_id as asignado_a, ou.codigo_personal
+            SELECT o.*, ou.usuario_id as asignado_a, ou.codigo_personal, ou.estado as cupon_estado, ou.id as oferta_usuario_id
             FROM oferta_usuarios ou
             JOIN ofertas o ON o.id = ou.oferta_id
             WHERE UPPER(ou.codigo_personal) = UPPER(${datos.codigo})
@@ -1364,6 +1365,8 @@ export async function validarCupon(
             activo: fila.activo as boolean | null,
             asignadoA: fila.asignado_a as string,
             codigoPersonal: fila.codigo_personal as string,
+            cuponEstado: fila.cupon_estado as string,
+            ofertaUsuarioId: fila.oferta_usuario_id as string,
         };
 
         // -------------------------------------------------------------------------
@@ -1375,6 +1378,19 @@ export async function validarCupon(
                 message: 'Este código no pertenece a este cliente',
                 code: 403,
             };
+        }
+
+        // -------------------------------------------------------------------------
+        // Paso 2b: Verificar estado del cupón
+        // -------------------------------------------------------------------------
+        if (oferta.cuponEstado === 'usado') {
+            return { success: false, message: 'Este cupón ya fue utilizado', code: 400 };
+        }
+        if (oferta.cuponEstado === 'revocado') {
+            return { success: false, message: 'Este cupón fue revocado', code: 400 };
+        }
+        if (oferta.cuponEstado === 'expirado') {
+            return { success: false, message: 'Este cupón ha expirado', code: 400 };
         }
 
         // -------------------------------------------------------------------------
@@ -1500,8 +1516,9 @@ export async function validarCupon(
             success: true,
             message: 'Código válido',
             data: {
-                cupon: {
+                oferta: {
                     id: oferta.id,
+                    ofertaUsuarioId: oferta.ofertaUsuarioId,
                     codigo: oferta.codigoPersonal,
                     titulo: oferta.titulo,
                     tipo: oferta.tipo,
@@ -1652,7 +1669,7 @@ export async function otorgarPuntos(
         // Paso 4: Verificar mÃ­nimo de compra
         // -------------------------------------------------------------------------
         const minimoCompra = config.minimoCompra ? parseFloat(config.minimoCompra) : 0;
-        if (datos.montoTotal < minimoCompra) {
+        if (datos.montoTotal < minimoCompra && !datos.cuponId) {
             return {
                 success: false,
                 message: `El monto mínimo para otorgar puntos es $${minimoCompra}`,
@@ -1717,6 +1734,14 @@ export async function otorgarPuntos(
                     .update(ofertas)
                     .set({ usosActuales: (oferta.usosActuales ?? 0) + 1 })
                     .where(eq(ofertas.id, oferta.id));
+
+                // Marcar oferta_usuarios como 'usado'
+                if (datos.cuponOfertaUsuarioId) {
+                    await db
+                        .update(ofertaUsuarios)
+                        .set({ estado: 'usado', usadoAt: new Date().toISOString() })
+                        .where(eq(ofertaUsuarios.id, BigInt(datos.cuponOfertaUsuarioId)));
+                }
             }
         }
 

@@ -1405,10 +1405,12 @@ export const useScanYAStore = create()(
 
 **Secciones:**
 1. Cliente (teléfono, búsqueda, creación rápida)
-2. Monto (entrada numérica grande)
-3. Métodos de pago (efectivo, tarjeta, transferencia)
-4. Cupón (opcional, validación)
+2. Código de cupón (opcional, validación — soporta cupones sin compra con monto $0)
+3. Monto (entrada numérica grande)
+4. Métodos de pago (efectivo, tarjeta, transferencia)
 5. Comprobante (upload foto ticket)
+
+> **Nota:** Si se aplica un cupón gratis, el flujo salta directo a confirmar (sin monto ni método de pago). Check constraint `puntos_transacciones_monto_check` permite `monto >= 0`.
 
 **Implementación:** 800 líneas en `ModalRegistrarVenta.tsx`
 

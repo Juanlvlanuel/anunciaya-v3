@@ -197,8 +197,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
 
     const renderImagen = () => (
         <div
-            className="rounded-xl lg:rounded-lg 2xl:rounded-xl overflow-hidden bg-slate-100 border-2 border-dashed border-slate-300 relative"
-            style={{ aspectRatio: '1/1' }}
+            className="rounded-xl lg:rounded-lg 2xl:rounded-xl overflow-hidden bg-slate-100 border-2 border-dashed border-slate-300 relative aspect-square lg:aspect-4/3"
         >
             {imagen.imageUrl ? (
                 <>

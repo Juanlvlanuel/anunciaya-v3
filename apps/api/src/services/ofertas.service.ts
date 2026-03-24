@@ -1101,7 +1101,7 @@ export async function validarOfertaPorCodigo(
   try {
     // 1. Buscar código personal en oferta_usuarios
     const query = sql`
-      SELECT o.*, ou.usuario_id as asignado_a, ou.codigo_personal
+      SELECT o.*, ou.usuario_id as asignado_a, ou.codigo_personal, ou.estado as cupon_estado, ou.id as oferta_usuario_id
       FROM oferta_usuarios ou
       JOIN ofertas o ON o.id = ou.oferta_id
       WHERE UPPER(ou.codigo_personal) = UPPER(${codigo})
@@ -1118,6 +1118,17 @@ export async function validarOfertaPorCodigo(
     // Verificar que el código pertenece a este cliente
     if (oferta.asignado_a !== clienteId) {
       return { success: false, message: 'Este código no te pertenece', code: 403 };
+    }
+
+    // Verificar estado del cupón
+    if (oferta.cupon_estado === 'usado') {
+      return { success: false, message: 'Este cupón ya fue utilizado', code: 400 };
+    }
+    if (oferta.cupon_estado === 'revocado') {
+      return { success: false, message: 'Este cupón fue revocado', code: 400 };
+    }
+    if (oferta.cupon_estado === 'expirado') {
+      return { success: false, message: 'Este cupón ha expirado', code: 400 };
     }
 
     // 2. Verificar que pertenece al negocio
@@ -1208,7 +1219,8 @@ export async function validarOfertaPorCodigo(
       data: {
         oferta: {
           id: oferta.id,
-          codigo: oferta.codigo,
+          ofertaUsuarioId: oferta.oferta_usuario_id,
+          codigo: oferta.codigo_personal,
           titulo: oferta.titulo,
           tipo,
           valor,

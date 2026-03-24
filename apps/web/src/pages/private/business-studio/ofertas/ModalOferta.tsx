@@ -48,6 +48,7 @@ interface ModalOfertaProps {
     oferta: Oferta | null;
     onGuardar: (datos: CrearOfertaInput | ActualizarOfertaInput) => Promise<void>;
     onRecargar?: () => void;
+    visibilidadInicial?: 'publico' | 'privado';
 }
 
 type OfertaConImagen = Oferta & {
@@ -89,7 +90,7 @@ const extraerFecha = (fechaISO: string): string => fechaISO.substring(0, 10);
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar }: ModalOfertaProps) {
+export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, visibilidadInicial = 'publico' }: ModalOfertaProps) {
     const esEdicion = !!oferta;
 
     // Estados
@@ -132,7 +133,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar }
             if (imgUrl) { imagen.setImageUrl(imgUrl); imagen.setR2Url(imgUrl); }
             else { imagen.setImageUrl(null); imagen.setR2Url(null); }
         } else if (abierto && !oferta) {
-            setFormulario(FORMULARIO_INICIAL);
+            setFormulario({ ...FORMULARIO_INICIAL, visibilidad: visibilidadInicial });
             setErrores({});
             setTabActivo('oferta');
             setClientesSeleccionados([]);
@@ -314,30 +315,8 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar }
                                 </span>
                             </div>
 
-                            {/* Toggles: Visibilidad (solo creación) + Activo */}
+                            {/* Acciones header: Reactivar / Toggle activo */}
                             <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
-                                {!esEdicion && (
-                                    <div className="flex bg-white/10 rounded-xl p-0.5" data-testid="toggle-visibilidad">
-                                        <Tooltip text="Oferta" position="bottom" autoHide={2500}>
-                                            <button type="button" data-testid="btn-visibilidad-publico"
-                                                onClick={() => { setFormulario(prev => ({ ...prev, visibilidad: 'publico' })); setTabActivo('oferta'); }}
-                                                disabled={guardando}
-                                                className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 ${formulario.visibilidad === 'publico' ? 'bg-white/20' : 'hover:bg-white/10'}`}
-                                            >
-                                                <Megaphone className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${formulario.visibilidad === 'publico' ? 'text-white' : 'text-white/40'}`} />
-                                            </button>
-                                        </Tooltip>
-                                        <Tooltip text="Cupón" position="bottom" autoHide={2500}>
-                                            <button type="button" data-testid="btn-visibilidad-privado"
-                                                onClick={() => setFormulario(prev => ({ ...prev, visibilidad: 'privado' }))}
-                                                disabled={guardando}
-                                                className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 ${formulario.visibilidad === 'privado' ? 'bg-white/20' : 'hover:bg-white/10'}`}
-                                            >
-                                                <Ticket className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${formulario.visibilidad === 'privado' ? 'text-white' : 'text-white/40'}`} />
-                                            </button>
-                                        </Tooltip>
-                                    </div>
-                                )}
                                 {esEdicion && esCupon && !formulario.activo ? (
                                     <Tooltip text="Reactivar cupón" position="bottom" autoHide={2500}>
                                         <button type="button" data-testid="btn-reactivar-cupon"

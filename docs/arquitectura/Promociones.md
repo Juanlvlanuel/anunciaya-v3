@@ -219,9 +219,24 @@ El tipo `cupon` fue agregado al check constraint `chat_msg_tipo_check` de la tab
 
 ## 5. Business Studio — Crear Promoción
 
+### Toggle Ofertas/Cupones en tabla
+
+El toggle Oferta/Cupón ya no está dentro del modal — está en el header de la tabla de Promociones.
+
+| Aspecto | Comportamiento |
+|---------|---------------|
+| Desktop | Solo iconos (Megaphone/Ticket) con tooltip |
+| Móvil | Iconos con texto ("Ofertas" / "Cupones") |
+| Columnas | Cupones oculta Vistas/Shares/Clicks |
+| Estados | Ofertas: Activas/Inactivas/Próximas/Vencidas/Agotadas — Cupones: Activos/Revocados/Vencidos |
+| Badges | Género correcto: masculino para cupones ("Activo", "Revocado") |
+| Botón crear | Dinámico: "Nueva Oferta" / "Nuevo Cupón" según toggle activo |
+
+El modal abre con `visibilidadInicial` pre-establecida según el toggle activo en la tabla, eliminando la necesidad de seleccionar tipo dentro del modal.
+
 ### Modal con Tabs (solo modo Cupón)
 
-**Oferta pública:** formulario simple sin tabs. Toggle de visibilidad solo disponible en creación.
+**Oferta pública:** formulario simple sin tabs.
 
 **Cupón privado:** 3 tabs.
 
@@ -264,10 +279,11 @@ ModalOferta.tsx         — Contenedor: header + tabs + botones
 
 | Filtro | Disponibilidad |
 |--------|---------------|
-| Estado (Activas/Inactivas/Próximas/Vencidas/Agotadas) | Móvil + Desktop |
-| Visibilidad (Todas/Ofertas/Cupones) | Móvil + Desktop |
+| Estado (dinámico según toggle activo) | Móvil + Desktop |
 | Tipo (Porcentaje/Monto/$2x1/etc.) | Solo Desktop |
 | Búsqueda por título | Móvil + Desktop |
+
+> **Nota:** El filtro de Visibilidad (Todas/Ofertas/Cupones) fue reemplazado por el toggle en el header de la tabla.
 
 ---
 
@@ -439,25 +455,42 @@ CarouselCupones.tsx (en components/layout/)
 
 **Endpoint:** `POST /api/scanya/validar-codigo`
 
-**Flujo de validación (9 pasos):**
+**Flujo de validación (11 pasos):**
 1. Buscar código en `oferta_usuarios.codigo_personal`
-2. Verificar que el código pertenece al cliente
-3. Verificar que la oferta pertenece al negocio
-4. Verificar sucursal (null = todas)
-5. Verificar activa
-6. Verificar fechas (inicio/fin)
-7. Verificar límite de usos totales
-8. Verificar límite por usuario
-9. Retornar datos del descuento
+2. Verificar estado del cupón — rechazar si `usado`, `revocado` o `expirado`
+3. Verificar que el código pertenece al cliente
+4. Verificar que la oferta pertenece al negocio
+5. Verificar sucursal (null = todas)
+6. Verificar activa
+7. Verificar fechas (inicio/fin)
+8. Verificar límite de usos totales
+9. Verificar límite por usuario
+10. Retornar datos del descuento
+11. Al confirmar: marca `oferta_usuarios.estado = 'usado'`
 
-**UI en ScanYA:** Sección "Código de cupón (opcional)" en ModalRegistrarVenta.
+**UI en ScanYA:** Sección "Código de cupón" es la **segunda sección** del acordeón en ModalRegistrarVenta (después de cliente, antes de concepto/monto).
+
+### Flujos según tipo de cupón
+
+**Cupón gratis (monto $0):**
+```
+Cliente → Código de cupón → Confirmar (sin monto, sin método de pago)
+```
+
+**Cupón con compra:**
+```
+Cliente → Código de cupón → Monto → Método de pago → Confirmar
+```
+
+> **Nota:** El check constraint `puntos_transacciones_monto_check` permite `monto >= 0` para soportar cupones sin compra.
 
 **Al registrar venta con código:**
 - Busca oferta por ID
 - Calcula descuento según tipo
 - Registra uso en `oferta_usos`
 - Incrementa `usos_actuales`
-- Puntos sobre monto final (post-descuento)
+- Marca `oferta_usuarios.estado = 'usado'`
+- Puntos sobre monto final (post-descuento, 0 si cupón gratis)
 
 ---
 
@@ -667,7 +700,7 @@ Tracking de compras acumuladas por usuario por recompensa.
 - Ofertas y cupones comparten 90% de la estructura (tipo, valor, fechas, imagen)
 - Un módulo separado duplicaba código, tablas y UI
 - "Promociones" como paraguas unifica ambos conceptos
-- Toggle Oferta/Cupón en el modal es más intuitivo que dos secciones separadas
+- Toggle Ofertas/Cupones en la tabla es más intuitivo que un dropdown de visibilidad
 
 ### ¿Por qué código único por usuario?
 - Intransferible: si comparte el código, no funciona para otro

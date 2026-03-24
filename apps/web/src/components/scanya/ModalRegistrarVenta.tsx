@@ -85,9 +85,13 @@ interface DesglosePago {
 
 interface CuponAplicado {
     id: string;
+    ofertaUsuarioId: string;
     codigo: string;
+    tipo: string;
     descuento: number;
-    esPorcentaje: boolean;
+    compraMinima: number;
+    titulo: string;
+    descuentoInfo: string;
 }
 
 // =============================================================================
@@ -408,15 +412,19 @@ export function ModalRegistrarVenta({
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const data = respuesta.data as any;
-            if (respuesta.success && data?.cupon) {
-                const c = data.cupon;
+            if (respuesta.success && data?.oferta) {
+                const o = data.oferta;
                 setCupon({
-                    id: c.id,
-                    codigo: c.codigo,
-                    descuento: c.valor,
-                    esPorcentaje: c.tipo === 'porcentaje',
+                    id: o.id,
+                    ofertaUsuarioId: String(o.ofertaUsuarioId),
+                    codigo: o.codigo,
+                    tipo: o.tipo,
+                    descuento: o.valor,
+                    compraMinima: o.compraMinima || 0,
+                    titulo: o.titulo,
+                    descuentoInfo: data.descuentoInfo,
                 });
-                notificar.exito('Código aplicado');
+                notificar.exito(data.descuentoInfo || 'Código aplicado');
             } else {
                 notificar.error(respuesta.message || 'Código no válido');
             }
@@ -508,10 +516,16 @@ export function ModalRegistrarVenta({
 
         // Aplicar descuento de código si existe
         if (cupon) {
-            if (cupon.esPorcentaje) {
-                montoFinal = montoNum * (1 - cupon.descuento / 100);
-            } else {
-                montoFinal = Math.max(0, montoNum - cupon.descuento);
+            switch (cupon.tipo) {
+                case 'porcentaje':
+                    montoFinal = montoNum * (1 - cupon.descuento / 100);
+                    break;
+                case 'monto_fijo':
+                    montoFinal = Math.max(0, montoNum - cupon.descuento);
+                    break;
+                // 2x1, 3x2, envio_gratis, otro: descuento a criterio del comerciante
+                default:
+                    break;
             }
         }
 
@@ -538,22 +552,31 @@ export function ModalRegistrarVenta({
     // Confirmar venta
     // ---------------------------------------------------------------------------
     const puedeConfirmar = (): boolean => {
+        const montoNum = parseFloat(monto) || 0;
+        const tieneCupon = !!cupon;
+        const montoValido = montoNum > 0 || tieneCupon; // Monto 0 permitido si hay cupón gratis
+
+        // Validar compra mínima si el cupón lo requiere
+        if (tieneCupon && cupon.compraMinima > 0 && montoNum < cupon.compraMinima) {
+            return false;
+        }
+
         // Modo offline: solo necesita teléfono (10 dígitos), monto y método
         if (modoOffline) {
             return (
                 telefono.length === 10 &&
-                parseFloat(monto) > 0 &&
-                metodoPago !== null &&
-                (metodoPago !== 'mixto' || validarDesglose())  // ← CAMBIAR AQUÍ
+                montoValido &&
+                (montoNum === 0 || metodoPago !== null) &&
+                (metodoPago !== 'mixto' || validarDesglose())
             );
         }
 
         // Modo online: necesita cliente identificado
         return (
             cliente !== null &&
-            parseFloat(monto) > 0 &&
-            metodoPago !== null &&
-            (metodoPago !== 'mixto' || validarDesglose())  // ← CAMBIAR AQUÍ
+            montoValido &&
+            (montoNum === 0 || metodoPago !== null) &&
+            (metodoPago !== 'mixto' || validarDesglose())
         );
     };
 
@@ -612,11 +635,12 @@ export function ModalRegistrarVenta({
         try {
             const respuesta = await scanyaService.otorgarPuntos({
                 clienteId: cliente.id,
-                montoTotal: parseFloat(monto),
+                montoTotal: parseFloat(monto) || 0,
                 montoEfectivo: desglose.efectivo || undefined,
                 montoTarjeta: desglose.tarjeta || undefined,
                 montoTransferencia: desglose.transferencia || undefined,
                 cuponId: cupon?.id || undefined,
+                cuponOfertaUsuarioId: cupon?.ofertaUsuarioId || undefined,
                 fotoTicketUrl: fotoUrl || undefined,
                 nota: nota.trim() || undefined,
                 concepto: concepto.trim() || undefined,
@@ -1051,6 +1075,94 @@ export function ModalRegistrarVenta({
                                 </div>
                             )}
                         </div>
+
+                        {/* ========================================= */}
+                        {/* SECCIÓN: CUPÓN (Solo online, después de cliente) */}
+                        {/* ========================================= */}
+                        {!modoOffline && (
+                            <div
+                                className="rounded-xl lg:rounded-md 2xl:rounded-xl overflow-hidden"
+                                style={{
+                                    background: 'rgba(0, 0, 0, 0.3)',
+                                    border: `1px solid ${cupon ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
+                                }}
+                            >
+                                <button
+                                    onClick={() => seccionCompletada('cliente') && setSeccionActiva('cupon')}
+                                    disabled={!seccionCompletada('cliente')}
+                                    className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                    <div
+                                        className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
+                                        style={{
+                                            background: cupon ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                        }}
+                                    >
+                                        {cupon ? (
+                                            <Check className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#10B981]" />
+                                        ) : (
+                                            <Ticket className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#3B82F6]" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <p className="text-white font-medium text-base lg:text-sm 2xl:text-base">
+                                            Código de cupón <span className="text-[#606060] text-xs">(opcional)</span>
+                                        </p>
+                                        {cupon && (
+                                            <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm">
+                                                {cupon.titulo} • {cupon.descuentoInfo}
+                                            </p>
+                                        )}
+                                    </div>
+                                    {seccionActiva === 'cupon' ? (
+                                        <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#94A3B8]" />
+                                    ) : (
+                                        <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#94A3B8]" />
+                                    )}
+                                </button>
+
+                                {seccionActiva === 'cupon' && seccionCompletada('cliente') && (
+                                    <div className="px-4 pb-4">
+                                        {cupon ? (
+                                            <div className="flex items-center justify-between p-3 lg:p-2 2xl:p-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.3)]">
+                                                <div>
+                                                    <p className="text-white font-medium">{cupon.titulo}</p>
+                                                    <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm">
+                                                        {cupon.descuentoInfo}
+                                                    </p>
+                                                </div>
+                                                <button onClick={() => setCupon(null)} className="text-[#DC2626] cursor-pointer">
+                                                    <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
+                                                <input
+                                                    id="venta-codigo-cupon"
+                                                    name="codigoCupon"
+                                                    type="text"
+                                                    value={codigoCupon}
+                                                    onChange={(e) => setCodigoCupon(e.target.value.toUpperCase())}
+                                                    placeholder="Código de cupón"
+                                                    className="flex-1 py-2 lg:py-1.5 2xl:py-2 px-3 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[#1A1A1A] border border-[#333] text-white uppercase"
+                                                />
+                                                <button
+                                                    onClick={handleValidarCupon}
+                                                    disabled={!codigoCupon.trim() || validandoCupon}
+                                                    className="px-4 lg:px-3 2xl:px-4 py-2 lg:py-1.5 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[#2563EB] text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                                >
+                                                    {validandoCupon ? (
+                                                        <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />
+                                                    ) : (
+                                                        <Check className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* ========================================= */}
                         {/* SECCIÓN: CONCEPTO */}
@@ -1489,93 +1601,6 @@ export function ModalRegistrarVenta({
                             </div>
                         )}
 
-                        {/* ========================================= */}
-                        {/* SECCIÓN: CUPÓN (Solo online) */}
-                        {/* ========================================= */}
-                        {!modoOffline && (
-                            <div
-                                className="rounded-xl lg:rounded-md 2xl:rounded-xl overflow-hidden"
-                                style={{
-                                    background: 'rgba(0, 0, 0, 0.3)',
-                                    border: `1px solid ${cupon ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
-                                }}
-                            >
-                                <button
-                                    onClick={() => seccionCompletada('cliente') && seccionCompletada('metodoPago') && setSeccionActiva('cupon')}
-                                    disabled={!seccionCompletada('cliente') || !seccionCompletada('metodoPago')}
-                                    className="w-full px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 flex items-center gap-3 lg:gap-2 2xl:gap-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                >
-                                    <div
-                                        className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
-                                        style={{
-                                            background: cupon ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)',
-                                        }}
-                                    >
-                                        {cupon ? (
-                                            <Check className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#10B981]" />
-                                        ) : (
-                                            <Ticket className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#3B82F6]" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 text-left">
-                                        <p className="text-white font-medium text-base lg:text-sm 2xl:text-base">
-                                            Código de cupón <span className="text-[#606060] text-xs">(opcional)</span>
-                                        </p>
-                                        {cupon && (
-                                            <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm">
-                                                {cupon.codigo} • -{cupon.esPorcentaje ? `${cupon.descuento}%` : `$${cupon.descuento}`}
-                                            </p>
-                                        )}
-                                    </div>
-                                    {seccionActiva === 'cupon' ? (
-                                        <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#94A3B8]" />
-                                    ) : (
-                                        <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#94A3B8]" />
-                                    )}
-                                </button>
-
-                                {seccionActiva === 'cupon' && seccionCompletada('cliente') && seccionCompletada('metodoPago') && (
-                                    <div className="px-4 pb-4">
-                                        {cupon ? (
-                                            <div className="flex items-center justify-between p-3 lg:p-2 2xl:p-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.3)]">
-                                                <div>
-                                                    <p className="text-white font-medium">{cupon.codigo}</p>
-                                                    <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm">
-                                                        -{cupon.esPorcentaje ? `${cupon.descuento}%` : `$${formatearMoneda(cupon.descuento)}`}
-                                                    </p>
-                                                </div>
-                                                <button onClick={() => setCupon(null)} className="text-[#DC2626] cursor-pointer">
-                                                    <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
-                                                <input
-                                                    id="venta-codigo-cupon"
-                                                    name="codigoCupon"
-                                                    type="text"
-                                                    value={codigoCupon}
-                                                    onChange={(e) => setCodigoCupon(e.target.value.toUpperCase())}
-                                                    placeholder="Código de cupón"
-                                                    className="flex-1 py-2 lg:py-1.5 2xl:py-2 px-3 lg:px-2 2xl:px-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[#1A1A1A] border border-[#333] text-white uppercase"
-                                                />
-                                                <button
-                                                    onClick={handleValidarCupon}
-                                                    disabled={!codigoCupon.trim() || validandoCupon}
-                                                    className="px-4 lg:px-3 2xl:px-4 py-2 lg:py-1.5 2xl:py-2 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[#2563EB] text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                                >
-                                                    {validandoCupon ? (
-                                                        <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />
-                                                    ) : (
-                                                        <Check className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                                    )}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                 </div>
 

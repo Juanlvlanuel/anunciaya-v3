@@ -103,7 +103,7 @@ export const otorgarPuntosSchema = z.object({
     .uuid('ID de cliente inválido'),
   montoTotal: z
     .number()
-    .positive('El monto debe ser mayor a 0'),
+    .min(0, 'El monto no puede ser negativo'),
   montoEfectivo: z
     .number()
     .min(0, 'El monto en efectivo no puede ser negativo')
@@ -119,6 +119,9 @@ export const otorgarPuntosSchema = z.object({
   cuponId: z
     .string()
     .uuid('ID de cupón inválido')
+    .optional(),
+  cuponOfertaUsuarioId: z
+    .string()
     .optional(),
   fotoTicketUrl: z
     .string()

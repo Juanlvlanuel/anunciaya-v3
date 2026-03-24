@@ -1772,7 +1772,7 @@ export const puntosTransacciones = pgTable("puntos_transacciones", {
 	}).onDelete("set null"),
 	index("idx_puntos_transacciones_revocadas").using("btree", table.negocioId.asc().nullsLast(), table.revocadoAt.desc().nullsFirst()).where(sql`((estado)::text = 'cancelado'::text)`),
 	check("puntos_transacciones_estado_check", sql`(estado)::text = ANY ((ARRAY['pendiente'::character varying, 'confirmado'::character varying, 'rechazado'::character varying, 'cancelado'::character varying])::text[])`),
-	check("puntos_transacciones_monto_check", sql`monto_compra > (0)::numeric`),
+	check("puntos_transacciones_monto_check", sql`monto_compra >= (0)::numeric`),
 	check("puntos_transacciones_puntos_check", sql`puntos_otorgados >= 0`),
 	check("puntos_transacciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['presencial'::character varying, 'domicilio'::character varying])::text[])`),
 ]);

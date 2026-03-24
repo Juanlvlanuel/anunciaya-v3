@@ -246,7 +246,15 @@ function formatearFecha(fecha: string): string {
 }
 
 /** Badge de estado */
-function getBadgeEstado(estado: EstadoOferta): { label: string; clases: string } {
+function getBadgeEstado(estado: EstadoOferta, cupones = false): { label: string; clases: string } {
+    if (cupones) {
+        switch (estado) {
+            case 'activa': return { label: 'Activo', clases: 'bg-green-100 text-green-700' };
+            case 'vencida': return { label: 'Vencido', clases: 'bg-slate-200 text-slate-600' };
+            case 'inactiva': return { label: 'Revocado', clases: 'bg-red-100 text-red-700' };
+            default: return { label: estado, clases: 'bg-slate-200 text-slate-600' };
+        }
+    }
     switch (estado) {
         case 'activa': return { label: 'Activa', clases: 'bg-green-100 text-green-700' };
         case 'proxima': return { label: 'Próxima', clases: 'bg-amber-100 text-amber-700' };
@@ -270,6 +278,7 @@ function FilaMovilOferta({
     onRevocar,
     onImagenClick,
     esDueno,
+    esCupones,
 }: {
     oferta: Oferta;
     estado: EstadoOferta;
@@ -280,9 +289,10 @@ function FilaMovilOferta({
     onRevocar: (oferta: Oferta) => void;
     onImagenClick?: (url: string) => void;
     esDueno: boolean;
+    esCupones: boolean;
 }) {
     const IconoTipo = getIconoTipo(oferta.tipo);
-    const badgeEstado = getBadgeEstado(estado);
+    const badgeEstado = getBadgeEstado(estado, esCupones);
     const valorFormateado = formatearValor(oferta.tipo, oferta.valor);
     const esTrending = (oferta.totalVistas || 0) > 50 || (oferta.totalClicks || 0) > 20;
 
@@ -397,6 +407,7 @@ export function PaginaOfertas() {
     const [ofertaDuplicando, setOfertaDuplicando] = useState<Oferta | null>(null);
     const [ofertasCargadas, setOfertasCargadas] = useState(OFERTAS_POR_PAGINA);
     const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number }>({ isOpen: false, images: [], initialIndex: 0 });
+    const [visibilidadNueva, setVisibilidadNueva] = useState<'publico' | 'privado'>('publico');
 
     // Ordenación
     const [orden, setOrden] = useState<OrdenState | null>(null);
@@ -420,12 +431,10 @@ export function PaginaOfertas() {
         busqueda: '',
         tipo: 'todos',
         estado: 'todos',
-        visibilidad: 'todos',
+        visibilidad: 'publico',
     });
 
-    // Dropdown visibilidad (solo desktop)
-    const [dropdownVisibilidadAbierto, setDropdownVisibilidadAbierto] = useState(false);
-    const dropdownVisibilidadRef = useRef<HTMLDivElement>(null);
+    const esCupones = filtros.visibilidad === 'privado';
 
     // Limpiar búsqueda al desmontar
     useEffect(() => {
@@ -549,18 +558,6 @@ export function PaginaOfertas() {
         }
     }, [dropdownEstadoAbierto]);
 
-    useEffect(() => {
-        const handleClickFuera = (e: MouseEvent) => {
-            if (dropdownVisibilidadRef.current && !dropdownVisibilidadRef.current.contains(e.target as Node)) {
-                setDropdownVisibilidadAbierto(false);
-            }
-        };
-        if (dropdownVisibilidadAbierto) {
-            document.addEventListener('mousedown', handleClickFuera);
-            return () => document.removeEventListener('mousedown', handleClickFuera);
-        }
-    }, [dropdownVisibilidadAbierto]);
-
     // Resetear al cambiar filtros
     useEffect(() => { setOfertasCargadas(OFERTAS_POR_PAGINA); }, [filtros]);
     useEffect(() => { setOfertasCargadas(OFERTAS_POR_PAGINA); }, [isMobile]);
@@ -605,6 +602,7 @@ export function PaginaOfertas() {
 
     const handleCrear = () => {
         setOfertaEditando(null);
+        setVisibilidadNueva(filtros.visibilidad === 'privado' ? 'privado' : 'publico');
         setModalAbierto(true);
     };
 
@@ -688,7 +686,7 @@ export function PaginaOfertas() {
     };
 
     const limpiarFiltros = () => {
-        setFiltros({ busqueda: '', tipo: 'todos', estado: 'todos', visibilidad: 'todos' });
+        setFiltros(prev => ({ busqueda: '', tipo: 'todos', estado: 'todos', visibilidad: prev.visibilidad }));
     };
 
     const alternarOrden = (columna: ColumnaOrden) => {
@@ -701,7 +699,7 @@ export function PaginaOfertas() {
     };
 
     const hayFiltrosActivos =
-        filtros.busqueda !== '' || filtros.tipo !== 'todos' || filtros.estado !== 'todos' || filtros.visibilidad !== 'todos';
+        filtros.busqueda !== '' || filtros.tipo !== 'todos' || filtros.estado !== 'todos';
 
     // Texto dinámico del tipo para contador
     const textoVisibilidad = filtros.visibilidad === 'publico' ? 'ofertas' : filtros.visibilidad === 'privado' ? 'cupones' : 'promociones';
@@ -754,11 +752,39 @@ export function PaginaOfertas() {
                                 Promociones
                             </h1>
                             <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium whitespace-nowrap">
-                                Ofertas y cupones
+                                Gestiona tus descuentos y beneficios
                             </p>
                         </div>
 
-                        {/* Botón Nueva Promoción — solo móvil */}
+                        {/* Toggle Ofertas / Cupones */}
+                        <div className="hidden lg:flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
+                            <Tooltip text="Ofertas" position="bottom">
+                                <button
+                                    data-testid="toggle-ofertas"
+                                    onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, estado: 'todos' as const }))}
+                                    className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${
+                                        !esCupones ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'
+                                    }`}
+                                    style={!esCupones ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                                >
+                                    <Megaphone className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                                </button>
+                            </Tooltip>
+                            <Tooltip text="Cupones" position="bottom">
+                                <button
+                                    data-testid="toggle-cupones"
+                                    onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, estado: 'todos' as const }))}
+                                    className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${
+                                        esCupones ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'
+                                    }`}
+                                    style={esCupones ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                                >
+                                    <Ticket className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                                </button>
+                            </Tooltip>
+                        </div>
+
+                        {/* Botón {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'} — solo móvil */}
                         <div className="lg:hidden flex-1 flex justify-end">
                             <button
                                 onClick={handleCrear}
@@ -769,7 +795,7 @@ export function PaginaOfertas() {
                                 }}
                             >
                                 <Plus className="w-4 h-4" />
-                                Nueva Promoción
+                                {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'}
                             </button>
                         </div>
                     </div>
@@ -900,7 +926,7 @@ export function PaginaOfertas() {
                         }}
                     >
                         <Plus className="w-4 h-4" />
-                        Nueva Promoción
+                        {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'}
                     </button>
                 </div>
 
@@ -910,7 +936,31 @@ export function PaginaOfertas() {
 
                 <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
                     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
-                        {/* Móvil línea 1: Dropdown Estado + Dropdown Tipo + Nueva | Desktop: ambos dropdowns inline */}
+                        {/* Toggle Ofertas/Cupones — solo móvil */}
+                        <div className="lg:hidden flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300">
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, estado: 'todos' as const }))}
+                                className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-md font-semibold text-sm cursor-pointer ${
+                                    !esCupones ? 'text-white shadow-md' : 'text-slate-700'
+                                }`}
+                                style={!esCupones ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                            >
+                                <Megaphone className="w-4 h-4" />
+                                Ofertas
+                            </button>
+                            <button
+                                onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, estado: 'todos' as const }))}
+                                className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-md font-semibold text-sm cursor-pointer ${
+                                    esCupones ? 'text-white shadow-md' : 'text-slate-700'
+                                }`}
+                                style={esCupones ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                            >
+                                <Ticket className="w-4 h-4" />
+                                Cupones
+                            </button>
+                        </div>
+
+                        {/* Filtros */}
                         <div className="flex items-center gap-2 lg:contents">
                             {/* Dropdown de estado */}
                             <div ref={dropdownEstadoRef} className="relative flex-1 lg:flex-none">
@@ -935,67 +985,26 @@ export function PaginaOfertas() {
 
                                 {dropdownEstadoAbierto && (
                                     <div className="absolute top-full left-0 lg:left-auto lg:right-0 mt-1.5 w-full lg:w-40 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
-                                        {([
-                                            { value: 'todos',    label: 'Todos', icono: Layers },
-                                            { value: 'activa',   label: 'Activas',            icono: TrendingUp },
-                                            { value: 'inactiva', label: 'Inactivas',           icono: PauseCircle },
-                                            { value: 'proxima',  label: 'Próximas',            icono: Calendar },
-                                            { value: 'vencida',  label: 'Vencidas',            icono: Clock },
-                                            { value: 'agotada',  label: 'Agotadas',            icono: Tag },
+                                        {(esCupones ? [
+                                            { value: 'todos',    label: 'Todos',     icono: Layers },
+                                            { value: 'activa',   label: 'Activos',   icono: TrendingUp },
+                                            { value: 'inactiva', label: 'Revocados', icono: PauseCircle },
+                                            { value: 'vencida',  label: 'Vencidos',  icono: Clock },
+                                        ] : [
+                                            { value: 'todos',    label: 'Todos',     icono: Layers },
+                                            { value: 'activa',   label: 'Activas',   icono: TrendingUp },
+                                            { value: 'inactiva', label: 'Inactivas', icono: PauseCircle },
+                                            { value: 'proxima',  label: 'Próximas',  icono: Calendar },
+                                            { value: 'vencida',  label: 'Vencidas',  icono: Clock },
+                                            { value: 'agotada',  label: 'Agotadas',  icono: Tag },
                                         ] as { value: EstadoOferta | 'todos'; label: string; icono: typeof Layers }[]).map(({ value, label, icono: Icono }) => (
                                             <button
                                                 key={value}
-                                                onClick={() => { setFiltros(prev => ({ ...prev, estado: value })); setDropdownEstadoAbierto(false); }}
+                                                onClick={() => { setFiltros(prev => ({ ...prev, estado: value as FiltrosLocales['estado'] })); setDropdownEstadoAbierto(false); }}
                                                 className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.estado === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
                                             >
                                                 <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtros.estado === value ? 'border-indigo-500' : 'border-slate-300'}`}>
                                                     {filtros.estado === value && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
-                                                </div>
-                                                <Icono className="w-3.5 h-3.5 shrink-0" />
-                                                {label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Separador desktop */}
-                            <div className="hidden lg:block w-px h-6 bg-slate-300 shrink-0" />
-
-                            {/* Dropdown de visibilidad (móvil + desktop) */}
-                            <div ref={dropdownVisibilidadRef} className="relative flex-1 lg:flex-none shrink-0">
-                                <button
-                                    data-testid="dropdown-visibilidad"
-                                    onClick={() => setDropdownVisibilidadAbierto(prev => !prev)}
-                                    className={`flex items-center justify-between w-full lg:w-40 2xl:w-44 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${filtros.visibilidad !== 'todos'
-                                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                                        : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-1.5">
-                                        {filtros.visibilidad === 'privado' ? <Ticket className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" /> : filtros.visibilidad === 'publico' ? <Megaphone className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" /> : <Layers className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />}
-                                        <span className="truncate">
-                                            {filtros.visibilidad === 'todos' ? 'Todas' : filtros.visibilidad === 'publico' ? 'Ofertas' : 'Cupones'}
-                                        </span>
-                                    </div>
-                                    <ChevronDown className={`w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${dropdownVisibilidadAbierto ? 'rotate-180' : ''}`} />
-                                </button>
-
-                                {dropdownVisibilidadAbierto && (
-                                    <div className="absolute top-full right-0 mt-1.5 w-44 bg-white rounded-xl border-2 border-slate-300 shadow-lg z-50 py-1 overflow-hidden">
-                                        {([
-                                            { value: 'todos' as const, label: 'Todas', icono: Layers },
-                                            { value: 'publico' as const, label: 'Ofertas', icono: Megaphone },
-                                            { value: 'privado' as const, label: 'Cupones', icono: Ticket },
-                                        ]).map(({ value, label, icono: Icono }) => (
-                                            <button
-                                                key={value}
-                                                data-testid={`filtro-visibilidad-${value}`}
-                                                onClick={() => { setFiltros(prev => ({ ...prev, visibilidad: value })); setDropdownVisibilidadAbierto(false); }}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm 2xl:text-base font-semibold cursor-pointer ${filtros.visibilidad === value ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-200'}`}
-                                            >
-                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${filtros.visibilidad === value ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                                                    {filtros.visibilidad === value && <div className="w-2 h-2 rounded-full bg-white" />}
                                                 </div>
                                                 <Icono className="w-3.5 h-3.5 shrink-0" />
                                                 {label}
@@ -1082,7 +1091,7 @@ export function PaginaOfertas() {
                                     ) : undefined}
                                 />
                             </div>
-                            {/* Nueva Promoción — desktop */}
+                            {/* {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'} — desktop */}
                             <button
                                 data-testid="btn-nueva-promocion-desktop"
                                 onClick={handleCrear}
@@ -1093,7 +1102,7 @@ export function PaginaOfertas() {
                                 }}
                             >
                                 <Plus className="w-4 h-4" />
-                                Nueva Promoción
+                                {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'}
                             </button>
                         </div>
                     </div>
@@ -1128,21 +1137,28 @@ export function PaginaOfertas() {
                     >
                         {/* Header dark */}
                         <div
-                            className="grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+                            className={`grid ${esCupones
+                                ? 'grid-cols-[minmax(0,1fr)_90px_90px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_110px_130px]'
+                                : 'grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px]'
+                            } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider`}
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
-                            <span>Promoción</span>
+                            <span>{esCupones ? 'Cupón' : 'Oferta'}</span>
                             <span className="flex justify-center pr-5">Tipo</span>
                             <span className="flex justify-center pr-5">Estado</span>
-                            <span className="flex justify-center pr-5">
-                                <HeaderOrdenable etiqueta="VISTAS" columna="vistas" ordenActual={orden} onOrdenar={alternarOrden} />
-                            </span>
-                            <span className="flex justify-center pr-5">
-                                <HeaderOrdenable etiqueta="SHARES" columna="shares" ordenActual={orden} onOrdenar={alternarOrden} />
-                            </span>
-                            <span className="flex justify-center pr-5">
-                                <HeaderOrdenable etiqueta="CLICKS" columna="clicks" ordenActual={orden} onOrdenar={alternarOrden} />
-                            </span>
+                            {!esCupones && (
+                                <>
+                                    <span className="flex justify-center pr-5">
+                                        <HeaderOrdenable etiqueta="VISTAS" columna="vistas" ordenActual={orden} onOrdenar={alternarOrden} />
+                                    </span>
+                                    <span className="flex justify-center pr-5">
+                                        <HeaderOrdenable etiqueta="SHARES" columna="shares" ordenActual={orden} onOrdenar={alternarOrden} />
+                                    </span>
+                                    <span className="flex justify-center pr-5">
+                                        <HeaderOrdenable etiqueta="CLICKS" columna="clicks" ordenActual={orden} onOrdenar={alternarOrden} />
+                                    </span>
+                                </>
+                            )}
                             <span className="flex justify-center pr-5">Vigencia</span>
                             <span className="flex justify-center pl-3">Acciones</span>
                         </div>
@@ -1155,19 +1171,19 @@ export function PaginaOfertas() {
                                     <p className="text-sm font-medium">
                                         {hayFiltrosActivos
                                             ? `No se encontraron ${textoTipoFiltro}${filtros.estado !== 'todos' ? ` ${textoEstadoFiltro}` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
-                                            : 'Aún no tienes promociones'
+                                            : esCupones ? 'Aún no tienes cupones' : 'Aún no tienes ofertas'
                                         }
                                     </p>
                                     {!hayFiltrosActivos && (
                                         <Boton variante="primario" iconoIzquierda={<Plus className="w-4 h-4" />} onClick={handleCrear} className="mt-3">
-                                            Crear Primera Promoción
+                                            {esCupones ? 'Crear Primer Cupón' : 'Crear Primera Oferta'}
                                         </Boton>
                                     )}
                                 </div>
                             ) : (
                                 ofertasOrdenadas.map((oferta, i) => {
                                     const estado = calcularEstado(oferta);
-                                    const badgeEstado = getBadgeEstado(estado);
+                                    const badgeEstado = getBadgeEstado(estado, esCupones);
                                     const IconoTipo = getIconoTipo(oferta.tipo);
                                     const coloresTipo = getColoresTipo(oferta.tipo);
                                     const valorFormateado = formatearValor(oferta.tipo, oferta.valor);
@@ -1177,7 +1193,10 @@ export function PaginaOfertas() {
                                         <div
                                             key={oferta.id}
                                             onClick={() => handleEditar(oferta)}
-                                            className={`grid grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
+                                            className={`grid ${esCupones
+                                                ? 'grid-cols-[minmax(0,1fr)_90px_90px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_110px_130px]'
+                                                : 'grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px]'
+                                            } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
                                         >
                                             {/* Oferta: Imagen + Título + Valor */}
                                             <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
@@ -1217,29 +1236,33 @@ export function PaginaOfertas() {
                                                 </span>
                                             </div>
 
-                                            {/* Vistas */}
-                                            <div className="flex items-center justify-center text-slate-600 font-bold 2xl:text-[15px]">
-                                                <span className="flex items-center gap-1">
-                                                    <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                                    {oferta.totalVistas || 0}
-                                                </span>
-                                            </div>
+                                            {!esCupones && (
+                                                <>
+                                                    {/* Vistas */}
+                                                    <div className="flex items-center justify-center text-slate-600 font-bold 2xl:text-[15px]">
+                                                        <span className="flex items-center gap-1">
+                                                            <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                            {oferta.totalVistas || 0}
+                                                        </span>
+                                                    </div>
 
-                                            {/* Shares */}
-                                            <div className="flex items-center justify-center text-slate-600 font-bold 2xl:text-[15px]">
-                                                <span className="flex items-center gap-1">
-                                                    <Share2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                                    {oferta.totalShares || 0}
-                                                </span>
-                                            </div>
+                                                    {/* Shares */}
+                                                    <div className="flex items-center justify-center text-slate-600 font-bold 2xl:text-[15px]">
+                                                        <span className="flex items-center gap-1">
+                                                            <Share2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                            {oferta.totalShares || 0}
+                                                        </span>
+                                                    </div>
 
-                                            {/* Clicks */}
-                                            <div className="flex items-center justify-center text-slate-600 font-bold 2xl:text-[15px]">
-                                                <span className="flex items-center gap-1">
-                                                    <MousePointerClick className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                                    {oferta.totalClicks || 0}
-                                                </span>
-                                            </div>
+                                                    {/* Clicks */}
+                                                    <div className="flex items-center justify-center text-slate-600 font-bold 2xl:text-[15px]">
+                                                        <span className="flex items-center gap-1">
+                                                            <MousePointerClick className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                            {oferta.totalClicks || 0}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
 
                                             {/* Fechas */}
                                             <div className="flex items-center justify-center text-slate-600 font-medium">
@@ -1363,7 +1386,7 @@ export function PaginaOfertas() {
                             <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-8 text-center">
                                 <Tag className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                                 <p className="text-base font-bold text-slate-800 mb-1">
-                                    {hayFiltrosActivos ? 'Sin resultados' : 'Sin promociones'}
+                                    {hayFiltrosActivos ? 'Sin resultados' : esCupones ? 'Sin cupones' : 'Sin ofertas'}
                                 </p>
                                 <p className="text-sm text-slate-600 font-medium">
                                     {hayFiltrosActivos
@@ -1373,7 +1396,7 @@ export function PaginaOfertas() {
                                 </p>
                                 {!hayFiltrosActivos && (
                                     <Boton variante="primario" iconoIzquierda={<Plus className="w-5 h-5" />} onClick={handleCrear} className="mt-4">
-                                        Crear Primera Promoción
+                                        {esCupones ? 'Crear Primer Cupón' : 'Crear Primera Oferta'}
                                     </Boton>
                                 )}
                             </div>
@@ -1390,6 +1413,7 @@ export function PaginaOfertas() {
                                     onRevocar={handleRevocarCupon}
                                     onImagenClick={abrirImagenUnica}
                                     esDueno={esDueno}
+                                    esCupones={esCupones}
                                 />
                             ))
                         )}
@@ -1414,6 +1438,7 @@ export function PaginaOfertas() {
                         setOfertaEditando(null);
                     }}
                     oferta={ofertaEditando}
+                    visibilidadInicial={visibilidadNueva}
                     onRecargar={() => recargar(true)}
                     onGuardar={async (datos) => {
                         const exito = ofertaEditando

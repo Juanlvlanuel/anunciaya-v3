@@ -34,6 +34,13 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 - TabClientes en modo edición: lista readonly con avatar, fecha, badge estado
 - Click en cliente abre ModalDetalleCliente
 
+**ScanYA — Flujo completo de cupones**
+- Cupones sin compra (monto $0): cliente → código → confirmar directo
+- Validación de estado del cupón (usado/revocado/expirado)
+- Marca oferta_usuarios.estado = 'usado' al confirmar
+- Sección "Código de cupón" reubicada al #2 (después de cliente)
+- Check constraint BD permite monto >= 0
+
 **CarouselCupones en ColumnaIzquierda**
 - Carousel automático (5s) de cupones activos con cronómetro animado (Timer + ring)
 - Unificado con botón "Mis Cupones" (badge rojo circular con conteo)
@@ -91,7 +98,13 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 - Carga motivo desde clientes asignados
 - Prop `onRecargar` para actualizar tabla después de reactivar/revocar
 
-**Tabla Promociones BS**
+**Tabla Promociones BS — Toggle Ofertas/Cupones**
+- Toggle en header (desktop: iconos, móvil: con texto) reemplaza dropdown visibilidad
+- Columnas dinámicas: cupones oculta Vistas/Shares/Clicks
+- Estados dinámicos por tipo (Activos/Revocados/Vencidos para cupones)
+- Modal sin toggle: visibilidad pre-establecida desde la tabla
+- Botones dinámicos: "Nueva Oferta" / "Nuevo Cupón"
+- Imagen del modal más compacta (aspect-4/3 en desktop)
 - Cupones: ocultar iconos Duplicar y Ocultar/Mostrar
 - Orden acciones cupones: Revocar/Reactivar → Eliminar → Reenviar
 - Mensaje al crear cupón: "Cupón enviado exitosamente"

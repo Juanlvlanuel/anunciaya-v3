@@ -126,6 +126,7 @@ export interface OtorgarPuntosInput {
   montoTarjeta?: number;
   montoTransferencia?: number;
   cuponId?: string;
+  cuponOfertaUsuarioId?: string;
   fotoTicketUrl?: string;
   numeroOrden?: string;
   nota?: string;
