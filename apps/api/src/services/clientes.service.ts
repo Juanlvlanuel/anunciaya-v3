@@ -679,6 +679,11 @@ export async function obtenerHistorialCliente(
             nota: t.nota || null,
             numeroOrden: t.numeroOrden || null,
             motivoRevocacion: t.motivoRevocacion || null,
+            cuponTitulo: null,
+            cuponTipo: null,
+            cuponValor: null,
+            cuponImagen: null,
+            cuponDescuento: null,
         }));
 
         return {

@@ -582,7 +582,7 @@ export async function generarVoucher(
       referenciaId: resultado.id,
       referenciaTipo: 'voucher',
       icono: '🎟️',
-      actorImagenUrl: recomp.imagenUrl ?? negocio[0]?.logo ?? undefined,
+      actorImagenUrl: negocio[0]?.logo ?? recomp.imagenUrl ?? undefined,
       actorNombre: negocio[0]?.nombre ?? undefined,
     }).catch((err) => console.error('Error notificación voucher generado:', err));
 

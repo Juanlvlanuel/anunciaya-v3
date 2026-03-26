@@ -152,6 +152,7 @@ export interface CrearOfertaInput {
   visibilidad?: VisibilidadOferta;
   usuariosIds?: string[];
   motivoAsignacion?: string;
+  duplicarImagen?: boolean;
 }
 
 /**

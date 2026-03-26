@@ -43,6 +43,8 @@ interface UseOfertasReturn {
   actualizar: (id: string, datos: ActualizarOfertaInput) => Promise<boolean>;
   eliminar: (id: string) => Promise<boolean>;
   duplicar: (id: string, datos: DuplicarOfertaInput) => Promise<boolean>;
+  setOfertas: React.Dispatch<React.SetStateAction<Oferta[]>>;
+  limpiarCache: () => void;
 }
 
 // =============================================================================
@@ -186,9 +188,12 @@ export function useOfertas(): UseOfertasReturn {
       const respuesta = await crearOferta(datos);
 
       if (respuesta.success && respuesta.data) {
-        // 4. Invalidar caché y recargar ofertas desde el servidor
+        // 4. Reemplazar ID temporal por el real del servidor (sin recargar)
+        setOfertas((prev) => prev.map((o) =>
+          o.id === ofertaTemporal.id ? { ...o, id: respuesta.data.id } : o
+        ));
+        // 5. Actualizar caché silenciosamente
         invalidarCache(sucursalId);
-        await cargarOfertas(true);
 
         notificar.exito(datos.visibilidad === 'privado' ? 'Cupón enviado exitosamente' : 'Oferta creada correctamente');
         return true;
@@ -196,14 +201,14 @@ export function useOfertas(): UseOfertasReturn {
         throw new Error(respuesta.message || 'Error al crear oferta');
       }
     } catch (err) {
-      // 5. Revertir cambio optimista
+      // Revertir cambio optimista
       setOfertas((prev) => prev.filter((of) => !of.id.startsWith('temp-')));
 
       const mensaje = err instanceof Error ? err.message : 'Error al crear oferta';
       notificar.error(mensaje);
       return false;
     }
-  }, [cargarOfertas, sucursalId, invalidarCache]);
+  }, [sucursalId, invalidarCache]);
 
   // ===========================================================================
   // ACTUALIZAR OFERTA (OPTIMISTA)
@@ -395,6 +400,8 @@ export function useOfertas(): UseOfertasReturn {
     actualizar,
     eliminar,
     duplicar,
+    setOfertas,
+    limpiarCache: () => invalidarCache(sucursalId),
   };
 }
 

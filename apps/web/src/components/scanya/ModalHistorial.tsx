@@ -656,25 +656,73 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
                     )}
                     <div className="min-w-0 flex-1">
                       {t.cuponCodigo && (
-                        <p className="text-base lg:text-sm 2xl:text-base font-bold mb-0.5" style={{ color: '#F1F5F9' }}>{t.cuponCodigo}</p>
-                      )}
-                      {t.concepto && (
-                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>{t.concepto}</p>
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>{t.cuponCodigo}</p>
                       )}
                     </div>
                   </div>
                 </>
               ) : (
                 <>
-                  {/* Monto total */}
-                  <div className={ROW}>
-                    <span className={LABEL} style={{ color: '#94A3B8' }}>Monto total</span>
+                  {/* Cupón info (si aplica) */}
+                  {tieneCupon && (
+                    <>
+                      <div className="rounded-lg overflow-hidden mb-3" style={{ border: '1px solid rgba(96,165,250,0.25)' }}>
+                        {/* Header con fondo */}
+                        <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5" style={{ background: 'rgba(59,130,246,0.12)' }}>
+                          <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(96,165,250,0.2)' }}>
+                            <Ticket className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" style={{ color: '#60A5FA' }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base lg:text-sm 2xl:text-base font-bold" style={{ color: '#60A5FA' }}>
+                              {t.cuponTipo === 'porcentaje' ? `${t.cuponValor}% de descuento`
+                                : t.cuponTipo === 'monto_fijo' ? `$${t.cuponValor} de descuento`
+                                : t.cuponTipo === '2x1' ? '2×1'
+                                : t.cuponTipo === '3x2' ? '3×2'
+                                : t.cuponTipo === 'envio_gratis' ? 'Envío gratis'
+                                : t.cuponTipo === 'otro' ? (t.cuponValor || 'Otro')
+                                : 'Cupón'}
+                            </p>
+                            <p className="text-sm lg:text-xs 2xl:text-sm font-medium truncate" style={{ color: '#94A3B8' }}>{t.cuponCodigo || 'Cupón'}</p>
+                          </div>
+                          {t.cuponImagen && (
+                            <img
+                              src={t.cuponImagen}
+                              alt=""
+                              className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-lg object-cover shrink-0"
+                              style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Subtotal (solo si hay cupón) */}
+                  {tieneCupon && t.cuponDescuento && (
+                    <div className={ROW}>
+                      <span className={LABEL} style={{ color: '#94A3B8' }}>Subtotal</span>
+                      <span className={VALUE} style={{ color: '#94A3B8' }}>{formatMonto(t.montoTotal + (t.cuponDescuento || 0))}</span>
+                    </div>
+                  )}
+                  {tieneCupon && t.cuponDescuento && (
+                    <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="flex items-center gap-1.5">
+                        <Ticket className="w-4 h-4" style={{ color: '#60A5FA' }} />
+                        <span className={LABEL} style={{ color: '#60A5FA' }}>Descuento cupón</span>
+                      </div>
+                      <span className={VALUE} style={{ color: '#60A5FA' }}>-{formatMonto(t.cuponDescuento)}</span>
+                    </div>
+                  )}
+
+                  {/* Total cobrado */}
+                  <div className={ROW} style={tieneCupon && t.cuponDescuento && t.cuponDescuento > 0 ? { borderTop: '1px solid rgba(255,255,255,0.06)' } : undefined}>
+                    <span className={LABEL} style={{ color: '#94A3B8' }}>{tieneCupon && t.cuponDescuento && t.cuponDescuento > 0 ? 'Total cobrado' : 'Monto total'}</span>
                     <span className={`text-xl lg:text-lg 2xl:text-xl font-bold ${esRevocada ? 'line-through' : ''}`} style={{ color: esRevocada ? '#64748B' : '#F1F5F9' }}>
                       {formatMonto(t.montoTotal)}
                     </span>
                   </div>
 
-                  {/* Desglose */}
+                  {/* Método de pago */}
                   {t.montoEfectivo > 0 && (
                     <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                       <div className="flex items-center gap-1.5">
@@ -700,17 +748,6 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
                         <span className={LABEL} style={{ color: '#94A3B8' }}>Transferencia</span>
                       </div>
                       <span className={VALUE} style={{ color: '#F1F5F9' }}>{formatMonto(t.montoTransferencia)}</span>
-                    </div>
-                  )}
-
-                  {/* Cupón descuento */}
-                  {tieneCupon && t.cuponDescuento && (
-                    <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div className="flex items-center gap-1.5">
-                        <Ticket className="w-4 h-4" style={{ color: '#60A5FA' }} />
-                        <span className={LABEL} style={{ color: '#60A5FA' }}>Descuento cupón</span>
-                      </div>
-                      <span className={VALUE} style={{ color: '#60A5FA' }}>-{formatMonto(t.cuponDescuento)}</span>
                     </div>
                   )}
 

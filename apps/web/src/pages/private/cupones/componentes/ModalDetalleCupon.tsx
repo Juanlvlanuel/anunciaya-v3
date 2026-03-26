@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import {
-    Ticket, Store, Calendar, Lock, Eye, EyeOff, Copy, CheckCircle, XCircle, Clock, AlertTriangle, Tag, Gift, DollarSign,
+    Ticket, Store, Calendar, Lock, Eye, EyeOff, Copy, CheckCircle, XCircle, Clock, AlertTriangle, Gift, DollarSign,
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
@@ -34,7 +34,7 @@ function formatearBadgeDescuento(tipo: string, valor: string | null): string {
         case 'monto_fijo': return `$${valor} desc.`;
         case '2x1': return '2×1';
         case '3x2': return '3×2';
-        case 'envio_gratis': return 'GRATIS';
+        case 'envio_gratis': return 'Envío Gratis';
         default: return valor || 'Promo';
     }
 }
@@ -186,7 +186,8 @@ export default function ModalDetalleCupon({
                             <Ticket className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">{cupon.titulo}</h3>
+                            <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">{formatearBadgeDescuento(cupon.tipo, cupon.valor)}</h3>
+                            <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-white/70 truncate">{cupon.titulo}</p>
                         </div>
                         <div className={`px-2.5 py-1 rounded-lg ${badge.clases} flex items-center gap-1`}>
                             <BadgeIcono className="w-3.5 h-3.5" />
@@ -226,48 +227,49 @@ export default function ModalDetalleCupon({
 
                     {/* Sección info — lista con divisores */}
                     <div className="rounded-xl border-2 border-slate-300 divide-y divide-slate-300">
-                        {/* Tipo descuento */}
-                        <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5">
-                            <Tag className="w-4 h-4 text-slate-600 shrink-0" />
-                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800">
-                                {formatearBadgeDescuento(cupon.tipo, cupon.valor)}
-                            </span>
-                        </div>
-
                         {/* Fecha expiración */}
                         {cupon.fechaFin && (
                             <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5">
-                                <Calendar className="w-4 h-4 text-slate-600 shrink-0" />
-                                <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700">
-                                    Vence {new Date(cupon.fechaFin).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </span>
+                                <Calendar className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-slate-600 shrink-0" />
+                                <div>
+                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800">Vencimiento:</span>
+                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600">
+                                        {new Date(cupon.fechaFin).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </p>
+                                </div>
                             </div>
                         )}
 
                         {/* Compra mínima */}
                         {cupon.compraMinima && parseFloat(cupon.compraMinima) > 0 && (
                             <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5">
-                                <DollarSign className="w-4 h-4 text-slate-600 shrink-0" />
-                                <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700">
-                                    Compra mínima: ${cupon.compraMinima}
-                                </span>
+                                <DollarSign className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-slate-600 shrink-0" />
+                                <div>
+                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800">Compra mínima:</span>
+                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600">${cupon.compraMinima}</p>
+                                </div>
                             </div>
                         )}
 
                         {/* Motivo */}
                         {cupon.motivo && (
                             <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5">
-                                <Gift className="w-4 h-4 text-slate-600 shrink-0" />
-                                <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700">
-                                    {cupon.motivo}
-                                </span>
+                                <Gift className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-slate-600 shrink-0" />
+                                <div>
+                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800">Motivo:</span>
+                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600">{cupon.motivo}</p>
+                                </div>
                             </div>
                         )}
 
-                        {/* Descripción */}
+                        {/* Condiciones de uso */}
                         {cupon.descripcion && (
-                            <div className="px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5">
-                                <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">{cupon.descripcion}</p>
+                            <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5">
+                                <AlertTriangle className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-slate-600 shrink-0" />
+                                <div>
+                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800">Condiciones:</span>
+                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600">{cupon.descripcion}</p>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -284,12 +286,12 @@ export default function ModalDetalleCupon({
                     {/* Sección código — compacta */}
                     {esActivo && (
                         <div className="p-3 lg:p-2.5 2xl:p-3 bg-slate-200 rounded-xl">
-                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-2 lg:mb-1.5 2xl:mb-2">Tu código de cupón</p>
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800 mb-2 lg:mb-1.5 2xl:mb-2">Código de Cupón</p>
 
                             {codigoVisible && codigoRevelado ? (
                                 <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
                                     <div className="flex items-center justify-between p-2.5 lg:p-2 2xl:p-2.5 bg-white rounded-lg border-2 border-emerald-300">
-                                        <span className="text-2xl lg:text-xl 2xl:text-2xl font-mono font-black text-slate-800 tracking-widest">
+                                        <span className="text-xl lg:text-lg 2xl:text-xl font-mono font-black text-slate-800 tracking-widest">
                                             {codigoRevelado}
                                         </span>
                                         <button
@@ -322,7 +324,7 @@ export default function ModalDetalleCupon({
                                             autoComplete="current-password"
                                             value={contrasena}
                                             onChange={(e) => { setContrasena(e.target.value); setErrorContrasena(''); }}
-                                            placeholder="Tu contraseña"
+                                            placeholder="Tu contraseña de AnunciaYA"
                                             className={`w-full h-10 lg:h-9 2xl:h-10 pl-9 lg:pl-8 2xl:pl-9 pr-10 lg:pr-9 2xl:pr-10 bg-white border-2 ${errorContrasena ? 'border-red-400' : 'border-slate-300'} rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500`}
                                         />
                                         <button

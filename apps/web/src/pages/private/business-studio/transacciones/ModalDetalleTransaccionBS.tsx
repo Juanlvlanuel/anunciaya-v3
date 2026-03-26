@@ -192,7 +192,7 @@ export default function ModalDetalleTransaccionBS({
   const gradiente = esCupon && estado === 'confirmado'
     ? { bg: 'linear-gradient(135deg, #1e293b, #334155)', shadow: 'rgba(30,41,59,0.4)' }
     : GRADIENTES_ESTADO[estado] || GRADIENTES_ESTADO.confirmado;
-  const puedeRevocar = estado === 'confirmado';
+  const puedeRevocar = estado === 'confirmado' && !esCupon;
 
   // ─── Handler revocar ───
   const handleRevocar = async () => {
@@ -275,6 +275,89 @@ export default function ModalDetalleTransaccionBS({
       <div className="flex-1 overflow-y-auto">
       <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-2">
 
+        {/* Cupón aplicado (si tiene) */}
+        {tx.cuponTitulo && (
+          <div className="py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
+            <div className="rounded-lg overflow-hidden border-2 border-blue-200">
+              <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5 bg-blue-50">
+                <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                  <Ticket className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base lg:text-sm 2xl:text-base font-bold text-blue-800">
+                    {tx.montoCompra === 0 ? 'Gratis' : tx.cuponTipo === 'porcentaje' ? `${tx.cuponValor}% de descuento` : tx.cuponTipo === 'monto_fijo' ? `$${tx.cuponValor} de descuento` : tx.cuponTipo === '2x1' ? '2×1' : tx.cuponTipo === '3x2' ? '3×2' : tx.cuponTipo === 'envio_gratis' ? 'Envío gratis' : tx.cuponTipo === 'otro' ? (tx.cuponValor || 'Otro') : 'Cupón'}
+                  </p>
+                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate">{tx.cuponTitulo}</p>
+                </div>
+                {tx.cuponImagen && (
+                  <img src={tx.cuponImagen} alt="" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-lg object-cover shrink-0 border border-blue-200" />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Desglose de montos */}
+        <div className="py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
+          {/* Subtotal (solo si hay cupón con descuento) */}
+          {esCupon && Number(tx.cuponDescuento) > 0 && (
+            <div className="flex items-center justify-between py-1">
+              <span className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-700">Subtotal</span>
+              <span className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-700">{formatearMoneda(tx.montoCompra + Number(tx.cuponDescuento))}</span>
+            </div>
+          )}
+          {esCupon && Number(tx.cuponDescuento) > 0 && (
+            <div className="flex items-center justify-between py-1">
+              <span className="text-base lg:text-sm 2xl:text-base font-semibold text-blue-600">Descuento cupón</span>
+              <div className="flex items-center gap-1">
+                <Ticket className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600" />
+                <span className="text-base lg:text-sm 2xl:text-base font-bold text-blue-600">-{formatearMoneda(Number(tx.cuponDescuento))}</span>
+              </div>
+            </div>
+          )}
+          {/* Total cobrado / Monto total */}
+          <div className="flex items-center justify-between py-1">
+            <span className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-700">
+              {esCupon && Number(tx.cuponDescuento) > 0 ? 'Total cobrado' : 'Monto total'}
+            </span>
+            <span className={`text-xl lg:text-lg 2xl:text-xl font-bold ${estado === 'cancelado' ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+              {formatearMoneda(tx.montoCompra)}
+            </span>
+          </div>
+        </div>
+
+        {/* Método de pago */}
+        {(tx.montoEfectivo > 0 || tx.montoTarjeta > 0 || tx.montoTransferencia > 0) && (
+          <div className="py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
+            <div className="flex items-center gap-3 mb-1.5">
+              <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
+                <CreditCard className="w-4 h-4 text-slate-600" />
+              </div>
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Método de pago</p>
+            </div>
+            <div className="flex flex-wrap gap-2 ml-11 lg:ml-10 2xl:ml-11">
+              {tx.montoEfectivo > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100">
+                  <Banknote className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-emerald-700">{formatearMoneda(tx.montoEfectivo)}</span>
+                </span>
+              )}
+              {tx.montoTarjeta > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-100">
+                  <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-blue-700">{formatearMoneda(tx.montoTarjeta)}</span>
+                </span>
+              )}
+              {tx.montoTransferencia > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-100">
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-violet-600" />
+                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-violet-700">{formatearMoneda(tx.montoTransferencia)}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Puntos + multiplicador + badge estado */}
         <div className="flex items-center gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
           <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
@@ -312,34 +395,7 @@ export default function ModalDetalleTransaccionBS({
           />
         )}
 
-        {/* Cupón (si la transacción usó cupón) */}
-        {tx.cuponTitulo && (
-          <div className="py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
-            <div className="flex items-start gap-3">
-              {tx.cuponImagen ? (
-                <img src={tx.cuponImagen} alt="" className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg object-cover shrink-0 border-2 border-slate-300" />
-              ) : (
-                <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                  <Ticket className="w-4 h-4 text-blue-600" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Cupón aplicado</p>
-                <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 truncate">{tx.cuponTitulo}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                    {tx.montoCompra === 0 ? 'Gratis' : tx.cuponTipo === 'porcentaje' ? `${tx.cuponValor}% desc.` : tx.cuponTipo === 'monto_fijo' ? `$${tx.cuponValor} desc.` : tx.cuponTipo === '2x1' ? '2×1' : tx.cuponTipo === '3x2' ? '3×2' : tx.cuponTipo === 'envio_gratis' ? 'Envío gratis' : tx.cuponTipo || 'Cupón'}
-                  </span>
-                  {tx.cuponDescuento && tx.cuponDescuento > 0 && (
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">-{formatearMoneda(tx.cuponDescuento)}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Operador + Sucursal en una fila */}
+        {/* Operador + Sucursal */}
         {(tx.empleadoNombre || (tieneSucursales && tx.sucursalNombre)) && (
           <div className="flex items-start gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
             <div className={`flex-1 min-w-0 ${tieneSucursales && tx.sucursalNombre ? 'grid grid-cols-2 gap-x-3' : ''}`}>
@@ -349,7 +405,7 @@ export default function ModalDetalleTransaccionBS({
                     <User className="w-4 h-4 text-blue-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Registró venta</p>
+                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Atendido por</p>
                     <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">{tx.empleadoNombre}</p>
                   </div>
                 </div>
@@ -378,7 +434,7 @@ export default function ModalDetalleTransaccionBS({
           />
         )}
 
-        {/* Nota + Nº orden inline (si existen) */}
+        {/* Nota + Nº orden */}
         {(tx.nota || tx.numeroOrden) && (
           <div className="flex items-start gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
             <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
@@ -396,38 +452,6 @@ export default function ModalDetalleTransaccionBS({
                   <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Nº orden</p>
                   <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800">{tx.numeroOrden}</p>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Desglose de métodos de pago */}
-        {(tx.montoEfectivo > 0 || tx.montoTarjeta > 0 || tx.montoTransferencia > 0) && (
-          <div className="py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
-            <div className="flex items-center gap-3 mb-1.5">
-              <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
-                <CreditCard className="w-4 h-4 text-slate-600" />
-              </div>
-              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Métodos de pago</p>
-            </div>
-            <div className="flex flex-wrap gap-2 ml-11 lg:ml-10 2xl:ml-11">
-              {tx.montoEfectivo > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100">
-                  <Banknote className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-emerald-700">{formatearMoneda(tx.montoEfectivo)}</span>
-                </span>
-              )}
-              {tx.montoTarjeta > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-100">
-                  <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-blue-700">{formatearMoneda(tx.montoTarjeta)}</span>
-                </span>
-              )}
-              {tx.montoTransferencia > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-100">
-                  <ArrowRightLeft className="w-3.5 h-3.5 text-violet-600" />
-                  <span className="text-base lg:text-sm 2xl:text-base font-semibold text-violet-700">{formatearMoneda(tx.montoTransferencia)}</span>
-                </span>
               )}
             </div>
           </div>

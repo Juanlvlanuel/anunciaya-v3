@@ -602,10 +602,10 @@ export async function responderResena(
                 usuarioId: original.autor_id as string,
                 modo: 'personal',
                 tipo: 'nueva_resena',
-                titulo: `${negocio?.nombre || 'Un negocio'} respondió tu reseña`,
+                titulo: 'Respondieron tu reseña',
                 mensaje: datos.texto.length > 80
-                    ? `"${datos.texto.slice(0, 80)}..."`
-                    : `"${datos.texto}"`,
+                    ? `"${datos.texto.slice(0, 80)}..."\n${negocio?.nombre ?? 'un negocio'}`
+                    : `"${datos.texto}"\n${negocio?.nombre ?? 'un negocio'}`,
                 negocioId,
                 sucursalId: original.sucursal_id as string,
                 referenciaId: datos.resenaId,

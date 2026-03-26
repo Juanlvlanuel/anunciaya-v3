@@ -129,8 +129,8 @@ function FilaDetalle({
         {icono}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">{etiqueta}</p>
-        <p className={`text-sm lg:text-xs 2xl:text-sm font-semibold truncate ${valorColor || 'text-slate-800'}`}>
+        <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">{etiqueta}</p>
+        <p className={`text-base lg:text-sm 2xl:text-base font-semibold truncate ${valorColor || 'text-slate-800'}`}>
           {valor}
         </p>
       </div>
@@ -256,12 +256,12 @@ export default function ModalDetalleCanjeBS({
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Recompensa canjeada</p>
-            <p className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate">
+            <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Recompensa canjeada</p>
+            <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 truncate">
               {canje.recompensaNombre}
             </p>
             {canje.recompensaDescripcion && (
-              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-0.5 line-clamp-2">
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 mt-0.5 line-clamp-2">
                 {canje.recompensaDescripcion}
               </p>
             )}
@@ -293,15 +293,15 @@ export default function ModalDetalleCanjeBS({
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Expiración</p>
-              <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800">
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Expiración</p>
+              <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800">
                 {formatearFechaCorta(canje.expiraAt)}
               </p>
               {/* Indicador de urgencia si está pendiente */}
               {canje.estado === 'pendiente' && (() => {
                 const { texto, urgente } = calcularDiasRestantes(canje.expiraAt!);
                 return (
-                  <p className={`text-sm mt-0.5 font-medium ${urgente ? 'text-red-600' : 'text-slate-600'}`}>
+                  <p className={`text-base lg:text-sm 2xl:text-base mt-0.5 font-medium ${urgente ? 'text-red-600' : 'text-slate-600'}`}>
                     {texto}
                   </p>
                 );
@@ -320,8 +320,8 @@ export default function ModalDetalleCanjeBS({
                     <UserCheck className="w-4 h-4 text-blue-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Atendido por</p>
-                    <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{canje.usadoPorNombre}</p>
+                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Atendido por</p>
+                    <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">{canje.usadoPorNombre}</p>
                   </div>
                 </div>
               )}
@@ -331,8 +331,8 @@ export default function ModalDetalleCanjeBS({
                     <MapPin className="w-4 h-4 text-purple-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Sucursal</p>
-                    <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{canje.sucursalNombre}</p>
+                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Sucursal</p>
+                    <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">{canje.sucursalNombre}</p>
                   </div>
                 </div>
               )}

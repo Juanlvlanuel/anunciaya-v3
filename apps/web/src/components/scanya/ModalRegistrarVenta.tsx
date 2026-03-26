@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { notificar } from '@/utils/notificaciones';
 import scanyaService from '@/services/scanyaService';
+import { eliminarImagenHuerfana } from '@/services/r2Service';
 import useScanYAStore from '@/stores/useScanYAStore';
 import type { ConfiguracionScanYA } from '@/types/scanya';
 
@@ -92,6 +93,7 @@ interface CuponAplicado {
     compraMinima: number;
     titulo: string;
     descuentoInfo: string;
+    descripcion: string | null;
 }
 
 // =============================================================================
@@ -284,6 +286,14 @@ export function ModalRegistrarVenta({
         }
     };
 
+    /** Elimina la foto actual de R2 (fire-and-forget) y limpia el estado */
+    const eliminarFoto = () => {
+        if (fotoUrl) {
+            eliminarImagenHuerfana(fotoUrl).catch(() => { /* silencioso */ });
+        }
+        setFotoUrl(null);
+    };
+
     const resetearFormulario = () => {
         setSeccionActiva('cliente');
         setTelefono('');
@@ -293,6 +303,10 @@ export function ModalRegistrarVenta({
         setMonto('');
         setMetodoPago(null);
         setDesglose({ efectivo: 0, tarjeta: 0, transferencia: 0 });
+        // Solo eliminar de R2 si la venta NO fue exitosa (foto huérfana)
+        if (!exito && fotoUrl) {
+            eliminarImagenHuerfana(fotoUrl).catch(() => { /* silencioso */ });
+        }
         setFotoUrl(null);
         setCodigoCupon('');
         setCupon(null);
@@ -302,6 +316,14 @@ export function ModalRegistrarVenta({
         setExito(false);
         setResultadoPuntos(0);
         setRecordatorioId(null);
+    };
+
+    /** Cierra el modal limpiando foto huérfana de R2 si no hubo éxito */
+    const handleCerrar = () => {
+        if (!exito && fotoUrl) {
+            eliminarImagenHuerfana(fotoUrl).catch(() => { /* silencioso */ });
+        }
+        onClose();
     };
 
     // ---------------------------------------------------------------------------
@@ -423,6 +445,7 @@ export function ModalRegistrarVenta({
                     compraMinima: o.compraMinima || 0,
                     titulo: o.titulo,
                     descuentoInfo: data.descuentoInfo,
+                    descripcion: o.descripcion || null,
                 });
                 notificar.exito(data.descuentoInfo || 'Código aplicado');
             } else {
@@ -631,12 +654,38 @@ export function ModalRegistrarVenta({
 
         setProcesando(true);
         try {
+            // Calcular monto real post-descuento para métodos de pago
+            const montoOriginal = parseFloat(monto) || 0;
+            const descuentoCupon = cupon ? (
+                cupon.tipo === 'porcentaje' ? montoOriginal * (cupon.descuento / 100) :
+                cupon.tipo === 'monto_fijo' ? cupon.descuento : 0
+            ) : 0;
+            const montoReal = Math.max(0, montoOriginal - descuentoCupon);
+
+            // Ajustar desglose de pago al monto real (post-descuento)
+            let efReal = desglose.efectivo || 0;
+            let tjReal = desglose.tarjeta || 0;
+            let trReal = desglose.transferencia || 0;
+
+            if (descuentoCupon > 0 && montoOriginal > 0) {
+                const ratio = montoReal / montoOriginal;
+                if (metodoPago === 'mixto') {
+                    efReal = Math.round(efReal * ratio * 100) / 100;
+                    tjReal = Math.round(tjReal * ratio * 100) / 100;
+                    trReal = Math.round((montoReal - efReal - tjReal) * 100) / 100;
+                } else {
+                    efReal = metodoPago === 'efectivo' ? montoReal : 0;
+                    tjReal = metodoPago === 'tarjeta' ? montoReal : 0;
+                    trReal = metodoPago === 'transferencia' ? montoReal : 0;
+                }
+            }
+
             const respuesta = await scanyaService.otorgarPuntos({
                 clienteId: cliente.id,
-                montoTotal: parseFloat(monto) || 0,
-                montoEfectivo: desglose.efectivo || undefined,
-                montoTarjeta: desglose.tarjeta || undefined,
-                montoTransferencia: desglose.transferencia || undefined,
+                montoTotal: montoOriginal,
+                montoEfectivo: efReal || undefined,
+                montoTarjeta: tjReal || undefined,
+                montoTransferencia: trReal || undefined,
                 cuponId: cupon?.id || undefined,
                 cuponOfertaUsuarioId: cupon?.ofertaUsuarioId || undefined,
                 fotoTicketUrl: fotoUrl || undefined,
@@ -836,13 +885,13 @@ export function ModalRegistrarVenta({
                     {/* Handle visual solo móvil */}
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/20 rounded-full lg:hidden" />
 
-                    <button onClick={onClose} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -ml-2 cursor-pointer">
+                    <button onClick={handleCerrar} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -ml-2 cursor-pointer">
                         <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                     </button>
                     <h1 className="text-white font-semibold flex-1 text-base lg:text-sm 2xl:text-base">
                         {modoOffline ? '📋 Guardar Recordatorio' : 'Registrar Venta'}
                     </h1>
-                    <button onClick={onClose} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -mr-2 cursor-pointer">
+                    <button onClick={handleCerrar} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -mr-2 cursor-pointer">
                         <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                     </button>
                 </header>
@@ -1123,9 +1172,9 @@ export function ModalRegistrarVenta({
                                     </div>
                                     <div className="flex-1 text-left">
                                         <p className="text-white font-medium text-base lg:text-sm 2xl:text-base">
-                                            Código de cupón <span className="text-[#606060] text-xs">(opcional)</span>
+                                            Código de Cupón <span className="text-[#606060] text-xs">(opcional)</span>
                                         </p>
-                                        {cupon && (
+                                        {cupon && seccionActiva !== 'cupon' && (
                                             <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm">
                                                 {cupon.titulo} • {cupon.descuentoInfo}
                                             </p>
@@ -1141,16 +1190,55 @@ export function ModalRegistrarVenta({
                                 {seccionActiva === 'cupon' && seccionCompletada('cliente') && (
                                     <div className="px-4 pb-4">
                                         {cupon ? (
-                                            <div className="flex items-center justify-between p-3 lg:p-2 2xl:p-3 rounded-lg lg:rounded-md 2xl:rounded-lg bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.3)]">
-                                                <div>
-                                                    <p className="text-white font-medium">{cupon.titulo}</p>
-                                                    <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm">
-                                                        {cupon.descuentoInfo}
-                                                    </p>
+                                            <div className="rounded-lg lg:rounded-md 2xl:rounded-lg bg-[rgba(16,185,129,0.08)] border border-[rgba(16,185,129,0.25)] overflow-hidden">
+                                                {/* Encabezado: icono + título + tipo + quitar */}
+                                                <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 bg-[rgba(16,185,129,0.12)] border-b border-[rgba(16,185,129,0.2)]">
+                                                    <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg bg-[rgba(16,185,129,0.2)] flex items-center justify-center shrink-0">
+                                                        <Ticket className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#10B981]" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-white text-lg lg:text-base 2xl:text-lg font-bold truncate">{cupon.titulo}</p>
+                                                        <p className="text-[#10B981] text-sm lg:text-xs 2xl:text-sm font-semibold">{cupon.descuentoInfo}</p>
+                                                    </div>
+                                                    <button onClick={() => setCupon(null)} className="text-[#DC2626] cursor-pointer shrink-0">
+                                                        <X className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                                                    </button>
                                                 </div>
-                                                <button onClick={() => setCupon(null)} className="text-[#DC2626] cursor-pointer">
-                                                    <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                                </button>
+
+                                                {/* Contenido plano: instrucción + condiciones + compra mínima */}
+                                                <div className="px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 divide-y divide-white/10 [&>div]:pt-2.5 [&>div]:pb-2.5 [&>div:first-child]:pt-0 [&>div:last-child]:pb-0">
+                                                    {/* Instrucción de acción */}
+                                                    <div>
+                                                        <p className="text-[#93C5FD] text-xs lg:text-[10px] 2xl:text-xs font-bold uppercase tracking-wide mb-0.5">Qué hacer</p>
+                                                        <p className="text-white text-base lg:text-sm 2xl:text-base font-bold">
+                                                            {cupon.tipo === 'porcentaje' && `Aplica ${cupon.descuento}% de descuento:`}
+                                                            {cupon.tipo === 'monto_fijo' && `Descuenta $${cupon.descuento}:`}
+                                                            {cupon.tipo === '2x1' && 'Entrega el segundo artículo sin costo:'}
+                                                            {cupon.tipo === '3x2' && 'Entrega el tercer artículo sin costo:'}
+                                                            {cupon.tipo === 'envio_gratis' && 'No cobrar envío:'}
+                                                            {cupon.tipo === 'otro' && `${cupon.descuentoInfo}:`}
+                                                        </p>
+                                                        <p className="text-white text-base lg:text-sm 2xl:text-base font-medium">
+                                                            {cupon.titulo}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Condiciones */}
+                                                    {cupon.descripcion && (
+                                                        <div>
+                                                            <p className="text-[#93C5FD] text-xs lg:text-[10px] 2xl:text-xs font-bold uppercase tracking-wide mb-0.5">Condiciones</p>
+                                                            <p className="text-slate-300 text-base lg:text-sm 2xl:text-base font-medium">{cupon.descripcion}</p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Compra mínima */}
+                                                    {cupon.compraMinima > 0 && (
+                                                        <div>
+                                                            <p className="text-[#93C5FD] text-xs lg:text-[10px] 2xl:text-xs font-bold uppercase tracking-wide mb-0.5">Compra mínima</p>
+                                                            <p className="text-white text-base lg:text-sm 2xl:text-base font-medium">${cupon.compraMinima.toLocaleString('es-MX')}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
@@ -1584,7 +1672,7 @@ export function ModalRegistrarVenta({
                                                     className="w-full h-40 object-contain rounded-lg lg:rounded-md 2xl:rounded-lg bg-black"
                                                 />
                                                 <button
-                                                    onClick={() => setFotoUrl(null)}
+                                                    onClick={eliminarFoto}
                                                     className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white cursor-pointer"
                                                 >
                                                     <X className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
@@ -1689,6 +1777,16 @@ export function ModalRegistrarVenta({
                                     <span className="text-[#F59E0B] text-xl font-bold">+{calcularPuntos()}</span>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Aviso compra mínima no alcanzada */}
+                    {cupon && cupon.compraMinima > 0 && parseFloat(monto) > 0 && parseFloat(monto) < cupon.compraMinima && (
+                        <div className="mb-2 px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                            <span className="text-red-400 text-sm lg:text-xs 2xl:text-sm font-medium">
+                                Compra mínima de ${cupon.compraMinima.toLocaleString('es-MX')} requerida para este cupón
+                            </span>
                         </div>
                     )}
 

@@ -4,14 +4,14 @@
  * Página "Mis Cupones" — vista cliente.
  * Estructura idéntica a CardYA con identidad visual emerald/teal.
  *
- * 3 tabs: Activos | Usados | Historial
+ * 2 tabs: Activos | Usados
  *
  * UBICACIÓN: apps/web/src/pages/private/cupones/PaginaMisCupones.tsx
  */
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Ticket, Gift, CheckCircle, Clock, ChevronLeft, Menu } from 'lucide-react';
+import { Ticket, Gift, CheckCircle, ChevronLeft, Menu } from 'lucide-react';
 import { Spinner } from '../../../components/ui/Spinner';
 import type { CuponCliente } from '../../../services/misCuponesService';
 import { useUiStore } from '../../../stores/useUiStore';
@@ -24,12 +24,11 @@ import ModalDetalleCupon from './componentes/ModalDetalleCupon';
 // TIPOS
 // =============================================================================
 
-type TabCupones = 'activos' | 'usados' | 'historial';
+type TabCupones = 'activos' | 'usados';
 
 const TABS: { id: TabCupones; label: string; icono: React.ComponentType<{ className?: string }> }[] = [
     { id: 'activos', label: 'Activos', icono: Gift },
     { id: 'usados', label: 'Usados', icono: CheckCircle },
-    { id: 'historial', label: 'Historial', icono: Clock },
 ];
 
 // =============================================================================
@@ -86,9 +85,8 @@ export default function PaginaMisCupones() {
             const cupon = cupones.find(c => c.cuponId === cuponId || c.ofertaId === cuponId);
             if (cupon) {
                 // Cambiar al tab correcto según estado
-                if (cupon.estado === 'activo') setTabActivoInterno('activos');
-                else if (cupon.estado === 'usado') setTabActivoInterno('usados');
-                else setTabActivoInterno('historial');
+                if (cupon.estado === 'usado') setTabActivoInterno('usados');
+                else setTabActivoInterno('activos');
                 setCuponSeleccionado(cupon);
                 setModalAbierto(true);
             }
@@ -99,8 +97,7 @@ export default function PaginaMisCupones() {
     // Filtrar por tab
     const cuponesFiltrados = cupones.filter(c => {
         if (tabActivo === 'activos') return c.estado === 'activo';
-        if (tabActivo === 'usados') return c.estado === 'usado';
-        return c.estado === 'expirado' || c.estado === 'revocado';
+        return c.estado === 'usado';
     });
 
     // KPIs
@@ -273,7 +270,7 @@ export default function PaginaMisCupones() {
                                                     <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" />
                                                     {tab.label}
                                                     {tab.id === 'activos' && totalActivos > 0 && (
-                                                        <span className="text-[10px] font-bold bg-emerald-500 text-white px-1.5 rounded-full">{totalActivos}</span>
+                                                        <span className="text-[10px] font-bold bg-emerald-500 text-white w-5 h-5 rounded-full flex items-center justify-center">{totalActivos}</span>
                                                     )}
                                                     {esActivo && (
                                                         <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-emerald-400" />
@@ -300,7 +297,7 @@ export default function PaginaMisCupones() {
                                 <Ticket className="w-8 h-8 text-slate-400" />
                             </div>
                             <p className="text-lg font-bold text-slate-700">
-                                {tabActivo === 'activos' ? 'No tienes cupones activos' : tabActivo === 'usados' ? 'No has usado cupones' : 'Sin historial'}
+                                {tabActivo === 'activos' ? 'No tienes cupones activos' : 'No has usado cupones'}
                             </p>
                             <p className="text-sm text-slate-600 font-medium mt-1">
                                 {tabActivo === 'activos' ? 'Cuando un negocio te envíe un cupón, aparecerá aquí' : 'Los cupones expirados y revocados aparecerán aquí'}

@@ -239,7 +239,7 @@ export function DatePicker({
                 type="button"
                 onClick={() => !disabled && setAbierto(!abierto)}
                 disabled={disabled}
-                className={`w-full h-11 lg:h-10 2xl:h-11 flex items-center justify-between px-3 border-2 rounded-lg text-sm lg:text-xs 2xl:text-sm font-medium transition-colors ${disabled
+                className={`w-full h-11 lg:h-10 2xl:h-11 flex items-center justify-between px-3 border-2 rounded-lg text-base lg:text-sm 2xl:text-base font-medium transition-colors ${disabled
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'
                         : error
                             ? 'border-red-300 hover:border-red-400 cursor-pointer'

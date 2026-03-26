@@ -68,6 +68,7 @@ export interface CrearOfertaInput {
   visibilidad?: VisibilidadOferta;
   usuariosIds?: string[];       // Para ofertas privadas: IDs de usuarios asignados
   motivoAsignacion?: string;    // Motivo de la asignación exclusiva
+  duplicarImagen?: boolean;     // Si true, copia la imagen en R2 (para duplicar cupones)
 }
 
 /**

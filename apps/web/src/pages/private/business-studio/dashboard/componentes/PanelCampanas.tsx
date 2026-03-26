@@ -1,7 +1,7 @@
 /**
  * PanelCampanas.tsx
  * ==================
- * Panel que muestra las campañas activas (ofertas y cupones) con métricas
+ * Panel que muestra las ofertas activas con métricas
  * 
  * UBICACIÓN: apps/web/src/pages/private/business-studio/dashboard/componentes/PanelCampanas.tsx
  * 
@@ -264,10 +264,11 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
 
 export default function PanelCampanas({ campanas, onEditar, vistaMobil = false }: PanelCampanasProps) {
 
-  // PRIMERO: Filtrar campañas que NO estén vencidas
+  // PRIMERO: Filtrar solo ofertas (no cupones) que NO estén vencidas
   const campanasNoVencidas = campanas.filter(campana => {
+    if (campana.tipoCampana !== 'oferta') return false;
     const diasRestantes = calcularDiasRestantes(campana.fechaFin);
-    return diasRestantes !== null; // Solo las que NO retornan null (no vencidas)
+    return diasRestantes !== null;
   });
 
   // SEGUNDO: Tomar las primeras 3 de las NO vencidas
@@ -295,7 +296,7 @@ export default function PanelCampanas({ campanas, onEditar, vistaMobil = false }
           style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
           <Tag className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
         </div>
-        <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-white flex-1">Cupones y Ofertas</h3>
+        <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-white flex-1">Ofertas</h3>
         <span className="text-sm lg:text-[11px] 2xl:text-sm text-emerald-400 bg-emerald-400/15 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap">{total} Activas</span>
       </div>
 

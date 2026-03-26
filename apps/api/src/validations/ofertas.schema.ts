@@ -36,7 +36,7 @@ const campoTipo = z.enum(
 const campoTitulo = z
   .string()
   .trim()
-  .min(5, 'El título debe tener al menos 5 caracteres')
+  .min(3, 'El título debe tener al menos 3 caracteres')
   .max(150, 'El título no puede exceder 150 caracteres');
 
 /**
@@ -169,6 +169,7 @@ export const crearOfertaSchema = z
     visibilidad: campoVisibilidad,
     usuariosIds: z.array(campoUUID).min(1).max(500).optional(),
     motivoAsignacion: z.string().trim().max(200).optional(),
+    duplicarImagen: z.boolean().optional(),
   })
   .refine(
     (data) => {

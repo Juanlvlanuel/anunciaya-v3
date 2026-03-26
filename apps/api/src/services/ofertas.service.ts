@@ -405,6 +405,18 @@ export async function crearOferta(
 ) {
   try {
     return await db.transaction(async (tx) => {
+      // 0. Si es duplicación, copiar imagen en R2
+      let imagenFinal = datos.imagen ?? null;
+      if (imagenFinal && datos.duplicarImagen) {
+        try {
+          const { duplicarArchivo } = await import('./r2.service');
+          const nuevaUrl = await duplicarArchivo(imagenFinal, 'ofertas');
+          if (nuevaUrl) imagenFinal = nuevaUrl;
+        } catch {
+          console.error('Error al duplicar imagen R2, usando original');
+        }
+      }
+
       // 1. Crear oferta
       const [nuevaOferta] = await tx
         .insert(ofertas)
@@ -414,7 +426,7 @@ export async function crearOferta(
           articuloId: datos.articuloId || null,
           titulo: datos.titulo.trim(),
           descripcion: datos.descripcion?.trim() || null,
-          imagen: datos.imagen ?? null,
+          imagen: imagenFinal,
           tipo: datos.tipo,
           valor: datos.valor?.toString() || null,
           compraMinima: (datos.compraMinima || 0).toString(),
@@ -445,20 +457,30 @@ export async function crearOferta(
           .where(eq(negocios.id, negocioId))
           .limit(1);
 
+        // Construir info del tipo de cupón
+        const valorNum = nuevaOferta.valor ? parseFloat(nuevaOferta.valor) : 0;
+        const tipoInfo = nuevaOferta.tipo === 'porcentaje' ? `${valorNum}% de descuento`
+          : nuevaOferta.tipo === 'monto_fijo' ? `$${valorNum} de descuento`
+          : nuevaOferta.tipo === '2x1' ? '2x1'
+          : nuevaOferta.tipo === '3x2' ? '3x2'
+          : nuevaOferta.tipo === 'envio_gratis' ? 'Envío gratis'
+          : nuevaOferta.valor && isNaN(Number(nuevaOferta.valor)) ? nuevaOferta.valor
+          : 'Cupón exclusivo';
+
         for (const uid of datos.usuariosIds) {
           // Notificación panel
           crearNotificacion({
             usuarioId: uid,
             modo: 'personal',
             tipo: 'cupon_asignado',
-            titulo: '¡Cupón exclusivo para ti!',
+            titulo: tipoInfo,
             mensaje: `${nuevaOferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
             negocioId,
             sucursalId,
             referenciaId: nuevaOferta.id,
             referenciaTipo: 'cupon',
             icono: '🎟️',
-            actorImagenUrl: nuevaOferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+            actorImagenUrl: negocioInfo?.logoUrl ?? nuevaOferta.imagen ?? undefined,
             actorNombre: negocioInfo?.nombre ?? undefined,
           }).catch((err) => console.error('Error notificación cupón asignado:', err));
 
@@ -501,7 +523,7 @@ export async function crearOferta(
             referenciaId: nuevaOferta.id,
             referenciaTipo: 'oferta',
             icono: '🏷️',
-            actorImagenUrl: nuevaOferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+            actorImagenUrl: negocioInfo?.logoUrl ?? nuevaOferta.imagen ?? undefined,
             actorNombre: negocioInfo?.nombre ?? undefined,
           }).catch((err) => console.error('Error notificación nueva oferta:', err));
         }
@@ -747,7 +769,7 @@ export async function actualizarOferta(
             referenciaId: ofertaId,
             referenciaTipo: 'oferta',
             icono: '🏷️',
-            actorImagenUrl: ofertaActualizada.imagen ?? negocioInfo?.logoUrl ?? undefined,
+            actorImagenUrl: negocioInfo?.logoUrl ?? ofertaActualizada.imagen ?? undefined,
             actorNombre: negocioInfo?.nombre ?? undefined,
           }).catch((err) => console.error('Error notificación oferta activada:', err));
         }
@@ -1337,7 +1359,7 @@ export async function asignarOfertaAUsuarios(
         referenciaId: ofertaId,
         referenciaTipo: 'oferta',
         icono: '🎟️',
-        actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+        actorImagenUrl: negocioInfo?.logoUrl ?? oferta.imagen ?? undefined,
         actorNombre: negocioInfo?.nombre ?? undefined,
       }).catch((err) => console.error('Error notificación oferta exclusiva:', err));
     }
@@ -1483,7 +1505,7 @@ export async function reenviarCupon(ofertaId: string, negocioId: string) {
         referenciaId: ofertaId,
         referenciaTipo: 'cupon',
         icono: '🎟️',
-        actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+        actorImagenUrl: negocioInfo?.logoUrl ?? oferta.imagen ?? undefined,
         actorNombre: negocioInfo?.nombre ?? undefined,
       }).catch((err) => console.error('Error reenvío notificación cupón:', err));
 
@@ -1583,7 +1605,7 @@ export async function revocarCupon(
       referenciaId: ofertaId,
       referenciaTipo: 'cupon',
       icono: '❌',
-      actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+      actorImagenUrl: negocioInfo?.logoUrl ?? oferta.imagen ?? undefined,
       actorNombre: negocioInfo?.nombre ?? undefined,
     }).catch((err) => console.error('Error notificación cupón revocado:', err));
 
@@ -1659,7 +1681,7 @@ export async function revocarCuponMasivo(
       const convId = (row as Record<string, unknown>).conversacion_id as string;
       await db.execute(sql`
         UPDATE chat_conversaciones SET
-          ultimo_mensaje_texto = sub.contenido,
+          ultimo_mensaje_texto = LEFT(sub.contenido, 100),
           ultimo_mensaje_tipo = sub.tipo,
           ultimo_mensaje_fecha = sub.created_at,
           ultimo_mensaje_estado = sub.estado,
@@ -1708,7 +1730,7 @@ export async function revocarCuponMasivo(
         referenciaId: ofertaId,
         referenciaTipo: 'cupon',
         icono: '❌',
-        actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+        actorImagenUrl: negocioInfo?.logoUrl ?? oferta.imagen ?? undefined,
         actorNombre: negocioInfo?.nombre ?? undefined,
       }).catch((err) => console.error('Error notificación revocar masivo:', err));
     }
@@ -1774,7 +1796,7 @@ export async function reactivarCupon(ofertaId: string, negocioId: string) {
         mensaje: `${oferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
         negocioId, sucursalId: oferta.sucursalId ?? undefined,
         referenciaId: ofertaId, referenciaTipo: 'cupon', icono: '🎟️',
-        actorImagenUrl: oferta.imagen ?? negocioInfo?.logoUrl ?? undefined,
+        actorImagenUrl: negocioInfo?.logoUrl ?? oferta.imagen ?? undefined,
         actorNombre: negocioInfo?.nombre ?? undefined,
       }).catch(err => console.error('Error notificación reactivar:', err));
 

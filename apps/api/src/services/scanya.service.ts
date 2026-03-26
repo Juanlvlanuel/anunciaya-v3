@@ -1505,8 +1505,12 @@ export async function validarCupon(
             case 'envio_gratis':
                 descuentoInfo = 'Envío gratis';
                 break;
-            default:
-                descuentoInfo = oferta.descripcion || 'Descuento especial';
+            default: {
+                // tipo 'otro': el valor es texto libre (ej: "Gratis", "Postre gratis")
+                const valorTexto = oferta.valor && isNaN(Number(oferta.valor)) ? oferta.valor : null;
+                descuentoInfo = valorTexto || oferta.descripcion || 'Descuento especial';
+                break;
+            }
         }
 
         // -------------------------------------------------------------------------
@@ -2126,6 +2130,8 @@ export async function obtenerHistorial(
         // Cupón
         cuponCodigo: string | null;
         cuponDescuento: number | null;
+        cuponTipo: string | null;
+        cuponValor: string | null;
         // Fecha
         createdAt: string;
     }>;
@@ -2340,7 +2346,7 @@ export async function obtenerHistorial(
         }
 
         // Obtener datos de ofertas usadas (antes cupones)
-        const cuponesMap = new Map<number, { codigo: string; descuento: number; imagen: string | null }>();
+        const cuponesMap = new Map<number, { codigo: string; descuento: number; imagen: string | null; tipo: string | null; valor: string | null }>();
         if (cuponUsoIds.length > 0) {
             const ofertasUsadas = await db
                 .select({
@@ -2348,6 +2354,8 @@ export async function obtenerHistorial(
                     codigo: ofertas.titulo,
                     descuento: ofertaUsos.descuentoAplicado,
                     imagen: ofertas.imagen,
+                    tipo: ofertas.tipo,
+                    valor: ofertas.valor,
                 })
                 .from(ofertaUsos)
                 .innerJoin(ofertas, eq(ofertaUsos.ofertaId, ofertas.id))
@@ -2358,6 +2366,8 @@ export async function obtenerHistorial(
                     codigo: c.codigo || '',
                     descuento: c.descuento ? parseFloat(c.descuento) : 0,
                     imagen: c.imagen || null,
+                    tipo: c.tipo || null,
+                    valor: c.valor || null,
                 });
             });
         }
@@ -2442,6 +2452,8 @@ export async function obtenerHistorial(
                 cuponCodigo: cuponInfo?.codigo || null,
                 cuponDescuento: cuponInfo?.descuento || null,
                 cuponImagen: cuponInfo?.imagen || null,
+                cuponTipo: cuponInfo?.tipo || null,
+                cuponValor: cuponInfo?.valor || null,
                 // Fecha
                 createdAt: t.createdAt || '',
                 // ID del cliente (para ChatYA)
@@ -2711,13 +2723,13 @@ export async function validarVoucher(
             modo: 'personal',
             tipo: 'voucher_cobrado',
             titulo: '¡Recompensa entregada!',
-            mensaje: `Recibiste: ${recompensa.nombre}`,
+            mensaje: `Recibiste: ${recompensa.nombre}\n${negocioDueno?.nombre ?? 'un negocio'}`,
             negocioId: voucher.negocioId,
             sucursalId: payload.sucursalId,
             referenciaId: voucher.id,
             referenciaTipo: 'voucher',
             icono: '🎟️',
-            actorImagenUrl: recompensa.imagenUrl ?? negocioDueno?.logoUrl ?? undefined,
+            actorImagenUrl: negocioDueno?.logoUrl ?? recompensa.imagenUrl ?? undefined,
             actorNombre: negocioDueno?.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación voucher:', err));
 

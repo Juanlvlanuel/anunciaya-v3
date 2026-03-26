@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, Users, ChevronDown, Check, Info, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Search, X, Users, ChevronDown, Check, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Spinner } from '../../../../components/ui/Spinner';
 import type { ClienteAsignado } from '../../../../services/ofertasService';
 
@@ -43,6 +43,7 @@ interface TabClientesProps {
     clientesAsignados?: ClienteAsignado[];
     cargandoAsignados?: boolean;
     onClickCliente?: (clienteId: string) => void;
+    botonesDesktop?: React.ReactNode;
 }
 
 // =============================================================================
@@ -116,7 +117,7 @@ function DropdownFiltro<T extends string>({
                 type="button"
                 data-testid={testId}
                 onClick={() => setAbierto(!abierto)}
-                className={`w-full h-11 lg:h-10 2xl:h-11 flex items-center justify-between pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-sm lg:text-xs 2xl:text-sm font-semibold cursor-pointer ${
+                className={`w-full h-11 lg:h-10 2xl:h-11 flex items-center justify-between pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${
                     tieneSeleccion
                         ? 'bg-blue-100 border-blue-300 text-blue-700'
                         : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
@@ -160,7 +161,7 @@ function DropdownFiltro<T extends string>({
 
 export function TabClientes({
     clientes, cargando, clientesSeleccionados, onToggleCliente, onSeleccionarTodos, onLimpiarSeleccion,
-    modoEdicion, clientesAsignados, cargandoAsignados, onClickCliente,
+    modoEdicion, clientesAsignados, cargandoAsignados, onClickCliente, botonesDesktop,
 }: TabClientesProps) {
 
     // ── MODO EDICIÓN: lista readonly de clientes asignados ──
@@ -290,14 +291,6 @@ export function TabClientes({
                 </div>
             </div>
 
-            {/* Aviso informativo */}
-            <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3.5 py-2.5 lg:px-3 lg:py-2 2xl:px-3.5 2xl:py-2.5 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                <Info className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600 shrink-0" />
-                <p className="text-sm lg:text-[11px] 2xl:text-sm text-blue-700 font-semibold">
-                    Cada cliente recibirá un código único al crear el cupón.
-                </p>
-            </div>
-
             {/* Acciones rápidas */}
             <div className="flex items-center justify-between">
                 <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
@@ -331,7 +324,7 @@ export function TabClientes({
                             type="button"
                             data-testid={`cliente-${cliente.id}`}
                             onClick={() => onToggleCliente(cliente.id)}
-                            className={`w-full flex items-center gap-2.5 lg:gap-1.5 2xl:gap-2.5 p-3 lg:p-1.5 2xl:p-3 text-left cursor-pointer border-b border-slate-300 last:border-b-0 ${
+                            className={`w-full flex items-center gap-2.5 lg:gap-1.5 2xl:gap-2.5 px-3 py-1.5 lg:px-1.5 lg:py-1 2xl:px-3 2xl:py-1.5 text-left cursor-pointer border-b border-slate-300 last:border-b-0 ${
                                 clientesSeleccionados.includes(cliente.id) ? 'bg-blue-50' : 'hover:bg-slate-50'
                             }`}
                         >
@@ -359,6 +352,8 @@ export function TabClientes({
                     ))
                 )}
             </div>
+
+            {botonesDesktop && <div className="hidden lg:block mt-1">{botonesDesktop}</div>}
         </div>
     );
 }

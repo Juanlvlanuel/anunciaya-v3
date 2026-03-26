@@ -38,7 +38,7 @@ function formatearTipoValor(tipo: string, valor: string | null): string {
         case 'monto_fijo': return `$${valor} desc.`;
         case '2x1': return '2×1';
         case '3x2': return '3×2';
-        case 'envio_gratis': return 'GRATIS';
+        case 'envio_gratis': return 'Envío Gratis';
         default: return valor || 'Promo';
     }
 }
@@ -117,14 +117,13 @@ export default function CardCupon({
 
                 {/* Info derecha */}
                 <div className="flex-1 p-3 flex flex-col justify-between min-w-0 overflow-hidden text-left">
-                    <h4 className="text-xl font-extrabold text-slate-800 truncate leading-tight">{cupon.titulo}</h4>
+                    <div>
+                        <h4 className="text-xl font-extrabold text-slate-800 truncate leading-tight">{formatearTipoValor(cupon.tipo, cupon.valor)}</h4>
+                        <p className="text-sm font-semibold text-slate-600 truncate">{cupon.titulo}</p>
+                    </div>
 
                     {/* Metadata vertical */}
                     <div className="flex flex-col gap-0.5">
-                        <span className="inline-flex items-center gap-1.5 text-base font-bold text-emerald-700">
-                            <Ticket className="w-4 h-4 shrink-0" strokeWidth={2.5} />
-                            {formatearTipoValor(cupon.tipo, cupon.valor)}
-                        </span>
                         {cupon.fechaFin && (
                             <span className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-slate-600">
                                 <Calendar className="w-4 h-4 shrink-0" />
@@ -191,14 +190,13 @@ export default function CardCupon({
 
                 {/* Info */}
                 <div className="p-3.5 2xl:p-4 flex flex-col gap-2 2xl:gap-2.5 flex-1 text-left">
-                    <h4 className="text-lg lg:text-base 2xl:text-lg font-extrabold text-slate-800 truncate">{cupon.titulo}</h4>
+                    <div>
+                        <h4 className="text-lg lg:text-base 2xl:text-lg font-extrabold text-slate-800 truncate">{formatearTipoValor(cupon.tipo, cupon.valor)}</h4>
+                        <p className="text-sm lg:text-[13px] 2xl:text-sm font-semibold text-slate-600 truncate">{cupon.titulo}</p>
+                    </div>
 
                     {/* Metadata vertical */}
                     <div className="flex flex-col gap-1 mt-auto">
-                        <span className="inline-flex items-center gap-1.5 text-sm lg:text-sm 2xl:text-base font-bold text-emerald-700">
-                            <Ticket className="w-4 h-4 shrink-0" strokeWidth={2.5} />
-                            {formatearTipoValor(cupon.tipo, cupon.valor)}
-                        </span>
                         {cupon.fechaFin && (
                             <span className="inline-flex items-center gap-1.5 text-sm lg:text-[13px] 2xl:text-sm font-semibold text-slate-600">
                                 <Calendar className="w-4 h-4 shrink-0" />

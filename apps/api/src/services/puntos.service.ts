@@ -474,7 +474,7 @@ export async function crearRecompensa(
           referenciaId: recompensa.id,
           referenciaTipo: 'recompensa',
           icono: '🎁',
-          actorImagenUrl: recompensa.imagenUrl ?? negocioInfo?.logoUrl ?? undefined,
+          actorImagenUrl: negocioInfo?.logoUrl ?? recompensa.imagenUrl ?? undefined,
           actorNombre: negocioInfo?.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación nueva recompensa:', err));
       }
@@ -1597,12 +1597,12 @@ export async function verificarRecompensasDesbloqueadas(
         modo: 'personal',
         tipo: 'recompensa_desbloqueada',
         titulo: '¡Recompensa desbloqueada!',
-        mensaje: `${recompensa.nombre} — completaste ${totalCompras} compras en ${negocioInfo?.nombre ?? 'un negocio'}`,
+        mensaje: `${recompensa.nombre} — completaste ${totalCompras} compras\n${negocioInfo?.nombre ?? 'un negocio'}`,
         negocioId,
         referenciaId: recompensa.id,
         referenciaTipo: 'recompensa',
         icono: '🎉',
-        actorImagenUrl: recompensa.imagenUrl ?? negocioInfo?.logoUrl ?? undefined,
+        actorImagenUrl: negocioInfo?.logoUrl ?? recompensa.imagenUrl ?? undefined,
         actorNombre: negocioInfo?.nombre ?? undefined,
       });
     }

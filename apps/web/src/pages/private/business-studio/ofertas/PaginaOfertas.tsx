@@ -49,8 +49,6 @@ import {
     ChevronUp,
     Inbox,
     Layers,
-    Globe,
-    Lock,
     Megaphone,
     Ticket,
     Send,
@@ -330,7 +328,7 @@ function FilaMovilOferta({
                             </span>
                         </div>
                     </div>
-                    <span className="text-base font-extrabold text-emerald-600">{valorFormateado}</span>
+                    <span className="text-sm font-bold text-emerald-600">{valorFormateado}</span>
                 </div>
 
                 {/* Stats + Acciones */}
@@ -399,7 +397,7 @@ function FilaMovilOferta({
 export function PaginaOfertas() {
     const { usuario } = useAuthStore();
     const totalSucursales = useAuthStore((s) => s.totalSucursales);
-    const { ofertas, loading, crear, actualizar, eliminar, duplicar, recargar } = useOfertas();
+    const { ofertas, loading, crear, actualizar, eliminar, duplicar, recargar, setOfertas, limpiarCache } = useOfertas();
     const { compararConHoy } = useZonaHoraria();
 
     // Estados UI
@@ -410,6 +408,7 @@ export function PaginaOfertas() {
     const [ofertasCargadas, setOfertasCargadas] = useState(OFERTAS_POR_PAGINA);
     const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number }>({ isOpen: false, images: [], initialIndex: 0 });
     const [visibilidadNueva, setVisibilidadNueva] = useState<'publico' | 'privado'>('publico');
+    const [datosPrelleno, setDatosPrelleno] = useState<Record<string, string> | null>(null);
 
     // Ordenación
     const [orden, setOrden] = useState<OrdenState | null>(null);
@@ -502,6 +501,17 @@ export function PaginaOfertas() {
         const base = [...ofertasFiltradas].sort((a, b) => {
             const estadoA = calcularEstado(a);
             const estadoB = calcularEstado(b);
+
+            if (esCupones) {
+                // Cupones: Activo → Usado → Revocado
+                const prioridadCupon: Record<string, number> = { activa: 0, agotada: 1, vencida: 2, inactiva: 3 };
+                const pA = prioridadCupon[estadoA] ?? 2;
+                const pB = prioridadCupon[estadoB] ?? 2;
+                if (pA !== pB) return pA - pB;
+                return new Date(b.fechaFin).getTime() - new Date(a.fechaFin).getTime();
+            }
+
+            // Ofertas: orden original
             if (estadoA === 'inactiva' && estadoB !== 'inactiva') return -1;
             if (estadoA !== 'inactiva' && estadoB === 'inactiva') return 1;
             if (estadoA === 'vencida' && estadoB !== 'vencida' && estadoB !== 'inactiva') return -1;
@@ -524,7 +534,7 @@ export function PaginaOfertas() {
             }
             return orden.direccion === 'asc' ? valorA - valorB : valorB - valorA;
         });
-    }, [ofertasFiltradas, orden]);
+    }, [ofertasFiltradas, orden, esCupones]);
 
     // ===========================================================================
     // OFERTAS MOSTRADAS (Mobile: infinite scroll)
@@ -644,7 +654,8 @@ export function PaginaOfertas() {
             const res = await revocarCuponMasivo(oferta.id);
             if (res.success) {
                 notificar.exito(res.message || 'Cupón revocado');
-                await recargar(true);
+                setOfertas(prev => prev.map(o => o.id === oferta.id ? { ...o, activo: false, estado: 'inactiva' as const } : o));
+                limpiarCache();
             } else {
                 notificar.error(res.message || 'Error al revocar');
             }
@@ -662,7 +673,8 @@ export function PaginaOfertas() {
             const res = await reactivarCuponService(oferta.id);
             if (res.success) {
                 notificar.exito(res.message || 'Cupón reactivado');
-                await recargar(true);
+                setOfertas(prev => prev.map(o => o.id === oferta.id ? { ...o, activo: true, estado: 'activa' as const } : o));
+                limpiarCache();
             } else {
                 notificar.error(res.message || 'Error al reactivar');
             }
@@ -1185,8 +1197,8 @@ export function PaginaOfertas() {
                         {/* Header dark */}
                         <div
                             className={`grid ${esCupones
-                                ? 'grid-cols-[minmax(0,1fr)_90px_90px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_110px_130px]'
-                                : 'grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px]'
+                                ? 'grid-cols-[minmax(0,1fr)_110px_110px_120px_120px] 2xl:grid-cols-[minmax(0,1fr)_130px_130px_140px_150px]'
+                                : 'grid-cols-[minmax(0,1fr)_85px_80px_70px_70px_70px_95px_95px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_120px]'
                             } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider`}
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
@@ -1233,7 +1245,6 @@ export function PaginaOfertas() {
                                     const badgeEstado = getBadgeEstado(estado, esCupones);
                                     const IconoTipo = getIconoTipo(oferta.tipo);
                                     const coloresTipo = getColoresTipo(oferta.tipo);
-                                    const valorFormateado = formatearValor(oferta.tipo, oferta.valor);
                                     const esTrending = (oferta.totalVistas || 0) > 50 || (oferta.totalClicks || 0) > 20;
 
                                     return (
@@ -1241,8 +1252,8 @@ export function PaginaOfertas() {
                                             key={oferta.id}
                                             onClick={() => handleEditar(oferta)}
                                             className={`grid ${esCupones
-                                                ? 'grid-cols-[minmax(0,1fr)_90px_90px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_110px_130px]'
-                                                : 'grid-cols-[minmax(0,1fr)_90px_90px_80px_80px_80px_90px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_110px_95px_95px_95px_110px_130px]'
+                                                ? 'grid-cols-[minmax(0,1fr)_110px_110px_120px_120px] 2xl:grid-cols-[minmax(0,1fr)_130px_130px_140px_150px]'
+                                                : 'grid-cols-[minmax(0,1fr)_85px_80px_70px_70px_70px_95px_95px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_120px]'
                                             } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
                                         >
                                             {/* Oferta: Imagen + Título + Valor */}
@@ -1259,12 +1270,9 @@ export function PaginaOfertas() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <p className="font-semibold text-slate-800 truncate 2xl:text-[15px]">{oferta.titulo}</p>
-                                                        {esTrending && <Flame className="w-3.5 h-3.5 text-orange-500 shrink-0" />}
-                                                    </div>
-                                                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-emerald-600 font-bold truncate">{valorFormateado}</p>
+                                                <div className="min-w-0 flex items-center gap-1.5">
+                                                    <p className="font-semibold text-slate-800 truncate 2xl:text-[15px]">{oferta.titulo}</p>
+                                                    {esTrending && <Flame className="w-3.5 h-3.5 text-orange-500 shrink-0" />}
                                                 </div>
                                             </div>
 
@@ -1272,7 +1280,7 @@ export function PaginaOfertas() {
                                             <div className="flex items-center justify-center">
                                                 <span className={`inline-flex items-center gap-1 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold whitespace-nowrap ${coloresTipo}`}>
                                                     <IconoTipo className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
-                                                    {getLabelTipo(oferta.tipo)}
+                                                    {formatearValor(oferta.tipo, oferta.valor)}
                                                 </span>
                                             </div>
 
@@ -1333,8 +1341,8 @@ export function PaginaOfertas() {
                                                         </button>
                                                     </Tooltip>
                                                 )}
-                                                {/* Cupón: Revocar / Reactivar */}
-                                                {oferta.visibilidad === 'privado' && oferta.activo && (
+                                                {/* Cupón: Revocar / Reactivar (no si está agotado/usado) */}
+                                                {oferta.visibilidad === 'privado' && oferta.activo && oferta.estado !== 'agotada' && oferta.estado !== 'vencida' && (
                                                     <Tooltip text="Revocar cupón">
                                                         <button
                                                             data-testid={`btn-revocar-${oferta.id}`}
@@ -1365,8 +1373,8 @@ export function PaginaOfertas() {
                                                         <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                                     </button>
                                                 </Tooltip>
-                                                {/* Cupón: Reenviar */}
-                                                {oferta.visibilidad === 'privado' && (
+                                                {/* Cupón: Reenviar (no si está agotado/usado) */}
+                                                {oferta.visibilidad === 'privado' && oferta.estado !== 'agotada' && oferta.estado !== 'vencida' && (
                                                     <Tooltip text="Reenviar cupón">
                                                         <button
                                                             data-testid={`btn-reenviar-${oferta.id}`}
@@ -1483,10 +1491,32 @@ export function PaginaOfertas() {
                     onCerrar={() => {
                         setModalAbierto(false);
                         setOfertaEditando(null);
+                        setDatosPrelleno(null);
                     }}
                     oferta={ofertaEditando}
                     visibilidadInicial={visibilidadNueva}
+                    datosIniciales={datosPrelleno}
                     onRecargar={() => recargar(true)}
+                    onDuplicar={(ofertaOriginal) => {
+                        if (ofertaOriginal.visibilidad === 'privado') {
+                            // Cupón: transformar modal de consulta en creación sin cerrar
+                            const ofertaImg = ofertaOriginal as Oferta & { imagen?: string; imagenUrl?: string; imagenPrincipal?: string };
+                            setDatosPrelleno({
+                                titulo: ofertaOriginal.titulo,
+                                descripcion: ofertaOriginal.descripcion || '',
+                                tipo: ofertaOriginal.tipo,
+                                valor: ofertaOriginal.valor ? String(ofertaOriginal.valor) : '',
+                                compraMinima: ofertaOriginal.compraMinima ? String(ofertaOriginal.compraMinima) : '0',
+                                motivoAsignacion: '',
+                                limiteUsosPorUsuario: ofertaOriginal.limiteUsosPorUsuario ? String(ofertaOriginal.limiteUsosPorUsuario) : '',
+                                _imagenOriginal: ofertaImg.imagen || ofertaImg.imagenUrl || ofertaImg.imagenPrincipal || '',
+                            });
+                            setVisibilidadNueva('privado');
+                            setOfertaEditando(null);
+                        } else {
+                            handleDuplicar(ofertaOriginal);
+                        }
+                    }}
                     onGuardar={async (datos) => {
                         const exito = ofertaEditando
                             ? await actualizar(ofertaEditando.id, datos as ActualizarOfertaInput)
@@ -1494,6 +1524,7 @@ export function PaginaOfertas() {
                         if (exito) {
                             setModalAbierto(false);
                             setOfertaEditando(null);
+                            setDatosPrelleno(null);
                         }
                     }}
                 />

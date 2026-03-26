@@ -4,8 +4,8 @@
  * Tab principal del modal: título, tipo, valor, fechas, imagen, descripción.
  *
  * LAYOUT:
- * - Móvil: columna única — Título → Tipo → Valor → Fechas → Imagen → Descripción
- * - Desktop: 2 columnas — Izq (imagen, tipo, valor) | Der (fechas, título, descripción)
+ * - Móvil: columna única — Beneficio → Valor → Producto → Vigencia+Imagen → Condiciones
+ * - Desktop: 2 columnas — Izq (imagen, beneficio, valor) | Der (producto, vigencia, condiciones)
  *
  * UBICACIÓN: apps/web/src/pages/private/business-studio/ofertas/TabOferta.tsx
  */
@@ -78,8 +78,8 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
 
     const renderTitulo = (sufijo = '') => (
         <div>
-            <label htmlFor={`input-titulo-oferta${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
-                Título <span className="text-red-500">*</span>
+            <label htmlFor={`input-titulo-oferta${sufijo}`} className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+                Producto o servicio <span className="text-red-500">*</span>
             </label>
             <input
                 id={`input-titulo-oferta${sufijo}`}
@@ -88,7 +88,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                 type="text"
                 value={formulario.titulo}
                 onChange={(e) => setFormulario(prev => ({ ...prev, titulo: e.target.value }))}
-                placeholder="Ej: 50% de descuento en pizzas"
+                placeholder={esCupon ? 'Ej: Corte de Pelo, Café Latte' : 'Ej: Pizzas Familiares, Hamburguesas'}
                 maxLength={150}
                 disabled={guardando}
                 className={`w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 ${errores.titulo ? 'border-red-400' : 'border-slate-300'}`}
@@ -109,7 +109,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
 
         return (
             <div>
-                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-2">Tipo de {esCupon ? 'cupón' : 'oferta'} <span className="text-red-500">*</span></span>
+                <span className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-2">{esCupon ? 'Tipo de cupón' : 'Tipo de promoción'} <span className="text-red-500">*</span></span>
                 <div className="grid grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2">
                     {tiposConfig.map(({ tipo, label, icono: Icono, activo, inactivo }) => (
                         <button
@@ -118,7 +118,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                             data-testid={`btn-tipo-${tipo}`}
                             onClick={() => setFormulario(prev => ({ ...prev, tipo, valor: tipo === prev.tipo ? prev.valor : '' }))}
                             disabled={guardando}
-                            className={`flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-1.5 px-2 py-2 lg:px-1.5 2xl:px-2 rounded-lg border-2 font-semibold text-sm lg:text-xs 2xl:text-sm transition-all cursor-pointer whitespace-nowrap ${
+                            className={`flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-1.5 px-2 py-2 lg:px-1.5 2xl:px-2 rounded-lg border-2 font-semibold text-base lg:text-sm 2xl:text-base transition-all cursor-pointer whitespace-nowrap ${
                                 formulario.tipo === tipo ? activo : inactivo
                             }`}
                         >
@@ -134,7 +134,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
     const renderValorCompraMinima = (sufijo = '') => (
         <div className="grid grid-cols-2 gap-2 lg:gap-1.5 2xl:gap-2 items-end">
             <div>
-                <label htmlFor={`input-valor-oferta${sufijo}`} className={`block text-sm lg:text-xs 2xl:text-sm font-bold mb-1.5 lg:mb-1 2xl:mb-2 ${mostrarValor ? 'text-slate-700' : 'text-slate-400'}`}>
+                <label htmlFor={`input-valor-oferta${sufijo}`} className={`block text-sm lg:text-[11px] 2xl:text-sm font-bold mb-1.5 lg:mb-1 2xl:mb-2 ${mostrarValor ? 'text-slate-700' : 'text-slate-400'}`}>
                     {formulario.tipo === 'otro' ? 'Concepto' : 'Valor'} {mostrarValor && <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
@@ -160,7 +160,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                 {errores.valor && mostrarValor && <p className="text-xs text-red-500 font-medium mt-1">{errores.valor}</p>}
             </div>
             <div>
-                <label htmlFor={`input-compra-minima${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+                <label htmlFor={`input-compra-minima${sufijo}`} className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                     Compra mín. <span className="text-slate-400 font-normal">(opc.)</span>
                 </label>
                 <div className="relative">
@@ -176,7 +176,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                         min="0"
                         step="0.01"
                         disabled={guardando}
-                        className="w-full h-11 lg:h-10 2xl:h-11 pl-7 lg:pl-6 2xl:pl-7 pr-2 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                        className="w-full h-11 lg:h-10 2xl:h-11 pl-7 lg:pl-6 2xl:pl-7 pr-2 bg-slate-100 border-2 border-slate-300 hover:border-slate-400 rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                     />
                 </div>
             </div>
@@ -186,12 +186,12 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
     const renderFechas = (vertical = false) => (
         <div className={vertical ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2 2xl:gap-3'}>
             <div>
-                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 2xl:mb-2">Inicio <span className="text-red-500">*</span></span>
+                <span className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 2xl:mb-2">Inicio <span className="text-red-500">*</span></span>
                 <DatePicker value={formulario.fechaInicio} onChange={(fecha) => setFormulario(prev => ({ ...prev, fechaInicio: fecha }))} placeholder="Seleccionar" disabled={guardando} error={!!errores.fechaInicio} centradoEnMovil data-testid="input-fecha-inicio" />
                 {errores.fechaInicio && <p className="text-xs text-red-500 mt-0.5">{errores.fechaInicio}</p>}
             </div>
             <div>
-                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 2xl:mb-2">Fin <span className="text-red-500">*</span></span>
+                <span className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 2xl:mb-2">Fin <span className="text-red-500">*</span></span>
                 <DatePicker value={formulario.fechaFin} onChange={(fecha) => setFormulario(prev => ({ ...prev, fechaFin: fecha }))} placeholder="DD/MM/YYYY" disabled={guardando} error={!!errores.fechaFin} centradoEnMovil data-testid="input-fecha-fin" />
                 {errores.fechaFin && <p className="text-xs text-red-500 mt-0.5">{errores.fechaFin}</p>}
             </div>
@@ -220,8 +220,8 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
 
     const renderDescripcion = (sufijo = '') => (
         <div className="flex-1 flex flex-col">
-            <label htmlFor={`textarea-descripcion-oferta${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
-                Descripción <span className="text-slate-400 font-normal">(opcional)</span>
+            <label htmlFor={`textarea-descripcion-oferta${sufijo}`} className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+                {esCupon ? 'Condiciones' : 'Descripción'} <span className="text-slate-400 font-normal">(opcional)</span>
             </label>
             <textarea
                 id={`textarea-descripcion-oferta${sufijo}`}
@@ -229,11 +229,11 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                 data-testid="input-descripcion-oferta"
                 value={formulario.descripcion}
                 onChange={(e) => setFormulario(prev => ({ ...prev, descripcion: e.target.value }))}
-                placeholder="Ej: Solo en sucursal centro, válido con compra mínima..."
+                placeholder={esCupon ? 'Ej: Solo válido en desayunos, no acumulable con otras promociones...' : 'Ej: Solo en sucursal centro, válido con compra mínima...'}
                 rows={3}
                 maxLength={500}
                 disabled={guardando}
-                className="flex-1 w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2.5 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none resize-none text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 placeholder:text-slate-500"
+                className="flex-1 w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2.5 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none resize-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
             />
         </div>
     );
@@ -244,11 +244,11 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
 
     return (
         <>
-            {/* ── MÓVIL: columna única con orden optimizado ── */}
+            {/* ── MÓVIL: columna única — Beneficio → Valor → Producto → Vigencia+Imagen → Condiciones ── */}
             <div className="lg:hidden p-4 flex flex-col gap-3">
-                {renderTitulo('-movil')}
                 {renderTipoOferta()}
                 {renderValorCompraMinima('-movil')}
+                {renderTitulo('-movil')}
                 {/* Imagen chica + Fechas apiladas lado a lado */}
                 <div className="flex gap-2.5 items-stretch">
                     <div className="shrink-0 flex" style={{ width: '40%' }}>
@@ -275,19 +275,19 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                 {renderDescripcion('-movil')}
             </div>
 
-            {/* ── DESKTOP: 2 columnas (layout original) ── */}
+            {/* ── DESKTOP: 2 columnas — Izq (Tipo + Valor + Imagen) | Der (Producto + Vigencia + Condiciones + Botones) ── */}
             <div className="hidden lg:flex lg:flex-row lg:h-full">
-                {/* Columna Izquierda: Imagen + Tipo + Valor */}
+                {/* Columna Izquierda: Tipo + Valor + Imagen */}
                 <div className="lg:w-2/5 lg:p-3 2xl:p-4 lg:border-r-2 border-slate-300 bg-slate-50 flex flex-col gap-2.5 2xl:gap-3">
-                    {renderImagen()}
                     {renderTipoOferta()}
                     {renderValorCompraMinima()}
+                    {renderImagen()}
                 </div>
 
-                {/* Columna Derecha: Fechas + Título + Descripción + Botones */}
+                {/* Columna Derecha: Producto + Vigencia + Condiciones + Botones */}
                 <div className="lg:w-3/5 lg:p-3 2xl:p-4 flex flex-col gap-2.5 2xl:gap-3">
-                    {renderFechas()}
                     {renderTitulo()}
+                    {renderFechas()}
                     {renderDescripcion()}
                     {botonesDesktop && <div className="mt-auto">{botonesDesktop}</div>}
                 </div>

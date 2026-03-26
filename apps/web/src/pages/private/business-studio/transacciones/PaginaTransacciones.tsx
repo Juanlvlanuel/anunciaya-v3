@@ -1287,8 +1287,8 @@ export default function PaginaTransacciones() {
                     )}
                   </div>
 
-                  {/* Chips estado — solo laptop */}
-                  <div className="hidden lg:flex shrink-0 items-center gap-1 2xl:gap-1.5">
+                  {/* Chips estado — solo laptop, solo ventas */}
+                  {tabActivo === 'ventas' && <div className="hidden lg:flex shrink-0 items-center gap-1 2xl:gap-1.5">
                     {[
                       { id: '', etiqueta: 'Todas' },
                       { id: 'confirmado', etiqueta: 'Válidas' },
@@ -1306,7 +1306,7 @@ export default function PaginaTransacciones() {
                         {e.etiqueta}
                       </button>
                     ))}
-                  </div>
+                  </div>}
 
                   {/* Estado dropdown — oculto en móvil, visible en laptop via chips */}
                   <div className="hidden shrink-0 relative" ref={estadoDropdownRef}>
@@ -1688,20 +1688,20 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_250px_100px] gap-0 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              className="grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_120px_150px] gap-0 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
-              <span className="flex justify-center mr-53">Concepto</span>
-              <span className="flex justify-center ml-17 overflow-visible z-10">
+              <span className="-ml-[15px]">Concepto</span>
+              <span className="-ml-[15px] flex justify-center overflow-visible z-10">
                 <HeaderOrdenable etiqueta="MONTO" columna="monto" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
-              <span className="flex justify-center ml-22 overflow-visible z-10">
+              <span className="-ml-[15px] flex justify-center overflow-visible z-10">
                 <HeaderOrdenable etiqueta="PUNTOS" columna="puntos" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
-              <span className="flex justify-center mr-13">Estado</span>
-              <span className="flex justify-end mr-2 overflow-visible z-10">
-                <HeaderOrdenable etiqueta="FECHA" columna="fecha" ordenActual={orden} onOrdenar={alternarOrden} />
+              <span className="-ml-[15px] flex justify-center">Estado</span>
+              <span className="flex justify-end overflow-visible z-10">
+                <HeaderOrdenable etiqueta="VENDIDO" columna="fecha" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
             </div>
 
@@ -1721,32 +1721,27 @@ export default function PaginaTransacciones() {
                     <button
                       key={tx.id}
                       onClick={() => handleVerDetalle(tx)}
-                      className={`grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_210px_130px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
+                      className={`grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_120px_150px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                         } ${esRevocada ? 'opacity-60' : ''}`}
                     >
                       {/* Cliente */}
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                         <div
                           onClick={(e) => { if (tx.clienteAvatarUrl) { e.stopPropagation(); setAvatarUrl(tx.clienteAvatarUrl); } }}
-                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${tx.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0 overflow-hidden ${tx.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
                         >
                           {tx.clienteAvatarUrl ? (
                             <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-indigo-700">
+                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">
                               {obtenerIniciales(tx.clienteNombre)}
                             </span>
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className={`font-semibold text-slate-800 truncate 2xl:text-[15px] ${esRevocada ? 'line-through' : ''}`}>
+                          <p className={`font-bold text-slate-800 truncate 2xl:text-[15px] ${esRevocada ? 'line-through' : ''}`}>
                             {tx.clienteNombre}
                           </p>
-                          {tx.clienteTelefono && (
-                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
-                              {formatearTelefono(tx.clienteTelefono)}
-                            </p>
-                          )}
                         </div>
                       </div>
 
@@ -1758,14 +1753,14 @@ export default function PaginaTransacciones() {
                       </div>
 
                       {/* Monto */}
-                      <div className="flex items-center justify-end">
+                      <div className="flex items-center justify-center">
                         <span className={`font-bold 2xl:text-[15px] ${esRevocada ? 'text-slate-600 line-through' : 'text-indigo-600'}`}>
                           {formatearMonto(tx.montoCompra)}
                         </span>
                       </div>
 
                       {/* Puntos */}
-                      <div className="flex items-center justify-end">
+                      <div className="flex items-center justify-center">
                         <span className={`font-bold 2xl:text-[15px] ${esRevocada ? 'text-slate-600 line-through' : 'text-amber-600'}`}>
                           +{tx.puntosOtorgados}
                         </span>
@@ -1826,15 +1821,19 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_100px_100px_110px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_120px_120px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_100px_100px_130px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_120px_120px_150px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
               <span>Cupón</span>
-              <span>Tipo</span>
-              <span>Monto</span>
+              <span className="pl-2 2xl:pl-2.5">Tipo</span>
+              <span className="flex overflow-visible z-10">
+                <HeaderOrdenable etiqueta="MONTO" columna="monto" ordenActual={orden} onOrdenar={alternarOrden} />
+              </span>
               <span>Descuento</span>
-              <span className="flex justify-end">Fecha</span>
+              <span className="flex justify-end overflow-visible z-10">
+                <HeaderOrdenable etiqueta="CANJEADO" columna="fecha" ordenActual={orden} onOrdenar={alternarOrden} />
+              </span>
             </div>
 
             {/* Body */}
@@ -1853,7 +1852,7 @@ export default function PaginaTransacciones() {
                     <button
                       key={tx.id}
                       onClick={() => setTxSeleccionada(tx)}
-                      className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_100px_100px_110px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_120px_120px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}
+                      className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_100px_100px_130px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_120px_120px_150px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}
                     >
                       {/* Cliente */}
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
@@ -1876,7 +1875,7 @@ export default function PaginaTransacciones() {
                         {tx.cuponImagen && (
                           <img src={tx.cuponImagen} alt="" className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-md object-cover shrink-0" />
                         )}
-                        <span className="font-semibold text-slate-700 truncate">{tx.cuponTitulo || 'Cupón'}</span>
+                        <span className="font-bold text-slate-600 truncate">{tx.cuponTitulo || 'Cupón'}</span>
                       </div>
 
                       {/* Tipo */}
@@ -1900,10 +1899,11 @@ export default function PaginaTransacciones() {
                         </span>
                       </div>
 
-                      {/* Fecha */}
-                      <div className="flex items-center justify-end">
-                        <span className="font-medium text-slate-600">
-                          {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '—'}
+                      {/* Canjeado */}
+                      <div className="flex items-center justify-end text-slate-600 font-bold 2xl:text-[15px]">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
+                          {formatearFechaCorta(tx.createdAt)}
                         </span>
                       </div>
                     </button>
@@ -1936,7 +1936,7 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark - Canjes (6 columnas) */}
             <div
-              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_85px_105px_100px_100px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_120px_115px_115px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_85px_105px_100px_130px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_120px_115px_150px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -1944,11 +1944,11 @@ export default function PaginaTransacciones() {
               <span className="flex overflow-visible z-10">
                 <HeaderOrdenable etiqueta="PUNTOS" columna="puntos" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
-              <span>Estado</span>
+              <span className="pl-2 2xl:pl-2.5">Estado</span>
               <span className="flex overflow-visible z-10">
                 <HeaderOrdenable etiqueta="EXPIRA" columna="fecha" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
-              <span className="flex justify-end">Canjeado</span>
+              <span className="flex justify-end overflow-visible z-10">CANJEADO</span>
             </div>
 
             {/* Body scrolleable - Canjes */}
@@ -1969,32 +1969,27 @@ export default function PaginaTransacciones() {
                   <button
                     key={canje.id}
                     onClick={() => handleVerDetalleCanje(canje)}
-                    className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_85px_105px_100px_100px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_120px_115px_115px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
+                    className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_85px_105px_100px_130px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_120px_115px_150px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                       }`}
                   >
                     {/* Cliente */}
                     <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                       <div
                         onClick={(e) => { if (canje.clienteAvatarUrl) { e.stopPropagation(); setAvatarUrl(canje.clienteAvatarUrl); } }}
-                        className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+                        className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
                       >
                         {canje.clienteAvatarUrl ? (
                           <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-indigo-700">
+                          <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">
                             {obtenerIniciales(canje.clienteNombre)}
                           </span>
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-slate-800 truncate 2xl:text-[15px]">
+                        <p className="font-bold text-slate-800 truncate 2xl:text-[15px]">
                           {canje.clienteNombre}
                         </p>
-                        {canje.clienteTelefono && (
-                          <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
-                            {formatearTelefono(canje.clienteTelefono)}
-                          </p>
-                        )}
                       </div>
                     </div>
 
@@ -2035,8 +2030,8 @@ export default function PaginaTransacciones() {
                     {/* Canjeado (fecha de uso, solo si fue usado) */}
                     <div className="flex items-center justify-end">
                       {canje.usadoAt ? (
-                        <span className="flex items-center gap-1 font-bold 2xl:text-[15px] text-indigo-600">
-                          <CheckCircle className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
+                        <span className="flex items-center gap-1 font-bold 2xl:text-[15px] text-slate-600">
+                          <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
                           {formatearFechaCorta(canje.usadoAt)}
                         </span>
                       ) : (

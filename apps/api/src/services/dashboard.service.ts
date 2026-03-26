@@ -19,7 +19,7 @@
  * - puntos_transacciones → Ventas, clientes, transacciones
  * - oferta_usuarios → Cupones canjeados (ofertas privadas usadas)
  * - negocio_sucursales → Rating, vistas, likes
- * - ofertas → Ofertas públicas activas + cupones (visibilidad='privado')
+ * - ofertas → Ofertas públicas activas (excluye cupones privados)
  * - metricas_entidad → Followers
  * - votos → Likes, seguidores
  * - resenas → Reseñas recientes
@@ -740,34 +740,14 @@ export async function obtenerCampanasActivas(
             WHERE o.negocio_id = ${negocioId}
               AND (${sucursalIdParam}::uuid IS NULL OR o.sucursal_id = ${sucursalIdParam}::uuid)
               AND o.activo = true
+              AND o.visibilidad != 'privado'
             ORDER BY 
                 CASE WHEN o.fecha_fin >= NOW() THEN 0 ELSE 1 END,
                 o.fecha_fin ASC
             LIMIT ${limite}
         `;
 
-        const cuponesQuery = sql`
-            SELECT
-                id, titulo, tipo, valor,
-                fecha_inicio, fecha_fin,
-                usos_actuales, limite_usos,
-                'cupon' as tipo_campana,
-                CASE WHEN fecha_fin < NOW() THEN true ELSE false END as expirada
-            FROM ofertas
-            WHERE negocio_id = ${negocioId}
-              AND (${sucursalIdParam}::uuid IS NULL OR sucursal_id = ${sucursalIdParam}::uuid)
-              AND visibilidad = 'privado'
-              AND activo = true
-            ORDER BY
-                CASE WHEN fecha_fin >= NOW() THEN 0 ELSE 1 END,
-                fecha_fin ASC
-            LIMIT ${limite}
-        `;
-
-        const [ofertasResult, cuponesResult] = await Promise.all([
-            db.execute(ofertasQuery),
-            db.execute(cuponesQuery),
-        ]);
+        const ofertasResult = await db.execute(ofertasQuery);
 
         const mapCampana = (row: CampanaRow) => ({
             id: row.id,
@@ -787,9 +767,8 @@ export async function obtenerCampanasActivas(
         });
 
         const ofertas = (ofertasResult.rows as unknown as CampanaRow[]).map(mapCampana);
-        const cupones = (cuponesResult.rows as unknown as CampanaRow[]).map(mapCampana);
 
-        const campanas = [...ofertas, ...cupones].sort((a, b) => {
+        const campanas = ofertas.sort((a, b) => {
             if (a.expirada !== b.expirada) return a.expirada ? 1 : -1;
             return new Date(a.fechaFin).getTime() - new Date(b.fechaFin).getTime();
         });

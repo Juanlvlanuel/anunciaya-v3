@@ -17,7 +17,7 @@ import { useState, useLayoutEffect, useEffect, useCallback } from 'react';
 import {
     Eye, EyeOff,
     Gift, Truck, Percent, DollarSign, ShoppingBag, Tag,
-    Lock, Globe, FileText, Users, Settings, Megaphone, Ticket, RefreshCw,
+    FileText, Users, Settings, Ban, Copy,
 } from 'lucide-react';
 import { useR2Upload } from '../../../../hooks/useR2Upload';
 import { generarUrlUploadImagenOferta } from '../../../../services/ofertasService';
@@ -26,7 +26,7 @@ import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { notificar } from '../../../../utils/notificaciones';
-import type { Oferta, TipoOferta, CrearOfertaInput, ActualizarOfertaInput, VisibilidadOferta } from '../../../../types/ofertas';
+import type { Oferta, TipoOferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../../types/ofertas';
 
 import { TabOferta } from './TabOferta';
 import { TabExclusiva } from './TabExclusiva';
@@ -48,7 +48,9 @@ interface ModalOfertaProps {
     oferta: Oferta | null;
     onGuardar: (datos: CrearOfertaInput | ActualizarOfertaInput) => Promise<void>;
     onRecargar?: () => void;
+    onDuplicar?: (oferta: Oferta) => void;
     visibilidadInicial?: 'publico' | 'privado';
+    datosIniciales?: (Partial<FormularioState> & { _imagenOriginal?: string }) | null;
 }
 
 type OfertaConImagen = Oferta & {
@@ -80,7 +82,7 @@ const ICONOS_TIPO: Record<TipoOferta, React.ComponentType<{ className?: string }
 
 const FORMULARIO_INICIAL: FormularioState = {
     titulo: '', descripcion: '', tipo: 'porcentaje', valor: '', compraMinima: '0',
-    fechaInicio: '', fechaFin: '', limiteUsos: '', activo: true,
+    fechaInicio: new Date().toISOString().substring(0, 10), fechaFin: '', limiteUsos: '', activo: true,
     visibilidad: 'publico', limiteUsosPorUsuario: '', motivoAsignacion: '',
 };
 
@@ -90,7 +92,7 @@ const extraerFecha = (fechaISO: string): string => fechaISO.substring(0, 10);
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, visibilidadInicial = 'publico' }: ModalOfertaProps) {
+export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, onDuplicar, visibilidadInicial = 'publico', datosIniciales }: ModalOfertaProps) {
     const esEdicion = !!oferta;
 
     // Estados
@@ -107,6 +109,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
     const [clienteDetalleId, setClienteDetalleId] = useState<string | null>(null);
 
     const esCupon = formulario.visibilidad === 'privado';
+    const cuponSoloLectura = esEdicion && esCupon;
     const cuponInactivo = esEdicion && esCupon && !formulario.activo;
 
     // Upload R2
@@ -133,11 +136,17 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
             if (imgUrl) { imagen.setImageUrl(imgUrl); imagen.setR2Url(imgUrl); }
             else { imagen.setImageUrl(null); imagen.setR2Url(null); }
         } else if (abierto && !oferta) {
-            setFormulario({ ...FORMULARIO_INICIAL, visibilidad: visibilidadInicial });
+            const { _imagenOriginal, ...datosFormulario } = datosIniciales || {} as Record<string, string>;
+            setFormulario({ ...FORMULARIO_INICIAL, visibilidad: visibilidadInicial, ...datosFormulario });
             setErrores({});
             setTabActivo('oferta');
             setClientesSeleccionados([]);
-            imagen.reset();
+            if (_imagenOriginal) {
+                imagen.setImageUrl(_imagenOriginal);
+                imagen.setR2Url(_imagenOriginal);
+            } else {
+                imagen.reset();
+            }
         } else if (!abierto) {
             // Modal cerrado — resetear tab y limpiar imagen huérfana de R2
             setTabActivo('oferta');
@@ -204,8 +213,8 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
     // Validación
     const validarFormulario = (): boolean => {
         const nuevosErrores: Errores = {};
-        if (!formulario.titulo.trim()) nuevosErrores.titulo = 'El título es requerido';
-        else if (formulario.titulo.trim().length < 5) nuevosErrores.titulo = 'El título debe tener al menos 5 caracteres';
+        if (!formulario.titulo.trim()) nuevosErrores.titulo = 'El producto o servicio es requerido';
+        else if (formulario.titulo.trim().length < 3) nuevosErrores.titulo = 'Debe tener al menos 3 caracteres';
         if (!formulario.fechaInicio) nuevosErrores.fechaInicio = 'La fecha de inicio es requerida';
         if (!formulario.fechaFin) nuevosErrores.fechaFin = 'La fecha de fin es requerida';
         if (formulario.fechaInicio && formulario.fechaFin && new Date(formulario.fechaFin) < new Date(formulario.fechaInicio)) {
@@ -245,6 +254,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                 limiteUsosPorUsuario: formulario.limiteUsosPorUsuario ? Number(formulario.limiteUsosPorUsuario) : null,
                 motivoAsignacion: esExclusiva ? (formulario.motivoAsignacion.trim() || undefined) : undefined,
                 usuariosIds: esExclusiva && clientesSeleccionados.length > 0 ? clientesSeleccionados : undefined,
+                duplicarImagen: !esEdicion && datosIniciales?._imagenOriginal && imagen.r2Url === datosIniciales._imagenOriginal ? true : undefined,
             };
             await onGuardar(datos);
             // Imagen guardada — limpiar estado sin eliminar de R2
@@ -264,11 +274,11 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
     // Validación en tiempo real para habilitar/deshabilitar botón
     const mostrarValor = formulario.tipo === 'porcentaje' || formulario.tipo === 'monto_fijo' || formulario.tipo === 'otro';
     const camposMinimosCompletos =
-        formulario.titulo.trim().length >= 5 &&
+        formulario.titulo.trim().length >= 3 &&
         formulario.fechaInicio !== '' &&
         formulario.fechaFin !== '' &&
         (!mostrarValor || formulario.valor.trim() !== '') &&
-        (formulario.visibilidad !== 'privado' || clientesSeleccionados.length > 0);
+        (formulario.visibilidad !== 'privado' || esEdicion || clientesSeleccionados.length > 0);
 
     // Tabs config
     const tabs: Array<{ id: TabActivo; label: string; icono: React.ComponentType<{ className?: string }> }> = esExclusiva
@@ -316,41 +326,48 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                 </span>
                             </div>
 
-                            {/* Acciones header: Reactivar / Toggle activo */}
+                            {/* Acciones header */}
                             <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
-                                {esEdicion && esCupon && !formulario.activo ? (
-                                    <Tooltip text="Reactivar cupón" position="bottom" autoHide={2500}>
-                                        <button type="button" data-testid="btn-reactivar-cupon"
-                                            onClick={async () => {
-                                                if (!oferta) return;
-                                                const confirmado = await notificar.confirmar(`¿Reactivar cupón "${oferta.titulo}" para todos los clientes?`);
-                                                if (!confirmado) return;
-                                                try {
-                                                    const { reactivarCuponService } = await import('../../../../services/ofertasService');
-                                                    const res = await reactivarCuponService(oferta.id);
-                                                    if (res.success) {
-                                                        notificar.exito(res.message || 'Cupón reactivado');
-                                                        setFormulario(prev => ({ ...prev, activo: true }));
-                                                        onRecargar?.();
-                                                        obtenerClientesAsignados(oferta.id)
-                                                            .then(r => { if (r.success && Array.isArray(r.data)) setClientesAsignados(r.data); })
-                                                            .catch(() => {});
-                                                    } else {
-                                                        notificar.error(res.message || 'Error al reactivar');
-                                                    }
-                                                } catch { notificar.error('Error al reactivar cupón'); }
-                                            }}
-                                            disabled={guardando}
-                                            className="p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 bg-emerald-500/20 hover:bg-emerald-500/30"
-                                        >
-                                            <RefreshCw className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-emerald-400" />
-                                        </button>
-                                    </Tooltip>
-                                ) : (
+                                {esEdicion && esCupon ? (
+                                    <div className="flex items-center gap-1.5 lg:gap-1 2xl:gap-1.5">
+                                        {oferta?.estado !== 'agotada' && oferta?.estado !== 'vencida' && oferta?.estado !== 'inactiva' && (
+                                            <Tooltip text="Revocar cupón" position="bottom" autoHide={2500}>
+                                                <button
+                                                    type="button"
+                                                    data-testid="btn-revocar-cupon"
+                                                    onClick={async () => {
+                                                        if (!oferta) return;
+                                                        const confirmado = await notificar.confirmar(`¿Revocar cupón "${oferta.titulo}" para todos los clientes?`);
+                                                        if (!confirmado) return;
+                                                        try {
+                                                            const { revocarCuponMasivo } = await import('../../../../services/ofertasService');
+                                                            const res = await revocarCuponMasivo(oferta.id);
+                                                            if (res.success) { notificar.exito(res.message || 'Cupón revocado'); onRecargar?.(); onCerrar(); }
+                                                            else { notificar.error(res.message || 'Error al revocar'); }
+                                                        } catch { notificar.error('Error al revocar cupón'); }
+                                                    }}
+                                                    className="p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer bg-black/15 hover:bg-black/25 transition-colors"
+                                                >
+                                                    <Ban className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                                                </button>
+                                            </Tooltip>
+                                        )}
+                                        <Tooltip text="Duplicar cupón" position="bottom" autoHide={2500}>
+                                            <button
+                                                type="button"
+                                                data-testid="btn-duplicar-cupon"
+                                                onClick={() => { if (oferta) { onDuplicar?.(oferta); } }}
+                                                className="p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer bg-black/15 hover:bg-black/25 transition-colors"
+                                            >
+                                                <Copy className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                                            </button>
+                                        </Tooltip>
+                                    </div>
+                                ) : esCupon ? null : (
                                     <Tooltip text={formulario.activo ? 'Activa' : 'Inactiva'} position="bottom" autoHide={2500}>
                                         <button type="button" data-testid="btn-toggle-activo"
                                             onClick={() => setFormulario(prev => ({ ...prev, activo: !prev.activo }))}
-                                            disabled={guardando || (esEdicion && esCupon)}
+                                            disabled={guardando}
                                             className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 ${formulario.activo ? 'bg-white/20 hover:bg-white/30' : 'bg-white/10 hover:bg-white/20'}`}
                                         >
                                             {formulario.activo ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" /> : <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/60" />}
@@ -393,16 +410,16 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                     <form onSubmit={handleSubmit} data-testid="form-oferta" className="flex-1 flex flex-col min-h-0">
                         {/* Contenido scrollable */}
                         <div className="flex-1 overflow-y-auto">
-                            {tabActivo === 'oferta' && (<div className={cuponInactivo ? 'opacity-60 pointer-events-none' : ''}>
+                            {tabActivo === 'oferta' && (<div className={cuponInactivo || cuponSoloLectura ? 'opacity-60 pointer-events-none' : ''}>
                                 <TabOferta
                                     formulario={formulario}
                                     setFormulario={setFormulario}
                                     errores={errores}
-                                    guardando={guardando || cuponInactivo}
+                                    guardando={guardando || cuponInactivo || cuponSoloLectura}
                                     imagen={imagen}
                                     onAbrirImagen={(url) => setModalImagenes({ isOpen: true, images: [url], initialIndex: 0 })}
                                     esCupon={esCupon}
-                                    botonesDesktop={
+                                    botonesDesktop={!cuponSoloLectura ? (
                                         <div className="flex gap-3">
                                             <button
                                                 type="button"
@@ -421,53 +438,113 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                                 {esEdicion ? 'Guardar' : esExclusiva ? 'Enviar cupón' : 'Crear oferta'}
                                             </button>
                                         </div>
-                                    }
+                                    ) : undefined}
                                 />
                             </div>)}
-                            {tabActivo === 'exclusiva' && (<div className={cuponInactivo ? 'opacity-60 pointer-events-none' : ''}>
+                            {tabActivo === 'exclusiva' && (<div className={`flex flex-col h-full ${cuponInactivo || cuponSoloLectura ? 'opacity-60 pointer-events-none' : ''}`}>
                                 <TabExclusiva
                                     formulario={formulario}
                                     setFormulario={setFormulario}
                                     guardando={guardando}
-                                    soloLectura={esEdicion && esCupon}
                                 />
+                                {!cuponSoloLectura && (
+                                    <div className="hidden lg:flex gap-3 px-3 2xl:px-4 pb-3 2xl:pb-4 mt-auto">
+                                        <button type="button" onClick={onCerrar} disabled={guardando}
+                                            className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 2xl:px-4 2xl:py-2.5 text-xs 2xl:text-sm cursor-pointer border-2 border-slate-400 text-slate-600 bg-transparent hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100">
+                                            Cancelar
+                                        </button>
+                                        <button type="submit" disabled={guardando || imagen.isUploading || !camposMinimosCompletos}
+                                            className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 2xl:px-4 2xl:py-2.5 text-xs 2xl:text-sm cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]">
+                                            {guardando && <Spinner tamanio="sm" color="white" />}
+                                            {esEdicion ? 'Guardar' : 'Enviar cupón'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>)}
                             {tabActivo === 'clientes' && (
-                                <TabClientes
-                                    clientes={clientesDisponibles}
-                                    cargando={cargandoClientes}
-                                    clientesSeleccionados={clientesSeleccionados}
-                                    onToggleCliente={toggleCliente}
-                                    onSeleccionarTodos={seleccionarTodos}
-                                    onLimpiarSeleccion={limpiarSeleccion}
-                                    modoEdicion={esEdicion && oferta?.visibilidad === 'privado'}
-                                    clientesAsignados={clientesAsignados}
-                                    cargandoAsignados={cargandoAsignados}
-                                    onClickCliente={(id) => setClienteDetalleId(id)}
-                                />
+                                <>
+                                    <TabClientes
+                                        clientes={clientesDisponibles}
+                                        cargando={cargandoClientes}
+                                        clientesSeleccionados={clientesSeleccionados}
+                                        onToggleCliente={toggleCliente}
+                                        onSeleccionarTodos={seleccionarTodos}
+                                        onLimpiarSeleccion={limpiarSeleccion}
+                                        modoEdicion={esEdicion && oferta?.visibilidad === 'privado'}
+                                        clientesAsignados={clientesAsignados}
+                                        cargandoAsignados={cargandoAsignados}
+                                        onClickCliente={(id) => setClienteDetalleId(id)}
+                                        botonesDesktop={!cuponSoloLectura ? (
+                                            <div className="flex gap-3">
+                                                <button type="button" onClick={onCerrar} disabled={guardando}
+                                                    className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 2xl:px-4 2xl:py-2.5 text-xs 2xl:text-sm cursor-pointer border-2 border-slate-400 text-slate-600 bg-transparent hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100">
+                                                    Cancelar
+                                                </button>
+                                                <button type="submit" disabled={guardando || imagen.isUploading || !camposMinimosCompletos}
+                                                    className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 2xl:px-4 2xl:py-2.5 text-xs 2xl:text-sm cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]">
+                                                    {guardando && <Spinner tamanio="sm" color="white" />}
+                                                    {esEdicion ? 'Guardar' : 'Enviar cupón'}
+                                                </button>
+                                            </div>
+                                        ) : undefined}
+                                    />
+                                </>
                             )}
                         </div>
 
                         {/* ── Botones sticky (solo móvil) ── */}
                         <div className="shrink-0 flex gap-3 px-4 py-3 border-t-2 border-slate-300 bg-white lg:hidden">
-                            <button
-                                type="button"
-                                data-testid="btn-cancelar-oferta"
-                                onClick={onCerrar}
-                                disabled={guardando}
-                                className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer border-2 border-slate-400 text-slate-600 bg-transparent hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                data-testid="btn-guardar-oferta"
-                                disabled={guardando || imagen.isUploading || !camposMinimosCompletos}
-                                className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]"
-                            >
-                                {guardando && <Spinner tamanio="sm" color="white" />}
-                                {esEdicion ? 'Guardar' : esExclusiva ? 'Enviar cupón' : 'Crear oferta'}
-                            </button>
+                            {cuponSoloLectura ? (
+                                <>
+                                    {oferta?.estado !== 'agotada' && oferta?.estado !== 'vencida' && oferta?.estado !== 'inactiva' && (
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                if (!oferta) return;
+                                                const confirmado = await notificar.confirmar(`¿Revocar cupón "${oferta.titulo}"?`);
+                                                if (!confirmado) return;
+                                                try {
+                                                    const { revocarCuponMasivo } = await import('../../../../services/ofertasService');
+                                                    const res = await revocarCuponMasivo(oferta.id);
+                                                    if (res.success) { notificar.exito(res.message || 'Cupón revocado'); onRecargar?.(); onCerrar(); }
+                                                    else { notificar.error(res.message || 'Error al revocar'); }
+                                                } catch { notificar.error('Error al revocar cupón'); }
+                                            }}
+                                            className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl px-4 py-2.5 text-sm cursor-pointer border-2 border-red-300 text-red-500 bg-transparent hover:bg-red-50"
+                                        >
+                                            Revocar
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => { if (oferta) { onDuplicar?.(oferta); } }}
+                                        className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl px-4 py-2.5 text-sm cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 active:scale-[0.98]"
+                                    >
+                                        Duplicar cupón
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        data-testid="btn-cancelar-oferta"
+                                        onClick={onCerrar}
+                                        disabled={guardando}
+                                        className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm cursor-pointer border-2 border-slate-400 text-slate-600 bg-transparent hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        data-testid="btn-guardar-oferta"
+                                        disabled={guardando || imagen.isUploading || !camposMinimosCompletos}
+                                        className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]"
+                                    >
+                                        {guardando && <Spinner tamanio="sm" color="white" />}
+                                        {esEdicion ? 'Guardar' : esExclusiva ? 'Enviar cupón' : 'Crear oferta'}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </form>
                 </div>

@@ -46,7 +46,7 @@ function formatearTipoValor(tipo: string, valor: string | null): string {
         case 'monto_fijo': return `$${valor} desc.`;
         case '2x1': return '2×1';
         case '3x2': return '3×2';
-        case 'envio_gratis': return 'GRATIS';
+        case 'envio_gratis': return 'Envío Gratis';
         default: return valor || 'Promo';
     }
 }
