@@ -10,15 +10,16 @@
  * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/TablaHistorialCompras.tsx
  */
 
-import { useState } from 'react';
-import { TrendingUp, TrendingDown, Gift, Store, Calendar, Inbox, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { useState, Fragment } from 'react';
+import { TrendingUp, TrendingDown, Gift, Store, Calendar, Inbox, ArrowUpDown, ChevronUp, ChevronDown, Ticket } from 'lucide-react';
+// ArrowUpDown, ChevronUp, ChevronDown se usan en los headers de tabla para ordenamiento
 import type { Transaccion, TipoTransaccion } from '../../../../types/cardya';
 
 // =============================================================================
 // TIPOS DE FILTRO Y ORDENAMIENTO
 // =============================================================================
 
-type FiltroTipo = 'todos' | TipoTransaccion;
+type FiltroTipo = 'todos' | TipoTransaccion | 'con_cupon';
 
 type ColumnaOrden = 'fecha' | 'puntos';
 type DireccionOrden = 'asc' | 'desc';
@@ -28,15 +29,22 @@ interface EstadoOrden {
   direccion: DireccionOrden;
 }
 
-const FILTROS_CONFIG: { id: FiltroTipo; label: string; color: string; bg: string; border: string }[] = [
-  { id: 'todos', label: 'Todos', color: '#334155', bg: '#f1f5f9', border: '#cbd5e1' },
-  { id: 'compra', label: 'Ganados', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
-  { id: 'canje', label: 'Canjeados', color: '#e11d48', bg: '#fff1f2', border: '#fecdd3' },
-];
-
 // =============================================================================
 // HELPERS
 // =============================================================================
+
+const formatearCupon = (tipo: string, valor: number | null, valorTexto?: string | null): string => {
+  switch (tipo) {
+    case 'porcentaje': return `${valor}%`;
+    case 'monto_fijo': return `$${valor}`;
+    case '2x1': return '2×1';
+    case '3x2': return '3×2';
+    case 'envio_gratis': return 'Envío gratis';
+    case 'gratis': return 'Gratis';
+    case 'otro': return valorTexto || 'Cupón';
+    default: return 'Cupón';
+  }
+};
 
 const formatearFechaCorta = (fechaISO: string) => {
   const fecha = new Date(fechaISO);
@@ -74,13 +82,15 @@ export default function TablaHistorialCompras({
   onClickTransaccion,
   stickyTop = 0,
   negocioFiltro = 'todos',
+  filtroEstado = 'todos',
 }: {
   transacciones: Transaccion[];
   onClickTransaccion?: (tx: Transaccion) => void;
   stickyTop?: number;
   negocioFiltro?: string;
+  filtroEstado?: string;
 }) {
-  const [filtroActivo, setFiltroActivo] = useState<FiltroTipo>('todos');
+  const filtroActivo = filtroEstado as FiltroTipo;
 
   // Ordenamiento: null = default (fecha desc)
   const [orden, setOrden] = useState<EstadoOrden | null>(null);
@@ -94,29 +104,22 @@ export default function TablaHistorialCompras({
     });
   };
 
-  // Filtrado combinado (tipo + negocio)
+  // Filtrado combinado (tipo + negocio + cupón)
   const transaccionesFiltradas = transacciones.filter((tx) => {
-    const pasaTipo = filtroActivo === 'todos' || tx.tipo === filtroActivo;
+    let pasaTipo: boolean;
+    if (filtroActivo === 'todos') pasaTipo = true;
+    else if (filtroActivo === 'con_cupon') pasaTipo = !!tx.cuponTipo;
+    else pasaTipo = tx.tipo === filtroActivo;
     const pasaNegocio = negocioFiltro === 'todos' || tx.negocioNombre === negocioFiltro;
     return pasaTipo && pasaNegocio;
   });
 
-  // Conteos (respetan filtro de negocio)
-  const baseParaConteo = negocioFiltro === 'todos'
-    ? transacciones
-    : transacciones.filter((tx) => tx.negocioNombre === negocioFiltro);
-  const conteos: Record<FiltroTipo, number> = {
-    todos: baseParaConteo.length,
-    compra: baseParaConteo.filter((tx) => tx.tipo === 'compra').length,
-    canje: baseParaConteo.filter((tx) => tx.tipo === 'canje').length,
-  };
-
   if (transacciones.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+      <div className="flex flex-col items-center justify-center py-16 text-slate-600">
         <Inbox className="w-12 h-12 mb-3 text-slate-300" strokeWidth={1.5} />
-        <p className="text-sm font-semibold text-slate-500">Sin transacciones</p>
-        <p className="text-xs text-slate-400 mt-1">Aún no has ganado ni canjeado puntos</p>
+        <p className="text-sm font-semibold text-slate-600">Sin transacciones</p>
+        <p className="text-xs text-slate-600 mt-1">Aún no has ganado ni canjeado puntos</p>
       </div>
     );
   }
@@ -138,78 +141,6 @@ export default function TablaHistorialCompras({
   const mostrarAgrupado = !orden || orden.columna === 'fecha';
   const gruposMes = mostrarAgrupado ? agruparPorMes(txOrdenadas) : [];
 
-  // Chips + select de negocio reutilizables
-  const renderFiltros = (className: string, style?: React.CSSProperties) => (
-    <div className={className} style={style}>
-      <div className="flex gap-2 flex-1 overflow-x-auto cardya-tabs items-center">
-        {FILTROS_CONFIG.map((chip) => {
-          const activo = filtroActivo === chip.id;
-          const cantidad = conteos[chip.id];
-          if (cantidad === 0 && chip.id !== 'todos') return null;
-
-          return (
-            <button
-              key={chip.id}
-              onClick={() => {
-                setFiltroActivo(chip.id);
-                if (chip.id === 'todos') setOrden(null);
-              }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer outline-none focus:outline-none"
-              style={{
-                background: activo ? chip.bg : '#f8fafc',
-                color: activo ? chip.color : '#64748b',
-                border: `1.5px solid ${activo ? chip.color : '#cbd5e1'}`,
-              }}
-            >
-              <span>{chip.label}</span>
-              <span
-                className="text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none"
-                style={{
-                  background: activo ? chip.border : '#e2e8f0',
-                  color: activo ? chip.color : '#64748b',
-                }}
-              >
-                {cantidad}
-              </span>
-            </button>
-          );
-        })}
-
-        {/* ── Separador visual ── */}
-        <div className="w-px h-5 bg-slate-300 shrink-0 lg:hidden" />
-
-        {/* ── Chips de ordenamiento (solo móvil) ── */}
-        {(['fecha', 'puntos'] as ColumnaOrden[]).map((col) => {
-          const activo = orden?.columna === col;
-          const label = col === 'fecha' ? 'Fecha' : 'Puntos';
-
-          return (
-            <button
-              key={`orden-${col}`}
-              onClick={() => alternarOrden(col)}
-              className="lg:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer outline-none focus:outline-none"
-              style={{
-                background: activo ? '#fffbeb' : '#f8fafc',
-                color: activo ? '#d97706' : '#94a3b8',
-                border: `1.5px solid ${activo ? '#f59e0b' : '#cbd5e1'}`,
-              }}
-            >
-              {activo ? (
-                orden.direccion === 'desc' ? (
-                  <ChevronDown className="w-3 h-3" strokeWidth={3} />
-                ) : (
-                  <ChevronUp className="w-3 h-3" strokeWidth={3} />
-                )
-              ) : (
-                <ArrowUpDown className="w-3 h-3" strokeWidth={2.5} />
-              )}
-              <span>{label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
     <>
       {/* ═══════════════════════════════════════════════════════════════════
@@ -217,24 +148,18 @@ export default function TablaHistorialCompras({
       ═══════════════════════════════════════════════════════════════════ */}
       <div className="lg:hidden">
 
-        {/* Chips de filtro sticky */}
-        {renderFiltros(
-          'sticky z-10 flex items-center gap-2 pb-2.5 pt-2 mb-2 -mx-4 px-4',
-          { top: `${stickyTop}px`, background: '#f8fafc' }
-        )}
-
         {/* Lista agrupada por mes o plana según ordenamiento */}
         {txOrdenadas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+          <div className="flex flex-col items-center justify-center py-10 text-slate-600">
             <Inbox className="w-10 h-10 mb-2 text-slate-300" strokeWidth={1.5} />
-            <p className="text-xs font-semibold text-slate-400">Sin transacciones en este filtro</p>
+            <p className="text-xs font-semibold text-slate-600">Sin transacciones en este filtro</p>
           </div>
         ) : mostrarAgrupado ? (
           <div className="flex flex-col gap-3">
             {gruposMes.map(([mes, txs]) => (
               <div
                 key={mes}
-                className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm"
+                className="bg-white rounded-2xl overflow-hidden border border-slate-300 shadow-sm"
               >
                 {/* Header del mes */}
                 <div
@@ -242,22 +167,22 @@ export default function TablaHistorialCompras({
                   style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                 >
                   <Calendar className="w-4 h-4 text-amber-400" strokeWidth={2} />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  <span className="text-sm font-bold text-white uppercase tracking-wider">
                     {mes}
                   </span>
-                  <span className="ml-auto text-xs font-bold text-white bg-white/20 px-2.5 py-0.5 rounded-full">
+                  <span className="ml-auto text-sm font-bold text-white bg-white/20 px-2.5 py-0.5 rounded-full">
                     {txs.length}
                   </span>
                 </div>
 
                 {/* Transacciones del mes */}
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y-[1.5px] divide-slate-300">
                   {txs.map((tx) => {
                     const esGanado = tx.tipo === 'compra';
                     return (
                       <div
                         key={tx.id}
-                        className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-slate-50"
+                        className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-slate-200"
                         onClick={() => onClickTransaccion?.(tx)}
                       >
                         {/* Ícono tipo */}
@@ -281,7 +206,7 @@ export default function TablaHistorialCompras({
                           <span className="text-[15px] font-bold text-slate-800 truncate block">
                             {tx.negocioNombre}
                           </span>
-                          <span className="text-xs text-slate-400 truncate block">
+                          <span className="text-sm text-slate-600 font-medium truncate block">
                             {tx.descripcion.includes('||') ? (
                               <>
                                 <strong className="text-slate-600">{tx.descripcion.split('||')[1]}</strong>
@@ -290,8 +215,14 @@ export default function TablaHistorialCompras({
                             ) : tx.descripcion}
                           </span>
                           {tx.montoCompra !== undefined && (
-                            <span className="text-xs text-amber-700 font-bold block mt-0.5">
+                            <span className="text-sm text-amber-700 font-bold block mt-0.5">
                               {"$"}{tx.montoCompra.toFixed(2)}
+                            </span>
+                          )}
+                          {tx.cuponTipo && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm font-bold bg-emerald-100 text-emerald-700 mt-0.5">
+                              <Ticket className="w-3 h-3" strokeWidth={2.5} />
+                              {formatearCupon(tx.cuponTipo, tx.cuponValor ?? null, tx.cuponValorTexto)}
                             </span>
                           )}
                         </div>
@@ -303,7 +234,7 @@ export default function TablaHistorialCompras({
                           >
                             {esGanado ? '+' : ''}{tx.puntos.toLocaleString()} pts
                           </span>
-                          <span className="text-[11px] text-slate-400 font-medium">
+                          <span className="text-sm text-slate-600 font-medium">
                             {formatearFechaCorta(tx.fecha)}
                           </span>
                         </div>
@@ -317,14 +248,14 @@ export default function TablaHistorialCompras({
         ) : (
           /* ── Lista plana (sin agrupación por mes) — cuando ordena por puntos ── */
           <div
-            className="bg-white rounded-2xl overflow-hidden divide-y divide-slate-100 border border-slate-200 shadow-sm"
+            className="bg-white rounded-2xl overflow-hidden divide-y-[1.5px] divide-slate-300 border border-slate-300 shadow-sm"
           >
             {txOrdenadas.map((tx) => {
               const esGanado = tx.tipo === 'compra';
               return (
                 <div
                   key={tx.id}
-                  className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-slate-50"
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-slate-200"
                   onClick={() => onClickTransaccion?.(tx)}
                 >
                   {/* Ícono tipo */}
@@ -348,12 +279,18 @@ export default function TablaHistorialCompras({
                     <span className="text-[15px] font-bold text-slate-800 truncate block">
                       {tx.negocioNombre}
                     </span>
-                    <span className="text-xs text-slate-400 truncate block">
+                    <span className="text-sm text-slate-600 font-medium truncate block">
                       {tx.descripcion}
                     </span>
                     {tx.montoCompra !== undefined && (
-                      <span className="text-xs text-amber-700 font-bold block mt-0.5">
+                      <span className="text-sm text-amber-700 font-bold block mt-0.5">
                         {"$"}{tx.montoCompra.toFixed(2)}
+                      </span>
+                    )}
+                    {tx.cuponTipo && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm font-bold bg-emerald-100 text-emerald-700 mt-0.5">
+                        <Ticket className="w-3 h-3" strokeWidth={2.5} />
+                        {formatearCupon(tx.cuponTipo, tx.cuponValor ?? null, tx.cuponValorTexto)}
                       </span>
                     )}
                   </div>
@@ -365,7 +302,7 @@ export default function TablaHistorialCompras({
                     >
                       {esGanado ? '+' : ''}{tx.puntos.toLocaleString()} pts
                     </span>
-                    <span className="text-[11px] text-slate-400 font-medium">
+                    <span className="text-sm text-slate-600 font-medium">
                       {formatearFechaCorta(tx.fecha)}
                     </span>
                   </div>
@@ -381,31 +318,25 @@ export default function TablaHistorialCompras({
           COLUMNAS: TIPO | NEGOCIO (logo) | CONCEPTO | MONTO | PUNTOS ↕ | FECHA ↕
       ═══════════════════════════════════════════════════════════════════ */}
       <div
-        className="hidden lg:flex lg:flex-col rounded-2xl overflow-hidden"
+        data-testid="tabla-historial-compras-desktop"
+        className="hidden lg:flex lg:flex-col rounded-xl overflow-hidden bg-white border-2 border-slate-300"
         style={{
-          border: '1px solid #cbd5e1',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           height: 'calc(100vh - 300px)',
           minHeight: '400px',
         }}
       >
-        {/* Filtros fijos (no hacen scroll) */}
-        {renderFiltros(
-          'flex items-center gap-2 px-5 2xl:px-6 py-3 shrink-0',
-          { background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }
-        )}
-
         {/* Contenido con scroll */}
         {txOrdenadas.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
             <Inbox className="w-10 h-10 mb-2 text-slate-300" strokeWidth={1.5} />
-            <p className="text-xs font-semibold text-slate-400">Sin transacciones en este filtro</p>
+            <p className="text-xs font-semibold text-slate-600">Sin transacciones en este filtro</p>
           </div>
         ) : (
           <>
             {/* Header fijo (no hace scroll) */}
-            <div className="shrink-0" style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-              <table className="w-full" style={{ tableLayout: 'fixed', marginRight: '15px', width: 'calc(100% - 15px)' }}>
+            <div className="shrink-0 h-12" style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+              <table className="w-full h-full" style={{ tableLayout: 'fixed', marginRight: '15px', width: 'calc(100% - 15px)' }}>
                 <colgroup>
                   <col style={{ width: '13%' }} />
                   <col style={{ width: '20%' }} />
@@ -416,49 +347,49 @@ export default function TablaHistorialCompras({
                 </colgroup>
                 <thead>
                   <tr style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-                    <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       Tipo
                     </th>
-                    <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       Negocio
                     </th>
-                    <th className="px-5 py-3 text-left text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       Concepto
                     </th>
-                    <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-right text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       Monto
                     </th>
-                    <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-right text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       <button
                         onClick={() => alternarOrden('puntos')}
-                        className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors outline-none focus:outline-none uppercase"
+                        className="inline-flex items-center gap-1 cursor-pointer hover:text-amber-300 transition-colors outline-none focus:outline-none uppercase group"
                       >
                         <span>Puntos</span>
                         {orden?.columna === 'puntos' ? (
                           orden.direccion === 'desc' ? (
-                            <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           ) : (
-                            <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           )
                         ) : (
-                          <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
+                          <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
                         )}
                       </button>
                     </th>
-                    <th className="px-5 py-3 text-right text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-right text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       <button
                         onClick={() => alternarOrden('fecha')}
-                        className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors ml-auto outline-none focus:outline-none uppercase"
+                        className="inline-flex items-center gap-1 cursor-pointer hover:text-amber-300 transition-colors ml-auto outline-none focus:outline-none uppercase group"
                       >
                         <span>Fecha</span>
                         {orden?.columna === 'fecha' ? (
                           orden.direccion === 'desc' ? (
-                            <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           ) : (
-                            <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           )
                         ) : (
-                          <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
+                          <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
                         )}
                       </button>
                     </th>
@@ -480,21 +411,24 @@ export default function TablaHistorialCompras({
                 <tbody>
                   {(() => {
                     let mesAnterior = '';
+                    let filaIdx = 0;
                     return txOrdenadas.map((tx) => {
                       const esGanado = tx.tipo === 'compra';
                       const mesActual = obtenerMesAnio(tx.fecha);
                       const mostrarSeparador = mostrarAgrupado && mesActual !== mesAnterior;
                       mesAnterior = mesActual;
+                      const bgFila = filaIdx % 2 === 0 ? 'bg-white' : 'bg-slate-100';
+                      filaIdx++;
                       return (
-                        <>
+                        <Fragment key={tx.id}>
                           {mostrarSeparador && (
-                            <tr key={`sep-${mesActual}`}>
+                            <tr>
                               <td colSpan={6} className="px-0 py-0">
                                 <div
                                   className="flex items-center justify-end gap-2.5 px-5 py-2"
                                   style={{ background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)' }}
                                 >
-                                  <Calendar className="w-3.5 h-3.5 text-slate-500" strokeWidth={2.5} />
+                                  <Calendar className="w-3.5 h-3.5 text-slate-600" strokeWidth={2.5} />
                                   <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                                     {mesActual.charAt(0).toUpperCase() + mesActual.slice(1)}
                                   </span>
@@ -503,15 +437,15 @@ export default function TablaHistorialCompras({
                             </tr>
                           )}
                           <tr
-                            key={tx.id}
-                            className="hover:bg-slate-50/70 cursor-pointer border-b border-slate-200"
+                            data-testid={`fila-historial-${tx.id}`}
+                            className={`${bgFila} hover:bg-slate-200 cursor-pointer border-b border-slate-300`}
                             onClick={() => onClickTransaccion?.(tx)}
                           >
                             {/* ── TIPO ── */}
-                            <td className="px-5 py-3">
+                            <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                  className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
                                   style={{
                                     background: esGanado
                                       ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
@@ -524,66 +458,76 @@ export default function TablaHistorialCompras({
                                     <TrendingDown className="w-4 h-4 text-rose-600" strokeWidth={2.5} />
                                   )}
                                 </div>
-                                <span className={`text-[13px] font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                <span className={`text-sm lg:text-[11px] 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}>
                                   {esGanado ? 'Ganados' : 'Canjeados'}
                                 </span>
                               </div>
                             </td>
                             {/* ── NEGOCIO (con logo) ── */}
-                            <td className="px-5 py-3">
+                            <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2">
                               <div className="flex items-center gap-2">
                                 {tx.negocioLogo ? (
                                   <img
                                     src={tx.negocioLogo}
                                     alt={tx.negocioNombre}
-                                    className="w-6 h-6 rounded-full object-cover shrink-0"
+                                    className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full object-cover shrink-0"
                                   />
                                 ) : (
-                                  <Store className="w-4 h-4 text-slate-400 shrink-0" />
+                                  <Store className="w-4 h-4 text-slate-600 shrink-0" />
                                 )}
-                                <span className="text-[13px] font-semibold text-slate-700 truncate">
+                                <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">
                                   {tx.negocioNombre}
                                 </span>
                               </div>
                             </td>
                             {/* ── CONCEPTO ── */}
-                            <td className="px-5 py-3">
-                              <span className="text-[13px] text-slate-500 block truncate">
+                            <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2">
+                              <span className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium block truncate">
                                 {tx.descripcion.includes('||') ? (
                                   <>
-                                    <strong className="text-slate-700">{tx.descripcion.split('||')[1]}</strong>
+                                    <strong className="text-slate-800">{tx.descripcion.split('||')[1]}</strong>
                                     {tx.descripcion.split('||')[2]}
                                   </>
                                 ) : tx.descripcion}
                               </span>
+                              {tx.cuponTipo && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-emerald-100 text-emerald-700 mt-0.5">
+                                  <Ticket className="w-3 h-3" strokeWidth={2.5} />
+                                  {formatearCupon(tx.cuponTipo, tx.cuponValor ?? null, tx.cuponValorTexto)}
+                                </span>
+                              )}
                             </td>
                             {/* ── MONTO ── */}
-                            <td className="px-5 py-3 text-right">
-                              {tx.montoCompra !== undefined ? (
-                                <span className="text-[13px] font-semibold text-slate-700">
+                            <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-right">
+                              {tx.montoCompra !== undefined && tx.montoCompra > 0 ? (
+                                <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-600">
                                   {"$"}{tx.montoCompra.toFixed(2)}
                                 </span>
                               ) : (
-                                <span className="text-[12px] text-slate-300">—</span>
+                                <span className="text-xs text-slate-300">—</span>
                               )}
                             </td>
                             {/* ── PUNTOS ── */}
-                            <td className="px-5 py-3 text-right">
+                            <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-right">
+                              {tx.puntos === 0 ? (
+                                <span className="text-xs text-slate-300">—</span>
+                              ) : (
                               <span
-                                className={`text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}
+                                className={`text-sm lg:text-xs 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}
                               >
                                 {esGanado ? '+' : '-'}
                                 {Math.abs(tx.puntos).toLocaleString()}
                               </span>
+                              )}
                             </td>
                             {/* ── FECHA ── */}
-                            <td className="px-5 py-3 text-right">
-                              <span className="text-[12px] text-slate-400 font-medium">
+                            <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-right">
+                              <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                                 {formatearFechaTabla(tx.fecha)}
                               </span>
                             </td>
                           </tr>
-                        </>
+                        </Fragment>
                       );
                     });
                   })()}

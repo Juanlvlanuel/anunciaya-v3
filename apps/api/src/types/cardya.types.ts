@@ -48,12 +48,17 @@ export interface BilleteraNegocio {
   negocioId: string;
   negocioNombre: string;
   negocioLogo: string | null;
+  negocioPortada: string | null;
   puntosDisponibles: number;
   puntosAcumuladosTotal: number;
   puntosCanjeadosTotal: number;
   nivelActual: 'bronce' | 'plata' | 'oro';
   multiplicador: number;
   progreso: ProgresoNivel;
+  nivelesActivos: boolean;
+  negocioUsuarioId: string | null;
+  negocioSucursalId: string | null;
+  whatsappContacto: string | null;
 }
 
 /**
@@ -149,6 +154,11 @@ export interface HistorialCompra {
   concepto: string | null;
   empleadoNombre: string | null;
   createdAt: string;
+  cuponTipo: string | null;
+  cuponValor: number | null;
+  cuponValorTexto: string | null;
+  cuponTitulo: string | null;
+  descuentoAplicado: number | null;
 }
 
 /**

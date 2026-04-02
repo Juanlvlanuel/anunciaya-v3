@@ -139,7 +139,7 @@ Fijo en las 3 resoluciones — sin variación responsive.
 **Estándar: `border-2` (2px)** para elementos con contorno visible: botones, inputs, cards con borde, chips de filtro.
 - Aplica igual en las 3 resoluciones — sin reducir en `lg:` ni `2xl:`
 - `border-2` ✅ — `border` (1px) ❌ en elementos interactivos
-- Excepción: líneas divisorias y separadores usan `border` (1px)
+- Excepción: líneas divisorias y separadores usan `1.5px` (`divide-y-[1.5px]` o `border-b-[1.5px]`)
 
 **Badges de estado (spans informativos):** sin contorno. Solo `bg-*-100 text-*-700`. Nunca `border-*`.
 

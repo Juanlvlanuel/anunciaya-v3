@@ -140,6 +140,12 @@ export interface Recompensa {
   requiereAprobacion: boolean;
   activa: boolean;
   orden: number;
+  tipo: 'basica' | 'compras_frecuentes' | null;
+  numeroComprasRequeridas: number | null;
+  requierePuntos: boolean;
+  canjesRealizados: number;
+  clientesActivos: number;
+  desbloqueos: number;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -158,6 +164,9 @@ export interface CrearRecompensaInput {
   requiereAprobacion?: boolean;
   activa?: boolean;
   orden?: number;
+  tipo?: 'basica' | 'compras_frecuentes';
+  numeroComprasRequeridas?: number | null;
+  requierePuntos?: boolean;
 }
 
 /**

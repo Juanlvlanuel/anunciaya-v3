@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { usePuntosStore } from '../../stores/usePuntosStore';
 import { obtenerPerfilSucursal } from '../../services/negociosService';
 import { getDetalleCliente } from '../../services/clientesService';
 import { getConteoArchivosCompartidos, getArchivosCompartidos } from '../../services/chatyaService';
@@ -163,6 +164,8 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const modoActivo = usuario?.modoActivo || 'personal';
   const miId = usuario?.id || '';
   const { esMobile } = useBreakpoint();
+
+  const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
 
   const toggleSilenciar = useChatYAStore((s) => s.toggleSilenciar);
   const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
@@ -641,9 +644,10 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                         className="flex items-center gap-2 px-4 py-2.5 border-b-2 border-slate-300 bg-[#1e293b]"
                       >
                         <Coins className="w-4 h-4 text-white shrink-0" />
-                        <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-white">Puntos y nivel</span>
+                        <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-white">{nivelesActivos ? 'Puntos y nivel' : 'Puntos'}</span>
                       </div>
                       {/* Fila nivel */}
+                      {nivelesActivos && (
                       <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-slate-300">
                         <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
                           <Award className={`w-4 h-4 ${nivelColor(clienteEfectivo.nivelActual ?? '')}`} />
@@ -655,6 +659,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                           </span>
                         </div>
                       </div>
+                      )}
                       {/* Fila puntos */}
                       <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-slate-300">
                         <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">

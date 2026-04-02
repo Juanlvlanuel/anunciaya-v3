@@ -1720,6 +1720,7 @@ export const puntosTransacciones = pgTable("puntos_transacciones", {
 	ofertaUsoId: bigint("cupon_uso_id", { mode: 'number' }),
 	nota: text("nota"),
 	concepto: varchar("concepto", { length: 200 }),
+	recompensaSellosId: uuid("recompensa_sellos_id"),
 	motivoRevocacion: text("motivo_revocacion"),
 	revocadoPor: uuid("revocado_por"),
 	revocadoAt: timestamp("revocado_at", { withTimezone: true, mode: 'string' }),
@@ -1853,7 +1854,7 @@ export const vouchersCanje = pgTable("vouchers_canje", {
 	unique("vouchers_canje_codigo_key").on(table.codigo),
 	check("vouchers_canje_codigo_check", sql`(codigo)::text ~ '^[A-Z0-9]{6}$'::text`),
 	check("vouchers_canje_estado_check", sql`(estado)::text = ANY ((ARRAY['pendiente'::character varying, 'aprobacion_pendiente'::character varying, 'usado'::character varying, 'expirado'::character varying, 'cancelado'::character varying])::text[])`),
-	check("vouchers_canje_puntos_check", sql`puntos_usados > 0`),
+	check("vouchers_canje_puntos_check", sql`puntos_usados >= 0`),
 ]);
 
 export const alertasSeguridad = pgTable("alertas_seguridad", {

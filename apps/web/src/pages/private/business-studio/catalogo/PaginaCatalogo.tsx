@@ -12,7 +12,7 @@
  * FEATURES:
  * - Tabla desktop con header oscuro + cards horizontales móvil
  * - Filtros (búsqueda, tipo, categoría)
- * - Ordenación por precio, vistas, ventas
+ * - Ordenación por precio, vistas
  * - CRUD completo (Crear, Editar, Eliminar)
  * - Duplicar a otras sucursales (solo dueños)
  * - Actualizaciones optimistas
@@ -39,7 +39,6 @@ import {
     Trash2,
     Tag,
     Copy,
-    ShoppingCart,
     ArrowUpDown,
     ChevronDown,
     ChevronUp,
@@ -69,7 +68,7 @@ const ARTICULOS_POR_PAGINA = 12;
 // TIPOS — Ordenación
 // =============================================================================
 
-type ColumnaOrden = 'precio' | 'vistas' | 'ventas';
+type ColumnaOrden = 'precio' | 'vistas';
 type DireccionOrden = 'asc' | 'desc';
 interface OrdenState {
     columna: ColumnaOrden;
@@ -228,11 +227,6 @@ function FilaMovil({
                             <Eye className="w-5 h-5" />
                             {articulo.totalVistas || 0}
                         </span>
-                        <span className="w-px h-4 bg-slate-400" />
-                        <span className="flex items-center gap-1">
-                            <ShoppingCart className="w-5 h-5" />
-                            {articulo.totalVentas || 0}
-                        </span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         {esDueno && (
@@ -380,10 +374,6 @@ export function PaginaCatalogo() {
                 case 'vistas':
                     valorA = a.totalVistas || 0;
                     valorB = b.totalVistas || 0;
-                    break;
-                case 'ventas':
-                    valorA = a.totalVentas || 0;
-                    valorB = b.totalVentas || 0;
                     break;
                 default:
                     return 0;
@@ -823,7 +813,7 @@ export function PaginaCatalogo() {
                     >
                         {/* Header dark */}
                         <div
-                            className="grid grid-cols-[minmax(0,1fr)_90px_100px_80px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+                            className="grid grid-cols-[minmax(0,1fr)_90px_100px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
                             <span>{esServicios ? 'Servicio' : 'Producto'}</span>
@@ -833,9 +823,6 @@ export function PaginaCatalogo() {
                             </span>
                             <span className="flex justify-center pr-5">
                                 <HeaderOrdenable etiqueta="VISTAS" columna="vistas" ordenActual={orden} onOrdenar={alternarOrden} />
-                            </span>
-                            <span className="flex justify-center pr-5">
-                                <HeaderOrdenable etiqueta="VENTAS" columna="ventas" ordenActual={orden} onOrdenar={alternarOrden} />
                             </span>
                             <span className="flex justify-center pr-5">Estado</span>
                             <span className="flex justify-center pr-5">Destacar</span>
@@ -870,7 +857,7 @@ export function PaginaCatalogo() {
                                         <div
                                             key={art.id}
                                             onClick={() => handleEditar(art)}
-                                            className={`grid grid-cols-[minmax(0,1fr)_90px_100px_80px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!art.disponible ? 'opacity-60' : ''}`}
+                                            className={`grid grid-cols-[minmax(0,1fr)_90px_100px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!art.disponible ? 'opacity-60' : ''}`}
                                         >
                                             {/* Artículo */}
                                             <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
@@ -915,14 +902,6 @@ export function PaginaCatalogo() {
                                                 <span className="flex items-center gap-1">
                                                     <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                                     {art.totalVistas || 0}
-                                                </span>
-                                            </div>
-
-                                            {/* Ventas */}
-                                            <div className="flex items-center justify-center text-slate-600 font-bold 2xl:text-[15px]">
-                                                <span className="flex items-center gap-1">
-                                                    <ShoppingCart className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                                    {art.totalVentas || 0}
                                                 </span>
                                             </div>
 
@@ -1004,7 +983,6 @@ export function PaginaCatalogo() {
                             {([
                                 { col: 'precio' as ColumnaOrden, etiqueta: 'Precio' },
                                 { col: 'vistas' as ColumnaOrden, etiqueta: 'Vistas' },
-                                { col: 'ventas' as ColumnaOrden, etiqueta: 'Ventas' },
                             ]).map(({ col, etiqueta }) => {
                                 const activa = orden?.columna === col;
                                 return (

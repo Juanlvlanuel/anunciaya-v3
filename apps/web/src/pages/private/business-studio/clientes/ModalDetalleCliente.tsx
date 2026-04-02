@@ -34,6 +34,7 @@ import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useClientesStore } from '../../../../stores/useClientesStore';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import { useUiStore } from '../../../../stores/useUiStore';
+import { usePuntosStore } from '../../../../stores/usePuntosStore';
 
 // =============================================================================
 // HELPERS
@@ -183,6 +184,7 @@ export default function ModalDetalleCliente({
   } = useClientesStore();
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
   const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
 
   // Cargar datos al abrir
   useEffect(() => {
@@ -403,7 +405,7 @@ export default function ModalDetalleCliente({
               </div>
 
               {/* Barra de progreso + Badges nivel */}
-              {progreso.siguienteNivel ? (
+              {nivelesActivos && (progreso.siguienteNivel ? (
                 <div className="mt-2.5 lg:mt-2 2xl:mt-2.5">
                   <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
                     <BadgeNivel nivel={cliente.nivelActual} />
@@ -443,7 +445,7 @@ export default function ModalDetalleCliente({
                     ¡Nivel máximo alcanzado!
                   </p>
                 </div>
-              )}
+              ))}
             </div>
 
             {/* ── Sección Estadísticas ── */}

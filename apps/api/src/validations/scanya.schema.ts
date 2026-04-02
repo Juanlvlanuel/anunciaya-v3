@@ -140,6 +140,10 @@ export const otorgarPuntosSchema = z.object({
     .max(200, 'El concepto no puede tener más de 200 caracteres')
     .optional(),
   recordatorioId: z.string().uuid().optional(),
+  recompensaSellosId: z
+    .string()
+    .uuid('ID de recompensa inválido')
+    .optional(),
 });
 
 /**

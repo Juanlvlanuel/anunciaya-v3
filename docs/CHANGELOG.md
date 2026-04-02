@@ -7,6 +7,68 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [1 Abril 2026] - Sistema de Niveles Condicional + Auditoría Recompensas/Sellos + Notificaciones
+
+### ✨ Agregado
+
+**Notificaciones — Cambio de niveles**
+- Notificación personal a todos los clientes con billetera cuando el negocio activa/desactiva niveles
+- Tipo `sistema` con logo del negocio como actor (estilo "mensaje del negocio")
+- Textos: "Sistema de niveles desactivado/activado" con explicación clara
+
+**Notificaciones — Expansión inline**
+- Click en notificaciones sin ruta de destino expande/colapsa el texto completo (toggle)
+- Nuevo modo de renderizado "Personal con actor sin \n" (5 modos totales)
+
+**ScanYA — Pantalla de éxito mejorada**
+- Muestra progreso de tarjeta de sellos: "🎯 Corte de Pelo 4/5" o "🎉 ¡Tarjeta completada!"
+- Puntos ahora se muestran correctamente (antes mostraba "+undefined")
+
+**CardYA — Vouchers gratis**
+- Modal confirmar canje muestra "¡Gratis!" en vez de "-1 punto" para tarjetas de sellos
+- Vouchers con 0 puntos muestran "Gratis" en verde en cards, tabla y modales (CardYA + ScanYA)
+- Mensaje de cancelar voucher contextual según si hubo puntos o no
+
+**Deep link inteligente en notificaciones**
+- "Recompensa desbloqueada" abre modal de detalle si no canjeada, o voucher pendiente si ya canjeada
+- Navegación sin recarga cuando ya estás en la misma ruta (replace en vez de navigate)
+- No cambia de tab si ya estás en el correcto
+
+### 🐛 Corregido
+
+**Bugs críticos del sistema de Recompensas/Sellos**
+- `ResultadoOtorgarPuntos` tipo frontend desincronizado con backend (pantalla éxito mostraba "+undefined")
+- Canje gratis restaba 1 punto en vez de 0 (constraint BD cambiado de `> 0` a `>= 0`)
+- Revocar venta no quitaba sello de tarjeta (nueva columna `recompensa_sellos_id` en transacciones)
+- Cancelar voucher de sellos no restauraba progreso (ahora restaura `desbloqueada=true`)
+- Optimistic update no manejaba `puntosUsados=0` ni reset de tarjeta de sellos
+
+**Atomicidad**
+- `otorgarPuntos()` ahora envuelve todas las escrituras en `db.transaction()` (antes eran separadas)
+- `verificarRecompensasDesbloqueadas()` marcada como deprecated (mecanismo dual eliminado)
+
+**Tipos TypeScript**
+- `tarjetaSellos` agregado al tipo de retorno de `otorgarPuntos` en API
+- `cuponTipo`/`cuponValor` agregados a `TransaccionScanYA`
+- `respuesta.data!.id` en `useOfertas.ts`
+
+### 📝 Documentación
+- `Notificaciones.md` — 5 modos de renderizado, expansión inline, catálogo niveles, patrón deep link con tabs
+- `CardYA.md` — Sección N+1 reescrita con flujo completo actualizado (canje, cancelación, revocación, ciclos)
+- `ScanYA.md` — Transacción atómica, tarjeta de sellos en venta, nivelesActivos condicional
+
+### 🗄️ Migraciones de BD requeridas
+```sql
+-- Permitir vouchers gratis
+ALTER TABLE vouchers_canje DROP CONSTRAINT vouchers_canje_puntos_check;
+ALTER TABLE vouchers_canje ADD CONSTRAINT vouchers_canje_puntos_check CHECK (puntos_usados >= 0);
+
+-- Vincular tarjeta de sellos a transacción (para revocación)
+ALTER TABLE puntos_transacciones ADD COLUMN recompensa_sellos_id UUID NULL;
+```
+
+---
+
 ## [23 Marzo 2026] - Rediseño Mis Cupones/Guardados + ChatYA Cupones + Flujos Revocar/Reactivar
 
 ### ✨ Agregado

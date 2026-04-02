@@ -1,49 +1,108 @@
 /**
- * DropdownNegocio.tsx
- * ====================
+ * DropdownFiltroEstado.tsx
+ * ========================
  * Dropdown estilo Promociones (radio buttons + iconos) en tonos amber.
- * Filtra por negocio en CardYA.
+ * Cambia opciones según el tab activo (Historial vs Vouchers).
+ * Se renderiza en el header negro de CardYA.
  *
- * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/DropdownNegocio.tsx
+ * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/DropdownFiltroEstado.tsx
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Store } from 'lucide-react';
+import {
+  ChevronDown,
+  Layers,
+  TrendingUp,
+  Gift,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Filter,
+  Ticket,
+  Repeat,
+  Sparkles,
+} from 'lucide-react';
+import type { TabCardYA } from '../../../../types/cardya';
 
-interface DropdownNegocioProps {
-  negocios: string[];
+// =============================================================================
+// CONFIGURACIÓN DE OPCIONES POR TAB
+// =============================================================================
+
+interface OpcionFiltro {
+  id: string;
+  label: string;
+  icono: typeof Layers;
+}
+
+const FILTROS_HISTORIAL: OpcionFiltro[] = [
+  { id: 'todos', label: 'Todos', icono: Layers },
+  { id: 'compra', label: 'Ganados', icono: TrendingUp },
+  { id: 'canje', label: 'Canjeados', icono: Gift },
+  { id: 'con_cupon', label: 'Con cupón', icono: Ticket },
+];
+
+const FILTROS_VOUCHERS: OpcionFiltro[] = [
+  { id: 'todos', label: 'Todos', icono: Layers },
+  { id: 'pendiente', label: 'Pendientes', icono: Clock },
+  { id: 'usado', label: 'Usados', icono: CheckCircle },
+  { id: 'cancelado', label: 'Cancelados', icono: XCircle },
+  { id: 'expirado', label: 'Expirados', icono: AlertTriangle },
+];
+
+const FILTROS_RECOMPENSAS: OpcionFiltro[] = [
+  { id: 'todos', label: 'Todos', icono: Layers },
+  { id: 'sellos', label: 'Tarjeta de Sellos', icono: Repeat },
+  { id: 'puntos', label: 'Por Puntos', icono: Sparkles },
+];
+
+// =============================================================================
+// COMPONENTE
+// =============================================================================
+
+interface DropdownFiltroEstadoProps {
+  tabActiva: TabCardYA;
   valor: string;
-  onChange: (negocio: string) => void;
+  onChange: (filtro: string) => void;
   compacto?: boolean;
 }
 
-export default function DropdownNegocio({ negocios, valor, onChange, compacto = false }: DropdownNegocioProps) {
+export default function DropdownFiltroEstado({ tabActiva, valor, onChange, compacto = false }: DropdownFiltroEstadoProps) {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const posRef = useRef<{ top: number; left: number; width: number }>({ top: -9999, left: -9999, width: 220 });
+  const posRef = useRef<{ top: number; left: number; width: number }>({ top: -9999, left: -9999, width: 180 });
   const [, forceRender] = useState(0);
 
+  const visible = tabActiva === 'historial' || tabActiva === 'vouchers' || tabActiva === 'recompensas';
+  const opciones = tabActiva === 'vouchers'
+    ? FILTROS_VOUCHERS
+    : tabActiva === 'recompensas'
+      ? FILTROS_RECOMPENSAS
+      : FILTROS_HISTORIAL;
+  const labelDefault = tabActiva === 'recompensas' ? 'Tipo' : 'Estado';
+  const opcionActual = opciones.find((o) => o.id === valor);
+  const IconoActual = opcionActual?.icono ?? Layers;
+  const labelActual = opcionActual?.label ?? labelDefault;
   const seleccionado = valor !== 'todos';
-  const labelActual = seleccionado ? valor : 'Negocio';
 
   const calcularPosicion = useCallback(() => {
     if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
-    const panelWidth = compacto ? 220 : Math.max(260, rect.width);
     posRef.current = {
       top: rect.bottom + 6,
-      left: rect.right - panelWidth,
-      width: panelWidth,
+      left: rect.right - Math.max(220, rect.width),
+      width: Math.max(220, rect.width),
     };
-  }, [compacto]);
+  }, []);
 
   const toggleDropdown = useCallback(() => {
     if (!abierto) calcularPosicion();
     setAbierto((prev) => !prev);
   }, [abierto, calcularPosicion]);
 
+  // Recalcular posición en scroll/resize
   useEffect(() => {
     if (!abierto) return;
     const handler = () => {
@@ -58,12 +117,13 @@ export default function DropdownNegocio({ negocios, valor, onChange, compacto = 
     };
   }, [abierto, calcularPosicion]);
 
+  // Cerrar al click fuera
   useEffect(() => {
     if (!abierto) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       if (ref.current && !ref.current.contains(target)) {
-        const portalEl = document.getElementById('dropdown-negocio-portal');
+        const portalEl = document.getElementById('dropdown-filtro-estado-portal');
         if (!portalEl || !portalEl.contains(target)) {
           setAbierto(false);
         }
@@ -73,8 +133,12 @@ export default function DropdownNegocio({ negocios, valor, onChange, compacto = 
     return () => document.removeEventListener('mousedown', handler);
   }, [abierto]);
 
-  // Todas las opciones: "Todos" + negocios
-  const opciones = [{ id: 'todos', label: 'Todos' }, ...negocios.map((n) => ({ id: n, label: n }))];
+  // Cerrar al cambiar de tab
+  useEffect(() => {
+    setAbierto(false);
+  }, [tabActiva]);
+
+  if (!visible) return null;
 
   // ─── Modo compacto (móvil) ───
   if (compacto) {
@@ -82,14 +146,14 @@ export default function DropdownNegocio({ negocios, valor, onChange, compacto = 
       <div ref={ref} className="relative shrink-0">
         <button
           ref={btnRef}
-          data-testid="dropdown-negocio"
+          data-testid="dropdown-filtro-estado"
           onClick={toggleDropdown}
           className="flex items-center justify-center w-10 h-10 rounded-lg cursor-pointer relative"
           style={{
             background: seleccionado ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.08)',
           }}
         >
-          <Store
+          <Filter
             className="w-5 h-5"
             strokeWidth={2.5}
             style={{ color: seleccionado ? '#f59e0b' : 'rgba(255,255,255,0.5)' }}
@@ -104,30 +168,29 @@ export default function DropdownNegocio({ negocios, valor, onChange, compacto = 
 
         {abierto && createPortal(
           <div
-            id="dropdown-negocio-portal"
-            className="fixed z-9999 bg-white rounded-xl border-2 border-slate-300 shadow-lg py-1 overflow-y-auto"
+            id="dropdown-filtro-estado-portal"
+            className="fixed z-9999 bg-white rounded-xl border-2 border-slate-300 shadow-lg py-1 overflow-hidden"
             style={{
               top: `${posRef.current.top}px`,
               left: `${posRef.current.left}px`,
-              width: '220px',
-              maxHeight: '300px',
+              minWidth: `${posRef.current.width}px`,
               boxShadow: '0 12px 40px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08)',
             }}
           >
-            {opciones.map(({ id, label }) => {
+            {opciones.map(({ id, label, icono: Icono }) => {
               const activo = valor === id;
               return (
                 <button
                   key={id}
-                  data-testid={`filtro-negocio-${id}`}
+                  data-testid={`filtro-estado-${id}`}
                   onClick={() => { onChange(id); setAbierto(false); }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${activo ? 'bg-amber-100 text-amber-700' : 'text-slate-600 hover:bg-amber-50'}`}
                 >
                   <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${activo ? 'border-amber-500' : 'border-slate-300'}`}>
                     {activo && <div className="w-2 h-2 rounded-full bg-amber-500" />}
                   </div>
-                  <Store className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate min-w-0">{label}</span>
+                  <Icono className="w-3.5 h-3.5 shrink-0" />
+                  {label}
                 </button>
               );
             })}
@@ -143,16 +206,16 @@ export default function DropdownNegocio({ negocios, valor, onChange, compacto = 
     <div ref={ref} className="relative shrink-0">
       <button
         ref={btnRef}
-        data-testid="dropdown-negocio"
+        data-testid="dropdown-filtro-estado"
         onClick={toggleDropdown}
         className={`flex items-center gap-1.5 w-36 2xl:w-40 h-8 2xl:h-9 pl-2.5 pr-2 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${seleccionado
           ? 'bg-amber-100 border-amber-300 text-amber-700'
           : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
         }`}
       >
-        <Store className="w-3.5 h-3.5 shrink-0" />
-        <span className="truncate flex-1 text-left min-w-0">
-          {seleccionado ? labelActual : 'Negocio'}
+        <IconoActual className="w-3.5 h-3.5 shrink-0" />
+        <span className="truncate flex-1 text-left">
+          {seleccionado ? labelActual : labelDefault}
         </span>
         <ChevronDown
           className={`ml-auto w-4 h-4 shrink-0 transition-transform ${abierto ? 'rotate-180' : ''}`}
@@ -161,29 +224,29 @@ export default function DropdownNegocio({ negocios, valor, onChange, compacto = 
 
       {abierto && createPortal(
         <div
-          id="dropdown-negocio-portal"
-          className="fixed z-9999 bg-white rounded-xl border-2 border-slate-300 shadow-lg py-1 overflow-y-auto"
+          id="dropdown-filtro-estado-portal"
+          className="fixed z-9999 bg-white rounded-xl border-2 border-slate-300 shadow-lg py-1 overflow-hidden"
           style={{
             top: `${posRef.current.top}px`,
             left: `${posRef.current.left}px`,
             minWidth: `${posRef.current.width}px`,
-            maxHeight: '300px',
             boxShadow: '0 12px 40px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08)',
           }}
         >
-          {opciones.map(({ id, label }) => {
+          {opciones.map(({ id, label, icono: Icono }) => {
             const activo = valor === id;
             return (
               <button
                 key={id}
-                data-testid={`filtro-negocio-${id}`}
+                data-testid={`filtro-estado-${id}`}
                 onClick={() => { onChange(id); setAbierto(false); }}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${activo ? 'bg-amber-100 text-amber-700' : 'text-slate-600 hover:bg-amber-50'}`}
               >
                 <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${activo ? 'border-amber-500' : 'border-slate-300'}`}>
                   {activo && <div className="w-2 h-2 rounded-full bg-amber-500" />}
                 </div>
-                <span className="truncate min-w-0">{label}</span>
+                <Icono className="w-3.5 h-3.5 shrink-0" />
+                {label}
               </button>
             );
           })}

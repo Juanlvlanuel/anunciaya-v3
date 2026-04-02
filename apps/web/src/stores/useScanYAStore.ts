@@ -89,6 +89,10 @@ interface ScanYAState {
   recordatoriosOffline: RecordatorioOffline[];
   sincronizando: boolean;
 
+  // Config de puntos (cargada al abrir ModalRegistrarVenta)
+  nivelesActivos: boolean;
+  setNivelesActivos: (value: boolean) => void;
+
   // Acciones de autenticación
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUsuario: (usuario: UsuarioScanYA) => void;
@@ -179,6 +183,12 @@ export const useScanYAStore = create<ScanYAState>()(
       // -----------------------------------------------------------------------
       recordatoriosOffline: [],
       sincronizando: false,
+
+      // -----------------------------------------------------------------------
+      // Estado inicial - Config puntos
+      // -----------------------------------------------------------------------
+      nivelesActivos: true,
+      setNivelesActivos: (value: boolean) => set({ nivelesActivos: value }),
 
       // -----------------------------------------------------------------------
       // ACCIÓN: Guardar tokens

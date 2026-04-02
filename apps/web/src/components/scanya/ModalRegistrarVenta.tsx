@@ -36,9 +36,12 @@ import {
     UserPlus,
     AlertCircle,
     ShoppingBag,
+    Repeat,
+    Gift,
 } from 'lucide-react';
 import { notificar } from '@/utils/notificaciones';
 import scanyaService from '@/services/scanyaService';
+import type { TarjetaSellos } from '@/services/scanyaService';
 import { eliminarImagenHuerfana } from '@/services/r2Service';
 import useScanYAStore from '@/stores/useScanYAStore';
 import type { ConfiguracionScanYA } from '@/types/scanya';
@@ -47,7 +50,7 @@ import type { ConfiguracionScanYA } from '@/types/scanya';
 // TIPOS
 // =============================================================================
 
-type Seccion = 'cliente' | 'monto' | 'metodoPago' | 'foto' | 'cupon' | 'nota' | 'concepto';
+type Seccion = 'cliente' | 'monto' | 'metodoPago' | 'foto' | 'cupon' | 'tarjetaSellos' | 'nota' | 'concepto';
 type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto';
 
 interface ModalRegistrarVentaProps {
@@ -126,6 +129,7 @@ export function ModalRegistrarVenta({
     // Store de ScanYA
     // ---------------------------------------------------------------------------
     const agregarRecordatorioOffline = useScanYAStore(s => s.agregarRecordatorioOffline);
+    const setNivelesActivos = useScanYAStore(s => s.setNivelesActivos);
 
 
     // ---------------------------------------------------------------------------
@@ -160,6 +164,11 @@ export function ModalRegistrarVenta({
     const [codigoCupon, setCodigoCupon] = useState('');
     const [cupon, setCupon] = useState<CuponAplicado | null>(null);
     const [validandoCupon, setValidandoCupon] = useState(false);
+
+    // Tarjeta de sellos
+    const [tarjetasSellos, setTarjetasSellos] = useState<TarjetaSellos[]>([]);
+    const [tarjetaSeleccionada, setTarjetaSeleccionada] = useState<TarjetaSellos | null>(null);
+    const [cargandoTarjetas, setCargandoTarjetas] = useState(false);
     const [nota, setNota] = useState('');
     const [concepto, setConcepto] = useState('');
     const [recordatorioId, setRecordatorioId] = useState<string | null>(null);
@@ -175,6 +184,7 @@ export function ModalRegistrarVenta({
     const [procesando, setProcesando] = useState(false);
     const [exito, setExito] = useState(false);
     const [resultadoPuntos, setResultadoPuntos] = useState<number>(0);
+    const [resultadoSellos, setResultadoSellos] = useState<{ comprasAcumuladas: number; comprasRequeridas: number; desbloqueada: boolean; nombre: string } | null>(null);
 
     // ---------------------------------------------------------------------------
     // Cargar configuración al abrir
@@ -279,6 +289,7 @@ export function ModalRegistrarVenta({
 
             if (respConfig.success && respConfig.data) {
                 setConfig(respConfig.data);
+                setNivelesActivos(respConfig.data.nivelesActivos);
             }
         } catch {
             console.error('Error cargando configuración');
@@ -310,11 +321,14 @@ export function ModalRegistrarVenta({
         setFotoUrl(null);
         setCodigoCupon('');
         setCupon(null);
+        setTarjetasSellos([]);
+        setTarjetaSeleccionada(null);
         setNota('');
         setConcepto('');
         setRecordatorioId(null);
         setExito(false);
         setResultadoPuntos(0);
+        setResultadoSellos(null);
         setRecordatorioId(null);
     };
 
@@ -369,6 +383,16 @@ export function ModalRegistrarVenta({
                     esNuevo: esNuevoEnNegocio,
                 });
                 setErrorCliente(null);
+                // Cargar tarjetas de sellos del cliente
+                setCargandoTarjetas(true);
+                scanyaService.obtenerTarjetasSellos(c.id)
+                    .then((resp) => {
+                        if (resp.success && resp.data) {
+                            setTarjetasSellos(resp.data.filter((t) => !t.desbloqueada || t.canjeada));
+                        }
+                    })
+                    .catch(() => {})
+                    .finally(() => setCargandoTarjetas(false));
                 // Avanzar a concepto
                 setSeccionActiva('concepto');
             } else {
@@ -692,10 +716,12 @@ export function ModalRegistrarVenta({
                 nota: nota.trim() || undefined,
                 concepto: concepto.trim() || undefined,
                 recordatorioId: recordatorioId || undefined,
+                recompensaSellosId: tarjetaSeleccionada?.id || undefined,
             });
 
             if (respuesta.success && respuesta.data) {
-                setResultadoPuntos(respuesta.data.puntosOtorgados);
+                setResultadoPuntos(respuesta.data.transaccion.puntosOtorgados);
+                setResultadoSellos(respuesta.data.tarjetaSellos);
                 setExito(true);
                 notificar.exito(`¡${respuesta.message}!`);
                 onVentaRegistrada?.(); 
@@ -807,9 +833,23 @@ export function ModalRegistrarVenta({
                                             <p className="text-[#94A3B8] text-sm lg:text-[11px] 2xl:text-sm font-medium">Entrega el producto al cliente</p>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 mb-8">
+                                        <div className="flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 mb-4">
                                             <Coins className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#F59E0B]" />
                                             <span className="text-[#F59E0B] text-4xl lg:text-3xl 2xl:text-4xl font-bold">+{resultadoPuntos}</span>
+                                        </div>
+                                    )}
+
+                                    {resultadoSellos && (
+                                        <div data-testid="resultado-sellos" className="mb-6 px-4 py-3 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3 rounded-xl border border-[#334155] bg-[#1E293B]/60">
+                                            {resultadoSellos.desbloqueada ? (
+                                                <p data-testid="sellos-completada" className="text-center text-base lg:text-sm 2xl:text-base font-bold text-emerald-400">
+                                                    🎉 ¡Tarjeta completada! — {resultadoSellos.nombre}
+                                                </p>
+                                            ) : (
+                                                <p data-testid="sellos-progreso" className="text-center text-base lg:text-sm 2xl:text-base font-medium text-[#94A3B8]">
+                                                    🎯 {resultadoSellos.nombre} <span className="font-bold text-white">{resultadoSellos.comprasAcumuladas}/{resultadoSellos.comprasRequeridas}</span>
+                                                </p>
+                                            )}
                                         </div>
                                     )}
 
@@ -934,7 +974,7 @@ export function ModalRegistrarVenta({
                                     <p className="text-white font-medium text-base lg:text-sm 2xl:text-base">Teléfono del Cliente</p>
                                     {cliente && (
                                         <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm truncate">
-                                            {cliente.nombre} {!cliente.esNuevo && `• ${cliente.nivel}`}
+                                            {cliente.nombre} {!cliente.esNuevo && config?.nivelesActivos && `• ${cliente.nivel}`}
                                         </p>
                                     )}
                                     {telefono.length === 10 && !cliente && (
@@ -1111,19 +1151,21 @@ export function ModalRegistrarVenta({
                                                         <p className="text-white font-medium">{cliente.nombre}</p>
                                                         {!cliente.esNuevo && (
                                                             <div className="flex items-center gap-3 text-sm lg:text-xs 2xl:text-sm">
-                                                                <span
-                                                                    style={{ color: getColorNivel(cliente.nivel) }}
-                                                                    className="capitalize flex items-center gap-1"
-                                                                >
-                                                                    <Trophy className="w-3 h-3" /> {cliente.nivel} x{cliente.multiplicador}
-                                                                </span>
+                                                                {config?.nivelesActivos && (
+                                                                    <span
+                                                                        style={{ color: getColorNivel(cliente.nivel) }}
+                                                                        className="capitalize flex items-center gap-1"
+                                                                    >
+                                                                        <Trophy className="w-3 h-3" /> {cliente.nivel} x{cliente.multiplicador}
+                                                                    </span>
+                                                                )}
                                                                 <span className="text-[#F59E0B] flex items-center gap-1">
                                                                     <Coins className="w-3 h-3" /> {cliente.puntosDisponibles}
                                                                 </span>
                                                             </div>
                                                         )}
                                                         {cliente.esNuevo && (
-                                                            <p className="text-[#3B82F6] text-xs">Iniciará en Bronce x1.0</p>
+                                                            <p className="text-[#3B82F6] text-xs">{config?.nivelesActivos ? 'Iniciará en Bronce x1.0' : 'Cliente nuevo'}</p>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1263,6 +1305,115 @@ export function ModalRegistrarVenta({
                                                     )}
                                                 </button>
                                             </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ========================================= */}
+                        {/* SECCIÓN: TARJETA DE SELLOS */}
+                        {/* ========================================= */}
+                        {tarjetasSellos.length > 0 && (
+                            <div
+                                className="rounded-xl lg:rounded-md 2xl:rounded-xl overflow-hidden"
+                                style={{
+                                    background: 'rgba(0, 0, 0, 0.3)',
+                                    border: `1px solid ${tarjetaSeleccionada ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
+                                }}
+                            >
+                                <button
+                                    onClick={() => seccionCompletada('cliente') && setSeccionActiva('tarjetaSellos')}
+                                    disabled={!seccionCompletada('cliente')}
+                                    className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer disabled:opacity-40"
+                                >
+                                    <div
+                                        className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full flex items-center justify-center"
+                                        style={{
+                                            background: tarjetaSeleccionada ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                        }}
+                                    >
+                                        {tarjetaSeleccionada ? (
+                                            <Check className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#F59E0B]" />
+                                        ) : (
+                                            <Repeat className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#3B82F6]" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <p className="text-white font-medium text-base lg:text-sm 2xl:text-base">
+                                            Tarjeta de Sellos <span className="text-[#606060] text-xs">(opcional)</span>
+                                        </p>
+                                        {tarjetaSeleccionada && seccionActiva !== 'tarjetaSellos' && (
+                                            <p className="text-[#F59E0B] text-sm lg:text-xs 2xl:text-sm">
+                                                {tarjetaSeleccionada.nombre} • {tarjetaSeleccionada.comprasAcumuladas + 1}/{tarjetaSeleccionada.numeroComprasRequeridas}
+                                            </p>
+                                        )}
+                                    </div>
+                                    {seccionActiva === 'tarjetaSellos' ? (
+                                        <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#94A3B8]" />
+                                    ) : (
+                                        <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-[#94A3B8]" />
+                                    )}
+                                </button>
+
+                                {seccionActiva === 'tarjetaSellos' && seccionCompletada('cliente') && (
+                                    <div className="px-4 lg:px-3 2xl:px-4 pb-4 lg:pb-3 2xl:pb-4 space-y-2">
+                                        {cargandoTarjetas ? (
+                                            <div className="flex justify-center py-4">
+                                                <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {tarjetasSellos.map((tarjeta) => {
+                                                    const seleccionada = tarjetaSeleccionada?.id === tarjeta.id;
+                                                    const progreso = tarjeta.comprasAcumuladas;
+                                                    const total = tarjeta.numeroComprasRequeridas;
+                                                    return (
+                                                        <button
+                                                            key={tarjeta.id}
+                                                            onClick={() => setTarjetaSeleccionada(seleccionada ? null : tarjeta)}
+                                                            className={`w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 p-3 lg:p-2 2xl:p-3 rounded-lg cursor-pointer transition-colors ${seleccionada
+                                                                ? 'bg-[rgba(245,158,11,0.15)] border border-[rgba(245,158,11,0.4)]'
+                                                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                                            }`}
+                                                        >
+                                                            {/* Imagen o ícono */}
+                                                            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-white/10">
+                                                                {tarjeta.imagenUrl ? (
+                                                                    <img src={tarjeta.imagenUrl} alt={tarjeta.nombre} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <Gift className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" />
+                                                                )}
+                                                            </div>
+                                                            {/* Info */}
+                                                            <div className="flex-1 min-w-0 text-left">
+                                                                <p className="text-white text-sm lg:text-xs 2xl:text-sm font-bold truncate">{tarjeta.nombre}</p>
+                                                                <div className="flex items-center gap-2 mt-0.5">
+                                                                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                                                        <div className="h-full rounded-full" style={{
+                                                                            width: `${Math.min((progreso / total) * 100, 100)}%`,
+                                                                            background: 'linear-gradient(90deg, #f59e0b, #d97706)',
+                                                                        }} />
+                                                                    </div>
+                                                                    <span className="text-xs lg:text-[10px] 2xl:text-xs font-bold text-amber-400 shrink-0">{progreso}/{total}</span>
+                                                                </div>
+                                                            </div>
+                                                            {/* Radio */}
+                                                            <div className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${seleccionada ? 'border-amber-500' : 'border-white/30'}`}>
+                                                                {seleccionada && <div className="w-2.5 h-2.5 lg:w-2 lg:h-2 2xl:w-2.5 2xl:h-2.5 rounded-full bg-amber-500" />}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                                {tarjetaSeleccionada && (
+                                                    <button
+                                                        onClick={() => setTarjetaSeleccionada(null)}
+                                                        className="w-full text-center text-sm lg:text-xs 2xl:text-sm text-red-400 font-semibold py-1 cursor-pointer hover:text-red-300"
+                                                    >
+                                                        Quitar selección
+                                                    </button>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 )}

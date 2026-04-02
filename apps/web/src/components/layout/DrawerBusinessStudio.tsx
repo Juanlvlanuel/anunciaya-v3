@@ -65,7 +65,7 @@ const opcionesMenu = [
     { id: 'ofertas', label: 'Promociones', icono: Tag, ruta: '/business-studio/ofertas' },
 
     // =========== ENGAGEMENT & RECOMPENSAS ===========
-    { id: 'puntos', label: 'Puntos', icono: Coins, ruta: '/business-studio/puntos' },
+    { id: 'puntos', label: 'Puntos y Recompensas', icono: Coins, ruta: '/business-studio/puntos' },
     { id: 'rifas', label: 'Rifas', icono: Gift, ruta: '/business-studio/rifas' },
 
     // =========== RECURSOS HUMANOS ===========

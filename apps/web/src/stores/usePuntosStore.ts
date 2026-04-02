@@ -223,6 +223,12 @@ export const usePuntosStore = create<PuntosState>((set, get) => ({
       requiereAprobacion: datos.requiereAprobacion ?? false,
       activa: true,
       orden: recompensas.length,
+      tipo: datos.tipo ?? 'basica',
+      numeroComprasRequeridas: datos.numeroComprasRequeridas ?? null,
+      requierePuntos: datos.requierePuntos ?? true,
+      canjesRealizados: 0,
+      clientesActivos: 0,
+      desbloqueos: 0,
       createdAt: null,
       updatedAt: null,
     };

@@ -64,7 +64,7 @@ function ImagenConBlur({
       {/* Capa 2: Imagen real — fade-in al cargar */}
       {src && (
         <img src={src} alt=""
-          className={`absolute inset-0 w-full h-full object-cover duration-500 ${cargada && onClick ? 'group-hover:scale-110 cursor-pointer' : ''} ${className || ''}`}
+          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-200 ${cargada && onClick ? 'group-hover:scale-110 cursor-pointer' : ''} ${className || ''}`}
           style={{ opacity: cargada ? 1 : 0 }}
           onClick={() => cargada && onClick?.()}
           onLoad={() => setUrlCargada(src)} />
@@ -568,7 +568,7 @@ export default function TabImagenes({
                   <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
                     <Store className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Logo
                   </span>
-                  <div className="relative w-full aspect-square bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-sm">
+                  <div className="relative w-full aspect-square bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-sm group">
                     {logo.imageUrl
                       ? <ImagenConBlur src={logo.imageUrl} miniatura={logoMiniatura} className="cursor-pointer" onClick={() => abrirImagenUnica(logo.imageUrl!)} />
                       : <div className="w-full h-full flex items-center justify-center"><Image className="w-8 h-8 text-slate-300" /></div>
@@ -596,7 +596,7 @@ export default function TabImagenes({
                 <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
                   <UserCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Foto Perfil
                 </span>
-                <div className="relative w-full aspect-square bg-linear-to-br from-orange-400 to-amber-500 rounded-full overflow-hidden shadow-lg">
+                <div className="relative w-full aspect-square bg-linear-to-br from-orange-400 to-amber-500 rounded-full overflow-hidden shadow-lg group">
                   {fotoPerfil.imageUrl
                     ? <ImagenConBlur src={fotoPerfil.imageUrl} miniatura={fotoPerfilMiniatura} className="cursor-pointer" onClick={() => abrirImagenUnica(fotoPerfil.imageUrl!)} />
                     : <div className="w-full h-full flex items-center justify-center text-white text-3xl font-bold">N</div>
@@ -626,7 +626,7 @@ export default function TabImagenes({
                 <Image className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" /> Imagen de Portada
                 <span className="font-medium text-slate-500">1600×900px</span>
               </span>
-              <div className="relative w-full aspect-video bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-sm">
+              <div className="relative w-full aspect-video bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-sm group">
                 {portada.imageUrl
                   ? <ImagenConBlur src={portada.imageUrl} miniatura={portadaMiniatura} className="cursor-pointer" onClick={() => abrirImagenUnica(portada.imageUrl!)} />
                   : <div className="w-full h-full flex items-center justify-center"><Image className="w-8 h-8 text-slate-300" /></div>
@@ -759,7 +759,7 @@ export default function TabImagenes({
                       {pagina.map((item, ii) => {
                         const index = pi * 4 + ii;
                         return (
-                          <div key={index} className="relative aspect-square bg-white rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm">
+                          <div key={index} className="relative aspect-square bg-white rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm group">
                             <ImagenConBlur src={item} miniatura={miniaturasGaleria[item] || null}
                               className="cursor-pointer" onClick={() => abrirGaleria(index)} />
                             <div className="absolute bottom-0 inset-x-0 flex items-center justify-end gap-2.5 py-2.5 px-3"

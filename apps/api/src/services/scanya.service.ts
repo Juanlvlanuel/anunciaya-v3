@@ -23,6 +23,7 @@ import {
     ofertaUsuarios,
     vouchersCanje,
     recompensas,
+    recompensaProgreso,
     scanyaRecordatorios,
     scanyaConfiguracion,
 } from '../db/schemas/schema.js';
@@ -47,7 +48,7 @@ import {
     obtenerSucursalesNegocio,
     listarOperadoresNegocio
 } from './negocios.service.js';
-import { verificarExpiraciones, expirarVouchersVencidos, verificarRecompensasDesbloqueadas } from './puntos.service.js';
+import { verificarExpiraciones, expirarVouchersVencidos } from './puntos.service.js';
 import { crearNotificacion } from './notificaciones.service.js';
 
 // =============================================================================
@@ -1579,6 +1580,12 @@ export async function otorgarPuntos(
         codigo: string;
         descuento: number;
     } | null;
+    tarjetaSellos: {
+        comprasAcumuladas: number;
+        comprasRequeridas: number;
+        desbloqueada: boolean;
+        nombre: string;
+    } | null;
 }>> {
     try {
         // -------------------------------------------------------------------------
@@ -1855,65 +1862,12 @@ export async function otorgarPuntos(
         const puntosFinales = Math.floor(puntosBase * multiplicador);
 
         // -------------------------------------------------------------------------
-        // Paso 10: Crear transacción de puntos
-        // -------------------------------------------------------------------------
-        const [transaccion] = await db
-            .insert(puntosTransacciones)
-            .values({
-                billeteraId: billetera.id,
-                negocioId: payload.negocioId,
-                sucursalId: payload.sucursalId,
-                empleadoId: empleadoId,
-                clienteId: datos.clienteId,
-                turnoId: turnoActivo.id,
-                montoCompra: montoFinal.toString(),
-                montoEfectivo: (datos.montoEfectivo || 0).toString(),
-                montoTarjeta: (datos.montoTarjeta || 0).toString(),
-                montoTransferencia: (datos.montoTransferencia || 0).toString(),
-                puntosOtorgados: puntosFinales,
-                multiplicadorAplicado: multiplicador.toString(),
-                fotoTicketUrl: datos.fotoTicketUrl || null,
-                numeroOrden: datos.numeroOrden || null,
-                nota: datos.nota || null,
-                concepto: datos.concepto || null,
-                tipo: 'presencial',
-                estado: 'confirmado',
-                ofertaUsoId: cuponUsadoInfo?.usoId || null,
-            })
-            .returning({ id: puntosTransacciones.id });
-
-        // -------------------------------------------------------------------------
-        // Paso 10.5: Marcar recordatorio como procesado (si existe)
-        // -------------------------------------------------------------------------
-        if (datos.recordatorioId) {
-            await db
-                .update(scanyaRecordatorios)
-                .set({
-                    estado: 'procesado',
-                    transaccionId: transaccion.id,
-                    procesadoAt: new Date().toISOString(),
-                })
-                .where(eq(scanyaRecordatorios.id, datos.recordatorioId));
-        }
-
-        // -------------------------------------------------------------------------
-        // Paso 11: Actualizar billetera
+        // Paso 10-14: Todas las escrituras en una transacción atómica
         // -------------------------------------------------------------------------
         const nuevosPuntosDisponibles = billetera.puntosDisponibles + puntosFinales;
         const nuevosPuntosAcumulados = billetera.puntosAcumuladosTotal + puntosFinales;
 
-        await db
-            .update(puntosBilletera)
-            .set({
-                puntosDisponibles: nuevosPuntosDisponibles,
-                puntosAcumuladosTotal: nuevosPuntosAcumulados,
-                ultimaActividad: new Date().toISOString(),
-            })
-            .where(eq(puntosBilletera.id, billetera.id));
-
-        // -------------------------------------------------------------------------
-        // Paso 12: Verificar cambio de nivel
-        // -------------------------------------------------------------------------
+        // Verificar cambio de nivel (cálculo previo)
         let nuevoNivel = nivelActual;
         let subioDeNivel = false;
 
@@ -1928,43 +1882,162 @@ export async function otorgarPuntos(
                 nuevoNivel = 'oro';
                 subioDeNivel = true;
             }
+        }
 
-            if (subioDeNivel) {
-                await db
-                    .update(puntosBilletera)
-                    .set({ nivelActual: nuevoNivel })
-                    .where(eq(puntosBilletera.id, billetera.id));
+        // Leer tarjeta de sellos antes de la transacción (si aplica)
+        let recompensaSello: { id: string; nombre: string; numeroComprasRequeridas: number | null; imagenUrl: string | null } | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let progresoExistente: any = null;
+        let tarjetaSellosInfo: { comprasAcumuladas: number; comprasRequeridas: number; desbloqueada: boolean; nombre: string } | null = null as { comprasAcumuladas: number; comprasRequeridas: number; desbloqueada: boolean; nombre: string } | null;
+
+        if (datos.recompensaSellosId) {
+            const [sello] = await db
+                .select({ id: recompensas.id, nombre: recompensas.nombre, numeroComprasRequeridas: recompensas.numeroComprasRequeridas, imagenUrl: recompensas.imagenUrl })
+                .from(recompensas)
+                .where(and(
+                    eq(recompensas.id, datos.recompensaSellosId),
+                    eq(recompensas.negocioId, payload.negocioId),
+                    eq(recompensas.tipo, 'compras_frecuentes'),
+                    eq(recompensas.activa, true)
+                ))
+                .limit(1);
+
+            if (sello && sello.numeroComprasRequeridas) {
+                recompensaSello = sello;
+
+                const [progreso] = await db
+                    .select()
+                    .from(recompensaProgreso)
+                    .where(and(
+                        eq(recompensaProgreso.usuarioId, datos.clienteId),
+                        eq(recompensaProgreso.recompensaId, datos.recompensaSellosId)
+                    ))
+                    .limit(1);
+
+                progresoExistente = progreso ?? null;
             }
         }
 
-        // -------------------------------------------------------------------------
-        // Paso 13: Actualizar contadores del turno
-        // -------------------------------------------------------------------------
-        await db
-            .update(scanyaTurnos)
-            .set({
-                puntosOtorgados: sql`${scanyaTurnos.puntosOtorgados} + ${puntosFinales}`,
-                transacciones: sql`${scanyaTurnos.transacciones} + 1`,
-            })
-            .where(eq(scanyaTurnos.id, turnoActivo.id));
+        // ── TRANSACCIÓN ATÓMICA: todas las escrituras juntas ──
+        const resultado = await db.transaction(async (tx) => {
+            // Paso 10: Crear transacción de puntos
+            const [transaccion] = await tx
+                .insert(puntosTransacciones)
+                .values({
+                    billeteraId: billetera.id,
+                    negocioId: payload.negocioId,
+                    sucursalId: payload.sucursalId,
+                    empleadoId: empleadoId,
+                    clienteId: datos.clienteId,
+                    turnoId: turnoActivo.id,
+                    montoCompra: montoFinal.toString(),
+                    montoEfectivo: (datos.montoEfectivo || 0).toString(),
+                    montoTarjeta: (datos.montoTarjeta || 0).toString(),
+                    montoTransferencia: (datos.montoTransferencia || 0).toString(),
+                    puntosOtorgados: puntosFinales,
+                    multiplicadorAplicado: multiplicador.toString(),
+                    fotoTicketUrl: datos.fotoTicketUrl || null,
+                    numeroOrden: datos.numeroOrden || null,
+                    nota: datos.nota || null,
+                    concepto: datos.concepto || null,
+                    tipo: 'presencial',
+                    estado: 'confirmado',
+                    ofertaUsoId: cuponUsadoInfo?.usoId || null,
+                    recompensaSellosId: datos.recompensaSellosId || null,
+                })
+                .returning({ id: puntosTransacciones.id });
 
-        // Paso 13.5: Eliminar recordatorio procesado
-        if (datos.recordatorioId) {
-            await db
-                .delete(scanyaRecordatorios)
-                .where(eq(scanyaRecordatorios.id, datos.recordatorioId));
-        }
+            // Paso 10.5: Marcar recordatorio como procesado
+            if (datos.recordatorioId) {
+                await tx
+                    .update(scanyaRecordatorios)
+                    .set({
+                        estado: 'procesado',
+                        transaccionId: transaccion.id,
+                        procesadoAt: new Date().toISOString(),
+                    })
+                    .where(eq(scanyaRecordatorios.id, datos.recordatorioId));
+            }
 
-        // -------------------------------------------------------------------------
-        // Paso 13.6: Notificar al cliente (puntos ganados)
-        // -------------------------------------------------------------------------
+            // Paso 11: Actualizar billetera
+            await tx
+                .update(puntosBilletera)
+                .set({
+                    puntosDisponibles: nuevosPuntosDisponibles,
+                    puntosAcumuladosTotal: nuevosPuntosAcumulados,
+                    ultimaActividad: new Date().toISOString(),
+                    ...(subioDeNivel ? { nivelActual: nuevoNivel } : {}),
+                })
+                .where(eq(puntosBilletera.id, billetera.id));
+
+            // Paso 13: Actualizar contadores del turno
+            await tx
+                .update(scanyaTurnos)
+                .set({
+                    puntosOtorgados: sql`${scanyaTurnos.puntosOtorgados} + ${puntosFinales}`,
+                    transacciones: sql`${scanyaTurnos.transacciones} + 1`,
+                })
+                .where(eq(scanyaTurnos.id, turnoActivo.id));
+
+            // Paso 13.5: Eliminar recordatorio procesado
+            if (datos.recordatorioId) {
+                await tx
+                    .delete(scanyaRecordatorios)
+                    .where(eq(scanyaRecordatorios.id, datos.recordatorioId));
+            }
+
+            // Paso 14: Tarjeta de sellos — incremento
+            if (recompensaSello) {
+                let comprasActuales = progresoExistente?.comprasAcumuladas ?? 0;
+
+                // Si ya fue canjeada, resetear para nuevo ciclo
+                if (progresoExistente?.canjeada) {
+                    comprasActuales = 0;
+                }
+
+                const nuevasCompras = comprasActuales + 1;
+                const nuevaDesbloqueada = nuevasCompras >= recompensaSello.numeroComprasRequeridas!;
+
+                if (progresoExistente) {
+                    await tx.update(recompensaProgreso)
+                        .set({
+                            comprasAcumuladas: nuevasCompras,
+                            desbloqueada: nuevaDesbloqueada,
+                            desbloqueadaAt: nuevaDesbloqueada && !progresoExistente.desbloqueada ? new Date().toISOString() : progresoExistente.desbloqueadaAt,
+                            canjeada: progresoExistente.canjeada ? false : progresoExistente.canjeada,
+                            canjeadaAt: progresoExistente.canjeada ? null : progresoExistente.canjeadaAt,
+                        })
+                        .where(eq(recompensaProgreso.id, progresoExistente.id));
+                } else {
+                    await tx.insert(recompensaProgreso).values({
+                        usuarioId: datos.clienteId,
+                        recompensaId: datos.recompensaSellosId!,
+                        negocioId: payload.negocioId,
+                        comprasAcumuladas: nuevasCompras,
+                        desbloqueada: nuevaDesbloqueada,
+                        desbloqueadaAt: nuevaDesbloqueada ? new Date().toISOString() : null,
+                    });
+                }
+
+                tarjetaSellosInfo = {
+                    comprasAcumuladas: nuevasCompras,
+                    comprasRequeridas: recompensaSello.numeroComprasRequeridas!,
+                    desbloqueada: nuevaDesbloqueada,
+                    nombre: recompensaSello.nombre,
+                };
+            }
+
+            return { transaccionId: transaccion.id };
+        });
+
+        // ── NOTIFICACIONES (fuera de la transacción, fire-and-forget) ──
+
         const [negocioInfo] = await db
             .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
             .from(negocios)
             .where(eq(negocios.id, payload.negocioId))
             .limit(1);
 
-        // Determinar tipo de transacción para mensajes
         const esCuponGratis = !!datos.cuponId && datos.montoTotal === 0;
         const esVentaConCupon = !!datos.cuponId && datos.montoTotal > 0;
 
@@ -1975,23 +2048,20 @@ export async function otorgarPuntos(
             titulo: esCuponGratis
                 ? '¡Cupón canjeado!'
                 : esVentaConCupon
-                    ? `+${puntosFinales} puntos con cupón`
-                    : `+${puntosFinales} puntos`,
+                    ? `Compra con Cupón: $${montoFinal.toFixed(2)}`
+                    : `Compra Registrada: $${montoFinal.toFixed(2)}`,
             mensaje: esCuponGratis
-                ? `${cuponUsadoInfo?.codigo || 'Cupón'}\n${negocioInfo?.nombre ?? 'un negocio'}`
-                : esVentaConCupon
-                    ? `${cuponUsadoInfo?.codigo || 'Cupón'}\n${negocioInfo?.nombre ?? 'un negocio'}`
-                    : `Compraste en\n${negocioInfo?.nombre ?? 'un negocio'}`,
+                ? `Usaste tu cupón con éxito\n${negocioInfo?.nombre ?? 'un negocio'}`
+                : `+${puntosFinales} puntos Ganados\n${negocioInfo?.nombre ?? 'un negocio'}`,
             negocioId: payload.negocioId,
             sucursalId: payload.sucursalId,
-            referenciaId: transaccion.id,
+            referenciaId: resultado.transaccionId,
             referenciaTipo: 'transaccion',
             icono: esCuponGratis ? '🎟️' : esVentaConCupon ? '🎟️' : '🎯',
             actorImagenUrl: negocioInfo?.logoUrl ?? undefined,
             actorNombre: negocioInfo?.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación puntos:', err));
 
-        // Notificar al dueño del negocio (nueva venta)
         const [negocioDueno] = await db
             .select({ usuarioId: negocios.usuarioId })
             .from(negocios)
@@ -2006,18 +2076,18 @@ export async function otorgarPuntos(
                 modo: 'comercial',
                 tipo: 'puntos_ganados',
                 titulo: esCuponGratis
-                    ? 'Cupón canjeado'
+                    ? 'Canjeó cupón'
                     : esVentaConCupon
-                        ? `Venta con cupón: $${montoFinal.toFixed(2)}`
-                        : `Venta: $${montoFinal.toFixed(2)}`,
+                        ? `Compró $${montoFinal.toFixed(2)} con cupón`
+                        : `Compró $${montoFinal.toFixed(2)}`,
                 mensaje: esCuponGratis
-                    ? `${nombreCliente}\n${cuponUsadoInfo?.codigo || 'Cupón'}`
+                    ? cuponUsadoInfo?.codigo || 'Cupón'
                     : esVentaConCupon
-                        ? `${nombreCliente}\n${cuponUsadoInfo?.codigo || 'Cupón'} • ${puntosFinales} pts`
-                        : `${nombreCliente} ganó ${puntosFinales} puntos`,
+                        ? `${cuponUsadoInfo?.codigo || 'Cupón'} • ${puntosFinales} pts`
+                        : `Ganó ${puntosFinales} puntos`,
                 negocioId: payload.negocioId,
                 sucursalId: payload.sucursalId,
-                referenciaId: transaccion.id,
+                referenciaId: resultado.transaccionId,
                 referenciaTipo: 'transaccion',
                 icono: esCuponGratis ? '🎟️' : esVentaConCupon ? '🎟️' : '🎯',
                 actorImagenUrl: cliente.avatarUrl ?? undefined,
@@ -2025,14 +2095,25 @@ export async function otorgarPuntos(
             }).catch((err) => console.error('Error notificación dueño:', err));
         }
 
-        // -------------------------------------------------------------------------
-        // Paso 14: Retornar resumen
-        // -------------------------------------------------------------------------
-        // Verificar recompensas por compras frecuentes (N+1)
-        // -------------------------------------------------------------------------
-        verificarRecompensasDesbloqueadas(datos.clienteId, payload.negocioId)
-            .catch((err) => console.error('Error verificando recompensas N+1:', err));
+        // Notificar si tarjeta de sellos se desbloqueó
+        if (tarjetaSellosInfo?.desbloqueada && recompensaSello && !(progresoExistente?.desbloqueada)) {
+            crearNotificacion({
+                usuarioId: datos.clienteId,
+                modo: 'personal',
+                tipo: 'recompensa_desbloqueada',
+                titulo: '¡Recompensa desbloqueada!',
+                mensaje: `${recompensaSello.nombre} — completaste ${tarjetaSellosInfo.comprasAcumuladas} compras\n${negocioInfo?.nombre ?? 'un negocio'}`,
+                negocioId: payload.negocioId,
+                referenciaId: recompensaSello.id,
+                referenciaTipo: 'recompensa',
+                icono: '🎉',
+                actorImagenUrl: negocioInfo?.logoUrl ?? recompensaSello.imagenUrl ?? undefined,
+                actorNombre: negocioInfo?.nombre ?? undefined,
+            }).catch((err) => console.error('Error notificación recompensa N+1:', err));
+        }
 
+        // -------------------------------------------------------------------------
+        // Paso 15: Retornar resumen
         // -------------------------------------------------------------------------
         return {
             success: true,
@@ -2043,7 +2124,7 @@ export async function otorgarPuntos(
                     : `${puntosFinales} puntos otorgados`,
             data: {
                 transaccion: {
-                    id: transaccion.id,
+                    id: resultado.transaccionId,
                     montoOriginal: datos.montoTotal,
                     descuentoAplicado,
                     montoFinal,
@@ -2057,6 +2138,7 @@ export async function otorgarPuntos(
                     subioDeNivel,
                 },
                 cuponUsado: cuponUsadoInfo,
+                tarjetaSellos: tarjetaSellosInfo,
             },
             code: 201,
         };
@@ -2723,7 +2805,7 @@ export async function validarVoucher(
             modo: 'personal',
             tipo: 'voucher_cobrado',
             titulo: '¡Recompensa entregada!',
-            mensaje: `Recibiste: ${recompensa.nombre}\n${negocioDueno?.nombre ?? 'un negocio'}`,
+            mensaje: `${recompensa.nombre}\n${negocioDueno?.nombre ?? 'un negocio'}`,
             negocioId: voucher.negocioId,
             sucursalId: payload.sucursalId,
             referenciaId: voucher.id,
@@ -2739,8 +2821,8 @@ export async function validarVoucher(
                 usuarioId: negocioDueno.usuarioId,
                 modo: 'comercial',
                 tipo: 'voucher_cobrado',
-                titulo: 'Voucher entregado',
-                mensaje: `Se entregó: ${recompensa.nombre} a ${cliente?.nombre ?? 'un cliente'}`,
+                titulo: 'Recompensa entregada',
+                mensaje: `Se entregó: ${recompensa.nombre}`,
                 negocioId: voucher.negocioId,
                 sucursalId: payload.sucursalId,
                 referenciaId: voucher.id,
@@ -4125,5 +4207,60 @@ export async function obtenerOperadoresLista(
             message: 'Error interno al obtener operadores',
             code: 500,
         };
+    }
+}
+
+// =============================================================================
+// TARJETAS DE SELLOS — obtener tarjetas activas con progreso del cliente
+// =============================================================================
+
+export async function obtenerTarjetasSellosCliente(
+    negocioId: string,
+    clienteId: string
+) {
+    try {
+        const resultados = await db
+            .select({
+                id: recompensas.id,
+                nombre: recompensas.nombre,
+                imagenUrl: recompensas.imagenUrl,
+                numeroComprasRequeridas: recompensas.numeroComprasRequeridas,
+                stock: recompensas.stock,
+                comprasAcumuladas: recompensaProgreso.comprasAcumuladas,
+                desbloqueada: recompensaProgreso.desbloqueada,
+                canjeada: recompensaProgreso.canjeada,
+            })
+            .from(recompensas)
+            .leftJoin(
+                recompensaProgreso,
+                and(
+                    eq(recompensaProgreso.recompensaId, recompensas.id),
+                    eq(recompensaProgreso.usuarioId, clienteId)
+                )
+            )
+            .where(
+                and(
+                    eq(recompensas.negocioId, negocioId),
+                    eq(recompensas.tipo, 'compras_frecuentes'),
+                    eq(recompensas.activa, true)
+                )
+            )
+            .orderBy(recompensas.orden);
+
+        const tarjetas = resultados.map((r) => ({
+            id: r.id,
+            nombre: r.nombre,
+            imagenUrl: r.imagenUrl,
+            numeroComprasRequeridas: r.numeroComprasRequeridas ?? 0,
+            stock: r.stock,
+            comprasAcumuladas: r.comprasAcumuladas ?? 0,
+            desbloqueada: r.desbloqueada ?? false,
+            canjeada: r.canjeada ?? false,
+        }));
+
+        return { success: true, data: tarjetas, code: 200 };
+    } catch (error) {
+        console.error('Error en obtenerTarjetasSellosCliente:', error);
+        return { success: false, message: 'Error al obtener tarjetas de sellos', code: 500 };
     }
 }

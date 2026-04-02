@@ -704,9 +704,9 @@ Stock de recompensa +1
 
 ---
 
-## 🎯 Recompensas N+1 (Compras Frecuentes)
+## 🎯 Recompensas N+1 (Compras Frecuentes / Tarjeta de Sellos)
 
-**Agregado:** 22 Marzo 2026
+**Agregado:** 22 Marzo 2026 | **Actualizado:** 1 Abril 2026
 
 **Concepto:** Recompensas que se desbloquean después de N compras acumuladas. Ejemplo: "Después de 5 compras, la 6ª es gratis".
 
@@ -716,7 +716,7 @@ Stock de recompensa +1
 |-------|------|-------------|
 | `tipo` | VARCHAR(30) | `basica` (default) o `compras_frecuentes` |
 | `numero_compras_requeridas` | INTEGER nullable | N compras para desbloquear |
-| `requiere_puntos` | BOOLEAN | `false` = gratis al llegar a N, `true` = necesita puntos + compras |
+| `requiere_puntos` | BOOLEAN | `false` = gratis al completar, `true` = necesita puntos + compras |
 
 ### Tabla `recompensa_progreso`
 
@@ -731,31 +731,53 @@ Tracking de compras acumuladas por usuario por recompensa:
 | compras_acumuladas | INTEGER | Contador actual |
 | desbloqueada | BOOLEAN | Si alcanzó N |
 | desbloqueada_at | TIMESTAMPTZ | Cuándo se desbloqueó |
-| canjeada | BOOLEAN | Si ya canjeó |
+| canjeada | BOOLEAN | Si ya canjeó (ciclo completado) |
+| canjeada_at | TIMESTAMPTZ | Cuándo se canjeó |
 
-### Flujo
+### Flujo completo
 
 1. Comerciante crea recompensa tipo "Por compras frecuentes" (N=5) en BS Puntos
-2. Cliente compra → ScanYA registra venta → `otorgarPuntos()`
-3. Después de otorgar puntos, se llama `verificarRecompensasDesbloqueadas()`
-4. Sistema cuenta transacciones confirmadas del usuario en ese negocio
-5. Si alcanza N → marca como desbloqueada en `recompensa_progreso`
-6. Notifica al usuario: "¡Recompensa desbloqueada!"
-7. Si `requiere_puntos=false` → auto-genera voucher sin gastar puntos
+2. Cliente compra → cajero selecciona tarjeta de sellos en ScanYA → `otorgarPuntos()`
+3. `otorgarPuntos()` incrementa `comprasAcumuladas` en `recompensa_progreso` (+1 por venta)
+4. Si alcanza N → marca `desbloqueada=true`, notifica al usuario "¡Recompensa desbloqueada!"
+5. Cliente entra a CardYA → ve tarjeta "¡Completada!" → canjea manualmente
+6. Si `requiere_puntos=false` → canje gratis (constraint BD: `puntos_usados >= 0`)
+7. Al canjear: genera voucher + resetea progreso (`canjeada=true`, `comprasAcumuladas=0`, `desbloqueada=false`)
+8. Cliente presenta voucher en negocio → negocio valida en ScanYA
+9. Siguiente compra con sello → detecta `canjeada=true` → resetea a 0 y empieza nuevo ciclo
 
-### UI en Business Studio
+### Revocación de ventas con sello
 
-En el modal de crear/editar recompensa (BS Puntos):
-- Selector de tipo: "Canjear con puntos" vs "Por compras frecuentes"
-- Campo "Número de compras requeridas" (solo tipo N+1)
-- Toggle "Gratis al completar compras (sin gastar puntos)"
+La tabla `puntos_transacciones` tiene columna `recompensa_sellos_id` (UUID nullable) que registra qué tarjeta de sellos se usó. Al revocar una transacción:
+- Se decrementa `comprasAcumuladas` en `recompensa_progreso` (mínimo 0)
+- Se marca `desbloqueada=false` para evitar desbloqueos falsos
+
+### Cancelación de voucher de sellos
+
+Al cancelar un voucher generado por tarjeta de sellos:
+- Se restaura `desbloqueada=true`, `canjeada=false`
+- Se restaura `comprasAcumuladas` al número requerido
+- El cliente puede volver a canjear sin perder su progreso
+
+### UI
+
+**Business Studio (BS Puntos):** Modal crear/editar recompensa con tipo "Por compras frecuentes", campo N compras, toggle gratis
+**CardYA:** Card con progreso (X/Y), checks verdes, 🎁 animado (bounce), botón "¡Canjear gratis!"
+**ScanYA:** Sección "Tarjeta de Sellos" en ModalRegistrarVenta, pantalla de éxito muestra progreso o "¡Tarjeta completada!"
+**Vouchers gratis:** Se distinguen con texto "Gratis" en verde en vez de "0 pts" en cards, tabla y modales
+
+### Mecanismo de desbloqueo (unificado)
+
+El desbloqueo ocurre **únicamente** en `otorgarPuntos()` de `scanya.service.ts` cuando el operador selecciona explícitamente la tarjeta de sellos (`recompensaSellosId`). La función `verificarRecompensasDesbloqueadas()` en `puntos.service.ts` está **deprecated** — usaba un conteo absoluto de transacciones que podía divergir del conteo incremental por sellos.
 
 ### Archivos relevantes
 
-- Backend: `apps/api/src/services/puntos.service.ts` → `verificarRecompensasDesbloqueadas()`, `obtenerProgresoRecompensas()`
-- Backend: `apps/api/src/services/scanya.service.ts` → llamada automática en `otorgarPuntos()`
-- Frontend: `apps/web/src/pages/private/business-studio/puntos/componentes/ModalRecompensa.tsx`
-- Schema: `apps/api/src/db/schemas/schema.ts` → tabla `recompensa_progreso`
+- Backend: `apps/api/src/services/scanya.service.ts` → `otorgarPuntos()` (incremento sellos + transacción atómica)
+- Backend: `apps/api/src/services/cardya.service.ts` → `generarVoucher()` (canje + reset), `cancelarVoucher()` (restauración progreso)
+- Backend: `apps/api/src/services/puntos.service.ts` → `revocarTransaccion()` (decremento sellos), `obtenerProgresoRecompensas()`
+- Frontend: `apps/web/src/pages/private/cardya/componentes/CardRecompensaCliente.tsx` → UI tarjeta sellos
+- Frontend: `apps/web/src/components/scanya/ModalRegistrarVenta.tsx` → selección tarjeta + pantalla éxito
+- Schema: `apps/api/src/db/schemas/schema.ts` → tablas `recompensa_progreso`, `puntos_transacciones.recompensa_sellos_id`
 
 ---
 

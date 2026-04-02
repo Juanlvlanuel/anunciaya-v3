@@ -31,7 +31,7 @@ import { useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
   Star, Ticket, Clock, Users, Settings, Lock, Save,
-  Gift, Plus, Award, CircleDollarSign,
+  Gift, Plus, Award, CircleDollarSign, Sparkles, Repeat, ChevronDown,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useUiStore } from '../../../../stores/useUiStore';
@@ -216,6 +216,62 @@ const KPI_CONFIG = {
     iconShadow: '0 3px 8px rgba(37,99,235,0.25)',
     label: 'Clientes',
   },
+  // ── Recompensas por puntos ──
+  recompActivas: {
+    Icono: Gift,
+    color: '#15803d',
+    border: '#86efac',
+    bg: 'linear-gradient(135deg, #f0fdf4, #fff)',
+    iconBg: 'linear-gradient(135deg, #bbf7d0, #86efac)',
+    iconShadow: '0 3px 8px rgba(22,163,74,0.25)',
+    label: 'Activas',
+  },
+  recompCanjes: {
+    Icono: Ticket,
+    color: '#be185d',
+    border: '#f9a8d4',
+    bg: 'linear-gradient(135deg, #fdf2f8, #fff)',
+    iconBg: 'linear-gradient(135deg, #fbcfe8, #f9a8d4)',
+    iconShadow: '0 3px 8px rgba(219,39,119,0.25)',
+    label: 'Canjes',
+  },
+  masCanjeada: {
+    Icono: Award,
+    color: '#b45309',
+    border: '#fcd34d',
+    bg: 'linear-gradient(135deg, #fffbeb, #fff)',
+    iconBg: 'linear-gradient(135deg, #fde68a, #fcd34d)',
+    iconShadow: '0 3px 8px rgba(180,83,9,0.25)',
+    label: 'Más canjeada',
+  },
+  // ── Tarjeta de sellos ──
+  sellosActivas: {
+    Icono: Repeat,
+    color: '#15803d',
+    border: '#86efac',
+    bg: 'linear-gradient(135deg, #f0fdf4, #fff)',
+    iconBg: 'linear-gradient(135deg, #bbf7d0, #86efac)',
+    iconShadow: '0 3px 8px rgba(22,163,74,0.25)',
+    label: 'Activas',
+  },
+  sellosDesbloqueos: {
+    Icono: Gift,
+    color: '#b45309',
+    border: '#fcd34d',
+    bg: 'linear-gradient(135deg, #fffbeb, #fff)',
+    iconBg: 'linear-gradient(135deg, #fde68a, #fcd34d)',
+    iconShadow: '0 3px 8px rgba(180,83,9,0.25)',
+    label: 'Desbloqueos',
+  },
+  sellosPopular: {
+    Icono: Award,
+    color: '#be185d',
+    border: '#f9a8d4',
+    bg: 'linear-gradient(135deg, #fdf2f8, #fff)',
+    iconBg: 'linear-gradient(135deg, #fbcfe8, #f9a8d4)',
+    iconShadow: '0 3px 8px rgba(219,39,119,0.25)',
+    label: 'Más popular',
+  },
 } as const;
 
 function KPI({ tipo, valor }: { tipo: keyof typeof KPI_CONFIG; valor: string }) {
@@ -236,9 +292,9 @@ function KPI({ tipo, valor }: { tipo: keyof typeof KPI_CONFIG; valor: string }) 
       >
         <Icono className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" style={{ color }} />
       </div>
-      <div>
-        <div className="text-[16px] lg:text-sm 2xl:text-base font-bold leading-tight" style={{ color }}>{valor}</div>
-        <div className="text-sm lg:text-sm 2xl:text-sm text-slate-600 font-semibold mt-0.5">{label}</div>
+      <div className="min-w-0">
+        <div className="text-[16px] lg:text-sm 2xl:text-base font-bold leading-tight truncate max-w-[100px] lg:max-w-[80px] 2xl:max-w-[110px]" style={{ color }}>{valor}</div>
+        <div className="text-sm lg:text-sm 2xl:text-sm text-slate-600 font-semibold mt-0.5 whitespace-nowrap">{label}</div>
       </div>
     </div>
   );
@@ -325,6 +381,47 @@ export default function PaginaPuntos() {
   const [modalAbierto, setModalAbierto]             = useState(false);
   const [modalKey, setModalKey]                     = useState(0);
   const [recompensaEditando, setRecompensaEditando] = useState<Recompensa | null>(null);
+  const [tipoRecompensaFiltro, setTipoRecompensaFiltro] = useState<'basica' | 'compras_frecuentes'>('basica');
+  const [contextoRecompensas, setContextoRecompensas] = useState(false);
+  const [popupSellosVisible, setPopupSellosVisible] = useState(false);
+  const [filtroRecompensas, setFiltroRecompensas] = useState<'todas' | 'activas' | 'inactivas' | 'agotadas'>('todas');
+  const [dropdownFiltroAbierto, setDropdownFiltroAbierto] = useState(false);
+  const dropdownFiltroRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar dropdown filtro al click fuera
+  useEffect(() => {
+    if (!dropdownFiltroAbierto) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownFiltroRef.current && !dropdownFiltroRef.current.contains(e.target as Node)) {
+        setDropdownFiltroAbierto(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dropdownFiltroAbierto]);
+
+  // Popup sellos — auto-dismiss en móvil con pausa en touch
+  const popupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const popupTocandoRef = useRef(false);
+
+  const iniciarTimerPopup = useCallback(() => {
+    if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
+    popupTimerRef.current = setTimeout(() => {
+      if (!popupTocandoRef.current) setPopupSellosVisible(false);
+    }, 5000);
+  }, []);
+
+  useEffect(() => {
+    if (tipoRecompensaFiltro === 'compras_frecuentes') {
+      setPopupSellosVisible(true);
+      popupTocandoRef.current = false;
+      iniciarTimerPopup();
+    } else {
+      setPopupSellosVisible(false);
+      if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
+    }
+    return () => { if (popupTimerRef.current) clearTimeout(popupTimerRef.current); };
+  }, [tipoRecompensaFiltro]);
 
   // ─── Carga inicial ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -457,6 +554,26 @@ export default function PaginaPuntos() {
     clientes:  estadisticas?.clientesConPuntos ?? 0,
   };
   const fmt = (n: number) => n.toLocaleString('es-MX');
+
+  // KPIs de recompensas (calculados del store)
+  const recompPorPuntos = recompensas.filter(r => (r.tipo ?? 'basica') === 'basica');
+  const recompPorCompras = recompensas.filter(r => r.tipo === 'compras_frecuentes');
+
+  const kpisRecompPuntos = {
+    activas: recompPorPuntos.filter(r => r.activa).length,
+    canjes: recompPorPuntos.reduce((sum, r) => sum + r.canjesRealizados, 0),
+    masCanjeada: recompPorPuntos.length > 0
+      ? recompPorPuntos.reduce((max, r) => r.canjesRealizados > max.canjesRealizados ? r : max, recompPorPuntos[0]).nombre
+      : '—',
+  };
+
+  const kpisSellos = {
+    activas: recompPorCompras.filter(r => r.activa).length,
+    desbloqueos: recompPorCompras.reduce((sum, r) => sum + (r.desbloqueos ?? 0), 0),
+    masPopular: recompPorCompras.length > 0
+      ? recompPorCompras.reduce((max, r) => r.desbloqueos > max.desbloqueos ? r : max, recompPorCompras[0]).nombre
+      : '—',
+  };
 
   // ─── Guardar configuración ──────────────────────────────────────────────
   const handleGuardarConfig = async () => {
@@ -787,23 +904,47 @@ export default function PaginaPuntos() {
   /** Sección: Recompensas */
   const seccionRecompensas = (
     <div className="space-y-3">
-      {/* Móvil: Botón Nueva — solo dueños */}
-      {!esGerente && (
-        <button
-          onClick={handleCrear}
-          className="lg:hidden w-full flex items-center justify-center gap-1.5 h-11 rounded-xl text-base font-semibold text-white cursor-pointer"
-          style={{
-            background: 'linear-gradient(135deg, #1e293b, #334155)',
-            boxShadow: '0 3px 10px rgba(0,0,0,0.25)',
-          }}
-        >
-          <Plus className="w-4 h-4" /> Nueva Recompensa
-        </button>
-      )}
+      {/* Móvil: Toggle + Botón Nueva */}
+      <div className="lg:hidden flex gap-2">
+        <div className="flex flex-1 bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
+          <button
+            onClick={() => { setTipoRecompensaFiltro('basica'); setContextoRecompensas(true); }}
+            className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
+              tipoRecompensaFiltro === 'basica' ? 'text-white shadow-md' : 'text-slate-700'
+            }`}
+            style={tipoRecompensaFiltro === 'basica' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+          >
+            <Sparkles className="w-4 h-4" />
+            Por puntos
+          </button>
+          <button
+            onClick={() => { setTipoRecompensaFiltro('compras_frecuentes'); setContextoRecompensas(true); }}
+            className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
+              tipoRecompensaFiltro === 'compras_frecuentes' ? 'text-white shadow-md' : 'text-slate-700'
+            }`}
+            style={tipoRecompensaFiltro === 'compras_frecuentes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+          >
+            <Repeat className="w-4 h-4" />
+            Por compras
+          </button>
+        </div>
+        {!esGerente && (
+          <button
+            onClick={handleCrear}
+            className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl text-white cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #1e293b, #334155)',
+              boxShadow: '0 3px 10px rgba(0,0,0,0.25)',
+            }}
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        )}
+      </div>
 
       {/* Desktop: Card con header oscuro + grid */}
       <div
-        className="hidden lg:flex bg-white rounded-xl overflow-hidden flex-col border-2 border-slate-300"
+        className="hidden lg:flex rounded-xl overflow-hidden flex-col border-2 border-slate-300 bg-white"
         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
       >
         {/* Header */}
@@ -816,40 +957,202 @@ export default function PaginaPuntos() {
               className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
               style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
             >
-              <Gift className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+              {tipoRecompensaFiltro === 'compras_frecuentes'
+                ? <Repeat className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                : <Gift className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+              }
             </div>
-            <h2 className="text-sm 2xl:text-base font-bold text-white">Recompensas</h2>
+            <h2 className="text-sm 2xl:text-base font-bold text-white">
+              {tipoRecompensaFiltro === 'basica' ? 'Recompensas por puntos' : 'Tarjeta de Sellos Digitales'}
+            </h2>
           </div>
-          {!esGerente && (
-            <Tooltip text="Nueva Recompensa" position="bottom">
+
+          <div className="flex items-center gap-2">
+            {/* Toggle Por puntos / Por compras */}
+            <div className="flex bg-white/10 rounded-lg border-2 border-white/20 h-8 2xl:h-9">
+              <Tooltip text="Por puntos" position="bottom">
+                <button
+                  data-testid="toggle-recompensa-basica"
+                  onClick={() => { setTipoRecompensaFiltro('basica'); setContextoRecompensas(true); }}
+                  className={`h-full w-8 2xl:w-9 flex items-center justify-center rounded-md cursor-pointer ${
+                    tipoRecompensaFiltro === 'basica' ? 'text-white shadow-md' : 'text-white/50 hover:text-white/70'
+                  }`}
+                  style={tipoRecompensaFiltro === 'basica' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                >
+                  <Sparkles className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                </button>
+              </Tooltip>
+              <Tooltip text="Por compras" position="bottom">
+                <button
+                  data-testid="toggle-recompensa-compras"
+                  onClick={() => { setTipoRecompensaFiltro('compras_frecuentes'); setContextoRecompensas(true); }}
+                  className={`h-full w-8 2xl:w-9 flex items-center justify-center rounded-md cursor-pointer ${
+                    tipoRecompensaFiltro === 'compras_frecuentes' ? 'text-white shadow-md' : 'text-white/50 hover:text-white/70'
+                  }`}
+                  style={tipoRecompensaFiltro === 'compras_frecuentes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                >
+                  <Repeat className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                </button>
+              </Tooltip>
+            </div>
+
+            {/* Dropdown filtro estado */}
+            <div ref={dropdownFiltroRef} className="relative">
+              <button
+                onClick={() => setDropdownFiltroAbierto(!dropdownFiltroAbierto)}
+                className={`flex items-center gap-1.5 px-3 2xl:px-4 h-8 2xl:h-9 rounded-lg text-sm 2xl:text-base font-semibold cursor-pointer border-2 ${filtroRecompensas !== 'todas'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                }`}
+              >
+                <Settings className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
+                <span className="truncate">{filtroRecompensas === 'todas' ? 'Estado' : filtroRecompensas === 'activas' ? 'Activas' : filtroRecompensas === 'inactivas' ? 'Inactivas' : 'Agotadas'}</span>
+                <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${dropdownFiltroAbierto ? 'rotate-180' : ''}`} />
+              </button>
+
+              {dropdownFiltroAbierto && (
+                <div className="absolute top-full right-0 mt-1.5 w-40 bg-white rounded-xl border-2 border-slate-300 shadow-lg z-50 py-1 overflow-hidden">
+                  {([
+                    { id: 'todas' as const, label: 'Todas' },
+                    { id: 'activas' as const, label: 'Activas' },
+                    { id: 'inactivas' as const, label: 'Inactivas' },
+                    { id: 'agotadas' as const, label: 'Agotadas' },
+                  ]).map(({ id, label }) => (
+                    <button
+                      key={id}
+                      onClick={() => { setFiltroRecompensas(id); setDropdownFiltroAbierto(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${filtroRecompensas === id ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                    >
+                      <div className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${filtroRecompensas === id ? 'border-blue-500' : 'border-slate-300'}`}>
+                        {filtroRecompensas === id && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                      </div>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {!esGerente && (
               <button
                 onClick={handleCrear}
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-white cursor-pointer"
+                className="flex items-center gap-1.5 px-3 2xl:px-4 h-8 2xl:h-9 rounded-lg text-sm 2xl:text-base font-semibold text-white cursor-pointer"
                 style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
+                Nueva
               </button>
-            </Tooltip>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Contenido */}
         <div className="p-4">
-          {recompensas.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-100 border-2 border-indigo-300 flex items-center justify-center mb-4">
-                <Gift className="w-7 h-7 text-indigo-500" />
+          {/* Explicación compacta — solo "Por compras" */}
+          {tipoRecompensaFiltro === 'compras_frecuentes' && (
+            <div className="flex items-center justify-center gap-5 lg:gap-4 2xl:gap-6 mb-4 lg:mb-3 2xl:mb-4">
+              {/* Texto */}
+              <p className="text-lg lg:text-base 2xl:text-lg text-slate-600 font-semibold shrink-0">
+                Compra <strong className="text-slate-800">N veces</strong> → la siguiente es <strong className="text-amber-600">GRATIS</strong>
+              </p>
+
+              {/* Flujo visual de sellos */}
+              <div className="flex items-center">
+                {[1, 2, 3, 4].map((n) => (
+                  <div key={n} className="flex items-center">
+                    <div
+                      className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full flex items-center justify-center text-sm lg:text-xs 2xl:text-sm font-black text-white"
+                      style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                    >
+                      {n}
+                    </div>
+                    <div className="w-3 lg:w-2 2xl:w-3 h-0.5 bg-slate-300" />
+                  </div>
+                ))}
+                <div
+                  className="w-13 h-13 lg:w-11 lg:h-11 2xl:w-13 2xl:h-13 rounded-full flex items-center justify-center text-lg lg:text-base 2xl:text-lg font-black text-white animate-bounce"
+                  style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 16px rgba(245,158,11,0.5)', animationDuration: '2s' }}
+                >
+                  🎁
+                </div>
               </div>
-              <h3 className="text-base font-bold text-slate-700 mb-1">Sin recompensas aún</h3>
-              <p className="text-sm text-slate-600 font-medium max-w-xs">
+            </div>
+          )}
+
+          {(() => {
+            const recompensasFiltradas = recompensas.filter((r) => {
+              const pasaTipo = (r.tipo ?? 'basica') === tipoRecompensaFiltro;
+              if (!pasaTipo) return false;
+              if (filtroRecompensas === 'activas') return r.activa;
+              if (filtroRecompensas === 'inactivas') return !r.activa;
+              if (filtroRecompensas === 'agotadas') return r.stock !== null && r.stock === 0;
+              return true;
+            });
+            return recompensasFiltradas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="text-5xl lg:text-4xl 2xl:text-5xl mb-3">
+                {tipoRecompensaFiltro === 'compras_frecuentes' ? '🎁' : '✨'}
+              </div>
+              <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-slate-700 mb-1">
+                {tipoRecompensaFiltro === 'compras_frecuentes' ? 'Sin tarjetas de sellos' : 'Sin recompensas por puntos'}
+              </h3>
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium max-w-xs">
                 {esGerente
                   ? 'El dueño puede crear recompensas desde aquí.'
-                  : 'Crea recompensas para que tus clientes las canjeen con sus puntos.'}
+                  : tipoRecompensaFiltro === 'compras_frecuentes'
+                    ? 'Crea tu primera tarjeta de sellos digital.'
+                    : 'Crea recompensas para que tus clientes las canjeen con sus puntos.'}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-3 2xl:grid-cols-4 gap-3">
-              {recompensas.map((r) => (
+              {[...recompensasFiltradas].sort((a, b) => b.canjesRealizados - a.canjesRealizados).map((r) => (
+                  <CardRecompensa
+                    key={r.id}
+                    recompensa={r}
+                    onEditar={handleEditar}
+                    onEliminar={handleEliminar}
+                    onToggleActiva={handleToggleActiva}
+                    esGerente={esGerente}
+                  />
+                ))}
+            </div>
+          );
+          })()}
+        </div>
+      </div>
+
+      {/* Móvil: Grid sin card contenedor */}
+      <div className="lg:hidden">
+
+        {(() => {
+          const recompensasFiltradas = recompensas.filter((r) => {
+              const pasaTipo = (r.tipo ?? 'basica') === tipoRecompensaFiltro;
+              if (!pasaTipo) return false;
+              if (filtroRecompensas === 'activas') return r.activa;
+              if (filtroRecompensas === 'inactivas') return !r.activa;
+              if (filtroRecompensas === 'agotadas') return r.stock !== null && r.stock === 0;
+              return true;
+            });
+          return recompensasFiltradas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="text-5xl mb-3">
+                {tipoRecompensaFiltro === 'compras_frecuentes' ? '🎁' : '✨'}
+              </div>
+              <h3 className="text-lg font-bold text-slate-700 mb-1">
+                {tipoRecompensaFiltro === 'compras_frecuentes' ? 'Sin tarjetas de sellos' : 'Sin recompensas por puntos'}
+              </h3>
+              <p className="text-base text-slate-600 font-medium max-w-xs">
+                {esGerente
+                  ? 'El dueño puede crear recompensas desde aquí.'
+                  : tipoRecompensaFiltro === 'compras_frecuentes'
+                    ? 'Crea tu primera tarjeta de sellos digital.'
+                    : 'Crea recompensas para que tus clientes las canjeen con sus puntos.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {[...recompensasFiltradas].sort((a, b) => b.canjesRealizados - a.canjesRealizados).map((r) => (
                 <CardRecompensa
                   key={r.id}
                   recompensa={r}
@@ -860,38 +1163,8 @@ export default function PaginaPuntos() {
                 />
               ))}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Móvil: Grid sin card contenedor */}
-      <div className="lg:hidden">
-        {recompensas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-300 flex items-center justify-center mb-3">
-              <Gift className="w-6 h-6 text-indigo-500" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-700 mb-1">Sin recompensas aún</h3>
-            <p className="text-sm text-slate-600 font-medium max-w-xs">
-              {esGerente
-                ? 'El dueño puede crear recompensas desde aquí.'
-                : 'Crea recompensas para que tus clientes las canjeen con sus puntos.'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {recompensas.map((r) => (
-              <CardRecompensa
-                key={r.id}
-                recompensa={r}
-                onEditar={handleEditar}
-                onEliminar={handleEliminar}
-                onToggleActiva={handleToggleActiva}
-                esGerente={esGerente}
-              />
-            ))}
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
@@ -918,28 +1191,37 @@ export default function PaginaPuntos() {
               className="flex items-center justify-center shrink-0"
               style={{
                 width: 52, height: 52, borderRadius: 14,
-                background: 'linear-gradient(135deg, #4f46e5, #6366f1, #818cf8)',
-                boxShadow: '0 6px 20px rgba(79,70,229,0.4)',
+                background: contextoRecompensas || tabActiva === 'recompensas'
+                  ? 'linear-gradient(135deg, #059669, #10b981, #34d399)'
+                  : 'linear-gradient(135deg, #4f46e5, #6366f1, #818cf8)',
+                boxShadow: contextoRecompensas || tabActiva === 'recompensas'
+                  ? '0 6px 20px rgba(5,150,105,0.4)'
+                  : '0 6px 20px rgba(79,70,229,0.4)',
               }}
             >
-              {/* Moneda animada */}
-              <div
-                className="pp-coin-bounce flex items-center justify-center w-7 h-7 rounded-full"
-                style={{
-                  background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 35%, #f59e0b 70%, #d97706 100%)',
-                  border: '1.5px solid #b45309',
-                  boxShadow: 'inset 0 0 0 1.5px rgba(146,64,14,0.25)',
-                }}
-              >
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#92400e', lineHeight: 1 }}>$</span>
-              </div>
+              {contextoRecompensas || tabActiva === 'recompensas' ? (
+                <Gift className="w-7 h-7 text-white animate-bounce" strokeWidth={2.5} style={{ animationDuration: '2s' }} />
+              ) : (
+                <div
+                  className="pp-coin-bounce flex items-center justify-center w-7 h-7 rounded-full"
+                  style={{
+                    background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 35%, #f59e0b 70%, #d97706 100%)',
+                    border: '1.5px solid #b45309',
+                    boxShadow: 'inset 0 0 0 1.5px rgba(146,64,14,0.25)',
+                  }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 800, color: '#92400e', lineHeight: 1 }}>$</span>
+                </div>
+              )}
             </div>
             <div>
               <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Sistema de Puntos
+                {contextoRecompensas || tabActiva === 'recompensas' ? 'Recompensas' : 'Sistema de Puntos'}
               </h1>
               <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium">
-                Configuración y Recompensas
+                {contextoRecompensas || tabActiva === 'recompensas'
+                  ? tipoRecompensaFiltro === 'compras_frecuentes' ? 'Tarjeta de Sellos Digitales' : 'Canje por puntos acumulados'
+                  : 'Configuración y Niveles'}
               </p>
             </div>
           </div>
@@ -948,7 +1230,7 @@ export default function PaginaPuntos() {
           <div className="hidden lg:flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
             <Tooltip text="Configuración de puntos" position="bottom">
               <button
-                onClick={() => setTabDesktop('puntos')}
+                onClick={() => { setTabDesktop('puntos'); setContextoRecompensas(false); }}
                 className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabDesktop === 'puntos'
                     ? 'text-white shadow-md'
                     : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
@@ -960,7 +1242,7 @@ export default function PaginaPuntos() {
             </Tooltip>
             <Tooltip text="Recompensas" position="bottom">
               <button
-                onClick={() => setTabDesktop('recompensas')}
+                onClick={() => { setTabDesktop('recompensas'); setContextoRecompensas(true); }}
                 className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md transition-all cursor-pointer ${tabDesktop === 'recompensas'
                     ? 'text-white shadow-md'
                     : 'text-slate-700 hover:bg-slate-300 hover:text-slate-800'
@@ -975,10 +1257,26 @@ export default function PaginaPuntos() {
           {/* 4 KPIs — carousel en mobile, right-aligned en desktop */}
           <CarouselKPI className="mt-5 lg:mt-0 lg:ml-auto">
             <div className="flex gap-1.5 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0">
-              <KPI tipo="clientes"  valor={fmt(kpis.clientes)} />
-              <KPI tipo="otorgados" valor={fmt(kpis.otorgados)} />
-              <KPI tipo="canjeados" valor={fmt(kpis.canjeados)} />
-              <KPI tipo="activos"   valor={fmt(kpis.activos)} />
+              {!(contextoRecompensas || tabActiva === 'recompensas') ? (
+                <>
+                  <KPI tipo="clientes"  valor={fmt(kpis.clientes)} />
+                  <KPI tipo="otorgados" valor={fmt(kpis.otorgados)} />
+                  <KPI tipo="canjeados" valor={fmt(kpis.canjeados)} />
+                  <KPI tipo="activos"   valor={fmt(kpis.activos)} />
+                </>
+              ) : tipoRecompensaFiltro === 'basica' ? (
+                <>
+                  <KPI tipo="recompActivas" valor={fmt(kpisRecompPuntos.activas)} />
+                  <KPI tipo="recompCanjes" valor={fmt(kpisRecompPuntos.canjes)} />
+                  <KPI tipo="masCanjeada" valor={kpisRecompPuntos.masCanjeada} />
+                </>
+              ) : (
+                <>
+                  <KPI tipo="sellosActivas" valor={fmt(kpisSellos.activas)} />
+                  <KPI tipo="sellosDesbloqueos" valor={fmt(kpisSellos.desbloqueos)} />
+                  <KPI tipo="sellosPopular" valor={kpisSellos.masPopular} />
+                </>
+              )}
             </div>
           </CarouselKPI>
         </div>
@@ -1005,7 +1303,7 @@ export default function PaginaPuntos() {
             {TABS_CONFIG.map(({ id, label, Icono }) => (
               <button
                 key={id}
-                onClick={() => setTabActiva(id)}
+                onClick={() => { setTabActiva(id); if (id !== 'recompensas') setContextoRecompensas(false); else setContextoRecompensas(true); }}
                 className={`flex-1 flex items-center justify-center gap-1 lg:gap-1 2xl:gap-1.5 px-3 lg:px-3 2xl:px-4 h-10 lg:h-9 2xl:h-10 rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold whitespace-nowrap shrink-0 cursor-pointer ${
                   tabActiva === id
                     ? 'text-white shadow-md'
@@ -1215,7 +1513,83 @@ export default function PaginaPuntos() {
         onCerrar={() => setModalAbierto(false)}
         recompensa={recompensaEditando}
         onGuardar={handleGuardarRecompensa}
+        tipoInicial={tipoRecompensaFiltro}
       />
+
+      {/* Popup explicativo sellos — solo móvil, auto-dismiss */}
+      {popupSellosVisible && createPortal(
+        <div className="lg:hidden fixed inset-0 z-50 flex items-center justify-center px-6" onClick={() => setPopupSellosVisible(false)}>
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-black/40" />
+
+          {/* Card */}
+          <div
+            className="relative w-full max-w-sm rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={() => {
+              popupTocandoRef.current = true;
+              if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
+              const barra = document.getElementById('popup-sellos-barra');
+              if (barra) barra.style.animationPlayState = 'paused';
+            }}
+            onTouchEnd={() => {
+              popupTocandoRef.current = false;
+              const barra = document.getElementById('popup-sellos-barra');
+              if (barra) barra.style.animationPlayState = 'running';
+              iniciarTimerPopup();
+            }}
+          >
+            {/* Header */}
+            <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+              <div className="flex items-center gap-3">
+                <Repeat className="w-6 h-6 text-emerald-400" strokeWidth={2.5} />
+                <h3 className="text-lg font-bold text-white">Tarjeta de Sellos</h3>
+              </div>
+              <button onClick={() => setPopupSellosVisible(false)} className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 cursor-pointer">
+                <span className="text-xl leading-none">×</span>
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div className="bg-white px-5 py-5">
+              {/* Sellos */}
+              <div className="flex items-center justify-center gap-1 mb-4">
+                {[1, 2, 3, 4].map((n) => (
+                  <div key={n} className="flex items-center">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-black text-white"
+                      style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>{n}</div>
+                    <div className="w-3 h-0.5 bg-slate-300" />
+                  </div>
+                ))}
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-black text-white animate-bounce shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 20px rgba(245,158,11,0.5)', animationDuration: '2s' }}
+                >
+                  🎁
+                </div>
+              </div>
+
+              {/* Texto */}
+              <p className="text-lg text-slate-700 font-semibold text-center leading-snug">
+                Tu cliente compra <strong className="text-slate-900">N veces</strong> y la siguiente es <strong className="text-amber-600">¡GRATIS!</strong>
+              </p>
+              <p className="text-sm text-slate-500 font-medium text-center mt-2">
+                Cada compra en ScanYA suma automáticamente
+              </p>
+            </div>
+
+            {/* Barra de progreso auto-dismiss */}
+            <div className="h-1 bg-slate-200">
+              <div id="popup-sellos-barra" className="h-full bg-emerald-500" style={{ animation: 'shrink 5s linear forwards' }} />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Keyframe para barra de progreso */}
+      <style>{`@keyframes shrink { from { width: 100%; } to { width: 0%; } }`}</style>
     </div>
   );
 }

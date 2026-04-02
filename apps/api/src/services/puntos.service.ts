@@ -242,6 +242,47 @@ export async function actualizarConfigPuntos(
         });
     }
 
+    // ── Notificar clientes si nivelesActivos cambió ─────────────────────
+    const nivelesAntes = configExistente?.nivelesActivos ?? true;
+    const nivelesDespues = datosDB.nivelesActivos;
+    if (nivelesDespues !== undefined && nivelesDespues !== nivelesAntes) {
+      const [negocioInfo] = await db
+        .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+        .from(negocios)
+        .where(eq(negocios.id, negocioId))
+        .limit(1);
+
+      const billeteras = await db
+        .select({ usuarioId: puntosBilletera.usuarioId })
+        .from(puntosBilletera)
+        .where(eq(puntosBilletera.negocioId, negocioId));
+
+      if (billeteras.length > 0) {
+        const titulo = nivelesDespues
+          ? 'Sistema de niveles activado'
+          : 'Sistema de niveles desactivado';
+        const mensaje = nivelesDespues
+          ? 'Ahora puedes subir de nivel y ganar puntos más rápido. ¡Acumula puntos para desbloquear mejores beneficios!'
+          : 'Tus puntos siguen acumulándose con normalidad. Los bonos por nivel (Bronce, Plata, Oro) ya no están activos por el momento.';
+
+        // Enviar en background para no bloquear la respuesta
+        Promise.all(
+          billeteras.map((b) =>
+            crearNotificacion({
+              usuarioId: b.usuarioId,
+              modo: 'personal',
+              tipo: 'sistema',
+              titulo,
+              mensaje,
+              negocioId,
+              actorImagenUrl: negocioInfo?.logoUrl ?? undefined,
+              actorNombre: negocioInfo?.nombre ?? undefined,
+            })
+          )
+        ).catch((err) => console.error('Error al notificar cambio de niveles:', err));
+      }
+    }
+
     // ── Recalcular nivel_actual de TODAS las billeteras del negocio ──────
     // Si se cambiaron los rangos de niveles, los clientes existentes deben
     // reclasificarse según los nuevos rangos.
@@ -293,12 +334,30 @@ export async function obtenerRecompensas(
     }
 
     const resultados = await db
-      .select()
+      .select({
+        id: recompensas.id,
+        negocioId: recompensas.negocioId,
+        nombre: recompensas.nombre,
+        descripcion: recompensas.descripcion,
+        puntosRequeridos: recompensas.puntosRequeridos,
+        imagenUrl: recompensas.imagenUrl,
+        stock: recompensas.stock,
+        requiereAprobacion: recompensas.requiereAprobacion,
+        activa: recompensas.activa,
+        orden: recompensas.orden,
+        tipo: recompensas.tipo,
+        numeroComprasRequeridas: recompensas.numeroComprasRequeridas,
+        requierePuntos: recompensas.requierePuntos,
+        createdAt: recompensas.createdAt,
+        updatedAt: recompensas.updatedAt,
+        canjesRealizados: sql<number>`(SELECT COUNT(*)::int FROM vouchers_canje vc WHERE vc.recompensa_id = "recompensas"."id")`,
+        clientesActivos: sql<number>`(SELECT COUNT(DISTINCT rp.usuario_id)::int FROM recompensa_progreso rp WHERE rp.recompensa_id = "recompensas"."id" AND rp.compras_acumuladas > 0 AND rp.canjeada = false)`,
+        desbloqueos: sql<number>`(SELECT COUNT(*)::int FROM recompensa_progreso rp WHERE rp.recompensa_id = "recompensas"."id" AND rp.desbloqueada = true)`,
+      })
       .from(recompensas)
       .where(and(...condiciones))
       .orderBy(asc(recompensas.orden), desc(recompensas.createdAt));
 
-    // Transformar a camelCase
     const recompensasFormateadas = resultados.map(r => ({
       id: r.id,
       negocioId: r.negocioId,
@@ -310,6 +369,12 @@ export async function obtenerRecompensas(
       requiereAprobacion: r.requiereAprobacion,
       activa: r.activa,
       orden: r.orden,
+      tipo: r.tipo ?? 'basica',
+      numeroComprasRequeridas: r.numeroComprasRequeridas,
+      requierePuntos: r.requierePuntos ?? true,
+      canjesRealizados: r.canjesRealizados ?? 0,
+      clientesActivos: r.clientesActivos ?? 0,
+      desbloqueos: r.desbloqueos ?? 0,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     }));
@@ -358,7 +423,11 @@ export async function obtenerRecompensaPorId(
       };
     }
 
-    // Transformar a camelCase
+    const [conteoCanjes] = await db
+      .select({ total: sql<number>`COUNT(*)::int` })
+      .from(vouchersCanje)
+      .where(eq(vouchersCanje.recompensaId, id));
+
     const recompensaFormateada = {
       id: recompensa.id,
       negocioId: recompensa.negocioId,
@@ -370,6 +439,12 @@ export async function obtenerRecompensaPorId(
       requiereAprobacion: recompensa.requiereAprobacion,
       activa: recompensa.activa,
       orden: recompensa.orden,
+      tipo: recompensa.tipo ?? 'basica',
+      numeroComprasRequeridas: recompensa.numeroComprasRequeridas,
+      requierePuntos: recompensa.requierePuntos ?? true,
+      canjesRealizados: conteoCanjes?.total ?? 0,
+      clientesActivos: 0,
+      desbloqueos: 0,
       createdAt: recompensa.createdAt,
       updatedAt: recompensa.updatedAt,
     };
@@ -431,7 +506,6 @@ export async function crearRecompensa(
       })
       .returning();
 
-    // Transformar a camelCase
     const recompensaFormateada = {
       id: recompensa.id,
       negocioId: recompensa.negocioId,
@@ -443,6 +517,12 @@ export async function crearRecompensa(
       requiereAprobacion: recompensa.requiereAprobacion,
       activa: recompensa.activa,
       orden: recompensa.orden,
+      tipo: recompensa.tipo ?? 'basica',
+      numeroComprasRequeridas: recompensa.numeroComprasRequeridas,
+      requierePuntos: recompensa.requierePuntos ?? true,
+      canjesRealizados: 0,
+      clientesActivos: 0,
+      desbloqueos: 0,
       createdAt: recompensa.createdAt,
       updatedAt: recompensa.updatedAt,
     };
@@ -544,10 +624,13 @@ export async function actualizarRecompensa(
       descripcion: string | null;
       puntosRequeridos: number;
       imagenUrl: string | null;
-      stock: number | null; // NULL = ilimitado
+      stock: number | null;
       requiereAprobacion: boolean;
       activa: boolean;
       orden: number;
+      tipo: string;
+      numeroComprasRequeridas: number | null;
+      requierePuntos: boolean;
     }> = {};
 
     // Actualizar campos básicos
@@ -558,6 +641,9 @@ export async function actualizarRecompensa(
     if (datos.requiereAprobacion !== undefined) datosActualizar.requiereAprobacion = datos.requiereAprobacion;
     if (datos.activa !== undefined) datosActualizar.activa = datos.activa;
     if (datos.orden !== undefined) datosActualizar.orden = datos.orden;
+    if (datos.tipo !== undefined) datosActualizar.tipo = datos.tipo;
+    if (datos.numeroComprasRequeridas !== undefined) datosActualizar.numeroComprasRequeridas = datos.numeroComprasRequeridas;
+    if (datos.requierePuntos !== undefined) datosActualizar.requierePuntos = datos.requierePuntos;
 
     // Manejo de imagen
     if (datos.eliminarImagen && recompensaActual.imagenUrl) {
@@ -582,6 +668,12 @@ export async function actualizarRecompensa(
       .returning();
 
     // Transformar a camelCase
+    // Contar canjes
+    const [conteoCanjes] = await db
+      .select({ total: sql<number>`COUNT(*)::int` })
+      .from(vouchersCanje)
+      .where(eq(vouchersCanje.recompensaId, id));
+
     const recompensaFormateada = {
       id: recompensaActualizada.id,
       negocioId: recompensaActualizada.negocioId,
@@ -593,6 +685,12 @@ export async function actualizarRecompensa(
       requiereAprobacion: recompensaActualizada.requiereAprobacion,
       activa: recompensaActualizada.activa,
       orden: recompensaActualizada.orden,
+      tipo: recompensaActualizada.tipo ?? 'basica',
+      numeroComprasRequeridas: recompensaActualizada.numeroComprasRequeridas,
+      requierePuntos: recompensaActualizada.requierePuntos ?? true,
+      canjesRealizados: conteoCanjes?.total ?? 0,
+      clientesActivos: 0,
+      desbloqueos: 0,
       createdAt: recompensaActualizada.createdAt,
       updatedAt: recompensaActualizada.updatedAt,
     };
@@ -1164,6 +1262,23 @@ export async function revocarTransaccion(
         })
         .where(eq(puntosBilletera.id, transaccion.billeteraId));
 
+      // Decrementar sello de tarjeta si la transacción tenía uno
+      if (transaccion.recompensaSellosId) {
+        await tx
+          .update(recompensaProgreso)
+          .set({
+            comprasAcumuladas: sql`GREATEST(compras_acumuladas - 1, 0)`,
+            desbloqueada: false,
+            desbloqueadaAt: null,
+          })
+          .where(
+            and(
+              eq(recompensaProgreso.usuarioId, transaccion.clienteId),
+              eq(recompensaProgreso.recompensaId, transaccion.recompensaSellosId)
+            )
+          );
+      }
+
       // Limpiar notificaciones de esta transacción
       await tx.delete(notificaciones).where(
         and(
@@ -1497,8 +1612,10 @@ export async function obtenerOperadoresTransacciones(
 // =============================================================================
 
 /**
- * Verifica si el usuario ha desbloqueado alguna recompensa de tipo 'compras_frecuentes'
- * Se llama después de cada transacción confirmada en otorgarPuntos
+ * @deprecated No usar — mecanismo de desbloqueo unificado en otorgarPuntos() de scanya.service.ts.
+ * Esta función contaba transacciones totales, lo cual divergía del conteo explícito por sellos.
+ * Se mantiene solo como referencia. El desbloqueo real ocurre en otorgarPuntos() cuando el
+ * operador selecciona la tarjeta de sellos (recompensaSellosId).
  */
 export async function verificarRecompensasDesbloqueadas(
   usuarioId: string,
@@ -1627,15 +1744,11 @@ export async function obtenerProgresoRecompensas(
     const query = sql`
       SELECT
         r.*,
-        rp.compras_acumuladas,
-        rp.desbloqueada,
+        COALESCE(rp.compras_acumuladas, 0) as compras_acumuladas,
+        COALESCE(rp.desbloqueada, false) as desbloqueada,
         rp.desbloqueada_at,
-        rp.canjeada,
-        rp.canjeada_at,
-        (SELECT count(*)::int FROM puntos_transacciones
-         WHERE cliente_id = ${usuarioId}
-           AND negocio_id = ${negocioId}
-           AND estado = 'confirmado') as total_compras_usuario
+        COALESCE(rp.canjeada, false) as canjeada,
+        rp.canjeada_at
       FROM recompensas r
       LEFT JOIN recompensa_progreso rp
         ON rp.recompensa_id = r.id

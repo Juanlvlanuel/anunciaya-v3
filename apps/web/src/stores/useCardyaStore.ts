@@ -233,21 +233,25 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
     const billeterasAnterior = [...billeteras];
     const recompensasAnterior = [...recompensas];
 
+    // Determinar si es gratis (compras frecuentes sin requerir puntos)
+    const esGratis = recompensa.tipo === 'compras_frecuentes' && recompensa.requierePuntos === false;
+    const puntosADescontar = esGratis ? 0 : recompensa.puntosRequeridos;
+
     // Actualización optimista: descontar puntos de la billetera
     const billeterasOptimistas = billeteras.map((b) => {
-      if (b.negocioId === recompensa.negocioId) {
-        const nuevosPuntos = b.puntosDisponibles - recompensa.puntosRequeridos;
+      if (b.negocioId === recompensa.negocioId && puntosADescontar > 0) {
         return {
           ...b,
-          puntosDisponibles: nuevosPuntos,
+          puntosDisponibles: b.puntosDisponibles - puntosADescontar,
         };
       }
       return b;
     });
 
-    // Actualización optimista: marcar recompensa como no disponible si ahora faltan puntos
+    // Actualización optimista: resetear tarjeta de sellos o actualizar disponibilidad
     const recompensasOptimistas = recompensas.map((r) => {
       if (r.id === datos.recompensaId) {
+        const esComprasFrecuentes = r.tipo === 'compras_frecuentes';
         const billeteraActualizada = billeterasOptimistas.find(
           (b) => b.negocioId === r.negocioId
         );
@@ -261,6 +265,11 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
           puntosFaltantes: tienesPuntosSuficientes
             ? 0
             : r.puntosRequeridos - (billeteraActualizada?.puntosDisponibles || 0),
+          // Resetear tarjeta de sellos después del canje
+          ...(esComprasFrecuentes ? {
+            comprasAcumuladas: 0,
+            desbloqueada: false,
+          } : {}),
         };
       }
       return r;
@@ -374,7 +383,10 @@ export const useCardyaStore = create<CardyaState>((set, get) => ({
       const respuesta = await cardyaService.cancelarVoucher(id);
       if (respuesta.success) {
         // Notificar éxito
-        notificar.exito('Voucher cancelado. Tus puntos han sido devueltos');
+        notificar.exito(voucher.puntosUsados > 0
+          ? `Voucher cancelado. Se devolvieron ${voucher.puntosUsados.toLocaleString()} puntos`
+          : 'Voucher cancelado'
+        );
 
         // Recargar recompensas para actualizar disponibilidad
         get().cargarRecompensas();

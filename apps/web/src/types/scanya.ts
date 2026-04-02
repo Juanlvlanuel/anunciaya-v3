@@ -132,6 +132,7 @@ export interface OtorgarPuntosInput {
   nota?: string;
   concepto?: string;
   recordatorioId?: string;
+  recompensaSellosId?: string;
 }
 
 /**
@@ -281,17 +282,30 @@ export interface CuponValidado {
  * Resultado de otorgar puntos
  */
 export interface ResultadoOtorgarPuntos {
-  transaccionId: string;
-  puntosOtorgados: number;
-  multiplicadorAplicado: number;
-  nuevoTotalPuntos: number;
-  nuevoNivel: string;
-
-  // Info del cupÃ³n si se aplicÃ³
-  cuponAplicado?: {
+  transaccion: {
+    id: string;
+    montoOriginal: number;
+    descuentoAplicado: number;
+    montoFinal: number;
+    puntosOtorgados: number;
+    multiplicadorAplicado: number;
+  };
+  cliente: {
+    nombre: string;
+    nuevosPuntosDisponibles: number;
+    nuevoNivel: string;
+    subioDeNivel: boolean;
+  };
+  cuponUsado: {
     codigo: string;
     descuento: number;
-  };
+  } | null;
+  tarjetaSellos: {
+    comprasAcumuladas: number;
+    comprasRequeridas: number;
+    desbloqueada: boolean;
+    nombre: string;
+  } | null;
 }
 
 /**
@@ -331,6 +345,8 @@ export interface TransaccionScanYA {
   cuponCodigo: string | null;
   cuponDescuento: number | null;
   cuponImagen: string | null;
+  cuponTipo: string | null;
+  cuponValor: string | null;
   // Fecha
   createdAt: string;
 }

@@ -26,6 +26,7 @@ import type { TransaccionScanYA } from '@/types/scanya';
 interface TarjetaTransaccionProps {
   transaccion: TransaccionScanYA;
   onClick?: () => void;
+  nivelesActivos?: boolean;
 }
 
 // =============================================================================
@@ -81,7 +82,7 @@ const C = {
 // COMPONENTE
 // =============================================================================
 
-export function TarjetaTransaccion({ transaccion, onClick }: TarjetaTransaccionProps) {
+export function TarjetaTransaccion({ transaccion, onClick, nivelesActivos = true }: TarjetaTransaccionProps) {
   const esRevocada = transaccion.estado === 'cancelado';
   const esCuponGratis = transaccion.montoTotal === 0 && !!transaccion.cuponCodigo;
   const nivel = getNivel(transaccion.clienteNivel);
@@ -172,10 +173,12 @@ export function TarjetaTransaccion({ transaccion, onClick }: TarjetaTransaccionP
         </p>
         <div className="flex items-center gap-1.5">
           {!esRevocada ? (
-            <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ background: nivel.bg }}>
-              <span className="text-sm lg:text-[11px] 2xl:text-sm">{nivel.emoji}</span>
-              <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold capitalize" style={{ color: nivel.text }}>{transaccion.clienteNivel}</span>
-            </div>
+            nivelesActivos ? (
+              <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ background: nivel.bg }}>
+                <span className="text-sm lg:text-[11px] 2xl:text-sm">{nivel.emoji}</span>
+                <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold capitalize" style={{ color: nivel.text }}>{transaccion.clienteNivel}</span>
+              </div>
+            ) : null
           ) : (
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.2)' }}>
               <XCircle className="w-3 h-3 text-red-400" />

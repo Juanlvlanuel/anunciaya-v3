@@ -434,6 +434,26 @@ export async function obtenerOperadoresLista(sucursalId?: string): Promise<Respu
 }
 
 // =============================================================================
+// TARJETAS DE SELLOS
+// =============================================================================
+
+export interface TarjetaSellos {
+  id: string;
+  nombre: string;
+  imagenUrl: string | null;
+  numeroComprasRequeridas: number;
+  stock: number | null;
+  comprasAcumuladas: number;
+  desbloqueada: boolean;
+  canjeada: boolean;
+}
+
+export async function obtenerTarjetasSellos(clienteId: string): Promise<RespuestaAPI<TarjetaSellos[]>> {
+  const response = await api.get<RespuestaAPI<TarjetaSellos[]>>(`${BASE}/tarjetas-sellos/${clienteId}`);
+  return response.data;
+}
+
+// =============================================================================
 // UPLOAD TICKET (FASE 11)
 // =============================================================================
 
@@ -543,6 +563,9 @@ const scanyaService = {
   // Listas para filtros
   obtenerSucursalesLista,
   obtenerOperadoresLista,
+
+  // Tarjetas de sellos
+  obtenerTarjetasSellos,
 
   // Reseñas
   obtenerResenasNegocio,

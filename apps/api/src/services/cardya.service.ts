@@ -12,6 +12,7 @@ import {
   puntosConfiguracion,
   puntosTransacciones,
   recompensas,
+  recompensaProgreso,
   vouchersCanje,
   negocios,
   negocioSucursales,
@@ -19,6 +20,8 @@ import {
   scanyaTurnos,
   usuarios,
   notificaciones,
+  ofertaUsos,
+  ofertas,
 } from '../db/schemas/schema.js';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import type {
@@ -55,6 +58,10 @@ export async function obtenerBilleterasPorUsuario(
         nivelActual: puntosBilletera.nivelActual,
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
+        negocioPortada: negocioSucursales.portadaUrl,
+        negocioUsuarioId: negocios.usuarioId,
+        negocioSucursalId: negocioSucursales.id,
+        whatsappContacto: negocioSucursales.whatsapp,
         nivelesActivos: puntosConfiguracion.nivelesActivos,
         nivelBronceMin: puntosConfiguracion.nivelBronceMin,
         nivelBronceMax: puntosConfiguracion.nivelBronceMax,
@@ -68,6 +75,7 @@ export async function obtenerBilleterasPorUsuario(
       .from(puntosBilletera)
       .innerJoin(negocios, eq(puntosBilletera.negocioId, negocios.id))
       .leftJoin(puntosConfiguracion, eq(puntosBilletera.negocioId, puntosConfiguracion.negocioId))
+      .leftJoin(negocioSucursales, and(eq(negocioSucursales.negocioId, negocios.id), eq(negocioSucursales.esPrincipal, true)))
       .where(eq(puntosBilletera.usuarioId, usuarioId))
       .orderBy(desc(puntosBilletera.puntosDisponibles));
 
@@ -102,12 +110,17 @@ export async function obtenerBilleterasPorUsuario(
         negocioId: b.negocioId,
         negocioNombre: b.negocioNombre,
         negocioLogo: b.negocioLogo,
+        negocioPortada: b.negocioPortada,
         puntosDisponibles: b.puntosDisponibles,
         puntosAcumuladosTotal: b.puntosAcumuladosTotal,
         puntosCanjeadosTotal: b.puntosCanjeadosTotal,
         nivelActual: (b.nivelActual ?? 'bronce') as 'bronce' | 'plata' | 'oro',
         multiplicador,
         progreso,
+        nivelesActivos: b.nivelesActivos ?? true,
+        negocioUsuarioId: b.negocioUsuarioId ?? null,
+        negocioSucursalId: b.negocioSucursalId ?? null,
+        whatsappContacto: b.whatsappContacto ?? null,
       };
     });
 
@@ -261,12 +274,14 @@ export async function obtenerDetalleNegocioBilletera(
       negocioId,
       negocioNombre: billetera.negocioNombre,
       negocioLogo: billetera.negocioLogo,
+      negocioPortada: null,
       puntosDisponibles: billetera.puntosDisponibles,
       puntosAcumuladosTotal: billetera.puntosAcumuladosTotal,
       puntosCanjeadosTotal: billetera.puntosCanjeadosTotal,
       nivelActual: (billetera.nivelActual ?? 'bronce') as 'bronce' | 'plata' | 'oro',
       multiplicador,
       progreso,
+      nivelesActivos: billetera.nivelesActivos ?? true,
       beneficios,
       ultimasTransacciones: transaccionesResumen,
       telefonoContacto: sucursalPrincipal[0]?.telefono ?? null,
@@ -306,10 +321,16 @@ export async function obtenerRecompensasDisponibles(
         puntosDisponibles: puntosBilletera.puntosDisponibles,
         // Ciudad de la sucursal principal para filtrar
         ciudadSucursal: negocioSucursales.ciudad,
+        // Tipo de recompensa (basica o compras_frecuentes)
+        tipo: recompensas.tipo,
+        numeroComprasRequeridas: recompensas.numeroComprasRequeridas,
+        requierePuntos: recompensas.requierePuntos,
+        // Progreso N+1
+        comprasAcumuladas: recompensaProgreso.comprasAcumuladas,
+        desbloqueada: recompensaProgreso.desbloqueada,
       })
       .from(recompensas)
       .innerJoin(negocios, eq(recompensas.negocioId, negocios.id))
-      // JOIN con sucursal principal del negocio para obtener la ciudad
       .innerJoin(
         negocioSucursales,
         and(
@@ -322,6 +343,13 @@ export async function obtenerRecompensasDisponibles(
         and(
           eq(puntosBilletera.negocioId, recompensas.negocioId),
           eq(puntosBilletera.usuarioId, usuarioId)
+        )
+      )
+      .leftJoin(
+        recompensaProgreso,
+        and(
+          eq(recompensaProgreso.recompensaId, recompensas.id),
+          eq(recompensaProgreso.usuarioId, usuarioId)
         )
       )
       .where(eq(recompensas.activa, true))
@@ -369,6 +397,11 @@ export async function obtenerRecompensasDisponibles(
           tienesPuntosSuficientes,
           puntosFaltantes,
           estaAgotada,
+          tipo: r.tipo ?? 'basica',
+          numeroComprasRequeridas: r.numeroComprasRequeridas,
+          requierePuntos: r.requierePuntos ?? true,
+          comprasAcumuladas: r.comprasAcumuladas ?? 0,
+          desbloqueada: r.desbloqueada ?? false,
         };
       })
       .filter((r) => {
@@ -429,7 +462,10 @@ export async function generarVoucher(
 
     const bill = billetera[0];
 
-    if (bill.puntosDisponibles < recomp.puntosRequeridos) {
+    const esComprasFrecuentes = recomp.tipo === 'compras_frecuentes';
+    const requierePuntos = recomp.requierePuntos !== false;
+
+    if (requierePuntos && bill.puntosDisponibles < recomp.puntosRequeridos) {
       return {
         success: false,
         message: `Te faltan ${recomp.puntosRequeridos - bill.puntosDisponibles} puntos`,
@@ -448,15 +484,21 @@ export async function generarVoucher(
     const expiraAt = new Date();
     expiraAt.setDate(expiraAt.getDate() + diasExpiracion);
 
-    const resultado = await db.transaction(async (tx) => {
-      await tx
-        .update(puntosBilletera)
-        .set({
-          puntosDisponibles: sql`${puntosBilletera.puntosDisponibles} - ${recomp.puntosRequeridos}`,
-          puntosCanjeadosTotal: sql`${puntosBilletera.puntosCanjeadosTotal} + ${recomp.puntosRequeridos}`,
-        })
-        .where(eq(puntosBilletera.id, bill.id));
+    const puntosADescontar = requierePuntos ? recomp.puntosRequeridos : 0;
 
+    const resultado = await db.transaction(async (tx) => {
+      // Descontar puntos solo si requiere
+      if (requierePuntos) {
+        await tx
+          .update(puntosBilletera)
+          .set({
+            puntosDisponibles: sql`${puntosBilletera.puntosDisponibles} - ${recomp.puntosRequeridos}`,
+            puntosCanjeadosTotal: sql`${puntosBilletera.puntosCanjeadosTotal} + ${recomp.puntosRequeridos}`,
+          })
+          .where(eq(puntosBilletera.id, bill.id));
+      }
+
+      // Decrementar stock
       if (recomp.stock !== null) {
         await tx
           .update(recompensas)
@@ -464,6 +506,7 @@ export async function generarVoucher(
           .where(eq(recompensas.id, recompensaId));
       }
 
+      // Crear voucher
       const nuevoVoucher = await tx
         .insert(vouchersCanje)
         .values({
@@ -471,14 +514,31 @@ export async function generarVoucher(
           recompensaId: recompensaId,
           usuarioId: usuarioId,
           negocioId: recomp.negocioId,
-          sucursalId: null, // ✅ NULL = voucher libre
+          sucursalId: null,
           codigo: codigo,
           qrData: JSON.stringify({ codigo, recompensaId, usuarioId }),
-          puntosUsados: recomp.puntosRequeridos,
+          puntosUsados: puntosADescontar,
           estado: 'pendiente',
           expiraAt: expiraAt.toISOString(),
         })
         .returning();
+
+      // Resetear progreso de tarjeta de sellos para nuevo ciclo
+      if (esComprasFrecuentes) {
+        await tx
+          .update(recompensaProgreso)
+          .set({
+            canjeada: true,
+            canjeadaAt: new Date().toISOString(),
+            comprasAcumuladas: 0,
+            desbloqueada: false,
+            desbloqueadaAt: null,
+          })
+          .where(and(
+            eq(recompensaProgreso.usuarioId, usuarioId),
+            eq(recompensaProgreso.recompensaId, recompensaId)
+          ));
+      }
 
       return nuevoVoucher[0];
     });
@@ -576,7 +636,7 @@ export async function generarVoucher(
       modo: 'personal',
       tipo: 'voucher_generado',
       titulo: '¡Recompensa canjeada!',
-      mensaje: `Canjeaste: ${recomp.nombre}\n${negocio[0]?.nombre ?? 'un negocio'}`,
+      mensaje: `${recomp.nombre} — muestra el código en el negocio\n${negocio[0]?.nombre ?? 'un negocio'}`,
       negocioId: recomp.negocioId,
       sucursalId: sucursalPrincipalId ?? undefined,
       referenciaId: resultado.id,
@@ -605,8 +665,8 @@ export async function generarVoucher(
         usuarioId: negocioDueno.usuarioId,
         modo: 'comercial',
         tipo: 'voucher_pendiente',
-        titulo: 'Nuevo voucher por entregar',
-        mensaje: `${clienteParaAvatar ? `${clienteParaAvatar.nombre} ${clienteParaAvatar.apellidos || ''}`.trim() : 'Un cliente'} canjeó: ${recomp.nombre}`,
+        titulo: 'Recompensa por entregar',
+        mensaje: `Canjeó sus puntos por: ${recomp.nombre}`,
         negocioId: recomp.negocioId,
         sucursalId: sucursalPrincipalId ?? undefined,
         referenciaId: resultado.id,
@@ -620,8 +680,8 @@ export async function generarVoucher(
       notificarNegocioCompleto(recomp.negocioId, {
         modo: 'comercial',
         tipo: 'voucher_pendiente',
-        titulo: 'Nuevo voucher por entregar',
-        mensaje: `${clienteParaAvatar ? `${clienteParaAvatar.nombre} ${clienteParaAvatar.apellidos || ''}`.trim() : 'Un cliente'} canjeó: ${recomp.nombre}`,
+        titulo: 'Recompensa por entregar',
+        mensaje: `Canjeó sus puntos por: ${recomp.nombre}`,
         negocioId: recomp.negocioId,
         referenciaId: resultado.id,
         referenciaTipo: 'voucher',
@@ -780,6 +840,29 @@ export async function cancelarVoucher(
         .set({ estado: 'cancelado', usadoAt: new Date().toISOString() })
         .where(eq(vouchersCanje.id, voucherId));
 
+      // Restaurar progreso de tarjeta de sellos si aplica
+      const recompensaInfo = await tx
+        .select({ tipo: recompensas.tipo, numeroComprasRequeridas: recompensas.numeroComprasRequeridas })
+        .from(recompensas)
+        .where(eq(recompensas.id, v.recompensaId))
+        .limit(1);
+
+      if (recompensaInfo[0]?.tipo === 'compras_frecuentes') {
+        await tx
+          .update(recompensaProgreso)
+          .set({
+            desbloqueada: true,
+            desbloqueadaAt: new Date().toISOString(),
+            canjeada: false,
+            canjeadaAt: null,
+            comprasAcumuladas: recompensaInfo[0].numeroComprasRequeridas ?? 0,
+          })
+          .where(and(
+            eq(recompensaProgreso.usuarioId, usuarioId),
+            eq(recompensaProgreso.recompensaId, v.recompensaId)
+          ));
+      }
+
       // Limpiar notificaciones de este voucher
       await tx.delete(notificaciones).where(
         and(
@@ -830,6 +913,11 @@ export async function obtenerHistorialCompras(
           ELSE NULL
         END
       `,
+        // Datos del cupón (si aplica)
+        cuponTipo: ofertas.tipo,
+        cuponValor: ofertas.valor,
+        cuponTitulo: ofertas.titulo,
+        descuentoAplicado: ofertaUsos.descuentoAplicado,
       })
       .from(puntosTransacciones)
       .innerJoin(negocios, eq(puntosTransacciones.negocioId, negocios.id))
@@ -840,6 +928,8 @@ export async function obtenerHistorialCompras(
         sql`usuarios AS turno_usuario`,
         sql`${scanyaTurnos.usuarioId} = turno_usuario.id`
       )
+      .leftJoin(ofertaUsos, sql`${puntosTransacciones.ofertaUsoId}::bigint = ${ofertaUsos.id}`)
+      .leftJoin(ofertas, eq(ofertaUsos.ofertaId, ofertas.id))
       .where(and(
         eq(puntosTransacciones.clienteId, usuarioId),
         eq(puntosTransacciones.estado, 'confirmado')
@@ -887,6 +977,11 @@ export async function obtenerHistorialCompras(
       concepto: h.concepto ?? null,
       empleadoNombre: h.empleadoNombre,
       createdAt: h.createdAt ?? new Date().toISOString(),
+      cuponTipo: h.cuponTipo ?? null,
+      cuponValor: h.cuponValor ? parseFloat(String(h.cuponValor)) : null,
+      cuponValorTexto: h.cuponValor ?? null,
+      cuponTitulo: h.cuponTitulo ?? null,
+      descuentoAplicado: h.descuentoAplicado ? parseFloat(String(h.descuentoAplicado)) : null,
     }));
 
     return { success: true, message: 'Historial obtenido correctamente', data: historialFormateado };

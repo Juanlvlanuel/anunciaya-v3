@@ -355,8 +355,8 @@ export async function crearResena(
                 tipo: 'nueva_resena',
                 titulo: `Nueva reseña ${estrellas}`,
                 mensaje: datos.texto
-                    ? `${autor?.nombre || 'Un cliente'}: "${datos.texto.slice(0, 80)}${datos.texto.length > 80 ? '...' : ''}"`
-                    : `${autor?.nombre || 'Un cliente'} calificó tu negocio`,
+                    ? `"${datos.texto.slice(0, 80)}${datos.texto.length > 80 ? '...' : ''}"`
+                    : 'Calificó tu negocio',
                 negocioId: sucursal.negocioId,
                 sucursalId: datos.sucursalId,
                 referenciaId: row.id as string,
@@ -602,7 +602,7 @@ export async function responderResena(
                 usuarioId: original.autor_id as string,
                 modo: 'personal',
                 tipo: 'nueva_resena',
-                titulo: 'Respondieron tu reseña',
+                titulo: 'Respondió tu reseña',
                 mensaje: datos.texto.length > 80
                     ? `"${datos.texto.slice(0, 80)}..."\n${negocio?.nombre ?? 'un negocio'}`
                     : `"${datos.texto}"\n${negocio?.nombre ?? 'un negocio'}`,

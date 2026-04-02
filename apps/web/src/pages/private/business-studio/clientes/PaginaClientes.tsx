@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { useClientesStore } from '../../../../stores/useClientesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { usePuntosStore } from '../../../../stores/usePuntosStore';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import { descargarExcel } from '../../../../services/clientesService';
@@ -193,10 +194,12 @@ function FilaMovil({
   cliente,
   onVerDetalle,
   onChatear,
+  nivelesActivos = true,
 }: {
   cliente: ClienteCompleto;
   onVerDetalle: (id: string) => void;
   onChatear: (id: string) => void;
+  nivelesActivos?: boolean;
 }) {
   const colorNivel = obtenerColorNivel(cliente.nivelActual);
   const iconoNivel = obtenerIconoNivel(cliente.nivelActual);
@@ -227,10 +230,12 @@ function FilaMovil({
         <div>
           <div className="flex items-center justify-between gap-2">
             <p className="text-base font-bold text-slate-800 truncate">{cliente.nombre}</p>
-            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm font-bold shrink-0 ${colorNivel}`}>
-              {iconoNivel}
-              {cliente.nivelActual}
-            </span>
+            {nivelesActivos && (
+              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm font-bold shrink-0 ${colorNivel}`}>
+                {iconoNivel}
+                {cliente.nivelActual}
+              </span>
+            )}
           </div>
           <p className="text-sm font-medium text-slate-500">Última visita: {formatearFechaCorta(cliente.ultimaActividad)}</p>
         </div>
@@ -274,6 +279,8 @@ export default function PaginaClientes() {
     setBusqueda,
     setNivelFiltro,
   } = useClientesStore();
+
+  const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
 
   // Sucursal activa (para recargar al cambiar)
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
@@ -521,7 +528,7 @@ export default function PaginaClientes() {
               </div>
 
               {/* Distribución nivel - solo desktop */}
-              {kpis?.distribucionNivel && !isMobile && (
+              {nivelesActivos && kpis?.distribucionNivel && !isMobile && (
                 <div
                   className="hidden lg:flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[110px] 2xl:min-w-[180px]"
                   style={{
@@ -565,6 +572,7 @@ export default function PaginaClientes() {
         <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
             {/* Chips de nivel */}
+            {nivelesActivos && (
             <div className="flex flex-row gap-1 lg:gap-1.5 lg:shrink-0">
               <button
                 onClick={() => setNivelFiltro(null)}
@@ -589,6 +597,7 @@ export default function PaginaClientes() {
                 </button>
               ))}
             </div>
+            )}
 
             {/* Búsqueda + Reporte móvil */}
             <div className="flex items-center gap-2 lg:flex-1 min-w-0">
@@ -669,7 +678,7 @@ export default function PaginaClientes() {
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
-              <span className="flex justify-center">Nivel</span>
+              {nivelesActivos && <span className="flex justify-center">Nivel</span>}
               <span className="flex justify-end">
                 <HeaderOrdenable etiqueta="PUNTOS" columna="puntos" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
@@ -723,12 +732,14 @@ export default function PaginaClientes() {
                       </div>
 
                       {/* Nivel */}
+                      {nivelesActivos && (
                       <div className="flex items-center justify-center">
                         <span className={`inline-flex items-center gap-1 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold ${colorNivel}`}>
                           {iconoNivel}
                           {c.nivelActual}
                         </span>
                       </div>
+                      )}
 
                       {/* Puntos */}
                       <div className="flex items-center justify-end">
@@ -808,7 +819,7 @@ export default function PaginaClientes() {
               </div>
             ) : (
               clientesOrdenados.map((c) => (
-                <FilaMovil key={c.id} cliente={c} onVerDetalle={handleVerDetalle} onChatear={handleChatear} />
+                <FilaMovil key={c.id} cliente={c} onVerDetalle={handleVerDetalle} onChatear={handleChatear} nivelesActivos={nivelesActivos} />
               ))
             )}
 

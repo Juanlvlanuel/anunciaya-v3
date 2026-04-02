@@ -43,12 +43,17 @@ export interface BilleteraNegocio {
   negocioId: string;
   negocioNombre: string;
   negocioLogo: string | null;
+  negocioPortada: string | null;
   puntosDisponibles: number;
   puntosAcumuladosTotal: number;
   puntosCanjeadosTotal: number;
   nivelActual: NivelLealtad;
   multiplicador: number;
   progreso: ProgresoNivel;
+  nivelesActivos: boolean;
+  negocioUsuarioId: string | null;
+  negocioSucursalId: string | null;
+  whatsappContacto: string | null;
 }
 
 /**
@@ -174,6 +179,11 @@ export interface HistorialCompra {
   concepto: string | null;
   empleadoNombre: string | null;
   createdAt: string;
+  cuponTipo: string | null;
+  cuponValor: number | null;
+  cuponValorTexto: string | null;
+  cuponTitulo: string | null;
+  descuentoAplicado: number | null;
 }
 
 /**
@@ -238,6 +248,12 @@ export interface Transaccion {
   sucursalNombre?: string | null;
   multiplicador?: number;
   empleadoNombre?: string | null;
+  // ── Campos de cupón (cuando la compra tuvo cupón) ──
+  cuponTipo?: string | null;
+  cuponValor?: number | null;
+  cuponValorTexto?: string | null;
+  cuponTitulo?: string | null;
+  descuentoAplicado?: number | null;
 }
 
 // =============================================================================

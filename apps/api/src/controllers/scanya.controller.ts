@@ -47,6 +47,7 @@ import {
   obtenerContadores,
   obtenerSucursalesLista,
   obtenerOperadoresLista,
+  obtenerTarjetasSellosCliente,
 } from '../services/scanya.service.js';
 
 // =============================================================================
@@ -1220,6 +1221,26 @@ export async function operadoresListaController(req: Request, res: Response): Pr
   res.status(resultado.code ?? 200).json({
     success: resultado.success,
     message: resultado.message,
+    data: resultado.data,
+  });
+};
+
+// =============================================================================
+// TARJETAS DE SELLOS
+// =============================================================================
+
+export const obtenerTarjetasSellosController = async (req: Request, res: Response) => {
+  const { clienteId } = req.params;
+  const negocioId = req.scanyaUsuario?.negocioId;
+
+  if (!negocioId || !clienteId) {
+    return res.status(400).json({ success: false, message: 'Faltan datos requeridos' });
+  }
+
+  const resultado = await obtenerTarjetasSellosCliente(negocioId, clienteId);
+
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
     data: resultado.data,
   });
 }

@@ -127,7 +127,7 @@ export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
 
             {/* Carousel — solo si hay cupones y no estamos en /mis-cupones */}
             {!esMisCupones && cuponesActivos.length > 0 && (
-                <div className="px-4 lg:px-3 2xl:px-4 pb-3 lg:pb-2 2xl:pb-3">
+                <div className="px-4 lg:px-3 2xl:px-4 pb-1 lg:pb-0.5 2xl:pb-1">
                     {/* Cards */}
                     <div
                         ref={scrollRef}

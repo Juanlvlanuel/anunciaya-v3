@@ -15,8 +15,8 @@
  * Ubicación: apps/web/src/components/layout/PanelNotificaciones.tsx
  */
 
-import { useEffect, useRef, type ComponentType } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   X,
   Bell,
@@ -179,6 +179,42 @@ const obtenerRutaDestino = (notificacion: Notificacion): string | null => {
 };
 
 // =============================================================================
+// HELPERS: Iniciales y colores para avatares
+// =============================================================================
+
+const obtenerIniciales = (nombre: string): string => {
+  const partes = nombre.trim().split(/\s+/);
+  if (partes.length >= 2) {
+    return `${partes[0][0]}${partes[1][0]}`.toUpperCase();
+  }
+  return partes[0].slice(0, 2).toUpperCase();
+};
+
+const COLORES_INICIALES = [
+  'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+  'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+  'linear-gradient(135deg, #06b6d4, #0891b2)',
+  'linear-gradient(135deg, #10b981, #047857)',
+  'linear-gradient(135deg, #f59e0b, #d97706)',
+  'linear-gradient(135deg, #ec4899, #be185d)',
+  'linear-gradient(135deg, #6366f1, #4338ca)',
+  'linear-gradient(135deg, #14b8a6, #0d9488)',
+];
+
+const obtenerColorIniciales = (nombre: string): string => {
+  let hash = 0;
+  for (let i = 0; i < nombre.length; i++) {
+    hash = nombre.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return COLORES_INICIALES[Math.abs(hash) % COLORES_INICIALES.length];
+};
+
+// Tipos comerciales relacionados con un usuario/cliente
+const TIPOS_USUARIO_COMERCIAL = new Set<Notificacion['tipo']>([
+  'puntos_ganados', 'voucher_cobrado', 'voucher_pendiente', 'nueva_resena', 'nuevo_cliente',
+]);
+
+// =============================================================================
 // COMPONENTE: Icono de Notificación (estilo Facebook)
 // =============================================================================
 // Siempre: círculo grande (foto/iniciales) + mini badge superpuesto (tipo)
@@ -190,9 +226,6 @@ const obtenerRutaDestino = (notificacion: Notificacion): string | null => {
 function IconoNotificacion({ notificacion }: { notificacion: Notificacion }) {
   const config = getConfigPorTipo(notificacion.tipo);
   const Icono = config.icono;
-
-  // El círculo grande muestra la imagen del contenido (oferta/cupón) si existe,
-  // o el icono del tipo como placeholder. Nunca el logo del negocio (eso va en la fila de abajo).
   const imagenContenido = notificacion.actorImagenUrl;
 
   // Badge de tipo (siempre visible, superpuesto abajo-derecha)
@@ -205,7 +238,7 @@ function IconoNotificacion({ notificacion }: { notificacion: Notificacion }) {
     </div>
   );
 
-  // Caso 1: Tiene imagen del contenido (no del negocio)
+  // Caso 1: Tiene imagen → foto + badge
   if (imagenContenido) {
     return (
       <div className="relative shrink-0">
@@ -219,7 +252,26 @@ function IconoNotificacion({ notificacion }: { notificacion: Notificacion }) {
     );
   }
 
-  // Caso 2: Icono del tipo como placeholder (círculo con gradiente grande)
+  // Caso 2: Tiene nombre pero no imagen → iniciales + badge
+  if (notificacion.actorNombre) {
+    const iniciales = obtenerIniciales(notificacion.actorNombre);
+    const colorFondo = obtenerColorIniciales(notificacion.actorNombre);
+    return (
+      <div className="relative shrink-0">
+        <div
+          className="w-14 h-14 lg:w-13 lg:h-13 2xl:w-14 2xl:h-14 rounded-full flex items-center justify-center"
+          style={{ background: colorFondo }}
+        >
+          <span className="text-white font-bold text-lg lg:text-base 2xl:text-lg select-none">
+            {iniciales}
+          </span>
+        </div>
+        {badge}
+      </div>
+    );
+  }
+
+  // Caso 3: Sin imagen ni nombre → icono del tipo (sin badge, el círculo ya ES el tipo)
   return (
     <div className="relative shrink-0">
       <div
@@ -228,8 +280,198 @@ function IconoNotificacion({ notificacion }: { notificacion: Notificacion }) {
       >
         <Icono className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
       </div>
-      {/* Sin badge adicional — el círculo ya ES el tipo */}
     </div>
+  );
+}
+
+// =============================================================================
+// COMPONENTE: Contenido de una notificación individual
+// =============================================================================
+
+const PuntoNoLeida = () => (
+  <span className="w-2.5 h-2.5 lg:w-2 lg:h-2 2xl:w-2.5 2xl:h-2.5 bg-blue-500 rounded-full shrink-0" />
+);
+
+// Limpia el nombre del actor del mensaje (notificaciones legacy que lo incluían)
+const limpiarMensajeComercial = (mensaje: string, actorNombre: string): string => {
+  return mensaje
+    .split('\n')
+    .map((linea) => {
+      const l = linea.trim();
+      // Línea es exactamente el nombre → eliminar
+      if (l === actorNombre) return '';
+      // "Nombre: texto" → quitar prefijo "Nombre: "
+      if (l.startsWith(`${actorNombre}: `)) return l.slice(actorNombre.length + 2);
+      // "Nombre verbo..." → quitar prefijo, capitalizar resto
+      if (l.startsWith(`${actorNombre} `)) {
+        const resto = l.slice(actorNombre.length + 1);
+        return resto.charAt(0).toUpperCase() + resto.slice(1);
+      }
+      // "...texto a Nombre" al final → quitar sufijo
+      if (l.endsWith(` a ${actorNombre}`)) return l.slice(0, -(actorNombre.length + 3));
+      // Legacy "Canjeó: X" → "Canjeó sus puntos por: X"
+      if (l.startsWith('Canjeó: ')) return l.replace('Canjeó: ', 'Canjeó sus puntos por: ');
+      return linea;
+    })
+    .filter(Boolean)
+    .join('\n');
+};
+
+function ContenidoItem({ notificacion, expandida }: { notificacion: Notificacion; expandida?: boolean }) {
+  const tiempo = (
+    <p className="text-sm lg:text-[11px] 2xl:text-sm text-blue-700 font-medium">
+      {formatearFechaRelativa(notificacion.createdAt)}
+    </p>
+  );
+
+  const esComercialConUsuario =
+    notificacion.modo === 'comercial' &&
+    notificacion.actorNombre &&
+    TIPOS_USUARIO_COMERCIAL.has(notificacion.tipo);
+
+  // ─── Comercial con usuario (ventas, vouchers, reseñas, nuevo cliente) ───
+  if (esComercialConUsuario) {
+    const mensajeLimpio = limpiarMensajeComercial(notificacion.mensaje, notificacion.actorNombre!);
+    const lineasMensaje = mensajeLimpio.split('\n').filter(Boolean);
+
+    // Transformar títulos legacy para notificaciones existentes en BD
+    let tituloMostrar = notificacion.titulo;
+    if (tituloMostrar.startsWith('Venta con cupón: $')) {
+      tituloMostrar = tituloMostrar.replace('Venta con cupón: $', 'Compró $') + ' con cupón';
+    } else if (tituloMostrar.startsWith('Venta: $')) {
+      tituloMostrar = tituloMostrar.replace('Venta: $', 'Compró $');
+    } else if (tituloMostrar === 'Cupón canjeado') {
+      tituloMostrar = 'Canjeó cupón';
+    } else if (tituloMostrar === 'Nuevo voucher por entregar') {
+      tituloMostrar = 'Recompensa por entregar';
+    } else if (tituloMostrar === 'Voucher entregado') {
+      tituloMostrar = 'Recompensa entregada';
+    }
+
+    return (
+      <>
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="text-base lg:text-sm 2xl:text-base text-blue-800 font-bold truncate">
+            {notificacion.actorNombre}
+          </span>
+          {!notificacion.leida && <PuntoNoLeida />}
+        </div>
+        <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-0.5">
+          {tituloMostrar}
+        </p>
+        {lineasMensaje.map((linea, i) => (
+          <p key={i} className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
+            {linea}
+          </p>
+        ))}
+        {tiempo}
+      </>
+    );
+  }
+
+  // ─── Comercial sin usuario (stock_bajo, sistema, etc.) ───
+  if (notificacion.modo === 'comercial') {
+    return (
+      <>
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-900 truncate">
+            {notificacion.titulo}
+          </p>
+          {!notificacion.leida && <PuntoNoLeida />}
+        </div>
+        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mb-0.5 whitespace-pre-line line-clamp-3">
+          {notificacion.mensaje}
+        </p>
+        {tiempo}
+      </>
+    );
+  }
+
+  // ─── Personal con actor (negocio) y patrón \n ───
+  if (notificacion.actorNombre && notificacion.mensaje.includes('\n')) {
+    // Transformar títulos y mensajes legacy para notificaciones existentes en BD
+    let tituloPersonal = notificacion.titulo;
+    let mensajePersonal = notificacion.mensaje.split('\n')[0];
+
+    // Legacy: "+N puntos" → "Compra Registrada" con puntos en mensaje
+    const matchPuntos = tituloPersonal.match(/^\+(\d+) puntos$/);
+    if (matchPuntos) {
+      mensajePersonal = `+${matchPuntos[1]} puntos Ganados`;
+      tituloPersonal = 'Compra Registrada';
+    }
+    // Legacy: "+N puntos con cupón" → "Compra Registrada con Cupón"
+    const matchPuntosCupon = tituloPersonal.match(/^\+(\d+) puntos con cupón$/);
+    if (matchPuntosCupon) {
+      mensajePersonal = `+${matchPuntosCupon[1]} puntos Ganados`;
+      tituloPersonal = 'Compra con Cupón';
+    }
+    // Legacy: "Respondieron tu reseña" → "Respondió tu reseña"
+    if (tituloPersonal === 'Respondieron tu reseña') tituloPersonal = 'Respondió tu reseña';
+    // Legacy: "¡Oferta exclusiva para ti!" → "¡Recibiste un Cupón Exclusivo!"
+    if (tituloPersonal === '¡Oferta exclusiva para ti!') tituloPersonal = '¡Recibiste un Cupón Exclusivo!';
+    // Legacy: "Compraste en" → mejor no mostrar (ya está el negocio arriba)
+    if (mensajePersonal === 'Compraste en') mensajePersonal = '';
+    // Legacy: "Canjeaste: X" → "X — muestra el código en el negocio"
+    if (mensajePersonal.startsWith('Canjeaste: ')) mensajePersonal = `${mensajePersonal.replace('Canjeaste: ', '')} — muestra el código en el negocio`;
+    // Legacy: "Recibiste: X" → solo "X"
+    if (mensajePersonal.startsWith('Recibiste: ')) mensajePersonal = mensajePersonal.replace('Recibiste: ', '');
+
+    return (
+      <>
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="text-base lg:text-sm 2xl:text-base text-blue-800 font-bold truncate">
+            {notificacion.actorNombre}
+          </span>
+          {!notificacion.leida && <PuntoNoLeida />}
+        </div>
+        <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-0.5">
+          {tituloPersonal}
+        </p>
+        {mensajePersonal && (
+          <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mb-0.5">
+            {mensajePersonal}
+          </p>
+        )}
+        {tiempo}
+      </>
+    );
+  }
+
+  // ─── Personal con actor pero sin \n (ej: sistema de niveles) ───
+  if (notificacion.actorNombre) {
+    return (
+      <>
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="text-base lg:text-sm 2xl:text-base text-blue-800 font-bold truncate">
+            {notificacion.actorNombre}
+          </span>
+          {!notificacion.leida && <PuntoNoLeida />}
+        </div>
+        <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-0.5">
+          {notificacion.titulo}
+        </p>
+        <p className={`text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mb-0.5 whitespace-pre-line ${expandida ? '' : 'line-clamp-2'}`}>
+          {notificacion.mensaje}
+        </p>
+        {tiempo}
+      </>
+    );
+  }
+
+  // ─── Personal sin actor (default) ───
+  return (
+    <>
+      <div className="flex items-center gap-1.5 mb-0.5">
+        <p className={`font-bold text-sm lg:text-[11px] 2xl:text-sm truncate ${!notificacion.leida ? 'text-slate-900' : 'text-slate-700'}`}>
+          {notificacion.titulo}
+        </p>
+        {!notificacion.leida && <PuntoNoLeida />}
+      </div>
+      <p className={`text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mb-0.5 whitespace-pre-line ${expandida ? '' : 'line-clamp-3'}`}>
+        {notificacion.mensaje}
+      </p>
+      {tiempo}
+    </>
   );
 }
 
@@ -244,6 +486,7 @@ interface ContenidoNotificacionesProps {
   hayMas: boolean;
   cargandoMas: boolean;
   onCargarMas: () => void;
+  expandidaId: string | null;
 }
 
 function ContenidoNotificaciones({
@@ -253,6 +496,7 @@ function ContenidoNotificaciones({
   hayMas,
   cargandoMas,
   onCargarMas,
+  expandidaId,
 }: ContenidoNotificacionesProps) {
   return (
     <div className="flex-1 overflow-y-auto min-h-0">
@@ -286,44 +530,7 @@ function ContenidoNotificaciones({
 
                 {/* Contenido */}
                 <div className="flex-1 min-w-0">
-                  {/* Nombre del negocio */}
-                  {notificacion.actorNombre && notificacion.mensaje.includes('\n') && (
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-base lg:text-sm 2xl:text-base text-blue-800 font-bold truncate">{notificacion.actorNombre}</span>
-                      {!notificacion.leida && (
-                        <span className="w-2.5 h-2.5 lg:w-2 lg:h-2 2xl:w-2.5 2xl:h-2.5 bg-blue-500 rounded-full shrink-0" />
-                      )}
-                    </div>
-                  )}
-
-                  <div className="mb-0.5">
-                    <p
-                      className={`
-                        font-bold text-sm lg:text-[11px] 2xl:text-sm
-                        ${!notificacion.leida ? 'text-slate-900' : 'text-slate-700'}
-                      `}
-                    >
-                      {notificacion.titulo}
-                    </p>
-                    {!(notificacion.actorNombre && notificacion.mensaje.includes('\n')) && !notificacion.leida && (
-                      <span className="inline-block w-2.5 h-2.5 lg:w-2 lg:h-2 2xl:w-2.5 2xl:h-2.5 bg-blue-500 rounded-full ml-1.5 align-middle" />
-                    )}
-                  </div>
-
-                  {/* Mensaje */}
-                  {notificacion.actorNombre && notificacion.mensaje.includes('\n') ? (
-                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mb-0.5">
-                      {notificacion.mensaje.split('\n')[0]}
-                    </p>
-                  ) : (
-                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mb-0.5 whitespace-pre-line line-clamp-3">
-                      {notificacion.mensaje}
-                    </p>
-                  )}
-
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-blue-700 font-medium">
-                    {formatearFechaRelativa(notificacion.createdAt)}
-                  </p>
+                  <ContenidoItem notificacion={notificacion} expandida={expandidaId === notificacion.id} />
                 </div>
 
                 {/* Botón eliminar */}
@@ -399,6 +606,7 @@ interface DropdownDesktopProps {
   cargandoMas: boolean;
   onCargarMas: () => void;
   onEliminar: (id: string) => void;
+  expandidaId: string | null;
 }
 
 function DropdownDesktop({
@@ -411,6 +619,7 @@ function DropdownDesktop({
   cargandoMas,
   onCargarMas,
   onEliminar,
+  expandidaId,
 }: DropdownDesktopProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -492,6 +701,7 @@ function DropdownDesktop({
           hayMas={hayMas}
           cargandoMas={cargandoMas}
           onCargarMas={onCargarMas}
+          expandidaId={expandidaId}
         />
       </div>
 
@@ -520,7 +730,10 @@ export function PanelNotificaciones() {
   const eliminarPorId = useNotificacionesStore((state) => state.eliminarPorId);
   const { esMobile } = useBreakpoint();
   const navigate = useNavigate();
+  const location = useLocation();
   const cantidadNoLeidas = useNotificacionesStore((state) => state.totalNoLeidas);
+
+  const [expandidaId, setExpandidaId] = useState<string | null>(null);
 
   const handleClickNotificacion = (notificacion: Notificacion) => {
     if (!notificacion.leida) {
@@ -529,7 +742,16 @@ export function PanelNotificaciones() {
     const ruta = obtenerRutaDestino(notificacion);
     if (ruta) {
       cerrarPanel();
-      navigate(ruta);
+      // Si ya estamos en la misma ruta base, usar replace para no recargar
+      const [rutaBase, query] = ruta.split('?');
+      if (location.pathname === rutaBase && query) {
+        navigate(`${rutaBase}?${query}`, { replace: true });
+      } else {
+        navigate(ruta);
+      }
+    } else {
+      // Sin ruta → toggle expansión del mensaje
+      setExpandidaId((prev) => prev === notificacion.id ? null : notificacion.id);
     }
   };
 
@@ -579,6 +801,7 @@ export function PanelNotificaciones() {
             hayMas={hayMas}
             cargandoMas={cargandoMas}
             onCargarMas={cargarMas}
+            expandidaId={expandidaId}
           />
 
           <FooterNotificaciones
@@ -597,6 +820,7 @@ export function PanelNotificaciones() {
           cargandoMas={cargandoMas}
           onCargarMas={cargarMas}
           onEliminar={eliminarPorId}
+          expandidaId={expandidaId}
         />
       )}
     </>

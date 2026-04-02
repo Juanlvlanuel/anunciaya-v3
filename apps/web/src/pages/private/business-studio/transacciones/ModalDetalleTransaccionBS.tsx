@@ -38,6 +38,7 @@ import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { notificar } from '../../../../utils/notificaciones';
 import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { usePuntosStore } from '../../../../stores/usePuntosStore';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import type { TransaccionPuntos } from '../../../../types/puntos';
@@ -141,6 +142,7 @@ export default function ModalDetalleTransaccionBS({
   }, [mostrarRevocar]);
   const revocarTransaccion = useTransaccionesStore((s) => s.revocarTransaccion);
   const totalSucursales = useAuthStore((s) => s.totalSucursales);
+  const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
   const tieneSucursales = totalSucursales > 1;
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
   const abrirChatYA = useUiStore((s) => s.abrirChatYA);
@@ -369,7 +371,7 @@ export default function ModalDetalleTransaccionBS({
               <span className="text-base lg:text-sm 2xl:text-base font-bold text-amber-600">
                 +{tx.puntosOtorgados.toLocaleString()} pts
               </span>
-              {tx.multiplicadorAplicado > 1 && (
+              {nivelesActivos && tx.multiplicadorAplicado > 1 && (
                 <span className="text-base lg:text-sm 2xl:text-base px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
                   ×{tx.multiplicadorAplicado}
                 </span>

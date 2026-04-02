@@ -43,34 +43,26 @@ interface EstadoOrden {
 
 const ESTADO_CONFIG: Record<
   EstadoVoucher,
-  { label: string; color: string; bg: string; border: string; icono: typeof Clock }
+  { label: string; clases: string; icono: typeof Clock }
 > = {
   pendiente: {
     label: 'Pendiente',
-    color: '#d97706',
-    bg: '#fffbeb',
-    border: '#fde68a',
+    clases: 'bg-amber-100 text-amber-700',
     icono: Clock,
   },
   usado: {
     label: 'Usado',
-    color: '#059669',
-    bg: '#ecfdf5',
-    border: '#a7f3d0',
+    clases: 'bg-green-100 text-green-700',
     icono: CheckCircle,
   },
   cancelado: {
     label: 'Cancelado',
-    color: '#dc2626',
-    bg: '#fef2f2',
-    border: '#fecaca',
+    clases: 'bg-red-100 text-red-700',
     icono: XCircle,
   },
   expirado: {
     label: 'Expirado',
-    color: '#6b7280',
-    bg: '#f9fafb',
-    border: '#e5e7eb',
+    clases: 'bg-slate-200 text-slate-600',
     icono: AlertTriangle,
   },
 };
@@ -121,14 +113,18 @@ export default function TablaHistorialVouchers({
   onClickVoucher,
   stickyTop = 0,
   negocioFiltro: negocioFiltroExterno,
+  onClickImagen,
+  filtroEstado = 'todos',
 }: {
   vouchers: Voucher[];
   onClickVoucher?: (voucher: Voucher) => void;
+  onClickImagen?: (url: string) => void;
   stickyTop?: number;
   negocioFiltro?: string;
+  filtroEstado?: string;
 }) {
-  const [filtroActivo, setFiltroActivo] = useState<EstadoVoucher | 'todos'>('todos');
-  
+  const filtroActivo = filtroEstado as EstadoVoucher | 'todos';
+
   // Filtro de negocio viene del padre (header)
   const negocioFiltro = negocioFiltroExterno ?? 'todos';
 
@@ -151,40 +147,23 @@ export default function TablaHistorialVouchers({
     return pasaEstado && pasaNegocio;
   });
 
-  // Contar por estado (respeta filtro de negocio)
-  const baseParaConteo = negocioFiltro === 'todos'
-    ? vouchers
-    : vouchers.filter((v) => v.negocioNombre === negocioFiltro);
-  const conteos: Record<EstadoVoucher | 'todos', number> = {
-    todos: baseParaConteo.length,
-    pendiente: baseParaConteo.filter((v) => v.estado === 'pendiente').length,
-    usado: baseParaConteo.filter((v) => v.estado === 'usado').length,
-    cancelado: baseParaConteo.filter((v) => v.estado === 'cancelado').length,
-    expirado: baseParaConteo.filter((v) => v.estado === 'expirado').length,
-  };
-
-  // Config para chip "Todos"
-  const FILTROS_CHIPS: { id: EstadoVoucher | 'todos'; label: string; color: string; bg: string; border: string }[] = [
-    { id: 'todos', label: 'Todos', color: '#334155', bg: '#f1f5f9', border: '#cbd5e1' },
-    { id: 'pendiente', label: 'Pendientes', color: ESTADO_CONFIG.pendiente.color, bg: ESTADO_CONFIG.pendiente.bg, border: ESTADO_CONFIG.pendiente.border },
-    { id: 'usado', label: 'Usados', color: ESTADO_CONFIG.usado.color, bg: ESTADO_CONFIG.usado.bg, border: ESTADO_CONFIG.usado.border },
-    { id: 'cancelado', label: 'Cancelados', color: ESTADO_CONFIG.cancelado.color, bg: ESTADO_CONFIG.cancelado.bg, border: ESTADO_CONFIG.cancelado.border },
-    { id: 'expirado', label: 'Expirados', color: ESTADO_CONFIG.expirado.color, bg: ESTADO_CONFIG.expirado.bg, border: ESTADO_CONFIG.expirado.border },
-  ];
-
   if (vouchers.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+      <div className="flex flex-col items-center justify-center py-16 text-slate-600">
         <Inbox className="w-12 h-12 mb-3 text-slate-300" strokeWidth={1.5} />
-        <p className="text-sm font-semibold text-slate-500">Sin vouchers aún</p>
-        <p className="text-xs text-slate-400 mt-1">Canjea recompensas para ver tus vouchers aquí</p>
+        <p className="text-sm font-semibold text-slate-600">Sin vouchers aún</p>
+        <p className="text-xs text-slate-600 mt-1">Canjea recompensas para ver tus vouchers aquí</p>
       </div>
     );
   }
 
   // Vouchers ordenados según estado de orden
   const vouchersOrdenados = [...vouchersFiltrados].sort((a, b) => {
-    if (!orden) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    if (!orden) {
+      const fechaA = new Date(a.usadoAt || a.createdAt).getTime();
+      const fechaB = new Date(b.usadoAt || b.createdAt).getTime();
+      return fechaB - fechaA;
+    }
 
     const dir = orden.direccion === 'asc' ? 1 : -1;
     switch (orden.columna) {
@@ -204,119 +183,39 @@ export default function TablaHistorialVouchers({
       ═══════════════════════════════════════════════════════════════════ */}
       <div className="lg:hidden">
 
-        {/* Chips de filtro + select negocio - sticky */}
-        <div
-          className="sticky z-10 flex items-center gap-2 pb-2.5 pt-2 mb-2 -mx-4 px-4"
-          style={{ top: `${stickyTop}px`, background: '#f8fafc' }}
-        >
-          <div className="flex gap-2 flex-1 overflow-x-auto cardya-tabs items-center">
-            {FILTROS_CHIPS.map((chip) => {
-              const activo = filtroActivo === chip.id;
-              const cantidad = conteos[chip.id];
-              if (cantidad === 0 && chip.id !== 'todos') return null;
-
-              return (
-                <button
-                  key={chip.id}
-                  onClick={() => {
-                    setFiltroActivo(chip.id);
-                    if (chip.id === 'todos') setOrden(null);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer outline-none focus:outline-none"
-                  style={{
-                    background: activo ? chip.bg : '#f8fafc',
-                    color: activo ? chip.color : '#64748b',
-                    border: `1.5px solid ${activo ? chip.color : '#cbd5e1'}`,
-                  }}
-                >
-                  <span>{chip.label}</span>
-                  <span
-                    className="text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none"
-                    style={{
-                      background: activo ? chip.border : '#e2e8f0',
-                      color: activo ? chip.color : '#64748b',
-                    }}
-                  >
-                    {cantidad}
-                  </span>
-                </button>
-              );
-            })}
-
-            {/* ── Separador visual ── */}
-            <div className="w-px h-5 bg-slate-300 shrink-0" />
-
-            {/* ── Chips de ordenamiento ── */}
-            {([
-              { col: 'puntos' as ColumnaOrdenVoucher, label: 'Puntos' },
-              { col: 'createdAt' as ColumnaOrdenVoucher, label: 'Canje' },
-              { col: 'expiraAt' as ColumnaOrdenVoucher, label: 'Vence' },
-            ]).map(({ col, label }) => {
-              const activo = orden?.columna === col;
-              return (
-                <button
-                  key={`orden-${col}`}
-                  onClick={() => alternarOrden(col)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer outline-none focus:outline-none"
-                  style={{
-                    background: activo ? '#fffbeb' : '#f8fafc',
-                    color: activo ? '#d97706' : '#94a3b8',
-                    border: `1.5px solid ${activo ? '#f59e0b' : '#cbd5e1'}`,
-                  }}
-                >
-                  {activo ? (
-                    orden.direccion === 'desc' ? (
-                      <ChevronDown className="w-3 h-3" strokeWidth={3} />
-                    ) : (
-                      <ChevronUp className="w-3 h-3" strokeWidth={3} />
-                    )
-                  ) : (
-                    <ArrowUpDown className="w-3 h-3" strokeWidth={2.5} />
-                  )}
-                  <span>{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Lista de cards */}
         {vouchersOrdenados.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+          <div className="flex flex-col items-center justify-center py-10 text-slate-600">
             <Inbox className="w-10 h-10 mb-2 text-slate-300" strokeWidth={1.5} />
-            <p className="text-xs font-semibold text-slate-400">Sin vouchers en este filtro</p>
+            <p className="text-xs font-semibold text-slate-600">Sin vouchers en este filtro</p>
           </div>
         ) : (
           <div className="space-y-2.5">
             {vouchersOrdenados.map((voucher) => {
               const estadoConf = ESTADO_CONFIG[voucher.estado];
-              const IconoEstado = estadoConf.icono;
+
 
               return (
                 <div
                   key={voucher.id}
                   onClick={() => onClickVoucher?.(voucher)}
-                  className="group bg-white rounded-2xl overflow-hidden flex flex-row cursor-pointer active:bg-slate-50 transition-all duration-300"
-                  style={{
-                    border: '1px solid #e2e8f0',
-                    height: '125px',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-                  }}
+                  className="group bg-white rounded-2xl overflow-hidden flex flex-row cursor-pointer transition-all duration-300 shadow-md hover:shadow-xl"
+                  style={{ height: '185px' }}
                 >
                   {/* Imagen izquierda */}
-                  <div className="w-32 shrink-0 relative overflow-hidden">
+                  <div className="w-36 shrink-0 relative overflow-hidden">
                     {voucher.recompensaImagen ? (
                       <img
                         src={voucher.recompensaImagen}
                         alt={voucher.recompensaNombre}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
                       />
                     ) : (
                       <div
                         className="w-full h-full flex items-center justify-center"
                         style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                       >
-                        <Gift className="w-7 h-7 text-slate-500" strokeWidth={1.5} />
+                        <Gift className="w-10 h-10 text-slate-600" strokeWidth={1.5} />
                       </div>
                     )}
                   </div>
@@ -328,55 +227,62 @@ export default function TablaHistorialVouchers({
                   />
 
                   {/* Info derecha */}
-                  <div className="flex-1 px-3 py-2.5 flex flex-col justify-between min-w-0 overflow-hidden">
-                    {/* Top: Nombre + Badge estado */}
+                  <div className="flex-1 p-3 flex flex-col justify-between min-w-0 overflow-hidden">
+                    {/* Top: Logo + Negocio → Nombre recompensa */}
                     <div className="min-w-0">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <h4 className="text-base font-bold text-slate-800 truncate leading-tight flex-1">
-                          {voucher.recompensaNombre}
-                        </h4>
-                        <span
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-lg shrink-0"
-                          style={{
-                            background: estadoConf.bg,
-                            border: `1px solid ${estadoConf.border}`,
-                          }}
-                        >
-                          <IconoEstado className="w-3.5 h-3.5" style={{ color: estadoConf.color }} strokeWidth={2.5} />
-                          <span className="text-[11px] font-bold" style={{ color: estadoConf.color }}>
-                            {estadoConf.label}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Store className="w-3.5 h-3.5 text-amber-600 shrink-0" strokeWidth={2.5} />
-                        <span className="text-sm text-amber-700 font-bold truncate">
+                      <div className="flex items-center gap-2">
+                        {voucher.negocioLogo ? (
+                          <img
+                            src={voucher.negocioLogo}
+                            alt={voucher.negocioNombre}
+                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200"
+                          />
+                        ) : (
+                          <Store className="w-8 h-8 shrink-0 text-amber-600" strokeWidth={2} />
+                        )}
+                        <p className="text-lg font-bold text-slate-700 truncate leading-tight">
                           {voucher.negocioNombre}
-                        </span>
+                        </p>
                       </div>
+                      <h4 className="text-lg font-bold text-slate-800 truncate leading-tight mt-1">
+                        {voucher.recompensaNombre}
+                      </h4>
                     </div>
 
-                    {/* Bottom: Puntos + Fecha dinámica */}
+                    {/* Middle: Puntos + Badge estado */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <Ticket className="w-4 h-4 text-slate-400" strokeWidth={2} />
-                        <span className="text-base font-black text-slate-700">
-                          {voucher.puntosUsados.toLocaleString()}
-                        </span>
-                        <span className="text-xs text-slate-400 font-bold">pts</span>
+                      <div className="flex items-center gap-1.5">
+                        <Ticket className="w-4 h-4 text-slate-600" strokeWidth={2} />
+                        {voucher.puntosUsados > 0 ? (
+                          <>
+                            <span className="text-2xl font-black text-slate-800 leading-none">
+                              {voucher.puntosUsados.toLocaleString()}
+                            </span>
+                            <span className="text-sm text-slate-600 font-medium">pts</span>
+                          </>
+                        ) : (
+                          <span data-testid={`gratis-${voucher.id}`} className="text-lg font-bold text-emerald-600">Gratis</span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <div className="text-right">
-                          <p className="text-xs font-semibold text-slate-600">
-                            {fechaDinamica(voucher).label}
-                          </p>
-                          <p className="text-xs font-bold text-slate-500">
-                            {fechaDinamica(voucher).fecha}
-                          </p>
-                        </div>
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: '#f1f5f9' }}>
-                          <ChevronRight className="w-4.5 h-4.5 text-slate-600" strokeWidth={2.5} />
-                        </div>
+                      <span
+                        className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full shrink-0 text-sm lg:text-[11px] 2xl:text-sm font-bold ${estadoConf.clases}`}
+                      >
+                        {estadoConf.label}
+                      </span>
+                    </div>
+
+                    {/* Bottom: Fecha + Botón */}
+                    <div>
+                      <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mb-1.5">
+                        {fechaDinamica(voucher).label}:{' '}
+                        <strong>{fechaDinamica(voucher).fecha}</strong>
+                      </p>
+                      <div
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl font-bold text-sm lg:text-[11px] 2xl:text-sm text-white"
+                        style={{ background: '#1e293b' }}
+                      >
+                        <span>Ver detalles</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
                       </div>
                     </div>
                   </div>
@@ -391,65 +297,25 @@ export default function TablaHistorialVouchers({
           DESKTOP: Card con filtros fijos + tabla con scroll (>= lg)
       ═══════════════════════════════════════════════════════════════════ */}
       <div
-        className="hidden lg:flex lg:flex-col rounded-2xl overflow-hidden"
+        data-testid="tabla-vouchers-desktop"
+        className="hidden lg:flex lg:flex-col rounded-xl overflow-hidden bg-white border-2 border-slate-300"
         style={{
-          border: '1px solid #cbd5e1',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           height: 'calc(100vh - 300px)',
           minHeight: '400px',
         }}
       >
-        {/* Filtros fijos (no hacen scroll) */}
-        <div
-          className="flex items-center gap-2 px-5 2xl:px-6 py-3 shrink-0"
-          style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
-        >
-          <div className="flex gap-2 flex-1">
-            {FILTROS_CHIPS.map((chip) => {
-              const activo = filtroActivo === chip.id;
-              const cantidad = conteos[chip.id];
-              if (cantidad === 0 && chip.id !== 'todos') return null;
-
-              return (
-                <button
-                  key={chip.id}
-                  onClick={() => {
-                    setFiltroActivo(chip.id);
-                    if (chip.id === 'todos') setOrden(null);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer outline-none focus:outline-none"
-                  style={{
-                    background: activo ? chip.bg : '#f8fafc',
-                    color: activo ? chip.color : '#64748b',
-                    border: `1.5px solid ${activo ? chip.color : '#cbd5e1'}`,
-                  }}
-                >
-                  <span>{chip.label}</span>
-                  <span
-                    className="text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none"
-                    style={{
-                      background: activo ? chip.border : '#e2e8f0',
-                      color: activo ? chip.color : '#64748b',
-                    }}
-                  >
-                    {cantidad}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Contenido con scroll */}
         {vouchersOrdenados.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
             <Inbox className="w-10 h-10 mb-2 text-slate-300" strokeWidth={1.5} />
-            <p className="text-xs font-semibold text-slate-400">Sin vouchers en este filtro</p>
+            <p className="text-xs font-semibold text-slate-600">Sin vouchers en este filtro</p>
           </div>
         ) : (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-              {/* Header fijo de la tabla */}
-              <table className="w-full text-left shrink-0" style={{ tableLayout: 'fixed' }}>
+          <>
+            {/* Header fijo (no hace scroll) */}
+            <div className="shrink-0 h-12" style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+              <table className="w-full h-full" style={{ tableLayout: 'fixed', marginRight: '15px', width: 'calc(100% - 15px)' }}>
                 <colgroup>
                   <col style={{ width: '22%' }} />
                   <col style={{ width: '20%' }} />
@@ -457,101 +323,103 @@ export default function TablaHistorialVouchers({
                   <col style={{ width: '16%' }} />
                   <col style={{ width: '16%' }} />
                   <col style={{ width: '14%' }} />
-                  <col style={{ width: '8px' }} />
                 </colgroup>
                 <thead>
                   <tr style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-                    <th className="px-4 py-3 text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       Recompensa
                     </th>
-                    <th className="px-4 py-3 text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       Negocio
                     </th>
-                    <th className="px-4 py-3 text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       <button
                         onClick={() => alternarOrden('puntos')}
-                        className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors outline-none focus:outline-none uppercase"
+                        className="inline-flex items-center gap-1 cursor-pointer hover:text-amber-300 transition-colors outline-none focus:outline-none uppercase group"
                       >
                         <span>Puntos</span>
                         {orden?.columna === 'puntos' ? (
                           orden.direccion === 'desc' ? (
-                            <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           ) : (
-                            <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           )
                         ) : (
-                          <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
+                          <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
                         )}
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       <button
                         onClick={() => alternarOrden('createdAt')}
-                        className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors outline-none focus:outline-none uppercase"
+                        className="inline-flex items-center gap-1 cursor-pointer hover:text-amber-300 transition-colors outline-none focus:outline-none uppercase group"
                       >
                         <span>Fecha Canje</span>
                         {orden?.columna === 'createdAt' ? (
                           orden.direccion === 'desc' ? (
-                            <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           ) : (
-                            <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           )
                         ) : (
-                          <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
+                          <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
                         )}
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       <button
                         onClick={() => alternarOrden('expiraAt')}
-                        className="inline-flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors outline-none focus:outline-none uppercase"
+                        className="inline-flex items-center gap-1 cursor-pointer hover:text-amber-300 transition-colors outline-none focus:outline-none uppercase group"
                       >
                         <span>Vencimiento</span>
                         {orden?.columna === 'expiraAt' ? (
                           orden.direccion === 'desc' ? (
-                            <ChevronDown className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           ) : (
-                            <ChevronUp className="w-5 h-5 text-amber-400" strokeWidth={3} />
+                            <ChevronUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           )
                         ) : (
-                          <ArrowUpDown className="w-4 h-4 text-white/50" strokeWidth={2.5} />
+                          <ArrowUpDown className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3 2xl:h-3 text-white/80 group-hover:text-amber-300" />
                         )}
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-[11px] 2xl:text-xs font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       Estado
                     </th>
-                    <th className="p-0" />
                   </tr>
                 </thead>
               </table>
-
-              {/* Contenido scrolleable */}
-              <div className="flex-1 overflow-y-auto">
-                <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
-                  <colgroup>
-                    <col style={{ width: '22%' }} />
-                    <col style={{ width: '20%' }} />
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '15%' }} />
-                    <col style={{ width: '14%' }} />
-                  </colgroup>
+            </div>
+            {/* Body con scroll */}
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '14%' }} />
+                </colgroup>
                 <tbody>
                 {(() => {
-                  return vouchersOrdenados.map((voucher) => {
+                  return vouchersOrdenados.map((voucher, idx) => {
                     const config = ESTADO_CONFIG[voucher.estado];
-                    const Icono = config.icono;
+                    const bgFila = idx % 2 === 0 ? 'bg-white' : 'bg-slate-100';
 
                     return (
                         <tr
                           key={voucher.id}
+                          data-testid={`fila-voucher-${voucher.id}`}
                           onClick={() => onClickVoucher?.(voucher)}
-                          className="hover:bg-slate-50 cursor-pointer border-b border-slate-200"
+                          className={`${bgFila} hover:bg-slate-200 cursor-pointer border-b border-slate-300`}
                         >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-slate-100">
+                          <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-slate-200 cursor-pointer hover:scale-110 transition-transform"
+                                onClick={(e) => { if (voucher.recompensaImagen) { e.stopPropagation(); onClickImagen?.(voucher.recompensaImagen); } }}
+                              >
                                 {voucher.recompensaImagen ? (
                                   <img
                                     src={voucher.recompensaImagen}
@@ -559,49 +427,47 @@ export default function TablaHistorialVouchers({
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <Gift className="w-4 h-4 text-slate-400" strokeWidth={2} />
+                                  <Gift className="w-4 h-4 text-slate-600" strokeWidth={2} />
                                 )}
                               </div>
-                              <span className="text-xs 2xl:text-sm font-bold text-slate-800 truncate">
+                              <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">
                                 {voucher.recompensaNombre}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2">
                             <div className="flex items-center gap-2">
                               {voucher.negocioLogo ? (
                                 <img
                                   src={voucher.negocioLogo}
                                   alt={voucher.negocioNombre}
-                                  className="w-6 h-6 rounded-full object-cover shrink-0"
+                                  className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full object-cover shrink-0"
                                 />
                               ) : (
-                                <Store className="w-4 h-4 text-slate-400 shrink-0" />
+                                <Store className="w-4 h-4 text-slate-600 shrink-0" />
                               )}
-                              <span className="text-xs 2xl:text-sm text-slate-600 font-medium truncate">
+                              <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">
                                 {voucher.negocioNombre}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-xs 2xl:text-sm font-bold text-slate-700">
-                            {voucher.puntosUsados.toLocaleString()} pts
+                          <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm font-bold">
+                            {voucher.puntosUsados > 0 ? (
+                              <span className="text-slate-600">{voucher.puntosUsados.toLocaleString()} pts</span>
+                            ) : (
+                              <span data-testid={`gratis-desktop-${voucher.id}`} className="text-emerald-600">Gratis</span>
+                            )}
                           </td>
-                          <td className="px-4 py-3 text-xs 2xl:text-sm text-slate-500">
+                          <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                             {formatearFecha(voucher.createdAt)}
                           </td>
-                          <td className="px-4 py-3 text-xs 2xl:text-sm text-slate-500">
+                          <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                             {formatearFecha(voucher.expiraAt)}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-left">
                             <span
-                              className="inline-flex items-center gap-1 text-[11px] 2xl:text-xs font-bold px-2.5 py-1 rounded-lg"
-                              style={{
-                                background: config.bg,
-                                color: config.color,
-                                border: `1px solid ${config.border}`,
-                              }}
+                              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold ${config.clases}`}
                             >
-                              <Icono className="w-3 h-3" strokeWidth={2.5} />
                               {config.label}
                             </span>
                           </td>
@@ -611,8 +477,8 @@ export default function TablaHistorialVouchers({
                 })()}
                 </tbody>
               </table>
-              </div>
             </div>
+          </>
         )}
       </div>
     </>

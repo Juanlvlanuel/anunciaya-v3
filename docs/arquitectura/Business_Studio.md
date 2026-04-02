@@ -1,6 +1,6 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 22 Marzo 2026  
+**Última actualización:** 1 Abril 2026  
 **Versión:** 1.1 (Completamente Verificado)
 
 ---
@@ -153,7 +153,7 @@ Si onboarding_completado = true → Business Studio Dashboard
 │               │                                         │
 │ MenuBusiness  │   Contenido del Módulo                  │
 │ Studio        │                                         │
-│ (15 opciones) │                                         │
+│ (14 opciones) │                                         │
 │               │                                         │
 │               │                                         │
 ├───────────────┴─────────────────────────────────────────┤
@@ -163,7 +163,7 @@ Si onboarding_completado = true → Business Studio Dashboard
 ```
 
 **Componentes principales:**
-- `MenuBusinessStudio.tsx` - Navegación lateral con 15 opciones
+- `MenuBusinessStudio.tsx` - Navegación lateral con 14 opciones
 - `SelectorSucursalesInline.tsx` - Cambiar entre sucursales (dueños)
 - `PanelPreviewNegocio.tsx` - Preview en vivo del negocio
 
@@ -171,7 +171,7 @@ Si onboarding_completado = true → Business Studio Dashboard
 
 ## 📦 Los 14 Módulos
 
-> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (30 Enero 2026)
+> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (1 Abril 2026)
 
 ### Organización del Menú
 
@@ -198,23 +198,23 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 9 | Puntos | `/business-studio/puntos` | Coins | ✅ 100% |
-| 10 | Rifas | `/business-studio/rifas` | Gift | ⏳ Pendiente |
+| 8 | Puntos y Recompensas | `/business-studio/puntos` | Coins | ✅ 100% |
+| 9 | Rifas | `/business-studio/rifas` | Gift | ⏳ Pendiente |
 
 #### 4. Recursos Humanos (2 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 11 | Empleados | `/business-studio/empleados` | UserCog | ⏳ Pendiente |
-| 12 | Vacantes | `/business-studio/vacantes` | Briefcase | ⏳ Pendiente |
+| 10 | Empleados | `/business-studio/empleados` | UserCog | ⏳ Pendiente |
+| 11 | Vacantes | `/business-studio/vacantes` | Briefcase | ⏳ Pendiente |
 
 #### 5. Análisis & Configuración (3 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 13 | Reportes | `/business-studio/reportes` | FileBarChart | ⏳ Pendiente |
-| 14 | Sucursales | `/business-studio/sucursales` | Building2 | ⏳ Pendiente |
-| 15 | Mi Perfil | `/business-studio/perfil` | User | ✅ 100% |
+| 12 | Reportes | `/business-studio/reportes` | FileBarChart | ⏳ Pendiente |
+| 13 | Sucursales | `/business-studio/sucursales` | Building2 | ⏳ Pendiente |
+| 14 | Mi Perfil | `/business-studio/perfil` | User | ✅ 100% |
 
 ---
 
@@ -686,7 +686,7 @@ await actualizarInfoGeneral(negocioId, datos);
 
 ## 📂 Ubicación de Archivos
 
-> ✅ **VERIFICADO:** Contra estructura real del proyecto (30 Enero 2026)
+> ✅ **VERIFICADO:** Contra estructura real del proyecto (1 Abril 2026)
 
 ### Backend
 
@@ -752,13 +752,13 @@ apps/web/src/
 │       └── PaginaOfertas.tsx         ✅ Lista con filtros
 │
 ├── components/layout/
-│   ├── MenuBusinessStudio.tsx        ✅ Menú 15 opciones
+│   ├── MenuBusinessStudio.tsx        ✅ Menú 14 opciones
 │   ├── DrawerBusinessStudio.tsx      ✅ Drawer móvil
 │   ├── PanelPreviewNegocio.tsx       ✅ Preview en vivo
 │   └── SelectorSucursalesInline.tsx  ✅ Cambiar sucursal
 │
 ├── router/
-│   ├── index.tsx                     ✅ 15 rutas BS
+│   ├── index.tsx                     ✅ 14 rutas BS
 │   └── guards/ModoGuard.tsx          ✅ Guard de modo
 │
 ├── services/
@@ -963,7 +963,7 @@ export async function actualizarInfoGeneral() { ... }
 
 ## ✅ Verificación
 
-**Última verificación:** 12 Febrero 2026
+**Última verificación:** 1 Abril 2026
 
 **Archivos backend verificados:** 8/8 ✅
 - `dashboard.routes.ts` (101 líneas)
@@ -976,8 +976,8 @@ export async function actualizarInfoGeneral() { ... }
 - `puntos.service.ts` (~400 líneas)
 
 **Archivos frontend verificados:** 4/4 ✅
-- `router/index.tsx` (15 rutas Business Studio)
-- `MenuBusinessStudio.tsx` (15 opciones organizadas)
+- `router/index.tsx` (14 rutas Business Studio)
+- `MenuBusinessStudio.tsx` (14 opciones organizadas)
 - `PanelPreviewNegocio.tsx` (2 tabs preview)
 - `PaginaPuntos.tsx` (página completa con 3 secciones)
 
@@ -1010,6 +1010,6 @@ export async function actualizarInfoGeneral() { ... }
 
 ---
 
-**Última actualización:** 22 Marzo 2026  
+**Última actualización:** 1 Abril 2026  
 **Autor:** Equipo AnunciaYA  
 **Versión:** 1.1 (100% Verificado contra código real)

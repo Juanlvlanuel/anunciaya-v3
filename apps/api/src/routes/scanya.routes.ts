@@ -33,6 +33,7 @@ import {
   contadoresController,
   sucursalesListaController,
   operadoresListaController,
+  obtenerTarjetasSellosController,
 } from '../controllers/scanya.controller.js';
 import { verificarTokenScanYA } from '../middleware/scanyaAuth.middleware.js';
 
@@ -148,5 +149,8 @@ router.get('/sucursales-lista', verificarTokenScanYA, sucursalesListaController)
 
 // GET /api/scanya/empleados-lista - Lista de empleados para dropdown
 router.get('/operadores-lista', verificarTokenScanYA, operadoresListaController);
+
+// GET /api/scanya/tarjetas-sellos/:clienteId - Tarjetas de sellos activas con progreso
+router.get('/tarjetas-sellos/:clienteId', verificarTokenScanYA, obtenerTarjetasSellosController);
 
 export default router;

@@ -263,7 +263,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   // ---------------------------------------------------------------------------
   // Store
   // ---------------------------------------------------------------------------
-  const { usuario } = useScanYAStore();
+  const { usuario, nivelesActivos, setNivelesActivos } = useScanYAStore();
   const tipoUsuario = usuario?.tipo || 'empleado';
 
   // ---------------------------------------------------------------------------
@@ -421,6 +421,10 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
       setPagina(1);
       cargarHistorial(1, false);
       setYaCargo(true);
+      // Sincronizar nivelesActivos al abrir por si no pasó por ModalRegistrarVenta
+      scanyaService.obtenerConfigScanYA().then(res => {
+        if (res.success && res.data) setNivelesActivos(res.data.nivelesActivos);
+      }).catch(() => { /* silencioso */ });
     }
   }, [abierto, yaCargo]);
 
@@ -617,10 +621,12 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
                   </div>
                 )}
                 <div className="flex items-center gap-2 mt-1">
-                  <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ background: nivelConfig.bg }}>
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm">{nivelConfig.emoji}</span>
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold capitalize" style={{ color: nivelConfig.text }}>{t.clienteNivel}</span>
-                  </div>
+                  {nivelesActivos && (
+                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ background: nivelConfig.bg }}>
+                      <span className="text-sm lg:text-[11px] 2xl:text-sm">{nivelConfig.emoji}</span>
+                      <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold capitalize" style={{ color: nivelConfig.text }}>{t.clienteNivel}</span>
+                    </div>
+                  )}
                   {esRevocada && (
                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.2)' }}>
                       <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-400">Revocada</span>
@@ -761,7 +767,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
                       <span className={`${VALUE} ${esRevocada ? 'line-through' : ''}`} style={{ color: esRevocada ? '#64748B' : '#34D399' }}>
                         +{t.puntosOtorgados.toLocaleString()}
                       </span>
-                      {!esRevocada && t.multiplicadorAplicado > 1 && (
+                      {!esRevocada && nivelesActivos && t.multiplicadorAplicado > 1 && (
                         <span className="text-sm lg:text-[11px] 2xl:text-sm px-1 rounded font-bold" style={{ background: 'rgba(96,165,250,0.15)', color: '#60A5FA' }}>
                           x{t.multiplicadorAplicado}
                         </span>
@@ -1082,6 +1088,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
                   key={transaccion.id}
                   transaccion={transaccion}
                   onClick={() => setTransaccionDetalle(transaccion)}
+                  nivelesActivos={nivelesActivos}
                 />
               ))}
 

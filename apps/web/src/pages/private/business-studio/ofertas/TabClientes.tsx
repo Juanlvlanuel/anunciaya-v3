@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, X, Users, ChevronDown, Check, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Spinner } from '../../../../components/ui/Spinner';
 import type { ClienteAsignado } from '../../../../services/ofertasService';
+import { usePuntosStore } from '../../../../stores/usePuntosStore';
 
 // =============================================================================
 // TIPOS
@@ -163,6 +164,7 @@ export function TabClientes({
     clientes, cargando, clientesSeleccionados, onToggleCliente, onSeleccionarTodos, onLimpiarSeleccion,
     modoEdicion, clientesAsignados, cargandoAsignados, onClickCliente, botonesDesktop,
 }: TabClientesProps) {
+    const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
 
     // ── MODO EDICIÓN: lista readonly de clientes asignados ──
     if (modoEdicion) {
@@ -272,6 +274,7 @@ export function TabClientes({
                         />
                     </div>
                     <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
+                        {nivelesActivos && (
                         <DropdownFiltro
                             opciones={NIVELES}
                             valor={filtroNivel}
@@ -279,6 +282,7 @@ export function TabClientes({
                             testId="dropdown-nivel"
                             expandir
                         />
+                        )}
                         <DropdownFiltro
                             opciones={ACTIVIDADES}
                             valor={filtroActividad}
@@ -341,6 +345,7 @@ export function TabClientes({
                                     {cliente.telefono && <>{cliente.telefono} • </>}{cliente.totalVisitas} visitas
                                 </p>
                             </div>
+                            {nivelesActivos && (
                             <span className={`text-xs lg:text-[10px] 2xl:text-xs font-bold uppercase px-2 py-0.5 lg:px-1.5 lg:py-0.5 2xl:px-2 rounded-full border-2 shrink-0 ${
                                 cliente.nivelActual.toLowerCase() === 'oro' ? 'bg-amber-100 border-amber-300 text-amber-700'
                                 : cliente.nivelActual.toLowerCase() === 'plata' ? 'bg-slate-100 border-slate-300 text-slate-700'
@@ -348,6 +353,7 @@ export function TabClientes({
                             }`}>
                                 {cliente.nivelActual}
                             </span>
+                            )}
                         </button>
                     ))
                 )}

@@ -707,13 +707,17 @@ export function ModalVouchers({
                                 <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium mb-3 lg:mb-2 2xl:mb-3" style={{ color: '#94A3B8' }}>{v.recompensaDescripcion}</p>
                             )}
 
-                            {/* Puntos */}
+                            {/* Puntos / Gratis */}
                             <div className={ROW} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                                 <div className="flex items-center gap-1.5">
-                                    <Coins className="w-4 h-4" style={{ color: '#60A5FA' }} />
-                                    <span className={LABEL} style={{ color: '#94A3B8' }}>Puntos canjeados</span>
+                                    <Coins className="w-4 h-4" style={{ color: v.puntosUsados > 0 ? '#60A5FA' : '#34D399' }} />
+                                    <span className={LABEL} style={{ color: '#94A3B8' }}>
+                                        {v.puntosUsados > 0 ? 'Puntos canjeados' : 'Tipo de canje'}
+                                    </span>
                                 </div>
-                                <span className={VALUE} style={{ color: '#60A5FA' }}>{v.puntosUsados.toLocaleString()} pts</span>
+                                <span className={VALUE} style={{ color: v.puntosUsados > 0 ? '#60A5FA' : '#34D399' }}>
+                                    {v.puntosUsados > 0 ? `${v.puntosUsados.toLocaleString()} pts` : `Gratis · ${v.recompensaNombre}`}
+                                </span>
                             </div>
                         </div>
 

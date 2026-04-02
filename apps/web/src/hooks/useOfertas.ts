@@ -190,7 +190,7 @@ export function useOfertas(): UseOfertasReturn {
       if (respuesta.success && respuesta.data) {
         // 4. Reemplazar ID temporal por el real del servidor (sin recargar)
         setOfertas((prev) => prev.map((o) =>
-          o.id === ofertaTemporal.id ? { ...o, id: respuesta.data.id } : o
+          o.id === ofertaTemporal.id ? { ...o, id: respuesta.data!.id } : o
         ));
         // 5. Actualizar caché silenciosamente
         invalidarCache(sucursalId);

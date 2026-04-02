@@ -18,7 +18,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Gift, ImagePlus, Trash2, Loader2 } from 'lucide-react';
+import { Gift, ImagePlus, Trash2, Loader2, Sparkles, Repeat } from 'lucide-react';
 import { useR2Upload } from '../../../../../hooks/useR2Upload';
 import { generarUrlUploadImagenRecompensa } from '../../../../../services/puntosService';
 import { ModalAdaptativo } from '../../../../../components/ui/ModalAdaptativo';
@@ -51,10 +51,16 @@ export interface DatosModalRecompensa {
 // CONSTANTES
 // =============================================================================
 
-const GRADIENTE = {
+const GRADIENTE_PUNTOS = {
   bg: 'linear-gradient(135deg, #1e40af, #2563eb)',
   shadow: 'rgba(37,99,235,0.4)',
   handle: '#1e40af',
+};
+
+const GRADIENTE_COMPRAS = {
+  bg: 'linear-gradient(135deg, #b45309, #d97706)',
+  shadow: 'rgba(180,83,9,0.4)',
+  handle: '#b45309',
 };
 
 // =============================================================================
@@ -66,11 +72,13 @@ export default function ModalRecompensa({
   onCerrar,
   recompensa,
   onGuardar,
+  tipoInicial = 'basica',
 }: {
   abierto: boolean;
   onCerrar: () => void;
   recompensa: Recompensa | null;
   onGuardar: (datos: DatosModalRecompensa) => Promise<void>;
+  tipoInicial?: 'basica' | 'compras_frecuentes';
 }) {
   const imagen = useR2Upload({
     generarUrl: generarUrlUploadImagenRecompensa,
@@ -87,7 +95,7 @@ export default function ModalRecompensa({
   const [guardando, setGuardando] = useState(false);
   const recompensaExtendida = recompensa as unknown as Record<string, unknown> | null;
   const [tipoRecompensa, setTipoRecompensa] = useState<'basica' | 'compras_frecuentes'>(
-    recompensaExtendida?.tipo === 'compras_frecuentes' ? 'compras_frecuentes' : 'basica'
+    recompensaExtendida?.tipo === 'compras_frecuentes' ? 'compras_frecuentes' : tipoInicial
   );
   const [comprasRequeridas, setComprasRequeridas] = useState<string>(
     recompensaExtendida?.numeroComprasRequeridas?.toString() ?? ''
@@ -128,7 +136,11 @@ export default function ModalRecompensa({
   if (!abierto) return null;
 
   const stockValido = stockIlimitado || (stock.length > 0 && Number(stock) > 0);
-  const valido = nombre.trim().length > 0 && puntos.length > 0 && Number(puntos) > 0 && stockValido;
+  const esComprasFrecuentes = tipoRecompensa === 'compras_frecuentes';
+  const puntosValidos = esComprasFrecuentes || (puntos.length > 0 && Number(puntos) > 0);
+  const comprasValidas = !esComprasFrecuentes || (comprasRequeridas.length > 0 && Number(comprasRequeridas) >= 2);
+  const valido = nombre.trim().length > 0 && puntosValidos && comprasValidas && stockValido;
+  const gradiente = esComprasFrecuentes ? GRADIENTE_COMPRAS : GRADIENTE_PUNTOS;
 
   const handleEliminarImagen = () => {
     imagen.reset();
@@ -155,15 +167,15 @@ export default function ModalRecompensa({
       await onGuardar({
         nombre: nombre.trim(),
         descripcion: descripcion.trim() || null,
-        puntosRequeridos: Number(puntos),
+        puntosRequeridos: esComprasFrecuentes ? 1 : Number(puntos),
         stock: stockIlimitado ? null : Number(stock),
         requiereAprobacion: false,
         imagenUrl: imagen.r2Url,
         ...(imagenEliminada && { eliminarImagen: true }),
         activa,
         tipo: tipoRecompensa,
-        numeroComprasRequeridas: tipoRecompensa === 'compras_frecuentes' ? Number(comprasRequeridas) : null,
-        requierePuntos,
+        numeroComprasRequeridas: esComprasFrecuentes ? Number(comprasRequeridas) : null,
+        requierePuntos: esComprasFrecuentes ? false : true,
       });
     } catch (error) {
       console.error('Error al guardar recompensa:', error);
@@ -185,7 +197,7 @@ export default function ModalRecompensa({
       paddingContenido="none"
       sinScrollInterno
       alturaMaxima="xl"
-      colorHandle={GRADIENTE.handle}
+      colorHandle={gradiente.handle}
       headerOscuro
       className="max-w-xs lg:max-w-2xl 2xl:max-w-3xl"
     >
@@ -194,7 +206,7 @@ export default function ModalRecompensa({
         {/* ── Header dark gradiente ── */}
         <div
           className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl"
-          style={{ background: GRADIENTE.bg, boxShadow: `0 4px 16px ${GRADIENTE.shadow}` }}
+          style={{ background: gradiente.bg, boxShadow: `0 4px 16px ${gradiente.shadow}` }}
         >
           <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
           <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
@@ -202,16 +214,23 @@ export default function ModalRecompensa({
           <div className="relative flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
             {/* Ícono */}
             <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
-              <Gift className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+              {esComprasFrecuentes
+                ? <Repeat className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                : <Gift className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+              }
             </div>
 
             {/* Título + subtítulo */}
             <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
               <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
-                {esEdicion ? (recompensa?.nombre || 'Editar recompensa') : 'Nueva recompensa'}
+                {esEdicion
+                  ? (recompensa?.nombre || 'Editar recompensa')
+                  : esComprasFrecuentes ? 'Nueva tarjeta de sellos' : 'Nueva recompensa'}
               </h3>
               <span className="text-sm lg:text-xs 2xl:text-sm text-white/70">
-                {esEdicion ? 'Editando recompensa' : 'Completa los campos'}
+                {esEdicion
+                  ? 'Editando recompensa'
+                  : esComprasFrecuentes ? 'Compra N → siguiente GRATIS' : 'Canje por puntos'}
               </span>
             </div>
 
@@ -223,15 +242,16 @@ export default function ModalRecompensa({
                   onClick={() => setActiva(!activa)}
                   className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl border-2 lg:cursor-pointer ${
                     activa
-                      ? 'border-emerald-300 bg-emerald-500/30 hover:bg-emerald-500/40'
-                      : 'border-white/20 bg-white/15 hover:bg-white/25'
+                      ? 'border-white/40 bg-white/20 hover:bg-white/30'
+                      : 'border-white/20 bg-white/10 hover:bg-white/20'
                   }`}
                 >
-                  <Gift className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${activa ? 'text-emerald-200' : 'text-white/60'}`} />
+                  <Gift className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${activa ? 'text-white' : 'text-white/40'}`} />
                 </button>
               </Tooltip>
             )}
           </div>
+
         </div>
 
         {/* ── Body scrolleable ── */}
@@ -270,29 +290,54 @@ export default function ModalRecompensa({
                   )}
                 </div>
 
-                {/* Puntos + Stock (móvil) */}
+                {/* Puntos o Compras + Stock (móvil) */}
                 <div className="flex-1 flex flex-col gap-2">
-                  {/* Puntos */}
-                  <div>
-                    <label htmlFor="mr-puntos-m" className="block text-sm font-bold text-slate-700 mb-1.5">
-                      Puntos requeridos <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="mr-puntos-m"
-                        type="number"
-                        min={1}
-                        value={puntos}
-                        onChange={(e) => setPuntos(e.target.value)}
-                        placeholder="150"
-                        className="w-full h-11 px-4 pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
-                        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-                      />
-                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-linear-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
-                        pts
-                      </span>
+                  {esComprasFrecuentes ? (
+                    /* Compras requeridas (móvil) */
+                    <div>
+                      <label htmlFor="mr-compras-m" className="block text-sm font-bold text-amber-800 mb-1.5">
+                        Compras para desbloquear <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="mr-compras-m"
+                          type="number"
+                          min={2}
+                          max={1000}
+                          value={comprasRequeridas}
+                          onChange={(e) => setComprasRequeridas(e.target.value)}
+                          placeholder="Ej: 5"
+                          className="w-full h-11 px-4 pr-14 bg-amber-50 border-2 border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-base font-bold text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                          style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+                        />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-linear-to-r from-amber-600 to-amber-700 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
+                          N+1
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* Puntos requeridos (móvil) */
+                    <div>
+                      <label htmlFor="mr-puntos-m" className="block text-sm font-bold text-slate-700 mb-1.5">
+                        Puntos requeridos <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="mr-puntos-m"
+                          type="number"
+                          min={1}
+                          value={puntos}
+                          onChange={(e) => setPuntos(e.target.value)}
+                          placeholder="150"
+                          className="w-full h-11 px-4 pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                          style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+                        />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-linear-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
+                          pts
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Stock */}
                   <div>
@@ -362,29 +407,54 @@ export default function ModalRecompensa({
                 </div>
               </div>
 
-              {/* === DESKTOP: Puntos + Stock === */}
+              {/* === DESKTOP: Puntos/Compras + Stock === */}
               <div className="hidden lg:flex flex-col gap-2.5 2xl:gap-4">
-                {/* Puntos */}
-                <div>
-                  <label htmlFor="mr-puntos" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
-                    Puntos requeridos <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="mr-puntos"
-                      type="number"
-                      min={1}
-                      value={puntos}
-                      onChange={(e) => setPuntos(e.target.value)}
-                      placeholder="150"
-                      className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 pr-14 lg:pr-12 2xl:pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
-                      style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-                    />
-                    <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1.5 2xl:px-2 bg-linear-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
-                      pts
-                    </span>
+                {esComprasFrecuentes ? (
+                  /* Compras requeridas (desktop) */
+                  <div>
+                    <label htmlFor="mr-compras" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-amber-800 mb-1.5 lg:mb-1 2xl:mb-2">
+                      Compras para desbloquear <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="mr-compras"
+                        type="number"
+                        min={2}
+                        max={1000}
+                        value={comprasRequeridas}
+                        onChange={(e) => setComprasRequeridas(e.target.value)}
+                        placeholder="Ej: 5"
+                        className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 pr-14 lg:pr-12 2xl:pr-14 bg-amber-50 border-2 border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-base lg:text-sm 2xl:text-base font-bold text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+                      />
+                      <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1.5 2xl:px-2 bg-linear-to-r from-amber-600 to-amber-700 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
+                        N+1
+                      </span>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* Puntos requeridos (desktop) */
+                  <div>
+                    <label htmlFor="mr-puntos" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+                      Puntos requeridos <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="mr-puntos"
+                        type="number"
+                        min={1}
+                        value={puntos}
+                        onChange={(e) => setPuntos(e.target.value)}
+                        placeholder="150"
+                        className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 pr-14 lg:pr-12 2xl:pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+                      />
+                      <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1.5 2xl:px-2 bg-linear-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
+                        pts
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Stock */}
                 <div>
@@ -448,7 +518,7 @@ export default function ModalRecompensa({
                   type="text"
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Ej: Café gratis, Descuento 20%..."
+                  placeholder={esComprasFrecuentes ? 'Ej: Café gratis, Pizza mediana...' : 'Ej: Café gratis, Descuento 20%...'}
                   className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text"
                   style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 />
@@ -457,80 +527,20 @@ export default function ModalRecompensa({
               {/* Descripción */}
               <div className="mt-3 lg:mt-2 2xl:mt-3">
                 <label htmlFor="mr-descripcion" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
-                  Descripción <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">(opcional)</span>
+                  Descripción o condiciones <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">(opcional)</span>
                 </label>
                 <textarea
                   id="mr-descripcion"
                   name="descripcion"
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
-                  placeholder="Describe los detalles de la recompensa..."
-                  rows={7}
+                  placeholder={esComprasFrecuentes ? 'Ej: Compra 4 cafés y el 5to va por nuestra cuenta' : 'Describe los detalles de la recompensa...'}
+                  rows={esComprasFrecuentes ? 3 : 7}
                   className="w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2.5 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text"
                   style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 />
               </div>
 
-              {/* Tipo de recompensa */}
-              <div className="mt-3 lg:mt-2 2xl:mt-3">
-                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
-                  Tipo de recompensa
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    data-testid="btn-tipo-basica"
-                    onClick={() => setTipoRecompensa('basica')}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all ${tipoRecompensa === 'basica' ? 'bg-blue-600 text-white' : 'bg-slate-100 border-2 border-slate-300 text-slate-600 hover:bg-slate-200'}`}
-                  >
-                    Canjear con puntos
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="btn-tipo-compras"
-                    onClick={() => setTipoRecompensa('compras_frecuentes')}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all ${tipoRecompensa === 'compras_frecuentes' ? 'bg-emerald-600 text-white' : 'bg-slate-100 border-2 border-slate-300 text-slate-600 hover:bg-slate-200'}`}
-                  >
-                    Por compras frecuentes
-                  </button>
-                </div>
-
-                {tipoRecompensa === 'compras_frecuentes' && (
-                  <div className="mt-2 space-y-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <div>
-                      <label className="block text-xs font-semibold text-emerald-700 mb-1">
-                        Número de compras para desbloquear
-                      </label>
-                      <input
-                        id="input-compras-requeridas"
-                        name="comprasRequeridas"
-                        data-testid="input-compras-requeridas"
-                        type="number"
-                        value={comprasRequeridas}
-                        onChange={(e) => setComprasRequeridas(e.target.value)}
-                        placeholder="Ej: 5"
-                        min={2}
-                        max={1000}
-                        className="w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 bg-white border-2 border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base lg:text-sm 2xl:text-base font-bold text-slate-800"
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        id="toggle-requiere-puntos"
-                        name="requierePuntos"
-                        data-testid="toggle-requiere-puntos"
-                        type="checkbox"
-                        checked={!requierePuntos}
-                        onChange={(e) => setRequierePuntos(!e.target.checked)}
-                        className="w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="text-xs font-medium text-emerald-700">
-                        Gratis al completar compras (sin gastar puntos)
-                      </span>
-                    </label>
-                  </div>
-                )}
-              </div>
 
               {/* Botones */}
               <div className="flex gap-3 2xl:gap-3 mt-4 mb-2 lg:mb-2 2xl:mb-0 lg:mt-auto 2xl:mt-auto">

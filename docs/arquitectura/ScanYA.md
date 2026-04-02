@@ -1105,7 +1105,26 @@ Cupón: 10% descuento
 | Plata | 1,000 - 2,999 | 1.2x |
 | Oro | 3,000+ | 1.5x |
 
-**Nota:** Multiplicadores configurables por negocio en Business Studio.
+**Nota:** Multiplicadores configurables por negocio en Business Studio. UI condicionada con `nivelesActivos` — si está desactivado, no se muestran badges, multiplicadores ni mensajes de nivel.
+
+### Transacción Atómica (Abril 2026)
+
+`otorgarPuntos()` envuelve todas las escrituras en `db.transaction()`:
+- Crear transacción en `puntos_transacciones`
+- Actualizar billetera (puntos + nivel)
+- Actualizar contadores del turno
+- Incrementar tarjeta de sellos (`recompensa_progreso`)
+- Marcar/eliminar recordatorio
+
+Las notificaciones se envían **fuera** de la transacción (fire-and-forget). Si cualquier escritura falla, todas se revierten automáticamente.
+
+### Tarjeta de Sellos en Venta
+
+La transacción registra `recompensa_sellos_id` (UUID nullable) para vincular qué tarjeta de sellos se usó. Esto permite:
+- Decrementar sellos al revocar la venta
+- Mostrar progreso en pantalla de éxito: "🎯 Corte de Pelo 4/5" o "🎉 ¡Tarjeta completada!"
+
+Ver detalles completos del flujo N+1 en `docs/arquitectura/CardYA.md` → sección "Recompensas N+1".
 
 ---
 
