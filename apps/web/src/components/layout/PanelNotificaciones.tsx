@@ -554,9 +554,9 @@ function ContenidoNotificaciones({
               <button
                 onClick={onCargarMas}
                 disabled={cargandoMas}
-                className="w-full py-2.5 lg:py-2 2xl:py-2.5 text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700 hover:bg-blue-100 rounded-xl lg:cursor-pointer"
+                className="w-full py-2.5 lg:py-2 2xl:py-2.5 text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800 bg-slate-200 hover:bg-slate-300 rounded-xl lg:cursor-pointer"
               >
-                {cargandoMas ? 'Cargando...' : 'Cargar más'}
+                {cargandoMas ? 'Cargando...' : 'Ver notificaciones anteriores'}
               </button>
             </div>
           )}
@@ -654,9 +654,9 @@ function DropdownDesktop({
       ref={panelRef}
       className="
         fixed z-75
-        2xl:top-[68px] 2xl:right-28 right-20 top-[58px]
+        2xl:top-[68px] 2xl:right-6 right-4 top-[58px]
         w-80 lg:w-80 2xl:w-96
-        max-h-[400px] 2xl:max-h-[500px]
+        max-h-[85vh]
         bg-white rounded-2xl shadow-lg border-2 border-slate-300
         flex flex-col
         overflow-hidden

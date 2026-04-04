@@ -7,6 +7,77 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [3 Abril 2026] - BS Alertas: Módulo Completo (Sprint 9)
+
+### ✨ Agregado
+
+**Módulo de Alertas — Backend**
+- 16 tipos de alertas en 4 categorías: Seguridad (5), Operativa (4), Rendimiento (4), Engagement (3)
+- Motor de detección automática con 16 funciones de análisis
+- Detección en tiempo real: hook fire-and-forget en ScanYA tras cada transacción
+- Cron diario (4 AM): alertas operativas + engagement
+- Cron semanal (lunes 5 AM): alertas de rendimiento
+- Anti-duplicado inteligente por contexto (24h)
+- Configuración de umbrales por negocio (UPSERT)
+- `montos_redondos` desactivado por defecto
+- Notificaciones push + Socket.io para alertas de severidad alta
+- Nombres completos (nombre + apellidos) en todos los datos de alertas
+- Endpoints DELETE individual y masivo (resueltas)
+
+**Módulo de Alertas — Frontend**
+- Página completa con KPIs (Total, No leídas, Alta, Resueltas)
+- Filtros: dropdowns Categoría/Severidad + chips No leídas/Resueltas + buscador
+- Tabla desktop con header dark gradient + scroll interno + "Cargar más"
+- Cards móvil con scroll infinito (IntersectionObserver)
+- Modal detalle: datos enriquecidos, acciones sugeridas, enlace contextual a módulo relacionado
+- Modal configuración: tabs por categoría, toggles, inputs de umbrales
+- Badge en menú BS con actualización optimista
+- Marca leída automática al abrir modal (sin botón)
+- Eliminar individual (icono basura en tabla) + eliminar resueltas (link masivo)
+- Caché inteligente: sin skeleton en recargas (patrón Clientes/Transacciones)
+- Texto informativo: "Las alertas de seguridad se detectan en cada venta..."
+
+**Dashboard — Rediseño paneles de alertas**
+- PanelAlertas: iconos con gradiente por severidad, click navega a Alertas, link "Ver todas"
+- BannerAlertasUrgentes (móvil): rediseño moderno con header slate oscuro
+
+**Navbar — Rediseño iconos**
+- ChatYA, Notificaciones y Avatar con tamaño uniforme y circular
+- ChatYA usa `/IconoRojoChatYA.webp` en vez del logo completo
+- Panel de notificaciones altura 85vh + botón "Ver notificaciones anteriores"
+
+**Dashboard — Caché inteligente**
+- Store no se limpia al salir del Dashboard
+- Skeleton solo en primera carga, recargas silenciosas en fondo
+
+### 🐛 Corregido
+
+- `LIMIT ${expr}` y `(${a} - ${b})` en Drizzle SQL: pre-calcular en JS
+- Filtro sucursal en alertas: `OR sucursal_id IS NULL` para incluir alertas globales
+- `fuera_horario` anti-duplicado por sucursal/día (antes generaba 1 por transacción)
+- Pluralización correcta: "1 cliente VIP inactivo" vs "3 clientes VIP inactivos"
+- Test ChatYA: limpiar contactos en beforeAll para evitar 409
+- Test Alertas: 16 tipos (no 17), montos_redondos desactivado por defecto
+
+### 🗄️ Migraciones
+
+- `alertas_seguridad`: columnas `categoria`, `sucursal_id`, `acciones_sugeridas`, `resuelta`, `resuelta_at`
+- `alertas_configuracion`: tabla nueva (negocio_id + tipo_alerta UNIQUE, activo, umbrales JSONB)
+- CHECK constraints actualizados: 16 tipos, 4 categorías
+
+### 🧪 Testing
+
+- API: 167 tests (60+ de alertas + validaciones)
+- E2E: 12 tests Playwright (página, filtros, modales)
+- Motor real: 16/16 tipos verificados con datos reales
+- ScanYA real: monto_inusual, fuera_horario, montos_redondos probados en vivo
+
+### 📝 Documentación
+
+- Nuevo: `docs/arquitectura/Alertas.md` — documento completo del módulo
+
+---
+
 ## [1 Abril 2026] - Sistema de Niveles Condicional + Auditoría Recompensas/Sellos + Notificaciones
 
 ### ✨ Agregado

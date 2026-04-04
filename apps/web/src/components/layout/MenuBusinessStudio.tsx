@@ -33,6 +33,8 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useAlertasStore } from '../../stores/useAlertasStore';
+import { contarNoLeidas as contarAlertasNoLeidas } from '../../services/alertasService';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -109,6 +111,16 @@ export function MenuBusinessStudio() {
   const esGerente = !!usuario?.sucursalAsignada;
   const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
   const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
+
+  // Badge de alertas no leídas — usa store (optimista) con fallback API
+  const kpisAlertas = useAlertasStore(s => s.kpis);
+  const [alertasNoLeidasApi, setAlertasNoLeidasApi] = useState(0);
+  useEffect(() => {
+    contarAlertasNoLeidas().then(resp => {
+      if (resp.success && resp.data) setAlertasNoLeidasApi(resp.data.total);
+    }).catch(() => {});
+  }, [usuario?.sucursalActiva]);
+  const alertasNoLeidas = kpisAlertas ? kpisAlertas.noLeidas : alertasNoLeidasApi;
 
   // Filtrar opciones: ocultar "Sucursales" y "Puntos" para gerentes y dueños en sucursal secundaria
   const opcionesFiltradas = vistaComoGerente
@@ -234,10 +246,17 @@ export function MenuBusinessStudio() {
                 style={{ animationDelay: `${index * 0.15}s` }}
               />
               <span className={`
-                text-sm lg:text-[13px] 2xl:text-base font-medium flex-1 text-left
+                text-sm lg:text-[13px] 2xl:text-base font-medium flex-1 text-left flex items-center gap-1.5
                 ${esActivo ? 'text-white' : esFocused ? 'text-blue-600' : ''}
               `}>
                 {opcion.label}
+                {opcion.id === 'alertas' && alertasNoLeidas > 0 && (
+                  <span className={`text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold ${
+                    esActivo ? 'bg-white/20 text-white' : 'bg-red-500 text-white'
+                  }`} data-testid="badge-alertas-menu">
+                    {alertasNoLeidas > 99 ? '99+' : alertasNoLeidas}
+                  </span>
+                )}
               </span>
               {/* Indicador dinámico: Punto → Flecha */}
               <div className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 flex items-center justify-center">

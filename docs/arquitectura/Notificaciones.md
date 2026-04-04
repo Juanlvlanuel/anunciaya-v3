@@ -126,7 +126,7 @@ Ejemplo:
 
 ### 2. Comercial sin usuario
 
-Tipos: `stock_bajo`, `sistema`, y cualquier comercial sin `actorNombre` o fuera de `TIPOS_USUARIO_COMERCIAL`.
+Tipos: `stock_bajo`, `sistema`, `alerta_seguridad`, y cualquier comercial sin `actorNombre` o fuera de `TIPOS_USUARIO_COMERCIAL`.
 
 | Línea | Estilo | Contenido |
 |-------|--------|-----------|
@@ -297,6 +297,14 @@ Algunas notificaciones no tienen `referenciaTipo` (ej: cambio de sistema de nive
 | 20b | `stock_bajo` | `¡Recompensa agotada!` | `"{nombre}" ya no tiene stock disponible` | 🚫 | cardya | Stock agotado (0) |
 
 > Sin `actorNombre`. El título se muestra prominente (`text-base font-bold`).
+
+#### Alertas de Seguridad (Sprint 9 — 3 Abr 2026)
+
+| # | Tipo | Título | Mensaje | Icono | Servicio | Contexto |
+|---|------|--------|---------|-------|----------|----------|
+| 21 | `alerta_seguridad` | `{titulo alerta}` | `{descripcion alerta}` | ⚠️ | alertas | Solo severidad `alta`: monto_inusual, cliente_frecuente, empleado_destacado, caida_ventas, racha_resenas_negativas |
+
+> Modo `comercial`. Sin `actorNombre`. Se envía al dueño + `notificarNegocioCompleto()` para empleados. `referenciaTipo: 'alerta'`. Socket.io emite `alerta:nueva`.
 
 ---
 

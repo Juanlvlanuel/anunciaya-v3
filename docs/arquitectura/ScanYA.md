@@ -1,7 +1,7 @@
 # 📱 ScanYA - Sistema de Punto de Venta
 
-**Última actualización:** 7 Marzo 2026  
-**Versión:** 1.2 (Incluye integración ChatYA)  
+**Última actualización:** 3 Abril 2026  
+**Versión:** 1.3 (Incluye integración Alertas)  
 **Estado:** ✅ 100% Operativo (16/16 fases)
 
 ---
@@ -78,6 +78,7 @@ ScanYA es un **sistema de punto de venta (POS) PWA independiente** diseñado par
 - Sistema calcula puntos automáticamente según nivel CardYA
 - Otorga puntos a billetera del cliente
 - Opcionalmente sube foto del ticket (Cloudflare R2)
+- **Hook Alertas:** tras cada venta, ejecuta detección de alertas de seguridad fire-and-forget (monto inusual, cliente frecuente, fuera de horario, montos redondos, empleado destacado). Ver `docs/arquitectura/Alertas.md`
 
 #### 2. Validar Código de Cupón
 - Cliente presenta código personal (asignado desde BS Promociones)

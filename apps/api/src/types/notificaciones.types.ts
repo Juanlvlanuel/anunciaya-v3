@@ -24,7 +24,8 @@ export type TipoNotificacion =
   | 'sistema'
   | 'nuevo_marketplace'
   | 'nueva_dinamica'
-  | 'nuevo_empleo';
+  | 'nuevo_empleo'
+  | 'alerta_seguridad';
 
 export type ReferenciaTipo =
   | 'transaccion'
@@ -35,7 +36,8 @@ export type ReferenciaTipo =
   | 'resena'
   | 'marketplace'
   | 'dinamica'
-  | 'empleo';
+  | 'empleo'
+  | 'alerta';
 
 export interface CrearNotificacionInput {
   usuarioId: string;

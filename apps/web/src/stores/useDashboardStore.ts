@@ -120,9 +120,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // ACCIÓN: Cargar ventas diarias
   // ---------------------------------------------------------------------------
   cargarVentas: async () => {
-    const { periodo } = get();
+    const { periodo, ventas } = get();
+    const esCargaInicial = ventas === null;
 
-    set({ cargandoVentas: true });
+    set({ cargandoVentas: esCargaInicial });
 
     try {
       const respuesta = await dashboardService.obtenerVentas(periodo);
@@ -140,7 +141,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // ACCIÓN: Cargar campañas activas
   // ---------------------------------------------------------------------------
   cargarCampanas: async () => {
-    set({ cargandoCampanas: true });
+    const esCargaInicial = get().campanas.length === 0;
+    set({ cargandoCampanas: esCargaInicial });
 
     try {
       const respuesta = await dashboardService.obtenerCampanas(5);
@@ -158,8 +160,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // ACCIÓN: Cargar interacciones recientes
   // ---------------------------------------------------------------------------
   cargarInteracciones: async () => {
-    const { periodo } = get();
-    set({ cargandoInteracciones: true });
+    const { periodo, interacciones } = get();
+    const esCargaInicial = interacciones.length === 0;
+    set({ cargandoInteracciones: esCargaInicial });
 
     try {
       const respuesta = await dashboardService.obtenerInteracciones(10, periodo);
@@ -177,7 +180,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // ACCIÓN: Cargar alertas
   // ---------------------------------------------------------------------------
   cargarAlertas: async () => {
-    set({ cargandoAlertas: true });
+    const esCargaInicial = get().alertas === null;
+    set({ cargandoAlertas: esCargaInicial });
 
     try {
       const respuesta = await dashboardService.obtenerAlertas(5);

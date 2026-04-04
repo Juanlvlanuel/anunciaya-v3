@@ -174,9 +174,7 @@ export default function PaginaDashboard() {
     }
 
     cargarTodo();
-
-    return () => limpiar();
-  }, [cargarTodo, sucursalActiva, usuario?.modoActivo, limpiar]);
+  }, [cargarTodo, sucursalActiva, usuario?.modoActivo]);
 
   // Estado del modal de ofertas
   const [modalOfertaAbierto, setModalOfertaAbierto] = useState(false);

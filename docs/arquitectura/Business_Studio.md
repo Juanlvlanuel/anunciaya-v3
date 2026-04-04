@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 1 Abril 2026  
-**Versión:** 1.1 (Completamente Verificado)
+**Última actualización:** 3 Abril 2026  
+**Versión:** 1.2 (Alertas completado)
 
 ---
 
@@ -55,7 +55,7 @@ Business Studio es el **centro de administración completo** para negocios regis
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 8 de 14 módulos completados (57%)
+**Progreso actual:** 9 de 14 módulos completados (64%)
 
 ---
 
@@ -185,7 +185,7 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 | 2 | Transacciones | `/business-studio/transacciones` | Receipt | ✅ 100% |
 | 3 | Clientes | `/business-studio/clientes` | Users | ✅ 100% |
 | 4 | Opiniones | `/business-studio/opiniones` | MessageSquare | ✅ 100% |
-| 5 | Alertas | `/business-studio/alertas` | Bell | ⏳ Pendiente |
+| 5 | Alertas | `/business-studio/alertas` | Bell | ✅ 100% |
 
 #### 2. Catálogo & Promociones (2 módulos)
 
@@ -435,19 +435,18 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ⏳ Módulos Pendientes (6/14)
+## ⏳ Módulos Pendientes (5/14)
 
-### Alertas ⏳
+### Alertas ✅ (Sprint 9 — 3 Abr 2026)
 
-**Dependencias:** Ninguna
-**Tiempo estimado:** ~1-2 días
-**Prioridad:** ALTA (siguiente sprint)
+**Completado.** Documento detallado: `docs/arquitectura/Alertas.md`
 
-**Funcionalidad esperada:**
-- Panel completo de alertas de seguridad
-- Tipos: monto alto, actividad inusual, intentos fallidos
-- Filtros por severidad, tipo, fecha
-- Marcar como leída/archivada
+- 16 tipos de alertas en 4 categorías (Seguridad, Operativa, Rendimiento, Engagement)
+- Motor de detección automática: 5 en tiempo real (ScanYA) + 7 cron diario + 4 cron semanal
+- Configuración de umbrales por negocio
+- Notificaciones push para severidad alta
+- Página completa: KPIs, filtros, tabla/cards, modales detalle y configuración
+- Testing: 167 API tests + 12 E2E tests
 
 ---
 

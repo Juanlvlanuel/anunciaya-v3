@@ -2113,6 +2113,20 @@ export async function otorgarPuntos(
         }
 
         // -------------------------------------------------------------------------
+        // Paso 14.5: Detección de alertas de seguridad (fire-and-forget)
+        // -------------------------------------------------------------------------
+        import('../services/alertas-motor.service.js').then(({ detectarAlertasSeguridad }) => {
+            detectarAlertasSeguridad(payload.negocioId, {
+                id: resultado.transaccionId,
+                negocioId: payload.negocioId,
+                sucursalId: payload.sucursalId,
+                clienteId: datos.clienteId,
+                empleadoId: empleadoId ?? undefined,
+                montoCompra: montoFinal,
+            }).catch((err) => console.error('Error detección alertas:', err));
+        }).catch(() => {});
+
+        // -------------------------------------------------------------------------
         // Paso 15: Retornar resumen
         // -------------------------------------------------------------------------
         return {

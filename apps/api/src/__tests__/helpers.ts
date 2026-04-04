@@ -12,7 +12,7 @@ config(); // Cargar .env antes de cualquier import
 
 import jwt from 'jsonwebtoken';
 import { db } from '../db/index.js';
-import { usuarios } from '../db/schemas/schema.js';
+import { usuarios, negocios, negocioSucursales, alertasSeguridad, alertasConfiguracion } from '../db/schemas/schema.js';
 import { eq, sql } from 'drizzle-orm';
 
 // =============================================================================
@@ -113,6 +113,104 @@ export async function crearUsuariosPrueba(): Promise<void> {
 export async function limpiarDatosPrueba(): Promise<void> {
   await db.delete(usuarios).where(eq(usuarios.id, USUARIO_1_ID));
   await db.delete(usuarios).where(eq(usuarios.id, USUARIO_2_ID));
+}
+
+// =============================================================================
+// IDS DE PRUEBA PARA BUSINESS STUDIO
+// =============================================================================
+
+export const NEGOCIO_TEST_ID = 'b0000000-0000-4000-b000-000000000001';
+export const SUCURSAL_TEST_ID = 'c0000000-0000-4000-c000-000000000001';
+
+/** Token con modo comercial para endpoints de Business Studio */
+export const TOKEN_COMERCIAL_1 = () => generarTokenTest({
+  usuarioId: USUARIO_1_ID,
+  correo: 'test1@anunciaya.com',
+  perfil: 'personal',
+  membresia: 1,
+  modoActivo: 'comercial',
+  sucursalAsignada: null,
+});
+
+/**
+ * Crea un negocio y sucursal de prueba asociados a USUARIO_1.
+ */
+export async function crearNegocioPrueba(): Promise<void> {
+  // Verificar si ya existe
+  const existente = await db
+    .select({ id: negocios.id })
+    .from(negocios)
+    .where(eq(negocios.id, NEGOCIO_TEST_ID));
+
+  if (existente.length > 0) return;
+
+  await db.insert(negocios).values({
+    id: NEGOCIO_TEST_ID,
+    usuarioId: USUARIO_1_ID,
+    nombre: 'Negocio Test E2E',
+    descripcion: 'Negocio de prueba para tests',
+    categoriaId: null as unknown as number,
+    activo: true,
+  });
+
+  // Vincular usuario al negocio
+  await db
+    .update(usuarios)
+    .set({ negocioId: NEGOCIO_TEST_ID })
+    .where(eq(usuarios.id, USUARIO_1_ID));
+
+  await db.insert(negocioSucursales).values({
+    id: SUCURSAL_TEST_ID,
+    negocioId: NEGOCIO_TEST_ID,
+    nombre: 'Sucursal Principal Test',
+    esPrincipal: true,
+  });
+}
+
+/**
+ * Crea una alerta de prueba y retorna su ID.
+ */
+export async function crearAlertaPrueba(overrides?: {
+  tipo?: string;
+  categoria?: string;
+  severidad?: string;
+  leida?: boolean;
+  resuelta?: boolean;
+}): Promise<string> {
+  const resultado = await db.execute(sql`
+    INSERT INTO alertas_seguridad (
+      negocio_id, tipo, categoria, severidad, titulo, descripcion, leida, resuelta
+    ) VALUES (
+      ${NEGOCIO_TEST_ID},
+      ${overrides?.tipo ?? 'monto_inusual'},
+      ${overrides?.categoria ?? 'seguridad'},
+      ${overrides?.severidad ?? 'alta'},
+      ${'Alerta de prueba'},
+      ${'Descripción de la alerta de prueba'},
+      ${overrides?.leida ?? false},
+      ${overrides?.resuelta ?? false}
+    )
+    RETURNING id
+  `);
+
+  return (resultado as { rows: { id: string }[] }).rows[0].id;
+}
+
+/**
+ * Limpia alertas y configuración de prueba.
+ */
+export async function limpiarAlertasPrueba(): Promise<void> {
+  await db.delete(alertasSeguridad).where(eq(alertasSeguridad.negocioId, NEGOCIO_TEST_ID));
+  await db.delete(alertasConfiguracion).where(eq(alertasConfiguracion.negocioId, NEGOCIO_TEST_ID));
+}
+
+/**
+ * Limpia negocio de prueba y todo lo asociado (CASCADE).
+ */
+export async function limpiarNegocioPrueba(): Promise<void> {
+  await db.execute(sql`DELETE FROM negocio_sucursales WHERE id = ${SUCURSAL_TEST_ID}`);
+  await db.execute(sql`DELETE FROM negocios WHERE id = ${NEGOCIO_TEST_ID}`);
+  await db.update(usuarios).set({ negocioId: null }).where(eq(usuarios.id, USUARIO_1_ID));
 }
 
 // =============================================================================

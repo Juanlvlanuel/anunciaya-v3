@@ -1860,20 +1860,27 @@ export const vouchersCanje = pgTable("vouchers_canje", {
 export const alertasSeguridad = pgTable("alertas_seguridad", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	negocioId: uuid("negocio_id").notNull(),
+	sucursalId: uuid("sucursal_id"),
 	transaccionId: uuid("transaccion_id"),
 	empleadoId: uuid("empleado_id"),
 	tipo: varchar({ length: 30 }).notNull(),
+	categoria: varchar({ length: 30 }).default('seguridad').notNull(),
 	severidad: varchar({ length: 10 }).default('media').notNull(),
 	titulo: varchar({ length: 200 }).notNull(),
 	descripcion: text().notNull(),
 	data: jsonb(),
+	accionesSugeridas: jsonb("acciones_sugeridas"),
 	leida: boolean().default(false).notNull(),
 	leidaAt: timestamp("leida_at", { withTimezone: true, mode: 'string' }),
+	resuelta: boolean().default(false).notNull(),
+	resueltaAt: timestamp("resuelta_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_alertas_seguridad_negocio_leida").using("btree", table.negocioId.asc().nullsLast(), table.leida.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	index("idx_alertas_seguridad_severidad").using("btree", table.severidad.asc().nullsLast()).where(sql`((severidad)::text = 'alta'::text)`),
 	index("idx_alertas_seguridad_tipo").using("btree", table.tipo.asc().nullsLast()),
+	index("idx_alertas_seguridad_categoria").using("btree", table.categoria.asc().nullsLast()),
+	index("idx_alertas_seguridad_created_at").using("btree", table.createdAt.desc().nullsFirst()),
 	foreignKey({
 		columns: [table.empleadoId],
 		foreignColumns: [empleados.id],
@@ -1885,12 +1892,36 @@ export const alertasSeguridad = pgTable("alertas_seguridad", {
 		name: "fk_alertas_seguridad_negocio"
 	}).onDelete("cascade"),
 	foreignKey({
+		columns: [table.sucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_alertas_seguridad_sucursal"
+	}).onDelete("set null"),
+	foreignKey({
 		columns: [table.transaccionId],
 		foreignColumns: [puntosTransacciones.id],
 		name: "fk_alertas_seguridad_transaccion"
 	}).onDelete("cascade"),
 	check("alertas_seguridad_severidad_check", sql`(severidad)::text = ANY ((ARRAY['baja'::character varying, 'media'::character varying, 'alta'::character varying])::text[])`),
-	check("alertas_seguridad_tipo_check", sql`(tipo)::text = ANY ((ARRAY['monto_inusual'::character varying, 'cliente_frecuente'::character varying, 'fuera_horario'::character varying, 'montos_redondos'::character varying, 'empleado_destacado'::character varying, 'cliente_reporte'::character varying])::text[])`),
+	check("alertas_seguridad_categoria_check", sql`(categoria)::text = ANY ((ARRAY['seguridad'::character varying, 'operativa'::character varying, 'rendimiento'::character varying, 'engagement'::character varying])::text[])`),
+	check("alertas_seguridad_tipo_check", sql`(tipo)::text = ANY ((ARRAY['monto_inusual'::character varying, 'cliente_frecuente'::character varying, 'fuera_horario'::character varying, 'montos_redondos'::character varying, 'empleado_destacado'::character varying, 'voucher_estancado'::character varying, 'acumulacion_vouchers'::character varying, 'oferta_por_expirar'::character varying, 'cupones_por_expirar'::character varying, 'caida_ventas'::character varying, 'cliente_vip_inactivo'::character varying, 'racha_resenas_negativas'::character varying, 'pico_actividad'::character varying, 'cupones_sin_canjear'::character varying, 'puntos_por_expirar'::character varying, 'recompensa_popular'::character varying])::text[])`),
+]);
+
+export const alertasConfiguracion = pgTable("alertas_configuracion", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	negocioId: uuid("negocio_id").notNull(),
+	tipoAlerta: varchar("tipo_alerta", { length: 30 }).notNull(),
+	activo: boolean().default(true).notNull(),
+	umbrales: jsonb().default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_alertas_config_negocio").using("btree", table.negocioId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.negocioId],
+		foreignColumns: [negocios.id],
+		name: "fk_alertas_config_negocio"
+	}).onDelete("cascade"),
+	unique("alertas_configuracion_negocio_tipo_key").on(table.negocioId, table.tipoAlerta),
 ]);
 
 export const notificaciones = pgTable("notificaciones", {

@@ -571,7 +571,7 @@ export default function PaginaTransacciones() {
   useEffect(() => {
     return () => {
       const state = useTransaccionesStore.getState();
-      const hayFiltrosSucios = state.operadorId || state.operadorIdCupones || state.operadorIdCanjes || state.estadoFiltro || state.estadoFiltroCanjes || state.busqueda || state.busquedaCanjes;
+      const hayFiltrosSucios = state.operadorId || state.operadorIdCupones || state.operadorIdCanjes || state.estadoFiltro || state.estadoFiltroCanjes || state.busqueda || state.busquedaCanjes || state.periodo !== 'todo';
 
       useTransaccionesStore.setState({
         busqueda: '',
@@ -585,6 +585,7 @@ export default function PaginaTransacciones() {
         offsetCupones: 0,
         offsetCanjes: 0,
         tabActivo: 'ventas',
+        periodo: 'todo',
       });
 
       // Si había filtros activos, recargar datos sin filtros para que la próxima visita muestre datos limpios

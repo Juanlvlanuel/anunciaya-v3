@@ -288,19 +288,19 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **ChatYA** ✅ 100% — Sprint 7 completado (20 Mar 2026). 41 API tests + 10 E2E tests
 - **Promociones** ✅ 100% — Ofertas + Cupones unificados (22 Mar 2026). 35 API tests + 7 E2E tests
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
-- **Business Studio** (57%) — 8/14 módulos completados
+- **Business Studio** (64%) — 9/14 módulos completados
 
-### BS Módulos Completados (8/14)
+### BS Módulos Completados (9/14)
 
-Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅
+Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅
 
-### BS Módulos Pendientes (6/14)
+### BS Módulos Pendientes (5/14)
 
-Alertas, Empleados, Reportes, Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
+Empleados, Reportes, Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
 
 ### Siguiente Sprint
 
-BS Alertas
+BS Empleados
 
 ---
 

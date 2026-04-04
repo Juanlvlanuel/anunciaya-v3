@@ -8,6 +8,7 @@ import app from './app';
 import { createServer } from 'http';
 import { inicializarSocket } from './socket';
 import { inicializarCronChatYA } from './cron/chatya.cron.js';
+import { inicializarCronAlertas } from './cron/alertas.cron.js';
 
 const PORT = process.env.API_PORT || 4000;
 const HOST = process.env.API_HOST || '0.0.0.0';
@@ -29,8 +30,9 @@ const iniciarServidor = async () => {
       console.log('');
     });
 
-    // Cron job: limpieza de chats inactivos (diario 3:00 AM)
-    inicializarCronChatYA();
+    // Cron jobs
+    inicializarCronChatYA();      // Limpieza chats inactivos (diario 3:00 AM)
+    inicializarCronAlertas();     // Detección alertas (diario 4:00 AM + semanal lunes 5:00 AM)
   } catch (error) {
     console.error('❌ Error iniciando servidor:', error);
     process.exit(1);

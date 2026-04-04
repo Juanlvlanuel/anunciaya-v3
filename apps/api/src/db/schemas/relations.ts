@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, regiones, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, ofertas, ofertaUsos, ofertaUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, dinamicas, dinamicaPremios, dinamicaParticipaciones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
+import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, regiones, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, ofertas, ofertaUsos, ofertaUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, dinamicas, dinamicaPremios, dinamicaParticipaciones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, alertasConfiguracion, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
 
 export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	embajadore: one(embajadores, {
@@ -112,6 +112,7 @@ export const negociosRelations = relations(negocios, ({ one, many }) => ({
 	puntosTransacciones: many(puntosTransacciones),
 	vouchersCanjes: many(vouchersCanje),
 	alertasSeguridads: many(alertasSeguridad),
+	alertasConfiguracions: many(alertasConfiguracion),
 	asignacionSubcategorias: many(asignacionSubcategorias),
 	notificaciones: many(notificaciones),
 }));
@@ -135,6 +136,7 @@ export const negocioSucursalesRelations = relations(negocioSucursales, ({ one, m
 	bolsaTrabajos: many(bolsaTrabajo),
 	dinamicas: many(dinamicas),
 	articuloSucursales: many(articuloSucursales),
+	alertasSeguridads: many(alertasSeguridad),
 	// ChatYA
 	chatConversacionesComoSucP1: many(chatConversaciones, { relationName: "chatConv_sucursalP1" }),
 	chatConversacionesComoSucP2: many(chatConversaciones, { relationName: "chatConv_sucursalP2" }),
@@ -672,9 +674,20 @@ export const alertasSeguridadRelations = relations(alertasSeguridad, ({ one }) =
 		fields: [alertasSeguridad.negocioId],
 		references: [negocios.id]
 	}),
+	sucursal: one(negocioSucursales, {
+		fields: [alertasSeguridad.sucursalId],
+		references: [negocioSucursales.id]
+	}),
 	puntosTransaccione: one(puntosTransacciones, {
 		fields: [alertasSeguridad.transaccionId],
 		references: [puntosTransacciones.id]
+	}),
+}));
+
+export const alertasConfiguracionRelations = relations(alertasConfiguracion, ({ one }) => ({
+	negocio: one(negocios, {
+		fields: [alertasConfiguracion.negocioId],
+		references: [negocios.id]
 	}),
 }));
 

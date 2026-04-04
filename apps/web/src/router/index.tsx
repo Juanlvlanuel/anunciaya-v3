@@ -89,7 +89,7 @@ const PaginaConfiguracion = () => <PlaceholderPage nombre="⚙️ Configuración
 const PaginaConfigurarNegocio = () => <PlaceholderPage nombre="🏪 Configurar Negocio" />;
 
 // Páginas de Business Studio (ordenadas según menú)
-const BSPaginaAlertas = () => <PlaceholderPage nombre="🔔 Alertas" />;
+import BSPaginaAlertas from '../pages/private/business-studio/alertas/PaginaAlertas';
 const BSPaginaRifas = () => <PlaceholderPage nombre="🎁 Rifas" />;
 const BSPaginaEmpleados = () => <PlaceholderPage nombre="👷 Empleados" />;
 const BSPaginaVacantes = () => <PlaceholderPage nombre="💼 Vacantes" />;

@@ -293,7 +293,7 @@ function KPI({ tipo, valor }: { tipo: keyof typeof KPI_CONFIG; valor: string }) 
         <Icono className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" style={{ color }} />
       </div>
       <div className="min-w-0">
-        <div className="text-[16px] lg:text-sm 2xl:text-base font-bold leading-tight truncate max-w-[100px] lg:max-w-[80px] 2xl:max-w-[110px]" style={{ color }}>{valor}</div>
+        <div className="text-[16px] lg:text-sm 2xl:text-base font-bold leading-tight truncate max-w-[100px] lg:max-w-20 2xl:max-w-[110px]" style={{ color }}>{valor}</div>
         <div className="text-sm lg:text-sm 2xl:text-sm text-slate-600 font-semibold mt-0.5 whitespace-nowrap">{label}</div>
       </div>
     </div>

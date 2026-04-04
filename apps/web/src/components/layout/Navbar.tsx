@@ -792,7 +792,7 @@ export const Navbar = () => {
             )}
 
             {/* ===== ACCIONES ===== */}
-            <div className="flex items-center gap-4 lg:gap-4 2xl:gap-8 shrink-0 lg:mr-4 2xl:mr-0">
+            <div className="flex items-center gap-2 lg:gap-2 2xl:gap-4 shrink-0 lg:mr-4 2xl:mr-0">
 
               {/* ChatYA */}
               <button
@@ -803,7 +803,7 @@ export const Navbar = () => {
                   toggleChatYA();
                 }}
                 className="
-                  relative 
+                  relative
                   flex items-center justify-center
                   transition-transform
                   hover:scale-110
@@ -811,9 +811,9 @@ export const Navbar = () => {
                 "
               >
                 <img
-                  src="/ChatYA.webp"
+                  src="/IconoRojoChatYA.webp"
                   alt="ChatYA"
-                  className="w-auto h-8 lg:h-7 2xl:h-9 object-contain"
+                  className="w-7 h-8 lg:w-8 lg:h-9 2xl:w-9 2xl:h-10 object-contain"
                 />
                 {mensajesCount > 0 && (
                   <span
@@ -841,24 +841,28 @@ export const Navbar = () => {
                 onClick={togglePanel}
                 className="
                     relative
-                    text-blue-200
-                    hover:text-white
+                    w-7 h-7 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10
+                    bg-white/20 hover:bg-white/30
+                    border-2 border-white/40
+                    rounded-full
+                    flex items-center justify-center
+                    text-white
                     transition-transform
-                    hover:scale-120
+                    hover:scale-110
                     cursor-pointer
                   "
                 title="Notificaciones"
               >
-                <Bell className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-7 2xl:h-7" />
+                <Bell className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                 {cantidadNoLeidas > 0 && (
                   <span
                     className="
-                        absolute -top-1 lg:-top-1 2xl:-top-1.5 -right-1 lg:-right-1 2xl:-right-1.5
-                        min-w-4 lg:min-w-4 2xl:min-w-5
-                        h-4 lg:h-4 2xl:h-5
+                        absolute -top-1 -right-1 2xl:-top-1.5 2xl:-right-1.5
+                        min-w-4 2xl:min-w-5
+                        h-4 2xl:h-5
                         bg-red-500
                         text-white
-                        text-[9px] lg:text-[9px] 2xl:text-xs
+                        text-[9px] 2xl:text-xs
                         rounded-full
                         flex items-center justify-center
                         font-bold
@@ -875,14 +879,14 @@ export const Navbar = () => {
                 <button
                   onClick={() => setDropdownAbierto(!dropdownAbierto)}
                   className="
-                    w-8 h-8 lg:w-9 lg:h-9 2xl:w-12 2xl:h-12
+                    w-7 h-7 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10
                     bg-white/20 hover:bg-white/30
                     border-2 border-white/40
-                    rounded-full 
-                    flex items-center justify-center 
-                    text-white 
+                    rounded-full
+                    flex items-center justify-center
+                    text-white
                     text-xs lg:text-sm 2xl:text-base
-                    font-semibold 
+                    font-semibold
                     shadow-sm
                     transition-transform
                     hover:scale-110

@@ -17,9 +17,12 @@ import {
   limpiarDatosPrueba,
   TOKEN_USUARIO_1,
   TOKEN_USUARIO_2,
+  USUARIO_1_ID,
   USUARIO_2_ID,
   request,
 } from './helpers';
+import { db } from '../db/index.js';
+import { sql } from 'drizzle-orm';
 
 // =============================================================================
 // VARIABLES COMPARTIDAS ENTRE TESTS
@@ -35,6 +38,8 @@ let mensajeUsuario2Id: string;
 
 beforeAll(async () => {
   await crearUsuariosPrueba();
+  // Limpiar contactos previos para evitar 409
+  await db.execute(sql`DELETE FROM chat_contactos WHERE usuario_id = ${USUARIO_1_ID} OR usuario_id = ${USUARIO_2_ID}`);
 });
 
 afterAll(async () => {
