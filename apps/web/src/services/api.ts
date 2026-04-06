@@ -22,6 +22,7 @@ import axios, {
 import { useAuthStore } from '../stores/useAuthStore';
 import { useScanYAStore } from '../stores/useScanYAStore';
 import { notificar } from '../utils/notificaciones';
+import { performanceMonitor } from '../utils/performanceMonitor';
 
 // =============================================================================
 // CONFIGURACIÓN
@@ -222,6 +223,11 @@ api.interceptors.request.use(
       }
     }
 
+    // PERF MONITOR — registrar inicio del request
+    if (typeof window !== 'undefined' && (window as any).__PERF_BS__) {
+      (config as any).__perfInicio = performance.now();
+    }
+
     return config;
   },
   (error: AxiosError) => {
@@ -234,14 +240,37 @@ api.interceptors.request.use(
 // =============================================================================
 
 api.interceptors.response.use(
-  // Respuesta exitosa: pasar directamente
-  (response) => response,
+  // Respuesta exitosa: registrar duración y pasar
+  (response) => {
+    // PERF MONITOR — registrar fin del request
+    if (typeof window !== 'undefined' && (window as any).__PERF_BS__) {
+      const inicio = (response.config as any).__perfInicio;
+      if (inicio) {
+        const duracion = Math.round(performance.now() - inicio);
+        const url = response.config.url || '';
+        const status = response.status;
+        performanceMonitor.registrarLlamadaAPI({ url, duracion_ms: duracion, status, origen: 'red' });
+      }
+    }
+    return response;
+  },
 
   // Error: manejar 401
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
+
+    // PERF MONITOR — registrar error de request
+    if (typeof window !== 'undefined' && (window as any).__PERF_BS__) {
+      const inicio = (originalRequest as any)?.__perfInicio;
+      if (inicio) {
+        const duracion = Math.round(performance.now() - inicio);
+        const url = originalRequest?.url || '';
+        const status = error.response?.status ?? 0;
+        performanceMonitor.registrarLlamadaAPI({ url, duracion_ms: duracion, status, origen: 'error' });
+      }
+    }
 
     // Si no hay config, rechazar
     if (!originalRequest) {

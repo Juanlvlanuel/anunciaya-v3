@@ -7,9 +7,15 @@
  */
 
 import { AppRouter } from './router';
+import { PanelPerformance } from './components/ui/PanelPerformance';
 
 function App() {
-  return <AppRouter />;
+  return (
+    <>
+      <AppRouter />
+      <PanelPerformance />
+    </>
+  );
 }
 
 export default App;
