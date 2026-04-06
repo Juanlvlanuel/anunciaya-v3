@@ -156,7 +156,7 @@ export function verificarMembresia(nivelMinimo: number) {
  * Esto permite que dueños, gerentes y empleados de ScanYA usen ChatYA
  * respondiendo en nombre del negocio.
  */
-export function verificarTokenChatYA(req: Request, res: Response, next: NextFunction): void {
+export async function verificarTokenChatYA(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -166,9 +166,9 @@ export function verificarTokenChatYA(req: Request, res: Response, next: NextFunc
 
   const token = authHeader.substring(7);
 
-  // 1. Intentar como token AnunciaYA
+  // 1. Intentar como token AnunciaYA (descartar si es token ScanYA)
   const resultadoAY = verificarAccessToken(token);
-  if (resultadoAY.valido && resultadoAY.payload) {
+  if (resultadoAY.valido && resultadoAY.payload && !(resultadoAY.payload as any)._tipo) {
     req.usuario = resultadoAY.payload;
     next();
     return;
@@ -178,8 +178,24 @@ export function verificarTokenChatYA(req: Request, res: Response, next: NextFunc
   const resultadoSY = verificarAccessTokenScanYA(token);
   if (resultadoSY.valido && resultadoSY.payload) {
     const sy = resultadoSY.payload;
-
     // negocioUsuarioId es requerido para usar ChatYA
+    // Si no está en el token (tokens viejos), obtenerlo de la BD
+    if (!sy.negocioUsuarioId && sy.negocioId) {
+      try {
+        const { db } = await import('../db/index.js');
+        const { sql } = await import('drizzle-orm');
+        const resultado = await db.execute(sql`SELECT usuario_id FROM negocios WHERE id = ${sy.negocioId}`);
+        // db.execute con node-postgres puede retornar rows directamente o dentro de .rows
+        const rows = Array.isArray(resultado) ? resultado : (resultado as unknown as { rows: unknown[] }).rows;
+        const row = rows?.[0] as { usuario_id?: string } | undefined;
+        if (row?.usuario_id) {
+          sy.negocioUsuarioId = row.usuario_id;
+        }
+      } catch (err) {
+        console.error('[ChatYA Auth] Error buscando negocioUsuarioId en BD:', err);
+      }
+    }
+
     if (!sy.negocioUsuarioId) {
       res.status(403).json({
         success: false,
@@ -190,7 +206,7 @@ export function verificarTokenChatYA(req: Request, res: Response, next: NextFunc
 
     // Mapear token ScanYA al formato esperado por chatya_controller
     req.usuario = {
-      usuarioId: sy.negocioUsuarioId,
+      usuarioId: sy.negocioUsuarioId!,
       correo: sy.correo || '',
       perfil: 'comercial',
       membresia: 1,
@@ -199,6 +215,9 @@ export function verificarTokenChatYA(req: Request, res: Response, next: NextFunc
       iat: sy.iat,
       exp: sy.exp,
     } as TokenDecodificado;
+
+    // Guardar también el payload ScanYA original para acceso a negocioId
+    req.scanyaUsuario = sy;
 
     next();
     return;

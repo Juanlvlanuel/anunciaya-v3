@@ -45,7 +45,7 @@ export async function detectarAlertasSeguridad(
 // Helper: obtener nombre completo de usuario por ID
 async function obtenerNombreUsuario(usuarioId: string): Promise<string> {
 	const r = await db.execute(sql`SELECT nombre, apellidos FROM usuarios WHERE id = ${usuarioId}`);
-	const row = (r as { rows: { nombre: string; apellidos: string | null }[] }).rows[0];
+	const row = (r as unknown as { rows: { nombre: string; apellidos: string | null }[] }).rows[0];
 	if (!row) return 'Desconocido';
 	return row.apellidos ? `${row.nombre} ${row.apellidos}` : row.nombre;
 }
@@ -57,7 +57,7 @@ async function obtenerNombreEmpleado(empleadoId: string): Promise<string> {
 		JOIN usuarios u ON u.id = ne.usuario_id
 		WHERE ne.id = ${empleadoId}
 	`);
-	const row = (r as { rows: { nombre: string; apellidos: string | null }[] }).rows[0];
+	const row = (r as unknown as { rows: { nombre: string; apellidos: string | null }[] }).rows[0];
 	if (!row) return 'Desconocido';
 	return row.apellidos ? `${row.nombre} ${row.apellidos}` : row.nombre;
 }
@@ -80,7 +80,7 @@ async function detectarMontoInusual(negocioId: string, tx: DatosTransaccion): Pr
 			AND created_at > NOW() - INTERVAL '30 days'
 	`);
 
-	const promedio = parseFloat((resultado as { rows: { promedio: string }[] }).rows[0]?.promedio ?? '0');
+	const promedio = parseFloat((resultado as unknown as { rows: { promedio: string }[] }).rows[0]?.promedio ?? '0');
 	if (promedio <= 0) return;
 
 	if (tx.montoCompra > promedio * multiplicador) {
@@ -119,7 +119,7 @@ async function detectarClienteFrecuente(negocioId: string, tx: DatosTransaccion)
 			AND created_at > NOW() - INTERVAL '1 hour'
 	`);
 
-	const total = (resultado as { rows: { total: number }[] }).rows[0]?.total ?? 0;
+	const total = (resultado as unknown as { rows: { total: number }[] }).rows[0]?.total ?? 0;
 
 	if (total > maxCompras) {
 		const clienteNombre = await obtenerNombreUsuario(tx.clienteId);
@@ -152,7 +152,7 @@ async function detectarFueraHorario(negocioId: string, tx: DatosTransaccion): Pr
 		LIMIT 1
 	`);
 
-	const horario = (resultado as { rows: { hora_apertura: string; hora_cierre: string; abierto: boolean }[] }).rows[0];
+	const horario = (resultado as unknown as { rows: { hora_apertura: string; hora_cierre: string; abierto: boolean }[] }).rows[0];
 	const empleadoNombre = tx.empleadoId ? await obtenerNombreEmpleado(tx.empleadoId) : null;
 	const clienteNombre = await obtenerNombreUsuario(tx.clienteId);
 
@@ -179,7 +179,7 @@ async function detectarFueraHorario(negocioId: string, tx: DatosTransaccion): Pr
 		END AS fuera_horario
 	`);
 
-	const fueraHorario = (resultado2 as { rows: { fuera_horario: boolean }[] }).rows[0]?.fuera_horario;
+	const fueraHorario = (resultado2 as unknown as { rows: { fuera_horario: boolean }[] }).rows[0]?.fuera_horario;
 	if (fueraHorario) {
 		await crearAlerta({
 			negocioId,
@@ -215,7 +215,7 @@ async function detectarMontosRedondos(negocioId: string, tx: DatosTransaccion): 
 		LIMIT ${limite}
 	`);
 
-	const montos = (resultado as { rows: { monto_compra: string }[] }).rows
+	const montos = (resultado as unknown as { rows: { monto_compra: string }[] }).rows
 		.map(r => parseFloat(r.monto_compra));
 
 	const redondos = montos.filter(m => m % 100 === 0).length;
@@ -253,7 +253,7 @@ async function detectarEmpleadoDestacado(negocioId: string, tx: DatosTransaccion
 			AND created_at > NOW() - INTERVAL '30 days'
 	`);
 
-	const total = (resultado as { rows: { total: number }[] }).rows[0]?.total ?? 0;
+	const total = (resultado as unknown as { rows: { total: number }[] }).rows[0]?.total ?? 0;
 
 	if (total >= maxAlertas) {
 		const empleadoNombre = await obtenerNombreEmpleado(tx.empleadoId!);
@@ -311,7 +311,7 @@ async function detectarVouchersEstancados(negocioId: string): Promise<void> {
 		LIMIT 10
 	`);
 
-	const vouchers = (resultado as { rows: Record<string, unknown>[] }).rows;
+	const vouchers = (resultado as unknown as { rows: Record<string, unknown>[] }).rows;
 
 	for (const v of vouchers) {
 		const contextoId = v.id as string;
@@ -341,7 +341,7 @@ async function detectarAcumulacionVouchers(negocioId: string): Promise<void> {
 		WHERE negocio_id = ${negocioId} AND estado = 'pendiente'
 	`);
 
-	const total = (resultado as { rows: { total: number }[] }).rows[0]?.total ?? 0;
+	const total = (resultado as unknown as { rows: { total: number }[] }).rows[0]?.total ?? 0;
 
 	if (total >= maxPendientes) {
 		await crearAlerta({
@@ -369,7 +369,7 @@ async function detectarOfertasPorExpirar(negocioId: string): Promise<void> {
 			AND fecha_fin BETWEEN NOW() AND NOW() + (${diasAnticipacion} || ' days')::interval
 	`);
 
-	const ofertas = (resultado as { rows: Record<string, unknown>[] }).rows;
+	const ofertas = (resultado as unknown as { rows: Record<string, unknown>[] }).rows;
 
 	for (const oferta of ofertas) {
 		const contextoId = oferta.id as string;
@@ -405,7 +405,7 @@ async function detectarCuponesPorExpirar(negocioId: string): Promise<void> {
 		LIMIT 5
 	`);
 
-	const grupos = (resultado as { rows: { total: number; titulo: string }[] }).rows;
+	const grupos = (resultado as unknown as { rows: { total: number; titulo: string }[] }).rows;
 	if (grupos.length === 0) return;
 
 	const totalCupones = grupos.reduce((sum, g) => sum + g.total, 0);
@@ -440,7 +440,7 @@ async function detectarCuponesSinCanjear(negocioId: string): Promise<void> {
 		HAVING COUNT(*) >= 5
 	`);
 
-	const ofertas = (resultado as { rows: { id: string; titulo: string; total_asignados: number; total_usados: number }[] }).rows;
+	const ofertas = (resultado as unknown as { rows: { id: string; titulo: string; total_asignados: number; total_usados: number }[] }).rows;
 
 	for (const oferta of ofertas) {
 		const tasaUso = oferta.total_asignados > 0
@@ -476,7 +476,7 @@ async function detectarPuntosPorExpirar(negocioId: string): Promise<void> {
 		LIMIT 1
 	`);
 
-	const config = (configResult as { rows: { dias_expiracion_puntos: number }[] }).rows[0];
+	const config = (configResult as unknown as { rows: { dias_expiracion_puntos: number }[] }).rows[0];
 	if (!config || config.dias_expiracion_puntos <= 0) return;
 
 	const diasUmbral = config.dias_expiracion_puntos - diasAnticipacion;
@@ -490,7 +490,7 @@ async function detectarPuntosPorExpirar(negocioId: string): Promise<void> {
 		LIMIT 5
 	`);
 
-	const clientes = (resultado as { rows: { nombre: string; apellidos: string | null; puntos_disponibles: number }[] }).rows;
+	const clientes = (resultado as unknown as { rows: { nombre: string; apellidos: string | null; puntos_disponibles: number }[] }).rows;
 	const afectados = clientes.length;
 
 	if (afectados > 0) {
@@ -527,7 +527,7 @@ async function detectarRecompensaPopular(negocioId: string): Promise<void> {
 		HAVING COUNT(rp.id) FILTER (WHERE rp.canjeada = true AND rp.canjeada_at > NOW() - INTERVAL '7 days') > 0
 	`);
 
-	const recompensas = (resultado as { rows: { id: string; nombre: string; stock: number; canjes_semana: number }[] }).rows;
+	const recompensas = (resultado as unknown as { rows: { id: string; nombre: string; stock: number; canjes_semana: number }[] }).rows;
 
 	for (const r of recompensas) {
 		if (await existeAlertaReciente(negocioId, 'recompensa_popular', r.id)) continue;
@@ -574,7 +574,7 @@ async function detectarCaidaVentas(negocioId: string): Promise<void> {
 		WHERE negocio_id = ${negocioId} AND estado = 'confirmado'
 	`);
 
-	const row = (resultado as { rows: { ventas_semana: string; ventas_4_semanas: string }[] }).rows[0];
+	const row = (resultado as unknown as { rows: { ventas_semana: string; ventas_4_semanas: string }[] }).rows[0];
 	const ventasSemana = parseFloat(row?.ventas_semana ?? '0');
 	const ventas4Semanas = parseFloat(row?.ventas_4_semanas ?? '0');
 	const promedioSemanal = ventas4Semanas / 4;
@@ -612,7 +612,7 @@ async function detectarClienteVipInactivo(negocioId: string): Promise<void> {
 		LIMIT 5
 	`);
 
-	const clientes = (resultado as { rows: { nivel_actual: string; nombre: string; apellidos: string | null; puntos_disponibles: number }[] }).rows;
+	const clientes = (resultado as unknown as { rows: { nivel_actual: string; nombre: string; apellidos: string | null; puntos_disponibles: number }[] }).rows;
 	const total = clientes.length;
 
 	if (total > 0) {
@@ -650,7 +650,7 @@ async function detectarRachaResenasNegativas(negocioId: string): Promise<void> {
 		LIMIT 5
 	`);
 
-	const resenas = (resultado as { rows: { rating: number; texto: string; autor: string }[] }).rows;
+	const resenas = (resultado as unknown as { rows: { rating: number; texto: string; autor: string }[] }).rows;
 	const total = resenas.length;
 
 	if (total >= minimoResenas) {
@@ -683,7 +683,7 @@ async function detectarPicoActividad(negocioId: string): Promise<void> {
 		WHERE negocio_id = ${negocioId} AND estado = 'confirmado'
 	`);
 
-	const row = (resultado as { rows: { hoy: number; promedio_diario: string }[] }).rows[0];
+	const row = (resultado as unknown as { rows: { hoy: number; promedio_diario: string }[] }).rows[0];
 	const hoy = row?.hoy ?? 0;
 	const promedioDiario = parseFloat(row?.promedio_diario ?? '0');
 
@@ -708,5 +708,5 @@ export async function obtenerNegociosActivos(): Promise<string[]> {
 		SELECT id FROM negocios WHERE activo = true
 	`);
 
-	return (resultado as { rows: { id: string }[] }).rows.map(r => r.id);
+	return (resultado as unknown as { rows: { id: string }[] }).rows.map(r => r.id);
 }

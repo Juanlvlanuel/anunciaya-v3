@@ -149,9 +149,8 @@ export async function crearNegocioPrueba(): Promise<void> {
     usuarioId: USUARIO_1_ID,
     nombre: 'Negocio Test E2E',
     descripcion: 'Negocio de prueba para tests',
-    categoriaId: null as unknown as number,
     activo: true,
-  });
+  } as any);
 
   // Vincular usuario al negocio
   await db
@@ -163,8 +162,9 @@ export async function crearNegocioPrueba(): Promise<void> {
     id: SUCURSAL_TEST_ID,
     negocioId: NEGOCIO_TEST_ID,
     nombre: 'Sucursal Principal Test',
+    ciudad: 'Test',
     esPrincipal: true,
-  });
+  } as any);
 }
 
 /**
@@ -193,7 +193,7 @@ export async function crearAlertaPrueba(overrides?: {
     RETURNING id
   `);
 
-  return (resultado as { rows: { id: string }[] }).rows[0].id;
+  return (resultado as unknown as { rows: { id: string }[] }).rows[0].id;
 }
 
 /**

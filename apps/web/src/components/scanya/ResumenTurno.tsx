@@ -16,6 +16,7 @@
 import { useState, useEffect } from 'react';
 import { PlayCircle } from 'lucide-react';
 import type { TurnoScanYA } from '@/types/scanya';
+import { ModalImagenes } from '@/components/ui/ModalImagenes';
 
 // =============================================================================
 // INTERFACES
@@ -27,6 +28,8 @@ interface ResumenTurnoProps {
     onCerrarTurno: () => void;
     cargando?: boolean;
     nombreUsuario: string;
+    fotoUrl?: string | null;
+    vouchersPendientes?: number;
 }
 
 // =============================================================================
@@ -128,11 +131,14 @@ export default function ResumenTurno({
     onCerrarTurno,
     cargando = false,
     nombreUsuario,
+    fotoUrl,
+    vouchersPendientes = 0,
 }: ResumenTurnoProps) {
     // ---------------------------------------------------------------------------
     // ESTADO: Duración en tiempo real
     // ---------------------------------------------------------------------------
     const [duracion, setDuracion] = useState<string>('');
+    const [modalAvatarAbierto, setModalAvatarAbierto] = useState(false);
 
     // ---------------------------------------------------------------------------
     // EFECTO: Actualizar duración cada minuto
@@ -159,7 +165,7 @@ export default function ResumenTurno({
         return (
             <div
                 className="
-          rounded-xl
+          rounded-2xl
           p-6 lg:p-4 2xl:p-6
           relative
           lg:max-w-md 2xl:max-w-none
@@ -178,9 +184,9 @@ export default function ResumenTurno({
                     }}
                 />
 
-                {/* Header */}
+                {/* Header — Avatar centrado */}
                 <div
-                    className="mb-5 pb-4"
+                    className="mb-5 pb-4 relative"
                     style={{
                         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.1))',
                         margin: '-24px -24px 24px -24px',
@@ -188,58 +194,63 @@ export default function ResumenTurno({
                         borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
                     }}
                 >
-                    <div className="flex justify-between items-start mb-4">
-                        {/* Logo + Título */}
-                        <div className="flex items-center gap-3">
-                            <div
-                                className="
-                  w-14 h-14 lg:w-10 lg:h-10 2xl:w-14 2xl:h-14
-                  rounded-xl
-                  flex items-center justify-center
-                "
-                                style={{
-                                    background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
-                                    boxShadow: '0 4px 16px rgba(59, 130, 246, 0.5)',
-                                }}
-                            >
-                                {/* Icono SVG BarChart */}
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                    <path d="M3 3v18h18" />
-                                    <path d="m19 9-5 5-4-4-3 3" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 className="text-white font-bold text-xl lg:text-lg 2xl:text-xl tracking-wide">
-                                    ¡BIENVENIDO!
-                                </h2>
-                                <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">
-                                    @{obtenerSoloNombres(nombreUsuario)}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Badge Estado */}
+                    {/* Badge Estado — esquina superior derecha */}
+                    <div className="absolute top-4 right-4">
                         <div
                             className="
-                px-2.5 py-1 lg:px-4 lg:py-2
-                rounded-full
-                flex items-center gap-1.5 lg:gap-2
-              "
+                                px-2.5 py-1 lg:px-3 lg:py-1
+                                rounded-full
+                                flex items-center gap-1.5
+                            "
                             style={{
                                 background: 'rgba(100, 116, 139, 0.2)',
                                 border: '1px solid rgba(100, 116, 139, 0.4)',
                             }}
                         >
-                            <div className="w-1 h-1 lg:w-1.5 lg:h-1.5 rounded-full bg-[#64748B]" />
-                            <span className="text-[#94A3B8] text-[10px] lg:text-xs 2xl:text-xs font-semibold uppercase">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#64748B]" />
+                            <span className="text-[#94A3B8] text-[10px] lg:text-xs font-semibold uppercase">
                                 Sin Turno
                             </span>
+                        </div>
+                    </div>
+
+                    {/* Avatar + Nombre centrados */}
+                    <div className="flex flex-col items-center gap-3 pt-2">
+                        <div
+                            className={`
+                                w-18 h-18 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20
+                                rounded-full
+                                flex items-center justify-center
+                                overflow-hidden shrink-0
+                                ${fotoUrl ? 'cursor-pointer hover:ring-2 hover:ring-white/40 transition-all duration-200' : ''}
+                            `}
+                            style={{
+                                background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
+                                boxShadow: '0 4px 20px rgba(59, 130, 246, 0.5)',
+                            }}
+                            onClick={fotoUrl ? () => setModalAvatarAbierto(true) : undefined}
+                        >
+                            {fotoUrl ? (
+                                <img src={fotoUrl} alt="" className="w-full h-full object-cover transition-transform duration-300 hover:scale-110" />
+                            ) : (
+                                <span className="text-white font-bold text-3xl lg:text-2xl 2xl:text-3xl">
+                                    {obtenerSoloNombres(nombreUsuario).charAt(0).toUpperCase()}
+                                </span>
+                            )}
+                        </div>
+                        <div className="text-center">
+                            <h2 className="text-white font-bold text-xl lg:text-lg 2xl:text-xl">
+                                Hola, {obtenerSoloNombres(nombreUsuario)}
+                            </h2>
+                            <p className="text-[#94A3B8] text-base lg:text-sm 2xl:text-base mt-0.5 font-medium">
+                                Listo para empezar
+                            </p>
                         </div>
                     </div>
                 </div>
 
                 {/* Mensaje */}
-                <p className="text-[#94A3B8] text-center mb-6 lg:mb-4 2xl:mb-6 mt-6 lg:mt-4 2xl:mt-6 text-base lg:text-sm 2xl:text-base py-4 lg:py-3 2xl:py-4">
+                <p className="text-[#94A3B8] text-center mb-6 lg:mb-4 2xl:mb-6 mt-6 lg:mt-4 2xl:mt-6 text-lg lg:text-base 2xl:text-lg py-4 lg:py-3 2xl:py-4">
                     No tienes un turno abierto
                 </p>
 
@@ -284,6 +295,15 @@ export default function ResumenTurno({
                     <PlayCircle className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
                     {cargando ? 'Abriendo turno...' : 'Abrir Turno'}
                 </button>
+
+                {/* Modal para expandir avatar */}
+                {fotoUrl && (
+                    <ModalImagenes
+                        images={[fotoUrl]}
+                        isOpen={modalAvatarAbierto}
+                        onClose={() => setModalAvatarAbierto(false)}
+                    />
+                )}
             </div>
         );
     }
@@ -294,7 +314,7 @@ export default function ResumenTurno({
     return (
         <div
             className="
-        rounded-xl
+        rounded-2xl
         relative
         overflow-hidden
         lg:max-w-md 2xl:max-w-none
@@ -313,69 +333,172 @@ export default function ResumenTurno({
                 }}
             />
 
-            {/* Header Premium */}
+            {/* Header Premium — Avatar centrado */}
             <div
-                className="p-4 lg:p-4 2xl:p-6 pb-3 lg:pb-3 2xl:pb-4"
+                className="p-4 lg:p-4 2xl:p-6 pb-3 lg:pb-3 2xl:pb-4 relative"
                 style={{
                     background: 'linear-gradient(0deg, #001136 0%, #072885 70%, #072885 100%)',
                 }}
             >
-                <div className="flex justify-between items-start mb-3 lg:mb-4">
-                    {/* Logo + Título */}
-                    <div className="flex items-center gap-2 lg:gap-2 2xl:gap-3">
-                        <div
+                {/* ============================================================
+                    MÓVIL: 3 columnas — Finalizar | Avatar+Datos | Activo
+                ============================================================ */}
+                <div className="flex lg:hidden flex-col pt-2 mb-3">
+                    {/* Fila superior: Finalizar | Activo */}
+                    <div className="flex items-center justify-between mb-3">
+                        {/* Botón Finalizar Turno */}
+                        <button
+                            onClick={onCerrarTurno}
+                            disabled={cargando}
                             className="
-                w-10 h-10 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14
-                rounded-xl
-                flex items-center justify-center
-              "
+                                px-3 py-1.5
+                                rounded-full
+                                flex items-center gap-2
+                                text-white font-bold
+                                text-sm
+                                transition-all duration-200
+                                cursor-pointer
+                                disabled:opacity-50 disabled:cursor-not-allowed
+                                bg-linear-to-br from-amber-600 to-red-700
+                            "
                             style={{
-                                background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
-                                boxShadow: '0 4px 16px rgba(59, 130, 246, 0.5)',
+                                boxShadow: '0 2px 10px rgba(185, 28, 28, 0.35)',
                             }}
                         >
-                            {/* Icono SVG BarChart */}
-                            <svg className="w-5 h-5 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                <path d="M3 3v18h18" />
-                                <path d="m19 9-5 5-4-4-3 3" />
+                            <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <circle cx="12" cy="12" r="10" />
+                                <rect x="9" y="9" width="6" height="6" />
                             </svg>
-                        </div>
-                        <div>
-                            <h2 className="text-white font-bold text-base lg:text-lg 2xl:text-xl tracking-wide">
-                                ¡BIENVENIDO!
-                            </h2>
-                            <p className="text-[#94A3B8] text-sm lg:text-base 2xl:text-lg">
-                                @{obtenerSoloNombres(nombreUsuario)}
-                            </p>
+                            {cargando ? 'Cerrando...' : 'Cerrar Turno'}
+                        </button>
+
+                        {/* Badge Activo */}
+                        <div
+                            className="
+                                px-3 py-1.5
+                                rounded-full
+                                flex items-center gap-1.5
+                            "
+                            style={{
+                                background: 'rgba(16, 185, 129, 0.25)',
+                                border: '1px solid #10B981',
+                                boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
+                            }}
+                        >
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#34D399] animate-pulse" style={{ boxShadow: '0 0 6px #10B981' }} />
+                            <span className="text-[#34D399] text-xs font-bold uppercase tracking-wide">
+                                Activo
+                            </span>
                         </div>
                     </div>
 
-                    {/* Badge Estado ACTIVO */}
+                    {/* Avatar + Nombre centrado */}
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div
+                            className={`
+                                w-14 h-14
+                                rounded-full
+                                flex items-center justify-center
+                                overflow-hidden shrink-0
+                                ${fotoUrl ? 'cursor-pointer hover:ring-2 hover:ring-white/40 transition-all duration-200' : ''}
+                            `}
+                            style={{
+                                background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
+                                boxShadow: '0 4px 20px rgba(59, 130, 246, 0.5)',
+                            }}
+                            onClick={fotoUrl ? () => setModalAvatarAbierto(true) : undefined}
+                        >
+                            {fotoUrl ? (
+                                <img src={fotoUrl} alt="" className="w-full h-full object-cover transition-transform duration-300 hover:scale-110" />
+                            ) : (
+                                <span className="text-white font-bold text-xl">
+                                    {obtenerSoloNombres(nombreUsuario).charAt(0).toUpperCase()}
+                                </span>
+                            )}
+                        </div>
+                        <div className="text-center">
+                            <h2 className="text-white font-bold text-xl">
+                                Hola, {obtenerSoloNombres(nombreUsuario)}
+                            </h2>
+                            <p className="text-[#94A3B8] text-base mt-0.5 font-medium">
+                                Tu turno está en curso
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ============================================================
+                    LAPTOP/DESKTOP: Layout centrado original
+                ============================================================ */}
+
+                {/* Badge Estado ACTIVO — esquina superior derecha (solo desktop) */}
+                <div className="hidden lg:block absolute top-4 right-4">
                     <div
                         className="
-              px-2 py-1 lg:px-2.5 lg:py-0.5 2xl:px-4 2xl:py-2
-              rounded-full
-              flex items-center gap-1.5 lg:gap-1 2xl:gap-2
-            "
+                            px-3 py-1
+                            rounded-full
+                            flex items-center gap-1.5
+                        "
                         style={{
-                            background: 'rgba(16, 185, 129, 0.2)',
-                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            background: 'rgba(16, 185, 129, 0.25)',
+                            border: '1px solid #10B981',
+                            boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
                         }}
                     >
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                        <span className="text-[#10B981] text-[10px] lg:text-[10px] 2xl:text-xs font-semibold uppercase">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#34D399] animate-pulse" style={{ boxShadow: '0 0 6px #10B981' }} />
+                        <span className="text-[#34D399] text-xs font-bold uppercase tracking-wide">
                             Activo
                         </span>
                     </div>
                 </div>
 
+                {/* Avatar + Nombre centrados (solo desktop) */}
+                <div className="hidden lg:flex flex-col items-center gap-2 pt-2 mb-4">
+                    <div
+                        className={`
+                            lg:w-16 lg:h-16 2xl:w-20 2xl:h-20
+                            rounded-full
+                            flex items-center justify-center
+                            overflow-hidden shrink-0
+                            ${fotoUrl ? 'cursor-pointer hover:ring-2 hover:ring-white/40 transition-all duration-200' : ''}
+                        `}
+                        style={{
+                            background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
+                            boxShadow: '0 4px 20px rgba(59, 130, 246, 0.5)',
+                        }}
+                        onClick={fotoUrl ? () => setModalAvatarAbierto(true) : undefined}
+                    >
+                        {fotoUrl ? (
+                            <img src={fotoUrl} alt="" className="w-full h-full object-cover transition-transform duration-300 hover:scale-110" />
+                        ) : (
+                            <span className="text-white font-bold lg:text-2xl 2xl:text-3xl">
+                                {obtenerSoloNombres(nombreUsuario).charAt(0).toUpperCase()}
+                            </span>
+                        )}
+                    </div>
+                    <div className="text-center">
+                        <h2 className="text-white font-bold lg:text-lg 2xl:text-xl">
+                            Hola, {obtenerSoloNombres(nombreUsuario)}
+                        </h2>
+                        <p className="text-[#94A3B8] lg:text-sm 2xl:text-base mt-0.5 font-medium">
+                            Tu turno está en curso
+                        </p>
+                    </div>
+                </div>
+
+                {/* Separador móvil */}
+                <div
+                    className="h-0.5 mx-4 mt-2 mb-3 lg:mt-1 lg:mb-3 2xl:mt-2 2xl:mb-4"
+                    style={{ background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.25), transparent)' }}
+                />
+
                 {/* Time Display en 3 bloques */}
                 <div className="flex justify-between items-center py-0 lg:py-1">
                     <div className="text-center">
-                        <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide">
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide font-medium">
                             Inicio
                         </div>
-                        <div className="text-base lg:text-base 2xl:text-xl font-bold text-white">
+                        <div className="text-lg lg:text-lg 2xl:text-2xl font-bold text-white">
                             {formatearHora(turno.horaInicio)}
                         </div>
                     </div>
@@ -383,10 +506,10 @@ export default function ResumenTurno({
                     <div className="text-2xl lg:text-xl 2xl:text-2xl text-[#3B82F6] font-light mx-2 lg:mx-2 2xl:mx-3">•</div>
 
                     <div className="text-center">
-                        <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide">
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide font-medium">
                             Duración
                         </div>
-                        <div className="text-base lg:text-base 2xl:text-xl font-bold text-[#10B981]">
+                        <div className="text-lg lg:text-lg 2xl:text-2xl font-bold text-[#10B981]">
                             {duracion || '0min'}
                         </div>
                     </div>
@@ -394,10 +517,10 @@ export default function ResumenTurno({
                     <div className="text-2xl lg:text-xl 2xl:text-2xl text-[#3B82F6] font-light mx-2 lg:mx-2 2xl:mx-3">•</div>
 
                     <div className="text-center">
-                        <div className="text-[10px] lg:text-[10px] 2xl:text-[11px] text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide">
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide font-medium">
                             Estado
                         </div>
-                        <div className="text-sm lg:text-sm 2xl:text-base font-bold text-white">
+                        <div className="text-base lg:text-base 2xl:text-lg font-bold text-white">
                             Abierto
                         </div>
                     </div>
@@ -405,131 +528,127 @@ export default function ResumenTurno({
             </div>
 
             {/* Body Premium */}
-            <div className="p-4 pt-5 lg:p-4 lg:pt-6 2xl:p-8 2xl:pt-12">
-                {/* Métricas Centradas */}
-                <div className="flex gap-2 lg:gap-4 2xl:gap-5 mb-4 lg:mb-4 2xl:mb-6">
+            <div className="p-4 pt-4 lg:p-4 lg:pt-4 2xl:p-6 2xl:pt-6">
+                {/* Métricas — 4 en 1 fila */}
+                <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 lg:gap-2 2xl:gap-3 mb-4 lg:mb-4 2xl:mb-5">
                     {/* Transacciones */}
                     <div
-                        className="
-              flex-1
-              rounded-xl
-              p-2 lg:p-3 2xl:p-6
-              relative
-            "
+                        className="rounded-lg p-2.5 lg:p-2.5 2xl:p-3 relative"
                         style={{
                             background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)',
-                            border: '2px solid rgba(30, 64, 110, 0.5)',
+                            border: '2.5px solid rgba(30, 64, 110, 0.7)',
+                            boxShadow: '0 0 15px rgba(59, 130, 246, 0.25)',
                         }}
                     >
-                        {/* Línea superior azul */}
                         <div
-                            className="absolute top-2 left-2 right-2 h-1.5 rounded-full"
-                            style={{
-                                background: 'linear-gradient(90deg, #3B82F6, transparent)',
-                            }}
+                            className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
+                            style={{ background: 'linear-gradient(90deg, #3B82F6, transparent)' }}
                         />
-
-                        <div className="flex flex-col items-center gap-1 lg:gap-2 2xl:gap-3 mb-1 lg:mb-2 2xl:mb-4 mt-3 lg:mt-0 2xl:mt-0">
-                            {/* Icono SVG Tarjeta */}
-                            <div
-                                className="
-                  w-6 h-6 lg:w-7 lg:h-7 lg:mt-2 2xl:w-11 2xl:h-11
-                  rounded-lg
-                  flex items-center justify-center
-                "
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.1))',
-                                }}
-                            >
-                                <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
-                                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                                    <line x1="1" y1="10" x2="23" y2="10" />
-                                </svg>
-                            </div>
-                            <div className="text-[9px] lg:text-[10px] 2xl:text-xs text-[#94A3B8] uppercase tracking-wide font-medium">
-                                Transacciones
-                            </div>
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-1">
+                            Ventas
                         </div>
-
-                        <div className="text-2xl lg:text-3xl 2xl:text-5xl font-bold text-white text-center mb-0.5 lg:mb-1 2xl:mb-2">
+                        <div className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-white text-center">
                             {turno.transacciones}
                         </div>
-                        <div className="text-[10px] lg:text-xs 2xl:text-sm text-[#64748B] text-center">
-                            procesadas en turno
+                        <div className="text-sm lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
+                            en turno
                         </div>
                     </div>
 
                     {/* Puntos */}
                     <div
-                        className="
-              flex-1
-              rounded-xl
-              p-2 lg:p-3 2xl:p-6
-              relative
-            "
+                        className="rounded-lg p-2.5 lg:p-2.5 2xl:p-3 relative"
                         style={{
                             background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)',
-                            border: '2px solid rgba(30, 64, 110, 0.5)',
+                            border: '2.5px solid rgba(30, 64, 110, 0.7)',
+                            boxShadow: '0 0 15px rgba(59, 130, 246, 0.25)',
                         }}
                     >
-                        {/* Línea superior dorada */}
                         <div
-                            className="absolute top-2 left-2 right-2 h-1.5 rounded-full"
-                            style={{
-                                background: 'linear-gradient(90deg, #F59E0B, transparent)',
-                            }}
+                            className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
+                            style={{ background: 'linear-gradient(90deg, #F59E0B, transparent)' }}
                         />
-
-                        <div className="flex flex-col items-center gap-1 lg:gap-2 2xl:gap-3 mb-1 lg:mb-2 2xl:mb-4 mt-3 lg:mt-0 2xl:mt-0">
-                            {/* Icono SVG Estrella */}
-                            <div
-                                className="
-                  w-6 h-6 lg:w-7 lg:h-7 lg:mt-2 2xl:w-11 2xl:h-11
-                  rounded-lg
-                  flex items-center justify-center
-                "
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1))',
-                                }}
-                            >
-                                <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                </svg>
-                            </div>
-                            <div className="text-[9px] lg:text-[10px] 2xl:text-xs text-[#94A3B8] uppercase tracking-wide font-medium">
-                                Puntos
-                            </div>
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-1">
+                            Puntos
                         </div>
-
-                        <div className="text-2xl lg:text-3xl 2xl:text-5xl font-bold text-white text-center mb-0.5 lg:mb-1 2xl:mb-2">
+                        <div className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-white text-center">
                             {turno.puntosOtorgados}
                         </div>
-                        <div className="text-[10px] lg:text-xs 2xl:text-sm text-[#64748B] text-center">
-                            otorgados en turno
+                        <div className="text-sm lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
+                            otorgados
+                        </div>
+                    </div>
+
+                    {/* Ventas Totales $ */}
+                    <div
+                        className="rounded-lg p-2.5 lg:p-2.5 2xl:p-3 relative"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)',
+                            border: '2.5px solid rgba(30, 64, 110, 0.7)',
+                            boxShadow: '0 0 15px rgba(59, 130, 246, 0.25)',
+                        }}
+                    >
+                        <div
+                            className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
+                            style={{ background: 'linear-gradient(90deg, #10B981, transparent)' }}
+                        />
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-1">
+                            Total $
+                        </div>
+                        <div className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-[#10B981] text-center">
+                            ${turno.ventasTotales ? turno.ventasTotales.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}
+                        </div>
+                        <div className="text-sm lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
+                            vendido
+                        </div>
+                    </div>
+
+                    {/* Vouchers pendientes (solo laptop+) */}
+                    <div
+                        className="hidden lg:block rounded-lg p-2.5 lg:p-2.5 2xl:p-3 relative"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)',
+                            border: '2.5px solid rgba(30, 64, 110, 0.7)',
+                            boxShadow: '0 0 15px rgba(59, 130, 246, 0.25)',
+                        }}
+                    >
+                        <div
+                            className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
+                            style={{ background: 'linear-gradient(90deg, #8B5CF6, transparent)' }}
+                        />
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-1">
+                            Vouchers
+                        </div>
+                        <div className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-white text-center">
+                            {vouchersPendientes}
+                        </div>
+                        <div className="text-sm lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
+                            por canjear
                         </div>
                     </div>
                 </div>
 
                 {/* Divider */}
                 <div
-                    className="h-0.5 mb-4 lg:mb-4 2xl:mb-6"
+                    className="h-0.5 mb-4 lg:mb-4 2xl:mb-5"
                     style={{
                         background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent)',
                     }}
                 />
 
-                {/* Botón Gaming Style - Finalizar Turno */}
+                {/* Botón Finalizar Turno (solo laptop+) */}
                 <button
                     onClick={onCerrarTurno}
                     disabled={cargando}
                     className="
+            hidden lg:flex
             w-full
-            flex items-center justify-center gap-2 lg:gap-2 2xl:gap-3
+            items-center justify-center gap-2 lg:gap-2 2xl:gap-3
             text-white font-bold
-            py-3 lg:py-3.5 2xl:py-5
+            py-3.5 lg:py-3.5 2xl:py-4
             rounded-xl
             transition-all duration-200
-            text-sm lg:text-sm 2xl:text-base
+            text-base lg:text-base 2xl:text-lg
             cursor-pointer
             disabled:opacity-50 disabled:cursor-not-allowed
             relative
@@ -539,20 +658,20 @@ export default function ResumenTurno({
                     style={{
                         background: cargando
                             ? 'rgba(100, 116, 139, 0.3)'
-                            : 'linear-gradient(135deg, #DC2626, #991B1B)',
+                            : 'linear-gradient(135deg, #D97706, #B91C1C)',
                         border: 'none',
-                        boxShadow: cargando ? 'none' : '0 4px 20px rgba(220, 38, 38, 0.4)',
+                        boxShadow: cargando ? 'none' : '0 4px 16px rgba(185, 28, 28, 0.35)',
                     }}
                     onMouseEnter={(e) => {
                         if (!cargando) {
                             e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 6px 25px rgba(220, 38, 38, 0.5)';
+                            e.currentTarget.style.boxShadow = '0 6px 25px rgba(185, 28, 28, 0.45)';
                         }
                     }}
                     onMouseLeave={(e) => {
                         if (!cargando) {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 20px rgba(220, 38, 38, 0.4)';
+                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(185, 28, 28, 0.35)';
                         }
                     }}
                 >
@@ -576,10 +695,19 @@ export default function ResumenTurno({
                     </svg>
 
                     <span className="relative z-10">
-                        {cargando ? 'Finalizando turno...' : 'Finalizar Turno'}
+                        {cargando ? 'Cerrando turno...' : 'Cerrar Turno'}
                     </span>
                 </button>
             </div>
+
+            {/* Modal para expandir avatar */}
+            {fotoUrl && (
+                <ModalImagenes
+                    images={[fotoUrl]}
+                    isOpen={modalAvatarAbierto}
+                    onClose={() => setModalAvatarAbierto(false)}
+                />
+            )}
         </div>
     );
 }

@@ -528,32 +528,51 @@ export async function obtenerOCrearMisNotas(
     usuarioId: string
 ): Promise<RespuestaServicio<ConversacionResponse>> {
     try {
-        // Buscar si ya existe
-        const [existente] = await db
-            .select()
-            .from(chatConversaciones)
-            .where(
-                and(
-                    eq(chatConversaciones.participante1Id, usuarioId),
-                    eq(chatConversaciones.participante2Id, usuarioId),
-                    eq(chatConversaciones.contextoTipo, 'notas')
-                )
-            )
-            .limit(1);
+        // Buscar si ya existe (SQL raw por compatibilidad con casing)
+        const busqueda = await db.execute(sql`
+            SELECT * FROM chat_conversaciones
+            WHERE participante1_id = ${usuarioId}
+                AND participante2_id = ${usuarioId}
+                AND contexto_tipo = 'notas'
+            LIMIT 1
+        `);
+        const existente = (busqueda as unknown as { rows: Record<string, unknown>[] }).rows[0];
 
         if (existente) {
             // Si estaba eliminada, restaurar
-            if (existente.eliminadaPorP1) {
-                await db
-                    .update(chatConversaciones)
-                    .set({ eliminadaPorP1: false })
-                    .where(eq(chatConversaciones.id, existente.id));
+            if (existente.eliminada_por_p1) {
+                await db.execute(sql`
+                    UPDATE chat_conversaciones SET eliminada_por_p1 = false WHERE id = ${existente.id as string}
+                `);
             }
 
             return {
                 success: true,
                 message: 'Mis Notas obtenida',
-                data: mapearMisNotas(existente),
+                data: {
+                    id: existente.id as string,
+                    participante1Id: existente.participante1_id as string,
+                    participante1Modo: (existente.participante1_modo as ModoChatYA) ?? 'personal',
+                    participante1SucursalId: existente.participante1_sucursal_id as string | null,
+                    participante2Id: existente.participante2_id as string,
+                    participante2Modo: (existente.participante2_modo as ModoChatYA) ?? 'personal',
+                    participante2SucursalId: existente.participante2_sucursal_id as string | null,
+                    contextoTipo: (existente.contexto_tipo as ContextoTipo) ?? 'notas',
+                    contextoReferenciaId: existente.contexto_referencia_id as string | null,
+                    contextoNombre: null,
+                    ultimoMensajeTexto: existente.ultimo_mensaje_texto as string | null,
+                    ultimoMensajeFecha: existente.ultimo_mensaje_fecha as string | null,
+                    ultimoMensajeTipo: existente.ultimo_mensaje_tipo as TipoMensaje | null,
+                    ultimoMensajeEstado: (existente.ultimo_mensaje_estado as EstadoMensaje) ?? null,
+                    ultimoMensajeEmisorId: existente.ultimo_mensaje_emisor_id as string | null,
+                    noLeidos: 0,
+                    fijada: existente.fijada_por_p1 as boolean,
+                    archivada: existente.archivada_por_p1 as boolean,
+                    silenciada: existente.silenciada_por_p1 as boolean,
+                    createdAt: (existente.created_at as string) ?? '',
+                    updatedAt: (existente.updated_at as string) ?? '',
+                    otroParticipante: undefined,
+                },
             };
         }
 
@@ -578,7 +597,7 @@ export async function obtenerOCrearMisNotas(
             data: mapearMisNotas(nueva),
         };
     } catch (error) {
-        console.error('Error en obtenerOCrearMisNotas:', error);
+        console.error('Error en obtenerOCrearMisNotas:', (error as Error).message, (error as Error).stack?.split('\n').slice(0, 3).join('\n'));
         return { success: false, message: 'Error al obtener Mis Notas', code: 500 };
     }
 }

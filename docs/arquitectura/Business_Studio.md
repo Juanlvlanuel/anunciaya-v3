@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 3 Abril 2026  
-**Versión:** 1.2 (Alertas completado)
+**Última actualización:** 5 Abril 2026  
+**Versión:** 1.3 (Empleados completado)
 
 ---
 
@@ -55,7 +55,7 @@ Business Studio es el **centro de administración completo** para negocios regis
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 9 de 14 módulos completados (64%)
+**Progreso actual:** 10 de 14 módulos completados (71%)
 
 ---
 
@@ -435,7 +435,7 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ⏳ Módulos Pendientes (5/14)
+## ⏳ Módulos Pendientes (4/14)
 
 ### Alertas ✅ (Sprint 9 — 3 Abr 2026)
 
@@ -450,10 +450,16 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### Empleados ⏳
+### Empleados ✅ (Sprint 10 — 5 Abr 2026)
 
-**Dependencias:** ScanYA ✅
-**Tiempo estimado:** ~2 días
+**Completado.** Documento detallado: `docs/arquitectura/Empleados.md`
+
+- CRUD completo con permisos dueño/gerente
+- 5 permisos granulares verificados en BD en tiempo real
+- Horarios semanales + estadísticas de turnos ScanYA
+- Revocación remota de sesiones (Redis + cierre turno)
+- Testing: 188 API tests + 9 E2E tests
+
 
 **Funcionalidad esperada:**
 - Gestión de empleados, Nick+PIN para ScanYA, permisos

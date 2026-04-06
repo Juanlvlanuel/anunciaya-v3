@@ -13,9 +13,11 @@ import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, mem
 import { Search, MoreVertical, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronsDown, UserPlus, UserMinus, ArrowLeft, MessageSquare, ImageIcon } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useScanYAStore } from '../../stores/useScanYAStore';
+import { useChatYASession } from '../../hooks/useChatYASession';
 import { useUiStore } from '../../stores/useUiStore';
 import * as chatyaService from '../../services/chatyaService';
-import { emitirEvento } from '../../services/socketService';
+import { emitirEvento, emitirCuandoConectado } from '@/services/socketService';
 import type { Conversacion, Mensaje } from '../../types/chatya';
 import { BurbujaMensaje } from './BurbujaMensaje';
 import { InputMensaje } from './InputMensaje';
@@ -471,6 +473,16 @@ function VentanaChatInner() {
   );
 
   const usuario = useAuthStore((s) => s.usuario);
+  const usuarioScanYA = useScanYAStore((s) => s.usuario);
+  const { miId, modo: modoActivo, sucursalId: miSucursalId } = useChatYASession();
+
+  // Avatar e iniciales del usuario actual (AnunciaYA o ScanYA)
+  const miAvatarUrlDeriv = usuario?.avatarUrl || usuarioScanYA?.logoNegocio || null;
+  const misInicialesDeriv = usuario
+    ? `${usuario.nombre?.charAt(0) || ''}${usuario.apellidos?.charAt(0) || ''}`.toUpperCase()
+    : usuarioScanYA
+      ? (usuarioScanYA.nombreNegocio?.charAt(0) || '?').toUpperCase()
+      : '?';
   const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
 
   // ---------------------------------------------------------------------------
@@ -498,8 +510,8 @@ function VentanaChatInner() {
   // Para chats temporales, construir objeto mínimo que PanelInfoContacto necesita
   const conversacionParaPanel = conversacion ?? (esTemporal && chatTemporal ? {
     id: chatTemporal.id,
-    participante1Id: usuario?.id || '',
-    participante1Modo: (usuario?.modoActivo || 'personal') as 'personal' | 'comercial',
+    participante1Id: miId,
+    participante1Modo: modoActivo as 'personal' | 'comercial',
     participante1SucursalId: null,
     participante2Id: chatTemporal.datosCreacion.participante2Id,
     participante2Modo: (chatTemporal.datosCreacion.participante2Modo || 'personal') as 'personal' | 'comercial',
@@ -533,8 +545,7 @@ function VentanaChatInner() {
       ? `${otro.nombre.charAt(0)}${otro.apellidos?.charAt(0) || ''}`.toUpperCase()
       : '?';
   const esNegocio = !esMisNotas && !!otro?.negocioNombre;
-  const miId = usuario?.id || '';
-  const modoActivo = usuario?.modoActivo || 'personal';
+  // miId y modoActivo ya derivados de useChatYASession arriba
   const esBloqueado = !esMisNotas && !esTemporal && bloqueados.some((b) => b.bloqueadoId === otro?.id);
 
   // Derivar sucursalId del otro participante
@@ -555,10 +566,11 @@ function VentanaChatInner() {
   const estadoOtro = otro?.id ? estadosUsuarios[otro.id] : null;
 
   // Consultar estado del otro usuario al abrir conversación
+  // Usa emitirCuandoConectado para esperar al socket si aún no está listo
   useEffect(() => {
-    if (otro?.id && !esMisNotas) {
-      emitirEvento('chatya:consultar-estado', otro.id);
-    }
+    if (!otro?.id || esMisNotas) return;
+    const cancelar = emitirCuandoConectado('chatya:consultar-estado', otro.id);
+    return cancelar;
   }, [otro?.id, esMisNotas]);
 
   // Alias del contacto tiene prioridad sobre el nombre real
@@ -1552,9 +1564,9 @@ function VentanaChatInner() {
               onReenviar={handleReenviarMensaje}
               onCitaClick={handleCitaClick}
               onResponder={handleResponderMensaje}
-              miAvatarUrl={usuario?.avatarUrl || null}
+              miAvatarUrl={miAvatarUrlDeriv}
               otroAvatarUrl={avatarUrl}
-              misIniciales={usuario ? `${usuario.nombre?.charAt(0) || ''}${usuario.apellidos?.charAt(0) || ''}`.toUpperCase() : '?'}
+              misIniciales={misInicialesDeriv}
               otroIniciales={iniciales}
             />
           )}
@@ -1652,8 +1664,8 @@ function VentanaChatInner() {
           indiceInicial={visorIndiceInicial}
           miDatos={{
             nombre: 'Tú',
-            avatarUrl: usuario?.avatarUrl || null,
-            iniciales: usuario ? `${usuario.nombre?.charAt(0) || ''}${usuario.apellidos?.charAt(0) || ''}`.toUpperCase() : '?',
+            avatarUrl: miAvatarUrlDeriv,
+            iniciales: misInicialesDeriv,
           }}
           otroDatos={{
             nombre: nombreMostrar,
@@ -1680,8 +1692,8 @@ function VentanaChatInner() {
           indiceInicial={visorArchivos.indice}
           miDatos={{
             nombre: 'Tú',
-            avatarUrl: usuario?.avatarUrl || null,
-            iniciales: usuario ? `${usuario.nombre?.charAt(0) || ''}${usuario.apellidos?.charAt(0) || ''}`.toUpperCase() : '?',
+            avatarUrl: miAvatarUrlDeriv,
+            iniciales: misInicialesDeriv,
           }}
           otroDatos={{
             nombre: nombreMostrar,

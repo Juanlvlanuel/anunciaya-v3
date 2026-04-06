@@ -509,6 +509,53 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   // ---------------------------------------------------------------------------
   // Si no está abierto, no renderizar
   // ---------------------------------------------------------------------------
+  // History back — un solo handler que maneja todos los niveles
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const nivelRef = useRef(0);
+  const pushCountRef = useRef(0);
+
+  useEffect(() => {
+    if (!abierto) {
+      nivelRef.current = 0;
+      pushCountRef.current = 0;
+      setTransaccionDetalle(null);
+      return;
+    }
+
+    history.pushState({ modal: 'historial' }, '');
+    nivelRef.current = 1;
+    pushCountRef.current = 1;
+
+    const handlePopState = () => {
+      pushCountRef.current = Math.max(0, pushCountRef.current - 1);
+      if (nivelRef.current >= 2) {
+        nivelRef.current = 1;
+        setTransaccionDetalle(null);
+      } else {
+        nivelRef.current = 0;
+        onCloseRef.current();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      const pendientes = pushCountRef.current;
+      pushCountRef.current = 0;
+      nivelRef.current = 0;
+      if (pendientes > 0) history.go(-pendientes);
+    };
+  }, [abierto]);
+
+  // Push al abrir detalle
+  useEffect(() => {
+    if (!transaccionDetalle || !abierto) return;
+    history.pushState({ modal: 'historial-detalle' }, '');
+    nivelRef.current = 2;
+    pushCountRef.current += 1;
+  }, [transaccionDetalle, abierto]);
+
   if (!abierto) return null;
 
   // ---------------------------------------------------------------------------
@@ -576,13 +623,13 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
       <>
         <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setTransaccionDetalle(null)} />
         <div
-          className="fixed z-50 inset-x-0 bottom-0 h-[85vh] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px] flex flex-col rounded-t-3xl lg:rounded-none overflow-hidden"
+          className="fixed z-50 inset-x-0 bottom-0 h-full lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px] flex flex-col rounded-none overflow-hidden"
           style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #001020 100%)', boxShadow: '-4px 0 30px rgba(0,0,0,0.5)' }}
         >
           {/* Header */}
           <header className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10 shrink-0">
             <button
-              onClick={() => setTransaccionDetalle(null)}
+              onClick={() => history.back()}
               className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
@@ -591,7 +638,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
               {esCuponGratis ? 'Detalle de cupón' : 'Detalle de venta'}
             </h2>
             <button
-              onClick={() => setTransaccionDetalle(null)}
+              onClick={onClose}
               className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
             >
               <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
@@ -901,10 +948,10 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
       <div
         className="
           fixed z-50
-          inset-x-0 bottom-0 h-[85vh]
+          inset-x-0 bottom-0 h-full
           lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px]
           flex flex-col
-          rounded-t-3xl lg:rounded-none
+          rounded-none
           overflow-hidden
         "
         style={{
@@ -924,15 +971,12 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
           "
           style={{ background: 'rgba(0, 0, 0, 0.3)' }}
         >
-          {/* Handle visual solo móvil */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/20 rounded-full lg:hidden" />
-
-          <button onClick={onClose} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -ml-2 cursor-pointer">
+          <button onClick={() => history.back()} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -ml-2 cursor-pointer">
             <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
           </button>
 
           <div className="flex-1">
-            <h1 className="text-white font-semibold">{getTitulo()}</h1>
+            <h1 className="text-white font-bold text-lg lg:text-base 2xl:text-lg">{getTitulo()}</h1>
             <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">{getSubtitulo()}</p>
           </div>
 

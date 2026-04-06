@@ -48,6 +48,8 @@ import {
   obtenerSucursalesLista,
   obtenerOperadoresLista,
   obtenerTarjetasSellosCliente,
+  generarUrlUploadAvatarEmpleado,
+  actualizarAvatarEmpleado,
 } from '../services/scanya.service.js';
 
 // =============================================================================
@@ -1243,4 +1245,81 @@ export const obtenerTarjetasSellosController = async (req: Request, res: Respons
     success: resultado.success,
     data: resultado.data,
   });
+}
+
+// =============================================================================
+// CONTROLLER: GENERAR URL UPLOAD AVATAR EMPLEADO
+// =============================================================================
+
+export async function uploadAvatarEmpleadoController(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.scanyaUsuario) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+
+    const { nombreArchivo, contentType } = req.body;
+
+    if (!nombreArchivo || !contentType) {
+      res.status(400).json({
+        success: false,
+        message: 'nombreArchivo y contentType son requeridos',
+      });
+      return;
+    }
+
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!tiposPermitidos.includes(contentType)) {
+      res.status(400).json({
+        success: false,
+        message: `Tipo no permitido. Usar: ${tiposPermitidos.join(', ')}`,
+      });
+      return;
+    }
+
+    const resultado = await generarUrlUploadAvatarEmpleado(req.scanyaUsuario, nombreArchivo, contentType);
+
+    res.status(resultado.code ?? 200).json({
+      success: resultado.success,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en uploadAvatarEmpleadoController:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+// =============================================================================
+// CONTROLLER: ACTUALIZAR AVATAR EMPLEADO
+// =============================================================================
+
+export async function actualizarAvatarEmpleadoController(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.scanyaUsuario) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+
+    const { url } = req.body;
+
+    if (!url || typeof url !== 'string') {
+      res.status(400).json({
+        success: false,
+        message: 'url es requerida',
+      });
+      return;
+    }
+
+    const resultado = await actualizarAvatarEmpleado(req.scanyaUsuario, url);
+
+    res.status(resultado.code ?? 200).json({
+      success: resultado.success,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en actualizarAvatarEmpleadoController:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
 }

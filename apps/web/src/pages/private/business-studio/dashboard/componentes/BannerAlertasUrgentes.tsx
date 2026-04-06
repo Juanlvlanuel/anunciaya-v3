@@ -66,7 +66,7 @@ export default function BannerAlertasUrgentes({ alertas }: BannerAlertasUrgentes
 			<div className="p-2 space-y-1">
 				{alertasVisibles.map(alerta => {
 					const colores = COLOR_SEVERIDAD[alerta.severidad] ?? COLOR_SEVERIDAD.baja;
-					const IconoCat = ICONO_CATEGORIA[alerta.categoria] ?? Bell;
+					const IconoCat = ICONO_CATEGORIA[(alerta as any).categoria] ?? Bell;
 
 					return (
 						<div key={alerta.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-100">

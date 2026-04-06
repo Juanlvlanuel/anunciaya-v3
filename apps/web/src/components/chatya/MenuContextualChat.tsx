@@ -14,7 +14,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff, UserPlus, UserMinus, Search } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useChatYASession } from '../../hooks/useChatYASession';
 import type { Conversacion } from '../../types/chatya';
 
 // =============================================================================
@@ -47,9 +47,7 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
     const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
     const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
 
-    const usuario = useAuthStore((s) => s.usuario);
-    const miId = usuario?.id || '';
-    const modoActivo = usuario?.modoActivo || 'personal';
+    const { miId, modo: modoActivo } = useChatYASession();
 
     const otroId = conversacion.otroParticipante?.id;
     const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otroId);

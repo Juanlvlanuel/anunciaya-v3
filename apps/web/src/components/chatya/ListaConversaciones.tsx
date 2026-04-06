@@ -20,7 +20,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Search, X, MessageSquarePlus, Store, Star, MapPin, Archive, ArrowLeft, Users, UserPlus, UserMinus, Loader2 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useChatYASession, obtenerMiIdChatYA } from '../../hooks/useChatYASession';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { ConversacionItem } from './ConversacionItem';
 import { MenuContextualChat } from './MenuContextualChat';
@@ -65,7 +65,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
 
-  const modoActivo = (useAuthStore((s) => s.usuario?.modoActivo) || 'personal') as ModoChatYA;
+  const { modo: modoActivo } = useChatYASession();
 
   const latitud = useGpsStore((s) => s.latitud);
   const longitud = useGpsStore((s) => s.longitud);
@@ -408,7 +408,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   // ---------------------------------------------------------------------------
   const handleChatDesdeContacto = useCallback((contacto: Contacto) => {
     const esNegocio = !!contacto.negocioId;
-    const miId = useAuthStore.getState().usuario?.id;
+    const miId = obtenerMiIdChatYA();
 
     // Buscar si ya existe una conversación activa con este contacto
     const convExistente = conversaciones.find((c) => {

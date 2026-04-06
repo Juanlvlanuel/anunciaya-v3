@@ -23,6 +23,7 @@ import { useImagenChat } from '../../hooks/useImagenChat';
 import { useDocumentoChat, ACCEPT_DOCUMENTOS, formatearTamano, esDocumentoPermitido } from '../../hooks/useDocumentoChat';
 import { useAudioChat } from '../../hooks/useAudioChat';
 import * as chatyaService from '../../services/chatyaService';
+import { obtenerMiIdChatYA } from '../../hooks/useChatYASession';
 import type { Mensaje } from '../../types/chatya';
 
 // =============================================================================
@@ -483,7 +484,7 @@ export function InputMensaje({
 
       // 1. Insertar mensaje optimista ANTES de subir a R2
       const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const miId = JSON.parse(localStorage.getItem('ay_usuario') || '{}')?.id || null;
+      const miId = obtenerMiIdChatYA() || null;
       const contenidoPlaceholder = JSON.stringify({
         url: 'uploading',
         nombre: datosDoc.nombre,
@@ -569,7 +570,7 @@ export function InputMensaje({
 
       // 1. Insertar mensaje optimista ANTES de subir a R2
       const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const miIdLocal = JSON.parse(localStorage.getItem('ay_usuario') || '{}')?.id || null;
+      const miIdLocal = obtenerMiIdChatYA() || null;
       const contenidoPlaceholder = JSON.stringify({
         url: 'uploading',
         duracion: datosAudio.duracion,

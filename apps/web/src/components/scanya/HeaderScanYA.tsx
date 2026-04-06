@@ -18,6 +18,7 @@ import { useScanYAStore } from '@/stores/useScanYAStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { obtenerSucursalesNegocio } from '@/services/negociosService';
 import IndicadorOffline from './IndicadorOffline';
+import AvatarEmpleadoScanYA from './AvatarEmpleadoScanYA';
 
 // =============================================================================
 // INTERFACES
@@ -147,21 +148,21 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
             />
           </button>
 
-          {/* Indicador offline (solo cuando no hay conexión) */}
-          {!online && <IndicadorOffline />}
-
+          {/* Avatar + Indicador offline + Logout */}
+          <div className="flex items-center gap-3">
+            {!online && <IndicadorOffline />}
+            <AvatarEmpleadoScanYA />
           {/* Botón Logout */}
           <button
             onClick={handleLogout}
             className="
               flex items-center justify-center
               w-10 h-10
-              rounded-lg
+              rounded-full
               text-white
               transition-all duration-200
               cursor-pointer
               shrink-0
-              mr-2
             "
             style={{
               background: 'linear-gradient(135deg, #DC2626, #B91C1C)',
@@ -181,6 +182,7 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
           >
             <LogOut className="w-5 h-5" />
           </button>
+          </div>
         </div>
 
         {/* ===================================================================
@@ -260,8 +262,11 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
             </div>
           </div>
 
-          {/* Columna Derecha: Indicador Offline + Botón Logout */}
+          {/* Columna Derecha: Avatar + Indicador Offline + Botón Logout */}
           <div className="flex items-center gap-3">
+            {/* Avatar del empleado */}
+            <AvatarEmpleadoScanYA />
+
             {/* Indicador offline (solo cuando no hay conexión) */}
             {!online && <IndicadorOffline />}
 
@@ -271,7 +276,7 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
               className="
                 flex items-center justify-center
                 w-10 h-10
-                rounded-lg
+                rounded-full
                 text-white
                 transition-all duration-200
                 cursor-pointer

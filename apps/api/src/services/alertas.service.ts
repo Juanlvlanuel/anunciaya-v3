@@ -80,8 +80,8 @@ export async function obtenerAlertasPaginadas(
 		`),
 	]);
 
-	const total = (totalResult as { rows: { total: number }[] }).rows[0]?.total ?? 0;
-	const alertas = ((alertasResult as { rows: Record<string, unknown>[] }).rows).map(mapearAlerta);
+	const total = (totalResult as unknown as { rows: { total: number }[] }).rows[0]?.total ?? 0;
+	const alertas = ((alertasResult as unknown as { rows: Record<string, unknown>[] }).rows).map(mapearAlerta);
 
 	return {
 		alertas,
@@ -109,7 +109,7 @@ export async function obtenerAlertaDetalle(
 		WHERE id = ${alertaId} AND negocio_id = ${negocioId}
 	`);
 
-	const rows = (resultado as { rows: Record<string, unknown>[] }).rows;
+	const rows = (resultado as unknown as { rows: Record<string, unknown>[] }).rows;
 	if (rows.length === 0) return null;
 
 	return mapearAlerta(rows[0]);
@@ -151,8 +151,8 @@ export async function obtenerAlertasKPIs(
 		`),
 	]);
 
-	const totales = (totalesResult as { rows: Record<string, number>[] }).rows[0];
-	const resueltas = (resueltasResult as { rows: { resueltas: number }[] }).rows[0];
+	const totales = (totalesResult as unknown as { rows: Record<string, number>[] }).rows[0];
+	const resueltas = (resueltasResult as unknown as { rows: { resueltas: number }[] }).rows[0];
 
 	return {
 		total: totales?.total ?? 0,
@@ -242,7 +242,7 @@ export async function contarNoLeidas(
 		WHERE negocio_id = ${negocioId} AND leida = false ${filtroSucursal}
 	`);
 
-	return (resultado as { rows: { total: number }[] }).rows[0]?.total ?? 0;
+	return (resultado as unknown as { rows: { total: number }[] }).rows[0]?.total ?? 0;
 }
 
 // ============================================================================
@@ -281,7 +281,7 @@ export async function crearAlerta(input: CrearAlertaInput): Promise<AlertaComple
 			created_at
 	`);
 
-	const alerta = mapearAlerta((resultado as { rows: Record<string, unknown>[] }).rows[0]);
+	const alerta = mapearAlerta((resultado as unknown as { rows: Record<string, unknown>[] }).rows[0]);
 
 	// Notificar si severidad alta
 	if (severidad === 'alta') {
@@ -312,7 +312,7 @@ export async function existeAlertaReciente(
 		LIMIT 1
 	`);
 
-	return ((resultado as { rows: unknown[] }).rows.length) > 0;
+	return ((resultado as unknown as { rows: unknown[] }).rows.length) > 0;
 }
 
 // ============================================================================
@@ -331,7 +331,7 @@ export async function obtenerConfiguracion(
 		WHERE negocio_id = ${negocioId}
 	`);
 
-	const configGuardada = (resultado as { rows: { tipo_alerta: string; activo: boolean; umbrales: Record<string, unknown> }[] }).rows;
+	const configGuardada = (resultado as unknown as { rows: { tipo_alerta: string; activo: boolean; umbrales: Record<string, unknown> }[] }).rows;
 	const configMap = new Map(configGuardada.map(c => [c.tipo_alerta, c]));
 
 	// Tipos desactivados por defecto (generan muchos falsos positivos)
@@ -378,7 +378,7 @@ export async function estaAlertaActiva(
 		WHERE negocio_id = ${negocioId} AND tipo_alerta = ${tipo}
 	`);
 
-	const rows = (resultado as { rows: { activo: boolean }[] }).rows;
+	const rows = (resultado as unknown as { rows: { activo: boolean }[] }).rows;
 	// Si no hay configuración guardada, usar default (algunos tipos vienen desactivados)
 	const DESACTIVADOS_POR_DEFECTO: TipoAlerta[] = ['montos_redondos'];
 	if (rows.length === 0) return !DESACTIVADOS_POR_DEFECTO.includes(tipo);
@@ -397,7 +397,7 @@ export async function obtenerUmbrales(
 		WHERE negocio_id = ${negocioId} AND tipo_alerta = ${tipo}
 	`);
 
-	const rows = (resultado as { rows: { umbrales: Record<string, unknown> }[] }).rows;
+	const rows = (resultado as unknown as { rows: { umbrales: Record<string, unknown> }[] }).rows;
 	return rows.length > 0 ? rows[0].umbrales : (UMBRALES_DEFAULT[tipo] as Record<string, unknown>);
 }
 
@@ -469,7 +469,7 @@ async function notificarAlertaAlta(alerta: AlertaCompleta): Promise<void> {
 		SELECT usuario_id FROM negocios WHERE id = ${alerta.negocioId}
 	`);
 
-	const duenoId = (negocioResult as { rows: { usuario_id: string }[] }).rows[0]?.usuario_id;
+	const duenoId = (negocioResult as unknown as { rows: { usuario_id: string }[] }).rows[0]?.usuario_id;
 	if (!duenoId) return;
 
 	// Crear notificación en el sistema

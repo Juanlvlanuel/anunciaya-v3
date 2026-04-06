@@ -25,9 +25,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { X, StickyNote, Pin, BellOff, Archive, Trash2, ArrowLeft, ShieldBan, ShieldOff, UserPlus, UserMinus } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useAuthStore } from '../../stores/useAuthStore';
 import { useTransaccionesStore } from '../../stores/useTransaccionesStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useChatYASession } from '../../hooks/useChatYASession';
 
 // Componentes del chat
 import { ListaConversaciones } from '../chatya/ListaConversaciones';
@@ -52,6 +52,8 @@ export function ChatOverlay() {
   const chatYAAbierto = useUiStore((s) => s.chatYAAbierto);
   const chatYAMinimizado = useUiStore((s) => s.chatYAMinimizado);
   const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
+  const sesion = useChatYASession();
+  const { autenticado, modo: modoActivo, sucursalId: sucursalActiva } = sesion;
 
   const vistaActiva = useChatYAStore((s) => s.vistaActiva);
   const conversacionActivaId = useChatYAStore((s) => s.conversacionActivaId);
@@ -66,9 +68,6 @@ export function ChatOverlay() {
   const navigate = useNavigate();
   const rutaInicialRef = useRef(location.pathname);
   const navegandoExternoRef = useRef(false);
-
-  const modoActivo = useAuthStore((s) => s.usuario?.modoActivo) || 'personal';
-  const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva) || null;
 
   // ---------------------------------------------------------------------------
   // Refs
@@ -211,12 +210,11 @@ export function ChatOverlay() {
   // Effect: Cerrar ChatYA automáticamente al cerrar sesión
   // Sin esto el overlay queda abierto aunque el usuario ya no esté autenticado
   // ---------------------------------------------------------------------------
-  const usuario = useAuthStore((s) => s.usuario);
   useEffect(() => {
-    if (!usuario && chatYAAbierto) {
+    if (!autenticado && chatYAAbierto) {
       cerrarChatYA();
     }
-  }, [usuario, chatYAAbierto, cerrarChatYA]);
+  }, [autenticado, chatYAAbierto, cerrarChatYA]);
 
   // ---------------------------------------------------------------------------
   // Effect: Detectar si es desktop

@@ -17,6 +17,7 @@ import { db } from './db/index.js';
 import { usuarios } from './db/schemas/schema.js';
 import { eq } from 'drizzle-orm';
 import { verificarAccessToken } from './utils/jwt.js';
+import { verificarAccessTokenScanYA } from './utils/jwtScanYA.js';
 
 let io: SocketServer | null = null;
 
@@ -40,24 +41,38 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
     if (!token) {
       return next(new Error('Token no proporcionado'));
     }
-    const resultado = verificarAccessToken(token);
-    if (!resultado.valido || !resultado.payload) {
-      return next(new Error('Token inválido'));
+
+    // 1. Intentar como token AnunciaYA (descartar si es ScanYA)
+    const resultadoAY = verificarAccessToken(token);
+    if (resultadoAY.valido && resultadoAY.payload && !(resultadoAY.payload as any)._tipo) {
+      socket.data.usuarioId = resultadoAY.payload.usuarioId;
+      next();
+      return;
     }
-    socket.data.usuarioId = resultado.payload.usuarioId;
-    next();
+
+    // 2. Intentar como token ScanYA — usar negocioUsuarioId (ID del dueño)
+    const resultadoSY = verificarAccessTokenScanYA(token);
+    if (resultadoSY.valido && resultadoSY.payload?.negocioUsuarioId) {
+      socket.data.usuarioId = resultadoSY.payload.negocioUsuarioId;
+      next();
+      return;
+    }
+
+    return next(new Error('Token inválido'));
   });
 
   io.on('connection', (socket) => {
-
     // El cliente envía su usuarioId para unirse a su room personal
+    // Si no coincide con el del token, usar el del token (ScanYA envía empleadoId pero el room es del dueño)
     socket.on('unirse', (usuarioId: string) => {
-      if (usuarioId && usuarioId === socket.data.usuarioId) {
-        socket.join(`usuario:${usuarioId}`);
+      const idVerificado = socket.data.usuarioId;
+      const idRoom = (usuarioId && usuarioId === idVerificado) ? usuarioId : idVerificado;
+      if (idRoom) {
+        socket.join(`usuario:${idRoom}`);
 
         // Notificar a todos que este usuario está conectado
         socket.broadcast.emit('chatya:estado-usuario', {
-          usuarioId,
+          usuarioId: idRoom,
           estado: 'conectado',
         });
       }

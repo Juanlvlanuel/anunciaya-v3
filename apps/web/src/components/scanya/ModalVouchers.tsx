@@ -61,6 +61,7 @@ interface ModalVouchersProps {
     onClose: () => void;
     onCanjearVoucher: (voucherId: string, clienteId: string, clienteNombre: string, recompensaNombre: string) => void;
     cambiosVouchers?: number;
+    canjearAbierto?: boolean;
 }
 
 type EstadoVoucher = 'pendiente' | 'usado' | 'expirado' | 'cancelado';
@@ -314,6 +315,7 @@ export function ModalVouchers({
     onClose,
     onCanjearVoucher,
     cambiosVouchers,
+    canjearAbierto = false,
 }: ModalVouchersProps) {
     // ---------------------------------------------------------------------------
     // Estado
@@ -585,6 +587,56 @@ export function ModalVouchers({
 
     const totalMostrar = clienteBuscado ? clienteBuscado.vouchers.length : total;
 
+    // History back — un solo handler que maneja todos los niveles
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+    const nivelRef = useRef(0); // nivel lógico de navegación
+    const pushCountRef = useRef(0); // entries reales en el history
+    const canjearAbiertoRef = useRef(false);
+    canjearAbiertoRef.current = canjearAbierto;
+
+    useEffect(() => {
+        if (!abierto) {
+            nivelRef.current = 0;
+            pushCountRef.current = 0;
+            setVoucherDetalle(null);
+            return;
+        }
+
+        history.pushState({ modal: 'vouchers' }, '');
+        nivelRef.current = 1;
+        pushCountRef.current = 1;
+
+        const handlePopState = () => {
+            pushCountRef.current = Math.max(0, pushCountRef.current - 1);
+            if (canjearAbiertoRef.current) return;
+            if (nivelRef.current >= 2) {
+                nivelRef.current = 1;
+                setVoucherDetalle(null);
+            } else {
+                nivelRef.current = 0;
+                onCloseRef.current();
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            const pendientes = pushCountRef.current;
+            pushCountRef.current = 0;
+            nivelRef.current = 0;
+            if (pendientes > 0) history.go(-pendientes);
+        };
+    }, [abierto]);
+
+    // Push al abrir detalle
+    useEffect(() => {
+        if (!voucherDetalle || !abierto) return;
+        history.pushState({ modal: 'voucher-detalle' }, '');
+        nivelRef.current = 2;
+        pushCountRef.current += 1;
+    }, [voucherDetalle, abierto]);
+
     if (!abierto) return null;
 
     // ---------------------------------------------------------------------------
@@ -647,16 +699,16 @@ export function ModalVouchers({
             <>
                 <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setVoucherDetalle(null)} />
                 <div
-                    className="fixed z-50 inset-x-0 bottom-0 h-[85vh] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px] flex flex-col rounded-t-3xl lg:rounded-none overflow-hidden"
+                    className="fixed z-50 inset-x-0 bottom-0 h-full lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px] flex flex-col rounded-none overflow-hidden"
                     style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #001020 100%)', boxShadow: '-4px 0 30px rgba(0,0,0,0.5)' }}
                 >
                     {/* Header */}
                     <header className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10 shrink-0">
-                        <button onClick={() => setVoucherDetalle(null)} className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer">
+                        <button onClick={() => history.back()} className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer">
                             <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                         </button>
                         <h2 className="text-base lg:text-sm 2xl:text-base font-bold text-white flex-1">Detalle de voucher</h2>
-                        <button onClick={() => setVoucherDetalle(null)} className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer">
+                        <button onClick={onClose} className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer">
                             <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                         </button>
                     </header>
@@ -774,7 +826,6 @@ export function ModalVouchers({
                         {v.estado === 'pendiente' && (
                             <button
                                 onClick={() => {
-                                    setVoucherDetalle(null);
                                     handleCanjearClick(v);
                                 }}
                                 className="w-full mt-4 lg:mt-3 2xl:mt-4 py-3 lg:py-2.5 2xl:py-3 rounded-xl lg:rounded-lg 2xl:rounded-xl flex items-center justify-center gap-2 font-bold text-base lg:text-sm 2xl:text-base text-white cursor-pointer"
@@ -810,10 +861,10 @@ export function ModalVouchers({
             <div
                 className="
           fixed z-50
-          inset-x-0 bottom-0 h-[85vh]
+          inset-x-0 bottom-0 h-full
           lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px]
           flex flex-col
-          rounded-t-3xl lg:rounded-none
+          rounded-none
           overflow-hidden
         "
                 style={{
@@ -833,14 +884,14 @@ export function ModalVouchers({
           "
                 >
                     <button
-                        onClick={onClose}
+                        onClick={() => history.back()}
                         className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/20 -ml-2 cursor-pointer transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                     </button>
 
                     <div className="flex-1">
-                        <h1 className="text-white font-semibold">Vouchers</h1>
+                        <h1 className="text-white font-bold text-lg lg:text-base 2xl:text-lg">Vouchers</h1>
                         <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">
                             {clienteBuscado
                                 ? `${totalMostrar} voucher${totalMostrar !== 1 ? 's' : ''} de ${clienteBuscado.cliente.nombre}`

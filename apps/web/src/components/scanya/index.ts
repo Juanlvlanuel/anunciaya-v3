@@ -6,6 +6,7 @@
  * Ubicación: apps/web/src/components/scanya/index.ts
  */
 
+export { default as AvatarEmpleadoScanYA } from './AvatarEmpleadoScanYA';
 export { default as HeaderScanYA } from './HeaderScanYA';
 export { default as ResumenTurno } from './ResumenTurno';
 export { default as IndicadoresRapidos } from './IndicadoresRapidos';

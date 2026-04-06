@@ -131,38 +131,43 @@ export default function ModalCerrarTurno({
       "
       onClick={handleClose}
     >
-      {/* Modal con estilo glassmorphism */}
+      {/* Modal */}
       <div
         className="
-          rounded-2xl lg:rounded-xl 2xl:rounded-2xl
+          rounded-2xl
           shadow-2xl
           w-full max-w-md lg:max-w-sm 2xl:max-w-md
           animate-scale-in
         "
         style={{
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(59, 130, 246, 0.2)',
+          background: '#000000',
+          border: '2px solid rgba(59, 130, 246, 0.35)',
+          boxShadow: '0 0 30px rgba(59, 130, 246, 0.15), 0 25px 50px rgba(0, 0, 0, 0.7)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header con punto naranja */}
+        {/* Header */}
         <div
           className="
             flex items-center justify-between
-            px-5 lg:px-4 2xl:px-5
-            py-4 lg:py-3 2xl:py-4
-            border-b border-white/10
+            px-5 lg:px-5 2xl:px-6
+            py-4 lg:py-3.5 2xl:py-4
           "
+          style={{
+            borderBottom: '2px solid rgba(59, 130, 246, 0.2)',
+          }}
         >
           <h2
             className="
-              text-white font-semibold
-              text-lg lg:text-base 2xl:text-lg
-              flex items-center gap-2
+              text-white font-bold
+              text-xl lg:text-lg 2xl:text-xl
+              flex items-center gap-2.5
             "
           >
-            <span className="w-2 h-2 lg:w-1.5 lg:h-1.5 2xl:w-2 2xl:h-2 bg-amber-500 rounded-full animate-pulse-dot" />
+            <span
+              className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse-dot"
+              style={{ boxShadow: '0 0 8px rgba(245, 158, 11, 0.6)' }}
+            />
             ¿Cerrar turno?
           </h2>
 
@@ -176,111 +181,89 @@ export default function ModalCerrarTurno({
               transition-colors
             "
           >
-            <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+            <X className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-5 2xl:h-5" />
           </button>
         </div>
 
         {/* Contenido */}
-        <div className="p-5 lg:p-4 2xl:p-5 space-y-4 lg:space-y-3 2xl:space-y-4">
-          {/* Métricas en 3 columnas */}
-          <div className="grid grid-cols-3 gap-3 lg:gap-2 2xl:gap-3">
-            {/* Duración */}
-            <div
-              className="rounded-xl lg:rounded-lg 2xl:rounded-xl p-3 lg:p-2.5 2xl:p-3 text-center"
-              style={{
-                background: 'rgba(15, 23, 42, 0.4)',
-                border: '1px solid rgba(59, 130, 246, 0.1)',
-              }}
-            >
-              <div
-                className="
-                  w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8
-                  rounded-full bg-emerald-500/20
-                  flex items-center justify-center
-                  mx-auto mb-2 lg:mb-1.5 2xl:mb-2
-                "
-              >
-                <Clock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-emerald-400" />
-              </div>
-              <p className="text-white font-bold text-lg lg:text-base 2xl:text-lg">
-                {duracion}
-              </p>
-              <p className="text-slate-300 text-xs lg:text-[11px] 2xl:text-xs font-medium">
-                Duración
-              </p>
-            </div>
+        <div className="p-5 lg:p-5 2xl:p-6 space-y-5 lg:space-y-4 2xl:space-y-5">
+          {/* Duración inline + Fecha */}
+          <div className="flex items-center justify-center gap-2.5">
+            <Clock className="w-5 h-5 text-emerald-400" />
+            <span className="text-emerald-400 font-bold text-2xl lg:text-xl 2xl:text-2xl">
+              {duracion}
+            </span>
+            <span className="text-[#94A3B8] font-medium text-sm">
+              — {fechaHoraInicio}
+            </span>
+          </div>
 
-            {/* Transacciones */}
+          {/* 2 KPIs en fila */}
+          <div className="flex gap-3 lg:gap-3 2xl:gap-4">
+            {/* Ventas */}
             <div
-              className="rounded-xl lg:rounded-lg 2xl:rounded-xl p-3 lg:p-2.5 2xl:p-3 text-center"
+              className="flex-1 rounded-xl px-3 py-3 lg:p-3 2xl:p-3.5 flex items-center gap-3"
               style={{
-                background: 'rgba(15, 23, 42, 0.4)',
-                border: '1px solid rgba(59, 130, 246, 0.1)',
+                background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.8), rgba(10, 35, 70, 0.6))',
+                border: '2px solid rgba(59, 130, 246, 0.3)',
+                boxShadow: '0 0 10px rgba(59, 130, 246, 0.1)',
               }}
             >
               <div
-                className="
-                  w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8
-                  rounded-full bg-blue-500/20
-                  flex items-center justify-center
-                  mx-auto mb-2 lg:mb-1.5 2xl:mb-2
-                "
+                className="w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(59, 130, 246, 0.2)' }}
               >
-                <CreditCard className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-400" />
+                <CreditCard className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-400" />
               </div>
-              <p className="text-white font-bold text-lg lg:text-base 2xl:text-lg">
-                {turno.transacciones}
-              </p>
-              <p className="text-slate-300 text-xs lg:text-[11px] 2xl:text-xs font-medium">
-                Ventas
-              </p>
+              <div>
+                <p className="text-white font-bold text-2xl lg:text-xl 2xl:text-2xl leading-none">
+                  {turno.transacciones}
+                </p>
+                <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm font-medium mt-0.5">
+                  Ventas
+                </p>
+              </div>
             </div>
 
             {/* Puntos */}
             <div
-              className="rounded-xl lg:rounded-lg 2xl:rounded-xl p-3 lg:p-2.5 2xl:p-3 text-center"
+              className="flex-1 rounded-xl px-3 py-3 lg:p-3 2xl:p-3.5 flex items-center gap-3"
               style={{
-                background: 'rgba(15, 23, 42, 0.4)',
-                border: '1px solid rgba(59, 130, 246, 0.1)',
+                background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.8), rgba(10, 35, 70, 0.6))',
+                border: '2px solid rgba(245, 158, 11, 0.3)',
+                boxShadow: '0 0 10px rgba(245, 158, 11, 0.1)',
               }}
             >
               <div
-                className="
-                  w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8
-                  rounded-full bg-amber-500/20
-                  flex items-center justify-center
-                  mx-auto mb-2 lg:mb-1.5 2xl:mb-2
-                "
+                className="w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(245, 158, 11, 0.2)' }}
               >
-                <Star className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-amber-400" fill="currentColor" />
+                <Star className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-400" fill="currentColor" />
               </div>
-              <p className="text-white font-bold text-lg lg:text-base 2xl:text-lg">
-                {turno.puntosOtorgados}
-              </p>
-              <p className="text-slate-300 text-xs lg:text-[11px] 2xl:text-xs font-medium">
-                Puntos
-              </p>
+              <div>
+                <p className="text-white font-bold text-2xl lg:text-xl 2xl:text-2xl leading-none">
+                  {turno.puntosOtorgados}
+                </p>
+                <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm font-medium mt-0.5">
+                  Puntos
+                </p>
+              </div>
             </div>
           </div>
-
-          {/* Fecha y hora de inicio */}
-          <p className="text-slate-300 text-sm lg:text-xs 2xl:text-sm text-center font-medium">
-            Turno iniciado: {fechaHoraInicio}
-          </p>
 
           {/* Notas colapsables */}
           <details className="group">
             <summary
               className="
-                text-slate-300 text-sm lg:text-xs 2xl:text-sm
+                text-[#94A3B8] text-sm lg:text-sm 2xl:text-base
                 cursor-pointer hover:text-white
                 transition-colors
-                flex items-center gap-1
+                flex items-center gap-1.5
                 list-none
                 font-medium
               "
             >
-              <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 group-open:rotate-90 transition-transform" />
+              <ChevronRight className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 group-open:rotate-90 transition-transform" />
               Agregar nota de cierre (opcional)
             </summary>
             <textarea
@@ -293,32 +276,35 @@ export default function ModalCerrarTurno({
               rows={2}
               className="
                 w-full mt-2
-                bg-slate-900/50 border border-slate-700
-                text-white placeholder-slate-400
-                rounded-lg
-                px-3 lg:px-2.5 2xl:px-3
-                py-2 lg:py-1.5 2xl:py-2
-                text-sm lg:text-xs 2xl:text-sm
+                text-white placeholder-slate-500
+                rounded-xl
+                px-3 lg:px-3 2xl:px-4
+                py-2.5 lg:py-2 2xl:py-2.5
+                text-sm lg:text-sm 2xl:text-base
                 resize-none
-                focus:outline-none focus:border-blue-500
+                focus:outline-none
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-colors
               "
+              style={{
+                background: 'rgba(5, 15, 40, 0.6)',
+                border: '2px solid rgba(59, 130, 246, 0.25)',
+              }}
             />
           </details>
 
           {/* Botones */}
-          <div className="flex gap-3 lg:gap-2 2xl:gap-3 pt-2 lg:pt-1 2xl:pt-2">
+          <div className="flex gap-3 lg:gap-3 2xl:gap-3 pt-2 lg:pt-1 2xl:pt-2">
             {/* Botón Cancelar */}
             <button
               onClick={handleClose}
               disabled={cargando}
               className="
                 flex-1
-                py-2.5 lg:py-2 2xl:py-2.5
-                rounded-xl lg:rounded-lg 2xl:rounded-xl
-                text-white font-medium
-                text-sm lg:text-xs 2xl:text-sm
+                py-3 lg:py-2.5 2xl:py-3
+                rounded-xl
+                text-white font-semibold
+                text-sm lg:text-sm 2xl:text-base
                 hover:bg-white/10
                 disabled:opacity-50 disabled:cursor-not-allowed
                 cursor-pointer
@@ -326,8 +312,7 @@ export default function ModalCerrarTurno({
               "
               style={{
                 background: 'rgba(30, 41, 59, 0.5)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(59, 130, 246, 0.15)',
+                border: '2px solid rgba(59, 130, 246, 0.25)',
               }}
             >
               Cancelar
@@ -339,20 +324,22 @@ export default function ModalCerrarTurno({
               disabled={cargando}
               className="
                 flex-1
-                py-2.5 lg:py-2 2xl:py-2.5
-                rounded-xl lg:rounded-lg 2xl:rounded-xl
-                bg-linear-to-r from-red-600 to-red-700
-                hover:from-red-500 hover:to-red-600
-                text-white font-semibold
-                text-sm lg:text-xs 2xl:text-sm
+                py-3 lg:py-2.5 2xl:py-3
+                rounded-xl
+                bg-linear-to-r from-amber-600 to-red-700
+                hover:from-amber-700 hover:to-red-800
+                text-white font-bold
+                text-sm lg:text-sm 2xl:text-base
                 disabled:opacity-50 disabled:cursor-not-allowed
                 cursor-pointer
                 transition-all
-                shadow-lg shadow-red-900/30
-                flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2
+                flex items-center justify-center gap-2
               "
+              style={{
+                boxShadow: '0 0 20px rgba(220, 38, 38, 0.3)',
+              }}
             >
-              <Check className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
+              <Check className="w-4.5 h-4.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5" strokeWidth={2.5} />
               {cargando ? 'Cerrando...' : 'Cerrar Turno'}
             </button>
           </div>

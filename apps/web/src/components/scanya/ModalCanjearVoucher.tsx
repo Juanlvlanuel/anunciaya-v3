@@ -35,6 +35,7 @@ import scanyaService from '@/services/scanyaService';
 interface ModalCanjearVoucherProps {
   abierto: boolean;
   onClose: () => void;
+  onCerrarTodo?: () => void;
   voucherId: string | null;
   clienteId: string | null;
   clienteNombre: string;
@@ -49,6 +50,7 @@ interface ModalCanjearVoucherProps {
 export function ModalCanjearVoucher({
   abierto,
   onClose,
+  onCerrarTodo,
   voucherId,
   clienteId,
   clienteNombre,
@@ -247,14 +249,64 @@ export function ModalCanjearVoucher({
 
   const handleCerrar = () => {
     detenerCamara();
-    onClose();
+    if (onCerrarTodo) {
+      onCerrarTodo();
+    } else {
+      onClose();
+    }
   };
 
   const handleVolver = () => {
     if (exito) { handleCerrar(); return; }
-    if (metodo) { handleVolverMetodos(); return; }
-    handleCerrar();
+    detenerCamara();
+    history.back();
   };
+
+  // History back — ModalCanjearVoucher se abre ENCIMA de ModalVouchers
+  // Solo maneja navegación interna (selección de método)
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const metodoRef = useRef(metodo);
+  metodoRef.current = metodo;
+
+  const nivelCanjearRef = useRef(0);
+
+  useEffect(() => {
+    if (!abierto) {
+      nivelCanjearRef.current = 0;
+      return;
+    }
+
+    history.pushState({ modal: 'canjear-voucher' }, '');
+    nivelCanjearRef.current = 1;
+
+    const handlePopState = () => {
+      if (metodoRef.current) {
+        nivelCanjearRef.current = 1;
+        setMetodo(null);
+        setError(null);
+        setCodigo(['', '', '', '', '', '']);
+        detenerCamara();
+      } else {
+        nivelCanjearRef.current = 0;
+        onCloseRef.current();
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      const niveles = nivelCanjearRef.current;
+      nivelCanjearRef.current = 0;
+      if (niveles > 0) history.go(-niveles);
+    };
+  }, [abierto]);
+
+  // Push extra al seleccionar método
+  useEffect(() => {
+    if (!metodo || !abierto) return;
+    history.pushState({ modal: 'canjear-metodo' }, '');
+    nivelCanjearRef.current = 2;
+  }, [metodo, abierto]);
 
   // ---------------------------------------------------------------------------
   // Guards
@@ -277,7 +329,7 @@ export function ModalCanjearVoucher({
 
       {/* Contenedor: ModalBottom en móvil, Drawer en PC */}
       <div
-        className="fixed z-50 inset-x-0 bottom-0 h-[85vh] lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px] flex flex-col rounded-t-3xl lg:rounded-none overflow-hidden"
+        className="fixed z-50 inset-x-0 bottom-0 h-full lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px] flex flex-col rounded-none overflow-hidden"
         style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #001020 100%)', boxShadow: '-4px 0 30px rgba(0,0,0,0.5)' }}
       >
         {/* Header */}
@@ -291,7 +343,7 @@ export function ModalCanjearVoucher({
           </button>
           <div className="flex items-center gap-2 flex-1">
             <Gift className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
-            <h2 className="text-base lg:text-sm 2xl:text-base font-bold text-white">{tituloHeader}</h2>
+            <h2 className="text-lg lg:text-sm 2xl:text-base font-bold text-white">{tituloHeader}</h2>
           </div>
           <button
             onClick={handleCerrar}

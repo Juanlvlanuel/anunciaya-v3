@@ -947,6 +947,25 @@ El interceptor Axios (`api.ts`) detecta contexto ScanYA (`window.location.pathna
 5. Responde → `emisor_id` = `negocioUsuarioId` (dueño), `empleado_id` = quien respondió
 6. El cliente ve que "Pizzería Roma" respondió
 
+### Adaptador de sesión unificado: `useChatYASession`
+
+ChatYA puede funcionar desde AnunciaYA (`useAuthStore`) o ScanYA (`useScanYAStore`). Para evitar checks dispersos en cada componente, se creó un adaptador centralizado:
+
+**Hook React** (`apps/web/src/hooks/useChatYASession.ts`):
+```typescript
+const { autenticado, miId, modo, sucursalId, origen } = useChatYASession();
+```
+
+**Helpers no-React** (para stores, callbacks, socket listeners):
+- `obtenerMiIdChatYA()` — ID del usuario en contexto ChatYA
+- `obtenerModoChatYA()` — `'personal'` | `'comercial'`
+- `obtenerSucursalChatYA()` — sucursal activa o null
+- `estaAutenticadoChatYA()` — boolean
+
+**Regla:** Todo componente o store de ChatYA debe usar estos helpers en lugar de acceder directamente a `useAuthStore`, `useScanYAStore` o `localStorage('ay_usuario')`.
+
+**Para ScanYA:** `miId` = `negocioUsuarioId` (ID del dueño), `modo` = siempre `'comercial'`, `sucursalId` = sucursal del empleado.
+
 ### Montaje del ChatOverlay en ScanYA
 
 ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `PaginaScanYA` monta su propio `<ChatOverlay />` al final del render, y gestiona la inicialización con un ref guard para evitar doble ejecución en StrictMode.
@@ -958,7 +977,7 @@ ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `
 | Componente | Archivo | Qué se reutiliza |
 |------------|---------|-------------------|
 | Socket.io backend | `apps/api/src/socket.ts` | `emitirAUsuario()`, `obtenerIO()`, rooms por usuario. **Middleware JWT (`io.use()`):** valida token en el handshake antes de aceptar la conexión. `socket.data.usuarioId` es la fuente confiable — nunca se lee `usuarioId` de los payloads del cliente. |
-| Socket.io frontend | `apps/web/src/services/socketService.ts` | `escucharEvento()`, `emitirEvento()`, reconexión automática, timer inactividad 15 min (ausente/conectado). Fallback `ay_usuario → sy_usuario` para obtener userId en contexto ScanYA. **Autenticación JWT:** pasa `auth: { token: localStorage.getItem('anunciaya_access_token') }` al conectar. No conecta si no hay token. |
+| Socket.io frontend | `apps/web/src/services/socketService.ts` | `escucharEvento()`, `emitirEvento()`, `emitirCuandoConectado()` (retry automático si socket no está listo), reconexión automática, timer inactividad 15 min (ausente/conectado). **Autenticación JWT:** en contexto ScanYA prioriza `sy_access_token`, en AnunciaYA prioriza `ay_access_token`. UserId para estados: `negocioUsuarioId` en ScanYA, `usuario.id` en AnunciaYA. |
 | ChatOverlay | `apps/web/src/components/layout/ChatOverlay.tsx` | Integración con useUiStore se mantiene |
 | UI Store | `apps/web/src/stores/useUiStore.ts` | `chatYAAbierto`, `chatYAMinimizado`, `abrirChatYA`, `cerrarChatYA` |
 | R2 Service | `apps/api/src/services/r2.service.ts` | Subida de archivos con presigned URLs. Validación condicional con param `tiposPermitidos` |

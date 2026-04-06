@@ -34,8 +34,10 @@ import {
   sucursalesListaController,
   operadoresListaController,
   obtenerTarjetasSellosController,
+  uploadAvatarEmpleadoController,
+  actualizarAvatarEmpleadoController,
 } from '../controllers/scanya.controller.js';
-import { verificarTokenScanYA } from '../middleware/scanyaAuth.middleware.js';
+import { verificarTokenScanYA, verificarPermiso } from '../middleware/scanyaAuth.middleware.js';
 
 const router: Router = Router();
 
@@ -83,25 +85,25 @@ router.post('/turno/cerrar', verificarTokenScanYA, cerrarTurnoController);
 router.post('/identificar-cliente', verificarTokenScanYA, identificarClienteController);
 
 // POST /api/scanya/validar-codigo - Verificar código de descuento antes de aplicar
-router.post('/validar-codigo', verificarTokenScanYA, validarCuponController);
+router.post('/validar-codigo', verificarTokenScanYA, verificarPermiso('registrarVentas'), validarCuponController);
 
 // POST /api/scanya/otorgar-puntos - Registrar venta y dar puntos
-router.post('/otorgar-puntos', verificarTokenScanYA, otorgarPuntosController);
+router.post('/otorgar-puntos', verificarTokenScanYA, verificarPermiso('registrarVentas'), otorgarPuntosController);
 
 // GET /api/scanya/historial - Ver transacciones del turno actual
-router.get('/historial', verificarTokenScanYA, historialController);
+router.get('/historial', verificarTokenScanYA, verificarPermiso('verHistorial'), historialController);
 
 // POST /api/scanya/validar-voucher - Validar voucher de recompensa
-router.post('/validar-voucher', verificarTokenScanYA, validarVoucherController);
+router.post('/validar-voucher', verificarTokenScanYA, verificarPermiso('procesarCanjes'), validarVoucherController);
 
 // GET /api/scanya/vouchers-pendientes - Listar vouchers pendientes
-router.get('/vouchers-pendientes', verificarTokenScanYA, vouchersPendientesController);
+router.get('/vouchers-pendientes', verificarTokenScanYA, verificarPermiso('procesarCanjes'), vouchersPendientesController);
 
 // GET /api/scanya/vouchers - Obtener vouchers con filtros (gestión completa)
-router.get('/vouchers', verificarTokenScanYA, obtenerVouchersController);
+router.get('/vouchers', verificarTokenScanYA, verificarPermiso('procesarCanjes'), obtenerVouchersController);
 
 // POST /api/scanya/buscar-cliente-vouchers - Buscar cliente con sus vouchers (para canje)
-router.post('/buscar-cliente-vouchers', verificarTokenScanYA, buscarClienteConVouchersController);
+router.post('/buscar-cliente-vouchers', verificarTokenScanYA, verificarPermiso('procesarCanjes'), buscarClienteConVouchersController);
 
 // =============================================================================
 // RUTAS DE RECORDATORIOS (Fase 6) ✅ IMPLEMENTADO
@@ -132,6 +134,12 @@ router.put('/configuracion', verificarTokenScanYA, actualizarConfigScanYAControl
 
 // POST /api/scanya/upload-ticket - Generar URL pre-firmada para subir foto
 router.post('/upload-ticket', verificarTokenScanYA, uploadTicketController);
+
+// POST /api/scanya/upload-avatar-empleado - Generar URL pre-firmada para avatar de empleado
+router.post('/upload-avatar-empleado', verificarTokenScanYA, uploadAvatarEmpleadoController);
+
+// PUT /api/scanya/empleado/avatar - Confirmar avatar del empleado (actualiza foto_url en BD)
+router.put('/empleado/avatar', verificarTokenScanYA, actualizarAvatarEmpleadoController);
 
 // =============================================================================
 // RUTAS DE CONTADORES (Fase 9) ✅ NUEVO

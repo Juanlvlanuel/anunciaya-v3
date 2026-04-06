@@ -15,7 +15,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap } from 'lucide-react';
-import { useScanYAStore, selectContadorRecordatorios } from '@/stores/useScanYAStore';
+import { useScanYAStore, selectContadorRecordatorios, tienePermiso } from '@/stores/useScanYAStore';
 import { useChatYAStore } from '@/stores/useChatYAStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { conectarSocket } from '@/services/socketService';
@@ -340,6 +340,10 @@ export default function PaginaScanYA() {
   const handleNavigate = (ruta: string) => {
     // Interceptar chat para abrir ChatOverlay en lugar de navegar
     if (ruta === '/scanya/chat') {
+      if (!tienePermiso('responderChat')) {
+        notificar.error('No tienes permiso para acceder al chat');
+        return;
+      }
       abrirChatYA();
       return;
     }
@@ -360,6 +364,10 @@ export default function PaginaScanYA() {
     }
     // Interceptar reseñas para abrir modal
     if (ruta === '/scanya/resenas') {
+      if (!tienePermiso('responderResenas')) {
+        notificar.error('No tienes permiso para acceder a las reseñas');
+        return;
+      }
       setModalActivo('resenas');
       return;
     }
@@ -623,6 +631,8 @@ export default function PaginaScanYA() {
                     onCerrarTurno={() => setModalActivo('cerrar')}
                     cargando={cargandoTurno}
                     nombreUsuario={usuario.nombreUsuario}
+                    fotoUrl={usuario.fotoUrl}
+                    vouchersPendientes={contadores.vouchersPendientes}
                   />
                 </div>
 
@@ -637,9 +647,9 @@ export default function PaginaScanYA() {
                     disabled={!turno && online}
                     className="
                       w-full
-                      bg-linear-to-br from-[#F97316] to-[#DC2626]
-                      hover:from-[#EA580C] hover:to-[#B91C1C]
-                      disabled:from-[#F97316]/40 disabled:to-[#DC2626]/40
+                      bg-linear-to-br from-amber-600 to-red-700
+                      hover:from-amber-700 hover:to-red-800
+                      disabled:from-amber-600/40 disabled:to-red-700/40
                       cursor-pointer
                       disabled:cursor-not-allowed
                       text-white font-bold
@@ -719,6 +729,7 @@ export default function PaginaScanYA() {
           onClose={() => setModalActivo('ninguno')}
           onCanjearVoucher={handleCanjearVoucher}
           cambiosVouchers={cambiosVouchers}
+          canjearAbierto={!!voucherACanjear}
         />
 
         {/* Modal Validar Voucher (centrado) */}
@@ -726,6 +737,10 @@ export default function PaginaScanYA() {
           abierto={!!voucherACanjear}
           onClose={() => {
             setVoucherACanjear(null);
+          }}
+          onCerrarTodo={() => {
+            setVoucherACanjear(null);
+            setModalActivo('ninguno');
           }}
           voucherId={voucherACanjear?.voucherId || null}
           clienteId={voucherACanjear?.clienteId || null}

@@ -31,7 +31,7 @@ import {
 } from '../controllers/clientes.controller.js';
 
 // Importar middlewares
-import { verificarToken } from '../middleware/auth.js';
+import { verificarToken, verificarTokenChatYA } from '../middleware/auth.js';
 import { verificarNegocio } from '../middleware/negocio.middleware.js';
 
 // =============================================================================
@@ -42,8 +42,10 @@ const router: RouterType = Router();
 
 // =============================================================================
 // MIDDLEWARE: Todas las rutas requieren autenticación Y tener negocio
+// Se usa verificarTokenChatYA en lugar de verificarToken para aceptar
+// tanto tokens AnunciaYA como ScanYA (empleados ven detalle de clientes en ChatYA)
 // =============================================================================
-router.use(verificarToken);
+router.use(verificarTokenChatYA);
 router.use(verificarNegocio);
 
 // =============================================================================
@@ -85,7 +87,7 @@ router.get('/:id/historial', obtenerHistorialClienteController);
 /**
  * GET /api/clientes/:id
  * Detalle completo de un cliente
- * Acceso: Dueños y Gerentes
+ * Acceso: Dueños, Gerentes y Empleados ScanYA
  */
 router.get('/:id', obtenerDetalleClienteController);
 

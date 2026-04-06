@@ -79,6 +79,7 @@ ScanYA es un **sistema de punto de venta (POS) PWA independiente** diseñado par
 - Otorga puntos a billetera del cliente
 - Opcionalmente sube foto del ticket (Cloudflare R2)
 - **Hook Alertas:** tras cada venta, ejecuta detección de alertas de seguridad fire-and-forget (monto inusual, cliente frecuente, fuera de horario, montos redondos, empleado destacado). Ver `docs/arquitectura/Alertas.md`
+- **Permisos granulares (Sprint 10):** 5 permisos verificados en BD en tiempo real en cada request (`verificarPermiso`). Rutas protegidas: otorgar-puntos, validar-codigo, historial, validar-voucher, vouchers. Frontend bloquea ChatYA y Reseñas si no tiene permiso. Ver `docs/arquitectura/Empleados.md`
 
 #### 2. Validar Código de Cupón
 - Cliente presenta código personal (asignado desde BS Promociones)
@@ -388,7 +389,7 @@ ALTER TABLE puntos_configuracion ADD COLUMN (
 
 ---
 
-## 🔌 API Endpoints (25)
+## 🔌 API Endpoints (27)
 
 > ✅ **VERIFICADO:** Contra `/apps/api/src/routes/scanya.routes.ts` (30 Enero 2026)
 
@@ -434,13 +435,15 @@ Response: {
   refreshToken: "sy_...",
   empleado: {
     tipo: 'empleado',
-    empleadoId, nombre, sucursalId, negocioUsuarioId,  // negocioUsuarioId = usuarioId del dueño en AnunciaYA
+    empleadoId, nombre, sucursalId, negocioUsuarioId,
+    fotoUrl: string | null,  // Avatar del empleado (subido desde ScanYA)
     permisos: {
       registrarVentas, procesarCanjes, verHistorial,
       responderChat, responderResenas
     }
   }
 }
+// Login dueño/gerente también devuelve fotoUrl (avatarUrl de tabla usuarios)
 ```
 
 ---
@@ -459,7 +462,8 @@ POST /api/scanya/turno/abrir
 Response: { 
   turno: {
     id, horaInicio, negocioId, sucursalId,
-    puntosOtorgados: 0, transacciones: 0
+    puntosOtorgados: 0, transacciones: 0,
+    ventasTotales: 0  // Suma de monto_compra del turno
   }
 }
 ```
@@ -632,10 +636,12 @@ Response: {
 
 ---
 
-### Infraestructura (4)
+### Infraestructura (6)
 
 ```
-POST   /api/scanya/upload-ticket          ← Cloudflare R2
+POST   /api/scanya/upload-ticket              ← Cloudflare R2
+POST   /api/scanya/upload-avatar-empleado     ← Cloudflare R2 (avatar)
+PUT    /api/scanya/empleado/avatar            ← Confirmar avatar en BD
 GET    /api/scanya/contadores
 GET    /api/scanya/sucursales-lista
 GET    /api/scanya/operadores-lista
@@ -644,11 +650,33 @@ GET    /api/scanya/operadores-lista
 **Upload Ticket:**
 ```typescript
 POST /api/scanya/upload-ticket
-Body: { fileName: string }
+Body: { nombreArchivo: string, contentType: string }
 Response: {
   uploadUrl: string,      // URL pre-firmada para PUT
   publicUrl: string       // URL pública del archivo
 }
+```
+
+**Upload Avatar Empleado:**
+```typescript
+// Paso 1: Obtener presigned URL
+POST /api/scanya/upload-avatar-empleado
+Body: { nombreArchivo: string, contentType: string }
+// Solo el propio empleado (req.scanyaUsuario.empleadoId)
+// Carpeta R2: empleados/{empleadoId}/
+// Tipos permitidos: image/jpeg, image/png, image/webp
+Response: {
+  uploadUrl: string,      // URL pre-firmada para PUT directo a R2
+  publicUrl: string,      // URL pública final
+  key: string,
+  expiresIn: number       // 300 segundos
+}
+
+// Paso 2: Confirmar avatar (actualiza foto_url en BD)
+PUT /api/scanya/empleado/avatar
+Body: { url: string }
+// Elimina foto anterior de R2 automáticamente
+Response: { fotoUrl: string }
 ```
 
 **Contadores:**
@@ -1145,7 +1173,7 @@ apps/api/src/
 │   └── r2.service.ts                 ✅ ~150 líneas, upload R2
 │
 ├── routes/
-│   └── scanya.routes.ts              ✅ 175 líneas, 25 endpoints
+│   └── scanya.routes.ts              ✅ 27 endpoints
 │
 ├── validations/
 │   └── scanya.schema.ts              ✅ ~400 líneas, validaciones Zod
@@ -1180,7 +1208,8 @@ apps/web/src/
 │   │   ├── SplashScreenScanYA.tsx    ✅ Splash animado
 │   │   └── TecladoNumerico.tsx       ✅ Teclado PIN
 │   │
-│   ├── HeaderScanYA.tsx              ✅ Header con logo + logout
+│   ├── AvatarEmpleadoScanYA.tsx      ✅ Upload avatar con useR2Upload
+│   ├── HeaderScanYA.tsx              ✅ Header con logo + avatar + logout
 │   ├── IndicadorOffline.tsx          ✅ Badge offline
 │   ├── ResumenTurno.tsx              ✅ Duración + ventas
 │   ├── IndicadoresRapidos.tsx        ✅ Badges contadores
@@ -1684,11 +1713,17 @@ El servidor (Render) opera en UTC. Los negocios operan en zonas horarias de Méx
 - ✅ `ChatOverlay` montado directamente en `PaginaScanYA` (no usa MainLayout)
 - ✅ Interceptor Axios agrega `?sucursalId=` automáticamente en llamadas a `/chatya` desde contexto ScanYA
 - ✅ `inicializarScanYA()` en el store: carga solo el badge de no leídos al montar, sin duplicar carga de conversaciones
-- ✅ Socket.io: fallback `ay_usuario → sy_usuario` para obtener userId en contexto ScanYA
+- ✅ Socket.io: usa `negocioUsuarioId` para rooms y estado de conexión desde contexto ScanYA
 - ✅ Badge de mensajes no leídos en `IndicadoresRapidos` reactivo en tiempo real
+- ✅ Hook `useChatYASession` + helpers no-React (`obtenerMiIdChatYA`, `obtenerModoChatYA`) centralizan la sesión dual. Componentes ChatYA nunca acceden a `useAuthStore` ni `useScanYAStore` directamente
+- ✅ Campo `negocioUsuarioId` incluido en response de login y tipo `UsuarioScanYA` del frontend
+- ✅ Socket.io frontend prioriza `sy_access_token` en contexto ScanYA (evita usar token AnunciaYA expirado)
+- ✅ `emitirCuandoConectado()` para eventos que dependen del socket (retry automático si no está listo al montar)
+- ✅ Ruta `/api/clientes` usa `verificarTokenChatYA` — empleados ScanYA ven detalle de clientes en ChatYA
+- ✅ Logout ScanYA limpia conversación activa y cierra ChatOverlay automáticamente
 
 **Arquitectura de auth:**  
-El token ScanYA lleva `negocioUsuarioId` (UUID del dueño del negocio). Al llegar a rutas `/chatya`, el middleware `verificarTokenChatYA` mapea ese campo como `usuarioId`, permitiendo que todos los roles operen como el negocio sin crear usuarios separados en AnunciaYA.
+El token ScanYA lleva `negocioUsuarioId` (UUID del dueño del negocio). Al llegar a rutas `/chatya`, el middleware `verificarTokenChatYA` mapea ese campo como `usuarioId`, permitiendo que todos los roles operen como el negocio sin crear usuarios separados en AnunciaYA. En el frontend, `useChatYASession()` abstrae el origen de la sesión — los componentes de ChatYA no saben si el usuario viene de AnunciaYA o ScanYA.
 
 **Nota:** El filtro por sucursal garantiza que cada sesión ScanYA solo vea las conversaciones de su sucursal activa.
 

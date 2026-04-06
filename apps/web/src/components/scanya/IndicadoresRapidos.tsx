@@ -120,8 +120,8 @@ export default function IndicadoresRapidos({
       <div
         className="
           grid grid-cols-3 lg:grid-cols-2
-          gap-3 lg:gap-5 2xl:gap-6
-          mt-6 lg:mt-8 2xl:mt-10
+          gap-3 lg:gap-3.5 2xl:gap-5
+          mt-6 lg:mt-6 2xl:mt-8
         "
       >
         {BOTONES.map((boton) => {
@@ -136,8 +136,8 @@ export default function IndicadoresRapidos({
               className={`
                 relative
                 rounded-xl lg:rounded-xl 2xl:rounded-2xl
-                p-4 lg:p-5 2xl:p-6
-                flex ${boton.id === 'historial' ? 'flex-row gap-3 lg:gap-4 2xl:gap-4 col-span-2 lg:col-span-2' : 'flex-col gap-2 lg:gap-2.5 2xl:gap-3'} items-center justify-center
+                ${boton.id === 'historial' ? 'p-3 lg:p-3.5 2xl:p-5 2xl:mt-3' : 'p-4 lg:p-4 2xl:p-5'}
+                flex ${boton.id === 'historial' ? 'flex-row gap-3 lg:gap-3 2xl:gap-4 col-span-2 lg:col-span-2' : 'flex-col gap-2 lg:gap-2.5 2xl:gap-3'} items-center justify-center
                 transition-all duration-200
                 cursor-pointer
                 group
@@ -166,12 +166,12 @@ export default function IndicadoresRapidos({
                     absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2
                     bg-[#DC2626]
                     text-white 
-                    text-[10px] lg:text-[10px] 2xl:text-xs
+                    text-sm lg:text-xs 2xl:text-sm
                     font-bold
-                    min-w-5 h-5
-                    lg:min-w-5 lg:h-5
-                    2xl:min-w-6 2xl:h-6
-                    px-1 lg:px-1 2xl:px-1.5
+                    min-w-7 h-7
+                    lg:min-w-6 lg:h-6
+                    2xl:min-w-7 2xl:h-7
+                    px-1.5 lg:px-1 2xl:px-1.5
                     rounded-full
                     flex items-center justify-center
                     shadow-lg

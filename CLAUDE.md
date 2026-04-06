@@ -272,7 +272,23 @@ Antes de modificar UI, leer `docs/estandares/TOKENS_GLOBALES.md`. Para component
 
 Cuando durante una conversación se defina o modifique un patrón visual (tamaños, colores, rounded, animaciones, comportamientos), **recordar al usuario** que se debe actualizar la documentación de tokens antes de terminar.
 
-### 7. Commits
+### 7. Igualar Patrones Existentes
+
+Antes de implementar UI, paginación, caché, o cualquier patrón nuevo, **revisar cómo está implementado en los otros módulos del mismo contexto** (BS, ScanYA, etc.) e igualar. No inventar patrones propios si ya existe uno establecido.
+
+### 8. Testing con Datos Reales
+
+Para probar funcionalidad nueva, crear datos reales en la BD que detonen la funcionalidad (no insertar resultados manualmente). Las pruebas deben validar el flujo completo: dato real → lógica → resultado.
+
+### 9. Ritmo del Usuario
+
+No apurarse al siguiente paso ni preguntar "¿hacemos commit?" después de cada cambio. El usuario lleva el ritmo y decide cuándo avanzar.
+
+### 10. UX desde Perspectiva del Comerciante
+
+Cuestionar textos, botones y flujos pensando como el usuario final. Si un texto puede confundir (ej: "Resolver" suena a que el sistema lo resuelve solo), proponer alternativas claras.
+
+### 11. Commits
 
 Formato: `tipo(scope): descripción en español`
 
@@ -288,19 +304,19 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **ChatYA** ✅ 100% — Sprint 7 completado (20 Mar 2026). 41 API tests + 10 E2E tests
 - **Promociones** ✅ 100% — Ofertas + Cupones unificados (22 Mar 2026). 35 API tests + 7 E2E tests
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
-- **Business Studio** (64%) — 9/14 módulos completados
+- **Business Studio** (71%) — 10/14 módulos completados
 
-### BS Módulos Completados (9/14)
+### BS Módulos Completados (10/14)
 
-Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅
+Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Empleados ✅
 
-### BS Módulos Pendientes (5/14)
+### BS Módulos Pendientes (4/14)
 
-Empleados, Reportes, Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
+Reportes, Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
 
 ### Siguiente Sprint
 
-BS Empleados
+BS Reportes
 
 ---
 

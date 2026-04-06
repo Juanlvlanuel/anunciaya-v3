@@ -311,7 +311,21 @@ export async function eliminarConversacionController(req: Request, res: Response
  */
 export async function misNotasController(req: Request, res: Response) {
   try {
-    const usuarioId = obtenerUsuarioId(req);
+    let usuarioId = obtenerUsuarioId(req);
+
+    // Si usuarioId está vacío (token ScanYA viejo sin negocioUsuarioId), obtener de BD
+    if (!usuarioId && (req as any).scanyaUsuario?.negocioId) {
+      const { db } = await import('../db/index.js');
+      const { sql } = await import('drizzle-orm');
+      const r = await db.execute(sql`SELECT usuario_id FROM negocios WHERE id = ${(req as any).scanyaUsuario.negocioId}`);
+      const rows = Array.isArray(r) ? r : (r as unknown as { rows: unknown[] }).rows;
+      const row = rows?.[0] as { usuario_id?: string } | undefined;
+      usuarioId = row?.usuario_id ?? '';
+    }
+
+    if (!usuarioId) {
+      return res.status(400).json({ success: false, message: 'No se pudo determinar el usuario' });
+    }
 
     const resultado = await obtenerOCrearMisNotas(usuarioId);
 

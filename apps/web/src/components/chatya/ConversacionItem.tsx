@@ -12,7 +12,7 @@ import { useRef, useCallback } from 'react';
 import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText, Ticket } from 'lucide-react';
 import type { Conversacion } from '../../types/chatya';
 import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useChatYASession } from '../../hooks/useChatYASession';
 import { TextoConEmojis } from './TextoConEmojis';
 
 // =============================================================================
@@ -98,8 +98,7 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
   const escribiendo = useChatYAStore((s) => s.escribiendo);
   const borrador = borradores[conversacion.id] || null;
   const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otro?.id);
-  const miId = useAuthStore((s) => s.usuario?.id);
-  const modoActivo = useAuthStore((s) => s.usuario?.modoActivo || 'personal');
+  const { miId, modo: modoActivo } = useChatYASession();
 
   // ¿El último mensaje es mío? → mostrar palomitas
   const ultimoEsMio = !!miId && conversacion.ultimoMensajeEmisorId === miId;

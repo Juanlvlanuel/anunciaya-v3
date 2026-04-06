@@ -38,7 +38,7 @@ declare global {
  * Uso:
  * router.get('/ruta-protegida', verificarTokenScanYA, controller);
  */
-export function verificarTokenScanYA(req: Request, res: Response, next: NextFunction): void {
+export async function verificarTokenScanYA(req: Request, res: Response, next: NextFunction): Promise<void> {
   // Obtener el header Authorization
   const authHeader = req.headers.authorization;
 
@@ -63,6 +63,23 @@ export function verificarTokenScanYA(req: Request, res: Response, next: NextFunc
       message: resultado.error || 'Token inválido',
     });
     return;
+  }
+
+  // Verificar revocación remota para empleados
+  if (resultado.payload.tipo === 'empleado' && resultado.payload.empleadoId) {
+    try {
+      const { estaTokenRevocado } = await import('../utils/tokenStoreScanYA.js');
+      const revocado = await estaTokenRevocado(resultado.payload.empleadoId, resultado.payload.iat);
+      if (revocado) {
+        res.status(401).json({
+          success: false,
+          message: 'Sesión revocada por el administrador',
+        });
+        return;
+      }
+    } catch {
+      // Si Redis falla, permitir acceso (fail-open)
+    }
   }
 
   // Agregar usuario al request para usar en el controller
@@ -159,8 +176,25 @@ export function verificarEsEmpleado(req: Request, res: Response, next: NextFunct
  * Uso:
  * router.post('/otorgar-puntos', verificarTokenScanYA, verificarPermiso('registrarVentas'), controller);
  */
+// Mapeo de permiso a columna en BD
+const PERMISO_A_COLUMNA: Record<keyof PermisosScanYA, string> = {
+  registrarVentas: 'puede_registrar_ventas',
+  procesarCanjes: 'puede_procesar_canjes',
+  verHistorial: 'puede_ver_historial',
+  responderChat: 'puede_responder_chat',
+  responderResenas: 'puede_responder_resenas',
+};
+
+const MENSAJES_PERMISO: Record<keyof PermisosScanYA, string> = {
+  registrarVentas: 'registrar ventas',
+  procesarCanjes: 'procesar canjes',
+  verHistorial: 'ver historial',
+  responderChat: 'responder mensajes',
+  responderResenas: 'responder reseñas',
+};
+
 export function verificarPermiso(permiso: keyof PermisosScanYA) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!req.scanyaUsuario) {
       res.status(401).json({
         success: false,
@@ -169,25 +203,44 @@ export function verificarPermiso(permiso: keyof PermisosScanYA) {
       return;
     }
 
-    // Los dueños tienen todos los permisos
-    if (req.scanyaUsuario.tipo === 'dueno') {
+    // Los dueños y gerentes tienen todos los permisos
+    if (req.scanyaUsuario.tipo === 'dueno' || req.scanyaUsuario.tipo === 'gerente') {
       next();
       return;
     }
 
-    // Verificar permiso específico para empleados
-    if (!req.scanyaUsuario.permisos[permiso]) {
-      const mensajesPermiso: Record<keyof PermisosScanYA, string> = {
-        registrarVentas: 'registrar ventas',
-        procesarCanjes: 'procesar canjes',
-        verHistorial: 'ver historial',
-        responderChat: 'responder mensajes',
-        responderResenas: 'responder reseñas',
-      };
+    // Para empleados: verificar permiso en BD (no del token) para reflejar cambios en tiempo real
+    if (req.scanyaUsuario.empleadoId) {
+      try {
+        const { db } = await import('../db/index.js');
+        const { sql } = await import('drizzle-orm');
+        const columna = PERMISO_A_COLUMNA[permiso];
+        const empleadoId = req.scanyaUsuario.empleadoId;
+        const resultado = await db.execute(
+          sql`SELECT ${sql.raw(columna)} AS tiene_permiso FROM empleados WHERE id = ${empleadoId} AND activo = true`
+        );
+        const row = (resultado as unknown as { rows: { tiene_permiso: boolean }[] }).rows[0];
 
+        if (!row || !row.tiene_permiso) {
+          res.status(403).json({
+            success: false,
+            message: `No tienes permiso para ${MENSAJES_PERMISO[permiso]}`,
+          });
+          return;
+        }
+
+        next();
+        return;
+      } catch {
+        // Si falla la BD, usar permisos del token como fallback
+      }
+    }
+
+    // Fallback: verificar del token
+    if (!req.scanyaUsuario.permisos[permiso]) {
       res.status(403).json({
         success: false,
-        message: `No tienes permiso para ${mensajesPermiso[permiso]}`,
+        message: `No tienes permiso para ${MENSAJES_PERMISO[permiso]}`,
       });
       return;
     }

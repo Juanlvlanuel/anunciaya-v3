@@ -13,7 +13,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Search, Forward, Store, Loader2, Check } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useChatYASession } from '../../hooks/useChatYASession';
 import { useGpsStore } from '../../stores/useGpsStore';
 import * as chatyaService from '../../services/chatyaService';
 import type { Mensaje, Conversacion, PersonaBusqueda, NegocioBusqueda, ModoChatYA } from '../../types/chatya';
@@ -60,8 +60,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
   const conversaciones    = useChatYAStore((s) => s.conversaciones);
   const misNotasId        = useChatYAStore((s) => s.misNotasId);
   const reenviarMensaje   = useChatYAStore((s) => s.reenviarMensaje);
-  const usuario           = useAuthStore((s) => s.usuario);
-  const miId              = usuario?.id || '';
+  const { miId }          = useChatYASession();
   const latitud           = useGpsStore((s) => s.latitud);
   const longitud          = useGpsStore((s) => s.longitud);
   const ciudad            = useGpsStore((s) => s.ciudad);

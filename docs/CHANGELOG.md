@@ -7,6 +7,89 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [5 Abril 2026] - BS Empleados: Módulo Completo (Sprint 10)
+
+### ✨ Agregado
+
+**Módulo de Empleados — Backend**
+- CRUD completo: crear, editar, activar/desactivar, eliminar empleados
+- 5 permisos granulares verificados en BD en tiempo real (no del token JWT)
+- Horarios semanales (empleado_horarios): CRUD con DELETE + INSERT masivo
+- Estadísticas de turnos ScanYA: total turnos, transacciones, puntos otorgados
+- Revocación remota de sesiones: cierre de turno + blacklist Redis + Socket.io
+- tokenStoreScanYA.ts: revocación por timestamp en Redis (TTL 13h)
+- Validaciones Zod: nick alfanumérico único, PIN 4 dígitos, UUID regex
+
+**Módulo de Empleados — Frontend**
+- Página completa con KPIs (Total, Activos, Inactivos)
+- Filtros: chips estado + buscador + botón "+ Nuevo" (solo dueño)
+- Vista dual: cards móvil (scroll infinito) / tabla desktop ("Cargar más")
+- Modal crear/editar: formulario + 5 toggles permisos
+- Modal detalle: permisos en tabla cebra, stats con separadores degradados, tooltips
+- Caché inteligente sin skeleton en recargas ni al filtrar
+
+**Permisos ScanYA — Verificación completa**
+- `registrarVentas`: verificado en `/otorgar-puntos`, `/validar-codigo`
+- `procesarCanjes`: verificado en `/validar-voucher`, `/vouchers-*`, `/buscar-cliente-vouchers`
+- `verHistorial`: verificado en `/historial`
+- `responderChat`: verificado en rutas de escritura de ChatYA + bloqueo frontend
+- `responderResenas`: verificado en `/negocio`, `/responder` (ya existía)
+- Frontend ScanYA: botones ChatYA y Reseñas bloqueados con notificación si no tiene permiso
+
+**Refresh token mejorado**
+- Permisos se obtienen de BD al refrescar (no del token viejo)
+- Incluye `negocioUsuarioId` para compatibilidad ChatYA
+
+### 🐛 Corregido
+
+- Permisos de empleados nunca se verificaban en rutas ScanYA — agregado `verificarPermiso` a 7 rutas
+- Refresh token reutilizaba permisos del token viejo — ahora consulta BD
+- `negocioUsuarioId` faltante en refresh — ChatYA con usuarioId vacío para empleados
+- ChatYA `mis-notas` 500 para empleados — Drizzle casing incompatible, solucionado con SQL raw
+- `z.string().uuid()` rechaza UUIDs variante no-estándar — cambiado a regex
+- Import Redis como default vs named export en tokenStoreScanYA
+
+### 🧪 Testing
+
+- API: 188 tests (21 nuevos de empleados)
+- E2E: 9 tests Playwright
+- Manual: 5 permisos verificados con empleados reales en ScanYA
+
+### 📝 Documentación
+
+- Nuevo: `docs/arquitectura/Empleados.md` — documento completo del módulo
+
+---
+
+## [5 Abril 2026] - ChatYA × ScanYA: Integración Completa para Empleados
+
+### 🐛 Corregido
+
+- **ChatYA inaccesible desde ScanYA** — Token ScanYA pasaba como AnunciaYA (mismo JWT_SECRET), `usuarioId` quedaba vacío. Fix: filtro por `_tipo` en middleware `verificarTokenChatYA`
+- **ChatOverlay se cerraba al abrir** — El guard `!usuario → cerrarChatYA()` no contemplaba sesión ScanYA
+- **Socket.io no conectaba desde ScanYA** — Solo buscaba `ay_access_token`. Ahora busca ambos tokens
+- **Estado conexión no se mostraba** — Socket backend rechazaba tokens ScanYA y emitía IDs incorrectos
+- **Socket usaba token expirado de AnunciaYA** — `conectarSocket()` tomaba `ay_access_token` primero (expirado de sesión anterior). Ahora en contexto ScanYA prioriza `sy_access_token`
+- **Estado "últ. vez" no aparecía en ScanYA** — `emitirEvento` se ejecutaba antes de que el socket se conectara. Se creó `emitirCuandoConectado()` con retry automático
+- **401 en `/api/clientes/:id` desde ScanYA** — Ruta de clientes usaba `verificarToken` (solo AnunciaYA). Cambiado a `verificarTokenChatYA` que acepta ambos tokens
+- **404 en `/api/auth/yo` desde ScanYA** — `hidratarAuth()` se llamaba innecesariamente en rutas `/scanya/*`
+
+### ✨ Agregado
+
+- **Hook `useChatYASession`** — Adaptador unificado de sesión para ChatYA. Hook React (`useChatYASession()`) + 4 helpers no-React (`obtenerMiIdChatYA`, `obtenerModoChatYA`, `obtenerSucursalChatYA`, `estaAutenticadoChatYA`)
+- **Campo `negocioUsuarioId`** en response de login ScanYA (dueño/gerente/empleado) y tipo `UsuarioScanYA`
+- **Suscripción logout ScanYA** en `useChatYAStore` — Limpia conversación activa y cierra overlay al cerrar sesión
+- **Socket.io backend** acepta tokens ScanYA con `negocioUsuarioId` como identidad del room
+- **`emitirCuandoConectado()`** en socketService — emite evento esperando a que el socket se conecte (retry cada 500ms, máx 10 intentos)
+- **Auth dual en `/api/clientes`** — Ruta usa `verificarTokenChatYA` para que empleados ScanYA vean detalle de clientes en ChatYA
+
+### 📝 Documentación
+
+- `ChatYA.md` — Sección "Adaptador de sesión unificado" con reglas de uso
+- `LECCIONES_TECNICAS.md` — 4 lecciones sobre integración multi-auth
+
+---
+
 ## [3 Abril 2026] - BS Alertas: Módulo Completo (Sprint 9)
 
 ### ✨ Agregado

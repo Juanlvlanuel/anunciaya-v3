@@ -22,6 +22,7 @@ import type {
   RazonLogoutScanYA,
 } from '../types/scanya';
 import { crearRecordatorio } from '../services/scanyaService';
+import { escucharEvento } from '../services/socketService';
 import { notificar } from '../utils/notificaciones';
 
 // =============================================================================
@@ -100,6 +101,9 @@ interface ScanYAState {
   loginExitoso: (usuario: UsuarioScanYA, accessToken: string, refreshToken: string) => Promise<void>;
   logout: (razon?: RazonLogoutScanYA) => void;
   hidratarAuth: () => Promise<void>;
+
+  // Acciones de avatar
+  actualizarFotoUrl: (fotoUrl: string) => void;
 
   // Acciones de turno
   setTurnoActivo: (turno: TurnoScanYA | null) => void;
@@ -262,8 +266,13 @@ export const useScanYAStore = create<ScanYAState>()(
           cargando: false,
         });
 
-        // Si es logout por sesión expirada, redirigir al login
+        // Redirigir al login según la razón
         if (razon === 'sesion_expirada') {
+          window.location.href = '/scanya/login';
+        }
+
+        if (razon === 'revocada_admin') {
+          notificar.advertencia('Tu sesión fue cerrada por el administrador');
           window.location.href = '/scanya/login';
         }
       },
@@ -319,6 +328,18 @@ export const useScanYAStore = create<ScanYAState>()(
             hidratado: true,
             cargando: false,
           });
+        }
+      },
+
+      // -----------------------------------------------------------------------
+      // ACCIÓN: Actualizar foto de avatar del empleado
+      // -----------------------------------------------------------------------
+      actualizarFotoUrl: (fotoUrl: string) => {
+        const usuario = get().usuario;
+        if (usuario) {
+          const actualizado = { ...usuario, fotoUrl };
+          guardarEnStorage(STORAGE_KEYS.usuario, JSON.stringify(actualizado));
+          set({ usuario: actualizado });
         }
       },
 
@@ -565,6 +586,18 @@ export function tienePermiso(permiso: keyof NonNullable<UsuarioScanYA['permisos'
   // Empleados depende de sus permisos
   return state.usuario.permisos?.[permiso] ?? false;
 }
+
+// =============================================================================
+// LISTENER SOCKET.IO — Cierre de sesión remoto
+// =============================================================================
+
+escucharEvento<{ motivo: string; timestamp: string }>('scanya:sesion-revocada', () => {
+  const state = useScanYAStore.getState();
+  // Solo actuar si hay sesión ScanYA activa Y estamos en contexto ScanYA
+  if (state.usuario && window.location.pathname.startsWith('/scanya')) {
+    state.logout('revocada_admin');
+  }
+});
 
 // =============================================================================
 // EXPORT DEFAULT

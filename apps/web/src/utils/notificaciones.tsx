@@ -56,46 +56,50 @@ const configTipo: Record<TipoNotificacion, {
 }> = {
   exito: {
     color: '#059669',
-    bg: '#d1fae5',
-    border: '#6ee7b7',
+    bg: '#ffffff',
+    border: '#e2e8f0',
     icon: (
-      <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="10" fill="#059669" />
-        <path d="M6 10.5L8.5 13L14 7.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #a7f3d0, #6ee7b7)', boxShadow: '0 2px 6px rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
+          <path d="M6 10.5L8.5 13L14 7.5" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
     ),
   },
   error: {
     color: '#dc2626',
-    bg: '#fecaca',
-    border: '#fca5a5',
+    bg: '#ffffff',
+    border: '#e2e8f0',
     icon: (
-      <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="10" fill="#dc2626" />
-        <path d="M7 7L13 13M13 7L7 13" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 2px 6px rgba(220,38,38,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
+          <path d="M7 7L13 13M13 7L7 13" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </div>
     ),
   },
   advertencia: {
     color: '#d97706',
-    bg: '#fde68a',
-    border: '#fbbf24',
+    bg: '#ffffff',
+    border: '#e2e8f0',
     icon: (
-      <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="10" fill="#d97706" />
-        <path d="M10 6V11M10 13.5V14" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 2px 6px rgba(202,138,4,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
+          <path d="M10 6V11M10 13.5V14" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </div>
     ),
   },
   info: {
     color: '#2563eb',
-    bg: '#bfdbfe',
-    border: '#93c5fd',
+    bg: '#ffffff',
+    border: '#e2e8f0',
     icon: (
-      <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="10" fill="#2563eb" />
-        <path d="M10 9V14M10 6.5V7" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 2px 6px rgba(37,99,235,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
+          <path d="M10 9V14M10 6.5V7" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </div>
     ),
   },
 };
@@ -196,7 +200,7 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
         style={{
           background: config.bg,
           border: `2px solid ${config.border}`,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
           maxWidth: 'min(420px, calc(100vw - 32px))',
           minWidth: 'min(300px, calc(100vw - 32px))',
           width: 'fit-content',
@@ -293,27 +297,29 @@ const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options
   };
 
   return (
-    <div
-      className="fixed top-3 lg:top-4 left-1/2 -translate-x-1/2 z-10000 w-full max-w-sm lg:max-w-md px-3 lg:px-4 pointer-events-none"
-      style={{ perspective: '1000px' }}
-    >
+    <>
+      {/* Backdrop */}
       <div
-        className={`pointer-events-auto relative overflow-hidden rounded-xl transition-all duration-300
-          ${saliendo ? 'opacity-0 -translate-y-3 scale-95' : 'animate-[confirmIn_0.3s_cubic-bezier(0.22,1,0.36,1)]'}
-        `}
-        style={{
-          background: '#fde68a',
-          border: '2px solid #fbbf24',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08)',
-        }}
-      >
-        {/* Contenido */}
-        <div className="p-4">
-          <div className="flex items-start gap-3 mb-3.5">
-            <div className="shrink-0 mt-0.5">
-              <svg width="24" height="24" fill="none" viewBox="0 0 20 20">
-                <circle cx="10" cy="10" r="10" fill="#d97706" />
-                <path d="M10 6V11M10 13.5V14" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+        className={`fixed inset-0 z-9999 bg-black/40 transition-opacity duration-300 ${saliendo ? 'opacity-0' : 'opacity-100'}`}
+        onClick={() => handleClose(onCancel)}
+      />
+
+      {/* Modal centrado */}
+      <div className="fixed inset-0 z-10000 flex items-center justify-center px-4 pointer-events-none">
+        <div
+          className={`pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl bg-white transition-all duration-300
+            ${saliendo ? 'opacity-0 scale-95' : 'animate-[confirmIn_0.3s_cubic-bezier(0.22,1,0.36,1)]'}
+          `}
+          style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+        >
+          {/* Header */}
+          <div className="px-5 pt-5 pb-3 flex items-start gap-3">
+            <div
+              className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.2)' }}
+            >
+              <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+                <path d="M10 6V11M10 13.5V14" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
@@ -321,37 +327,32 @@ const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options
                 {options.titulo}
               </h3>
               {options.descripcion && (
-                <p className="text-sm text-slate-600 font-medium leading-relaxed mt-1">
+                <p className="text-sm text-slate-500 font-medium leading-relaxed mt-1">
                   {options.descripcion}
                 </p>
               )}
             </div>
-            <button
-              onClick={() => handleClose(onCancel)}
-              className="shrink-0 p-1 rounded-md text-slate-600 hover:text-slate-800"
-            >
-              <X className="w-4 h-4" strokeWidth={2.5} />
-            </button>
           </div>
 
           {/* Botones */}
-          <div className="flex gap-2.5">
+          <div className="px-5 pb-5 pt-2 flex gap-2.5">
             <button
               onClick={() => handleClose(onCancel)}
-              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-bold text-slate-600 bg-white border-2 border-slate-300 hover:bg-slate-200"
+              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-bold text-slate-600 border-2 border-slate-300 hover:bg-slate-100 cursor-pointer active:scale-[0.98]"
             >
               {i18n.t('common:confirmacion.cancelar')}
             </button>
             <button
               onClick={() => handleClose(onConfirm)}
-              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/30 active:scale-[0.98]"
+              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-bold text-white cursor-pointer active:scale-[0.98]"
+              style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 4px 12px rgba(30,41,59,0.3)' }}
             >
               {i18n.t('common:confirmacion.confirmar')}
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

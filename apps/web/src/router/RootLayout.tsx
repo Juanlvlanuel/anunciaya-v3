@@ -61,12 +61,16 @@ export function RootLayout() {
 
   // Hidratar autenticación al cargar la app (AnunciaYA y ScanYA)
   // ⚠️ En preview: hidratarAuth hace early return sin llamar servidor ni escribir localStorage
+  const esRutaScanYA = pathname.startsWith('/scanya');
   useEffect(() => {
-    hidratarAuth(); // AnunciaYA (en preview: solo lee localStorage, no escribe)
+    // En rutas ScanYA no hidratar AnunciaYA (el empleado no tiene cuenta AnunciaYA → evita 404 en /api/auth/yo)
+    if (!esRutaScanYA) {
+      hidratarAuth();
+    }
     if (!esPreviewIframe) {
       hidratarAuthScanYA(); // ScanYA — innecesario en preview
     }
-  }, [hidratarAuth, hidratarAuthScanYA, esPreviewIframe]);
+  }, [hidratarAuth, hidratarAuthScanYA, esPreviewIframe, esRutaScanYA]);
 
   // Iniciar detección de actividad para el timer de inactividad
   // ⚠️ No necesario en preview (iframe no maneja sesión)

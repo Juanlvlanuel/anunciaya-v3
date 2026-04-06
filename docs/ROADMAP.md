@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 3 Abril 2026
-> **Progreso global:** 97% completado
-> **Fase actual:** BS Alertas ✅ — próximo: BS Empleados
+> **Última actualización:** 5 Abril 2026
+> **Progreso global:** 98% completado
+> **Fase actual:** BS Empleados ✅ — próximo: BS Reportes
 
 ---
 
@@ -19,7 +19,7 @@
 | **Sistema Lealtad + CardYA** (5.6-5.7) | ✅ 100% | - |
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
-| **Business Studio** (5.4) | ⏳ 64% (9/14 módulos) | Empleados, Reportes, Sucursales, Rifas, Vacantes |
+| **Business Studio** (5.4) | ⏳ 71% (10/14 módulos) | Reportes, Sucursales, Rifas, Vacantes |
 | **Secciones Públicas** (6.x) | ⏳ 0% | Ofertas, MarketPlace, Dinámicas, Empleos |
 | **Panel Admin** (6.7) | ⏳ 0% | ~2 semanas. Vendedores, métricas, gestión negocios/usuarios, Stripe, reportes |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
@@ -34,7 +34,7 @@
 - ⏳ BS 80% (12/14) — no alcanzado, pasa a Q2
 
 **Q2 (Abril-Junio) — Meta:**
-- [ ] Business Studio 100% (14/14 módulos) — faltan: Empleados, Reportes, Sucursales, Rifas, Vacantes
+- [ ] Business Studio 100% (14/14 módulos) — faltan: Reportes, Sucursales, Rifas, Vacantes
 - [ ] Secciones públicas: Ofertas, MarketPlace, Dinámicas, Empleos
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto
@@ -56,6 +56,7 @@
 | Sprint 7 | Rediseño Cupones/Guardados + ChatYA Cupones + Revocar/Reactivar | 23 Mar 2026 |
 | Sprint 8 | Auditoría Recompensas/Sellos + Niveles condicional + Notificaciones | 1 Abr 2026 |
 | Sprint 9 | BS Alertas: 16 tipos, motor detección, configuración, testing | 3 Abr 2026 |
+| Sprint 10 | BS Empleados: CRUD, 5 permisos, revocación sesiones, testing | 5 Abr 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -85,9 +86,9 @@
 
 ## 📅 Backlog Priorizado
 
-### Business Studio - Módulos Pendientes (5/14)
+### Business Studio - Módulos Pendientes (4/14)
 
-**Completados (9/14):**
+**Completados (10/14):**
 - ✅ Dashboard
 - ✅ Mi Perfil
 - ✅ Catálogo
@@ -97,23 +98,23 @@
 - ✅ Clientes (7 Mar 2026)
 - ✅ Opiniones (7 Mar 2026)
 - ✅ Alertas (16 tipos, motor detección, configuración, 3 Abr 2026)
+- ✅ Empleados (CRUD, 5 permisos, revocación sesiones, 5 Abr 2026)
 
-**Pendientes (5/14):**
+**Pendientes (4/14):**
 
 **🟢 Disponibles ahora:**
 
 | # | Módulo | Tiempo Estimado | Depende de | Descripción |
 |---|--------|-----------------|------------|-------------|
-| 1 | **Empleados** | ~2 días | ScanYA ✅ | Gestión empleados, Nick+PIN, permisos |
-| 2 | **Reportes** | ~3 días | ScanYA ✅ | Ventas, productos top, horarios pico, export |
-| 3 | **Sucursales** | ~2 días | - | Gestión multi-sucursal completa |
+| 1 | **Reportes** | ~3 días | ScanYA ✅ | Ventas, productos top, horarios pico, export |
+| 2 | **Sucursales** | ~2 días | - | Gestión multi-sucursal completa |
 
 **🔴 Bloqueados (esperan otras secciones):**
 
 | # | Módulo | Tiempo Estimado | Depende de | Descripción |
 |---|--------|-----------------|------------|-------------|
-| 4 | **Rifas** | ~2 días | Dinámicas (pendiente) | Gestión rifas del negocio |
-| 5 | **Vacantes** | ~2 días | Empleos (pendiente) | Publicar/gestionar ofertas de empleo |
+| 3 | **Rifas** | ~2 días | Dinámicas (pendiente) | Gestión rifas del negocio |
+| 4 | **Vacantes** | ~2 días | Empleos (pendiente) | Publicar/gestionar ofertas de empleo |
 
 **Total estimado:** ~11 días (distribuidos en múltiples sprints)
 

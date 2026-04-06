@@ -70,6 +70,38 @@ import {
 } from '../controllers/chatya.controller.js';
 import { verificarTokenChatYA } from '../middleware/auth.js';
 import { limitadorOgPreview } from '../middleware/rateLimiter.js';
+import type { Request, Response, NextFunction } from 'express';
+
+/**
+ * Middleware: verificar permiso responderChat para empleados ScanYA.
+ * Dueños/gerentes y usuarios AnunciaYA pasan siempre.
+ * Solo bloquea empleados con permiso desactivado.
+ */
+async function verificarPermisoChat(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const sy = req.scanyaUsuario;
+  if (!sy || sy.tipo !== 'empleado' || !sy.empleadoId) {
+    next();
+    return;
+  }
+
+  try {
+    const { db } = await import('../db/index.js');
+    const { sql } = await import('drizzle-orm');
+    const resultado = await db.execute(
+      sql`SELECT puede_responder_chat FROM empleados WHERE id = ${sy.empleadoId} AND activo = true`
+    );
+    const row = (resultado as unknown as { rows: { puede_responder_chat: boolean }[] }).rows[0];
+
+    if (!row || !row.puede_responder_chat) {
+      res.status(403).json({ success: false, message: 'No tienes permiso para responder mensajes' });
+      return;
+    }
+  } catch {
+    // Si falla BD, permitir (fail-open)
+  }
+
+  next();
+}
 
 // =============================================================================
 // CREAR ROUTER
@@ -125,16 +157,16 @@ router.delete('/conversaciones/:id', eliminarConversacionController);
 router.get('/conversaciones/:id/mensajes', listarMensajesController);
 
 /** POST /api/chatya/conversaciones/:id/mensajes */
-router.post('/conversaciones/:id/mensajes', enviarMensajeController);
+router.post('/conversaciones/:id/mensajes', verificarPermisoChat, enviarMensajeController);
 
 /** PATCH /api/chatya/mensajes/:id */
-router.patch('/mensajes/:id', editarMensajeController);
+router.patch('/mensajes/:id', verificarPermisoChat, editarMensajeController);
 
 /** DELETE /api/chatya/mensajes/:id */
-router.delete('/mensajes/:id', eliminarMensajeController);
+router.delete('/mensajes/:id', verificarPermisoChat, eliminarMensajeController);
 
 /** POST /api/chatya/mensajes/:id/reenviar */
-router.post('/mensajes/:id/reenviar', reenviarMensajeController);
+router.post('/mensajes/:id/reenviar', verificarPermisoChat, reenviarMensajeController);
 
 // =============================================================================
 // CONTACTOS

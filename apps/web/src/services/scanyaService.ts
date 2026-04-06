@@ -483,6 +483,39 @@ export async function obtenerUrlSubidaTicket(
 }
 
 // =============================================================================
+// AVATAR EMPLEADO
+// =============================================================================
+
+/**
+ * Obtener URL pre-firmada para subir avatar de empleado a R2
+ * POST /api/scanya/upload-avatar-empleado
+ */
+export async function obtenerUrlSubidaAvatarEmpleado(
+  nombreArchivo: string,
+  contentType: string = 'image/webp'
+): Promise<RespuestaAPI<RespuestaUploadTicket>> {
+  const response = await api.post<RespuestaAPI<RespuestaUploadTicket>>(
+    `${BASE}/upload-avatar-empleado`,
+    { nombreArchivo, contentType }
+  );
+  return response.data;
+}
+
+/**
+ * Confirmar avatar del empleado (actualiza foto_url en BD)
+ * PUT /api/scanya/empleado/avatar
+ */
+export async function actualizarAvatarEmpleado(
+  url: string
+): Promise<RespuestaAPI<{ fotoUrl: string }>> {
+  const response = await api.put<RespuestaAPI<{ fotoUrl: string }>>(
+    `${BASE}/empleado/avatar`,
+    { url }
+  );
+  return response.data;
+}
+
+// =============================================================================
 // RESEÑAS (FASE 14)
 // =============================================================================
 
@@ -559,6 +592,10 @@ const scanyaService = {
 
   // Upload Ticket
   obtenerUrlSubidaTicket,
+
+  // Avatar Empleado
+  obtenerUrlSubidaAvatarEmpleado,
+  actualizarAvatarEmpleado,
 
   // Listas para filtros
   obtenerSucursalesLista,

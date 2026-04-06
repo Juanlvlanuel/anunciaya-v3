@@ -45,9 +45,13 @@ export type EstadoRecordatorio = 'pendiente' | 'procesado' | 'descartado';
  * Puede ser: DueÃ±o, Gerente o Empleado
  */
 export interface UsuarioScanYA {
-  // IdentificaciÃ³n
+  // Identificación
   tipo: TipoUsuarioScanYA;
   usuarioId: string;
+  empleadoId?: string;
+
+  // ID del dueño del negocio (para ChatYA — empleados/gerentes responden como el negocio)
+  negocioUsuarioId: string;
 
   // Datos del negocio
   negocioId: string;
@@ -60,6 +64,7 @@ export interface UsuarioScanYA {
 
   // Usuario
   nombreUsuario: string;
+  fotoUrl?: string | null;
 
   // Permisos administrativos
   puedeElegirSucursal: boolean;
@@ -209,6 +214,7 @@ export interface TurnoScanYA {
   horaFin: string | null;
   puntosOtorgados: number;
   transacciones: number;
+  ventasTotales: number;
   cerradoPor: string | null;
   notasCierre: string | null;
   createdAt: string;
@@ -543,7 +549,7 @@ export interface RespuestaAPI<T = unknown> {
 /**
  * RazÃ³n por la que se cerrÃ³ la sesiÃ³n
  */
-export type RazonLogoutScanYA = 'manual' | 'inactividad' | 'sesion_expirada' | 'error';
+export type RazonLogoutScanYA = 'manual' | 'inactividad' | 'sesion_expirada' | 'error' | 'revocada_admin';
 
 /**
  * Estado del store de ScanYA

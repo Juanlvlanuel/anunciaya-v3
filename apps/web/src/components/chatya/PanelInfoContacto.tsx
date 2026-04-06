@@ -19,7 +19,7 @@ import {
   FileText, ArrowUpRight, MapPin,
 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useChatYASession } from '../../hooks/useChatYASession';
 import { usePuntosStore } from '../../stores/usePuntosStore';
 import { obtenerPerfilSucursal } from '../../services/negociosService';
 import { getDetalleCliente } from '../../services/clientesService';
@@ -160,9 +160,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   // ---------------------------------------------------------------------------
   // Stores
   // ---------------------------------------------------------------------------
-  const usuario = useAuthStore((s) => s.usuario);
-  const modoActivo = usuario?.modoActivo || 'personal';
-  const miId = usuario?.id || '';
+  const { miId, modo: modoActivo, origen } = useChatYASession();
   const { esMobile } = useBreakpoint();
 
   const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);

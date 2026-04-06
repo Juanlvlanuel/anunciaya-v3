@@ -27,6 +27,8 @@
 import { create } from 'zustand';
 import * as chatyaService from '../services/chatyaService';
 import { useAuthStore } from './useAuthStore';
+import { obtenerMiIdChatYA, obtenerModoChatYA, obtenerSucursalChatYA } from '../hooks/useChatYASession';
+import { useScanYAStore } from './useScanYAStore';
 import { escucharEvento, emitirEvento } from '../services/socketService';
 import { notificar } from '../utils/notificaciones';
 import { diagInicio, diagMarca } from '../utils/diagnosticoChatYA';
@@ -240,8 +242,8 @@ interface ChatYAState {
 /** Clave de localStorage para borradores del usuario actual */
 function getBorradoresKey(): string | null {
   try {
-    const usuario = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
-    return usuario?.id ? `chatya_borradores_${usuario.id}` : null;
+    const miId = obtenerMiIdChatYA();
+    return miId ? `chatya_borradores_${miId}` : null;
   } catch { return null; }
 }
 
@@ -815,7 +817,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
 
     const idTemporal = _idExistente || `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-    const miId = JSON.parse(localStorage.getItem('ay_usuario') || '{}')?.id || null;
+    const miId = obtenerMiIdChatYA() || null;
 
     if (_idExistente) {
       // ── Mensaje optimista ya existe (ej: documento subiendo) ──
@@ -1331,7 +1333,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     const fijadoTemporal: MensajeFijado = {
       id: `temp-${Date.now()}`,
       mensajeId,
-      fijadoPor: useAuthStore.getState().usuario?.id || '',
+      fijadoPor: obtenerMiIdChatYA(),
       createdAt: new Date().toISOString(),
       mensaje: {
         id: mensajeId,
@@ -1620,8 +1622,7 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
   const state = useChatYAStore.getState();
 
   // Ignorar mensajes propios SOLO si ya existen localmente (actualización optimista del mismo dispositivo)
-  const usuario = JSON.parse(localStorage.getItem('ay_usuario') || '{}');
-  const miId = usuario?.id;
+  const miId = obtenerMiIdChatYA();
   if (mensaje.emisorId === miId) {
     // Verificar si ya existe por ID real O si hay un mensaje temporal pendiente del mismo contenido
     const yaExiste = state.mensajes.some((m) =>
@@ -1638,7 +1639,7 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
   const esConversacionConocida = existeEnLista || existeEnArchivados;
 
   // En modo comercial: si la conversación no está en la lista filtrada, es de otra sucursal
-  const modoActivo = usuario?.modoActivo || 'personal';
+  const modoActivo = obtenerModoChatYA();
   const esModoComercial = modoActivo === 'comercial';
 
   // Si estamos viendo esta conversación Y la pestaña es visible, agregar y marcar leído
@@ -1672,7 +1673,7 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
       if (timerAnterior) clearTimeout(timerAnterior);
       badgeTimersPendientes.set(conversacionId, setTimeout(() => {
         badgeTimersPendientes.delete(conversacionId);
-        const modo = (JSON.parse(localStorage.getItem('ay_usuario') || '{}')?.modoActivo || 'personal') as 'personal' | 'comercial';
+        const modo = obtenerModoChatYA();
         useChatYAStore.getState().cargarNoLeidos(modo);
       }, 3000));
     }
@@ -1683,7 +1684,7 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
     if (timerAnterior) clearTimeout(timerAnterior);
     badgeTimersPendientes.set(conversacionId, setTimeout(() => {
       badgeTimersPendientes.delete(conversacionId);
-      const modo = (JSON.parse(localStorage.getItem('ay_usuario') || '{}')?.modoActivo || 'personal') as 'personal' | 'comercial';
+      const modo = obtenerModoChatYA();
       useChatYAStore.getState().cargarNoLeidos(modo);
     }, 3000));
   }
@@ -1764,7 +1765,7 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
     chatyaService.getConversacion(conversacionId).then((resp) => {
       if (resp.success && resp.data) {
         const nuevaConv = resp.data as Conversacion;
-        const sucursalActiva = usuario?.sucursalActiva || null;
+        const sucursalActiva = obtenerSucursalChatYA();
 
         // Verificar si esta conversación es de la sucursal activa
         const esMiSucursal =
@@ -1882,8 +1883,7 @@ escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoPor, leidoAt
   const state = useChatYAStore.getState();
 
   // Identificar si fui YO quien leyó (en otro dispositivo/tab como ScanYA)
-  const usuario = JSON.parse(localStorage.getItem('ay_usuario') || '{}');
-  const miId = usuario?.id;
+  const miId = obtenerMiIdChatYA();
   const yoLeí = leidoPor === miId;
 
   // Solo marcar como leídos los mensajes que NO fueron enviados por quien leyó.
@@ -2079,7 +2079,7 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
 
   // Actualizar preview en la lista de conversaciones
   if (accion === 'agregada') {
-    const miId = useAuthStore.getState().usuario?.id;
+    const miId = obtenerMiIdChatYA();
     // Buscar contenido del mensaje reaccionado (si los mensajes están cargados)
     const msgReaccionado = state.mensajes.find((m) => m.id === mensajeId);
     const previewMsg = msgReaccionado?.contenido
@@ -2119,7 +2119,7 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
 
     // Si aún quedan reacciones, actualizar preview con la reacción restante
     if (reaccionRestante) {
-      const miId = useAuthStore.getState().usuario?.id;
+      const miId = obtenerMiIdChatYA();
       const usuarioIds = reaccionRestante.usuarios as (string | { id: string })[];
       const esMia = usuarioIds.some((u) => (typeof u === 'string' ? u : u.id) === miId);
       const previewMsg = msgActualizado?.contenido
@@ -2234,10 +2234,21 @@ if (typeof document !== 'undefined') {
 // Cuando el usuario cierra sesión, limpiar la conversación activa para que
 // al iniciar sesión de nuevo el chat aparezca cerrado.
 // =============================================================================
+function limpiarChatYAAlCerrarSesion() {
+  useChatYAStore.setState({ conversacionActivaId: null });
+  // Cerrar el overlay — importar useUiStore lazy para evitar dependencia circular
+  import('./useUiStore').then(({ useUiStore }) => {
+    useUiStore.getState().cerrarChatYA();
+  });
+}
 useAuthStore.subscribe((state, prev) => {
-  // Detectar cuando el usuario pasa de autenticado a no autenticado (logout)
   if (prev.usuario !== null && state.usuario === null) {
-    useChatYAStore.setState({ conversacionActivaId: null });
+    limpiarChatYAAlCerrarSesion();
+  }
+});
+useScanYAStore.subscribe((state, prev) => {
+  if (prev.usuario !== null && state.usuario === null) {
+    limpiarChatYAAlCerrarSesion();
   }
 });
 

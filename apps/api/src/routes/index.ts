@@ -28,6 +28,7 @@ import articulosRoutes from './articulos.routes';
 import ofertasRoutes from './ofertas.routes';
 import dashboardRoutes from './dashboard.routes';
 import alertasRoutes from './alertas.routes';
+import empleadosRoutes from './empleados.routes';
 import votosRoutes from './votos.routes';
 import metricasRoutes from './metricas.routes';
 import guardadosRoutes from './guardados.routes';
@@ -94,6 +95,9 @@ router.use('/business/dashboard', dashboardRoutes);
 
 // Rutas de Business Studio - Alertas
 router.use('/business/alertas', alertasRoutes);
+
+// Rutas de Business Studio - Empleados
+router.use('/business/empleados', empleadosRoutes);
 
 // Rutas de métricas (views, shares, clicks, messages)
 router.use('/metricas', metricasRoutes);

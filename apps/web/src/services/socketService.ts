@@ -52,7 +52,7 @@ function resetearTimerAusente(): void {
     estaAusente = false;
     const usuarioAY = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
     const usuarioSY = JSON.parse(localStorage.getItem('sy_usuario') || 'null');
-    const userId = usuarioAY?.id || usuarioSY?.usuarioId;
+    const userId = usuarioAY?.id || usuarioSY?.negocioUsuarioId;
     if (userId) {
       socket.emit('chatya:estado', { usuarioId: userId, estado: 'conectado' });
     }
@@ -65,7 +65,7 @@ function resetearTimerAusente(): void {
       estaAusente = true;
       const usuarioAY = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
       const usuarioSY = JSON.parse(localStorage.getItem('sy_usuario') || 'null');
-      const userId = usuarioAY?.id || usuarioSY?.usuarioId;
+      const userId = usuarioAY?.id || usuarioSY?.negocioUsuarioId;
       if (userId) {
         socket.emit('chatya:estado', { usuarioId: userId, estado: 'ausente' });
       }
@@ -120,7 +120,11 @@ export function conectarSocket(): void {
   }
 
   // No conectar si no hay token JWT
-  const token = localStorage.getItem('ay_access_token');
+  // En contexto ScanYA, priorizar sy_access_token (ay_ puede estar expirado de sesión anterior)
+  const esScanYA = typeof window !== 'undefined' && window.location.pathname.startsWith('/scanya');
+  const token = esScanYA
+    ? (localStorage.getItem('sy_access_token') || localStorage.getItem('ay_access_token'))
+    : (localStorage.getItem('ay_access_token') || localStorage.getItem('sy_access_token'));
   if (!token) {
     return;
   }
@@ -146,7 +150,7 @@ export function conectarSocket(): void {
     // Intentar con usuario AnunciaYA primero, luego ScanYA
     const usuarioAY = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
     const usuarioSY = JSON.parse(localStorage.getItem('sy_usuario') || 'null');
-    const userId = usuarioAY?.id || usuarioSY?.usuarioId;
+    const userId = usuarioAY?.id || usuarioSY?.negocioUsuarioId;
     if (userId) {
       socket?.emit('unirse', userId);
     }
@@ -197,6 +201,34 @@ export function emitirEvento<T = unknown>(
   if (socket?.connected) {
     socket.emit(evento, datos);
   }
+}
+
+/**
+ * Emite un evento al servidor, esperando a que el socket se conecte si es necesario.
+ * Reintenta cada 500ms hasta 5 intentos. Retorna cleanup function para cancelar.
+ */
+export function emitirCuandoConectado<T = unknown>(
+  evento: string,
+  datos: T
+): () => void {
+  if (socket?.connected) {
+    socket.emit(evento, datos);
+    return () => {};
+  }
+
+  let intentos = 0;
+  const maxIntentos = 10;
+  const timer = setInterval(() => {
+    intentos++;
+    if (socket?.connected) {
+      socket.emit(evento, datos);
+      clearInterval(timer);
+    } else if (intentos >= maxIntentos) {
+      clearInterval(timer);
+    }
+  }, 500);
+
+  return () => clearInterval(timer);
 }
 
 /**

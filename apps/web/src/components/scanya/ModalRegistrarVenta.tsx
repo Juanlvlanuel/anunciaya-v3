@@ -12,7 +12,7 @@
  * Ubicación: apps/web/src/components/scanya/ModalRegistrarVenta.tsx
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     X,
     ArrowLeft,
@@ -779,6 +779,25 @@ export function ModalRegistrarVenta({
     // ---------------------------------------------------------------------------
     // Si no está abierto, no renderizar
     // ---------------------------------------------------------------------------
+    // History back para cerrar con botón nativo del móvil
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+
+    useEffect(() => {
+        if (!abierto) return;
+        let cerradoPorBack = false;
+        history.pushState({ modal: 'registrar-venta' }, '');
+        const handlePopState = () => {
+            cerradoPorBack = true;
+            onCloseRef.current();
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            if (!cerradoPorBack) history.back();
+        };
+    }, [abierto]);
+
     if (!abierto) return null;
 
     // ---------------------------------------------------------------------------
@@ -794,10 +813,10 @@ export function ModalRegistrarVenta({
                 <div
                     className="
             fixed z-50
-            inset-x-0 bottom-0 h-[85vh]
+            inset-x-0 bottom-0 h-full
             lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px]
             flex items-center justify-center
-            rounded-t-3xl lg:rounded-none
+            rounded-none
           "
                     style={{
                         background: 'linear-gradient(180deg, #0A0A0A 0%, #001020 100%)',
@@ -899,10 +918,10 @@ export function ModalRegistrarVenta({
             <div
                 className="
           fixed z-50
-          inset-x-0 bottom-0 h-[85vh]
+          inset-x-0 bottom-0 h-full
           lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[350px] 2xl:w-[450px]
           flex flex-col
-          rounded-t-3xl lg:rounded-none
+          rounded-none
           overflow-hidden
         "
                 style={{
@@ -922,13 +941,10 @@ export function ModalRegistrarVenta({
           "
                     style={{ background: 'rgba(0, 0, 0, 0.3)' }}
                 >
-                    {/* Handle visual solo móvil */}
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/20 rounded-full lg:hidden" />
-
-                    <button onClick={handleCerrar} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -ml-2 cursor-pointer">
+                    <button onClick={() => history.back()} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -ml-2 cursor-pointer">
                         <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                     </button>
-                    <h1 className="text-white font-semibold flex-1 text-base lg:text-sm 2xl:text-base">
+                    <h1 className="text-white font-bold flex-1 text-lg lg:text-sm 2xl:text-base">
                         {modoOffline ? '📋 Guardar Recordatorio' : 'Registrar Venta'}
                     </h1>
                     <button onClick={handleCerrar} className="p-2 lg:p-1.5 2xl:p-2 rounded-lg lg:rounded-md 2xl:rounded-lg hover:bg-white/10 -mr-2 cursor-pointer">

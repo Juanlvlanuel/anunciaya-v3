@@ -65,12 +65,15 @@ interface RespuestaServicio<T = unknown> {
 interface DatosLoginScanYA {
     tipo: 'dueno' | 'gerente' | 'empleado';
     usuarioId: string;
+    empleadoId?: string;
+    negocioUsuarioId: string;
     negocioId: string;
     sucursalId: string;
     nombreNegocio: string;
     logoNegocio: string | null;
     nombreSucursal: string | null;
     nombreUsuario: string;
+    fotoUrl?: string | null;
     permisos: PermisosScanYA;
     puedeElegirSucursal: boolean;
     puedeConfigurarNegocio: boolean;
@@ -408,12 +411,14 @@ export async function loginDueno(
             data: {
                 tipo: rol,
                 usuarioId: usuario.id,
+                negocioUsuarioId: negocio.usuarioId,
                 negocioId,
                 sucursalId,
                 nombreNegocio: negocio.nombre,
                 logoNegocio: negocio.logoUrl ?? null,
                 nombreSucursal: totalSucursales > 1 ? sucursal.nombre : null,
                 nombreUsuario: `${usuario.nombre} ${usuario.apellidos}`.trim(),
+                fotoUrl: usuario.avatarUrl ?? null,
                 permisos,
                 puedeElegirSucursal,
                 puedeConfigurarNegocio,
@@ -459,6 +464,7 @@ export async function loginEmpleado(
                 pinAcceso: empleados.pinAcceso,
                 activo: empleados.activo,
                 sucursalId: empleados.sucursalId,
+                fotoUrl: empleados.fotoUrl,
                 // Permisos
                 puedeRegistrarVentas: empleados.puedeRegistrarVentas,
                 puedeProcesarCanjes: empleados.puedeProcesarCanjes,
@@ -467,7 +473,7 @@ export async function loginEmpleado(
                 puedeResponderResenas: empleados.puedeResponderResenas,
             })
             .from(empleados)
-            .where(eq(empleados.nick, datos.nick))
+            .where(and(eq(empleados.nick, datos.nick), sql`eliminado_at IS NULL`))
             .limit(1);
 
         if (!empleado) {
@@ -563,6 +569,16 @@ export async function loginEmpleado(
             };
         }
 
+        // Fallback: si Drizzle no resolvió usuarioId (problema de casing), obtener con raw SQL
+        if (!negocio.usuarioId) {
+            const resultado = await db.execute(sql`SELECT usuario_id FROM negocios WHERE id = ${sucursal.negocioId}`);
+            const rows = Array.isArray(resultado) ? resultado : (resultado as unknown as { rows: unknown[] }).rows;
+            const row = rows?.[0] as { usuario_id?: string } | undefined;
+            if (row?.usuario_id) {
+                (negocio as { usuarioId: string }).usuarioId = row.usuario_id;
+            }
+        }
+
         // Verificar que el negocio tenga CardYA activo
         if (!negocio.participaPuntos) {
             return {
@@ -619,12 +635,15 @@ export async function loginEmpleado(
             data: {
                 tipo: 'empleado',
                 usuarioId: empleado.id,
+                empleadoId: empleado.id,
+                negocioUsuarioId: negocio.usuarioId,
                 negocioId: negocio.id,
                 sucursalId: sucursal.id,
                 nombreNegocio: negocio.nombre,
                 logoNegocio: negocio.logoUrl ?? null,
                 nombreSucursal: totalSucursales > 1 ? sucursal.nombre : null,
                 nombreUsuario: empleado.nombre,
+                fotoUrl: empleado.fotoUrl ?? null,
                 permisos,
                 puedeElegirSucursal: false,
                 puedeConfigurarNegocio: false,
@@ -720,7 +739,33 @@ export async function refrescarTokenScanYA(
             }
         }
 
-        // Generar nuevos tokens con el mismo payload (sin los campos de JWT)
+        // Para empleados: obtener permisos actualizados de la BD
+        let permisosActuales = payload.permisos;
+        if (payload.tipo === 'empleado' && payload.empleadoId) {
+            const [empPermisos] = await db
+                .select({
+                    puedeRegistrarVentas: empleados.puedeRegistrarVentas,
+                    puedeProcesarCanjes: empleados.puedeProcesarCanjes,
+                    puedeVerHistorial: empleados.puedeVerHistorial,
+                    puedeResponderChat: empleados.puedeResponderChat,
+                    puedeResponderResenas: empleados.puedeResponderResenas,
+                })
+                .from(empleados)
+                .where(eq(empleados.id, payload.empleadoId))
+                .limit(1);
+
+            if (empPermisos) {
+                permisosActuales = {
+                    registrarVentas: empPermisos.puedeRegistrarVentas ?? true,
+                    procesarCanjes: empPermisos.puedeProcesarCanjes ?? true,
+                    verHistorial: empPermisos.puedeVerHistorial ?? true,
+                    responderChat: empPermisos.puedeResponderChat ?? true,
+                    responderResenas: empPermisos.puedeResponderResenas ?? true,
+                };
+            }
+        }
+
+        // Generar nuevos tokens con permisos actualizados
         const nuevoPayload: PayloadTokenScanYA = {
             tipo: payload.tipo,
             negocioId: payload.negocioId,
@@ -729,10 +774,11 @@ export async function refrescarTokenScanYA(
             usuarioId: payload.usuarioId,
             correo: payload.correo,
             nombreUsuario: payload.nombreUsuario,
+            negocioUsuarioId: payload.negocioUsuarioId,
             empleadoId: payload.empleadoId,
             nick: payload.nick,
             nombreEmpleado: payload.nombreEmpleado,
-            permisos: payload.permisos,
+            permisos: permisosActuales,
             puedeElegirSucursal: payload.puedeElegirSucursal,
             puedeConfigurarNegocio: payload.puedeConfigurarNegocio,
         };
@@ -931,6 +977,7 @@ export async function obtenerTurnoActual(
         horaInicio: string;
         puntosOtorgados: number;
         transacciones: number;
+        ventasTotales: number;
         duracionMinutos: number;
     } | null;
 }>> {
@@ -987,6 +1034,16 @@ export async function obtenerTurnoActual(
         const inicio = new Date(turnoActivo.horaInicio);
         const duracionMinutos = Math.floor((ahora.getTime() - inicio.getTime()) / 60000);
 
+        // Sumar ventas totales ($) del turno
+        const [ventasResult] = await db
+            .select({
+                total: sql<string>`COALESCE(SUM(monto_compra), 0)`,
+            })
+            .from(puntosTransacciones)
+            .where(eq(puntosTransacciones.turnoId, turnoActivo.id));
+
+        const ventasTotales = parseFloat(ventasResult?.total ?? '0');
+
         return {
             success: true,
             message: 'Turno activo encontrado',
@@ -996,6 +1053,7 @@ export async function obtenerTurnoActual(
                     horaInicio: turnoActivo.horaInicio,
                     puntosOtorgados: turnoActivo.puntosOtorgados ?? 0,
                     transacciones: turnoActivo.transacciones ?? 0,
+                    ventasTotales,
                     duracionMinutos,
                 },
             },
@@ -3923,7 +3981,7 @@ export async function actualizarConfigScanYA(
 // FUNCIÓN 20: GENERAR PRESIGNED URL PARA TICKET (Fase 9)
 // =============================================================================
 
-import { generarPresignedUrl } from './r2.service.js';
+import { generarPresignedUrl, eliminarArchivo, extraerKeyDeUrl } from './r2.service.js';
 
 /**
  * Genera una URL pre-firmada para subir foto de ticket a R2.
@@ -4276,5 +4334,152 @@ export async function obtenerTarjetasSellosCliente(
     } catch (error) {
         console.error('Error en obtenerTarjetasSellosCliente:', error);
         return { success: false, message: 'Error al obtener tarjetas de sellos', code: 500 };
+    }
+}
+
+// =============================================================================
+// FUNCIÓN: GENERAR URL UPLOAD AVATAR EMPLEADO
+// =============================================================================
+
+/**
+ * Genera una presigned URL para que el empleado suba su avatar a R2.
+ * Solo permite que el empleado suba SU propia foto.
+ *
+ * @param payload - Datos del usuario autenticado (debe ser empleado)
+ * @param nombreArchivo - Nombre original del archivo
+ * @param contentType - Tipo MIME (image/jpeg, image/png, image/webp)
+ * @returns URL de subida + URL pública final
+ */
+export async function generarUrlUploadAvatarEmpleado(
+    payload: PayloadTokenScanYA,
+    nombreArchivo: string,
+    contentType: string
+): Promise<RespuestaServicio<{
+    uploadUrl: string;
+    publicUrl: string;
+    key: string;
+    expiresIn: number;
+}>> {
+    try {
+        if (!payload.empleadoId) {
+            return {
+                success: false,
+                message: 'Solo empleados pueden subir su avatar desde ScanYA',
+                code: 403,
+            };
+        }
+
+        const carpeta = `empleados/${payload.empleadoId}`;
+
+        const resultado = await generarPresignedUrl(
+            carpeta,
+            nombreArchivo,
+            contentType,
+            300 // 5 minutos de validez
+        );
+
+        if (!resultado.success || !resultado.data) {
+            return {
+                success: false,
+                message: resultado.message,
+                code: resultado.code,
+            };
+        }
+
+        return {
+            success: true,
+            message: 'URL de subida generada para avatar',
+            data: resultado.data,
+            code: 200,
+        };
+    } catch (error) {
+        console.error('Error en generarUrlUploadAvatarEmpleado:', error);
+        return {
+            success: false,
+            message: 'Error interno al generar URL de subida',
+            code: 500,
+        };
+    }
+}
+
+// =============================================================================
+// FUNCIÓN: ACTUALIZAR AVATAR EMPLEADO
+// =============================================================================
+
+/**
+ * Actualiza la foto_url del empleado en la BD.
+ * Solo el propio empleado puede actualizar su foto.
+ *
+ * @param payload - Datos del usuario autenticado
+ * @param fotoUrl - URL pública de R2 del nuevo avatar
+ * @returns Confirmación de actualización
+ */
+export async function actualizarAvatarEmpleado(
+    payload: PayloadTokenScanYA,
+    fotoUrl: string
+): Promise<RespuestaServicio<{ fotoUrl: string }>> {
+    try {
+        if (!payload.empleadoId) {
+            return {
+                success: false,
+                message: 'Solo empleados pueden actualizar su avatar desde ScanYA',
+                code: 403,
+            };
+        }
+
+        // Obtener foto anterior para eliminarla de R2
+        const [empleadoActual] = await db
+            .select({ fotoUrl: empleados.fotoUrl })
+            .from(empleados)
+            .where(
+                and(
+                    eq(empleados.id, payload.empleadoId),
+                    eq(empleados.activo, true)
+                )
+            )
+            .limit(1);
+
+        if (!empleadoActual) {
+            return {
+                success: false,
+                message: 'Empleado no encontrado o inactivo',
+                code: 404,
+            };
+        }
+
+        const fotoAnterior = empleadoActual.fotoUrl;
+
+        // Actualizar foto_url en la tabla empleados
+        await db
+            .update(empleados)
+            .set({
+                fotoUrl,
+                updatedAt: sql`NOW()`,
+            })
+            .where(eq(empleados.id, payload.empleadoId));
+
+        // Eliminar foto anterior de R2 (fire-and-forget)
+        if (fotoAnterior && fotoAnterior !== fotoUrl) {
+            const key = extraerKeyDeUrl(fotoAnterior);
+            if (key) {
+                eliminarArchivo(key).catch((err) => {
+                    console.error('Error eliminando avatar anterior de R2:', err);
+                });
+            }
+        }
+
+        return {
+            success: true,
+            message: 'Avatar actualizado correctamente',
+            data: { fotoUrl },
+            code: 200,
+        };
+    } catch (error) {
+        console.error('Error en actualizarAvatarEmpleado:', error);
+        return {
+            success: false,
+            message: 'Error interno al actualizar avatar',
+            code: 500,
+        };
     }
 }
