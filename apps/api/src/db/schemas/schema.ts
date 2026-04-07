@@ -1305,6 +1305,7 @@ export const empleados = pgTable("empleados", {
 	nick: varchar({ length: 30 }),
 	puedeResponderChat: boolean("puede_responder_chat").default(true),
 	puedeResponderResenas: boolean("puede_responder_resenas").default(true),
+	eliminadoAt: timestamp("eliminado_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_empleados_activo").using("btree", table.activo.asc().nullsLast()),
 	index("idx_empleados_pin_acceso").using("btree", table.pinAcceso.asc().nullsLast()).where(sql`(pin_acceso IS NOT NULL)`),
