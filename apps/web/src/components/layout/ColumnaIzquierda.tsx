@@ -40,7 +40,7 @@ import { WidgetCardYA } from './WidgetCardYA';
 import CarouselCupones from './CarouselCupones';
 import { MenuBusinessStudio } from './MenuBusinessStudio';
 import { ModalImagenes } from '../ui/ModalImagenes';
-import { obtenerKPIs } from '../../services/dashboardService';
+import { useDashboard } from '../../hooks/queries/useDashboard';
 
 // =============================================================================
 // SISTEMA DE TEMAS — Configuración centralizada por ruta/módulo
@@ -622,38 +622,13 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
     }
   };
 
-  // Estado local para KPIs del día (independiente del Dashboard)
-  const [kpisHoy, setKpisHoy] = useState<{
-    ventas: number;
-    clientes: number;
-    transacciones: number;
-  }>({ ventas: 0, clientes: 0, transacciones: 0 });
-
-  React.useEffect(() => {
-    if (!sucursalActiva) return;
-
-    const cargarKPIsHoy = async () => {
-      try {
-        const response = await obtenerKPIs('hoy');
-        if (response.success && response.data) {
-          setKpisHoy({
-            ventas: response.data.ventas?.valor ?? 0,
-            clientes: response.data.clientes?.valor ?? 0,
-            transacciones: response.data.transacciones?.valor ?? 0,
-          });
-        }
-      } catch (error) {
-        console.error('Error cargando KPIs del día:', error);
-      }
-    };
-
-    cargarKPIsHoy();
-  }, [sucursalActiva]);
+  // KPIs del día — React Query (comparte caché con Dashboard si periodo='hoy')
+  const { kpis: kpisHoy } = useDashboard('hoy');
 
   const tipDelDia = TIPS_DIARIOS[new Date().getDay()];
-  const ventasTotales = kpisHoy.ventas;
-  const clientes = kpisHoy.clientes;
-  const transacciones = kpisHoy.transacciones;
+  const ventasTotales = kpisHoy?.ventas?.valor ?? 0;
+  const clientes = kpisHoy?.clientes?.valor ?? 0;
+  const transacciones = kpisHoy?.transacciones?.valor ?? 0;
 
   return (
     <>

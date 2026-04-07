@@ -17,7 +17,7 @@ Super-app para comercio local en México. Conecta negocios físicos con consumid
 
 ## Stack
 
-- **Frontend:** React 19 + Vite + Tailwind v4 + Zustand
+- **Frontend:** React 19 + Vite + Tailwind v4 + Zustand + TanStack Query v5
 - **Backend:** Express 5 + Node >=18 + Socket.io
 - **BD:** PostgreSQL + PostGIS (Supabase, 1 schema público, ~71 tablas) + Redis (Upstash, via ioredis)
 - **Archivos:** Cloudinary + Cloudflare R2
@@ -123,6 +123,21 @@ router.post('/articulos',
 
 Drizzle `casing: 'snake_case'` solo funciona para writes. Hay middleware global Express para transformar responses de snake_case a camelCase.
 
+### React Query + Zustand — Separación de estado
+
+**Regla fundamental:** estado de servidor va en React Query, estado de UI va en Zustand. NUNCA mezclar.
+
+- **React Query** → KPIs, historial, listas, cualquier dato que viene de la API
+- **Zustand** → tab activo, filtros seleccionados, dropdowns abiertos, cualquier estado visual
+
+Configuración global en `apps/web/src/config/queryClient.ts` (staleTime 2min, gcTime 10min).
+Query keys centralizadas en `apps/web/src/config/queryKeys.ts`.
+Hooks por módulo en `apps/web/src/hooks/queries/`.
+
+**Regla obligatoria:** toda query con filtros variables DEBE incluir `placeholderData: keepPreviousData` para evitar temblor visual al filtrar.
+
+Ver guía completa: `docs/estandares/PATRON_REACT_QUERY.md`
+
 ---
 
 ## Convenciones de Código
@@ -221,6 +236,7 @@ docs/
 │   ├── Criterios_de_Uso_de_Modales.md
 │   ├── Patron_Scroll_Lateral.md
 │   ├── Sistema_Transformacion_snake_camelCase.md
+│   ├── PATRON_REACT_QUERY.md      ← estándar para datos del servidor
 │   └── LECCIONES_TECNICAS.md
 ├── arquitectura/               → Referencia técnica por módulo
 │   ├── Sistema.md
@@ -276,6 +292,18 @@ Cuando durante una conversación se defina o modifique un patrón visual (tamañ
 
 Antes de implementar UI, paginación, caché, o cualquier patrón nuevo, **revisar cómo está implementado en los otros módulos del mismo contexto** (BS, ScanYA, etc.) e igualar. No inventar patrones propios si ya existe uno establecido.
 
+Para datos del servidor, el patrón establecido es React Query — ver `docs/estandares/PATRON_REACT_QUERY.md` y tomar como referencia `hooks/queries/useDashboard.ts` y `hooks/queries/useTransacciones.ts`.
+
+### 7.1 Actualizar Documentación tras Migrar
+
+Al terminar la migración de cualquier módulo o sección (ej: migrar de Zustand+caché manual a React Query), **actualizar inmediatamente el documento de arquitectura correspondiente** en `docs/arquitectura/`. Específicamente:
+
+- Reemplazar diagramas o descripciones que muestren el patrón anterior
+- Actualizar la tabla de archivos (agregar hooks nuevos, describir stores reducidos)
+- Actualizar secciones de "Caché" o "Estado" para reflejar React Query
+- Actualizar checklist de implementación si existe
+- Actualizar la fecha y versión del documento
+
 ### 8. Testing con Datos Reales
 
 Para probar funcionalidad nueva, crear datos reales en la BD que detonen la funcionalidad (no insertar resultados manualmente). Las pruebas deben validar el flujo completo: dato real → lógica → resultado.
@@ -305,6 +333,7 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **Promociones** ✅ 100% — Ofertas + Cupones unificados (22 Mar 2026). 35 API tests + 7 E2E tests
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
 - **Business Studio** (71%) — 10/14 módulos completados
+- **Migración React Query** (en curso) — BS completo: Dashboard ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Catálogo ✅, Promociones ✅, Puntos ✅, Empleados ✅, Mi Perfil ✅. Pendientes: secciones públicas (Negocios, CardYA, Mis Cupones)
 
 ### BS Módulos Completados (10/14)
 

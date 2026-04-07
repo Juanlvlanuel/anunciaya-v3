@@ -49,7 +49,13 @@ function ImagenConBlur({
   className?: string;
   onClick?: () => void;
 }) {
-  const [urlCargada, setUrlCargada] = useState<string | null>(null);
+  const [urlCargada, setUrlCargada] = useState<string | null>(() => {
+    if (!src) return null;
+    // Si la imagen ya está en caché del browser, mostrar directamente sin blur
+    const img = new window.Image();
+    img.src = src;
+    return img.complete ? src : null;
+  });
   const cargada = src !== null && src === urlCargada;
   const urlBlur = miniatura || src;
 
@@ -224,16 +230,18 @@ export default function TabImagenes({
   // ==========================================================================
 
   // Galería — R2 (manejo manual de múltiples imágenes)
-  const [galeriaUrls, setGaleriaUrls] = useState<string[]>([]);
+  const [galeriaUrls, setGaleriaUrls] = useState<string[]>(
+    () => datosImagenes.galeria?.map(img => img.url) ?? []
+  );
   const [subiendoGaleria, setSubiendoGaleria] = useState(false);
   const galeriaInputRef = useRef<HTMLInputElement>(null);
 
-  // Sincronizar URLs de galería desde datosImagenes
+  // Sincronizar si galería cambia externamente (ej: refetch tras guardar) y local está vacío
   useEffect(() => {
-    if (datosImagenes.galeria && datosImagenes.galeria.length > 0) {
+    if (galeriaUrls.length === 0 && datosImagenes.galeria && datosImagenes.galeria.length > 0) {
       setGaleriaUrls(datosImagenes.galeria.map(img => img.url));
     }
-  }, [datosImagenes.galeria]);
+  }, [datosImagenes.galeria]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const subirImagenGaleriaR2 = async (file: File): Promise<string> => {
     const blob = await new Promise<Blob>((resolve, reject) => {

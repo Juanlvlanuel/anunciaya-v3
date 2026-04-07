@@ -1,6 +1,6 @@
 # Alertas — Arquitectura
 
-> **Última actualización:** 3 Abril 2026
+> **Última actualización:** 6 Abril 2026
 > **Estado:** ✅ Completo
 > **Sprint:** 9
 
@@ -142,7 +142,8 @@ DELETE /:id                  → Eliminar alerta individual
 |---------|-------------|
 | `types/alertas.ts` | Tipos espejo + CATALOGO_ALERTAS (16 metadatos UI) |
 | `services/alertasService.ts` | 11 funciones API (get, put, del) |
-| `stores/useAlertasStore.ts` | Zustand: alertas, KPIs, config, paginación, scroll infinito |
+| `hooks/queries/useAlertas.ts` | React Query: lista (infinite), KPIs, config, 6 mutations con optimistic updates |
+| `stores/useAlertasStore.ts` | Zustand: solo estado UI (filtros activos, alerta seleccionada) |
 | `pages/.../alertas/PaginaAlertas.tsx` | Página principal (KPIs, filtros, tabla, cards) |
 | `pages/.../alertas/ModalDetalleAlerta.tsx` | Modal detalle con datos, acciones, enlace contextual |
 | `pages/.../alertas/ModalConfiguracion.tsx` | Modal configuración con tabs y umbrales |
@@ -181,7 +182,7 @@ DELETE /:id                  → Eliminar alerta individual
 ### Badge Menú
 
 - `MenuBusinessStudio.tsx` muestra badge rojo con conteo no leídas
-- Lee del store de alertas (optimista) con fallback a API
+- Lee de `useAlertasKPIs()` (React Query, staleTime 30s) — se actualiza automáticamente vía invalidación de mutaciones
 - Círculo `min-w-5 h-5` completamente redondo
 
 ### Dashboard
@@ -189,11 +190,13 @@ DELETE /:id                  → Eliminar alerta individual
 - `PanelAlertas.tsx` — Panel con header oscuro, iconos gradiente, click → navega a Alertas
 - `BannerAlertasUrgentes.tsx` — Banner móvil compacto con header oscuro, máx 2 alertas
 
-### Caché
+### Caché — React Query
 
-- `cargandoAlertas` solo es `true` en primera carga (`alertas.length === 0`)
-- Visitas siguientes: datos previos al instante, recarga silenciosa
-- No se limpia al salir de la página
+- **Lista:** `useAlertasLista(filtros)` → `useInfiniteQuery`, paginación por páginas. `placeholderData: keepPreviousData` evita parpadeo al cambiar filtros.
+- **KPIs:** `useAlertasKPIs()` → `staleTime: 30s`. Invalidado tras marcar leída/resuelta y eliminar.
+- **Configuración:** `useAlertasConfiguracion()` → invalidación automática no requerida (optimistic update).
+- **Mutaciones con optimistic update:** marcar leída, marcar resuelta, eliminar individual aplican cambios al caché local antes de confirmar con el servidor; hacen rollback en `onError`.
+- Datos no se borran al salir de la página (gcTime global 10min).
 
 ---
 
@@ -250,7 +253,7 @@ interface ConfiguracionAlerta {
 | `index.ts` | Registrar inicializarCronAlertas() |
 | `services/scanya.service.ts` | Hook fire-and-forget detectarAlertasSeguridad |
 | `types/notificaciones.types.ts` | Tipo 'alerta_seguridad' + referencia 'alerta' |
-| `components/layout/MenuBusinessStudio.tsx` | Badge no leídas (store + API fallback) |
+| `components/layout/MenuBusinessStudio.tsx` | Badge no leídas via `useAlertasKPIs()` (React Query) |
 | `components/layout/Navbar.tsx` | Iconos circulares uniformes, ChatYA nuevo icono |
 | `components/layout/PanelNotificaciones.tsx` | Altura 85vh, botón "Ver notificaciones anteriores" |
 | `router/index.tsx` | Import real PaginaAlertas |

@@ -36,9 +36,9 @@ import {
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { notificar } from '../../../../utils/notificaciones';
-import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
+import { useRevocarTransaccion } from '../../../../hooks/queries/useTransacciones';
 import { useAuthStore } from '../../../../stores/useAuthStore';
-import { usePuntosStore } from '../../../../stores/usePuntosStore';
+import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import type { TransaccionPuntos } from '../../../../types/puntos';
@@ -140,9 +140,10 @@ export default function ModalDetalleTransaccionBS({
       });
     }
   }, [mostrarRevocar]);
-  const revocarTransaccion = useTransaccionesStore((s) => s.revocarTransaccion);
+  const { mutateAsync: revocarTransaccion } = useRevocarTransaccion();
   const totalSucursales = useAuthStore((s) => s.totalSucursales);
-  const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
+  const { data: configPuntos } = usePuntosConfiguracion();
+  const nivelesActivos = configPuntos?.nivelesActivos ?? true;
   const tieneSucursales = totalSucursales > 1;
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
   const abrirChatYA = useUiStore((s) => s.abrirChatYA);
@@ -204,16 +205,16 @@ export default function ModalDetalleTransaccionBS({
     }
 
     setRevocando(true);
-    const exito = await revocarTransaccion(tx.id, motivo.trim());
-    setRevocando(false);
-
-    if (exito) {
+    try {
+      await revocarTransaccion({ id: tx.id, motivo: motivo.trim() });
       notificar.exito('Transacción revocada');
       setMotivo('');
       setMostrarRevocar(false);
       onCerrar();
-    } else {
+    } catch {
       notificar.error('No se pudo revocar la transacción');
+    } finally {
+      setRevocando(false);
     }
   };
 

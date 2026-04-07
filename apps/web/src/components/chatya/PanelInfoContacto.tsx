@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
-import { usePuntosStore } from '../../stores/usePuntosStore';
+import { usePuntosConfiguracion } from '../../hooks/queries/usePuntos';
 import { obtenerPerfilSucursal } from '../../services/negociosService';
 import { getDetalleCliente } from '../../services/clientesService';
 import { getConteoArchivosCompartidos, getArchivosCompartidos } from '../../services/chatyaService';
@@ -163,7 +163,8 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const { miId, modo: modoActivo, origen } = useChatYASession();
   const { esMobile } = useBreakpoint();
 
-  const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
+  const { data: configPuntos } = usePuntosConfiguracion();
+  const nivelesActivos = configPuntos?.nivelesActivos ?? true;
 
   const toggleSilenciar = useChatYAStore((s) => s.toggleSilenciar);
   const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);

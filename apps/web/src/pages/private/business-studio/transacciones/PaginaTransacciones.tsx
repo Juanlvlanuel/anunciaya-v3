@@ -50,7 +50,15 @@ import {
   Ticket,
 } from 'lucide-react';
 import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
-import { useAuthStore } from '../../../../stores/useAuthStore';
+import {
+  useTransaccionesKPIs,
+  useTransaccionesCuponesKPIs,
+  useTransaccionesCanjesKPIs,
+  useTransaccionesOperadores,
+  useTransaccionesHistorial,
+  useTransaccionesCuponesHistorial,
+  useTransaccionesCanjesHistorial,
+} from '../../../../hooks/queries/useTransacciones';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import { Input } from '../../../../components/ui/Input';
@@ -432,59 +440,78 @@ export default function PaginaTransacciones() {
     if (nuevoCanjeId) setCanjeIdPendiente(nuevoCanjeId);
   }, [searchParams]);
 
-  // Store
+  // Store — solo estado UI
   const {
-    // Tab
     tabActivo,
     setTabActivo,
-    // Ventas
-    kpis,
-    cargandoKpis,
     periodo,
-    historial,
-    cargandoHistorial,
-    cargandoMas,
-    hayMas,
-    cargaInicialCompleta,
-    totalResultados,
     setPeriodo,
+    busqueda,
     setBusqueda,
     setOperadorId,
     operadorId,
     operadorIdCupones,
     operadorIdCanjes,
-    operadores,
-    cargarOperadores,
     estadoFiltro,
     setEstadoFiltro,
-    cargarKPIs,
-    cargarHistorial,
-    cargarMas,
-    // Cupones
-    kpisCupones,
-    cargandoKpisCupones,
-    historialCupones,
-    cargandoHistorialCupones,
-    cargandoMasCupones,
-    hayMasCupones,
-    totalResultadosCupones,
-    cargarMasCupones,
-    // Canjes
-    kpisCanjes,
-    cargandoKpisCanjes,
-    historialCanjes,
-    cargandoHistorialCanjes,
-    cargandoMasCanjes,
-    hayMasCanjes,
-    totalResultadosCanjes,
     estadoFiltroCanjes,
     setEstadoFiltroCanjes,
+    busquedaCanjes,
     setBusquedaCanjes,
-    cargarMasCanjes,
+    limpiar,
   } = useTransaccionesStore();
 
-  // Sucursal activa (para recargar al cambiar)
-  const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
+  // Queries — datos del servidor
+  const kpisQuery = useTransaccionesKPIs(periodo);
+  const kpisCuponesQuery = useTransaccionesCuponesKPIs(periodo);
+  const kpisCanjesQuery = useTransaccionesCanjesKPIs(periodo);
+  const operadoresQuery = useTransaccionesOperadores();
+  const historialQuery = useTransaccionesHistorial({
+    tipo: 'ventas',
+    periodo,
+    busqueda,
+    operadorId,
+    estadoFiltro,
+  });
+  const historialCuponesQuery = useTransaccionesCuponesHistorial({
+    tipo: 'cupones',
+    periodo,
+    busqueda,
+    operadorIdCupones,
+    estadoFiltro,
+  });
+  const historialCanjesQuery = useTransaccionesCanjesHistorial({
+    periodo,
+    estadoFiltroCanjes,
+    busquedaCanjes,
+    operadorIdCanjes,
+  });
+
+  // Aliases con los mismos nombres para no cambiar el JSX
+  const kpis = kpisQuery.data ?? null;
+  const cargandoKpis = kpisQuery.isPending;
+  const historial = historialQuery.data?.pages.flatMap((p) => p.historial) ?? [];
+  const cargandoHistorial = historialQuery.isPending;
+  const cargandoMas = historialQuery.isFetchingNextPage;
+  const hayMas = historialQuery.hasNextPage;
+  const totalResultados = historialQuery.data?.pages[0]?.total ?? 0;
+  const kpisCupones = kpisCuponesQuery.data ?? null;
+  const cargandoKpisCupones = kpisCuponesQuery.isPending;
+  const historialCupones = historialCuponesQuery.data?.pages.flatMap((p) => p.historial) ?? [];
+  const cargandoHistorialCupones = historialCuponesQuery.isPending;
+  const cargandoMasCupones = historialCuponesQuery.isFetchingNextPage;
+  const hayMasCupones = historialCuponesQuery.hasNextPage;
+  const totalResultadosCupones = historialCuponesQuery.data?.pages[0]?.total ?? 0;
+  const kpisCanjes = kpisCanjesQuery.data ?? null;
+  const cargandoKpisCanjes = kpisCanjesQuery.isPending;
+  const historialCanjes = historialCanjesQuery.data?.pages.flatMap((p) => p.canjes) ?? [];
+  const cargandoHistorialCanjes = historialCanjesQuery.isPending;
+  const cargandoMasCanjes = historialCanjesQuery.isFetchingNextPage;
+  const hayMasCanjes = historialCanjesQuery.hasNextPage;
+  const totalResultadosCanjes = historialCanjesQuery.data?.pages[0]?.total ?? 0;
+  const operadores = operadoresQuery.data ?? [];
+  // isPending = true solo en la carga inicial (sin datos previos en caché)
+  const cargaInicialCompleta = !historialQuery.isPending;
 
   // Operador activo según tab (cada tab tiene su propio filtro)
   const operadorIdActivo = tabActivo === 'cupones' ? operadorIdCupones : tabActivo === 'canjes' ? operadorIdCanjes : operadorId;
@@ -511,38 +538,23 @@ export default function PaginaTransacciones() {
   const sentinelaRef = useRef<HTMLDivElement | null>(null);
   const sentinelaCanjesRef = useRef<HTMLDivElement | null>(null);
 
-  // ——— Carga inicial + recarga al cambiar sucursal ———
-  // Si hay búsqueda inicial (desde URL), setBusqueda llama cargarHistorial internamente.
-  // Así evitamos dos cargas paralelas que causan condición de carrera.
+  // ——— Aplicar deep links desde URL (tab y búsqueda iniciales) ———
+  // React Query gestiona la carga de datos automáticamente.
   useEffect(() => {
     if (tabInicial === 'canjes') {
       setTabActivo('canjes');
     }
-    cargarKPIs();
-    cargarOperadores();
-    // Precargar datos de cupones y vouchers en paralelo para evitar parpadeo de imágenes
-    useTransaccionesStore.getState().cargarHistorialCupones();
-    useTransaccionesStore.getState().cargarKPIsCupones();
-    useTransaccionesStore.getState().cargarHistorialCanjes();
-    useTransaccionesStore.getState().cargarKPIsCanjes();
     if (busquedaInicial) {
       if (tabInicial === 'canjes') {
-        // Búsqueda en tab canjes
         setTextoBusquedaCanjes(busquedaInicial);
         setBusquedaCanjes(busquedaInicial);
       } else {
-        // Búsqueda en tab ventas
-        const busquedaEnStore = useTransaccionesStore.getState().busqueda;
-        if (busquedaEnStore !== busquedaInicial) {
-          useTransaccionesStore.setState({ historial: [], totalResultados: 0 });
-          setBusqueda(busquedaInicial);
-        }
+        setBusqueda(busquedaInicial);
       }
       setSearchParams({}, { replace: true });
-    } else {
-      cargarHistorial();
     }
-  }, [sucursalActiva]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ——— Abrir transacción/canje desde URL (notificaciones) ———
   useEffect(() => {
@@ -567,35 +579,12 @@ export default function PaginaTransacciones() {
     setCanjeIdPendiente('');
   }, [canjeIdPendiente, historialCanjes]);
 
-  // ——— Limpiar filtros al salir (sin disparar cargarHistorial) ———
+  // ——— Limpiar filtros al salir ———
+  // React Query re-fetches automáticamente cuando el queryKey cambia,
+  // así que solo necesitamos resetear el estado UI del store.
   useEffect(() => {
-    return () => {
-      const state = useTransaccionesStore.getState();
-      const hayFiltrosSucios = state.operadorId || state.operadorIdCupones || state.operadorIdCanjes || state.estadoFiltro || state.estadoFiltroCanjes || state.busqueda || state.busquedaCanjes || state.periodo !== 'todo';
-
-      useTransaccionesStore.setState({
-        busqueda: '',
-        offset: 0,
-        operadorId: '',
-        operadorIdCupones: '',
-        operadorIdCanjes: '',
-        estadoFiltro: '',
-        estadoFiltroCanjes: '',
-        busquedaCanjes: '',
-        offsetCupones: 0,
-        offsetCanjes: 0,
-        tabActivo: 'ventas',
-        periodo: 'todo',
-      });
-
-      // Si había filtros activos, recargar datos sin filtros para que la próxima visita muestre datos limpios
-      if (hayFiltrosSucios) {
-        useTransaccionesStore.getState().cargarHistorial();
-        // Cupones y canjes se recargan lazy al cambiar de tab
-        useTransaccionesStore.setState({ cargaInicialCuponesCompleta: false, cargaInicialCanjesCompleta: false });
-      }
-    };
-  }, []);
+    return () => limpiar();
+  }, [limpiar]);
 
   // ——— Debounce: enviar búsqueda al backend después de 400ms sin escribir ———
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -613,14 +602,14 @@ export default function PaginaTransacciones() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hayMas && !cargandoMas) {
-          cargarMas();
+          historialQuery.fetchNextPage();
         }
       },
       { rootMargin: '100px' }
     );
     observer.observe(sentinelaRef.current);
     return () => observer.disconnect();
-  }, [isMobile, hayMas, cargandoMas, cargarMas]);
+  }, [isMobile, hayMas, cargandoMas, historialQuery]);
 
   // ——— Debounce: busqueda canjes ———
   const debounceCanjesRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -648,14 +637,14 @@ export default function PaginaTransacciones() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hayMasCanjes && !cargandoMasCanjes) {
-          cargarMasCanjes();
+          historialCanjesQuery.fetchNextPage();
         }
       },
       { rootMargin: '100px' }
     );
     observer.observe(sentinelaCanjesRef.current);
     return () => observer.disconnect();
-  }, [isMobile, hayMasCanjes, cargandoMasCanjes, cargarMasCanjes, tabActivo]);
+  }, [isMobile, hayMasCanjes, cargandoMasCanjes, historialCanjesQuery, tabActivo]);
 
   // ——— Cerrar dropdown operador al hacer click fuera ———
   useEffect(() => {
@@ -1800,7 +1789,7 @@ export default function PaginaTransacciones() {
               {/* Cargar más en desktop */}
               {hayMas && (
                 <button
-                  onClick={cargarMas}
+                  onClick={() => historialQuery.fetchNextPage()}
                   disabled={cargandoMas}
                   className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-200 cursor-pointer disabled:opacity-50"
                 >
@@ -1915,7 +1904,7 @@ export default function PaginaTransacciones() {
               {/* Cargar más */}
               {hayMasCupones && (
                 <button
-                  onClick={cargarMasCupones}
+                  onClick={() => historialCuponesQuery.fetchNextPage()}
                   disabled={cargandoMasCupones}
                   className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-100 cursor-pointer disabled:opacity-50"
                 >
@@ -2046,7 +2035,7 @@ export default function PaginaTransacciones() {
               {/* Cargar más vouchers en desktop */}
               {hayMasCanjes && (
                 <button
-                  onClick={cargarMasCanjes}
+                  onClick={() => historialCanjesQuery.fetchNextPage()}
                   disabled={cargandoMasCanjes}
                   className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-200 cursor-pointer disabled:opacity-50"
                 >
@@ -2169,7 +2158,7 @@ export default function PaginaTransacciones() {
             {/* Cargar más */}
             {hayMasCupones && (
               <button
-                onClick={cargarMasCupones}
+                onClick={() => historialCuponesQuery.fetchNextPage()}
                 disabled={cargandoMasCupones}
                 className="w-full py-3 text-sm text-blue-600 font-semibold cursor-pointer disabled:opacity-50"
               >

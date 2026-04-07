@@ -132,16 +132,10 @@ export default function TabUbicacion({
   const [mostrarResultados, setMostrarResultados] = useState(false);
   const [detectandoUbicacion, setDetectandoUbicacion] = useState(false);
   const [modalCiudadAbierto, setModalCiudadAbierto] = useState(false);
-  const [mapaListo, setMapaListo] = useState(false);
   const [forzarCentrado, setForzarCentrado] = useState(0);
 
   const latitudActual = datosUbicacion.latitud ?? 31.3122;
   const longitudActual = datosUbicacion.longitud ?? -113.5465;
-
-  useEffect(() => {
-    const timer = setTimeout(() => setMapaListo(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   const contenedorGeneralRef = useRef<HTMLDivElement>(null);
   const contenedorCiudadRef = useRef<HTMLDivElement>(null);
@@ -438,29 +432,23 @@ export default function TabUbicacion({
         {/* Mapa */}
         <div className="relative w-full h-[360px] lg:h-[520px] 2xl:h-[580px] z-0">
 
-          {mapaListo ? (
-            <MapContainer
-              center={[latitudActual, longitudActual]}
-              zoom={15}
-              style={{ height: '100%', width: '100%', zIndex: 0 }}
-              zoomControl={true}
-            >
-              <TileLayer
-                attribution='&copy; OpenStreetMap'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <MarcadorArrastrable
-                posicion={[latitudActual, longitudActual]}
-                onMover={handleMoverMarcador}
-              />
-              <DetectarClicMapa onClic={handleMoverMarcador} />
-              <CentrarMapa lat={latitudActual} lng={longitudActual} forzar={forzarCentrado} />
-            </MapContainer>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-slate-100">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            </div>
-          )}
+          <MapContainer
+            center={[latitudActual, longitudActual]}
+            zoom={15}
+            style={{ height: '100%', width: '100%', zIndex: 0 }}
+            zoomControl={true}
+          >
+            <TileLayer
+              attribution='&copy; OpenStreetMap'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MarcadorArrastrable
+              posicion={[latitudActual, longitudActual]}
+              onMover={handleMoverMarcador}
+            />
+            <DetectarClicMapa onClic={handleMoverMarcador} />
+            <CentrarMapa lat={latitudActual} lng={longitudActual} forzar={forzarCentrado} />
+          </MapContainer>
         </div>
 
       </div>

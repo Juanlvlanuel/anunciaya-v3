@@ -1,9 +1,9 @@
 # 📊 Documentación Completa: Módulos Clientes y Transacciones
 ## Business Studio - AnunciaYA v3.0
 
-**Versión:** 3.0  
-**Fase:** 5.8  
-**Fecha:** Febrero 2026  
+**Versión:** 3.1
+**Fase:** 5.8
+**Fecha:** Abril 2026
 **Chats de referencia:** Chat#6.73, Chat#6.62, Chat#6.63, Chat#6.74, Chat#6.75, Chat#6.76
 
 ---
@@ -88,17 +88,21 @@ apps/
 ### Patrón de Comunicación
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Página    │ ──▶ │    Store    │ ──▶ │   Service   │ ──▶ │  Backend    │
-│  (React)    │     │  (Zustand)  │     │   (Axios)   │     │  (Express)  │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-       │                   │                   │                   │
-       │  useEffect        │  cargarKPIs()     │  GET /api/...     │
-       │  ────────────▶    │  ────────────▶    │  ────────────▶    │
-       │                   │                   │                   │
-       │  estado           │  actualiza        │  respuesta        │
-       │  ◀────────────    │  ◀────────────    │  ◀────────────    │
+┌─────────────┐     ┌──────────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Página    │ ──▶ │   React Query    │ ──▶ │   Service   │ ──▶ │  Backend    │
+│  (React)    │     │  (TanStack v5)   │     │   (Axios)   │     │  (Express)  │
+└─────────────┘     └──────────────────┘     └─────────────┘     └─────────────┘
+       │                     │                      │                   │
+       │  useQuery/          │  queryFn()           │  GET /api/...     │
+       │  useInfiniteQuery   │  ─────────────▶      │  ────────────▶    │
+       │  ────────────▶      │                      │                   │
+       │                     │  caché automático    │  respuesta        │
+       │  { data, isLoading }│  ◀─────────────      │  ◀────────────    │
+       │  ◀────────────      │                      │                   │
 ```
+
+**Estado UI** (filtros, tab activo, elemento seleccionado) → Zustand (stores)
+**Datos del servidor** (KPIs, historial, listas) → React Query (hooks en `hooks/queries/`)
 
 ### Interceptor de Sucursal
 
@@ -674,124 +678,66 @@ export async function getHistorialCliente(id: string, limit?, offset?);
 
 ### 6.3 useTransaccionesStore.ts
 
+> **Migrado a React Query.** Los datos del servidor (KPIs, historial, operadores) ahora viven en `hooks/queries/useTransacciones.ts`. El store de Zustand solo conserva estado UI.
+
 ```typescript
-// Estado
-interface TransaccionesState {
+// Solo estado de UI — Zustand
+interface TransaccionesUIState {
   // Tab activo
   tabActivo: 'ventas' | 'canjes';
 
-  // === VENTAS ===
-  // KPIs
-  kpis: KPIsTransacciones | null;
-  cargandoKpis: boolean;
-
-  // Periodo y paginación
+  // === VENTAS (filtros UI) ===
   periodo: PeriodoEstadisticas;
-  offset: number;
-  hayMas: boolean;
-  totalResultados: number;
-
-  // Datos
-  historial: TransaccionPuntos[];
-  cargandoHistorial: boolean;
-  cargandoMas: boolean;
-  cargaInicialCompleta: boolean;
-
-  // Búsqueda
   busqueda: string;
-
-  // Filtro operador
   operadorId: string;
-  operadores: Operador[];
-
-  // Filtro estado
   estadoFiltro: string; // '' | 'confirmado' | 'cancelado'
 
-  // === CANJES ===
-  kpisCanjes: KPIsCanjes | null;
-  cargandoKpisCanjes: boolean;
-  historialCanjes: VoucherCanje[];
-  cargandoHistorialCanjes: boolean;
-  cargandoMasCanjes: boolean;
-  hayMasCanjes: boolean;
-  totalResultadosCanjes: number;
+  // === CANJES (filtros UI) ===
   estadoFiltroCanjes: string; // '' | 'pendiente' | 'usado' | 'expirado'
-
-  error: string | null;
+  busquedaCanjes: string;
 }
 
-// Acciones - Ventas
-setTabActivo(tab)              // Cambia tab, carga datos del tab destino si es primera vez
-cargarKPIs()
+// Acciones UI
+setTabActivo(tab)
 setPeriodo(periodo)
 setBusqueda(busqueda)
 setOperadorId(operadorId)
 setEstadoFiltro(estado)
-cargarOperadores()
-cargarHistorial()
-cargarMas()
-revocarTransaccion(id, motivo)
-
-// Acciones - Canjes (se disparan automáticamente desde setTabActivo y filtros)
 setEstadoFiltroCanjes(estado)
 setBusquedaCanjes(busqueda)
-cargarMasCanjes()
-
-limpiar()                      // Reset total al desmontar
+limpiar()
 ```
 
-> **NOTA:** A diferencia de Ventas donde la página llama manualmente `cargarKPIs()` y `cargarHistorial()` en un useEffect, en Canjes toda la lógica se delega al store: `setTabActivo('canjes')` dispara automáticamente la carga de KPIs e historial si es la primera vez.
+**Hooks React Query** (`hooks/queries/useTransacciones.ts`):
+- `useTransaccionesKPIs(periodo)` — staleTime 2min, invalidado tras revocar
+- `useTransaccionesHistorial(filtros)` — `useInfiniteQuery` (offset-based), `keepPreviousData`
+- `useTransaccionesOperadores()` — staleTime 5min
+- `useCanjesKPIs(periodo)` — staleTime 2min
+- `useCanjesHistorial(filtros)` — `useInfiniteQuery` (offset-based), `keepPreviousData`
+- `useRevocarTransaccion()` — mutation con invalidación de KPIs + historial
 
 ### 6.4 useClientesStore.ts
 
+> **Migrado a React Query.** Los datos del servidor (KPIs, lista, detalle, historial) ahora viven en `hooks/queries/useClientes.ts`. El store de Zustand solo conserva filtros UI.
+
 ```typescript
-// Estado
-interface ClientesState {
-  // Top clientes (Dashboard)
-  topClientes: ClienteConPuntos[];
-  cargandoTop: boolean;
-
-  // KPIs
-  kpis: KPIsClientes | null;
-  cargandoKpis: boolean;
-
-  // Lista de clientes
-  clientes: ClienteCompleto[];
-  cargandoClientes: boolean;
-  cargandoMas: boolean;
-  offset: number;
-  hayMas: boolean;
-
-  // Filtros
+// Solo estado de UI — Zustand
+interface ClientesUIState {
   busqueda: string;
   nivelFiltro: NivelCardYA | null;
-
-  // Detalle (modal)
-  clienteDetalle: ClienteDetalle | null;
-  cargandoDetalle: boolean;
-
-  // Historial del cliente
-  historialCliente: TransaccionPuntos[];
-  cargandoHistorial: boolean;
-  offsetHistorial: number;
-  hayMasHistorial: boolean;
-
-  error: string | null;
 }
 
-// Acciones
-cargarTopClientes(limit?)
-cargarKPIs()
-cargarClientes()
-cargarMas()
+// Acciones UI
 setBusqueda(busqueda)
 setNivelFiltro(nivel)
-cargarDetalleCliente(id)
-cargarHistorialCliente(id)
-cargarMasHistorial(id)
-limpiarDetalle()
 limpiar()
 ```
+
+**Hooks React Query** (`hooks/queries/useClientes.ts`):
+- `useClientesKPIs()` — staleTime 2min
+- `useClientesLista(filtros)` — `useInfiniteQuery` (offset-based), `keepPreviousData`
+- `useClienteDetalle(clienteId)` — se activa cuando el modal abre; sin keepPreviousData para no mostrar datos del cliente anterior
+- `useClienteHistorial(clienteId)` — top 5 transacciones recientes, staleTime 2min
 
 ---
 
@@ -984,18 +930,24 @@ type NivelCardYA = 'bronce' | 'plata' | 'oro';
 | Detección `hayMas` | `array.length === LIMIT` | Simple y eficiente |
 | **Total count** | **COUNT(*) real del backend** | Muestra "20 de 48 resultados". Query separada con mismas condiciones |
 
-### 9.2 Anti-parpadeo: `cargaInicialCompleta`
+### 9.2 Anti-parpadeo: `placeholderData: keepPreviousData`
 
 ```typescript
-// Problema: Al cambiar filtros, cargandoHistorial=true mostraba spinner reemplazando la tabla
-// Solución: Solo mostrar spinner la PRIMERA vez. Después, la tabla se reemplaza sin parpadeo.
+// Problema anterior (Zustand): Al cambiar filtros, cargandoHistorial=true mostraba spinner
+// reemplazando la tabla. Se resolvía con un flag manual `cargaInicialCompleta`.
 
-const esCargaInicial = !cargaInicialCompleta;
-set({ cargandoHistorial: esCargaInicial }); // Solo true la primera vez
+// Solución actual (React Query): `placeholderData: keepPreviousData` mantiene los datos
+// anteriores visibles mientras se carga el nuevo resultado. El spinner solo aparece en
+// la primera carga (cuando no hay datos previos en caché).
 
-// Después de la primera carga exitosa:
-set({ cargaInicialCompleta: true });
+return useInfiniteQuery({
+  queryKey: queryKeys.transacciones.historial(sucursalId, filtros),
+  queryFn: ...,
+  placeholderData: keepPreviousData, // ← Evita parpadeo al cambiar filtros
+});
 ```
+
+> **Regla obligatoria:** toda query cuya `queryKey` cambia en runtime por filtros variables DEBE incluir `placeholderData: keepPreviousData`.
 
 ### 9.3 Ordenamiento
 
@@ -1048,30 +1000,44 @@ Usada en: tabla de transacciones, modal de detalle, tabla de clientes.
 ### 9.7 Revocación de Transacciones
 
 ```typescript
-// Optimistic UI en el store
-revocarTransaccion: async (id, motivo) => {
-  const { historial } = get();
-  
-  // 1. Guardar estado anterior
-  const estadoAnterior = [...historial];
-  
-  // 2. Actualizar optimistamente
-  set({
-    historial: historial.map(t => 
-      t.id === id ? { ...t, estado: 'cancelado' } : t
-    )
+// Optimistic UI via useMutation (React Query)
+// En hooks/queries/useTransacciones.ts
+
+export function useRevocarTransaccion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo: string }) =>
+      transaccionesService.revocarTransaccion(id, motivo),
+
+    onMutate: async ({ id }) => {
+      // 1. Capturar snapshot del caché
+      const snapshot = queryClient.getQueriesData({ queryKey: ['transacciones', 'historial'] });
+
+      // 2. Actualizar optimistamente en todas las páginas
+      queryClient.setQueriesData({ queryKey: ['transacciones', 'historial'] }, (old) => ({
+        ...old,
+        pages: old.pages.map(page => ({
+          ...page,
+          historial: page.historial.map(t =>
+            t.id === id ? { ...t, estado: 'cancelado' } : t
+          ),
+        })),
+      }));
+
+      return { snapshot };
+    },
+
+    onError: (_err, _vars, context) => {
+      // 3. Rollback si falla
+      context?.snapshot.forEach(([key, value]) => queryClient.setQueryData(key, value));
+    },
+
+    onSuccess: () => {
+      // 4. Invalidar KPIs (conteo de revocadas cambia)
+      queryClient.invalidateQueries({ queryKey: ['transacciones', 'kpis'] });
+    },
   });
-  
-  try {
-    // 3. Llamar al backend
-    const respuesta = await transaccionesService.revocarTransaccion(id, motivo);
-    if (!respuesta.success) throw new Error(respuesta.message);
-    return true;
-  } catch {
-    // 4. Rollback si falla
-    set({ historial: estadoAnterior });
-    return false;
-  }
 }
 ```
 
@@ -1209,8 +1175,10 @@ npm run build
 - [x] `clientes.ts` (types) — ClienteDetalle con configNiveles
 - [x] `transaccionesService.ts` — 9 funciones (6 ventas + 3 canjes)
 - [x] `clientesService.ts` — 5 funciones
-- [x] `useTransaccionesStore.ts` — Estado completo con Ventas + Canjes (tabs, paginación separada)
-- [x] `useClientesStore.ts` — Estado completo
+- [x] `useTransaccionesStore.ts` — Solo estado UI (tab activo, filtros)
+- [x] `useClientesStore.ts` — Solo estado UI (búsqueda, nivel)
+- [x] `hooks/queries/useTransacciones.ts` — React Query: KPIs, historial infinite, operadores, revocar
+- [x] `hooks/queries/useClientes.ts` — React Query: KPIs, lista infinite, detalle, historial
 - [x] `useAuthStore.ts` — Agregado `totalSucursales` (carga en login/hidratar)
 - [x] `PaginaTransacciones.tsx` — ~1540 líneas (Toggle Ventas/Canjes, filtros, tablas, modales)
 - [x] `ModalDetalleTransaccionBS.tsx` — ~470 líneas (desglose pagos, foto ticket, nota, ChatYA)
@@ -1238,7 +1206,7 @@ npm run build
 3. **Tabla con header dark** — Flechas amber para ordenamiento, `z-10` clickeable
 4. **Cards móvil** — Con infinite scroll vía IntersectionObserver
 5. **Empty states** — Cuando no hay datos
-6. **Anti-parpadeo** — `cargaInicialCompleta` para evitar spinner en cambios de filtro
+6. **Anti-parpadeo** — `placeholderData: keepPreviousData` en React Query para evitar spinner en cambios de filtro
 7. **Dropdown custom** — Estado local + ref + click-outside handler (no `<select>` nativo)
 8. **Formato teléfono** — `formatearTelefono()` reutilizable (+52 XXX XXXXXXX)
 9. **JOIN operador vía turnos** — Patrón replicado en `puntos_service.ts` y `clientes_service.ts`
@@ -1247,7 +1215,7 @@ npm run build
 12. **Nivel máximo** — Muestra "¡Nivel máximo!" + barra 100% en lugar de "Faltan X pts"
 13. **Toggle Ventas/Canjes** — Gradientes diferenciados (slate para Ventas, azul para Canjes), centrado vertical
 14. **Condición sucursales** — `totalSucursales` del `useAuthStore` controla visibilidad de filas de sucursal en modales
-15. **Delegación al store** — En tab Canjes, el store dispara cargas automáticamente en vez de useEffects manuales
+15. **Separación servidor/UI** — Datos del servidor en React Query hooks; estado visual (filtros, tabs) en Zustand stores
 
 ---
 

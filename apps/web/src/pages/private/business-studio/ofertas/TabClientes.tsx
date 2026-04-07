@@ -13,7 +13,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, X, Users, ChevronDown, Check, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Spinner } from '../../../../components/ui/Spinner';
 import type { ClienteAsignado } from '../../../../services/ofertasService';
-import { usePuntosStore } from '../../../../stores/usePuntosStore';
+import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 
 // =============================================================================
 // TIPOS
@@ -164,7 +164,8 @@ export function TabClientes({
     clientes, cargando, clientesSeleccionados, onToggleCliente, onSeleccionarTodos, onLimpiarSeleccion,
     modoEdicion, clientesAsignados, cargandoAsignados, onClickCliente, botonesDesktop,
 }: TabClientesProps) {
-    const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
+    const { data: configPuntos } = usePuntosConfiguracion();
+    const nivelesActivos = configPuntos?.nivelesActivos ?? true;
 
     // ── MODO EDICIÓN: lista readonly de clientes asignados ──
     if (modoEdicion) {

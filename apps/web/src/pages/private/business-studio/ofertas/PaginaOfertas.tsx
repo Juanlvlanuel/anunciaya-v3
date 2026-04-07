@@ -15,10 +15,15 @@
  * - Ordenación por vistas, shares, clicks
  * - CRUD completo (Crear, Editar, Eliminar)
  * - Duplicar ofertas (todos los usuarios)
- * - Actualizaciones optimistas
+ * - Actualizaciones optimistas (React Query mutations)
  * - Responsive (móvil, laptop, desktop)
  *
+ * ESTADO:
+ *   - Servidor → React Query (hooks/queries/useOfertas.ts)
+ *   - UI local → useState (filtros, orden, modales)
+ *
  * REDISEÑO: Estandarización visual con Catálogo/Clientes/Transacciones
+ * MIGRADO: React Query — Abril 2026
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -57,7 +62,14 @@ import {
     CheckCircle2,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
-import { useOfertas } from '../../../../hooks/useOfertas';
+import {
+    useOfertasLista,
+    useOfertasInvalidar,
+    useCrearOferta,
+    useActualizarOferta,
+    useEliminarOferta,
+    useDuplicarOferta,
+} from '../../../../hooks/queries/useOfertas';
 import { useZonaHoraria } from '../../../../hooks/useZonaHoraria';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
@@ -397,7 +409,13 @@ function FilaMovilOferta({
 export function PaginaOfertas() {
     const { usuario } = useAuthStore();
     const totalSucursales = useAuthStore((s) => s.totalSucursales);
-    const { ofertas, loading, crear, actualizar, eliminar, duplicar, recargar, setOfertas, limpiarCache } = useOfertas();
+    // React Query — datos del servidor
+    const { data: ofertas = [], isLoading } = useOfertasLista();
+    const { invalidar: invalidarOfertas, actualizarLocal } = useOfertasInvalidar();
+    const crearMutation = useCrearOferta();
+    const actualizarMutation = useActualizarOferta();
+    const eliminarMutation = useEliminarOferta();
+    const duplicarMutation = useDuplicarOferta();
     const { compararConHoy } = useZonaHoraria();
 
     // Estados UI
@@ -629,7 +647,12 @@ export function PaginaOfertas() {
 
     const handleEliminar = async (id: string, titulo: string) => {
         const confirmado = await notificar.confirmar(`¿Eliminar "${titulo}"?`);
-        if (confirmado) await eliminar(id);
+        if (!confirmado) return;
+        try {
+            await eliminarMutation.mutateAsync(id);
+        } catch {
+            // Error ya notificado por la mutación
+        }
     };
 
     const handleReenviarCupon = async (oferta: Oferta) => {
@@ -654,8 +677,8 @@ export function PaginaOfertas() {
             const res = await revocarCuponMasivo(oferta.id);
             if (res.success) {
                 notificar.exito(res.message || 'Cupón revocado');
-                setOfertas(prev => prev.map(o => o.id === oferta.id ? { ...o, activo: false, estado: 'inactiva' as const } : o));
-                limpiarCache();
+                actualizarLocal(prev => prev.map(o => o.id === oferta.id ? { ...o, activo: false, estado: 'inactiva' as const } : o));
+                invalidarOfertas();
             } else {
                 notificar.error(res.message || 'Error al revocar');
             }
@@ -673,8 +696,8 @@ export function PaginaOfertas() {
             const res = await reactivarCuponService(oferta.id);
             if (res.success) {
                 notificar.exito(res.message || 'Cupón reactivado');
-                setOfertas(prev => prev.map(o => o.id === oferta.id ? { ...o, activo: true, estado: 'activa' as const } : o));
-                limpiarCache();
+                actualizarLocal(prev => prev.map(o => o.id === oferta.id ? { ...o, activo: true, estado: 'activa' as const } : o));
+                invalidarOfertas();
             } else {
                 notificar.error(res.message || 'Error al reactivar');
             }
@@ -684,18 +707,26 @@ export function PaginaOfertas() {
     };
 
     const handleToggleActivo = async (id: string, activo: boolean) => {
-        await actualizar(id, { activo });
+        try {
+            await actualizarMutation.mutateAsync({ id, datos: { activo } });
+        } catch {
+            // Error ya notificado por la mutación
+        }
     };
 
     const handleDuplicar = async (oferta: Oferta) => {
         if (esGerente && usuario?.sucursalAsignada) {
-            await duplicar(oferta.id, { sucursalesIds: [usuario.sucursalAsignada] });
+            try {
+                await duplicarMutation.mutateAsync({ id: oferta.id, datos: { sucursalesIds: [usuario.sucursalAsignada] } });
+            } catch { /* Error ya notificado */ }
             return;
         }
         if (esDueno) {
             // Dueño con 1 sola sucursal → duplicar directo sin modal
             if (totalSucursales <= 1 && usuario?.sucursalActiva) {
-                await duplicar(oferta.id, { sucursalesIds: [usuario.sucursalActiva] });
+                try {
+                    await duplicarMutation.mutateAsync({ id: oferta.id, datos: { sucursalesIds: [usuario.sucursalActiva] } });
+                } catch { /* Error ya notificado */ }
                 return;
             }
             setOfertaDuplicando(oferta);
@@ -728,7 +759,7 @@ export function PaginaOfertas() {
     // RENDER: LOADING
     // ===========================================================================
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[50vh]">
                 <Spinner tamanio="lg" />
@@ -1496,7 +1527,7 @@ export function PaginaOfertas() {
                     oferta={ofertaEditando}
                     visibilidadInicial={visibilidadNueva}
                     datosIniciales={datosPrelleno}
-                    onRecargar={() => recargar(true)}
+                    onRecargar={() => invalidarOfertas()}
                     onDuplicar={(ofertaOriginal) => {
                         if (ofertaOriginal.visibilidad === 'privado') {
                             // Cupón: transformar modal de consulta en creación sin cerrar
@@ -1518,13 +1549,17 @@ export function PaginaOfertas() {
                         }
                     }}
                     onGuardar={async (datos) => {
-                        const exito = ofertaEditando
-                            ? await actualizar(ofertaEditando.id, datos as ActualizarOfertaInput)
-                            : await crear(datos as CrearOfertaInput);
-                        if (exito) {
+                        try {
+                            if (ofertaEditando) {
+                                await actualizarMutation.mutateAsync({ id: ofertaEditando.id, datos: datos as ActualizarOfertaInput });
+                            } else {
+                                await crearMutation.mutateAsync(datos as CrearOfertaInput);
+                            }
                             setModalAbierto(false);
                             setOfertaEditando(null);
                             setDatosPrelleno(null);
+                        } catch {
+                            // Error ya notificado por la mutación
                         }
                     }}
                 />
@@ -1533,10 +1568,12 @@ export function PaginaOfertas() {
                     <ModalDuplicarOferta
                         oferta={ofertaDuplicando}
                         onDuplicar={async (datos) => {
-                            const exito = await duplicar(ofertaDuplicando.id, datos);
-                            if (exito) {
+                            try {
+                                await duplicarMutation.mutateAsync({ id: ofertaDuplicando.id, datos });
                                 setModalDuplicarAbierto(false);
                                 setOfertaDuplicando(null);
+                            } catch {
+                                // Error ya notificado por la mutación
                             }
                         }}
                         onCerrar={() => {

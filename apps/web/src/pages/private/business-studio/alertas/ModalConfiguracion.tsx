@@ -7,7 +7,7 @@
  * Ubicación: apps/web/src/pages/private/business-studio/alertas/ModalConfiguracion.tsx
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
 	Settings,
 	Shield,
@@ -16,7 +16,7 @@ import {
 	Heart,
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
-import { useAlertasStore } from '../../../../stores/useAlertasStore';
+import { useAlertasConfiguracion, useActualizarConfiguracionAlerta } from '../../../../hooks/queries/useAlertas';
 import { notificar } from '../../../../utils/notificaciones';
 import { CATALOGO_ALERTAS } from '../../../../types/alertas';
 import type { CategoriaAlerta, ConfiguracionAlerta } from '../../../../types/alertas';
@@ -41,23 +41,27 @@ interface Props {
 }
 
 export function ModalConfiguracion({ onCerrar }: Props) {
-	const { configuracion, cargarConfiguracion, actualizarConfiguracion } = useAlertasStore();
+	const configuracionQuery = useAlertasConfiguracion();
+	const actualizarMutation = useActualizarConfiguracionAlerta();
+	const configuracion = configuracionQuery.data ?? [];
 	const [tabActivo, setTabActivo] = useState<CategoriaAlerta>('seguridad');
 
-	useEffect(() => {
-		if (configuracion.length === 0) {
-			cargarConfiguracion();
-		}
-	}, []);
-
 	const handleToggle = async (tipo: string, config: ConfiguracionAlerta) => {
-		await actualizarConfiguracion(tipo, !config.activo, config.umbrales as Record<string, number>);
-		notificar.exito(config.activo ? 'Alerta desactivada' : 'Alerta activada');
+		try {
+			await actualizarMutation.mutateAsync({ tipo, activo: !config.activo, umbrales: config.umbrales as Record<string, number> });
+			notificar.exito(config.activo ? 'Alerta desactivada' : 'Alerta activada');
+		} catch {
+			// Error ya manejado por la mutación
+		}
 	};
 
 	const handleUmbral = async (tipo: string, config: ConfiguracionAlerta, campo: string, valor: number) => {
 		const nuevosUmbrales = { ...(config.umbrales as Record<string, number>), [campo]: valor };
-		await actualizarConfiguracion(tipo, config.activo, nuevosUmbrales);
+		try {
+			await actualizarMutation.mutateAsync({ tipo, activo: config.activo, umbrales: nuevosUmbrales });
+		} catch {
+			// Error ya manejado por la mutación
+		}
 	};
 
 	const configMap = new Map(configuracion.map(c => [c.tipoAlerta, c]));

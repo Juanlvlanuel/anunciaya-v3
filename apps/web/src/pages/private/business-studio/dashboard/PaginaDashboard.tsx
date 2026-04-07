@@ -19,8 +19,9 @@
  * - Sin porcentajes ni tendencias
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useDashboardStore } from '../../../../stores/useDashboardStore';
+import { useDashboard, useDashboardRefresh } from '../../../../hooks/queries/useDashboard';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import ofertasService from '../../../../services/ofertasService';
 import articulosService from '../../../../services/articulosService';
@@ -142,39 +143,12 @@ export default function PaginaDashboard() {
 
   const animarStat = (id: string) => setAnimandoStat(id);
 
-  const {
-    kpis,
-    ventas,
-    campanas,
-    interacciones,
-    alertas,
-    cargandoKpis,
-    cargarTodo,
-    periodo,
-    setPeriodo,
-    limpiar,
-  } = useDashboardStore();
-
-  // Escuchar cambios en sucursalActiva
-  const sucursalActiva = useAuthStore((state) => state.usuario?.sucursalActiva);
-  const usuario = useAuthStore((state) => state.usuario);
+  const { periodo, setPeriodo } = useDashboardStore();
+  const { kpis, ventas, campanas, interacciones, alertas, cargandoKpis } = useDashboard(periodo);
+  const { refetchTodo } = useDashboardRefresh();
 
   // Estado para animación del botón refresh
   const [refrescando, setRefrescando] = useState(false);
-
-  useEffect(() => {
-    // Solo cargar en modo comercial
-    if (usuario?.modoActivo !== 'comercial') {
-      return;
-    }
-
-    // Esperar a que haya sucursalActiva
-    if (!sucursalActiva) {
-      return;
-    }
-
-    cargarTodo();
-  }, [cargarTodo, sucursalActiva, usuario?.modoActivo]);
 
   // Estado del modal de ofertas
   const [modalOfertaAbierto, setModalOfertaAbierto] = useState(false);
@@ -239,7 +213,7 @@ export default function PaginaDashboard() {
       }
       handleCerrarModal();
       // Recargar datos del dashboard
-      cargarTodo();
+      refetchTodo();
     } catch (error) {
       console.error('Error al guardar oferta:', error);
       notificar.error('Error al guardar la oferta');
@@ -253,7 +227,7 @@ export default function PaginaDashboard() {
       await articulosService.crearArticulo(datos as CrearArticuloInput);
       notificar.exito('Artículo creado');
       setModalArticuloAbierto(false);
-      cargarTodo();
+      refetchTodo();
     } catch (error) {
       console.error('Error al guardar artículo:', error);
       notificar.error('Error al guardar el artículo');
@@ -263,7 +237,7 @@ export default function PaginaDashboard() {
   // Handler para botón refresh con animación
   const handleRefresh = async () => {
     setRefrescando(true);
-    await cargarTodo();
+    await refetchTodo();
     setRefrescando(false);
   };
 

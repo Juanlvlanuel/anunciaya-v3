@@ -30,7 +30,13 @@ import {
 	X,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
-import { useEmpleadosStore } from '../../../../stores/useEmpleadosStore';
+import {
+	useEmpleadosKPIs,
+	useEmpleadosLista,
+	useEmpleadoDetalle,
+	useToggleEmpleadoActivo,
+	useEliminarEmpleado,
+} from '../../../../hooks/queries/useEmpleados';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
@@ -60,28 +66,33 @@ const ESTILO_ICONO_HEADER = `
 
 export default function PaginaEmpleados() {
 	const { usuario } = useAuthStore();
-	const {
-		kpis, empleados, total, cargandoEmpleados, cargandoMas, hayMas,
-		cargarKPIs, cargarEmpleados, cargarMas,
-		toggleActivo, eliminarEmpleado,
-		busqueda, setBusqueda, filtroActivo, setFiltroActivo,
-		cargarDetalle, empleadoDetalle,
-	} = useEmpleadosStore();
 
+	// Estado UI local
 	const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
 	const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
 	const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
 	const [busquedaLocal, setBusquedaLocal] = useState('');
+	const [busqueda, setBusqueda] = useState('');
+	const [filtroActivo, setFiltroActivo] = useState<boolean | undefined>(undefined);
+	const [empleadoSeleccionadoId, setEmpleadoSeleccionadoId] = useState<string | null>(null);
 	const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
 	const sentinelaRef = useRef<HTMLDivElement | null>(null);
 
 	const esGerente = !!usuario?.sucursalAsignada;
 
-	// Cargar datos al montar (sin reset para mantener caché)
-	useEffect(() => {
-		cargarEmpleados();
-		cargarKPIs();
-	}, [usuario?.sucursalActiva]);
+	// React Query — datos del servidor
+	const kpisQuery = useEmpleadosKPIs();
+	const kpis = kpisQuery.data ?? null;
+	const listaQuery = useEmpleadosLista({ busqueda, activo: filtroActivo });
+	const empleados = listaQuery.data?.pages.flatMap((p) => p.empleados) ?? [];
+	const total = listaQuery.data?.pages[0]?.total ?? 0;
+	const cargandoEmpleados = listaQuery.isPending;
+	const cargandoMas = listaQuery.isFetchingNextPage;
+	const hayMas = listaQuery.hasNextPage;
+	const detalleQuery = useEmpleadoDetalle(empleadoSeleccionadoId);
+	const empleadoDetalle = detalleQuery.data ?? null;
+	const toggleActivoMutation = useToggleEmpleadoActivo();
+	const eliminarMutation = useEliminarEmpleado();
 
 	// Detectar móvil
 	useEffect(() => {
@@ -91,19 +102,20 @@ export default function PaginaEmpleados() {
 	}, []);
 
 	// Scroll infinito móvil
+	const { fetchNextPage } = listaQuery;
 	useEffect(() => {
 		if (!isMobile || !sentinelaRef.current) return;
 		const observer = new IntersectionObserver(
 			(entries) => {
 				if (entries[0].isIntersecting && hayMas && !cargandoMas) {
-					cargarMas();
+					fetchNextPage();
 				}
 			},
 			{ rootMargin: '100px' }
 		);
 		observer.observe(sentinelaRef.current);
 		return () => observer.disconnect();
-	}, [isMobile, hayMas, cargandoMas, cargarMas]);
+	}, [isMobile, hayMas, cargandoMas, fetchNextPage]);
 
 	// Debounce búsqueda
 	useEffect(() => {
@@ -113,17 +125,17 @@ export default function PaginaEmpleados() {
 			}
 		}, 400);
 		return () => clearTimeout(timer);
-	}, [busquedaLocal]);
+	}, [busquedaLocal, busqueda]);
 
-	const handleClickEmpleado = useCallback(async (emp: EmpleadoResumen) => {
-		await cargarDetalle(emp.id);
+	const handleClickEmpleado = useCallback((emp: EmpleadoResumen) => {
+		setEmpleadoSeleccionadoId(emp.id);
 		setModalDetalleAbierto(true);
-	}, [cargarDetalle]);
+	}, []);
 
-	const handleEditar = useCallback(async (emp: EmpleadoResumen) => {
-		await cargarDetalle(emp.id);
+	const handleEditar = useCallback((emp: EmpleadoResumen) => {
+		setEmpleadoSeleccionadoId(emp.id);
 		setModalEditarAbierto(true);
-	}, [cargarDetalle]);
+	}, []);
 
 	return (
 		<div className="p-3 lg:p-1.5 2xl:p-3" data-testid="pagina-empleados">
@@ -335,7 +347,7 @@ export default function PaginaEmpleados() {
 										indice={i}
 										onClick={() => handleClickEmpleado(emp)}
 										onEditar={() => handleEditar(emp)}
-										onEliminar={async (e) => { e.stopPropagation(); const ok = await notificar.confirmar(`¿Eliminar a "${emp.nombre}"? Se perderá el historial de sus transacciones.`); if (ok) { eliminarEmpleado(emp.id); notificar.exito('Empleado eliminado'); } }}
+										onEliminar={async (e) => { e.stopPropagation(); const ok = await notificar.confirmar(`¿Eliminar a "${emp.nombre}"? Se perderá el historial de sus transacciones.`); if (ok) { eliminarMutation.mutate(emp.id); } }}
 									/>
 								))}
 							</div>
@@ -343,7 +355,7 @@ export default function PaginaEmpleados() {
 							{/* Cargar más */}
 							{hayMas && (
 								<button
-									onClick={cargarMas}
+									onClick={() => fetchNextPage()}
 									disabled={cargandoMas}
 									className="w-full py-2.5 text-[11px] 2xl:text-sm font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer border-t border-slate-200"
 									data-testid="btn-cargar-mas-empleados"

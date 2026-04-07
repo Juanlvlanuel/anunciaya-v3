@@ -35,8 +35,9 @@ import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { Boton } from '../../../../components/ui/Boton';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { notificar } from '../../../../utils/notificaciones';
-import { obtenerSucursalesNegocio, type Sucursal } from '../../../../services/negociosService';
+import { usePerfilSucursales } from '../../../../hooks/queries/usePerfil';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import type { Sucursal } from '../../../../services/negociosService';
 import type { Oferta, DuplicarOfertaInput, TipoOferta } from '../../../../types/ofertas';
 
 // =============================================================================
@@ -84,60 +85,22 @@ function formatearValor(tipo: TipoOferta, valor: string | null): string {
 
 export function ModalDuplicarOferta({ oferta, onDuplicar, onCerrar }: ModalDuplicarOfertaProps) {
     const { usuario } = useAuthStore();
-    const totalSucursalesStore = useAuthStore((s) => s.totalSucursales);
     const setTotalSucursales = useAuthStore((s) => s.setTotalSucursales);
-    const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+    const { data: sucursalesData, isPending: cargando } = usePerfilSucursales();
+    const sucursales = (sucursalesData ?? []) as Sucursal[];
     const [sucursalesSeleccionadas, setSucursalesSeleccionadas] = useState<Set<string>>(new Set());
-    const [cargando, setCargando] = useState(true);
     const [duplicando, setDuplicando] = useState(false);
 
     const IconoTipo = getIconoTipo(oferta.tipo);
     const valorFormateado = formatearValor(oferta.tipo, oferta.valor);
 
-    // ===========================================================================
-    // CARGAR SUCURSALES
-    // ===========================================================================
-
+    // Auto-seleccionar todas las sucursales cuando cargan
     useEffect(() => {
-        cargarSucursales();
-    }, [usuario]);
-
-    const cargarSucursales = async () => {
-        if (!usuario?.negocioId) {
-            notificar.error('No se pudo obtener el negocio del usuario');
-            setCargando(false);
-            return;
+        if (sucursales.length > 0) {
+            setSucursalesSeleccionadas(new Set(sucursales.map((s) => s.id)));
+            setTotalSucursales(sucursales.length);
         }
-
-        if (totalSucursalesStore <= 1) {
-            setSucursales([]);
-            setCargando(false);
-            return;
-        }
-
-        try {
-            setCargando(true);
-            const respuesta = await obtenerSucursalesNegocio(usuario.negocioId);
-
-            if (!respuesta.success || !respuesta.data) {
-                notificar.error('No se pudieron cargar las sucursales');
-                setSucursales([]);
-                return;
-            }
-
-            setSucursales(respuesta.data);
-            setTotalSucursales(respuesta.data.length);
-
-            const idsDisponibles = respuesta.data.map((s) => s.id);
-            setSucursalesSeleccionadas(new Set(idsDisponibles));
-
-        } catch {
-            notificar.error('Error al cargar sucursales');
-            setSucursales([]);
-        } finally {
-            setCargando(false);
-        }
-    };
+    }, [sucursales.length, setTotalSucursales]);
 
     // ===========================================================================
     // HANDLERS

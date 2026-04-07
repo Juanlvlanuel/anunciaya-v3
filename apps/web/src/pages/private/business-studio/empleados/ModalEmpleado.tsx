@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { UserCog, Save } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
-import { useEmpleadosStore } from '../../../../stores/useEmpleadosStore';
+import { useCrearEmpleado, useActualizarEmpleado } from '../../../../hooks/queries/useEmpleados';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { notificar } from '../../../../utils/notificaciones';
 import type { EmpleadoDetalle } from '../../../../types/empleados';
@@ -22,7 +22,8 @@ interface Props {
 }
 
 export function ModalEmpleado({ empleado, onCerrar }: Props) {
-	const { crearEmpleado, actualizarEmpleado } = useEmpleadosStore();
+	const crearMutation = useCrearEmpleado();
+	const actualizarMutation = useActualizarEmpleado();
 	const { usuario } = useAuthStore();
 	const esEditar = !!empleado;
 
@@ -56,23 +57,23 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 		setGuardando(true);
 		try {
 			if (esEditar) {
-				const exito = await actualizarEmpleado(empleado!.id, {
-					nombre: nombre.trim(),
-					nick: nick.trim().toLowerCase(),
-					...(pin ? { pinAcceso: pin } : {}),
-					sucursalId,
-					especialidad: especialidad.trim() || null,
-					telefono: telefono.trim() || null,
-					correo: correo.trim() || null,
-					notasInternas: notasInternas.trim() || null,
-					...permisos,
+				await actualizarMutation.mutateAsync({
+					id: empleado!.id,
+					datos: {
+						nombre: nombre.trim(),
+						nick: nick.trim().toLowerCase(),
+						...(pin ? { pinAcceso: pin } : {}),
+						sucursalId,
+						especialidad: especialidad.trim() || null,
+						telefono: telefono.trim() || null,
+						correo: correo.trim() || null,
+						notasInternas: notasInternas.trim() || null,
+						...permisos,
+					},
 				});
-				if (exito) {
-					notificar.exito('Empleado actualizado');
-					onCerrar();
-				}
+				onCerrar();
 			} else {
-				const resultado = await crearEmpleado({
+				await crearMutation.mutateAsync({
 					nombre: nombre.trim(),
 					nick: nick.trim().toLowerCase(),
 					pinAcceso: pin,
@@ -83,15 +84,10 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 					notasInternas: notasInternas.trim() || undefined,
 					...permisos,
 				});
-				if (resultado) {
-					notificar.exito('Empleado creado');
-					onCerrar();
-				} else {
-					notificar.error('Error al crear empleado');
-				}
+				onCerrar();
 			}
 		} catch {
-			notificar.error('Error al guardar');
+			// Error ya notificado por la mutación
 		} finally {
 			setGuardando(false);
 		}

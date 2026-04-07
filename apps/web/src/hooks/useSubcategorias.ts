@@ -50,7 +50,7 @@ export function useSubcategorias(categoriaId: number | null): UseSubcategorias {
 
   useEffect(() => {
     // Si no hay categoría seleccionada, limpiar subcategorías
-    if (categoriaId === null) {
+    if (!categoriaId) {
       setSubcategorias([]);
       setError(null);
       return;

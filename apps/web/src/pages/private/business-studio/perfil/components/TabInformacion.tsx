@@ -8,8 +8,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Building2, AlignLeft, Tag, MapPin, ChevronDown, Check } from 'lucide-react';
-import { useCategorias } from '../../../../../hooks/useCategorias';
-import { useSubcategorias } from '../../../../../hooks/useSubcategorias';
+import { usePerfilCategorias, usePerfilSubcategorias } from '../../../../../hooks/queries/usePerfil';
 import CardYA from './CardYA';
 import SelectorCategoria from './SelectorCategoria';
 import type { DatosInformacion } from '../hooks/usePerfil';
@@ -163,8 +162,8 @@ export default function TabInformacion({
   setDatosInformacion,
 }: TabInformacionProps) {
 
-  const { categorias } = useCategorias();
-  const { subcategorias } = useSubcategorias(datosInformacion.categoriaId);
+  const { data: categorias = [] } = usePerfilCategorias();
+  const { data: subcategorias = [] } = usePerfilSubcategorias(datosInformacion.categoriaId);
 
   const handleSubcategoriaToggle = (id: number) => {
     const nuevasSubcategorias = datosInformacion.subcategoriasIds.includes(id)

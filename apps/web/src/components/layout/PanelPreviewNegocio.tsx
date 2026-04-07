@@ -14,7 +14,7 @@ import { X, Eye, Loader2, Store, CreditCard, User } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
 import { BreakpointOverride } from '../../hooks/useBreakpoint';
-import { get } from '../../services/api';
+import { usePerfilSucursal } from '../../hooks/queries/usePerfil';
 import { CardNegocio } from '../negocios/CardNegocio';
 import type { NegocioResumen } from '../../types/negocios';
 
@@ -65,17 +65,6 @@ function mapearPerfilAResumen(data: Record<string, unknown>): NegocioResumen {
 }
 
 // =============================================================================
-// CACHÉ EN MEMORIA (persiste mientras la app esté montada)
-// =============================================================================
-const cachéPreview = new Map<string, NegocioResumen>();
-
-/** Invalida caché (llamar después de editar perfil en Business Studio) */
-export function invalidarCachéPreview(sucursalId?: string) {
-  if (sucursalId) cachéPreview.delete(sucursalId);
-  else cachéPreview.clear();
-}
-
-// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -83,15 +72,16 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
   const usuario = useAuthStore((state) => state.usuario);
   const cerrarPreviewNegocio = useUiStore((state) => state.cerrarPreviewNegocio);
 
-  // Inicializar desde caché para evitar parpadeo en reaperturas
-  const sucursalInicial = usuario?.sucursalActiva || null;
-  const cachedInicial = sucursalInicial ? cachéPreview.get(sucursalInicial) ?? null : null;
+  // React Query — datos del perfil (comparte caché con Mi Perfil)
+  const perfilQuery = usePerfilSucursal();
+  const negocioPreview = perfilQuery.data
+    ? mapearPerfilAResumen(perfilQuery.data as Record<string, unknown>)
+    : null;
+  const cargando = perfilQuery.isPending;
+  const error = perfilQuery.error ? 'Error al cargar el negocio' : null;
 
-  const [cargando, setCargando] = useState(!cachedInicial);
-  const [error, setError] = useState<string | null>(null);
-  const [sucursalId, setSucursalId] = useState<string | null>(sucursalInicial);
+  const sucursalId = usuario?.sucursalActiva || null;
   const [tabActivo, setTabActivo] = useState<TabActivo>('card');
-  const [negocioPreview, setNegocioPreview] = useState<NegocioResumen | null>(cachedInicial);
 
   // Botón atrás nativo: cerrar preview
   const previewHistoryRef = useRef(false);
@@ -135,66 +125,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
     };
   }, [cerrarPreviewNegocio]);
 
-  // Obtener sucursalId del usuario
-  useEffect(() => {
-    if (!usuario?.negocioId) {
-      setError('No se encontró el negocio');
-      return;
-    }
-
-    if (!usuario?.sucursalActiva) {
-      setError('No hay sucursal activa');
-      return;
-    }
-
-    setSucursalId(usuario.sucursalActiva);
-  }, [usuario?.negocioId, usuario?.sucursalActiva]);
-
-  // Fetch del negocio — usa caché si existe
-  useEffect(() => {
-    if (!sucursalId) return;
-
-    // Si está en caché, usar directamente (instantáneo)
-    const cached = cachéPreview.get(sucursalId);
-    if (cached) {
-      setNegocioPreview(cached);
-      setCargando(false);
-      return;
-    }
-
-    let cancelado = false;
-
-    async function fetchNegocio() {
-      try {
-        setCargando(true);
-        setError(null);
-
-        const resp = await get<Record<string, unknown>>(`/negocios/sucursal/${sucursalId}`);
-
-        if (cancelado) return;
-
-        if (resp.success && resp.data) {
-          const mapeado = mapearPerfilAResumen(resp.data);
-          cachéPreview.set(sucursalId!, mapeado);
-          setNegocioPreview(mapeado);
-        } else {
-          setError('No se pudo cargar el negocio');
-        }
-      } catch {
-        if (!cancelado) {
-          setError('Error al cargar el negocio');
-        }
-      } finally {
-        if (!cancelado) {
-          setCargando(false);
-        }
-      }
-    }
-
-    fetchNegocio();
-
-    return () => { cancelado = true; };
-  }, [sucursalId]);
+  // Datos vienen de React Query (usePerfilSucursal) — caché automático
 
   // Render Header con Tabs
   const renderHeader = () => {

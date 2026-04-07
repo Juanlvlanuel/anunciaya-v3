@@ -36,6 +36,15 @@ import {
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import { usePuntosStore } from '../../../../stores/usePuntosStore';
+import {
+  usePuntosConfiguracion,
+  usePuntosRecompensas,
+  usePuntosEstadisticas,
+  useActualizarConfigPuntos,
+  useCrearRecompensa,
+  useActualizarRecompensa,
+  useEliminarRecompensa,
+} from '../../../../hooks/queries/usePuntos';
 import { Spinner } from '../../../../components/ui';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { notificar } from '../../../../utils/notificaciones';
@@ -305,17 +314,20 @@ function KPI({ tipo, valor }: { tipo: keyof typeof KPI_CONFIG; valor: string }) 
 // =============================================================================
 
 export default function PaginaPuntos() {
-  // ─── Stores ─────────────────────────────────────────────────────────────
-  const cargarConfiguracion     = usePuntosStore((s) => s.cargarConfiguracion);
-  const cargarRecompensas       = usePuntosStore((s) => s.cargarRecompensas);
-  const cargarEstadisticas      = usePuntosStore((s) => s.cargarEstadisticas);
-  const configuracion           = usePuntosStore((s) => s.configuracion);
-  const estadisticas            = usePuntosStore((s) => s.estadisticas);
-  const recompensas             = usePuntosStore((s) => s.recompensas);
-  const actualizarConfiguracion = usePuntosStore((s) => s.actualizarConfiguracion);
-  const crearRecompensa         = usePuntosStore((s) => s.crearRecompensa);
-  const actualizarRecompensa    = usePuntosStore((s) => s.actualizarRecompensa);
-  const eliminarRecompensa      = usePuntosStore((s) => s.eliminarRecompensa);
+  // ─── React Query — datos del servidor ────────────────────────────────────
+  const periodo = usePuntosStore((s) => s.periodo);
+  const configQuery = usePuntosConfiguracion();
+  const recompensasQuery = usePuntosRecompensas();
+  const estadisticasQuery = usePuntosEstadisticas(periodo);
+  const configuracion = configQuery.data ?? null;
+  const recompensas = recompensasQuery.data ?? [];
+  const estadisticas = estadisticasQuery.data ?? null;
+
+  // Mutaciones
+  const actualizarConfigMutation = useActualizarConfigPuntos();
+  const crearRecompensaMutation = useCrearRecompensa();
+  const actualizarRecompensaMutation = useActualizarRecompensa();
+  const eliminarRecompensaMutation = useEliminarRecompensa();
 
   const usuario        = useAuthStore((s) => s.usuario);
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
@@ -423,13 +435,7 @@ export default function PaginaPuntos() {
     return () => { if (popupTimerRef.current) clearTimeout(popupTimerRef.current); };
   }, [tipoRecompensaFiltro]);
 
-  // ─── Carga inicial ──────────────────────────────────────────────────────
-  useEffect(() => {
-    // Solo cargar si no hay datos (carga inteligente)
-    if (!configuracion) cargarConfiguracion();
-    if (recompensas.length === 0) cargarRecompensas();
-    // No limpiar al desmontar - los datos persisten en el store
-  }, []);
+  // Carga inicial manejada por React Query (useQuery con enabled)
 
   // ─── Abrir recompensa desde URL (notificaciones) ─────────────────────
   useEffect(() => {
@@ -449,15 +455,7 @@ export default function PaginaPuntos() {
     setRecompensaIdPendiente('');
   }, [recompensaIdPendiente, recompensas]);
 
-  // ─── Estadísticas: se recargan cuando cambia sucursal ──────────────────
-  const recargarEstadisticas = useCallback(() => {
-    if (usuario?.modoActivo === 'comercial' && !sucursalActiva) return;
-    cargarEstadisticas();
-  }, [sucursalActiva, usuario?.modoActivo, cargarEstadisticas]);
-
-  useEffect(() => {
-    recargarEstadisticas();
-  }, [recargarEstadisticas]);
+  // Estadísticas se recargan automáticamente al cambiar sucursal (query key incluye sucursalId)
 
   // ─── Tracking de última sincronización (evita loops) ────────────────────
   const ultimaSincronizacion = useRef<{ pesos: number; puntos: number } | null>(null);
@@ -594,11 +592,10 @@ export default function PaginaPuntos() {
       nivelOroMultiplicador:     niveles.oro.multiplicador,
     };
     try {
-      await actualizarConfiguracion(datos);
+      await actualizarConfigMutation.mutateAsync(datos);
       notificar.exito('Configuración guardada correctamente');
-      // NO necesitamos actualizar estados locales - ya están correctos
-    } catch (err: unknown) {
-      notificar.error(err instanceof Error ? err.message : 'No se pudo guardar');
+    } catch {
+      // Error ya notificado por la mutación
     } finally {
       setGuardando(false);
     }
@@ -729,28 +726,34 @@ export default function PaginaPuntos() {
   }, []);
 
   const handleGuardarRecompensa = async (datos: DatosModalRecompensa) => {
-    if (recompensaEditando) {
-      const exito = await actualizarRecompensa(recompensaEditando.id, datos);
-      if (exito) { notificar.exito('Recompensa actualizada'); setModalAbierto(false); }
-      else        { notificar.error('No se pudo actualizar la recompensa'); }
-    } else {
-      const nueva = await crearRecompensa(datos);
-      if (nueva) { notificar.exito('Recompensa creada'); setModalAbierto(false); }
-      else       { notificar.error('No se pudo crear la recompensa'); }
+    try {
+      if (recompensaEditando) {
+        await actualizarRecompensaMutation.mutateAsync({ id: recompensaEditando.id, datos });
+      } else {
+        await crearRecompensaMutation.mutateAsync(datos);
+      }
+      setModalAbierto(false);
+    } catch {
+      // Error ya notificado por la mutación
     }
   };
 
   const handleEliminar = async (id: string) => {
     const confirmado = await notificar.confirmar('¿Eliminar esta recompensa?', 'Esta acción no se puede deshacer.');
     if (!confirmado) return;
-    const exito = await eliminarRecompensa(id);
-    if (exito) notificar.exito('Recompensa eliminada');
-    else       notificar.error('No se pudo eliminar la recompensa');
+    try {
+      await eliminarRecompensaMutation.mutateAsync(id);
+    } catch {
+      // Error ya notificado por la mutación
+    }
   };
 
   const handleToggleActiva = async (r: Recompensa) => {
-    const exito = await actualizarRecompensa(r.id, { activa: !r.activa });
-    if (!exito) notificar.error('No se pudo actualizar el estado');
+    try {
+      await actualizarRecompensaMutation.mutateAsync({ id: r.id, datos: { activa: !r.activa } });
+    } catch {
+      // Error ya notificado por la mutación
+    }
   };
 
   // =============================================================================

@@ -17,10 +17,10 @@
  * UBICACIÓN: apps/web/src/pages/private/business-studio/dashboard/componentes/SelectorSucursalesInline.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { obtenerSucursalesNegocio } from '../../services/negociosService';
+import { usePerfilSucursales } from '../../hooks/queries/usePerfil';
 import Tooltip from '../../components/ui/Tooltip';
 
 // =============================================================================
@@ -40,60 +40,38 @@ interface Sucursal {
 
 export default function SelectorSucursalesInline() {
   const { usuario, setSucursalActiva, setEsSucursalPrincipal, setTotalSucursales } = useAuthStore();
-  const [sucursales, setSucursales] = useState<Sucursal[]>([]);
-  const [cargando, setCargando] = useState(true);
 
   // Determinar tipo de usuario
   const esDueño = usuario?.negocioId && !usuario?.sucursalAsignada;
   const esGerente = usuario?.negocioId && usuario?.sucursalAsignada;
 
-  // Cargar sucursales
+  // React Query — sucursales (caché compartida con Mi Perfil, modales duplicar)
+  const { data: sucursalesData, isPending: cargando } = usePerfilSucursales();
+
+  // Ordenar: Principal primero, luego por nombre
+  const sucursales = useMemo(() => {
+    const raw = (sucursalesData ?? []) as Sucursal[];
+    return [...raw].sort((a, b) => {
+      if (a.esPrincipal) return -1;
+      if (b.esPrincipal) return 1;
+      return a.nombre.localeCompare(b.nombre);
+    });
+  }, [sucursalesData]);
+
+  // Sincronizar store global cuando cargan las sucursales
   useEffect(() => {
-    async function cargar() {
-      // ✅ VALIDAR que hay usuario logueado Y en modo comercial
-      if (!usuario?.negocioId || usuario?.modoActivo !== 'comercial') {
-        setSucursales([]);
-        setCargando(false);
-        return;
-      }
+    if (sucursales.length === 0) return;
+    setTotalSucursales(sucursales.length);
 
-      try {
-        setCargando(true);
-        const respuesta = await obtenerSucursalesNegocio(usuario.negocioId);
-
-        if (respuesta.success && respuesta.data) {
-          // Ordenar: Principal primero, luego por nombre
-          const ordenadas = [...respuesta.data].sort((a, b) => {
-            if (a.esPrincipal) return -1;
-            if (b.esPrincipal) return 1;
-            return a.nombre.localeCompare(b.nombre);
-          });
-          setSucursales(ordenadas);
-
-          // ✅ Alimentar el store global con el total de sucursales
-          setTotalSucursales(ordenadas.length);
-
-          // ✅ Si no hay sucursal activa, asignar la primera (principal)
-          if (!usuario?.sucursalActiva && ordenadas.length > 0) {
-            setSucursalActiva(ordenadas[0].id);
-          }
-
-          // Actualizar si la sucursal activa es principal
-          if (usuario?.sucursalActiva) {
-            const sucursalAct = ordenadas.find(s => s.id === usuario.sucursalActiva);
-            setEsSucursalPrincipal(sucursalAct?.esPrincipal ?? true);
-          }
-        }
-      } catch (error) {
-        console.error('[SELECTOR] Error cargando sucursales:', error);
-        setSucursales([]);
-      } finally {
-        setCargando(false);
-      }
+    if (!usuario?.sucursalActiva && sucursales.length > 0) {
+      setSucursalActiva(sucursales[0].id);
     }
 
-    cargar();
-  }, [usuario?.negocioId, usuario?.modoActivo]);
+    if (usuario?.sucursalActiva) {
+      const sucursalAct = sucursales.find(s => s.id === usuario.sucursalActiva);
+      setEsSucursalPrincipal(sucursalAct?.esPrincipal ?? true);
+    }
+  }, [sucursales, usuario?.sucursalActiva, setSucursalActiva, setEsSucursalPrincipal, setTotalSucursales]);
 
   // Obtener índice de sucursal actual
   const indiceActual = sucursales.findIndex(s => s.id === usuario?.sucursalActiva);

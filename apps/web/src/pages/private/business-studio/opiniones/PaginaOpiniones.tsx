@@ -17,18 +17,19 @@
  * - Lista de tarjetas de reseña con badge de estado
  * - Respuestas existentes del negocio en fondo azul
  * - Modal para responder reseñas pendientes (ModalAdaptativo)
- * - Actualizaciones optimistas al responder
- * - Caché por sucursal (no recarga al navegar entre páginas)
+ * - Actualizaciones optimistas al responder (React Query onMutate/onError)
+ * - Caché automático por sucursal vía React Query (staleTime global 2 min)
  * - Responsive (móvil, laptop, desktop)
  *
- * PATRÓN CACHÉ: Mismo que PaginaOfertas / PaginaCatalogo
- *   useLayoutEffect → carga desde caché antes del primer paint (sin flash)
- *   useCallback → verifica caché primero, solo fetch si no hay o venció
+ * DATOS: React Query — hooks/queries/useResenas.ts
+ *   useResenasLista()  → trae TODAS las reseñas (filtrado en memoria con useMemo)
+ *   useResenasKPIs()   → KPIs del módulo
+ *   useResponderResena() → mutación con update optimista + rollback automático
  *
  * CREADO: Febrero 2026 - Sprint 4 Módulo Opiniones
  */
 
-import { useState, useMemo, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     MessageSquare,
@@ -45,14 +46,12 @@ import {
     ChevronDown,
     Check,
 } from 'lucide-react';
-import { useAuthStore } from '../../../../stores/useAuthStore';
-import { useResenasStore } from '../../../../stores/useResenasStore';
-import { obtenerResenas, obtenerKPIs, responderResena as enviarRespuesta } from '../../../../services/resenasService';
+import { useResenasLista, useResenasKPIs, useResponderResena } from '../../../../hooks/queries/useResenas';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { notificar } from '../../../../utils/notificaciones';
 import { ModalResponder } from './ModalResponder';
-import type { ResenaBS, KPIsResenas } from '../../../../types/resenas';
+import type { ResenaBS } from '../../../../types/resenas';
 
 // =============================================================================
 // CSS — Animación del icono del header (patrón Ofertas/Puntos)
@@ -96,22 +95,16 @@ type FiltroEstado = 'todas' | 'pendientes';
 // =============================================================================
 
 export function PaginaOpiniones() {
-    const { usuario, hidratado } = useAuthStore();
+    // ─── Queries — datos del servidor ─────────────────────────────────────────
+    const listaQuery = useResenasLista();
+    const kpisQuery = useResenasKPIs();
+    const responderMutation = useResponderResena();
 
-    // Store de caché
-    const {
-        getResenas,
-        getKPIs,
-        setDatos,
-        actualizarResena,
-        actualizarKPIs,
-    } = useResenasStore();
-
-    // Estado local
-    const [resenas, setResenas] = useState<ResenaBS[]>([]);
-    const [kpis, setKpis] = useState<KPIsResenas | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [respondiendo, setRespondiendo] = useState(false);
+    // ─── Aliases ──────────────────────────────────────────────────────────────
+    const resenas = listaQuery.data ?? [];
+    const kpis = kpisQuery.data ?? null;
+    const loading = listaQuery.isPending || kpisQuery.isPending;
+    const respondiendo = responderMutation.isPending;
 
     // Filtros locales
     const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todas');
@@ -139,84 +132,6 @@ export function PaginaOpiniones() {
     const [dropdownEstrellasAbierto, setDropdownEstrellasAbierto] = useState(false);
     const dropdownEstrellasRef = useRef<HTMLDivElement | null>(null);
 
-    // Sucursal activa
-    const sucursalId = usuario?.sucursalActiva || usuario?.sucursalAsignada || '';
-
-    // =========================================================================
-    // CACHÉ PRE-PAINT (elimina flash al navegar entre páginas)
-    // =========================================================================
-
-    useLayoutEffect(() => {
-        if (!sucursalId) return;
-
-        try {
-            const resenasCache = getResenas(sucursalId);
-            const kpisCache = getKPIs(sucursalId);
-
-            if (resenasCache && resenasCache.length > 0) {
-                setResenas(resenasCache);
-            }
-            if (kpisCache) {
-                setKpis(kpisCache);
-            }
-        } catch (err) {
-            console.warn('[PaginaOpiniones] Error al leer caché:', err);
-        }
-    }, [sucursalId, getResenas, getKPIs]);
-
-    // =========================================================================
-    // CARGAR DATOS (con caché)
-    // =========================================================================
-
-    const cargarDatos = useCallback(async (forzarRecarga = false) => {
-        if (!sucursalId) return;
-
-        // Verificar caché primero
-        if (!forzarRecarga) {
-            const resenasCache = getResenas(sucursalId);
-            const kpisCache = getKPIs(sucursalId);
-
-            if (resenasCache && kpisCache) {
-                setResenas(resenasCache);
-                setKpis(kpisCache);
-                setLoading(false);
-                return; // ← SALIR SIN HACER FETCH
-            }
-        }
-
-        // No hay caché válida → Fetch desde backend
-        try {
-            setLoading(true);
-
-            // Cargar TODO en paralelo (siempre todas las reseñas, filtrado es local)
-            const [resReseñas, resKPIs] = await Promise.all([
-                obtenerResenas(false), // false = traer TODAS, filtrado local
-                obtenerKPIs(),
-            ]);
-
-            if (resReseñas.success && resReseñas.data && resKPIs.success && resKPIs.data) {
-                // Guardar en caché
-                setDatos(sucursalId, resReseñas.data, resKPIs.data);
-
-                // Actualizar estado local
-                setResenas(resReseñas.data);
-                setKpis(resKPIs.data);
-            }
-        } catch (err) {
-            console.error('[PaginaOpiniones] Error al cargar:', err);
-            notificar.error('Error al cargar opiniones');
-        } finally {
-            setLoading(false);
-        }
-    }, [sucursalId, getResenas, getKPIs, setDatos]);
-
-    // Trigger: cargar al montar o cambiar sucursal
-    useEffect(() => {
-        if (!hidratado) return;
-        if (usuario?.modoActivo === 'comercial' && !usuario.sucursalActiva && !usuario.sucursalAsignada) return;
-
-        cargarDatos();
-    }, [hidratado, sucursalId, cargarDatos]);
 
     // Abrir reseña desde URL (notificaciones)
     useEffect(() => {
@@ -231,10 +146,6 @@ export function PaginaOpiniones() {
         setResenaIdPendiente('');
     }, [resenaIdPendiente, resenas]);
 
-    // Limpiar búsqueda al desmontar (navegar fuera)
-    useEffect(() => {
-        return () => setBusqueda('');
-    }, []);
 
     // Cerrar dropdown estrellas al hacer click fuera
     useEffect(() => {
@@ -332,76 +243,15 @@ export function PaginaOpiniones() {
     }, []);
 
     const handleResponder = useCallback(async (resenaId: string, texto: string): Promise<boolean> => {
-        setRespondiendo(true);
-
-        // 1. Guardar estado previo para rollback
-        const resenasAnterior = resenas;
-        const kpisAnterior = kpis;
-
-        // 2. Actualización optimista
-        const respuestaTemp = {
-            id: 'temp-' + Date.now(),
-            texto,
-            createdAt: new Date().toISOString(),
-        };
-
-        // Actualizar local
-        setResenas((prev) =>
-            prev.map((r) => r.id === resenaId ? { ...r, respuesta: respuestaTemp } : r)
-        );
-        setKpis((prev) =>
-            prev ? { ...prev, pendientes: Math.max(0, prev.pendientes - 1) } : null
-        );
-
-        // Actualizar caché
-        if (sucursalId) {
-            actualizarResena(sucursalId, resenaId, { respuesta: respuestaTemp });
-            if (kpis) {
-                actualizarKPIs(sucursalId, { pendientes: Math.max(0, kpis.pendientes - 1) });
-            }
-        }
-
         try {
-            // 3. Enviar al backend
-            const resultado = await enviarRespuesta(resenaId, texto);
-
-            if (resultado.success && resultado.data) {
-                // 4. Reemplazar datos temporales con los reales
-                const respuestaReal = {
-                    id: resultado.data.id,
-                    texto: resultado.data.texto,
-                    createdAt: resultado.data.createdAt,
-                };
-
-                setResenas((prev) =>
-                    prev.map((r) => r.id === resenaId ? { ...r, respuesta: respuestaReal } : r)
-                );
-                if (sucursalId) {
-                    actualizarResena(sucursalId, resenaId, { respuesta: respuestaReal });
-                }
-
-                notificar.exito('Respuesta enviada');
-                setRespondiendo(false);
-                return true;
-            } else {
-                throw new Error('Error al responder');
-            }
-        } catch (err) {
-            // 5. Rollback
-            console.error('[PaginaOpiniones] Error al responder:', err);
-            setResenas(resenasAnterior);
-            setKpis(kpisAnterior);
-
-            // Rollback caché: invalidar para que recargue fresco
-            if (sucursalId) {
-                useResenasStore.getState().invalidarCache(sucursalId);
-            }
-
+            await responderMutation.mutateAsync({ resenaId, texto });
+            notificar.exito('Respuesta enviada');
+            return true;
+        } catch {
             notificar.error('Error al enviar respuesta');
-            setRespondiendo(false);
             return false;
         }
-    }, [resenas, kpis, sucursalId, actualizarResena, actualizarKPIs]);
+    }, [responderMutation]);
 
     /** Toggle filtro de estrellas (click en barra distribución) */
     const toggleFiltroEstrellas = (estrellas: number) => {

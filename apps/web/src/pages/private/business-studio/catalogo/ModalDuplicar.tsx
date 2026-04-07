@@ -31,8 +31,9 @@ import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { Boton } from '../../../../components/ui/Boton';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { notificar } from '../../../../utils/notificaciones';
-import { obtenerSucursalesNegocio, type Sucursal } from '../../../../services/negociosService';
+import { usePerfilSucursales } from '../../../../hooks/queries/usePerfil';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import type { Sucursal } from '../../../../services/negociosService';
 import type { Articulo, DuplicarArticuloInput } from '../../../../types/articulos';
 
 // =============================================================================
@@ -53,58 +54,18 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
   const { usuario } = useAuthStore();
   const totalSucursalesStore = useAuthStore((s) => s.totalSucursales);
   const setTotalSucursales = useAuthStore((s) => s.setTotalSucursales);
-  const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+  const { data: sucursalesData, isPending: cargando } = usePerfilSucursales();
+  const sucursales = (sucursalesData ?? []) as Sucursal[];
   const [sucursalesSeleccionadas, setSucursalesSeleccionadas] = useState<Set<string>>(new Set());
-  const [cargando, setCargando] = useState(true);
   const [duplicando, setDuplicando] = useState(false);
 
-  // ===========================================================================
-  // CARGAR SUCURSALES
-  // ===========================================================================
-
+  // Auto-seleccionar todas las sucursales cuando cargan
   useEffect(() => {
-    cargarSucursales();
-  }, [usuario]);
-
-  const cargarSucursales = async () => {
-    if (!usuario?.negocioId) {
-      notificar.error('No se pudo obtener el negocio del usuario');
-      setCargando(false);
-      return;
+    if (sucursales.length > 0) {
+      setSucursalesSeleccionadas(new Set(sucursales.map((s) => s.id)));
+      setTotalSucursales(sucursales.length);
     }
-
-    // ✅ Si el store ya sabe que hay 1 sola sucursal, no hacer API call
-    if (totalSucursalesStore <= 1) {
-      setSucursales([]);
-      setCargando(false);
-      return;
-    }
-
-    try {
-      setCargando(true);
-      const respuesta = await obtenerSucursalesNegocio(usuario.negocioId);
-
-      if (!respuesta.success || !respuesta.data) {
-        notificar.error('No se pudieron cargar las sucursales');
-        setSucursales([]);
-        return;
-      }
-
-      setSucursales(respuesta.data);
-      // ✅ Alimentar el store global
-      setTotalSucursales(respuesta.data.length);
-
-      // Auto-seleccionar todas las sucursales
-      const idsDisponibles = respuesta.data.map((s) => s.id);
-      setSucursalesSeleccionadas(new Set(idsDisponibles));
-
-    } catch {
-      notificar.error('Error al cargar sucursales');
-      setSucursales([]);
-    } finally {
-      setCargando(false);
-    }
-  };
+  }, [sucursales.length, setTotalSucursales]);
 
   // ===========================================================================
   // HANDLERS

@@ -15,11 +15,16 @@
  * - Ordenación por precio, vistas
  * - CRUD completo (Crear, Editar, Eliminar)
  * - Duplicar a otras sucursales (solo dueños)
- * - Actualizaciones optimistas
+ * - Actualizaciones optimistas (React Query mutations)
  * - Responsive (móvil, laptop, desktop)
+ *
+ * ESTADO:
+ *   - Servidor → React Query (hooks/queries/useArticulos.ts)
+ *   - UI local → useState (filtros, orden, modales)
  *
  * CREADO: Fase 5.4.1 - Catálogo CRUD Frontend
  * REDISEÑO: Estandarización visual con Clientes/Transacciones
+ * MIGRADO: React Query — Abril 2026
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -46,7 +51,13 @@ import {
     X,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
-import { useArticulos } from '../../../../hooks/useArticulos';
+import {
+    useArticulosLista,
+    useCrearArticulo,
+    useActualizarArticulo,
+    useEliminarArticulo,
+    useDuplicarArticulo,
+} from '../../../../hooks/queries/useArticulos';
 import { Boton } from '../../../../components/ui/Boton';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
@@ -262,7 +273,13 @@ function FilaMovil({
 
 export function PaginaCatalogo() {
     const { usuario, totalSucursales } = useAuthStore();
-    const { articulos, loading, crear, actualizar, eliminar, duplicar } = useArticulos();
+
+    // React Query — datos del servidor
+    const { data: articulos = [], isLoading } = useArticulosLista();
+    const crearMutation = useCrearArticulo();
+    const actualizarMutation = useActualizarArticulo();
+    const eliminarMutation = useEliminarArticulo();
+    const duplicarMutation = useDuplicarArticulo();
 
     // Estados UI
     const [modalAbierto, setModalAbierto] = useState(false);
@@ -453,22 +470,39 @@ export function PaginaCatalogo() {
 
     const handleEliminar = async (id: string, nombre?: string) => {
         const confirmado = await notificar.confirmar(`¿Eliminar "${nombre}"?`);
-        if (confirmado) await eliminar(id);
+        if (!confirmado) return;
+        try {
+            await eliminarMutation.mutateAsync(id);
+        } catch {
+            // Error ya notificado por la mutación
+        }
     };
 
     const handleToggle = async (id: string, campo: 'disponible' | 'destacado', valor: boolean) => {
-        await actualizar(id, { [campo]: valor });
+        try {
+            await actualizarMutation.mutateAsync({ id, datos: { [campo]: valor } });
+        } catch {
+            // Error ya notificado por la mutación
+        }
     };
 
     const handleDuplicar = async (articulo: Articulo) => {
         // Gerente: duplicar directo en su sucursal asignada
         if (esGerente && usuario?.sucursalAsignada) {
-            await duplicar(articulo.id, { sucursalesIds: [usuario.sucursalAsignada] });
+            try {
+                await duplicarMutation.mutateAsync({ id: articulo.id, datos: { sucursalesIds: [usuario.sucursalAsignada] } });
+            } catch {
+                // Error ya notificado por la mutación
+            }
             return;
         }
         // Dueño sin sucursales adicionales: duplicar directo en la sucursal activa
         if (esDueno && totalSucursales <= 1 && usuario?.sucursalActiva) {
-            await duplicar(articulo.id, { sucursalesIds: [usuario.sucursalActiva] });
+            try {
+                await duplicarMutation.mutateAsync({ id: articulo.id, datos: { sucursalesIds: [usuario.sucursalActiva] } });
+            } catch {
+                // Error ya notificado por la mutación
+            }
             return;
         }
         // Dueño con múltiples sucursales: abrir modal de selección
@@ -502,7 +536,7 @@ export function PaginaCatalogo() {
     // RENDER: LOADING
     // ===========================================================================
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[50vh]">
                 <Spinner tamanio="lg" />
@@ -1055,12 +1089,16 @@ export function PaginaCatalogo() {
                         categoriasExistentes={categoriasUnicas}
                         tipoInicial={esServicios ? 'servicio' : 'producto'}
                         onGuardar={async (datos) => {
-                            const exito = articuloEditando
-                                ? await actualizar(articuloEditando.id, datos)
-                                : await crear(datos as CrearArticuloInput);
-                            if (exito) {
+                            try {
+                                if (articuloEditando) {
+                                    await actualizarMutation.mutateAsync({ id: articuloEditando.id, datos });
+                                } else {
+                                    await crearMutation.mutateAsync(datos as CrearArticuloInput);
+                                }
                                 setModalAbierto(false);
                                 setArticuloEditando(null);
+                            } catch {
+                                // Error ya notificado por la mutación
                             }
                         }}
                         onCerrar={() => {
@@ -1074,10 +1112,12 @@ export function PaginaCatalogo() {
                     <ModalDuplicar
                         articulo={articuloDuplicando}
                         onDuplicar={async (datos) => {
-                            const exito = await duplicar(articuloDuplicando.id, datos);
-                            if (exito) {
+                            try {
+                                await duplicarMutation.mutateAsync({ id: articuloDuplicando.id, datos });
                                 setModalDuplicarAbierto(false);
                                 setArticuloDuplicando(null);
+                            } catch {
+                                // Error ya notificado por la mutación
                             }
                         }}
                         onCerrar={() => {

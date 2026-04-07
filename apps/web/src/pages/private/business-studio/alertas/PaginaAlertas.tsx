@@ -15,6 +15,12 @@
  * - Filtros en card blanco con chips + Input búsqueda
  * - Vista dual: cards móvil / tabla dark header desktop
  * - Tokens globales: slate palette, font-semibold+, border-2, text-[11px] laptop
+ *
+ * DATOS: React Query — hooks/queries/useAlertas.ts
+ *   useAlertasLista(filtros) → paginación infinita por páginas (Cargar más)
+ *   useAlertasKPIs()         → staleTime 30s (alta prioridad)
+ *   Mutaciones               → optimistic updates con rollback automático
+ * ESTADO UI: useAlertasStore — filtros activos, alertaSeleccionada
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -38,8 +44,16 @@ import {
 	Layers,
 	Gauge,
 } from 'lucide-react';
-import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useAlertasStore } from '../../../../stores/useAlertasStore';
+import {
+	useAlertasLista,
+	useAlertasKPIs,
+	useMarcarAlertaLeida,
+	useMarcarAlertaResuelta,
+	useMarcarTodasLeidas,
+	useEliminarAlerta,
+	useEliminarResueltas,
+} from '../../../../hooks/queries/useAlertas';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
@@ -112,14 +126,38 @@ const SEVERIDADES: SeveridadAlerta[] = ['alta', 'media', 'baja'];
 // =============================================================================
 
 export default function PaginaAlertas() {
-	const { usuario } = useAuthStore();
-	const {
-		alertas, kpis, filtros, totalAlertas, totalPaginas,
-		cargandoAlertas, cargandoMas, hayMas,
-		cargarAlertas, cargarMas, cargarKPIs, setFiltro, limpiarFiltros,
-		marcarLeida, marcarResuelta, marcarTodasLeidas, eliminarAlerta, eliminarResueltas,
-		seleccionarAlerta, alertaSeleccionada,
-	} = useAlertasStore();
+	// ─── Store — solo UI ──────────────────────────────────────────────────────
+	const { filtros, setFiltro, limpiarFiltros, seleccionarAlerta, alertaSeleccionada, limpiar } = useAlertasStore();
+
+	// ─── Queries — datos del servidor ─────────────────────────────────────────
+	const listaQuery = useAlertasLista(filtros);
+	const kpisQuery = useAlertasKPIs();
+	const marcarLeidaMutation = useMarcarAlertaLeida();
+	const marcarResueltaMutation = useMarcarAlertaResuelta();
+	const marcarTodasLeidasMutation = useMarcarTodasLeidas();
+	const eliminarAlertaMutation = useEliminarAlerta();
+	const eliminarResuelatasMutation = useEliminarResueltas();
+
+	// ─── Aliases ──────────────────────────────────────────────────────────────
+	const alertas = listaQuery.data?.pages.flatMap((p) => p.alertas) ?? [];
+	const kpis = kpisQuery.data ?? null;
+	const totalAlertas = listaQuery.data?.pages[0]?.total ?? 0;
+	const cargandoAlertas = listaQuery.isPending;
+	const cargandoMas = listaQuery.isFetchingNextPage;
+	const hayMas = listaQuery.hasNextPage;
+
+	// ─── Acciones — delegadas a mutaciones ────────────────────────────────────
+	// Fire-and-forget (no necesitan resultado)
+	const marcarLeida = (id: string) => marcarLeidaMutation.mutate(id);
+	const marcarTodasLeidas = () => marcarTodasLeidasMutation.mutate();
+	// Async (el modal necesita await para cerrar después)
+	const marcarResuelta = async (id: string): Promise<void> => {
+		try { await marcarResueltaMutation.mutateAsync(id); } catch { /* onError del hook */ }
+	};
+	const eliminarAlerta = async (id: string): Promise<void> => {
+		try { await eliminarAlertaMutation.mutateAsync(id); } catch { /* onError del hook */ }
+	};
+	const eliminarResueltas = () => eliminarResuelatasMutation.mutateAsync().then((r) => r.data?.eliminadas ?? 0);
 
 	const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
 	const [modalConfigAbierto, setModalConfigAbierto] = useState(false);
@@ -133,12 +171,10 @@ export default function PaginaAlertas() {
 	const dropdownCatRef = useRef<HTMLDivElement>(null);
 	const dropdownSevRef = useRef<HTMLDivElement>(null);
 
-	// Cargar datos al montar + limpiar filtros al desmontar
+	// ─── Limpiar filtros UI al desmontar ──────────────────────────────────────
 	useEffect(() => {
-		cargarAlertas();
-		cargarKPIs();
-		return () => { limpiarFiltros(); setBusquedaLocal(''); };
-	}, [usuario?.sucursalActiva]);
+		return () => limpiar();
+	}, [limpiar]);
 
 	// Detectar móvil
 	useEffect(() => {
@@ -148,19 +184,20 @@ export default function PaginaAlertas() {
 	}, []);
 
 	// Scroll infinito móvil
+	const { fetchNextPage } = listaQuery;
 	useEffect(() => {
 		if (!isMobile || !sentinelaRef.current) return;
 		const observer = new IntersectionObserver(
 			(entries) => {
 				if (entries[0].isIntersecting && hayMas && !cargandoMas) {
-					cargarMas();
+					fetchNextPage();
 				}
 			},
 			{ rootMargin: '100px' }
 		);
 		observer.observe(sentinelaRef.current);
 		return () => observer.disconnect();
-	}, [isMobile, hayMas, cargandoMas, cargarMas]);
+	}, [isMobile, hayMas, cargandoMas, fetchNextPage]);
 
 	// Cerrar dropdowns al click fuera
 	useEffect(() => {
@@ -503,8 +540,12 @@ export default function PaginaAlertas() {
 						{alertas.some(a => a.resuelta) && (
 							<button
 								onClick={async () => {
-									const n = await eliminarResueltas();
-									notificar.exito(`${n} alertas resueltas eliminadas`);
+									try {
+										const n = await eliminarResueltas();
+										notificar.exito(`${n} alertas resueltas eliminadas`);
+									} catch {
+										// Error ya manejado por la mutación
+									}
 								}}
 								className="text-sm lg:text-[11px] 2xl:text-sm text-red-500 font-semibold hover:text-red-700 cursor-pointer"
 								data-testid="btn-eliminar-resueltas"
@@ -586,7 +627,7 @@ export default function PaginaAlertas() {
 							{/* Botón cargar más (desktop) */}
 							{hayMas && (
 								<button
-									onClick={cargarMas}
+									onClick={() => listaQuery.fetchNextPage()}
 									disabled={cargandoMas}
 									className="w-full py-2.5 text-[11px] 2xl:text-sm font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer border-t border-slate-200"
 									data-testid="btn-cargar-mas-alertas"

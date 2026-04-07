@@ -29,10 +29,9 @@ import {
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
-import { useEmpleadosStore } from '../../../../stores/useEmpleadosStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useToggleEmpleadoActivo, useEliminarEmpleado, useRevocarSesion } from '../../../../hooks/queries/useEmpleados';
 import { notificar } from '../../../../utils/notificaciones';
-import { revocarSesion } from '../../../../services/empleadosService';
 import type { EmpleadoDetalle } from '../../../../types/empleados';
 import { LABELS_PERMISOS, DIAS_SEMANA } from '../../../../types/empleados';
 
@@ -51,30 +50,38 @@ interface Props {
 }
 
 export function ModalDetalleEmpleado({ empleado, onCerrar, onEditar }: Props) {
-	const { toggleActivo, eliminarEmpleado } = useEmpleadosStore();
 	const { usuario } = useAuthStore();
 	const esGerente = !!usuario?.sucursalAsignada;
+	const toggleActivoMutation = useToggleEmpleadoActivo();
+	const eliminarMutation = useEliminarEmpleado();
+	const revocarMutation = useRevocarSesion();
 
 	const handleToggleActivo = async () => {
-		await toggleActivo(empleado.id, !empleado.activo);
-		notificar.exito(empleado.activo ? 'Empleado desactivado' : 'Empleado activado');
-		onCerrar();
+		try {
+			await toggleActivoMutation.mutateAsync({ id: empleado.id, activo: !empleado.activo });
+			notificar.exito(empleado.activo ? 'Empleado desactivado' : 'Empleado activado');
+			onCerrar();
+		} catch {
+			// Error ya notificado por la mutación
+		}
 	};
 
 	const handleEliminar = async () => {
 		const ok = await notificar.confirmar(`¿Eliminar a "${empleado.nombre}"? Se perderá el historial de sus transacciones.`);
 		if (!ok) return;
-		await eliminarEmpleado(empleado.id);
-		notificar.exito('Empleado eliminado');
-		onCerrar();
+		try {
+			await eliminarMutation.mutateAsync(empleado.id);
+			onCerrar();
+		} catch {
+			// Error ya notificado por la mutación
+		}
 	};
 
 	const handleRevocarSesion = async () => {
 		try {
-			await revocarSesion(empleado.id);
-			notificar.exito('Sesiones de ScanYA revocadas');
+			await revocarMutation.mutateAsync(empleado.id);
 		} catch {
-			notificar.error('Error al revocar sesiones');
+			// Error ya notificado por la mutación
 		}
 	};
 

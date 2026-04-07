@@ -43,8 +43,8 @@ import {
   X,
 } from 'lucide-react';
 import { useClientesStore } from '../../../../stores/useClientesStore';
-import { useAuthStore } from '../../../../stores/useAuthStore';
-import { usePuntosStore } from '../../../../stores/usePuntosStore';
+import { useClientesKPIs, useClientesLista } from '../../../../hooks/queries/useClientes';
+import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import { descargarExcel } from '../../../../services/clientesService';
@@ -263,27 +263,22 @@ function FilaMovil({
 // =============================================================================
 
 export default function PaginaClientes() {
-  // Store
-  const {
-    kpis,
-    clientes,
-    cargandoClientes,
-    cargandoMas,
-    hayMas,
-    busqueda,
-    nivelFiltro,
-    cargaInicialCompleta,
-    cargarKPIs,
-    cargarClientes,
-    cargarMas,
-    setBusqueda,
-    setNivelFiltro,
-  } = useClientesStore();
+  // ─── Store — solo UI ──────────────────────────────────────────────────────
+  const { busqueda, setBusqueda, nivelFiltro, setNivelFiltro, limpiar } = useClientesStore();
 
-  const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
+  // ─── Queries — datos del servidor ─────────────────────────────────────────
+  const kpisQuery = useClientesKPIs();
+  const listaQuery = useClientesLista({ busqueda, nivelFiltro });
 
-  // Sucursal activa (para recargar al cambiar)
-  const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
+  // ─── Aliases ──────────────────────────────────────────────────────────────
+  const kpis = kpisQuery.data ?? null;
+  const clientes = listaQuery.data?.pages.flatMap((p) => p) ?? [];
+  const cargandoClientes = listaQuery.isPending;
+  const cargandoMas = listaQuery.isFetchingNextPage;
+  const hayMas = listaQuery.hasNextPage;
+
+  const { data: configPuntos } = usePuntosConfiguracion();
+  const nivelesActivos = configPuntos?.nivelesActivos ?? true;
 
   // Estado local
   const [orden, setOrden] = useState<EstadoOrden | null>(null);
@@ -294,12 +289,6 @@ export default function PaginaClientes() {
   const isMobile = useIsMobile();
   const sentinelaRef = useRef<HTMLDivElement | null>(null);
 
-  // ─── Carga inicial + recarga al cambiar sucursal ───
-  useEffect(() => {
-    cargarKPIs();
-    cargarClientes();
-  }, [sucursalActiva]);
-
   // ─── Debounce búsqueda (300ms) ───
   const handleBusquedaChange = useCallback((valor: string) => {
     setTextoBusqueda(valor);
@@ -309,29 +298,26 @@ export default function PaginaClientes() {
     }, 300);
   }, [setBusqueda]);
 
-  // ─── Limpiar búsqueda al desmontar (navegar fuera) ───
+  // ─── Limpiar filtros UI al desmontar (navegar fuera) ───
   useEffect(() => {
-    return () => {
-      setTextoBusqueda('');
-      setBusqueda('');
-      setNivelFiltro(null);
-    };
-  }, [setBusqueda, setNivelFiltro]);
+    return () => limpiar();
+  }, [limpiar]);
 
   // ─── Infinite scroll mobile ───
+  const { fetchNextPage } = listaQuery;
   useEffect(() => {
     if (!isMobile || !sentinelaRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hayMas && !cargandoMas) {
-          cargarMas();
+          fetchNextPage();
         }
       },
       { rootMargin: '100px' }
     );
     observer.observe(sentinelaRef.current);
     return () => observer.disconnect();
-  }, [isMobile, hayMas, cargandoMas, cargarMas]);
+  }, [isMobile, hayMas, cargandoMas, fetchNextPage]);
 
   // ─── Alternar orden ───
   const alternarOrden = useCallback((columna: ColumnaOrden) => {
@@ -411,8 +397,8 @@ export default function PaginaClientes() {
     }
   }, [busqueda, nivelFiltro]);
 
-  // ─── Loading inicial (solo la primera vez que se abre la página) ───
-  if (!cargaInicialCompleta && cargandoClientes) {
+  // ─── Loading inicial (sin datos en caché aún) ───
+  if (cargandoClientes) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner />
@@ -768,7 +754,7 @@ export default function PaginaClientes() {
               {/* Cargar más en desktop */}
               {hayMas && (
                 <button
-                  onClick={cargarMas}
+                  onClick={() => listaQuery.fetchNextPage()}
                   disabled={cargandoMas}
                   className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-100 cursor-pointer disabled:opacity-50"
                 >

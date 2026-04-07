@@ -30,6 +30,7 @@ interface EntradaNavegacion {
   ruta: string;
   timestamp: string;
   tiempo_hasta_primer_render_ms: number;
+  origen_render: 'cache' | 'red' | '';
   llamadas_api: LlamadaAPI[];
 }
 
@@ -120,8 +121,23 @@ class PerformanceMonitor {
       ruta,
       timestamp: formatTimestamp(new Date()),
       tiempo_hasta_primer_render_ms: 0,
+      origen_render: '',
       llamadas_api: [],
     };
+
+    // Doble rAF: garantiza que React ya pintó el primer frame.
+    // Si no llegó ninguna llamada API antes, cerramos el timer aquí (caché).
+    const tiempoInicio = this.inicioNavegacion;
+    const navegacionActiva = this.navegacionActual;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (navegacionActiva.tiempo_hasta_primer_render_ms === 0) {
+          navegacionActiva.tiempo_hasta_primer_render_ms =
+            Math.round(performance.now() - tiempoInicio);
+          navegacionActiva.origen_render = 'cache';
+        }
+      });
+    });
   }
 
   // ---- Llamadas API ----
@@ -129,7 +145,7 @@ class PerformanceMonitor {
   registrarLlamadaAPI(llamada: LlamadaAPI): void {
     if (!this.navegacionActual) return;
 
-    // La primera llamada API marca el tiempo hasta primer render
+    // La primera llamada API marca el tiempo hasta primer render (si el rAF aún no lo hizo)
     if (
       this.navegacionActual.llamadas_api.length === 0 &&
       this.navegacionActual.tiempo_hasta_primer_render_ms === 0
@@ -137,6 +153,7 @@ class PerformanceMonitor {
       this.navegacionActual.tiempo_hasta_primer_render_ms = Math.round(
         performance.now() - this.inicioNavegacion
       );
+      this.navegacionActual.origen_render = 'red';
     }
 
     this.navegacionActual.llamadas_api.push(llamada);

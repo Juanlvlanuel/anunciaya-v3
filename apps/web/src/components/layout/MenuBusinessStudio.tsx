@@ -33,8 +33,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { useAlertasStore } from '../../stores/useAlertasStore';
-import { contarNoLeidas as contarAlertasNoLeidas } from '../../services/alertasService';
+import { useAlertasKPIs } from '../../hooks/queries/useAlertas';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -112,15 +111,9 @@ export function MenuBusinessStudio() {
   const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
   const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
 
-  // Badge de alertas no leídas — usa store (optimista) con fallback API
-  const kpisAlertas = useAlertasStore(s => s.kpis);
-  const [alertasNoLeidasApi, setAlertasNoLeidasApi] = useState(0);
-  useEffect(() => {
-    contarAlertasNoLeidas().then(resp => {
-      if (resp.success && resp.data) setAlertasNoLeidasApi(resp.data.total);
-    }).catch(() => {});
-  }, [usuario?.sucursalActiva]);
-  const alertasNoLeidas = kpisAlertas ? kpisAlertas.noLeidas : alertasNoLeidasApi;
+  // Badge de alertas no leídas — React Query mantiene actualizado con staleTime 30s
+  const kpisAlertasQuery = useAlertasKPIs();
+  const alertasNoLeidas = kpisAlertasQuery.data?.noLeidas ?? 0;
 
   // Filtrar opciones: ocultar "Sucursales" y "Puntos" para gerentes y dueños en sucursal secundaria
   const opcionesFiltradas = vistaComoGerente

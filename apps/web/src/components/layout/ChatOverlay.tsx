@@ -871,7 +871,6 @@ export function ChatOverlay() {
           // Mientras ChatYA se cierra (~300ms), la API ya está en vuelo.
           // Cuando la página monte, los datos ya llegaron o están por llegar.
           const txStore = useTransaccionesStore.getState();
-          useTransaccionesStore.setState({ historial: [], totalResultados: 0 });
           txStore.setBusqueda(nombre);
 
           setClienteDetalleId(null);

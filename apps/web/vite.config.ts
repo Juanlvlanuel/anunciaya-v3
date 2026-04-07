@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: Number(process.env.PORT) || 3000,
     host: true,
     allowedHosts: ['synecologic-lila-divertive.ngrok-free.dev'],  // ← Agregar esto
     proxy: {

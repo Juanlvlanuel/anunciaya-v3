@@ -19,12 +19,14 @@
  * - Guardado independiente por tab
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../../../services/api';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { notificar } from '../../../../../utils/notificaciones';
 import { detectarZonaHoraria } from '../../../../../utils/zonaHoraria';
-import { obtenerSucursalesNegocio } from '../../../../../services/negociosService';
+import { usePerfilSucursal, usePerfilSucursales } from '../../../../../hooks/queries/usePerfil';
+import { queryKeys } from '../../../../../config/queryKeys';
 
 // =============================================================================
 // TIPOS
@@ -159,6 +161,12 @@ export function usePerfil() {
   const sucursalActiva = usuario?.sucursalActiva;
   const negocioId = usuario?.negocioId;
   const esGerente = usuario?.sucursalAsignada !== null;
+  const qc = useQueryClient();
+
+  // React Query — datos del servidor
+  const perfilQuery = usePerfilSucursal();
+  const sucursalesQuery = usePerfilSucursales();
+  const sincronizadoRef = useRef<string | null>(null);
 
   // =============================================================================
   // ESTADO
@@ -235,121 +243,106 @@ export function usePerfil() {
   });
 
   // =============================================================================
-  // CARGAR DATOS INICIALES
+  // SINCRONIZAR DATOS DE REACT QUERY → FORMULARIO LOCAL
   // =============================================================================
 
-  const cargarDatos = useCallback(async (silencioso = false) => {
-    if (!sucursalActiva || !negocioId) {
-      setError('No hay sucursal activa');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      if (!silencioso) setLoading(true);
-      setError(null);
-
-      // Obtener perfil completo de la sucursal
-      const response = await api.get<{ success: boolean; data: PerfilCompleto }>(
-        `/negocios/sucursal/${sucursalActiva}`
-      );
-
-      if (response.data.success && response.data.data) {
-        const perfil = response.data.data;
-
-        // Mapear a estados locales
-        // Obtener sucursales para determinar total y esPrincipal
-        let totalSucursales = 1;
-        let esPrincipal = true;
-        if (negocioId) {
-          const resSucursales = await obtenerSucursalesNegocio(negocioId);
-          if (resSucursales.success && resSucursales.data) {
-            totalSucursales = resSucursales.data.length;
-            const sucursalActual = resSucursales.data.find(s => s.id === sucursalActiva);
-            esPrincipal = sucursalActual?.esPrincipal ?? true;
-          }
-        }
-
-        const infoInicial = {
-          nombre: perfil.negocioNombre,
-          nombreSucursal: perfil.sucursalNombre || '',
-          descripcion: perfil.negocioDescripcion || '',
-          categoriaId: perfil.categorias[0]?.categoria.id || 0,
-          subcategoriasIds: perfil.categorias.map(c => c.id),
-          participaCardYA: perfil.aceptaCardya,
-          esPrincipal,
-          totalSucursales,
-        };
-        setDatosInformacion(infoInicial);
-        setDatosInicialesInformacion(infoInicial);
-
-        const ubicacionInicial = {
-          direccion: perfil.direccion || '',
-          ciudad: perfil.ciudad || '',
-          estado: perfil.estado || '',
-          codigoPostal: '',
-          latitud: perfil.latitud,
-          longitud: perfil.longitud,
-        };
-        setDatosUbicacion(ubicacionInicial);
-        setDatosInicialesUbicacion(ubicacionInicial);
-
-        const contactoInicial = {
-          nombreSucursal: perfil.sucursalNombre || '',
-          telefono: perfil.telefono || '',
-          whatsapp: perfil.whatsapp || '',
-          email: perfil.correo || '',
-          sitioWeb: perfil.sitioWeb || '',
-          redesSociales: perfil.redesSociales || {},
-        };
-        setDatosContacto(contactoInicial);
-        setDatosInicialesContacto(contactoInicial);
-
-        const horariosInicial = {
-          horarios: perfil.horarios.map(h => ({
-            diaSemana: h.diaSemana,
-            abierto: h.abierto,
-            horaApertura: h.horaApertura,
-            horaCierre: h.horaCierre,
-            tieneHorarioComida: h.tieneHorarioComida ?? false,
-            comidaInicio: h.comidaInicio ?? '14:00:00',
-            comidaFin: h.comidaFin ?? '16:00:00',
-          })),
-        };
-        setDatosHorarios(horariosInicial);
-        setDatosInicialesHorarios(horariosInicial);
-
-        const operacionInicial = {
-          metodosPago: {
-            efectivo: perfil.metodosPago?.includes('efectivo') ?? false,
-            tarjeta: (perfil.metodosPago?.includes('tarjeta_debito') || perfil.metodosPago?.includes('tarjeta_credito')) ?? false,
-            transferencia: perfil.metodosPago?.includes('transferencia') ?? false,
-          },
-          tieneEnvio: perfil.tieneEnvioDomicilio ?? false,
-          tieneServicio: perfil.tieneServicioDomicilio ?? false,
-        };
-        setDatosOperacion(operacionInicial);
-        setDatosInicialesOperacion(operacionInicial);
-
-        setDatosImagenes({
-          logoUrl: perfil.logoUrl,
-          fotoPerfilUrl: perfil.fotoPerfilUrl,
-          portadaUrl: perfil.portadaUrl,
-          galeria: perfil.galeria,
-        });
-      }
-    } catch (error) {
-      console.error('Error al cargar perfil:', error);
-      setError(error instanceof Error ? error.message : 'Error al cargar datos');
-      notificar.error('Error al cargar datos del perfil');
-    } finally {
-      setLoading(false);
-    }
-  }, [sucursalActiva, negocioId]);
+  const perfil = perfilQuery.data as PerfilCompleto | null | undefined;
+  const sucursalesData = sucursalesQuery.data as Array<{ id: string; esPrincipal: boolean }> | undefined;
 
   useEffect(() => {
-    cargarDatos();
-  }, [cargarDatos]);
+    if (!perfil || !sucursalActiva) return;
+
+    // Evitar re-sincronizar si ya procesamos estos datos
+    const clave = `${sucursalActiva}-${JSON.stringify(perfil).length}`;
+    if (sincronizadoRef.current === clave) return;
+    sincronizadoRef.current = clave;
+
+    let totalSucursales = 1;
+    let esPrincipal = true;
+    if (sucursalesData) {
+      totalSucursales = sucursalesData.length;
+      const sucursalActual = sucursalesData.find(s => s.id === sucursalActiva);
+      esPrincipal = sucursalActual?.esPrincipal ?? true;
+    }
+
+    const infoInicial = {
+      nombre: perfil.negocioNombre,
+      nombreSucursal: perfil.sucursalNombre || '',
+      descripcion: perfil.negocioDescripcion || '',
+      categoriaId: perfil.categorias[0]?.categoria.id || 0,
+      subcategoriasIds: perfil.categorias.map(c => c.id),
+      participaCardYA: perfil.aceptaCardya,
+      esPrincipal,
+      totalSucursales,
+    };
+    setDatosInformacion(infoInicial);
+    setDatosInicialesInformacion(infoInicial);
+
+    const ubicacionInicial = {
+      direccion: perfil.direccion || '',
+      ciudad: perfil.ciudad || '',
+      estado: perfil.estado || '',
+      codigoPostal: '',
+      latitud: perfil.latitud,
+      longitud: perfil.longitud,
+    };
+    setDatosUbicacion(ubicacionInicial);
+    setDatosInicialesUbicacion(ubicacionInicial);
+
+    const contactoInicial = {
+      nombreSucursal: perfil.sucursalNombre || '',
+      telefono: perfil.telefono || '',
+      whatsapp: perfil.whatsapp || '',
+      email: perfil.correo || '',
+      sitioWeb: perfil.sitioWeb || '',
+      redesSociales: perfil.redesSociales || {},
+    };
+    setDatosContacto(contactoInicial);
+    setDatosInicialesContacto(contactoInicial);
+
+    const horariosInicial = {
+      horarios: perfil.horarios.map(h => ({
+        diaSemana: h.diaSemana,
+        abierto: h.abierto,
+        horaApertura: h.horaApertura,
+        horaCierre: h.horaCierre,
+        tieneHorarioComida: h.tieneHorarioComida ?? false,
+        comidaInicio: h.comidaInicio ?? '14:00:00',
+        comidaFin: h.comidaFin ?? '16:00:00',
+      })),
+    };
+    setDatosHorarios(horariosInicial);
+    setDatosInicialesHorarios(horariosInicial);
+
+    const operacionInicial = {
+      metodosPago: {
+        efectivo: perfil.metodosPago?.includes('efectivo') ?? false,
+        tarjeta: (perfil.metodosPago?.includes('tarjeta_debito') || perfil.metodosPago?.includes('tarjeta_credito')) ?? false,
+        transferencia: perfil.metodosPago?.includes('transferencia') ?? false,
+      },
+      tieneEnvio: perfil.tieneEnvioDomicilio ?? false,
+      tieneServicio: perfil.tieneServicioDomicilio ?? false,
+    };
+    setDatosOperacion(operacionInicial);
+    setDatosInicialesOperacion(operacionInicial);
+
+    setDatosImagenes({
+      logoUrl: perfil.logoUrl,
+      fotoPerfilUrl: perfil.fotoPerfilUrl,
+      portadaUrl: perfil.portadaUrl,
+      galeria: perfil.galeria,
+    });
+
+    setLoading(false);
+  }, [perfil, sucursalesData, sucursalActiva]);
+
+  // Refetch helper — invalida React Query cache para recargar
+  const refetch = useCallback(() => {
+    sincronizadoRef.current = null;
+    if (sucursalActiva) {
+      qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+    }
+  }, [sucursalActiva, qc]);
 
   /**
  * ============================================================================
@@ -612,7 +605,7 @@ export function usePerfil() {
       }
 
       // Recargar datos para actualizar estados iniciales (silencioso = sin spinner)
-      await cargarDatos(true);
+      refetch();
 
       // Notificaciones según resultado
       if (errores.length === 0) {
@@ -676,7 +669,7 @@ export function usePerfil() {
 
     // Única acción de guardado
     guardarTodo,
-    refetch: cargarDatos,
+    refetch,
   };
 }
 

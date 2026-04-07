@@ -33,8 +33,8 @@ import { TabExclusiva } from './TabExclusiva';
 import { TabClientes } from './TabClientes';
 import type { ClienteItem } from './TabClientes';
 import type { FormularioState, Errores } from './TabOferta';
-import { getClientes } from '../../../../services/clientesService';
-import { obtenerClientesAsignados } from '../../../../services/ofertasService';
+import { useClientesSelector } from '../../../../hooks/queries/useClientes';
+import { useClientesAsignados } from '../../../../hooks/queries/useOfertas';
 import type { ClienteAsignado } from '../../../../services/ofertasService';
 import ModalDetalleCliente from '@/pages/private/business-studio/clientes/ModalDetalleCliente';
 
@@ -101,12 +101,22 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
     const [guardando, setGuardando] = useState(false);
     const [tabActivo, setTabActivo] = useState<TabActivo>('oferta');
     const [clientesSeleccionados, setClientesSeleccionados] = useState<string[]>([]);
-    const [clientesDisponibles, setClientesDisponibles] = useState<ClienteItem[]>([]);
-    const [cargandoClientes, setCargandoClientes] = useState(false);
     const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number }>({ isOpen: false, images: [], initialIndex: 0 });
-    const [clientesAsignados, setClientesAsignados] = useState<ClienteAsignado[]>([]);
-    const [cargandoAsignados, setCargandoAsignados] = useState(false);
     const [clienteDetalleId, setClienteDetalleId] = useState<string | null>(null);
+
+    // React Query — clientes disponibles (selector) y asignados (edición cupón)
+    const clientesSelectorQuery = useClientesSelector();
+    const clientesDisponibles: ClienteItem[] = (clientesSelectorQuery.data ?? []).map(c => ({
+        id: c.id, nombre: c.nombre, telefono: c.telefono,
+        avatarUrl: c.avatarUrl, nivelActual: c.nivelActual,
+        ultimaActividad: c.ultimaActividad, totalVisitas: c.totalVisitas,
+    }));
+    const cargandoClientes = clientesSelectorQuery.isPending;
+    const asignadosQuery = useClientesAsignados(
+        abierto && esEdicion && oferta?.visibilidad === 'privado' ? oferta.id : null
+    );
+    const clientesAsignados = (asignadosQuery.data ?? []) as ClienteAsignado[];
+    const cargandoAsignados = asignadosQuery.isPending;
 
     const esCupon = formulario.visibilidad === 'privado';
     const cuponSoloLectura = esEdicion && esCupon;
@@ -154,52 +164,19 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
         }
     }, [abierto, oferta]);
 
-    // Cargar clientes al abrir modal (una sola vez)
-    const cargarClientes = useCallback(async () => {
-        if (cargandoClientes || clientesDisponibles.length > 0) return;
-        setCargandoClientes(true);
-        try {
-            const res = await getClientes(undefined, undefined, 500);
-            if (res.success && Array.isArray(res.data)) {
-                setClientesDisponibles(res.data.map(c => ({
-                    id: c.id, nombre: c.nombre, telefono: c.telefono,
-                    avatarUrl: c.avatarUrl, nivelActual: c.nivelActual,
-                    ultimaActividad: c.ultimaActividad, totalVisitas: c.totalVisitas,
-                })));
-            }
-        } catch {
-            notificar.error('Error al cargar clientes');
-        } finally {
-            setCargandoClientes(false);
+    // Sincronizar motivo desde clientes asignados (cupón en edición)
+    useEffect(() => {
+        if (clientesAsignados.length > 0 && clientesAsignados[0]?.motivo) {
+            setFormulario(prev => ({ ...prev, motivoAsignacion: clientesAsignados[0].motivo ?? '' }));
         }
-    }, [cargandoClientes, clientesDisponibles.length]);
+    }, [clientesAsignados]);
 
+    // Limpiar al cerrar
     useEffect(() => {
-        if (abierto && clientesDisponibles.length === 0) cargarClientes();
-    }, [abierto]);
-
-    // Cargar clientes asignados al abrir cupón en edición
-    useEffect(() => {
-        if (abierto && esEdicion && oferta?.visibilidad === 'privado') {
-            setCargandoAsignados(true);
-            obtenerClientesAsignados(oferta.id)
-                .then(res => {
-                    if (res.success && Array.isArray(res.data)) {
-                        setClientesAsignados(res.data);
-                        // Cargar motivo desde el primer cliente asignado
-                        const motivo = res.data[0]?.motivo;
-                        if (motivo) {
-                            setFormulario(prev => ({ ...prev, motivoAsignacion: motivo }));
-                        }
-                    }
-                })
-                .catch(() => {})
-                .finally(() => setCargandoAsignados(false));
-        } else if (!abierto) {
-            setClientesAsignados([]);
+        if (!abierto) {
             setClienteDetalleId(null);
         }
-    }, [abierto, esEdicion, oferta?.id]);
+    }, [abierto]);
 
     // Handlers clientes
     const toggleCliente = (id: string) => {

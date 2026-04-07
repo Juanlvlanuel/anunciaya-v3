@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 5 Abril 2026  
-**Versión:** 1.3 (Empleados completado)
+**Última actualización:** 6 Abril 2026
+**Versión:** 1.9 (React Query migration: Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil)
 
 ---
 
@@ -55,7 +55,7 @@ Business Studio es el **centro de administración completo** para negocios regis
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 10 de 14 módulos completados (71%)
+**Progreso actual:** 10 de 14 módulos completados (71%). Migración React Query: 10/10 BS completo.
 
 ---
 
@@ -171,7 +171,7 @@ Si onboarding_completado = true → Business Studio Dashboard
 
 ## 📦 Los 14 Módulos
 
-> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (1 Abril 2026)
+> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (6 Abril 2026)
 
 ### Organización del Menú
 
@@ -205,7 +205,7 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 10 | Empleados | `/business-studio/empleados` | UserCog | ⏳ Pendiente |
+| 10 | Empleados | `/business-studio/empleados` | UserCog | ✅ 100% |
 | 11 | Vacantes | `/business-studio/vacantes` | Briefcase | ⏳ Pendiente |
 
 #### 5. Análisis & Configuración (3 módulos)
@@ -218,7 +218,7 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ✅ Módulos Completados (8/14)
+## ✅ Módulos Completados (10/14)
 
 ### 1. Dashboard ✅
 
@@ -255,6 +255,11 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 - `PanelInteracciones.tsx` - Feed de actividad
 - `PanelOpiniones.tsx` - Reseñas
 - `PanelAlertas.tsx` - Alertas de seguridad
+
+**Estado (React Query + Zustand UI):**
+- `hooks/queries/useDashboard.ts` — 5 useQuery (KPIs, ventas, campañas, interacciones, alertas) + 2 useMutation (marcar alerta leída/todas)
+- `useDashboardStore.ts` simplificado — solo `periodo` (UI)
+- Query keys: `queryKeys.dashboard.*`
 
 ---
 
@@ -301,6 +306,12 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 - `TabImagenes.tsx` - Upload imágenes
 - `TabOperacion.tsx` - Métodos pago + servicios
 
+**Estado (React Query + hook local de formulario):**
+- `hooks/queries/usePerfil.ts` — useQuery para datos del perfil, sucursales, categorías, subcategorías (carga inicial con caché)
+- `perfil/hooks/usePerfil.ts` — hook de formulario que consume los queries de React Query e inicializa estados locales por tab. Guardado con API directa (no mutación formal)
+- Sin store Zustand — todo el estado es local al hook de formulario
+- Query keys: `queryKeys.perfil.sucursal(sucursalId)`, `queryKeys.perfil.sucursales(negocioId)`, `queryKeys.perfil.categorias()`, `queryKeys.perfil.subcategorias(categoriaId)`
+
 ---
 
 ### 3. Catálogo ✅
@@ -335,9 +346,13 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 **Componentes:**
 - `PaginaCatalogo.tsx` - Lista con filtros
-- `CardArticulo.tsx` - Tarjeta de producto
 - `ModalArticulo.tsx` - Crear/editar
 - `ModalDuplicar.tsx` - Duplicar a sucursales
+
+**Estado (React Query + useState local):**
+- `hooks/queries/useArticulos.ts` — useQuery (lista), 4 useMutation (crear, actualizar, eliminar, duplicar) con updates optimistas
+- Store Zustand eliminado — no hay estado UI compartido; filtros/orden son useState locales en la página
+- Query keys: `queryKeys.articulos.porSucursal(sucursalId)`
 
 ---
 
@@ -386,6 +401,11 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 - `TabClientes.tsx` - Selector clientes con dropdowns
 - `ModalDuplicarOferta.tsx` - Duplicar a sucursales
 
+**Estado (React Query + useState local):**
+- `hooks/queries/useOfertas.ts` — useQuery (lista), 4 useMutation (crear, actualizar, eliminar, duplicar) con updates optimistas + helper `useOfertasInvalidar` para revocar/reactivar
+- Store Zustand eliminado — filtros/orden son useState locales en la página
+- Query keys: `queryKeys.ofertas.porSucursal(sucursalId)`
+
 ---
 
 ### 5. Puntos ✅
@@ -427,6 +447,12 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 - `CardRecompensa.tsx` - Tarjeta de recompensa
 - `ModalRecompensa.tsx` - Crear/editar recompensa
 
+**Estado (React Query + Zustand UI):**
+- `hooks/queries/usePuntos.ts` — 3 useQuery (configuración global, recompensas global, estadísticas por sucursal+periodo) + 4 useMutation (config, crear/actualizar/eliminar recompensa) con updates optimistas
+- `usePuntosStore.ts` simplificado — solo `periodo` (UI)
+- `usePuntosConfiguracion()` también es consumido por Clientes, Transacciones, Ofertas y ChatYA para leer `nivelesActivos`
+- Query keys: `queryKeys.puntos.configuracion()`, `queryKeys.puntos.recompensas()`, `queryKeys.puntos.estadisticas(sucursalId, periodo)`
+
 **Sistema de Expiración:**
 - Expiración en tiempo real (sin cron jobs)
 - Puntos expiran al final del día local del negocio
@@ -435,7 +461,7 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ⏳ Módulos Pendientes (4/14)
+## ✅ Módulos Completados (continuación)
 
 ### Alertas ✅ (Sprint 9 — 3 Abr 2026)
 
@@ -450,6 +476,37 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
+### Opiniones ✅
+
+**Ruta:** `/business-studio/opiniones`
+**Completado:** 07 Marzo 2026
+
+**Funcionalidad:**
+- Lista de reseñas de clientes (todas de una vez, filtrado local)
+- KPIs: promedio estrellas, total reseñas, pendientes de respuesta
+- Filtros: pendientes, por estrellas, búsqueda por nombre
+- Responder reseñas con update optimista (respuesta temporal → reemplazo con dato real)
+- Distribución visual por estrellas (click para filtrar)
+
+**Endpoints:**
+
+| Método | Endpoint | Propósito |
+|--------|----------|-----------|
+| GET | `/api/resenas` | Listar reseñas de la sucursal |
+| GET | `/api/resenas/kpis` | KPIs (promedio, total, pendientes) |
+| POST | `/api/resenas/:id/responder` | Responder una reseña |
+
+**Componentes:**
+- `PaginaOpiniones.tsx` - Lista con filtros y distribución por estrellas
+- `ModalResponder.tsx` - Modal para escribir respuesta
+
+**Estado (React Query — store eliminado):**
+- `hooks/queries/useResenas.ts` — 2 useQuery (lista, KPIs) + 1 useMutation (responder con optimistic update en lista + KPIs)
+- Store Zustand eliminado completamente — filtros son useState locales
+- Query keys: `queryKeys.resenas.lista(sucursalId)`, `queryKeys.resenas.kpis(sucursalId)`
+
+---
+
 ### Empleados ✅ (Sprint 10 — 5 Abr 2026)
 
 **Completado.** Documento detallado: `docs/arquitectura/Empleados.md`
@@ -460,9 +517,10 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 - Revocación remota de sesiones (Redis + cierre turno)
 - Testing: 188 API tests + 9 E2E tests
 
-
-**Funcionalidad esperada:**
-- Gestión de empleados, Nick+PIN para ScanYA, permisos
+**Estado (React Query — store eliminado):**
+- `hooks/queries/useEmpleados.ts` — KPIs, lista (infinite), detalle, 6 mutations con optimistic updates
+- Store Zustand eliminado — filtros son useState locales en la página
+- Query keys: `queryKeys.empleados.*`
 
 ---
 
@@ -691,41 +749,39 @@ await actualizarInfoGeneral(negocioId, datos);
 
 ## 📂 Ubicación de Archivos
 
-> ✅ **VERIFICADO:** Contra estructura real del proyecto (1 Abril 2026)
+> ✅ **VERIFICADO:** Contra estructura real del proyecto (6 Abril 2026)
 
 ### Backend
 
 ```
 apps/api/src/
 ├── controllers/
-│   ├── dashboard.controller.ts       ✅ 7 funciones
-│   ├── negocios.controller.ts        ✅ 19 endpoints
-│   ├── articulos.controller.ts       ✅ 9 endpoints
-│   └── ofertas.controller.ts         ✅ 10 endpoints
+│   ├── dashboard.controller.ts       ✅ KPIs, ventas, campañas, alertas
+│   ├── negocios.controller.ts        ✅ Perfil, sucursales, imágenes
+│   ├── articulos.controller.ts       ✅ CRUD catálogo + duplicar
+│   ├── ofertas.controller.ts         ✅ CRUD ofertas/cupones + asignar
+│   ├── puntos.controller.ts          ✅ Config, recompensas, estadísticas
+│   ├── transacciones.controller.ts   ✅ Historial, KPIs, revocar
+│   ├── clientes.controller.ts        ✅ Lista, KPIs, detalle, historial
+│   ├── resenas.controller.ts         ✅ Lista, KPIs, responder
+│   ├── alertas.controller.ts         ✅ Lista, KPIs, config, CRUD
+│   └── empleados.controller.ts       ✅ CRUD, permisos, horarios, sesiones
 │
 ├── services/
+│   ├── negocioManagement.service.ts  ✅ 20 funciones CRUD compartidas
 │   ├── dashboard.service.ts          ✅ KPIs y métricas
-│   ├── negocioManagement.service.ts  ✅ 20 funciones CRUD
-│   ├── negocios.service.ts           ✅ Búsquedas y queries
 │   ├── articulos.service.ts          ✅ CRUD catálogo
-│   └── ofertas.service.ts            ✅ CRUD ofertas
-│
-├── routes/
-│   ├── dashboard.routes.ts           ✅ 7 rutas
-│   ├── negocios.routes.ts            ✅ 19 rutas
-│   ├── articulos.routes.ts           ✅ 9 rutas
-│   └── ofertas.routes.ts             ✅ 10 rutas
+│   ├── ofertas.service.ts            ✅ CRUD ofertas + cupones
+│   ├── puntos.service.ts             ✅ Config + recompensas
+│   ├── alertas.service.ts            ✅ Motor detección + CRUD
+│   └── empleados.service.ts          ✅ CRUD + permisos + sesiones
 │
 ├── middleware/
 │   ├── auth.ts                       ✅ verificarToken
-│   ├── authOpcional.middleware.ts    ✅ verificarTokenOpcional
 │   ├── negocio.middleware.ts         ✅ verificarNegocio
-│   ├── sucursal.middleware.ts        ✅ validarAccesoSucursal
-│   └── validarModo.ts                ✅ Validación de modo
+│   └── sucursal.middleware.ts        ✅ validarAccesoSucursal
 │
-└── validations/
-    ├── articulos.schema.ts           ✅ Schemas Zod catálogo
-    └── ofertas.schema.ts             ✅ Schemas Zod ofertas
+└── validations/                      ✅ Schemas Zod por módulo
 ```
 
 ---
@@ -744,17 +800,14 @@ apps/web/src/
 │   │   ├── hooks/usePerfil.ts        ✅ Hook compartido
 │   │   └── PaginaPerfil.tsx          ✅ Página con tabs
 │   │
-│   ├── catalogo/
-│   │   ├── CardArticulo.tsx          ✅ Tarjeta producto
-│   │   ├── ModalArticulo.tsx         ✅ Crear/editar
-│   │   ├── ModalDuplicar.tsx         ✅ Duplicar a sucursales
-│   │   └── PaginaCatalogo.tsx        ✅ Lista con filtros
-│   │
-│   └── ofertas/
-│       ├── CardOferta.tsx            ✅ Tarjeta oferta
-│       ├── ModalOferta.tsx           ✅ Crear/editar
-│       ├── ModalDuplicarOferta.tsx   ✅ Duplicar a sucursales
-│       └── PaginaOfertas.tsx         ✅ Lista con filtros
+│   ├── catalogo/                     ✅ Catálogo de productos/servicios
+│   ├── ofertas/                      ✅ Promociones (ofertas + cupones)
+│   ├── puntos/                       ✅ Sistema de puntos y recompensas
+│   ├── transacciones/                ✅ Historial ventas + canjes
+│   ├── clientes/                     ✅ Base de clientes
+│   ├── opiniones/                    ✅ Reseñas y respuestas
+│   ├── alertas/                      ✅ Alertas de seguridad
+│   └── empleados/                    ✅ Gestión de empleados
 │
 ├── components/layout/
 │   ├── MenuBusinessStudio.tsx        ✅ Menú 14 opciones
@@ -770,11 +823,36 @@ apps/web/src/
 │   ├── dashboardService.ts           ✅ API calls dashboard
 │   ├── negociosService.ts            ✅ API calls perfil
 │   ├── articulosService.ts           ✅ API calls catálogo
-│   └── ofertasService.ts             ✅ API calls ofertas
+│   ├── ofertasService.ts             ✅ API calls ofertas
+│   ├── clientesService.ts            ✅ API calls clientes
+│   ├── transaccionesService.ts       ✅ API calls transacciones + canjes
+│   ├── resenasService.ts             ✅ API calls opiniones
+│   ├── alertasService.ts             ✅ API calls alertas
+│   └── empleadosService.ts           ✅ API calls empleados
+│
+├── hooks/queries/                    ✅ React Query hooks (datos del servidor)
+│   ├── useDashboard.ts               ✅ KPIs, ventas, campañas, interacciones
+│   ├── useTransacciones.ts           ✅ KPIs, historial (infinite), revocar
+│   ├── useClientes.ts                ✅ KPIs, lista (infinite), detalle, historial
+│   ├── useResenas.ts                 ✅ Lista, KPIs, responder (optimistic)
+│   ├── useAlertas.ts                 ✅ Lista (infinite), KPIs, config, 6 mutations
+│   ├── useArticulos.ts               ✅ Lista, 4 mutations (crear, actualizar, eliminar, duplicar)
+│   ├── useOfertas.ts                 ✅ Lista, 4 mutations + helper invalidar
+│   ├── usePuntos.ts                  ✅ Config global, recompensas, estadísticas, 4 mutations
+│   ├── useEmpleados.ts               ✅ KPIs, lista (infinite), detalle, 6 mutations
+│   └── usePerfil.ts                  ✅ Perfil sucursal, sucursales, categorías, subcategorías
 │
 └── stores/
     ├── useAuthStore.ts               ✅ Auth + modo + sucursal
-    └── useDashboardStore.ts          ✅ Estado dashboard
+    ├── useDashboardStore.ts          ✅ Solo UI: periodo
+    ├── useTransaccionesStore.ts      ✅ Solo UI: tab, periodo, filtros, búsqueda
+    ├── useClientesStore.ts           ✅ Solo UI: búsqueda, nivelFiltro
+    ├── useAlertasStore.ts            ✅ Solo UI: filtros, alerta seleccionada
+    ├── usePuntosStore.ts             ✅ Solo UI: periodo
+    (useEmpleadosStore.ts eliminado — filtros locales en useState)
+    (useArticulosStore.ts eliminado — sin estado UI compartido)
+    (useOfertasStore.ts eliminado — sin estado UI compartido)
+    (useResenasStore.ts eliminado — sin estado UI compartido)
 ```
 
 ---
@@ -968,33 +1046,9 @@ export async function actualizarInfoGeneral() { ... }
 
 ## ✅ Verificación
 
-**Última verificación:** 1 Abril 2026
+**Última verificación:** 6 Abril 2026
 
-**Archivos backend verificados:** 8/8 ✅
-- `dashboard.routes.ts` (101 líneas)
-- `dashboard.controller.ts` (255 líneas)
-- `negocios.routes.ts` (427 líneas)
-- `articulos.routes.ts` (165 líneas)
-- `ofertas.routes.ts` (175 líneas)
-- `negocioManagement.service.ts` (941 líneas - 20 funciones)
-- `puntos.routes.ts` (~150 líneas)
-- `puntos.service.ts` (~400 líneas)
-
-**Archivos frontend verificados:** 4/4 ✅
-- `router/index.tsx` (14 rutas Business Studio)
-- `MenuBusinessStudio.tsx` (14 opciones organizadas)
-- `PanelPreviewNegocio.tsx` (2 tabs preview)
-- `PaginaPuntos.tsx` (página completa con 3 secciones)
-
-**Endpoints totales documentados:**
-- Dashboard: 7 endpoints
-- Negocios (Perfil): 6 endpoints principales
-- Artículos (Catálogo): 6 endpoints principales
-- Ofertas: 6 endpoints principales
-- Puntos: 6 endpoints principales
-- **TOTAL:** 31 endpoints principales ✅
-
-**Módulos verificados:** 8/14 completados ✅
+**Módulos completados:** 10/14 ✅
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
@@ -1003,18 +1057,22 @@ export async function actualizarInfoGeneral() { ... }
 - Transacciones (07/03/2026)
 - Clientes (07/03/2026)
 - Opiniones (07/03/2026)
+- Alertas (03/04/2026)
+- Empleados (05/04/2026)
 
-**Progreso:** 8/14 módulos = 57%
+**Módulos pendientes:** 4/14
+- Reportes, Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
 
-**Métodos de verificación:**
-1. Comparación con RoadMap oficial
-2. Revisión de código fuente backend (routes, controllers, services)
-3. Revisión de código fuente frontend (componentes, router)
-4. Verificación de estructura de carpetas
-5. Confirmación de funciones del servicio centralizado
+**Progreso:** 10/14 módulos = 71%
+
+**Migración React Query:** 10/10 módulos BS completados (Abril 2026)
+- Todos los datos del servidor en `hooks/queries/`
+- Stores Zustand simplificados a solo estado UI
+- 4 stores eliminados (Artículos, Ofertas, Reseñas, Empleados)
+- Componentes auxiliares migrados (modales duplicar, selector clientes, KPIs sidebar, categorías)
 
 ---
 
-**Última actualización:** 1 Abril 2026  
+**Última actualización:** 6 Abril 2026
 **Autor:** Equipo AnunciaYA  
 **Versión:** 1.1 (100% Verificado contra código real)

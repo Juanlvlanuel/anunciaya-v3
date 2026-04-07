@@ -12,7 +12,6 @@
  *   - Últimas transacciones: 5 más recientes + botón "Ver historial completo"
  */
 
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User,
@@ -31,10 +30,10 @@ import {
   Loader2,
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
-import { useClientesStore } from '../../../../stores/useClientesStore';
+import { useClienteDetalle, useClienteHistorial } from '../../../../hooks/queries/useClientes';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import { useUiStore } from '../../../../stores/useUiStore';
-import { usePuntosStore } from '../../../../stores/usePuntosStore';
+import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 
 // =============================================================================
 // HELPERS
@@ -174,25 +173,20 @@ export default function ModalDetalleCliente({
   onVerHistorial?: (nombre: string) => void;
 }) {
   const navigate = useNavigate();
-  const {
-    clienteDetalle,
-    historialCliente,
-    cargandoDetalle,
-    cargandoHistorial,
-    cargarDetalleCliente,
-    cargarHistorialCliente,
-  } = useClientesStore();
+
+  // ─── Queries — React Query fetcha automáticamente al cambiar clienteId ────
+  const detalleQuery = useClienteDetalle(clienteId);
+  const historialQuery = useClienteHistorial(clienteId);
+
+  const clienteDetalle = detalleQuery.data ?? null;
+  const historialCliente = historialQuery.data ?? [];
+  const cargandoDetalle = detalleQuery.isPending;
+  const cargandoHistorial = historialQuery.isPending;
+
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
   const abrirChatYA = useUiStore((s) => s.abrirChatYA);
-  const nivelesActivos = usePuntosStore((s) => s.configuracion?.nivelesActivos ?? true);
-
-  // Cargar datos al abrir
-  useEffect(() => {
-    if (abierto && clienteId) {
-      cargarDetalleCliente(clienteId);
-      cargarHistorialCliente(clienteId);
-    }
-  }, [abierto, clienteId]);
+  const { data: configPuntos } = usePuntosConfiguracion();
+  const nivelesActivos = configPuntos?.nivelesActivos ?? true;
 
   // Cerrar modal (no limpia datos para evitar flash al reabrir mismo cliente)
   const handleCerrar = () => {
