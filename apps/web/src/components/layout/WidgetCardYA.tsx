@@ -13,7 +13,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wallet } from 'lucide-react';
-import { useCardyaStore } from '../../stores/useCardyaStore';
+import { useCardYABilleteras } from '../../hooks/queries/useCardYA';
 
 // =============================================================================
 // ESTILOS CSS CON ANIMACIONES
@@ -190,16 +190,8 @@ interface WidgetCardYAProps {
 export function WidgetCardYA({ dark = false }: WidgetCardYAProps) {
   const navigate = useNavigate();
 
-  const negociosActivos = useCardyaStore((s) => s.billeteras.length);
-  const billeteras = useCardyaStore((s) => s.billeteras);
-  const cargarTodo = useCardyaStore((s) => s.cargarTodo);
-
-  // Cargar billeteras si aún no están cargadas
-  useEffect(() => {
-    if (billeteras.length === 0) {
-      cargarTodo();
-    }
-  }, []);
+  const { data: billeteras = [] } = useCardYABilleteras();
+  const negociosActivos = billeteras.length;
 
   // Formatear "miembro desde" usando createdAt del localStorage
   const miembroDesde = (() => {

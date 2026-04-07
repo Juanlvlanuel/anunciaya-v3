@@ -11,9 +11,17 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Wallet, Gift, Clock, Ticket, ChevronLeft, Menu } from 'lucide-react';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
-import { useCardyaStore } from '../../../stores/useCardyaStore';
+// useCardyaStore eliminado — React Query maneja datos del servidor
+import {
+    useCardYABilleteras,
+    useCardYARecompensas,
+    useCardYAVouchers,
+    useCardYAHistorialCompras,
+    useCardYAHistorialCanjes,
+    useCanjearRecompensa,
+    useCancelarVoucher,
+} from '../../../hooks/queries/useCardYA';
 import { useUiStore } from '../../../stores/useUiStore';
-import { useGpsStore } from '../../../stores/useGpsStore';
 import { notificar } from '../../../utils/notificaciones';
 
 // Componentes
@@ -120,26 +128,16 @@ export function PaginaCardYA() {
     const abrirImagenUnica = (url: string) => setModalImagenes({ isOpen: true, images: [url], initialIndex: 0 });
     const cerrarModalImagenes = () => setModalImagenes({ isOpen: false, images: [], initialIndex: 0 });
 
-    // Datos del store
-    const {
-        billeteras,
-        recompensas,
-        vouchers: vouchersHistorial,
-        historialCompras,
-        cargarTodo,
-        cargarRecompensas,
-        cargarHistorialCompras,
-        cargarVouchers,
-        canjearRecompensa,
-        cancelarVoucher,
-        cargandoHistorialCompras,
-        historialCanjes,
-        cargarHistorialCanjes,
-        cargandoHistorialCanjes,
-    } = useCardyaStore();
+    // React Query — datos del servidor
+    const { data: billeteras = [] } = useCardYABilleteras();
+    const { data: recompensas = [] } = useCardYARecompensas();
+    const { data: vouchersHistorial = [] } = useCardYAVouchers();
+    const { data: historialCompras = [], isPending: cargandoHistorialCompras } = useCardYAHistorialCompras();
+    const { data: historialCanjes = [], isPending: cargandoHistorialCanjes } = useCardYAHistorialCanjes();
+    const canjearMutation = useCanjearRecompensa();
+    const cancelarMutation = useCancelarVoucher();
 
-    // Ciudad seleccionada (para recargar recompensas al cambiar)
-    const ciudadActual = useGpsStore((s) => s.ciudad?.nombre);
+    // Ciudad manejada internamente por useCardYARecompensas (query key incluye ciudad del GPS)
 
     // KPIs calculados desde datos reales
     const puntosGlobales = billeteras.reduce((sum, b) => sum + b.puntosDisponibles, 0);
@@ -188,46 +186,14 @@ export function PaginaCardYA() {
         return () => { document.head.removeChild(style); };
     }, []);
 
-    // Carga inicial + precarga diferida del historial
-    useEffect(() => {
-        cargarTodo();
-        // Precargar historial y vouchers en background después de 2s
-        const timer = setTimeout(() => {
-            cargarHistorialCompras();
-            cargarHistorialCanjes();
-            cargarVouchers();
-        }, 2000);
-        return () => clearTimeout(timer);
-    }, []);
+    // Carga manejada por React Query (useQuery con enabled)
 
-    // Lazy loading: cargar datos al cambiar de tab
-    useEffect(() => {
-        if (tabActiva === 'historial' && historialCompras.length === 0) {
-            cargarHistorialCompras();
-            cargarHistorialCanjes();
-        }
-        if (tabActiva === 'vouchers' && vouchersHistorial.length === 0) {
-            cargarVouchers();
-        }
-    }, [tabActiva]);
+    // Lazy loading manejado por React Query (enabled en cada query)
 
-    // Recargar recompensas cuando cambia la ciudad seleccionada
-    useEffect(() => {
-        if (ciudadActual) {
-            cargarRecompensas();
-        }
-    }, [ciudadActual]);
+    // Recompensas se recargan automáticamente cuando cambia la ciudad (en query key)
 
-    // Precarga en hover/touch: empieza a cargar antes del clic
-    const precargarTab = (id: TabCardYA) => {
-        if (id === 'historial' && historialCompras.length === 0) {
-            cargarHistorialCompras();
-            cargarHistorialCanjes();
-        }
-        if (id === 'vouchers' && vouchersHistorial.length === 0) {
-            cargarVouchers();
-        }
-    };
+    // Precarga en hover/touch ya no necesaria — React Query cachea automáticamente
+    const precargarTab = (_id: TabCardYA) => { /* no-op: React Query maneja caché */ };
 
     // =========================================================================
     // DEEP LINK: Leer query params desde notificaciones
@@ -344,12 +310,15 @@ export function PaginaCardYA() {
     const handleConfirmarCanje = async () => {
         if (!recompensaACanjear) return;
 
-        const resultado = await canjearRecompensa({
-            recompensaId: recompensaACanjear.id,
-        });
-
-        if (resultado) {
-            setVoucherGenerado(resultado);
+        try {
+            const respuesta = await canjearMutation.mutateAsync({
+                recompensaId: recompensaACanjear.id,
+            });
+            if (respuesta.data) {
+                setVoucherGenerado(respuesta.data);
+            }
+        } catch {
+            // Error ya notificado por la mutación
         }
         setRecompensaACanjear(null);
     };
@@ -774,7 +743,9 @@ export function PaginaCardYA() {
                 onCerrar={() => setVoucherSeleccionado(null)}
                 voucher={voucherSeleccionado}
                 onCancelarVoucher={async (v) => {
-                    await cancelarVoucher(v.id);
+                    try {
+                        await cancelarMutation.mutateAsync(v.id);
+                    } catch { /* Error ya notificado */ }
                     setVoucherSeleccionado(null);
                 }}
             />
