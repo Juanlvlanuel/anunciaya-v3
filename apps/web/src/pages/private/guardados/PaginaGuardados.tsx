@@ -33,7 +33,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { OfertaCard, ModalOfertaDetalle } from '@/components/negocios';
 import { CardNegocioDetallado } from '@/components/negocios/CardNegocioDetallado';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '@/services/api';
+import { useOfertasGuardadas, useNegociosSeguidos } from '@/hooks/queries/useGuardados';
 import notificar from '@/utils/notificaciones';
 import type { Oferta } from '@/types/ofertas';
 
@@ -84,6 +86,7 @@ interface NegocioSeguido {
 
 export function PaginaGuardados() {
     const navigate = useNavigate();
+    const qc = useQueryClient();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const { latitud, longitud } = useGpsStore();
 
@@ -97,14 +100,14 @@ export function PaginaGuardados() {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
-    // State Ofertas
-    const [ofertas, setOfertas] = useState<GuardadoOferta[]>([]);
-    const [loadingOfertas, setLoadingOfertas] = useState(false);
+    // React Query — datos del servidor
+    const ofertasQuery = useOfertasGuardadas();
+    const negociosQuery = useNegociosSeguidos();
+    const ofertas = (ofertasQuery.data ?? []) as GuardadoOferta[];
+    const negocios = (negociosQuery.data ?? []) as NegocioSeguido[];
+    const loadingOfertas = ofertasQuery.isPending;
+    const loadingNegocios = negociosQuery.isPending;
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<GuardadoOferta | null>(null);
-
-    // State Negocios
-    const [negocios, setNegocios] = useState<NegocioSeguido[]>([]);
-    const [loadingNegocios, setLoadingNegocios] = useState(false);
 
     // Filtros (para implementación futura)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -118,13 +121,7 @@ export function PaginaGuardados() {
     // Effects
     // ---------------------------------------------------------------------------
     
-    // Cargar todos los datos al inicio (paralelo)
-    useEffect(() => {
-        Promise.all([
-            fetchOfertasGuardadas(),
-            fetchNegociosSeguidos(),
-        ]);
-    }, []);
+    // Carga manejada por React Query
 
     // Reset modo selección al cambiar tab
     useEffect(() => {
@@ -136,61 +133,7 @@ export function PaginaGuardados() {
     // Fetch Functions
     // ---------------------------------------------------------------------------
 
-    /**
-     * Obtiene ofertas guardadas con datos completos (JOIN en backend)
-     */
-    async function fetchOfertasGuardadas() {
-        try {
-            setLoadingOfertas(true);
-            const response = await api.get('/guardados', {
-                params: {
-                    entityType: 'oferta',
-                    pagina: 1,
-                    limite: 50,
-                },
-            });
-
-            if (response.data.success) {
-                setOfertas(response.data.data.guardados || []);
-            }
-        } catch (error) {
-            console.error('Error al obtener ofertas guardadas:', error);
-        } finally {
-            setLoadingOfertas(false);
-        }
-    }
-
-    /**
-     * Obtiene negocios seguidos filtrando por modo activo del usuario.
-     * El interceptor de Axios agrega votanteSucursalId automáticamente en modo comercial.
-     * En modo personal no agrega nada → el backend filtra votante_sucursal_id IS NULL.
-     */
-    async function fetchNegociosSeguidos() {
-        try {
-            setLoadingNegocios(true);
-
-            const params: Record<string, string | number> = {
-                entityType: 'sucursal',
-                pagina: 1,
-                limite: 50,
-            };
-
-            if (latitud && longitud) {
-                params.latitud = latitud;
-                params.longitud = longitud;
-            }
-
-            const response = await api.get('/seguidos', { params });
-
-            if (response.data.success) {
-                setNegocios(response.data.data.seguidos || []);
-            }
-        } catch (error) {
-            console.error('Error al obtener negocios seguidos:', error);
-        } finally {
-            setLoadingNegocios(false);
-        }
-    }
+    // Fetch functions eliminadas — React Query maneja la carga
 
     // ---------------------------------------------------------------------------
     // Handlers
@@ -264,12 +207,7 @@ export function PaginaGuardados() {
         const negociosOriginales = [...negocios];
 
         try {
-            // Eliminación optimista - actualizar UI inmediatamente
-            if (tabActivo === 'ofertas') {
-                setOfertas(ofertas.filter((o) => !idsSeleccionados.has(o.id)));
-            } else if (tabActivo === 'negocios') {
-                setNegocios(negocios.filter((n) => !idsSeleccionados.has(n.id)));
-            }
+            // Eliminación: se refresca después del delete
 
             setIdsSeleccionados(new Set());
             setModoSeleccion(false);
@@ -305,15 +243,12 @@ export function PaginaGuardados() {
             await Promise.all(promesas);
 
             notificar.exito('Eliminados correctamente');
+            qc.invalidateQueries({ queryKey: ['guardados'] });
         } catch (error) {
             console.error('Error al eliminar guardados:', error);
             
-            // Rollback - restaurar estado anterior si falla
-            if (tabActivo === 'ofertas') {
-                setOfertas(ofertasOriginales);
-            } else if (tabActivo === 'negocios') {
-                setNegocios(negociosOriginales);
-            }
+            // Rollback - refetch para restaurar estado
+            qc.invalidateQueries({ queryKey: ['guardados'] });
 
             notificar.error('Error al eliminar');
         }
