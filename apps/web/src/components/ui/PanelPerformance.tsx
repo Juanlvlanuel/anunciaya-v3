@@ -22,31 +22,19 @@ export function PanelPerformance() {
   const [contadores, setContadores] = useState({ navegaciones: 0, llamadasAPI: 0 });
   const rutaRef = useRef(window.location.pathname);
 
-  // Interceptar cambios de ruta del browser
+  // Detectar cambios de ruta — polling cada 200ms (compatible con React Router v6)
   useEffect(() => {
-    const registrarRuta = (ruta: string) => {
-      if (ruta === rutaRef.current) return;
-      rutaRef.current = ruta;
-      if (window.__PERF_BS__) {
-        performanceMonitor.registrarNavegacion(ruta);
+    const intervaloRuta = setInterval(() => {
+      const rutaActual = window.location.pathname;
+      if (rutaActual !== rutaRef.current) {
+        rutaRef.current = rutaActual;
+        if (window.__PERF_BS__) {
+          performanceMonitor.registrarNavegacion(rutaActual);
+        }
       }
-    };
+    }, 200);
 
-    // Interceptar pushState (React Router usa esto para navegar)
-    const pushStateOriginal = history.pushState.bind(history);
-    history.pushState = (...args: Parameters<typeof history.pushState>) => {
-      pushStateOriginal(...args);
-      registrarRuta(window.location.pathname);
-    };
-
-    // Detectar back/forward del browser
-    const onPopState = () => registrarRuta(window.location.pathname);
-    window.addEventListener('popstate', onPopState);
-
-    return () => {
-      history.pushState = pushStateOriginal;
-      window.removeEventListener('popstate', onPopState);
-    };
+    return () => clearInterval(intervaloRuta);
   }, []);
 
   // Polling: detectar activación y actualizar contadores cada segundo
