@@ -46,7 +46,9 @@ import {
     Crosshair,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { usePerfilNegocio } from '../../../hooks/usePerfilNegocio';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNegocioPerfil, useNegocioOfertas, useNegocioCatalogo, useNegocioResenas } from '../../../hooks/queries/useNegocios';
+import type { NegocioCompleto } from '../../../types/negocios';
 import { useVotos } from '../../../hooks/useVotos';
 import { api } from '../../../services/api';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -55,7 +57,7 @@ import 'leaflet/dist/leaflet.css';
 import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../components/negocios/ModalHorarios';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
-import { useNegociosCacheStore } from '../../../stores/useNegociosCacheStore';
+// useNegociosCacheStore eliminado — React Query maneja caché
 import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { useUiStore } from '../../../stores/useUiStore';
 import { notificar } from '../../../utils/notificaciones';
@@ -482,12 +484,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     // ✅ Store de caché para ofertas y catálogo
-    const {
-        obtenerOfertasCache,
-        obtenerCatalogoCache,
-        guardarOfertasCache,
-        guardarCatalogoCache
-    } = useNegociosCacheStore();
+    // React Query
+    const qc = useQueryClient();
     const location = useLocation();
 
     const [totalLikes, setTotalLikes] = useState<number | undefined>(undefined);
@@ -532,16 +530,29 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     // Modal del mapa expandido
     const [modalMapaAbierto, setModalMapaAbierto] = useState(false);
 
-    // Estado del catálogo (fetch desde backend)
-    const [catalogo, setCatalogo] = useState<ItemCatalogo[]>([]);
+    // React Query — perfil, catálogo, reseñas, ofertas (con caché automático)
+    const perfilQuery = useNegocioPerfil(sucursalId);
+    const negocio = (perfilQuery.data ?? null) as NegocioCompleto | null;
+    const loading = perfilQuery.isPending;
+    const error = perfilQuery.error ? 'Error al cargar negocio' : null;
 
-    // Estado de las reseñas (fetch desde backend)
-    const [resenas, setResenas] = useState<Resena[]>([]);
+    const catalogoQuery = useNegocioCatalogo(negocio?.negocioId);
+    const catalogo = (catalogoQuery.data ?? []) as ItemCatalogo[];
+    const resenasQuery = useNegocioResenas(sucursalId);
+    const resenas = (resenasQuery.data ?? []) as Resena[];
+    const ofertasQueryRaw = useNegocioOfertas(sucursalId);
+    const ofertas: Oferta[] = ((ofertasQueryRaw.data ?? []) as Array<Record<string, unknown>>).map(o => ({
+        id: (o.ofertaId ?? o.id) as string,
+        titulo: o.titulo as string,
+        descripcion: o.descripcion as string | undefined,
+        imagen: o.imagen as string | undefined,
+        tipo: o.tipo as Oferta['tipo'],
+        valor: o.valor != null ? (isNaN(Number(o.valor)) ? o.valor : Number(o.valor)) as Oferta['valor'] : undefined,
+        fechaFin: o.fechaFin as string | undefined,
+    }));
+
     const [puedeResenar, setPuedeResenar] = useState(false);
     const [resenaDeepLinkId, setResenaDeepLinkId] = useState<string | null>(null);
-
-    // Estado de las ofertas (fetch desde backend)
-    const [ofertas, setOfertas] = useState<Oferta[]>([]);
 
     // Estado para oferta abierta desde deep link (notificación)
     const [ofertaDeepLink, setOfertaDeepLink] = useState<Oferta | null>(null);
@@ -578,24 +589,22 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         }
     };
 
-    const { negocio, loading, error } = usePerfilNegocio(sucursalId, {
-        onSuccess: async (negocio) => {
-            setTotalLikes(negocio.totalLikes);
-            setTotalVisitas(negocio.metricas?.totalViews ?? 0);
+    // Registrar vista cuando carga el perfil
+    useEffect(() => {
+        if (!negocio) return;
+        setTotalLikes(negocio.totalLikes);
+        setTotalVisitas(negocio.metricas?.totalViews ?? 0);
 
-            // Solo registrar vistas si el usuario está logueado
-            if (estaLogueado && !vistaRegistrada.current && !yaVistoEnSesion(negocio.sucursalId)) {
-                vistaRegistrada.current = true;
-                try {
-                    await api.post('/metricas/view', { entityType: 'sucursal', entityId: negocio.sucursalId });
+        if (estaLogueado && !vistaRegistrada.current && !yaVistoEnSesion(negocio.sucursalId)) {
+            vistaRegistrada.current = true;
+            api.post('/metricas/view', { entityType: 'sucursal', entityId: negocio.sucursalId })
+                .then(() => {
                     marcarComoVisitado(negocio.sucursalId);
                     setTotalVisitas(prev => (prev ?? 0) + 1);
-                } catch (error) {
-                    console.error('❌ Error al registrar vista:', error);
-                }
-            }
-        },
-    });
+                })
+                .catch(() => {});
+        }
+    }, [negocio?.sucursalId]);
 
     const { liked, followed, toggleLike, toggleFollow } = useVotos({
         entityType: 'sucursal',
@@ -646,84 +655,12 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         }
     }, [negocio?.latitud, negocio?.longitud, userLat, userLng]);
 
-    // ✅ Fetch del catálogo - PRIMERO busca en caché
-    useEffect(() => {
-        if (!negocio?.negocioId || !sucursalId) return;
-
-        // Intentar leer del caché primero
-        const catalogoCacheado = obtenerCatalogoCache(sucursalId);
-        if (catalogoCacheado) {
-            setCatalogo(catalogoCacheado);
-            return;
-        }
-
-        // Si no hay caché, hacer fetch normal
-        api.get(`/articulos/negocio/${negocio.negocioId}`, { params: { sucursalId } })
-            .then(res => {
-                if (res.data.success) {
-                    const data = res.data.data || [];
-                    setCatalogo(data);
-                    // Guardar en caché para futuras visitas
-                    guardarCatalogoCache(sucursalId, data);
-                }
-            })
-            .catch(() => setCatalogo([]));
-    }, [negocio?.negocioId, sucursalId, obtenerCatalogoCache, guardarCatalogoCache]);
+    // Catálogo, ofertas y reseñas manejados por React Query (arriba)
 
 
-    // Fetch de las reseñas cuando se carga el negocio
-    useEffect(() => {
-        if (sucursalId) {
-            api.get(`/resenas/sucursal/${sucursalId}`)
-                .then(res => {
-                    if (res.data.success) {
-                        setResenas(res.data.data || []);
-                    }
-                })
-                .catch(() => setResenas([]));
-        }
-    }, [sucursalId]);
+    // Reseñas manejadas por React Query (arriba)
 
-    // ✅ Fetch de las ofertas - PRIMERO busca en caché
-    useEffect(() => {
-        if (!sucursalId) return;
-
-        // Intentar leer del caché primero
-        const ofertasCacheadas = obtenerOfertasCache(sucursalId);
-        if (ofertasCacheadas) {
-            setOfertas(ofertasCacheadas);
-            return;
-        }
-
-        // Si no hay caché, hacer fetch normal
-        const fechaLocal = new Date().toLocaleDateString('en-CA');
-        api.get('/ofertas/feed', { params: { sucursalId, limite: 50, fechaLocal } })
-            .then(res => {
-                if (res.data.success && res.data.data) {
-                    const ofertasMapeadas = res.data.data.map((o: {
-                        ofertaId: string;
-                        titulo: string;
-                        descripcion?: string;
-                        imagen?: string;
-                        tipo: Oferta['tipo'];
-                        valor?: string;
-                        fechaFin?: string;
-                    }) => ({
-                        id: o.ofertaId,
-                        titulo: o.titulo,
-                        descripcion: o.descripcion,
-                        imagen: o.imagen,
-                        tipo: o.tipo,
-                        valor: o.valor != null ? (isNaN(Number(o.valor)) ? o.valor : Number(o.valor)) : undefined,
-                        fechaFin: o.fechaFin,
-                    }));
-                    setOfertas(ofertasMapeadas);
-                    // Guardar en caché para futuras visitas
-                    guardarOfertasCache(sucursalId, ofertasMapeadas);
-                }
-            })
-            .catch(() => setOfertas([]));
-    }, [sucursalId, obtenerOfertasCache, guardarOfertasCache]);
+    // Ofertas manejadas por React Query (arriba)
 
     // =========================================================================
     // DEEP LINK: Abrir modal de oferta desde notificación (?ofertaId=xxx)
@@ -1473,6 +1410,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                 <img
                                                     src={imagen.url}
                                                     alt={imagen.titulo || 'Imagen'}
+                                                    loading="lazy"
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                                 />
                                             </div>
@@ -1892,7 +1830,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         texto: texto || undefined,
                                     });
                                     if (res.data.success) {
-                                        setResenas(prev => [res.data.data, ...prev]);
+                                        qc.invalidateQueries({ queryKey: ['negocios', 'resenas', sucursalId] });
                                     }
                                 } catch (error: unknown) {
                                     const axiosError = error as { response?: { data?: { message?: string } } };
@@ -1906,11 +1844,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         texto: texto || undefined,
                                     });
                                     if (res.data.success) {
-                                        setResenas(prev => prev.map(r =>
-                                            r.id === resenaId
-                                                ? { ...r, rating: res.data.data.rating ?? r.rating, texto: res.data.data.texto ?? r.texto }
-                                                : r
-                                        ));
+                                        qc.invalidateQueries({ queryKey: ['negocios', 'resenas', sucursalId] });
                                     }
                                 } catch (error: unknown) {
                                     const axiosError = error as { response?: { data?: { message?: string } } };

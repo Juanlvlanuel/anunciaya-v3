@@ -17,7 +17,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Store, ChevronRight, Star, Bookmark } from 'lucide-react';
 import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
 import { ModalHorarios } from './ModalHorarios';
-import { useNegociosCacheStore } from '../../stores/useNegociosCacheStore';
+import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useUiStore } from '../../stores/useUiStore';
 
@@ -116,7 +116,7 @@ export function CardNegocioDetallado({
     className = '',
 }: CardNegocioDetalladoProps) {
 
-    const { prefetchCompleto } = useNegociosCacheStore();
+    const { prefetch: prefetchCompleto } = useNegocioPrefetch();
     const { abrirChatTemporal } = useChatYAStore();
     const { abrirChatYA } = useUiStore();
 
@@ -176,7 +176,7 @@ export function CardNegocioDetallado({
     const handleMouseEnter = () => {
         if (!prefetchEjecutado.current) {
             prefetchEjecutado.current = true;
-            prefetchCompleto(negocio.sucursalId);
+            prefetchCompleto(negocio.sucursalId, '');
         }
     };
 

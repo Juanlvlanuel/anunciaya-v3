@@ -197,4 +197,4 @@ export function ChipsFiltros({
   );
 }
 
-export default ChipsFiltros;
+export default React.memo(ChipsFiltros);

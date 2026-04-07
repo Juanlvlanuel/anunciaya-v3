@@ -37,7 +37,7 @@ import {
   Star,
   ChevronRight,
 } from 'lucide-react';
-import { useListaNegocios } from '../../../hooks/useListaNegocios';
+import { useNegociosLista } from '../../../hooks/queries/useNegocios';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useCategorias } from '../../../hooks/useCategorias';
@@ -56,7 +56,7 @@ import 'leaflet/dist/leaflet.css';
 
 const iconoNegocio = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -69,7 +69,7 @@ const iconoSeleccionadoAnimado = new L.DivIcon({
     <div class="pin-pulse-ring"></div>
     <div class="pin-pulse-ring pin-pulse-ring-2"></div>
     <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png" class="pin-icon-img" />
-    <img src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png" class="pin-shadow-img" />
+    <img src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png" class="pin-shadow-img" />
   </div>`,
   iconSize: [30, 49],
   iconAnchor: [15, 49],
@@ -78,7 +78,7 @@ const iconoSeleccionadoAnimado = new L.DivIcon({
 
 const iconoUsuario = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -373,7 +373,7 @@ export function PaginaNegocios() {
 
   // Stores y hooks
   const { latitud, longitud } = useGpsStore();
-  const { negocios: negociosRaw, loading, refetch } = useListaNegocios();
+  const { data: negociosRaw = [], isPending: loading } = useNegociosLista();
   const searchQuery = useSearchStore((s) => s.query);
   const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
 
@@ -442,12 +442,7 @@ export function PaginaNegocios() {
     ? [latitud, longitud]
     : [31.3125, -113.5275]; // Puerto Peñasco default
 
-  // ✅ Recargar negocios cuando cambie la ubicación
-  useEffect(() => {
-    if (latitud && longitud) {
-      refetch();
-    }
-  }, [latitud, longitud]);
+  // Recarga automática por React Query cuando cambia GPS (en query key)
 
   // ✅ Cleanup: Resetear filtros temporales al salir de la página
   useEffect(() => {
@@ -662,10 +657,11 @@ export function PaginaNegocios() {
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              keepBuffer={5}
+              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              keepBuffer={12}
               updateWhenZooming={false}
-              updateWhenIdle={true}
+              updateWhenIdle={false}
+              loadingBackgroundColor="#f1f5f9"
             />
 
             {latitud && longitud && (
@@ -952,7 +948,7 @@ export function PaginaNegocios() {
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                 keepBuffer={5}
                 updateWhenZooming={false}
                 updateWhenIdle={true}

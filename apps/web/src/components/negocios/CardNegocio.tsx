@@ -31,7 +31,7 @@
  * - Business Studio (preview con forzarVertical)
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -41,7 +41,7 @@ import {
   Store,
   ChevronRight,
 } from 'lucide-react';
-import { useNegociosCacheStore } from '../../stores/useNegociosCacheStore';
+import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
 import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
 import { useVotos } from '../../hooks/useVotos';
 import { ModalHorarios } from './ModalHorarios';
@@ -104,27 +104,34 @@ function getAccentColor(categoriaNombre: string | undefined): AccentColor {
 // KEYFRAMES (inyectados una sola vez)
 // =============================================================================
 
-const CARD_STYLES = `
-  @keyframes cardStatusPulse {
-    0%, 100% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(2.4); opacity: 0; }
-  }
-  @keyframes cardHeartBounce {
-    0% { transform: scale(1); }
-    25% { transform: scale(1.35); }
-    50% { transform: scale(0.9); }
-    75% { transform: scale(1.1); }
-    100% { transform: scale(1); }
-  }
-  @keyframes cardHeartRingPulse {
-    0%, 100% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(1.5); opacity: 0; }
-  }
-  @keyframes cardFloatUp {
-    0% { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-50px); }
-  }
-`;
+// Inyectar estilos UNA SOLA VEZ en el document (no por cada card)
+const CARD_STYLES_ID = 'card-negocio-styles';
+if (typeof document !== 'undefined' && !document.getElementById(CARD_STYLES_ID)) {
+  const style = document.createElement('style');
+  style.id = CARD_STYLES_ID;
+  style.textContent = `
+    @keyframes cardStatusPulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(2.4); opacity: 0; }
+    }
+    @keyframes cardHeartBounce {
+      0% { transform: scale(1); }
+      25% { transform: scale(1.35); }
+      50% { transform: scale(0.9); }
+      75% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    @keyframes cardHeartRingPulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.5); opacity: 0; }
+    }
+    @keyframes cardFloatUp {
+      0% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-50px); }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 // =============================================================================
 // COMPONENTE
@@ -137,7 +144,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
   const [esVisible, setEsVisible] = useState(false);
 
   // ✅ Pre-fetch COMPLETO (perfil + ofertas + catálogo)
-  const { prefetchCompleto } = useNegociosCacheStore();
+  const { prefetch: prefetchCompleto } = useNegocioPrefetch();
   const cardRef = useRef<HTMLDivElement>(null);
   const prefetchEjecutado = useRef(false);
 
@@ -198,9 +205,11 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
     }
   };
 
-  // ── Ref para acceder a imagenActual dentro del interval ──
+  // ── Refs para acceder a valores actuales dentro del interval (sin recrearlo) ──
   const imagenActualRef = useRef(imagenActual);
   useEffect(() => { imagenActualRef.current = imagenActual; }, [imagenActual]);
+  const irAImagenRef = useRef(irAImagen);
+  useEffect(() => { irAImagenRef.current = irAImagen; }, [irAImagen]);
 
   // ── Autoplay: rotar imágenes cada 4s (solo si hay más de 1 Y es visible) ──
   useEffect(() => {
@@ -208,10 +217,10 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
     const interval = setInterval(() => {
       const total = negocio.galeria?.length ?? 0;
       const siguiente = imagenActualRef.current === total - 1 ? 0 : imagenActualRef.current + 1;
-      irAImagen(siguiente);
+      irAImagenRef.current(siguiente);
     }, 4000);
     return () => clearInterval(interval);
-  }, [negocio.galeria, irAImagen, esVisible]);
+  }, [negocio.galeria?.length, esVisible]);
 
   // ── Observer unificado: visibilidad (pausa efectos) + pre-fetch ──
   useEffect(() => {
@@ -222,7 +231,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
           setEsVisible(entry.isIntersecting);
           if (entry.isIntersecting && !prefetchEjecutado.current) {
             prefetchEjecutado.current = true;
-            prefetchCompleto(negocio.sucursalId);
+            prefetchCompleto(negocio.sucursalId, negocio.negocioId);
           }
         });
       },
@@ -248,7 +257,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
   const handleMouseEnter = () => {
     if (!prefetchEjecutado.current) {
       prefetchEjecutado.current = true;
-      prefetchCompleto(negocio.sucursalId);
+      prefetchCompleto(negocio.sucursalId, negocio.negocioId);
     }
   };
 
@@ -667,9 +676,8 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
         <ModalHorarios horarios={horarios} onClose={handleCerrarModalHorarios} />
       )}
 
-      <style>{CARD_STYLES}</style>
     </div>
   );
 }
 
-export default CardNegocio;
+export default memo(CardNegocio);
