@@ -15,7 +15,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useGpsStore } from '@/stores/useGpsStore';
+// GPS manejado internamente por useNegociosSeguidos
 import { useUiStore } from '@/stores/useUiStore';
 import {
     Heart,
@@ -88,7 +88,6 @@ export function PaginaGuardados() {
     const navigate = useNavigate();
     const qc = useQueryClient();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
-    const { latitud, longitud } = useGpsStore();
 
     // ---------------------------------------------------------------------------
     // State
