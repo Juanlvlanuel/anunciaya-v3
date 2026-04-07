@@ -1219,5 +1219,5 @@ npm run build
 
 ---
 
-*Documentación actualizada el 18 de Febrero 2026 (v3.0)*  
+*Documentación actualizada el 07 de Abril 2026 (v3.0)*  
 *Basada en Chats: #6.73, #6.62, #6.63, #6.74, #6.75, #6.76*
