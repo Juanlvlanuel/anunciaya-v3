@@ -661,7 +661,6 @@ export function PaginaNegocios() {
               keepBuffer={12}
               updateWhenZooming={false}
               updateWhenIdle={false}
-              loadingBackgroundColor="#f1f5f9"
             />
 
             {latitud && longitud && (
