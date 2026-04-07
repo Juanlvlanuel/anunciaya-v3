@@ -35,7 +35,7 @@ import { OfertaCard, ModalOfertaDetalle } from '@/components/negocios';
 import { CardNegocioDetallado } from '@/components/negocios/CardNegocioDetallado';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@/services/api';
-import { useOfertasGuardadas, useNegociosSeguidos } from '@/hooks/queries/useGuardados';
+import { useOfertasGuardadas, useNegociosSeguidos } from '@/hooks/queries/useMisGuardados';
 import notificar from '@/utils/notificaciones';
 import type { Oferta } from '@/types/ofertas';
 
