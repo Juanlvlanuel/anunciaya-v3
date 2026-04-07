@@ -40,8 +40,7 @@ import {
 import { useNegociosLista } from '../../../hooks/queries/useNegocios';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
-import { useCategorias } from '../../../hooks/useCategorias';
-import { useSubcategorias } from '../../../hooks/useSubcategorias';
+import { usePerfilCategorias, usePerfilSubcategorias } from '../../../hooks/queries/usePerfil';
 import { useSearchStore } from '../../../stores/useSearchStore';
 // PanelFiltros eliminado
 import { CardNegocio } from '../../../components/negocios/CardNegocio';
@@ -417,7 +416,7 @@ export function PaginaNegocios() {
     });
   }, [searchQuery, negociosRaw]);
 
-  const { categorias } = useCategorias();
+  const { data: categorias = [] } = usePerfilCategorias();
   const {
     categoria,
     setCategoria,
@@ -435,7 +434,7 @@ export function PaginaNegocios() {
   } = useFiltrosNegociosStore();
 
   // Opciones de subcategorías basadas en la categoría seleccionada
-  const { subcategorias: opcionesSubcategorias } = useSubcategorias(categoria);
+  const { data: opcionesSubcategorias = [] } = usePerfilSubcategorias(categoria ?? 0);
 
   // Centro del mapa
   const centroInicial: [number, number] = latitud && longitud
