@@ -109,10 +109,10 @@ export function useClienteHistorial(clienteId: string | null) {
 // SELECTOR DE CLIENTES (para asignar cupones — carga todos, staleTime alto)
 // =============================================================================
 
-export function useClientesSelector() {
+export function useClientesSelector(activo = true) {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
   const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
-  const habilitado = !!sucursalId && modoActivo === 'comercial';
+  const habilitado = !!sucursalId && modoActivo === 'comercial' && activo;
 
   return useQuery({
     queryKey: queryKeys.clientes.selector(sucursalId),

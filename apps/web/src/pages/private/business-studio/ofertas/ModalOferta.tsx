@@ -105,7 +105,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
     const [clienteDetalleId, setClienteDetalleId] = useState<string | null>(null);
 
     // React Query — clientes disponibles (selector) y asignados (edición cupón)
-    const clientesSelectorQuery = useClientesSelector();
+    const clientesSelectorQuery = useClientesSelector(abierto);
     const clientesDisponibles: ClienteItem[] = (clientesSelectorQuery.data ?? []).map(c => ({
         id: c.id, nombre: c.nombre, telefono: c.telefono,
         avatarUrl: c.avatarUrl, nivelActual: c.nivelActual,
