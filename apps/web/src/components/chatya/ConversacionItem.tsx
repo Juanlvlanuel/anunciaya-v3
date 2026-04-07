@@ -8,7 +8,7 @@
  * UBICACIÓN: apps/web/src/components/chatya/ConversacionItem.tsx
  */
 
-import { useRef, useCallback } from 'react';
+import { memo, useRef, useCallback } from 'react';
 import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText, Ticket } from 'lucide-react';
 import type { Conversacion } from '../../types/chatya';
 import { useChatYAStore } from '../../stores/useChatYAStore';
@@ -22,7 +22,8 @@ import { TextoConEmojis } from './TextoConEmojis';
 interface ConversacionItemProps {
   conversacion: Conversacion;
   activa: boolean;
-  onClick: () => void;
+  /** Callback estable que recibe el ID — evita crear arrow functions inline en .map() */
+  onClickConversacion: (conversacionId: string) => void;
   onMenuContextual?: (conversacion: Conversacion, posicion: { x: number; y: number }) => void;
   /** Modo selección múltiple (estilo WhatsApp) */
   modoSeleccion?: boolean;
@@ -90,7 +91,7 @@ function formatearTiempo(fecha: string | null): string {
 // COMPONENTE
 // =============================================================================
 
-export function ConversacionItem({ conversacion, activa, onClick, onMenuContextual, modoSeleccion, seleccionada, onLongPress, onToggleSeleccion }: ConversacionItemProps) {
+export const ConversacionItem = memo(function ConversacionItem({ conversacion, activa, onClickConversacion, onMenuContextual, modoSeleccion, seleccionada, onLongPress, onToggleSeleccion }: ConversacionItemProps) {
   const otro = conversacion.otroParticipante;
   const bloqueados = useChatYAStore((s) => s.bloqueados);
   const borradores = useChatYAStore((s) => s.borradores);
@@ -154,8 +155,8 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
       onToggleSeleccion(conversacion.id);
       return;
     }
-    onClick();
-  }, [onClick, modoSeleccion, onToggleSeleccion, conversacion.id]);
+    onClickConversacion(conversacion.id);
+  }, [onClickConversacion, modoSeleccion, onToggleSeleccion, conversacion.id]);
 
   // Nombre a mostrar: negocio si aplica, sino nombre personal
   const nombre = otro?.negocioNombre || (otro ? `${otro.nombre} ${otro.apellidos || ''}`.trim() : 'Chat');
@@ -323,6 +324,6 @@ export function ConversacionItem({ conversacion, activa, onClick, onMenuContextu
       </div>
     </button>
   );
-}
+});
 
 export default ConversacionItem;

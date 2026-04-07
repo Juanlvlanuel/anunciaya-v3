@@ -259,6 +259,12 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
     inputRef.current?.focus();
   }, []);
 
+  /** Abrir conversación desde resultados de búsqueda (abre + limpia búsqueda) */
+  const abrirDesdeResultado = useCallback((conversacionId: string) => {
+    abrirConversacion(conversacionId);
+    limpiarBusqueda();
+  }, [abrirConversacion, limpiarBusqueda]);
+
   // ---------------------------------------------------------------------------
   // Handler: Ver / salir de archivados
   // ---------------------------------------------------------------------------
@@ -539,7 +545,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
                 key={conv.id}
                 conversacion={conv}
                 activa={conv.id === conversacionActivaId}
-                onClick={() => abrirConversacion(conv.id)}
+                onClickConversacion={abrirConversacion}
                 onMenuContextual={handleMenuContextual}
               />
             ))
@@ -646,10 +652,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
                   key={conv.id}
                   conversacion={conv}
                   activa={conv.id === conversacionActivaId}
-                  onClick={() => {
-                    abrirConversacion(conv.id);
-                    limpiarBusqueda();
-                  }}
+                  onClickConversacion={abrirDesdeResultado}
                   onMenuContextual={handleMenuContextual}
                 />
               ))}
@@ -904,7 +907,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
                 key={conv.id}
                 conversacion={conv}
                 activa={conv.id === conversacionActivaId}
-                onClick={() => abrirConversacion(conv.id)}
+                onClickConversacion={abrirConversacion}
                 onMenuContextual={handleMenuContextual}
                 modoSeleccion={modoSeleccion}
                 seleccionada={seleccionadas?.has(conv.id)}

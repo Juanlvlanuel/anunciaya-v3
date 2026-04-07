@@ -44,6 +44,16 @@ interface ResumenReporte {
   timeouts: number;
 }
 
+interface MarcaChatYA {
+  nombre: string;
+  tiempo: number;
+}
+
+interface SesionChatYA {
+  inicio: number;
+  marcas: MarcaChatYA[];
+}
+
 interface ReportePerformance {
   meta: {
     ambiente: string;
@@ -53,6 +63,7 @@ interface ReportePerformance {
   };
   navegacion: EntradaNavegacion[];
   resumen: ResumenReporte;
+  chatya_diagnostico?: SesionChatYA[];
 }
 
 // ============================================================
@@ -195,7 +206,7 @@ class PerformanceMonitor {
 
   // ---- Generar y descargar reporte ----
 
-  descargarReporte(): void {
+  async descargarReporte(): Promise<void> {
     // Incluir navegación actual en el reporte sin cerrarla
     const todasLasNavegaciones = [...this.navegaciones];
     if (this.navegacionActual) {
@@ -237,6 +248,17 @@ class PerformanceMonitor {
       timeouts,
     };
 
+    // Incluir diagnóstico de ChatYA si existe
+    let chatYADiag: SesionChatYA[] | undefined;
+    try {
+      // Import dinámico para no crear dependencia circular
+      const { diagObtenerHistorial } = await import('./diagnosticoChatYA');
+      const hist = diagObtenerHistorial();
+      if (hist.length > 0) chatYADiag = hist;
+    } catch {
+      // Si falla, no incluir
+    }
+
     const reporte: ReportePerformance = {
       meta: {
         ambiente: import.meta.env.MODE,
@@ -246,6 +268,7 @@ class PerformanceMonitor {
       },
       navegacion: todasLasNavegaciones,
       resumen,
+      ...(chatYADiag ? { chatya_diagnostico: chatYADiag } : {}),
     };
 
     const blob = new Blob([JSON.stringify(reporte, null, 2)], {

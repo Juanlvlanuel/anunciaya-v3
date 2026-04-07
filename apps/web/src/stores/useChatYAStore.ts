@@ -464,7 +464,9 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   },
 
   setVisorAbierto: (abierto: boolean) => set({ visorAbierto: abierto }),
-  setPanelInfoAbierto: (abierto: boolean) => set({ panelInfoAbierto: abierto }),
+  setPanelInfoAbierto: (abierto: boolean) => {
+    if (get().panelInfoAbierto !== abierto) set({ panelInfoAbierto: abierto });
+  },
 
   // ===========================================================================
   // ACCIONES: Conversaciones

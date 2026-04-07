@@ -28,6 +28,25 @@ import { extraerPrimeraUrl } from './enlacesUtils';
 import { analizarEmojis, tamañoEmojiSolo } from './emojiUtils';
 import { Howl, Howler } from 'howler';
 // =============================================================================
+// ESTILOS GLOBALES (inyección única en document.head)
+// =============================================================================
+
+const CUPON_STYLES_ID = 'chatya-cupon-keyframes';
+if (typeof document !== 'undefined' && !document.getElementById(CUPON_STYLES_ID)) {
+  const style = document.createElement('style');
+  style.id = CUPON_STYLES_ID;
+  style.textContent = `
+    @keyframes cupon-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+    @keyframes cupon-shine { 0%{left:-100%} 100%{left:200%} }
+    @keyframes cupon-confetti { 0%{opacity:1;transform:translateY(0) rotate(0)} 100%{opacity:0;transform:translateY(-20px) rotate(25deg)} }
+    .cupon-regalo { animation: cupon-bounce 2s ease-in-out infinite; }
+    .cupon-btn-shine { position:relative; overflow:hidden; }
+    .cupon-btn-shine::after { content:''; position:absolute; top:0; left:-100%; width:60%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent); animation:cupon-shine 3s ease-in-out infinite; }
+  `;
+  document.head.appendChild(style);
+}
+
+// =============================================================================
 // CONSTANTES
 // =============================================================================
 
@@ -1372,14 +1391,6 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                 const datos = JSON.parse(mensaje.contenido);
                 return (
                   <>
-                    <style>{`
-                      @keyframes cupon-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-                      @keyframes cupon-shine { 0%{left:-100%} 100%{left:200%} }
-                      @keyframes cupon-confetti { 0%{opacity:1;transform:translateY(0) rotate(0)} 100%{opacity:0;transform:translateY(-20px) rotate(25deg)} }
-                      .cupon-regalo { animation: cupon-bounce 2s ease-in-out infinite; }
-                      .cupon-btn-shine { position:relative; overflow:hidden; }
-                      .cupon-btn-shine::after { content:''; position:absolute; top:0; left:-100%; width:60%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent); animation:cupon-shine 3s ease-in-out infinite; }
-                    `}</style>
                     <div className="w-64 lg:w-56 2xl:w-64 rounded-xl overflow-hidden" style={{ border: '2px solid #10b981', boxShadow: '0 4px 20px rgba(16,185,129,0.2)' }}>
                       {/* Imagen */}
                       {datos.imagen && (

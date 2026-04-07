@@ -27,6 +27,26 @@ import { obtenerMiIdChatYA } from '../../hooks/useChatYASession';
 import type { Mensaje } from '../../types/chatya';
 
 // =============================================================================
+// ESTILOS GLOBALES (inyección única en document.head)
+// =============================================================================
+
+const AUDIO_STYLES_ID = 'chatya-audio-keyframes';
+if (typeof document !== 'undefined' && !document.getElementById(AUDIO_STYLES_ID)) {
+  const style = document.createElement('style');
+  style.id = AUDIO_STYLES_ID;
+  style.textContent = `
+    @keyframes ab-fondo { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
+    @keyframes ab-aparece { 0% { opacity: 0; transform: scale(0.4) translateY(20px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+    @keyframes ab-tapa-abre { 0% { transform: rotate(0deg); } 100% { transform: rotate(-35deg); } }
+    @keyframes ab-tapa-cierra { 0% { transform: rotate(-35deg); } 70% { transform: rotate(3deg); } 100% { transform: rotate(0deg); } }
+    @keyframes ab-mic-cae { 0% { transform: translateX(-50%) translateY(0) rotate(-10deg); opacity: 1; } 60% { transform: translateX(-50%) translateY(30px) rotate(5deg); opacity: 1; } 80% { transform: translateX(-50%) translateY(26px) rotate(-2deg); opacity: 0.8; } 100% { transform: translateX(-50%) translateY(30px) rotate(0deg); opacity: 0; } }
+    @keyframes ab-sacude { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } }
+    @keyframes ab-sale { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.6) translateY(15px); } }
+  `;
+  document.head.appendChild(style);
+}
+
+// =============================================================================
 // CONSTANTES
 // =============================================================================
 
@@ -130,41 +150,6 @@ function AnimacionBasuraAudio({ onCompleta }: { onCompleta: () => void }) {
         </div>
       </div>
 
-      <style>{`
-        @keyframes ab-fondo {
-          0%, 75% { opacity: 1; }
-          100% { opacity: 0; }
-        }
-        @keyframes ab-aparece {
-          0% { opacity: 0; transform: scale(0.4) translateY(20px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes ab-tapa-abre {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(-35deg); }
-        }
-        @keyframes ab-tapa-cierra {
-          0% { transform: rotate(-35deg); }
-          70% { transform: rotate(3deg); }
-          100% { transform: rotate(0deg); }
-        }
-        @keyframes ab-mic-cae {
-          0% { transform: translateX(-50%) translateY(0) rotate(-10deg); opacity: 1; }
-          60% { transform: translateX(-50%) translateY(30px) rotate(5deg); opacity: 1; }
-          80% { transform: translateX(-50%) translateY(26px) rotate(-2deg); opacity: 0.8; }
-          100% { transform: translateX(-50%) translateY(30px) rotate(0deg); opacity: 0; }
-        }
-        @keyframes ab-sacude {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-3px); }
-          50% { transform: translateX(3px); }
-          75% { transform: translateX(-2px); }
-        }
-        @keyframes ab-sale {
-          0% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(0.6) translateY(15px); }
-        }
-      `}</style>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, mem
 import { Search, MoreVertical, StickyNote, X, Reply, Forward, Copy, Pin, PinOff, Pencil, Trash2, ShieldBan, ChevronsDown, UserPlus, UserMinus, ArrowLeft, MessageSquare, ImageIcon } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { diagMarca } from '../../utils/diagnosticoChatYA';
 import { useScanYAStore } from '../../stores/useScanYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
 import { useUiStore } from '../../stores/useUiStore';
@@ -448,8 +449,12 @@ function VentanaChatInner() {
   const cargandoMensajes = useChatYAStore((s) => s.cargandoMensajes);
   const cargandoMensajesAntiguos = useChatYAStore((s) => s.cargandoMensajesAntiguos);
   const hayMasMensajes = useChatYAStore((s) => s.hayMasMensajes);
-  const escribiendo = useChatYAStore((s) => s.escribiendo);
-  const estadosUsuarios = useChatYAStore((s) => s.estadosUsuarios);
+  const escribiendoActiva = useChatYAStore((s) => s.conversacionActivaId ? s.escribiendo[s.conversacionActivaId] : undefined);
+  const estadoOtroRaw = useChatYAStore((s) => {
+    const conv = s.conversaciones.find((c) => c.id === s.conversacionActivaId) ?? s.conversacionesArchivadas.find((c) => c.id === s.conversacionActivaId);
+    const otroId = conv?.otroParticipante?.id;
+    return otroId ? s.estadosUsuarios[otroId] : null;
+  });
   const misNotasId = useChatYAStore((s) => s.misNotasId);
   const bloqueados = useChatYAStore((s) => s.bloqueados);
   const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
@@ -484,6 +489,8 @@ function VentanaChatInner() {
       ? (usuarioScanYA.nombreNegocio?.charAt(0) || '?').toUpperCase()
       : '?';
   const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
+
+  diagMarca('5. VentanaChat: hooks leídos');
 
   // ---------------------------------------------------------------------------
   // Derivados
@@ -562,8 +569,8 @@ function VentanaChatInner() {
     )
     : undefined;
 
-  const estaEscribiendo = !esMisNotas && !!conversacionActivaId && !!escribiendo[conversacionActivaId];
-  const estadoOtro = otro?.id ? estadosUsuarios[otro.id] : null;
+  const estaEscribiendo = !esMisNotas && !!conversacionActivaId && !!escribiendoActiva;
+  const estadoOtro = estadoOtroRaw;
 
   // Consultar estado del otro usuario al abrir conversación
   // Usa emitirCuandoConectado para esperar al socket si aún no está listo
@@ -625,10 +632,11 @@ function VentanaChatInner() {
 
   // Cerrar panel info y búsqueda al cambiar de conversación (desmontaje completo)
   useEffect(() => {
-    setPanelAbierto(false);
+    diagMarca('8. effect: cambio conversación (cerrar panel/búsqueda)');
+    setPanelAbierto((prev) => prev ? false : prev);
     setPanelInfoAbiertoStore(false);
     panelMontado.current = false;
-    setBusquedaAbierta(false);
+    setBusquedaAbierta((prev) => prev ? false : prev);
   }, [conversacionActivaId]);
 
   // ---------------------------------------------------------------------------
@@ -933,7 +941,9 @@ function VentanaChatInner() {
 
   // Datos: mensajes en orden cronológico con separadores de fecha intercalados
   const mensajesConSeparadores = useMemo(() => {
+    diagMarca('6. useMemo mensajesConSeparadores: inicio (' + mensajes.length + ' msgs)');
     const resultado = agruparPorFecha(mensajes);
+    diagMarca('7. useMemo mensajesConSeparadores: fin');
     return resultado;
   }, [mensajes]);
 
@@ -1152,6 +1162,7 @@ function VentanaChatInner() {
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
+  diagMarca('9. VentanaChat: inicio render JSX');
   return (
     <div className="flex-1 flex flex-row min-h-0 min-w-0 overflow-hidden bg-black lg:bg-transparent">
       {/* ── Área principal del chat ── */}
