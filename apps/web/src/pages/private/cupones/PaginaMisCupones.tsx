@@ -15,7 +15,7 @@ import { Ticket, Gift, CheckCircle, ChevronLeft, Menu } from 'lucide-react';
 import { Spinner } from '../../../components/ui/Spinner';
 import type { CuponCliente } from '../../../services/misCuponesService';
 import { useUiStore } from '../../../stores/useUiStore';
-import { useMisCuponesStore } from '../../../stores/useMisCuponesStore';
+import { useMisCuponesLista, useMisCuponesSocket } from '../../../hooks/queries/useMisCupones';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import CardCupon from './componentes/CardCupon';
 import ModalDetalleCupon from './componentes/ModalDetalleCupon';
@@ -55,10 +55,8 @@ export default function PaginaMisCupones() {
     const headerRef = useRef<HTMLDivElement>(null);
 
     const [searchParams, setSearchParams] = useSearchParams();
-    const cupones = useMisCuponesStore((s) => s.cupones);
-    const cargando = useMisCuponesStore((s) => s.cargando);
-    const cargarCupones = useMisCuponesStore((s) => s.cargarCupones);
-    const iniciarListener = useMisCuponesStore((s) => s.iniciarListener);
+    const { data: cupones = [], isPending: cargando } = useMisCuponesLista();
+    useMisCuponesSocket();
 
     const [tabActivo, setTabActivoInterno] = useState<TabCupones>('activos');
     const [cuponSeleccionado, setCuponSeleccionado] = useState<CuponCliente | null>(null);
@@ -71,12 +69,7 @@ export default function PaginaMisCupones() {
         }
     };
 
-    // Carga inicial + listener socket para actualizaciones en tiempo real
-    useEffect(() => {
-        cargarCupones();
-        const detener = iniciarListener();
-        return detener;
-    }, []);
+    // Carga manejada por React Query (useQuery con enabled)
 
     // Deep link desde notificación (reacciona a cambios en searchParams)
     useEffect(() => {

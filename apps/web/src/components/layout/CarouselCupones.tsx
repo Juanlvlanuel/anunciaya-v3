@@ -11,7 +11,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Ticket, Store, Calendar, Gift, Timer, ChevronRight } from 'lucide-react';
-import { useMisCuponesStore } from '../../stores/useMisCuponesStore';
+import { useMisCuponesLista } from '../../hooks/queries/useMisCupones';
 import type { TemaColumna } from './ColumnaIzquierda';
 
 // =============================================================================
@@ -70,18 +70,9 @@ function textoTiempo(dias: number): string {
 export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
     const location = useLocation();
     const navigate = useNavigate();
-    const cargarCupones = useMisCuponesStore((s) => s.cargarCupones);
-    const iniciarListener = useMisCuponesStore((s) => s.iniciarListener);
-    const cupones = useMisCuponesStore((s) => s.cupones);
-    const cargado = useMisCuponesStore((s) => s.cargado);
+    const { data: cupones = [] } = useMisCuponesLista();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [, setIndiceActivo] = useState(0);
-
-    useEffect(() => {
-        if (!cargado) cargarCupones();
-        const detener = iniciarListener();
-        return detener;
-    }, []);
 
     const esMisCupones = location.pathname.startsWith('/mis-cupones');
     const cuponesActivos = cupones.filter(c => c.estado === 'activo');

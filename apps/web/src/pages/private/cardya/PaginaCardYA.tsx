@@ -20,6 +20,7 @@ import {
     useCardYAHistorialCanjes,
     useCanjearRecompensa,
     useCancelarVoucher,
+    useCardYASocket,
 } from '../../../hooks/queries/useCardYA';
 import { useUiStore } from '../../../stores/useUiStore';
 import { notificar } from '../../../utils/notificaciones';
@@ -136,6 +137,7 @@ export function PaginaCardYA() {
     const { data: historialCanjes = [], isPending: cargandoHistorialCanjes } = useCardYAHistorialCanjes();
     const canjearMutation = useCanjearRecompensa();
     const cancelarMutation = useCancelarVoucher();
+    useCardYASocket();
 
     // Ciudad manejada internamente por useCardYARecompensas (query key incluye ciudad del GPS)
 

@@ -12,7 +12,9 @@
  * Ubicación: apps/web/src/hooks/queries/useCardYA.ts
  */
 
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { escucharEvento } from '../../services/socketService';
 import * as cardyaService from '../../services/cardyaService';
 import type {
   BilleteraNegocio,
@@ -257,4 +259,22 @@ export function useCancelarVoucher() {
       qc.invalidateQueries({ queryKey: ['cardya', 'vouchers'] });
     },
   });
+}
+
+// =============================================================================
+// LISTENER SOCKET — actualización de stock en tiempo real
+// =============================================================================
+
+export function useCardYASocket() {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const detener = escucharEvento<{ recompensaId: string; nuevoStock: number }>(
+      'recompensa:stock-actualizado',
+      () => {
+        qc.invalidateQueries({ queryKey: ['cardya', 'recompensas'] });
+      }
+    );
+    return detener;
+  }, [qc]);
 }
