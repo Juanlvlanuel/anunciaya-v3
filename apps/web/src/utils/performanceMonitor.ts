@@ -60,26 +60,42 @@ interface ReportePerformance {
 // ============================================================
 
 const NOMBRES_MODULOS: Record<string, string> = {
-  '/business-studio': 'Dashboard',
-  '/business-studio/perfil': 'Mi Perfil',
-  '/business-studio/catalogo': 'Catálogo',
-  '/business-studio/promociones': 'Promociones',
-  '/business-studio/puntos': 'Puntos',
-  '/business-studio/transacciones': 'Transacciones',
-  '/business-studio/clientes': 'Clientes',
-  '/business-studio/opiniones': 'Opiniones',
-  '/business-studio/alertas': 'Alertas',
-  '/business-studio/empleados': 'Empleados',
-  '/business-studio/reportes': 'Reportes',
-  '/business-studio/sucursales': 'Sucursales',
+  // Business Studio
+  '/business-studio': 'BS — Dashboard',
+  '/business-studio/perfil': 'BS — Mi Perfil',
+  '/business-studio/catalogo': 'BS — Catálogo',
+  '/business-studio/ofertas': 'BS — Promociones',
+  '/business-studio/puntos': 'BS — Puntos',
+  '/business-studio/transacciones': 'BS — Transacciones',
+  '/business-studio/clientes': 'BS — Clientes',
+  '/business-studio/opiniones': 'BS — Opiniones',
+  '/business-studio/alertas': 'BS — Alertas',
+  '/business-studio/empleados': 'BS — Empleados',
+  '/business-studio/reportes': 'BS — Reportes',
+  '/business-studio/sucursales': 'BS — Sucursales',
+  '/business-studio/rifas': 'BS — Rifas',
+  '/business-studio/vacantes': 'BS — Vacantes',
+  // Secciones públicas
+  '/negocios': 'Negocios',
+  '/cardya': 'CardYA',
+  '/mis-cupones': 'Mis Cupones',
+  '/ofertas': 'Ofertas',
+  '/marketplace': 'MarketPlace',
+  '/dinamicas': 'Dinámicas',
+  '/empleos': 'Empleos',
+  '/perfil': 'Perfil',
+  // Otras
+  '/': 'Landing',
+  '/login': 'Login',
+  '/registro': 'Registro',
 };
 
 function obtenerNombreModulo(ruta: string): string {
   if (NOMBRES_MODULOS[ruta]) return NOMBRES_MODULOS[ruta];
   const coincidencia = Object.keys(NOMBRES_MODULOS).find(
-    k => k !== '/business-studio' && ruta.startsWith(k)
+    k => k !== '/' && ruta.startsWith(k)
   );
-  return coincidencia ? NOMBRES_MODULOS[coincidencia] : 'Business Studio';
+  return coincidencia ? NOMBRES_MODULOS[coincidencia] : ruta;
 }
 
 function formatTimestamp(fecha: Date): string {
@@ -107,12 +123,6 @@ class PerformanceMonitor {
         );
       }
       this.navegaciones.push(this.navegacionActual);
-    }
-
-    // Solo monitorear rutas de Business Studio
-    if (!ruta.includes('/business-studio')) {
-      this.navegacionActual = null;
-      return;
     }
 
     this.inicioNavegacion = performance.now();
@@ -245,7 +255,7 @@ class PerformanceMonitor {
     const enlace = document.createElement('a');
     const fechaArchivo = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
     enlace.href = url;
-    enlace.download = `perf-bs-${fechaArchivo}.json`;
+    enlace.download = `perf-anunciaya-${fechaArchivo}.json`;
     enlace.click();
     URL.revokeObjectURL(url);
   }

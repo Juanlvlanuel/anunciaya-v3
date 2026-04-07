@@ -13,6 +13,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { performanceMonitor } from '../../utils/performanceMonitor';
 
+declare global {
+  interface Window { __PERF_BS__?: boolean; }
+}
+
 export function PanelPerformance() {
   const [activo, setActivo] = useState(false);
   const [contadores, setContadores] = useState({ navegaciones: 0, llamadasAPI: 0 });
@@ -23,7 +27,7 @@ export function PanelPerformance() {
     const registrarRuta = (ruta: string) => {
       if (ruta === rutaRef.current) return;
       rutaRef.current = ruta;
-      if ((window as any).__PERF_BS__) {
+      if (window.__PERF_BS__) {
         performanceMonitor.registrarNavegacion(ruta);
       }
     };
@@ -48,7 +52,7 @@ export function PanelPerformance() {
   // Polling: detectar activación y actualizar contadores cada segundo
   useEffect(() => {
     const intervalo = setInterval(() => {
-      const estaActivo = !!(window as any).__PERF_BS__;
+      const estaActivo = !!window.__PERF_BS__;
       setActivo(estaActivo);
       if (estaActivo) {
         setContadores(performanceMonitor.obtenerContadores());
@@ -71,7 +75,7 @@ export function PanelPerformance() {
 
   return (
     <div
-      className="fixed bottom-20 left-4 z-[9999] w-52 rounded-xl bg-zinc-900/95 border border-zinc-700 shadow-2xl p-3 flex flex-col gap-2 text-xs font-mono"
+      className="fixed bottom-20 left-4 z-9999 w-52 rounded-xl bg-zinc-900/95 border border-zinc-700 shadow-2xl p-3 flex flex-col gap-2 text-xs font-mono"
       data-testid="panel-performance"
     >
       {/* Header */}
