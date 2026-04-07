@@ -333,7 +333,7 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **Promociones** ✅ 100% — Ofertas + Cupones unificados (22 Mar 2026). 35 API tests + 7 E2E tests
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
 - **Business Studio** (71%) — 10/14 módulos completados
-- **Migración React Query** (en curso) — BS completo: Dashboard ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Catálogo ✅, Promociones ✅, Puntos ✅, Empleados ✅, Mi Perfil ✅. Pendientes: secciones públicas (Negocios, CardYA, Mis Cupones)
+- **Migración React Query** ✅ completa — BS (10/10): Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil. Públicas (4/4): Negocios, CardYA, Mis Cupones, Mis Guardados. Pendientes: ChatYA, ScanYA, Onboarding (evaluar caso por caso)
 
 ### BS Módulos Completados (10/14)
 

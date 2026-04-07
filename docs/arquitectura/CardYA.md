@@ -1,8 +1,14 @@
 # 💳 CardYA - Sistema de Lealtad para Clientes
 
-**Última actualización:** 12 Febrero 2026  
-**Versión:** 1.0 (Completamente Implementado)  
+**Última actualización:** 7 Abril 2026
+**Versión:** 2.0 (Migración React Query — abril 2026)
 **Estado:** ✅ 100% Operacional
+
+> **MIGRACIÓN REACT QUERY (Abril 2026):**
+> - `useCardyaStore.ts` (547 líneas) → eliminado, reemplazado por `hooks/queries/useCardYA.ts`
+> - Hooks: useCardYABilleteras, useCardYARecompensas, useCardYAVouchers, useCardYAHistorialCompras, useCardYAHistorialCanjes, useCanjearRecompensa (optimista), useCancelarVoucher (optimista)
+> - Socket `recompensa:stock-actualizado` restaurado vía `useCardYASocket()`
+> - De 24 llamadas API duplicadas a 4 limpias por visita. Revisitas: 0 calls (caché)
 
 ---
 
@@ -31,7 +37,7 @@ Este documento describe la **arquitectura del sistema CardYA**:
 - Ver: `/apps/api/src/types/cardya.types.ts`
 - Ver: `/apps/api/src/validations/cardya.schema.ts`  
 - Ver: `/apps/web/src/pages/private/cardya/` (frontend completo)
-- Ver: `/apps/web/src/stores/useCardyaStore.ts`
+- Ver: `/apps/web/src/hooks/queries/useCardYA.ts` (React Query hooks)
 - Ver: `/apps/web/src/services/cardyaService.ts`
 
 ---
@@ -537,33 +543,20 @@ apps/web/src/pages/private/cardya/
 
 ---
 
-## 📦 Store Zustand
+## 📦 Estado — React Query (hooks/queries/useCardYA.ts)
 
-### useCardyaStore.ts
+> Store Zustand `useCardyaStore.ts` eliminado en abril 2026. Reemplazado por React Query.
 
 ```typescript
-interface CardyaState {
-  // Datos
-  billeteras: Billetera[];
-  recompensas: Recompensa[];
-  vouchers: Voucher[];
-  historialCompras: HistorialCompra[];
-  historialCanjes: HistorialCanje[];
-  
-  // UI State
-  cargando: boolean;
-  tabActivo: 'billeteras' | 'recompensas' | 'vouchers' | 'historial';
-  filtrosRecompensas: { negocioId?: string };
-  filtrosVouchers: { estado?: string };
-  
-  // Actions
-  cargarBilleteras: () => Promise<void>;
-  cargarRecompensas: (filtros?) => Promise<void>;
-  cargarVouchers: (filtros?) => Promise<void>;
-  cargarHistorial: () => Promise<void>;
-  canjearRecompensa: (recompensaId: string) => Promise<Voucher>;
-  cancelarVoucher: (voucherId: string) => Promise<void>;
-}
+// Hooks disponibles
+useCardYABilleteras()          // GET billeteras de puntos
+useCardYARecompensas(negocioId?) // GET recompensas (ciudad del GPS en query key)
+useCardYAVouchers(filtros?)    // GET vouchers
+useCardYAHistorialCompras(filtros?) // GET historial compras
+useCardYAHistorialCanjes(filtros?)  // GET historial canjes
+useCanjearRecompensa()         // POST canjear (optimistic UI + rollback)
+useCancelarVoucher()           // DELETE cancelar (optimistic UI + rollback)
+useCardYASocket()              // Socket: recompensa:stock-actualizado → invalida recompensas
 ```
 
 ### Optimistic Updates
@@ -868,7 +861,7 @@ Aunque tenga 0 puntos disponibles → sigue siendo Oro
 
 **Frontend:**
 - `apps/web/src/pages/private/cardya/PaginaCardYA.tsx`
-- `apps/web/src/stores/useCardyaStore.ts`
+- `apps/web/src/hooks/queries/useCardYA.ts` (React Query hooks)
 - `apps/web/src/services/cardyaService.ts`
 - `apps/web/src/types/cardya.ts`
 
@@ -899,6 +892,6 @@ Aunque tenga 0 puntos disponibles → sigue siendo Oro
 
 ---
 
-**Última actualización:** 12 Febrero 2026  
+**Última actualización:** 7 Abril 2026 
 **Autor:** Equipo AnunciaYA  
 **Versión:** 1.0 (100% Implementado)

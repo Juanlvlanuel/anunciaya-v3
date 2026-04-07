@@ -1,6 +1,6 @@
 # Empleados — Arquitectura
 
-> **Última actualización:** 5 Abril 2026
+> **Última actualización:** 7 Abril 2026
 > **Estado:** ✅ Completo (incluye upload avatar desde ScanYA)
 > **Sprint:** 10
 
@@ -128,7 +128,7 @@ WHERE e.id = $empleadoId AND ns.negocio_id = $negocioId
 |---------|-------------|
 | `types/empleados.ts` | Tipos espejo + LABELS_PERMISOS + DIAS_SEMANA |
 | `services/empleadosService.ts` | 9 funciones API + revocarSesion |
-| `stores/useEmpleadosStore.ts` | Zustand: CRUD optimista, caché, scroll infinito |
+| `hooks/queries/useEmpleados.ts` | React Query: KPIs, lista infinite, detalle, 6 mutations optimistas |
 | `pages/.../empleados/PaginaEmpleados.tsx` | Página principal (KPIs, filtros, tabla/cards) |
 | `pages/.../empleados/ModalEmpleado.tsx` | Modal crear/editar con formulario + toggles |
 | `pages/.../empleados/ModalDetalleEmpleado.tsx` | Modal detalle con permisos, stats, acciones |

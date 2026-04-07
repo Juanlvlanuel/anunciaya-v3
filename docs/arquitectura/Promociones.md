@@ -1,8 +1,13 @@
 # 🏷️ Promociones — Ofertas y Cupones
 
-**Última actualización:** 23 Marzo 2026
-**Versión:** 2.0
+**Última actualización:** 7 Abril 2026
+**Versión:** 3.0 (Migración React Query — abril 2026)
 **Estado:** ✅ Operacional (Ofertas públicas + Cupones privados + ChatYA + Tiempo real)
+
+> **MIGRACIÓN REACT QUERY (Abril 2026):**
+> - BS Promociones: `useOfertasStore.ts` eliminado → `hooks/queries/useOfertas.ts`
+> - Mis Cupones: `useMisCuponesStore.ts` eliminado → `hooks/queries/useMisCupones.ts`
+> - Socket `cupon:actualizado` restaurado vía `useMisCuponesSocket()` (invalida query)
 
 ---
 
@@ -38,7 +43,7 @@ Este documento describe la **arquitectura del módulo de Promociones**:
 - Frontend Cliente: `apps/web/src/pages/private/cupones/`
 - Frontend Service: `apps/web/src/services/ofertasService.ts`
 - Frontend Service: `apps/web/src/services/misCuponesService.ts`
-- Frontend Store: `apps/web/src/stores/useMisCuponesStore.ts`
+- Frontend Hook: `apps/web/src/hooks/queries/useMisCupones.ts` (React Query)
 - Frontend Carousel: `apps/web/src/components/layout/CarouselCupones.tsx`
 
 ---
@@ -412,8 +417,8 @@ Revoca un solo usuario específico. Mismo flujo pero para un `usuarioId` del bod
 - Grid de CardCupon (1 col móvil, 3 lg, 4 2xl)
 - Deep link desde notificaciones: `/mis-cupones?id=uuid` (cambia al tab correcto según estado)
 
-**Store:** `useMisCuponesStore` (Zustand)
-- Persiste datos entre navegaciones (no recarga cada vez)
+**Hook:** `useMisCuponesLista()` (React Query)
+- Datos cacheados automáticamente por React Query (no recarga cada vez)
 - Pre-carga logos e imágenes al cargar datos (`new Image()`)
 - Listener socket `cupon:actualizado` para actualización en tiempo real
 - Recarga en background sin spinner si ya tiene datos
@@ -438,7 +443,7 @@ Revoca un solo usuario específico. Mismo flujo pero para un `usuarioId` del bod
 - Unificado con botón "Mis Cupones" (badge rojo circular con conteo)
 - Cronómetro animado (Timer con animación ring) abajo-derecha
 - Se oculta en `/mis-cupones`
-- Usa el store `useMisCuponesStore`
+- Usa el hook `useMisCuponesLista()` (React Query)
 
 **Componentes:**
 ```
@@ -576,14 +581,14 @@ El deep link cambia automáticamente al tab correcto según el estado del cupón
 
 | Evento | Emisor | Receptor | Descripción |
 |--------|--------|----------|-------------|
-| `cupon:actualizado` | Backend | Cliente | Refresca store de cupones (`useMisCuponesStore`) |
+| `cupon:actualizado` | Backend | Cliente | Invalida query React Query vía `useMisCuponesSocket()` |
 | `chatya:cupon-eliminado` | Backend | Cliente | Elimina burbujas de cupón del state sin parpadeo |
 | `chatya:recargar-conversaciones` | Backend | Cliente | Recarga lista de chats + mensajes activos |
 | `notificacion:recargar` | Backend | Cliente | Recarga panel de notificaciones |
 
 ### Listeners
 
-- `useMisCuponesStore` — escucha `cupon:actualizado` → recarga cupones
+- `useMisCuponesSocket()` — escucha `cupon:actualizado` → invalida query React Query
 - `useChatYAStore` — escucha `chatya:cupon-eliminado` → filtra mensajes tipo cupón del state local
 - `useChatYAStore` — escucha `chatya:recargar-conversaciones` → recarga conversaciones + mensajes activos
 - `useNotificacionesStore` — escucha `notificacion:recargar` → recarga lista de notificaciones
@@ -684,7 +689,7 @@ Tracking de compras acumuladas por usuario por recompensa.
 
 | Archivo | Propósito |
 |---------|-----------|
-| useMisCuponesStore.ts | Persistencia + pre-carga imágenes + listener socket |
+| useMisCupones.ts (React Query) | Caché automática + pre-carga imágenes + socket listener |
 
 ### Layout
 

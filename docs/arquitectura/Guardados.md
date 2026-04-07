@@ -10,8 +10,13 @@
 
 ---
 
-**Última actualización:** 23 Marzo 2026
+**Última actualización:** 7 Abril 2026
 **Estado:** ✅ 100% Operacional
+
+> **MIGRACIÓN REACT QUERY (Abril 2026):**
+> - Fetch manual (useEffect+useState) → reemplazado por `hooks/queries/useMisGuardados.ts`
+> - Hooks: `useOfertasGuardadas()`, `useNegociosSeguidos()` (con GPS en query key)
+> - Eliminación de guardados usa `invalidateQueries` para refrescar
 **Identidad visual:** Rose (rosa) — Header dark estilo CardYA
 
 ---
@@ -810,7 +815,7 @@ Lista se reordena instantáneamente
 
 ---
 
-**Última actualización:** 23 Marzo 2026
+**Última actualización:** 7 Abril 2026
 **Autor:** Equipo AnunciaYA
 
 **Próximo hito:** Expansión a más tipos de contenido (Artículos, Dinámicas)

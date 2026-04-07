@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 6 Abril 2026
-**Versión:** 1.9 (React Query migration: Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil)
+**Última actualización:** 7 Abril 2026
+**Versión:** 2.0 (React Query migration completa BS + secciones públicas)
 
 ---
 
@@ -1073,6 +1073,6 @@ export async function actualizarInfoGeneral() { ... }
 
 ---
 
-**Última actualización:** 6 Abril 2026
+**Última actualización:** 7 Abril 2026
 **Autor:** Equipo AnunciaYA  
 **Versión:** 1.1 (100% Verificado contra código real)

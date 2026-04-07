@@ -1,8 +1,15 @@
 # 🏪 Negocios - Directorio Geolocalizado
 
-**Última actualización:** 7 Marzo 2026  
-**Versión:** 2.3 (ChatYA integrado en perfil de negocio)  
+**Última actualización:** 7 Abril 2026
+**Versión:** 3.0 (Migración React Query — abril 2026)
 **Estado:** ✅ 100% Operacional
+
+> **MIGRACIÓN REACT QUERY (Abril 2026):**
+> - `useListaNegocios.ts` y `usePerfilNegocio.ts` → reemplazados por `hooks/queries/useNegocios.ts`
+> - `useNegociosCacheStore.ts` → eliminado (React Query maneja caché)
+> - `useCategorias.ts` y `useSubcategorias.ts` → reemplazados por `usePerfilCategorias()` / `usePerfilSubcategorias()`
+> - Pre-fetch de perfil/ofertas/catálogo con `queryClient.prefetchQuery`
+> - Optimizaciones: React.memo en CardNegocio y ChipsFiltros, estilos CSS inyección única, autoplay interval estable
 
 ---
 
@@ -2222,8 +2229,7 @@ apps/web/src/
 │       └── ModalHorarios.tsx            (Modal horarios)
 │
 ├── hooks/
-│   ├── useListaNegocios.ts              (Lista + filtros)
-│   ├── usePerfilNegocio.ts              (Perfil completo)
+│   ├── queries/useNegocios.ts           (React Query: lista, perfil, ofertas, catálogo, reseñas, prefetch)
 │   ├── useGuardados.ts                  (Mis guardados)
 │   └── useVotos.ts                      (Likes/follows)
 │
@@ -2762,7 +2768,7 @@ Usuario puede:
 
 ---
 
-**Última actualización:** 7 Marzo 2026  
+**Última actualización:** 7 Abril 2026  
 **Autor:** Equipo AnunciaYA  
 **Versión:** 2.3 (ChatYA integrado en perfil de negocio)
 

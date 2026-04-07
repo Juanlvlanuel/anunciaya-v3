@@ -746,8 +746,7 @@ stores/
 
 ```
 hooks/
-├── useCategorias.ts                     (Cargar categorías)
-├── useSubcategorias.ts                  (Cargar subcategorías dinámicas)
+├── queries/usePerfil.ts                 (usePerfilCategorias, usePerfilSubcategorias — React Query)
 └── useOptimisticUpload.ts               (Upload optimista Cloudinary)
 ```
 

@@ -311,15 +311,35 @@ Flujo típico:
 | Empleados (BS) | `hooks/queries/useEmpleados.ts` | *(eliminado)* | ✅ |
 | Mi Perfil (BS) | `hooks/queries/usePerfil.ts` | *(no aplica — hook local de formulario)* | ✅ |
 
+**Secciones públicas migradas:**
+
+| Módulo | Hook | Store | Estado |
+|---|---|---|---|
+| Negocios (lista + perfil) | `hooks/queries/useNegocios.ts` | `useNegociosCacheStore.ts` *(eliminado)* | ✅ |
+| CardYA | `hooks/queries/useCardYA.ts` | `useCardyaStore.ts` *(eliminado)* | ✅ |
+| Mis Cupones | `hooks/queries/useMisCupones.ts` | `useMisCuponesStore.ts` *(eliminado)* | ✅ |
+| Mis Guardados | `hooks/queries/useMisGuardados.ts` | *(no tenía store)* | ✅ |
+
 **Componentes adicionales migrados:**
 - `ModalDuplicar.tsx` y `ModalDuplicarOferta.tsx` → `usePerfilSucursales()` (caché sucursales)
 - `ModalOferta.tsx` → `useClientesSelector()` + `useClientesAsignados()` (caché clientes)
 - `ColumnaIzquierda.tsx` → `useDashboard('hoy')` (caché KPIs sidebar)
 - `TabInformacion.tsx` → `usePerfilCategorias()` + `usePerfilSubcategorias()` (caché categorías)
+- `PaginaNegocios.tsx` → `usePerfilCategorias()` + `usePerfilSubcategorias()` (caché categorías)
+- `CardNegocio.tsx` + `CardNegocioDetallado.tsx` → `useNegocioPrefetch()` (prefetch con queryClient)
+- `Navbar.tsx` → `prefetchLista` (pre-carga negocios en hover)
+- `SelectorSucursalesInline.tsx` → `usePerfilSucursales()` (caché sucursales)
+- `PanelPreviewNegocio.tsx` → `usePerfilSucursal()` (caché compartida con Mi Perfil)
+- `WidgetCardYA.tsx` → `useCardYABilleteras()` (caché billeteras)
+- `CarouselCupones.tsx` → `useMisCuponesLista()` (caché cupones)
+
+**Sockets restaurados con React Query:**
+- `useCardYASocket()` → `recompensa:stock-actualizado` → invalida recompensas
+- `useMisCuponesSocket()` → `cupon:actualizado` → invalida lista de cupones
 
 ## Módulos Pendientes de Migrar
 
-Público: Negocios, CardYA, Cupones (Mis Cupones)
+Evaluar caso por caso: ChatYA (WebSockets), ScanYA (modo quiosco), Onboarding
 
 ---
 
