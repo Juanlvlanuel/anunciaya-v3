@@ -84,6 +84,7 @@ export async function listarSucursalesController(req: Request, res: Response) {
             : undefined;
         const aceptaCardYA = req.query.aceptaCardYA === 'true' ? true : req.query.aceptaCardYA === 'false' ? false : undefined;
         const tieneEnvio = req.query.tieneEnvio === 'true' ? true : req.query.tieneEnvio === 'false' ? false : undefined;
+        const tieneServicioDomicilio = req.query.tieneServicioDomicilio === 'true' ? true : req.query.tieneServicioDomicilio === 'false' ? false : undefined;
         const busqueda = req.query.busqueda as string | undefined;
         const limite = req.query.limite ? parseInt(req.query.limite as string) : 20;
         const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
@@ -98,6 +99,7 @@ export async function listarSucursalesController(req: Request, res: Response) {
             metodosPago,
             aceptaCardYA,
             tieneEnvio,
+            tieneServicioDomicilio,
             busqueda,
             limite,
             offset,

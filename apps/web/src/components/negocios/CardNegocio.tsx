@@ -616,16 +616,16 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
           {/* Contact icons */}
           <div className="flex items-center gap-3">
             <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleChat(e); }} className="cursor-pointer flex items-center gap-1.5 bg-transparent border-0 p-0 active:opacity-70 transition-opacity">
-              <img src="/ChatYA.webp" alt="ChatYA" className="h-7 w-auto" />
+              <img src="/ChatYA.webp" alt="ChatYA" className="h-9 w-auto" />
             </button>
             {negocio.whatsapp && (
               <>
-                <div className="w-px h-5 bg-white/18" />
+                <div className="w-px h-6 bg-white/18" />
                 <button
                   onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp}`, '_blank'); }}
-                  className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
+                  className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70"
                 >
-                  {renderWhatsAppIcon('w-6 h-6')}
+                  {renderWhatsAppIcon('w-8 h-8')}
                 </button>
               </>
             )}
@@ -636,8 +636,8 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
             onClick={(e) => { e.stopPropagation(); handleClick(); }}
             className="flex items-center gap-1 rounded-[10px] px-3.5 py-[7px] text-[13px] font-bold text-white cursor-pointer border-0 active:scale-95 transition-transform"
             style={{
-              background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
-              boxShadow: `0 3px 14px ${accent.from}55`,
+              background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+              boxShadow: '0 3px 14px rgba(15,23,42,0.50)',
             }}
           >
             Ver Perfil

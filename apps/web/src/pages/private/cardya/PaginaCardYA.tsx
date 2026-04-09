@@ -332,10 +332,12 @@ export function PaginaCardYA() {
     const seccionBilleteras = (
         <div>
             {billeteras.length === 0 ? (
-                <div className="bg-white rounded-xl p-12 text-center border-2 border-slate-300">
-                    <Wallet className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-                    <h3 className="text-lg font-bold text-slate-600 mb-2">Sin billeteras</h3>
-                    <p className="text-sm text-slate-600">No tienes billeteras activas</p>
+                <div className="flex flex-col items-center justify-center py-20">
+                    <div className="w-24 h-24 rounded-full bg-linear-to-br from-amber-100 to-amber-50 flex items-center justify-center ring-8 ring-amber-50 mb-6">
+                        <Wallet className="w-12 h-12 lg:w-16 lg:h-16 text-amber-400" />
+                    </div>
+                    <h3 className="text-xl lg:text-2xl font-bold text-gray-900">Sin billeteras</h3>
+                    <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">No tienes billeteras activas</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-4 2xl:gap-5">
@@ -400,10 +402,12 @@ export function PaginaCardYA() {
     const seccionRecompensas = (
         <div>
             {recompensasFiltradas.length === 0 ? (
-                <div className="bg-white rounded-xl p-12 text-center border-2 border-slate-300">
-                    <Gift className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-                    <h3 className="text-lg font-bold text-slate-600 mb-2">Sin recompensas</h3>
-                    <p className="text-sm text-slate-600">No hay recompensas disponibles</p>
+                <div className="flex flex-col items-center justify-center py-20">
+                    <div className="w-24 h-24 rounded-full bg-linear-to-br from-amber-100 to-amber-50 flex items-center justify-center ring-8 ring-amber-50 mb-6">
+                        <Gift className="w-12 h-12 lg:w-16 lg:h-16 text-amber-400" />
+                    </div>
+                    <h3 className="text-xl lg:text-2xl font-bold text-gray-900">Sin recompensas</h3>
+                    <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">No hay recompensas disponibles</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-4 2xl:gap-5">
@@ -584,7 +588,7 @@ export function PaginaCardYA() {
                                                 className="h-0.5 w-20 2xl:w-24 rounded-full"
                                                 style={{ background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.7))' }}
                                             />
-                                            <span className="text-xs 2xl:text-[13px] font-semibold text-amber-400/70 uppercase tracking-[3px]">
+                                            <span className="text-sm 2xl:text-base font-semibold text-amber-400/70 uppercase tracking-[3px]">
                                                 programa de lealtad
                                             </span>
                                             <div
@@ -600,7 +604,7 @@ export function PaginaCardYA() {
                                             <span className="text-2xl 2xl:text-3xl font-extrabold text-amber-400 leading-none">
                                                 {puntosGlobales.toLocaleString('es-MX')}
                                             </span>
-                                            <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                            <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
                                                 Pts Totales
                                             </span>
                                         </div>
@@ -609,7 +613,7 @@ export function PaginaCardYA() {
                                             <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none">
                                                 {negociosActivos}
                                             </span>
-                                            <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                            <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
                                                 Negocios
                                             </span>
                                         </div>
@@ -628,8 +632,8 @@ export function PaginaCardYA() {
                                             data-testid={`tab-cardya-${id}`}
                                             onClick={() => setTabActiva(id)}
                                             className="
-                                        flex items-center gap-1.5 lg:gap-2.5 px-2 lg:px-7 2xl:px-9 py-2.5 lg:py-3.5
-                                        text-sm lg:text-base 2xl:text-[17px] cursor-pointer
+                                        flex items-center gap-2 lg:gap-2.5 px-4 lg:px-7 2xl:px-9 py-3 lg:py-3.5
+                                        text-base lg:text-base 2xl:text-[17px] cursor-pointer
                                         transition-all duration-200 relative whitespace-nowrap shrink-0
                                     "
                                             style={{

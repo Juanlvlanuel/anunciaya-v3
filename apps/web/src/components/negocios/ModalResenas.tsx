@@ -111,7 +111,7 @@ function StatsCompacto({
     onToggleFiltro,
 }: StatsCompactoProps) {
     return (
-        <div className="px-4 py-3 bg-linear-to-br from-amber-50 to-orange-50 border-b border-slate-100 shrink-0">
+        <div className="px-4 py-3 bg-amber-100 border-b border-slate-300 shrink-0">
             <div className="flex gap-4">
                 {/* Rating */}
                 <div className="text-center shrink-0">
@@ -130,21 +130,21 @@ function StatsCompacto({
                             />
                         ))}
                     </div>
-                    <p className="text-xs text-slate-500">{totalResenas} reseñas</p>
+                    <p className="text-sm text-slate-600 font-medium">{totalResenas} reseñas</p>
                 </div>
 
                 {/* Distribución compacta */}
                 <div className="flex-1 space-y-0.5">
                     {distribucion.map(({ estrellas, cantidad, porcentaje }) => (
-                        <div key={estrellas} className="flex items-center gap-1.5 text-xs">
-                            <span className="w-3 text-slate-600 font-medium">{estrellas}</span>
+                        <div key={estrellas} className="flex items-center gap-1.5 text-sm">
+                            <span className="w-3 text-slate-600 font-semibold">{estrellas}</span>
                             <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-amber-400 rounded-full"
                                     style={{ width: `${porcentaje}%` }}
                                 />
                             </div>
-                            <span className="w-5 text-slate-400 text-right">{cantidad}</span>
+                            <span className="w-5 text-slate-600 font-medium text-right">{cantidad}</span>
                         </div>
                     ))}
                 </div>
@@ -156,10 +156,10 @@ function StatsCompacto({
                     <button
                         key={estrellas}
                         onClick={() => onToggleFiltro(estrellas)}
-                        className={`px-2.5 py-1 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors cursor-pointer ${
+                        className={`px-3 py-1.5 text-sm font-semibold rounded-lg flex items-center gap-1 cursor-pointer ${
                             filtroEstrellas === estrellas
                                 ? 'bg-amber-500 text-white'
-                                : 'bg-white text-slate-600 border border-slate-200'
+                                : 'bg-white text-slate-600 border-2 border-slate-300'
                         }`}
                     >
                         {estrellas} <Star className="w-2.5 h-2.5 fill-current" />
@@ -186,7 +186,7 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
     const textoLargo = resena.texto && resena.texto.length > 150;
 
     return (
-        <div className={`bg-white rounded-xl border border-slate-100 shadow-sm ${compacto ? 'p-4' : 'p-2.5 2xl:p-4'}`}>
+        <div className={`bg-white rounded-xl border-2 border-slate-300 shadow-md ${compacto ? 'p-4' : 'p-2.5 2xl:p-4'}`}>
 
             {/* ═══════════ RESEÑA DEL CLIENTE ═══════════ */}
             <div className={`flex items-start ${compacto ? 'gap-3' : 'gap-2 2xl:gap-3'}`}>
@@ -199,8 +199,8 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
                     />
                 ) : (
                     <div
-                        className={`rounded-full bg-linear-to-br ${getAvatarColor(resena.autor.nombre)} flex items-center justify-center text-white font-bold shrink-0 ${
-                            compacto ? 'w-10 h-10 text-sm' : 'w-8 h-8 2xl:w-10 2xl:h-10 text-xs 2xl:text-sm'
+                        className={`rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shrink-0 ${
+                            compacto ? 'w-10 h-10 text-sm' : 'w-8 h-8 2xl:w-10 2xl:h-10 text-sm'
                         }`}
                     >
                         {resena.autor.nombre.charAt(0).toUpperCase()}
@@ -210,7 +210,7 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
                 {/* Info del cliente */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                        <h4 className={`font-semibold text-slate-800 ${compacto ? 'text-sm' : 'text-xs 2xl:text-sm'}`}>
+                        <h4 className={`font-semibold text-slate-800 ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
                             {resena.autor.nombre}
                         </h4>
                         <div className="flex items-center gap-2 shrink-0">
@@ -223,7 +223,7 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
                                     <Pencil className={compacto ? 'w-3.5 h-3.5' : 'w-3 h-3 2xl:w-3.5 2xl:h-3.5'} />
                                 </button>
                             )}
-                            <span className={`${compacto ? 'text-xs' : 'text-[10px] 2xl:text-xs'} text-slate-400`}>
+                            <span className={`${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'} text-slate-600 font-medium`}>
                                 {formatearFechaRelativa(resena.createdAt)}
                             </span>
                         </div>
@@ -246,7 +246,7 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
                     {/* Texto de la reseña */}
                     {resena.texto && (
                         <div className="mt-1.5">
-                            <p className={`text-slate-600 leading-relaxed ${compacto ? 'text-sm' : 'text-xs 2xl:text-sm'} ${
+                            <p className={`text-slate-600 font-medium leading-relaxed ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'} ${
                                 !expandido && textoLargo ? 'line-clamp-3' : ''
                             }`}>
                                 {resena.texto}
@@ -254,7 +254,7 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
                             {textoLargo && (
                                 <button
                                     onClick={() => setExpandido(!expandido)}
-                                    className={`text-amber-600 hover:text-amber-700 mt-0.5 font-medium cursor-pointer ${compacto ? 'text-xs' : 'text-[10px] 2xl:text-xs'}`}
+                                    className={`text-amber-600 mt-0.5 font-semibold cursor-pointer ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}
                                 >
                                     {expandido ? 'Ver menos' : 'Ver más'}
                                 </button>
@@ -266,7 +266,7 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
 
             {/* ═══════════ RESPUESTA DEL NEGOCIO ═══════════ */}
             {resena.respuestaNegocio && (
-                <div className={`${compacto ? 'mt-3 p-3' : 'mt-2 2xl:mt-3 p-2 2xl:p-3'} bg-linear-to-br from-blue-50 to-sky-50 rounded-xl border border-blue-100`}>
+                <div className={`${compacto ? 'mt-3 p-3' : 'mt-2 2xl:mt-3 p-2 2xl:p-3'} bg-blue-100 rounded-xl border-2 border-blue-300`}>
                     <div className={`flex items-center ${compacto ? 'gap-2.5 mb-2' : 'gap-2 2xl:gap-2.5 mb-1.5 2xl:mb-2'}`}>
                         {/* Logo del negocio */}
                         {resena.respuestaNegocio.negocioLogo ? (
@@ -276,22 +276,22 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
                                 className={`rounded-full object-cover shrink-0 ring-2 ring-blue-200 ${compacto ? 'w-7 h-7' : 'w-6 h-6 2xl:w-7 2xl:h-7'}`}
                             />
                         ) : (
-                            <div className={`rounded-full bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shrink-0 ring-2 ring-blue-200 ${
-                                compacto ? 'w-7 h-7 text-xs' : 'w-6 h-6 2xl:w-7 2xl:h-7 text-[10px] 2xl:text-xs'
+                            <div className={`rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0 ring-2 ring-blue-200 ${
+                                compacto ? 'w-7 h-7 text-sm' : 'w-6 h-6 2xl:w-7 2xl:h-7 text-sm'
                             }`}>
                                 {resena.respuestaNegocio.negocioNombre?.charAt(0).toUpperCase()}
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <span className={`text-blue-800 font-semibold block ${compacto ? 'text-sm' : 'text-xs 2xl:text-sm'}`}>
+                            <span className={`text-blue-800 font-semibold block ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
                                 {resena.respuestaNegocio.negocioNombre}
                             </span>
                         </div>
-                        <span className={`${compacto ? 'text-xs' : 'text-[10px] 2xl:text-xs'} text-blue-400 shrink-0`}>
+                        <span className={`${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'} text-blue-600 font-medium shrink-0`}>
                             {formatearFechaRelativa(resena.respuestaNegocio.fecha)}
                         </span>
                     </div>
-                    <p className={`text-slate-700 leading-relaxed ${compacto ? 'text-sm' : 'text-xs 2xl:text-sm'}`}>
+                    <p className={`text-slate-700 font-medium leading-relaxed ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
                         {resena.respuestaNegocio.texto}
                     </p>
                 </div>
@@ -311,13 +311,13 @@ interface EmptyStateProps {
 function EmptyState({ onLimpiar }: EmptyStateProps) {
     return (
         <div className="text-center py-4 2xl:py-8">
-            <div className="w-8 h-8 2xl:w-12 2xl:h-12 mx-auto mb-1.5 2xl:mb-3 bg-slate-100 rounded-full flex items-center justify-center">
-                <Star className="w-4 h-4 2xl:w-6 2xl:h-6 text-slate-400" />
+            <div className="w-12 h-12 2xl:w-12 2xl:h-12 mx-auto mb-2 2xl:mb-3 bg-slate-200 rounded-full flex items-center justify-center">
+                <Star className="w-6 h-6 2xl:w-6 2xl:h-6 text-slate-600" />
             </div>
-            <p className="text-slate-500 text-[10px] 2xl:text-sm">No se encontraron reseñas</p>
+            <p className="text-slate-600 text-sm 2xl:text-sm font-medium">No se encontraron reseñas</p>
             <button
                 onClick={onLimpiar}
-                className="mt-1 2xl:mt-2 text-[10px] 2xl:text-sm text-amber-600 hover:text-amber-700 cursor-pointer"
+                className="mt-2 2xl:mt-2 text-sm 2xl:text-sm text-amber-600 font-semibold cursor-pointer"
             >
                 Limpiar filtros
             </button>
@@ -338,9 +338,10 @@ function BotonEscribirResena({ onClick, compacto = false }: BotonEscribirResenaP
     return (
         <button
             onClick={onClick}
-            className={`w-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 cursor-pointer transition-colors ${
-                compacto ? 'py-2.5 text-sm' : 'py-2 text-xs 2xl:text-sm'
+            className={`w-full text-white font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 ${
+                compacto ? 'py-2.5 text-base' : 'py-2.5 text-sm 2xl:text-base'
             }`}
+            style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', boxShadow: '0 4px 14px rgba(15,23,42,0.3)' }}
         >
             <Plus className={compacto ? 'w-4 h-4' : 'w-3.5 h-3.5 2xl:w-4 2xl:h-4'} />
             <span>Escribir Reseña</span>
@@ -424,14 +425,22 @@ export function ModalResenas({
                 titulo="Reseñas"
                 iconoTitulo={<Star className="w-5 h-5 text-white" />}
                 mostrarHeader={false}
+                headerOscuro
                 sinScrollInterno={true}
                 alturaMaxima="lg"
+                className="h-[80vh]!"
             >
-                {/* Header personalizado */}
-                <div className="px-4 py-2.5 border-b border-slate-100 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <Star className="w-5 h-5 text-amber-500" />
-                        <h3 className="text-slate-800 font-bold text-lg">Reseñas</h3>
+                {/* Header con gradiente amber */}
+                <div
+                    className="relative px-4 pt-8 pb-3 shrink-0 overflow-hidden"
+                    style={{ background: '#e8910a' }}
+                >
+                    <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                    <div className="relative flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+                            <Star className="w-4.5 h-4.5 text-white" />
+                        </div>
+                        <h3 className="text-white font-bold text-lg">Reseñas</h3>
                     </div>
                 </div>
 
@@ -485,14 +494,34 @@ export function ModalResenas({
         <Modal
             abierto={abierto}
             onCerrar={onCerrar}
-            titulo="Reseñas"
+            mostrarHeader={false}
             ancho="lg"
             paddingContenido="none"
+            className="flex flex-col h-[75vh]! lg:h-[80vh]!"
         >
-            <div className="flex h-full max-h-[55vh] 2xl:max-h-[50vh]">
-                
+            {/* Header con gradiente amber */}
+            <div
+                className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl"
+                style={{ background: '#e8910a' }}
+            >
+                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                <div className="relative flex items-center justify-between">
+                    <div className="flex items-center gap-2 2xl:gap-3">
+                        <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+                            <Star className="w-4 h-4 2xl:w-4.5 2xl:h-4.5 text-white fill-current" />
+                        </div>
+                        <h3 className="text-white font-bold text-base 2xl:text-lg">Reseñas ({resenas.length})</h3>
+                    </div>
+                    <button onClick={onCerrar} className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 cursor-pointer">
+                        <X className="w-4 h-4 text-white" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex flex-1 min-h-0">
+
                 {/* SIDEBAR */}
-                <div className="w-52 2xl:w-64 shrink-0 p-3 2xl:p-5 bg-linear-to-br from-slate-50 to-slate-100/50 border-r border-slate-100 flex flex-col">
+                <div className="w-52 2xl:w-64 shrink-0 p-3 2xl:p-5 bg-slate-200/50 border-r border-slate-300 flex flex-col">
                     
                     {/* Rating principal */}
                     <div className="text-center mb-3 2xl:mb-4">
@@ -512,27 +541,27 @@ export function ModalResenas({
                                     />
                                 ))}
                             </div>
-                            <p className="text-xs text-slate-500 mt-1">{resenas.length} reseñas</p>
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mt-1">{resenas.length} reseñas</p>
                         </div>
                     </div>
 
                     {/* Filtros */}
                     <div className="mb-3 2xl:mb-5">
-                        <h3 className="text-[10px] 2xl:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 2xl:mb-2.5">
+                        <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-1.5 2xl:mb-2.5">
                             Filtrar por
                         </h3>
-                        <div className="flex flex-wrap gap-1 2xl:gap-2">
+                        <div className="flex flex-wrap gap-1.5 2xl:gap-2">
                             {[5, 4, 3, 2, 1].map((estrellas) => (
                                 <button
                                     key={estrellas}
                                     onClick={() => toggleFiltro(estrellas)}
-                                    className={`px-1.5 py-0.5 2xl:px-2.5 2xl:py-1 text-[10px] 2xl:text-sm font-medium rounded-md 2xl:rounded-lg flex items-center gap-0.5 2xl:gap-1 transition-colors cursor-pointer ${
+                                    className={`px-2 py-1 2xl:px-2.5 2xl:py-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold rounded-lg flex items-center gap-0.5 2xl:gap-1 cursor-pointer ${
                                         filtroEstrellas === estrellas
                                             ? 'bg-amber-500 text-white'
-                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                            : 'bg-white text-slate-600 border-2 border-slate-300'
                                     }`}
                                 >
-                                    {estrellas} <Star className="w-2 h-2 2xl:w-3 2xl:h-3 fill-current" />
+                                    {estrellas} <Star className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 fill-current" />
                                 </button>
                             ))}
                         </div>
@@ -540,20 +569,20 @@ export function ModalResenas({
 
                     {/* Distribución */}
                     <div className="space-y-1 2xl:space-y-2 mb-3 2xl:mb-5">
-                        <h3 className="text-[10px] 2xl:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 2xl:mb-2.5">
+                        <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-1.5 2xl:mb-2.5">
                             Distribución
                         </h3>
                         {distribucion.map(({ estrellas, cantidad, porcentaje }) => (
-                            <div key={estrellas} className="flex items-center gap-1 2xl:gap-2">
-                                <span className="w-3 text-slate-600 font-medium text-xs 2xl:text-sm">{estrellas}</span>
-                                <Star className="w-2.5 h-2.5 2xl:w-3.5 2xl:h-3.5 text-amber-400 fill-current" />
+                            <div key={estrellas} className="flex items-center gap-1.5 2xl:gap-2">
+                                <span className="w-3 text-slate-600 font-semibold text-sm lg:text-[11px] 2xl:text-sm">{estrellas}</span>
+                                <Star className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400 fill-current" />
                                 <div className="flex-1 h-1.5 2xl:h-2 bg-white rounded-full overflow-hidden shadow-inner">
                                     <div
                                         className="h-full bg-linear-to-r from-amber-400 to-orange-400 rounded-full"
                                         style={{ width: `${porcentaje}%` }}
                                     />
                                 </div>
-                                <span className="text-xs 2xl:text-sm text-slate-500 w-4 2xl:w-6 text-right">{cantidad}</span>
+                                <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium w-4 2xl:w-6 text-right">{cantidad}</span>
                             </div>
                         ))}
                     </div>
@@ -572,18 +601,18 @@ export function ModalResenas({
                     
                     {/* Filtro activo */}
                     {filtroEstrellas && (
-                        <div className="px-1.5 2xl:px-4 py-1 2xl:py-2 border-b border-slate-100 flex items-center gap-1 2xl:gap-2">
-                            <span className="text-[8px] 2xl:text-xs text-slate-500">Mostrando:</span>
-                            <span className="px-1 2xl:px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] 2xl:text-xs font-medium rounded flex items-center gap-0.5">
-                                {filtroEstrellas} <Star className="w-1.5 h-1.5 2xl:w-2.5 2xl:h-2.5 fill-current" />
+                        <div className="px-3 2xl:px-4 py-1.5 2xl:py-2 border-b border-slate-300 flex items-center gap-2">
+                            <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Mostrando:</span>
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold rounded-lg flex items-center gap-1">
+                                {filtroEstrellas} <Star className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 fill-current" />
                                 <button
                                     onClick={() => setFiltroEstrellas(null)}
-                                    className="ml-0.5 hover:text-amber-900 cursor-pointer"
+                                    className="ml-0.5 cursor-pointer"
                                 >
-                                    <X className="w-1.5 h-1.5 2xl:w-2.5 2xl:h-2.5" />
+                                    <X className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
                                 </button>
                             </span>
-                            <span className="text-[8px] 2xl:text-xs text-slate-400">
+                            <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                                 {resenasFiltradas.length} reseñas
                             </span>
                         </div>

@@ -1,32 +1,27 @@
 /**
  * ============================================================================
- * PÁGINA: PaginaNegocios (Estilo Airbnb)
+ * PÁGINA: PaginaNegocios v2.0
  * ============================================================================
- * 
+ *
  * UBICACIÓN: apps/web/src/pages/private/negocios/PaginaNegocios.tsx
- * 
+ *
  * PROPÓSITO:
- * Página principal de la sección Negocios con diseño inmersivo
- * Mapa como protagonista, filtros y tarjetas flotantes
- * 
- * CARACTERÍSTICAS:
- * - Mapa ocupa todo el espacio disponible
- * - Chips de filtros flotantes arriba
- * - Carrusel de tarjetas flotante abajo
- * - Toggle Lista/Mapa
- * - Sincronización tarjeta-marker
+ * Página principal de la sección Negocios con diseño estándar (CardYA/Cupones/Guardados).
+ * Mapa compacto arriba + grid de cards abajo (desktop).
+ * Toggle lista/mapa en mobile.
+ *
+ * COLOR MARCA: Blue (#3b82f6 → #2563eb)
+ * REGLA: Azul solo para acentos decorativos. Botones/chips/filtros en slate.
  */
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { ChipsFiltros } from '../../../components/negocios/ChipsFiltros';
 import {
-  // Search eliminado
-  // SlidersHorizontal eliminado
   List,
-  Map,
+  Map as MapIcon,
   MapPin,
   Plus,
   Minus,
@@ -36,18 +31,40 @@ import {
   Loader2,
   Star,
   ChevronRight,
+  ChevronLeft,
+  Menu,
+  Search,
+  X,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useNegociosLista } from '../../../hooks/queries/useNegocios';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { usePerfilCategorias, usePerfilSubcategorias } from '../../../hooks/queries/usePerfil';
 import { useSearchStore } from '../../../stores/useSearchStore';
-// PanelFiltros eliminado
+import { useUiStore } from '../../../stores/useUiStore';
+import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { CardNegocio } from '../../../components/negocios/CardNegocio';
 import type { NegocioResumen } from '../../../types/negocios';
 
 // Importar estilos de Leaflet
 import 'leaflet/dist/leaflet.css';
+
+// =============================================================================
+// CONSTANTES
+// =============================================================================
+
+type TabNegocios = 'lista' | 'mapa';
+
+const TABS_NEGOCIOS_DESKTOP: { id: TabNegocios; label: string; Icono: typeof List }[] = [
+  { id: 'mapa', label: 'Mapa', Icono: MapIcon },
+  { id: 'lista', label: 'Lista', Icono: List },
+];
+
+const TABS_NEGOCIOS_MOBILE: { id: TabNegocios; label: string; Icono: typeof List }[] = [
+  { id: 'lista', label: 'Lista', Icono: List },
+  { id: 'mapa', label: 'Mapa', Icono: MapIcon },
+];
 
 // =============================================================================
 // ICONOS DE MARKERS
@@ -91,7 +108,7 @@ const iconoUsuario = new L.Icon({
 const ACCENT_COLOR = { from: '#3b82f6', to: '#2563eb' };
 
 // =============================================================================
-// ESTILOS CSS PARA POPUP PERSONALIZADO
+// ESTILOS CSS
 // =============================================================================
 
 const POPUP_STYLES = `
@@ -99,6 +116,7 @@ const POPUP_STYLES = `
     padding: 0;
     border-radius: 16px;
     overflow: hidden;
+    border: 2px solid #94a3b8;
     box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
   }
   .popup-negocio .leaflet-popup-content {
@@ -109,11 +127,40 @@ const POPUP_STYLES = `
   .popup-negocio .leaflet-popup-tip {
     box-shadow: 0 2px 4px rgba(0,0,0,0.06);
   }
+  .popup-negocio .leaflet-popup-close-button {
+    top: 8px !important;
+    right: 8px !important;
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: rgba(255,255,255,0.7) !important;
+    background: rgba(255,255,255,0.15) !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 0 !important;
+    padding: 0 0 1px 0 !important;
+    text-indent: 0 !important;
+    text-align: center !important;
+    transition: all 0.15s !important;
+    cursor: pointer !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+    position: absolute !important;
+  }
+  .popup-negocio .leaflet-popup-close-button:hover {
+    color: #fff !important;
+    background: rgba(255,255,255,0.3) !important;
+  }
+  .popup-negocio p {
+    margin: 0 !important;
+  }
   @keyframes popupStatusPulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
   }
-  /* Pin seleccionado con pulse */
   .pin-seleccionado-wrapper {
     position: relative;
     width: 30px;
@@ -155,22 +202,25 @@ const POPUP_STYLES = `
     0% { transform: translateX(-50%) scale(0.8); opacity: 0.9; }
     100% { transform: translateX(-50%) scale(3.5); opacity: 0; }
   }
-    .popup-negocio p {
-  margin: 0 !important;
-}
-    
+  .negocios-tabs::-webkit-scrollbar { display: none; }
+  .negocios-tabs { -ms-overflow-style: none; scrollbar-width: none; }
+  .negocios-cards-scroll::-webkit-scrollbar { width: 12px; }
+  .negocios-cards-scroll::-webkit-scrollbar-track { background: transparent; }
+  .negocios-cards-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
+  .negocios-cards-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
 `;
 
 // =============================================================================
-// COMPONENTE: PopupNegocio (contenido mejorado del popup del mapa)
+// COMPONENTE: PopupNegocio
 // =============================================================================
 
 interface PopupNegocioProps {
   negocio: NegocioResumen;
   onVerPerfil: () => void;
+  onChat: () => void;
 }
 
-function PopupNegocio({ negocio, onVerPerfil }: PopupNegocioProps) {
+function PopupNegocio({ negocio, onVerPerfil, onChat }: PopupNegocioProps) {
   const calificacion = negocio.calificacionPromedio ? parseFloat(negocio.calificacionPromedio) : 0;
   const tieneResenas = negocio.totalCalificaciones > 0;
 
@@ -182,26 +232,36 @@ function PopupNegocio({ negocio, onVerPerfil }: PopupNegocioProps) {
 
   return (
     <div>
-      {/* Header con gradiente */}
-      <div className="bg-linear-to-r from-blue-500 to-blue-600 px-4 py-2">
-        <div className="flex items-center gap-3">
+      {/* Header oscuro con glow azul */}
+      <div
+        className="relative px-4 py-3 overflow-hidden"
+        style={{ background: '#000000' }}
+      >
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.12) 0%, transparent 60%)' }}
+        />
+        <div className="relative z-10 flex items-center gap-3">
           {negocio.logoUrl ? (
             <img
               src={negocio.logoUrl}
               alt={negocio.negocioNombre}
-              className="w-11 h-11 rounded-xl object-cover shrink-0 border-2 border-white/30 shadow-lg"
+              className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-white/20"
             />
           ) : (
-            <div className="w-11 h-11 rounded-xl shrink-0 border-2 border-white/30 shadow-lg bg-black/20 flex items-center justify-center">
-              <Store className="w-5 h-5 text-white/70" />
+            <div
+              className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
+            >
+              <Store className="w-5 h-5 text-white" />
             </div>
           )}
-          <div className="min-w-0 flex-1 flex flex-col justify-center">
-            <h3 className="text-[16px] font-bold text-white leading-tight truncate">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[17px] font-bold text-white leading-tight truncate">
               {negocio.negocioNombre}
             </h3>
             {negocio.sucursalNombre?.includes(`${negocio.negocioNombre} - `) && (
-              <p className="text-[14px] font-medium text-blue-100 mt-3 truncate">
+              <p className="text-sm font-medium text-white/70 truncate mt-0.5">
                 Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
               </p>
             )}
@@ -210,72 +270,78 @@ function PopupNegocio({ negocio, onVerPerfil }: PopupNegocioProps) {
       </div>
 
       {/* Body */}
-      <div className="px-4 py-2.5">
-        {/* Fila: Status — Rating — Distancia */}
-        <div className="flex items-center justify-between pb-4 text-[13px]">
-          {/* Status */}
+      <div className="px-4 py-4">
+        <div className="flex items-center justify-center gap-3 pb-4 text-[14px]">
           {negocio.estaAbierto !== null && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <span
-                className="w-1.5 h-1.5 rounded-full"
+                className="w-2 h-2 rounded-full"
                 style={{
                   background: negocio.estaAbierto ? '#22c55e' : '#ef4444',
                   animation: 'popupStatusPulse 2s ease-in-out infinite',
                 }}
               />
-              <span className={`font-semibold ${negocio.estaAbierto ? 'text-green-600' : 'text-red-500'}`}>
+              <span className={`font-bold ${negocio.estaAbierto ? 'text-green-600' : 'text-red-500'}`}>
                 {negocio.estaAbierto ? 'Abierto' : 'Cerrado'}
               </span>
             </div>
           )}
-
-          {/* Rating */}
           {tieneResenas && (
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-              <span className="font-bold text-slate-800">{calificacion.toFixed(1)}</span>
-              <span className="text-[12px] text-slate-400">({negocio.totalCalificaciones})</span>
-            </div>
+            <>
+              <div className="w-px h-4 bg-slate-400" />
+              <div className="flex items-center gap-1.5">
+                <Star className="w-4.5 h-4.5 text-amber-400 fill-amber-400" />
+                <span className="font-bold text-slate-800">{calificacion.toFixed(1)}</span>
+                <span className="text-[13px] text-slate-400">({negocio.totalCalificaciones})</span>
+              </div>
+            </>
           )}
-
-          {/* Distancia */}
           {distanciaTexto && (
-            <div className="flex items-center gap-1 text-slate-500">
-              <MapPin className="w-3.5 h-3.5" />
-              <span className="font-medium">{distanciaTexto}</span>
-            </div>
+            <>
+              <div className="w-px h-4 bg-slate-400" />
+              <div className="flex items-center gap-1.5 text-slate-500">
+                <MapPin className="w-4 h-4" />
+                <span className="font-bold">{distanciaTexto}</span>
+              </div>
+            </>
           )}
         </div>
 
-        {/* Dirección */}
         {negocio.direccion && (
-          <p className="text-[13px] text-slate-400 mt-4 leading-none truncate">
-            {negocio.direccion}
-          </p>
+          <div className="flex items-center gap-2 pt-1 pb-1 border-t border-slate-300">
+            <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
+            <p className="text-[14px] font-bold text-slate-500 leading-snug line-clamp-2 pt-0.5">
+              {negocio.direccion}
+            </p>
+          </div>
         )}
 
-        {/* Separador */}
-        <div className="h-px bg-slate-100 my-2" />
+        <div className="h-px bg-slate-300 my-3" />
 
-        {/* Acciones */}
         <div className="flex items-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); onVerPerfil(); }}
-            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[13px] font-bold text-white cursor-pointer border-0 active:scale-95 transition-transform"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[14px] font-bold text-white cursor-pointer border-0 active:scale-95 transition-transform"
             style={{
-              background: `linear-gradient(135deg, ${ACCENT_COLOR.from}, ${ACCENT_COLOR.to})`,
-              boxShadow: `0 2px 8px ${ACCENT_COLOR.from}30`,
+              background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+              boxShadow: '0 2px 8px rgba(15,23,42,0.40)',
             }}
           >
             Ver Perfil
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4.5 h-4.5" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onChat(); }}
+            className="cursor-pointer shrink-0 hover:scale-110 active:scale-95"
+          >
+            <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
           </button>
           {negocio.whatsapp && (
             <button
               onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp}`, '_blank'); }}
-              className="w-9 h-9 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center cursor-pointer shrink-0 hover:bg-green-100 transition-colors"
+              className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer shrink-0 hover:scale-110 active:scale-95 p-[6px]"
             >
-              <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-full h-full text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
               </svg>
             </button>
@@ -287,53 +353,153 @@ function PopupNegocio({ negocio, onVerPerfil }: PopupNegocioProps) {
 }
 
 // =============================================================================
-// COMPONENTE: Controles del Mapa
+// COMPONENTE: Controles del Mapa (overlay dentro del mapa)
 // =============================================================================
 
 function ControlesMapa({ onMapReady }: { onMapReady?: (map: L.Map) => void }) {
   const map = useMap();
   const { latitud, longitud } = useGpsStore();
 
-  // ✅ Centrar mapa automáticamente cuando cambie la ciudad
   useEffect(() => {
     if (latitud && longitud) {
       map.setView([latitud, longitud], 15);
     }
   }, [latitud, longitud, map]);
 
-  // Exponer referencia del mapa al padre
   useEffect(() => {
     if (onMapReady) onMapReady(map);
   }, [map, onMapReady]);
 
-  // En móvil: mantener controles en el mapa
+  // Invalidar tamaño cuando el contenedor cambie
+  useEffect(() => {
+    setTimeout(() => map.invalidateSize(), 300);
+  }, [map]);
+
+  return null;
+}
+
+// =============================================================================
+// COMPONENTE: Controles de zoom (overlay blanco)
+// =============================================================================
+
+function MapaControlesZoom({ latitud, longitud }: { mapRef?: unknown; latitud: number | null; longitud: number | null }) {
+  const map = useMap();
+  const controlRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (controlRef.current) {
+      L.DomEvent.disableClickPropagation(controlRef.current);
+      L.DomEvent.disableScrollPropagation(controlRef.current);
+    }
+  }, []);
+
   return (
-    <div className="lg:hidden absolute left-3 bottom-3 z-1000">
-      <div className="bg-blue-600 rounded-full shadow-lg flex items-center gap-0.5 p-1">
-        <button
-          onClick={() => map.zoomIn()}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-500 active:bg-blue-700 cursor-pointer transition-colors"
-        >
-          <Plus className="w-4 h-4 text-white" />
-        </button>
-        <div className="w-px h-5 bg-white/30" />
-        <button
-          onClick={() => map.zoomOut()}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-500 active:bg-blue-700 cursor-pointer transition-colors"
-        >
-          <Minus className="w-4 h-4 text-white" />
-        </button>
-        <div className="w-px h-5 bg-white/30" />
-        <button
-          onClick={() => {
-            if (latitud && longitud) map.setView([latitud, longitud], 15);
-          }}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-500 active:bg-blue-700 cursor-pointer transition-colors"
-        >
-          <Locate className="w-4 h-4 text-white" />
-        </button>
-      </div>
+    <div ref={controlRef} className="absolute bottom-3 right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
+      <button
+        data-testid="btn-mapa-zoom-in"
+        onPointerDown={(e) => { e.stopPropagation(); map.zoomIn(); }}
+        className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer transition-colors active:bg-slate-700"
+      >
+        <Plus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
+      </button>
+      <div className="w-px h-auto bg-slate-700 my-1.5" />
+      <button
+        data-testid="btn-mapa-zoom-out"
+        onPointerDown={(e) => { e.stopPropagation(); map.zoomOut(); }}
+        className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer transition-colors active:bg-slate-700"
+      >
+        <Minus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
+      </button>
+      <div className="w-px h-auto bg-slate-700 my-1.5" />
+      <button
+        data-testid="btn-mapa-centrar"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          if (latitud && longitud) map.setView([latitud, longitud], 15);
+        }}
+        className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer transition-colors active:bg-slate-700"
+      >
+        <Locate className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
+      </button>
     </div>
+  );
+}
+
+// =============================================================================
+// COMPONENTE: Mapa compartido (renderizado único)
+// =============================================================================
+
+interface MapaNegocionProps {
+  centroInicial: [number, number];
+  negocios: NegocioResumen[];
+  latitud: number | null;
+  longitud: number | null;
+  negocioSeleccionadoId: string | null;
+  getIconoMarker: (id: string) => L.Icon | L.DivIcon;
+  handleSeleccionarNegocio: (id: string) => void;
+  setNegocioSeleccionadoId: (id: string | null) => void;
+  onMapReady: (map: L.Map) => void;
+  navigate: ReturnType<typeof useNavigate>;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker>>;
+  onChat: (negocio: NegocioResumen) => void;
+  className?: string;
+}
+
+function MapaNegocio({
+  centroInicial, negocios, latitud, longitud,
+  getIconoMarker, handleSeleccionarNegocio, setNegocioSeleccionadoId,
+  onMapReady, navigate, markerRefs, onChat, className = '',
+}: MapaNegocionProps) {
+  return (
+    <MapContainer
+      center={centroInicial}
+      zoom={14}
+      className={`w-full h-full ${className}`}
+      zoomControl={false}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        keepBuffer={8}
+        updateWhenZooming={false}
+        updateWhenIdle={true}
+      />
+
+      {latitud && longitud && (
+        <Marker position={[latitud, longitud]} icon={iconoUsuario}>
+          <Popup><p className="font-semibold text-center">Tu ubicación</p></Popup>
+        </Marker>
+      )}
+
+      {negocios.map((negocio) => {
+        if (!negocio.latitud || !negocio.longitud) return null;
+        const posicion: [number, number] = [negocio.latitud, negocio.longitud];
+
+        return (
+          <Marker
+            key={negocio.sucursalId}
+            position={posicion}
+            icon={getIconoMarker(negocio.sucursalId)}
+            eventHandlers={{
+              click: () => handleSeleccionarNegocio(negocio.sucursalId),
+              add: (e) => { markerRefs.current[negocio.sucursalId] = e.target as L.Marker; },
+              popupclose: () => { setNegocioSeleccionadoId(null); },
+            }}
+          >
+            <Popup className="popup-negocio" autoPan={true} autoPanPadding={[70, 70]}>
+              <PopupNegocio
+                negocio={negocio}
+                onVerPerfil={() => navigate(`/negocios/${negocio.sucursalId}`)}
+                onChat={() => onChat(negocio)}
+              />
+            </Popup>
+          </Marker>
+        );
+      })}
+
+      <ControlesMapa onMapReady={onMapReady} />
+      <MapaControlesZoom latitud={latitud} longitud={longitud} />
+    </MapContainer>
   );
 }
 
@@ -343,10 +509,35 @@ function ControlesMapa({ onMapReady }: { onMapReady?: (map: L.Map) => void }) {
 
 export function PaginaNegocios() {
   const navigate = useNavigate();
-  const carruselRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const btnCategoriaRef = useRef<HTMLButtonElement>(null);
   const btnSubcategoriaRef = useRef<HTMLButtonElement>(null);
+  const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+
+  const handleChatPopup = useCallback((negocio: NegocioResumen) => {
+    if (!negocio.usuarioId) return;
+    abrirChatTemporal({
+      id: `temp_${Date.now()}`,
+      otroParticipante: {
+        id: negocio.usuarioId,
+        nombre: negocio.negocioNombre,
+        apellidos: '',
+        avatarUrl: negocio.logoUrl,
+        negocioNombre: negocio.negocioNombre,
+        negocioLogo: negocio.logoUrl || undefined,
+        sucursalNombre: negocio.sucursalNombre || undefined,
+      },
+      datosCreacion: {
+        participante2Id: negocio.usuarioId,
+        participante2Modo: 'comercial',
+        participante2SucursalId: negocio.sucursalId,
+        contextoTipo: 'negocio',
+      },
+    });
+    abrirChatYA();
+  }, [abrirChatTemporal, abrirChatYA]);
 
   // Refs para sincronización bidireccional
   const markerRefs = useRef<Record<string, L.Marker>>({});
@@ -354,16 +545,18 @@ export function PaginaNegocios() {
 
   // Estado
   const [negocioSeleccionadoId, setNegocioSeleccionadoId] = useState<string | null>(null);
-  const [vistaLista, setVistaLista] = useState(window.innerWidth < 768); // En móvil, Lista por defecto
-  // filtrosAbiertos eliminado
-  // drawerFiltrosMovil eliminado
-  // Búsqueda eliminada — se usará buscador global del Navbar
+  const [tabActiva, setTabActiva] = useState<TabNegocios>(window.innerWidth >= 1024 ? 'mapa' : 'lista');
+  const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
+  const [busquedaLocal, setBusquedaLocal] = useState('');
+  const [popupFiltrosMovil, setPopupFiltrosMovil] = useState(false);
+  const inputBusquedaRef = useRef<HTMLInputElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [dropdownDistancia, setDropdownDistancia] = useState(false);
+  const [posDropdownDist, setPosDropdownDist] = useState({ top: 0, left: 0 });
   const [dropdownCategoria, setDropdownCategoria] = useState(false);
   const [dropdownSubcategoria, setDropdownSubcategoria] = useState(false);
   const [posicionDropdownCat, setPosicionDropdownCat] = useState({ top: 0, left: 0 });
   const [posicionDropdownSub, setPosicionDropdownSub] = useState({ top: 0, left: 0 });
-  const [esMovil, setEsMovil] = useState(window.innerWidth < 768);
-  // vistaGrid eliminado — desktop solo muestra vista mapa
 
   // Detectar modo preview card
   const searchParams = new URLSearchParams(window.location.search);
@@ -374,110 +567,93 @@ export function PaginaNegocios() {
   const { latitud, longitud } = useGpsStore();
   const { data: negociosRaw = [], isPending: loading } = useNegociosLista();
   const searchQuery = useSearchStore((s) => s.query);
+  const setSearchQuery = useSearchStore((s) => s.setQuery);
   const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
 
-  // Filtrar negocios por búsqueda (búsqueda extensa en múltiples campos)
-  // Optimizado con useMemo para evitar lag al borrar
+  // Negocios: el backend filtra por búsqueda, categoría, distancia, etc.
+  // El filtro client-side del searchQuery global (Navbar) se mantiene como fallback
   const negocios = useMemo(() => {
     if (!searchQuery.trim()) return negociosRaw;
-
     const q = searchQuery.toLowerCase();
-
     return negociosRaw.filter((n) => {
-      // 1. Nombre del negocio
       const nombreNegocio = (n.negocioNombre || '').toLowerCase();
-
-      // 2. Nombre de la sucursal
       const nombreSucursal = (n.sucursalNombre || '').toLowerCase();
-
-      // 3. Categoría padre
       const categoriaPadre = (n.categorias?.[0]?.categoria?.nombre || '').toLowerCase();
-
-      // 4. Subcategorías (todas)
-      const subcategorias = (n.categorias || [])
-        .map(cat => (cat.nombre || '').toLowerCase())
-        .join(' ');
-
-      // 5. Dirección
+      const subcategorias = (n.categorias || []).map(cat => (cat.nombre || '').toLowerCase()).join(' ');
       const direccion = (n.direccion || '').toLowerCase();
-
-      // 6. Ciudad
       const ciudad = (n.ciudad || '').toLowerCase();
-
-      // Buscar en cualquiera de los campos
-      return (
-        nombreNegocio.includes(q) ||
-        nombreSucursal.includes(q) ||
-        categoriaPadre.includes(q) ||
-        subcategorias.includes(q) ||
-        direccion.includes(q) ||
-        ciudad.includes(q)
-      );
+      return nombreNegocio.includes(q) || nombreSucursal.includes(q) || categoriaPadre.includes(q) || subcategorias.includes(q) || direccion.includes(q) || ciudad.includes(q);
     });
   }, [searchQuery, negociosRaw]);
 
   const { data: categorias = [] } = usePerfilCategorias();
   const {
-    categoria,
-    setCategoria,
-    subcategorias: subcategoriasSeleccionadas,
-    setSubcategorias,
-    distancia,
-    setDistancia,
-    soloCardya,
-    toggleSoloCardya,
-    conEnvio,
-    toggleConEnvio,
-    filtrosActivos,
-    limpiarFiltros,
+    categoria, setCategoria,
+    subcategorias: subcategoriasSeleccionadas, setSubcategorias,
+    cercaDeMi, toggleCercaDeMi,
+    distancia, setDistancia,
+    soloCardya, toggleSoloCardya,
+    conEnvio, toggleConEnvio,
+    conServicioDomicilio, toggleConServicioDomicilio,
+    busqueda: busquedaFiltros, setBusqueda,
+    setVistaActiva,
+    filtrosActivos, limpiarFiltros,
     resetearFiltrosTemporales,
   } = useFiltrosNegociosStore();
 
-  // Opciones de subcategorías basadas en la categoría seleccionada
   const { data: opcionesSubcategorias = [] } = usePerfilSubcategorias(categoria ?? 0);
 
-  // Centro del mapa
   const centroInicial: [number, number] = latitud && longitud
     ? [latitud, longitud]
-    : [31.3125, -113.5275]; // Puerto Peñasco default
+    : [31.3125, -113.5275];
 
-  // Recarga automática por React Query cuando cambia GPS (en query key)
+  // Debounce: sincronizar búsqueda local → store (400ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBusqueda(busquedaLocal);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [busquedaLocal, setBusqueda]);
 
-  // ✅ Cleanup: Resetear filtros temporales al salir de la página
+  // Cleanup al salir
   useEffect(() => {
     return () => {
-      // Al desmontar el componente (salir de /negocios)
-      resetearFiltrosTemporales(); // Limpia distancia y búsqueda del store
-      cerrarBuscador();            // Limpia búsqueda del navbar
+      resetearFiltrosTemporales();
+      cerrarBuscador();
     };
   }, []);
 
-  // Handlers de sincronización
-  const handleSeleccionarNegocio = (sucursalId: string) => {
+  // Sincronización bidireccional
+  const handleSeleccionarNegocio = useCallback((sucursalId: string) => {
     const nuevoId = negocioSeleccionadoId === sucursalId ? null : sucursalId;
     setNegocioSeleccionadoId(nuevoId);
 
-    if (!mapRef.current || !nuevoId) return;
+    if (mapRef.current && nuevoId) {
+      const negocio = negocios.find(n => n.sucursalId === nuevoId);
+      const lat = Number(negocio?.latitud);
+      const lng = Number(negocio?.longitud);
+      if (negocio && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        mapRef.current.stop();
+        // Centrar el mapa para que el popup (que abre hacia arriba) quede visible
+        // Calculamos offset basado en el tamaño del contenedor del mapa
+        const mapContainer = mapRef.current.getContainer();
+        const containerHeight = mapContainer.clientHeight;
+        // El popup ocupa ~250px hacia arriba, centramos el pin en el tercio inferior
+        const targetPoint = mapRef.current.project([lat, lng], 17);
+        targetPoint.y -= containerHeight * 0.25; // Desplazar 25% hacia arriba
+        const targetLatLng = mapRef.current.unproject(targetPoint, 17);
+        mapRef.current.flyTo(targetLatLng, 17, { duration: 0.5 });
+        setTimeout(() => { markerRefs.current[nuevoId]?.openPopup(); }, 600);
+      }
+    }
 
-    const negocio = negocios.find(n => n.sucursalId === nuevoId);
-    if (!negocio?.latitud || !negocio?.longitud) return;
+    if (nuevoId) {
+      setTimeout(() => {
+        cardRefs.current[nuevoId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [negocios, negocioSeleccionadoId]);
 
-    // Centrar mapa en el negocio
-    mapRef.current.stop();
-    mapRef.current.flyTo([negocio.latitud, negocio.longitud], 17, { duration: 0.5 });
-
-    // Abrir popup del marker
-    setTimeout(() => {
-      markerRefs.current[nuevoId]?.openPopup();
-    }, 600);
-
-    // Auto-scroll a la tarjeta correspondiente
-    setTimeout(() => {
-      cardRefs.current[nuevoId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
-  };
-
-  // Helper: determinar icono del marker según estado
   const getIconoMarker = (sucursalId: string): L.Icon | L.DivIcon => {
     if (sucursalId === negocioSeleccionadoId) return iconoSeleccionadoAnimado;
     return iconoNegocio;
@@ -488,33 +664,73 @@ export function PaginaNegocios() {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('[data-dropdown]')) {
+        setDropdownDistancia(false);
         setDropdownCategoria(false);
         setDropdownSubcategoria(false);
       }
     };
-
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Detectar cambio de tamaño de pantalla
+  // Auto-scroll al cambiar a lista en mobile
   useEffect(() => {
-    const handleResize = () => {
-      setEsMovil(window.innerWidth < 768);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Auto-scroll a tarjeta seleccionada al cambiar a vista lista (móvil)
-  useEffect(() => {
-    if (vistaLista && negocioSeleccionadoId) {
+    if (tabActiva === 'lista' && negocioSeleccionadoId) {
       setTimeout(() => {
         cardRefs.current[negocioSeleccionadoId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 300);
     }
-  }, [vistaLista, negocioSeleccionadoId]);
+  }, [tabActiva, negocioSeleccionadoId]);
+
+  // Medir header para posicionar mapa mobile
+  useEffect(() => {
+    if (headerRef.current) {
+      const h = headerRef.current.offsetHeight;
+      document.documentElement.style.setProperty('--negocios-header-h', `${h}px`);
+    }
+  }, [tabActiva, buscadorMovilAbierto]);
+
+  // Invalidar mapa al cambiar tab a mapa + sincronizar store
+  useEffect(() => {
+    setVistaActiva(tabActiva === 'mapa' ? 'mapa' : 'lista');
+    if (tabActiva === 'mapa') {
+      setTimeout(() => { mapRef.current?.invalidateSize(); }, 200);
+    }
+  }, [tabActiva, setVistaActiva]);
+
+  // Props compartidos del mapa
+  const mapaProps = {
+    centroInicial,
+    negocios,
+    latitud,
+    longitud,
+    negocioSeleccionadoId,
+    getIconoMarker,
+    handleSeleccionarNegocio,
+    setNegocioSeleccionadoId,
+    onMapReady: (m: L.Map) => { mapRef.current = m; },
+    navigate,
+    markerRefs,
+    onChat: handleChatPopup,
+  };
+
+  // Props compartidos de ChipsFiltros
+  const chipsFiltrosProps = {
+    cercaDeMi, toggleCercaDeMi,
+    distancia, setDistancia,
+    categoria, categorias,
+    dropdownCategoria, setDropdownCategoria,
+    btnCategoriaRef, setPosicionDropdownCat,
+    opcionesSubcategorias, subcategoriasSeleccionadas,
+    dropdownSubcategoria, setDropdownSubcategoria,
+    btnSubcategoriaRef, setPosicionDropdownSub,
+    soloCardya, toggleSoloCardya,
+    conEnvio, toggleConEnvio,
+    conServicioDomicilio, toggleConServicioDomicilio,
+    dropdownDistancia, setDropdownDistancia,
+    posDropdownDist, setPosDropdownDist,
+    filtrosActivos, limpiarFiltros,
+  };
 
   // =============================================================================
   // RENDER: Modo Preview Card (para Business Studio)
@@ -545,553 +761,733 @@ export function PaginaNegocios() {
     return (
       <div className="min-h-screen bg-linear-to-br from-slate-100 to-slate-200 flex items-center justify-start p-4 pl-6">
         <div className="w-full max-w-[300px]">
-          <CardNegocio
-            negocio={negocioPreview}
-            seleccionado={false}
-            onSelect={() => { }}
-            modoPreview={true}
-          />
+          <CardNegocio negocio={negocioPreview} seleccionado={false} onSelect={() => {}} modoPreview={true} />
         </div>
       </div>
     );
   }
 
   // =============================================================================
-  // RENDER: Vista Móvil
-  // =============================================================================
-
-  if (esMovil) {
-    // Vista Lista Móvil
-    if (vistaLista) {
-      return (
-        <div className="flex flex-col min-h-0">
-
-          {/* Header con pills de categorías */}
-          <div className="sticky top-0 z-50 bg-black py-1.5 -mt-px">
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-              {/* Pill "Todos" */}
-              <button
-                onClick={() => setCategoria(null)}
-                className={`shrink-0 px-5 py-2 rounded-xl text-[13px] font-semibold transition-colors cursor-pointer flex items-center ${!categoria
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white/10 text-white/70'
-                  }`}
-              >
-                Todos
-              </button>
-              {categorias.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setCategoria(categoria === cat.id ? null : cat.id)}
-                  className={`shrink-0 px-3 py-1 rounded-xl text-[13px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${categoria === cat.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white/10 text-white/70'
-                    }`}
-                >
-                  <span className="text-lg">{cat.icono}</span>
-                  {cat.nombre}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Lista de tarjetas vertical */}
-          <div className="px-4 py-4">
-            {loading && negocios.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              </div>
-            ) : negocios.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Store className="w-16 h-16 text-slate-300 mb-4" />
-                <p className="text-slate-500">No se encontraron negocios</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {negocios.map((negocio) => (
-                  <div
-                    key={negocio.sucursalId}
-                    ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}
-                  >
-                    <CardNegocio
-                      negocio={negocio}
-                      seleccionado={negocio.sucursalId === negocioSeleccionadoId}
-                      onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Pestaña lateral → Vista Mapa */}
-          <button
-            onClick={() => setVistaLista(false)}
-            className="fixed right-0 top-1/2 -translate-y-1/2 z-40 w-9 h-16 flex items-center justify-center pr-1 rounded-l-2xl cursor-pointer active:scale-95 transition-all hover:w-11"
-            style={{
-              background: 'rgba(0,0,0,0.45)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRight: 'none',
-            }}
-          >
-            <MapPin className="w-6 h-6 text-blue-400 drop-shadow-md" />
-          </button>
-        </div>
-      );
-    }
-
-    // Vista Mapa Móvil
-    return (
-      <div className="relative" style={{ height: 'calc(100vh - 130px)' }}>
-
-        {/* Mapa con viñeta difuminada */}
-        <div className="absolute inset-0 z-0 isolate">
-          <MapContainer
-            center={centroInicial}
-            zoom={14}
-            className="w-full h-full"
-            zoomControl={false}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-              keepBuffer={12}
-              updateWhenZooming={false}
-              updateWhenIdle={false}
-            />
-
-            {latitud && longitud && (
-              <Marker position={[latitud, longitud]} icon={iconoUsuario}>
-                <Popup><p className="font-semibold text-center">Tu ubicación</p></Popup>
-              </Marker>
-            )}
-
-            {negocios.map((negocio) => {
-              if (!negocio.latitud || !negocio.longitud) return null;
-              const posicion: [number, number] = [negocio.latitud, negocio.longitud];
-
-              return (
-                <Marker
-                  key={negocio.sucursalId}
-                  position={posicion}
-                  icon={getIconoMarker(negocio.sucursalId)}
-                  eventHandlers={{
-                    click: () => handleSeleccionarNegocio(negocio.sucursalId),
-                    add: (e) => { markerRefs.current[negocio.sucursalId] = e.target as L.Marker; },
-                    popupclose: () => { setNegocioSeleccionadoId(null); },
-                  }}
-                >
-                  <Popup className="popup-negocio">
-                    <PopupNegocio
-                      negocio={negocio}
-                      onVerPerfil={() => navigate(`/negocios/${negocio.sucursalId}`)}
-                    />
-                  </Popup>
-                </Marker>
-              );
-            })}
-
-            <ControlesMapa onMapReady={(m) => { mapRef.current = m; }} />
-          </MapContainer>
-
-          {/* Viñeta difuminada - 4 lados (solo desktop) */}
-          <div className="hidden lg:block absolute inset-0 pointer-events-none z-999">
-            {/* Arriba */}
-            <div className="absolute top-0 left-0 right-0 h-24 bg-linear-to-b from-slate-100/70 to-transparent" />
-            {/* Abajo */}
-            <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-slate-100/70 to-transparent" />
-            {/* Izquierda */}
-            <div className="absolute top-0 bottom-0 left-0 w-16 bg-linear-to-r from-slate-100/50 to-transparent" />
-            {/* Derecha */}
-            <div className="absolute top-0 bottom-0 right-0 w-16 bg-linear-to-l from-slate-100/50 to-transparent" />
-          </div>
-        </div>
-
-        {/* Header con pills de categorías (mismo estilo que vista lista) */}
-        <div className="absolute top-0 left-0 right-0 z-40">
-          <div className="bg-black  py-1.5">
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-              <button
-                onClick={() => setCategoria(null)}
-                className={`shrink-0 px-5 py-2 rounded-xl text-[13px] font-semibold transition-colors cursor-pointer flex items-center ${!categoria
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white/10 text-white/70'
-                  }`}
-              >
-                Todos
-              </button>
-              {categorias.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setCategoria(categoria === cat.id ? null : cat.id)}
-                  className={`shrink-0 px-3 py-1 rounded-xl text-[13px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${categoria === cat.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white/10 text-white/70'
-                    }`}
-                >
-                  <span className="text-lg">{cat.icono}</span>
-                  {cat.nombre}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Pestaña lateral → Vista Lista */}
-        <button
-          onClick={() => setVistaLista(true)}
-          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 w-9 h-16 flex items-center justify-center pr-1 rounded-l-2xl cursor-pointer active:scale-95 transition-all hover:w-11"
-          style={{
-            background: 'rgba(0,0,0,0.45)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRight: 'none',
-          }}
-        >
-          <List className="w-6 h-6 text-blue-400 drop-shadow-md" />
-        </button>
-
-        {/* Carrusel de tarjetas móvil - OCULTO */}
-        <div className="hidden absolute bottom-16 left-0 right-0 z-1000">
-          <div className="px-4 pb-2">
-            <p className="text-xs text-white bg-black/50 rounded-full px-3 py-1 inline-block mb-2">
-              {negocios.length} {negocios.length === 1 ? 'negocio' : 'negocios'}
-            </p>
-          </div>
-
-          {negocios.length > 0 ? (
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4 pb-4">
-              {negocios.map((negocio) => (
-                <div
-                  key={negocio.sucursalId}
-                  onClick={() => navigate(`/negocios/${negocio.sucursalId}`)}
-                  className={`shrink-0 w-64 bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer ${negocioSeleccionadoId === negocio.sucursalId ? 'ring-2 ring-blue-500' : ''
-                    }`}
-                >
-                  <div className="h-28 bg-slate-100 relative">
-                    {negocio.logoUrl ? (
-                      <img src={negocio.logoUrl} alt={negocio.negocioNombre} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Store className="w-10 h-10 text-slate-300" />
-                      </div>
-                    )}
-                    {negocio.estaAbierto !== null && (
-                      <span className={`absolute top-2 left-2 text-xs font-medium px-2 py-0.5 rounded-full ${negocio.estaAbierto ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                        ● {negocio.estaAbierto ? 'Abierto' : 'Cerrado'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-semibold text-slate-900 text-sm line-clamp-1">{negocio.negocioNombre}</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {negocio.categorias?.[0]?.nombre} • A {Number(negocio.distanciaKm || 0).toFixed(1)} km
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mx-4 bg-white rounded-xl p-6 text-center">
-              <Store className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-slate-500 text-sm">No se encontraron negocios</p>
-            </div>
-          )}
-        </div>
-
-        {/* Estilos CSS para popups personalizados */}
-        <style>{POPUP_STYLES}</style>
-      </div>
-    );
-  }
-
-  // =============================================================================
-  // RENDER: Vista Mapa (principal)
+  // RENDER: Layout estándar (CardYA/Cupones/Guardados pattern)
   // =============================================================================
 
   return (
-    <div className="relative h-[calc(100vh-90px)] lg:h-[calc(100vh-90px)] w-full">
+    <>
+      <style>{POPUP_STYLES}</style>
 
-      {/* ================================================================= */}
-      {/* PANEL UNIFICADO DESKTOP (Solo Mapa)                              */}
-      {/* ================================================================= */}
-      <div className="hidden lg:flex absolute left-4 right-4 bottom-4 top-4 z-1000 flex-col">
-        {/* Fondo del panel */}
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/50" />
+      <div className="min-h-full bg-transparent" data-testid="pagina-negocios">
 
-        {/* Header del panel - DARK (siempre con filtros) */}
-        <div className="relative z-1010 px-4 py-3 bg-black rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            {/* Badge de conteo */}
-            <div className="shrink-0 flex items-center gap-2">
-              <div className="bg-blue-500 text-white text-lg font-bold rounded-xl w-10 h-10 flex items-center justify-center shadow-md">
-                {negocios.length}
-              </div>
-              <div className="leading-tight">
-                <p className="text-sm font-bold text-white">{negocios.length === 1 ? 'Negocio' : 'Negocios'}</p>
-                <p className="text-[11px] text-white/50">encontrados</p>
-              </div>
-            </div>
-
-            {/* Filtros inline (sin buscador) */}
-            <div className="flex items-center justify-center gap-2 flex-1 ml-2">
-              <ChipsFiltros
-                variante="inline"
-                distancia={distancia}
-                setDistancia={setDistancia}
-                categoria={categoria}
-                categorias={categorias}
-                dropdownCategoria={dropdownCategoria}
-                setDropdownCategoria={setDropdownCategoria}
-                btnCategoriaRef={btnCategoriaRef}
-                setPosicionDropdownCat={setPosicionDropdownCat}
-                opcionesSubcategorias={opcionesSubcategorias}
-                subcategoriasSeleccionadas={subcategoriasSeleccionadas}
-                dropdownSubcategoria={dropdownSubcategoria}
-                setDropdownSubcategoria={setDropdownSubcategoria}
-                btnSubcategoriaRef={btnSubcategoriaRef}
-                setPosicionDropdownSub={setPosicionDropdownSub}
-                soloCardya={soloCardya}
-                toggleSoloCardya={toggleSoloCardya}
-                conEnvio={conEnvio}
-                toggleConEnvio={toggleConEnvio}
-                filtrosActivos={filtrosActivos}
-                limpiarFiltros={limpiarFiltros}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* HEADER STICKY — Patrón estándar con glow azul                   */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        <div ref={headerRef} className="sticky top-0 z-20">
+          <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
+            <div
+              className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+              style={{ background: '#000000' }}
+            >
+              {/* Glow sutil azul */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(59,130,246,0.07) 0%, transparent 50%)' }}
               />
-            </div>
-
-            {/* Controles de mapa (derecha) */}
-            <div className="shrink-0 flex items-center gap-0.5 bg-white/10 rounded-xl p-1 ml-2">
-              <button
-                onClick={() => mapRef.current?.zoomIn()}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/15 active:bg-white/25 cursor-pointer transition-colors"
-                title="Acercar"
-              >
-                <Plus className="w-4 h-4 text-white" />
-              </button>
-              <div className="w-px h-5 bg-white/20" />
-              <button
-                onClick={() => mapRef.current?.zoomOut()}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/15 active:bg-white/25 cursor-pointer transition-colors"
-                title="Alejar"
-              >
-                <Minus className="w-4 h-4 text-white" />
-              </button>
-              <div className="w-px h-5 bg-white/20" />
-              <button
-                onClick={() => {
-                  if (latitud && longitud) mapRef.current?.setView([latitud, longitud], 15);
+              {/* Grid pattern */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  opacity: 0.08,
+                  backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                   repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                 }}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/15 active:bg-white/25 cursor-pointer transition-colors"
-                title="Mi ubicación"
-              >
-                <Locate className="w-4 h-4 text-white" />
-              </button>
+              />
+
+              <div className="relative z-10">
+
+                {/* ══ MOBILE HEADER ══ */}
+                <div className="lg:hidden">
+                  {!buscadorMovilAbierto ? (
+                    <>
+                      {/* Fila principal: flecha, nombre, buscador, menú */}
+                      <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            data-testid="btn-volver-negocios"
+                            onClick={() => navigate('/inicio')}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                          >
+                            <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                          </button>
+                          <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center"
+                            style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
+                          >
+                            <Store className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+                          </div>
+                          <span className="text-2xl font-extrabold text-white tracking-tight">
+                            Negocios <span className="text-blue-400">Locales</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 mr-1">
+                          <button
+                            data-testid="btn-buscar-negocios"
+                            onClick={() => {
+                              setBuscadorMovilAbierto(true);
+                              setTimeout(() => inputBusquedaRef.current?.focus(), 100);
+                            }}
+                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                          >
+                            <Search className="w-6 h-6 animate-pulse" strokeWidth={2.5} />
+                          </button>
+                          <button
+                            data-testid="btn-menu-negocios"
+                            onClick={abrirMenuDrawer}
+                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                          >
+                            <Menu className="w-6 h-6" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Subtítulo móvil */}
+                      <div className="flex items-center justify-center gap-2.5 pb-2">
+                        <div
+                          className="h-0.5 w-14 rounded-full"
+                          style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
+                        />
+                        <span className="text-base font-light text-white/70 tracking-wide">
+                          Descubre en tu <span className="font-bold text-white">comunidad</span>
+                        </span>
+                        <div
+                          className="h-0.5 w-14 rounded-full"
+                          style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Buscador activo — reemplaza fila principal */}
+                      <div className="flex items-center gap-2.5 px-3 pt-4 pb-2.5">
+                        <div className="flex-1 relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-white/40 pointer-events-none" />
+                          <input
+                            ref={inputBusquedaRef}
+                            data-testid="input-buscar-negocios"
+                            type="text"
+                            value={busquedaLocal}
+                            onChange={(e) => setBusquedaLocal(e.target.value)}
+                            onBlur={() => {
+                              if (!busquedaLocal.trim()) {
+                                setBuscadorMovilAbierto(false);
+                              }
+                            }}
+                            placeholder="Buscar negocios..."
+                            className="w-full bg-white/15 text-white text-lg placeholder-white/40 outline-none rounded-full pl-10 pr-10 py-2"
+                          />
+                          {busquedaLocal.trim() && (
+                            <button
+                              onClick={() => { setBusquedaLocal(''); inputBusquedaRef.current?.focus(); }}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/25 hover:bg-white/40 rounded-full flex items-center justify-center cursor-pointer transition-colors"
+                            >
+                              <X className="w-4 h-4 text-white" />
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => { setBusquedaLocal(''); setBusqueda(''); setBuscadorMovilAbierto(false); }}
+                          className="p-0.5 rounded-full text-white/80 hover:bg-white/20 cursor-pointer shrink-0"
+                        >
+                          <X className="w-7 h-7" />
+                        </button>
+                      </div>
+                      {/* Subtítulo se mantiene */}
+                      <div className="flex items-center justify-center gap-2.5 pb-2">
+                        <div
+                          className="h-0.5 w-14 rounded-full"
+                          style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
+                        />
+                        <span className="text-base font-light text-white/70 tracking-wide">
+                          Descubre en tu <span className="font-bold text-white">comunidad</span>
+                        </span>
+                        <div
+                          className="h-0.5 w-14 rounded-full"
+                          style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* ══ DESKTOP HEADER ══ */}
+                <div className="hidden lg:block">
+                  <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
+                    {/* Logo + Título */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div
+                        className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
+                        style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
+                      >
+                        <Store className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
+                      </div>
+                      <div className="flex items-baseline">
+                        <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
+                          Negocios{' '}
+                        </span>
+                        <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight">
+                          Locales
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Centro: Subtítulo */}
+                    <div className="flex-1 text-center min-w-0">
+                      <h1 className="text-3xl 2xl:text-[34px] font-light text-white/70 leading-tight truncate">
+                        Descubre en tu{' '}
+                        <span className="font-bold text-white">comunidad</span>
+                      </h1>
+                      <div className="flex items-center justify-center gap-3 mt-1.5">
+                        <div
+                          className="h-0.5 w-20 2xl:w-24 rounded-full"
+                          style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
+                        />
+                        <span className="text-sm 2xl:text-base font-semibold text-blue-400/70 uppercase tracking-[3px]">
+                          comercios cerca de ti
+                        </span>
+                        <div
+                          className="h-0.5 w-20 2xl:w-24 rounded-full"
+                          style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* KPIs */}
+                    <div className="flex items-center gap-5 shrink-0 w-[200px] 2xl:w-[220px]">
+                      <div className="flex flex-col items-center w-16 2xl:w-18">
+                        <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 leading-none">
+                          {negocios.length}
+                        </span>
+                        <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
+                          Negocios
+                        </span>
+                      </div>
+                      <div className="w-1 h-16 rounded-full" style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.25) 30%, rgba(255,255,255,0.25) 70%, transparent)' }} />
+                      <div className="flex flex-col items-center w-16 2xl:w-18">
+                        {cercaDeMi ? (
+                          <>
+                            <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none whitespace-nowrap">
+                              {distancia} km
+                            </span>
+                            <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                              Radio
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider">
+                              En tu
+                            </span>
+                            <span className="text-xl 2xl:text-2xl font-extrabold text-white leading-none mt-1">
+                              Ciudad
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── TABS ── */}
+                <div className="flex items-center">
+                  <div className="negocios-tabs flex lg:flex-none overflow-x-auto flex-1">
+                    {(window.innerWidth >= 1024 ? TABS_NEGOCIOS_DESKTOP : TABS_NEGOCIOS_MOBILE).map(({ id, label, Icono }) => (
+                      <button
+                        key={id}
+                        data-testid={`tab-negocios-${id}`}
+                        onClick={() => setTabActiva(id)}
+                        className="flex items-center gap-2 lg:gap-2.5 px-4 lg:px-7 2xl:px-9 py-3 lg:py-3.5 text-base lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
+                        style={{
+                          color: tabActiva === id ? '#3b82f6' : 'rgba(255,255,255,0.50)',
+                          fontWeight: tabActiva === id ? 700 : 500,
+                          background: 'transparent',
+                        }}
+                      >
+                        <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" />
+                        {label}
+                        {id === 'lista' && negocios.length > 0 && (
+                          <span className="text-[10px] font-bold bg-blue-500 text-white w-5 h-5 rounded-full flex items-center justify-center">{negocios.length}</span>
+                        )}
+                        {tabActiva === id && (
+                          <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-blue-400" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Botón filtros mobile — en la fila de tabs */}
+                  <button
+                    data-testid="btn-filtros-movil"
+                    onClick={() => setPopupFiltrosMovil(true)}
+                    className="lg:hidden ml-auto mr-3 w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer shrink-0 relative transition-colors text-white/50 hover:text-white hover:bg-white/10"
+                  >
+                    <SlidersHorizontal className="w-5 h-5" strokeWidth={2.5} />
+                    {filtrosActivos() > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                        {filtrosActivos()}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* ChipsFiltros desktop — en la fila de tabs */}
+                  <div className="hidden lg:flex items-center gap-2 ml-auto pr-6 2xl:pr-8 overflow-x-auto">
+                    <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Contenido: Solo vista mapa con cards laterales */}
-        <div className="relative z-10 flex-1 flex overflow-hidden rounded-b-2xl">
-          {/* Columna de cards (scroll vertical, transparente) */}
-          <div
-            ref={carruselRef}
-            className="w-[380px] 2xl:w-[420px] shrink-0 overflow-y-auto scrollbar-hide p-4 flex flex-col gap-9 z-10"
-          >
-            {loading && negocios.length === 0 ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="w-full h-[180px] bg-slate-100 rounded-2xl animate-pulse shrink-0">
-                  <div className="h-[120px] bg-slate-200 rounded-t-2xl" />
-                  <div className="p-3 space-y-2">
-                    <div className="h-4 bg-slate-200 rounded w-3/4" />
-                    <div className="h-3 bg-slate-200 rounded w-1/2" />
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* CONTENIDO                                                        */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        <div className="relative z-0 p-4 lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto">
+
+          {/* ── MOBILE: Tab Lista ── */}
+          {tabActiva === 'lista' && (
+            <div className="lg:hidden" data-testid="negocios-lista-movil">
+              {loading && negocios.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                </div>
+              ) : negocios.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="w-20 h-20 rounded-full bg-linear-to-br from-blue-100 to-blue-50 flex items-center justify-center ring-8 ring-blue-50 mb-4">
+                    <Store className="w-10 h-10 text-blue-400" />
                   </div>
+                  <p className="text-xl font-bold text-gray-900">Sin resultados</p>
+                  <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">Ajusta los filtros o amplía el radio</p>
                 </div>
-              ))
-            ) : negocios.length > 0 ? (
-              negocios.map((negocio) => (
-                <div
-                  key={negocio.sucursalId}
-                  ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}
-                >
-                  <CardNegocio
-                    negocio={negocio}
-                    seleccionado={negocio.sucursalId === negocioSeleccionadoId}
-                    onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
-                  />
+              ) : (
+                <div className="space-y-4">
+                  {negocios.map((negocio) => (
+                    <div key={negocio.sucursalId} ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}>
+                      <CardNegocio
+                        negocio={negocio}
+                        seleccionado={negocio.sucursalId === negocioSeleccionadoId}
+                        onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <Store className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-                  <p className="text-slate-500 font-medium text-lg">No se encontraron negocios</p>
-                  <p className="text-sm text-slate-400 mt-1">Intenta ajustar los filtros</p>
+              )}
+            </div>
+          )}
+
+          {/* ── MOBILE: Tab Mapa ── */}
+          {tabActiva === 'mapa' && (
+            <div className="lg:hidden -mx-1 -mt-4 -mb-4 fixed inset-0 z-0" data-testid="negocios-mapa-movil" style={{ top: 'var(--negocios-header-h, 150px)', bottom: '70px' }}>
+              <div className="relative w-full h-full">
+                <MapaNegocio {...mapaProps} />
+                {/* Viñeta */}
+                <div className="absolute inset-0 pointer-events-none z-5">
+                  <div className="absolute top-0 left-0 right-0 h-6 bg-linear-to-b from-white/40 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 h-6 bg-linear-to-t from-white/40 to-transparent" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── DESKTOP ── */}
+          <div className="hidden lg:block" data-testid="negocios-desktop">
+
+            {/* Tab Lista: Solo grid de cards */}
+            {tabActiva === 'lista' && (
+              <>
+                {loading && negocios.length === 0 ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-5 2xl:gap-6">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="h-[200px] bg-slate-100 rounded-2xl animate-pulse">
+                        <div className="h-[130px] bg-slate-200 rounded-t-2xl" />
+                        <div className="p-3 space-y-2">
+                          <div className="h-4 bg-slate-200 rounded w-3/4" />
+                          <div className="h-3 bg-slate-200 rounded w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : negocios.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <div className="w-24 h-24 rounded-full bg-linear-to-br from-blue-100 to-blue-50 flex items-center justify-center ring-8 ring-blue-50 mb-6">
+                      <Store className="w-12 h-12 lg:w-16 lg:h-16 text-blue-400" />
+                    </div>
+                    <p className="text-xl lg:text-2xl font-bold text-gray-900">No se encontraron negocios</p>
+                    <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">Intenta ajustar los filtros o ampliar el radio de búsqueda</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-5 2xl:gap-6">
+                    {negocios.map((negocio) => (
+                      <div key={negocio.sucursalId} ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}>
+                        <CardNegocio
+                          negocio={negocio}
+                          seleccionado={negocio.sucursalId === negocioSeleccionadoId}
+                          onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Tab Mapa: Cards izquierda + Mapa derecha */}
+            {tabActiva === 'mapa' && (
+              <div className="flex gap-4 2xl:gap-5" style={{ height: 'calc(100vh - 300px)' }}>
+                {/* Cards scrollable izquierda */}
+                <div className="negocios-cards-scroll w-[380px] 2xl:w-[420px] shrink-0 overflow-y-auto overflow-x-visible pr-1 z-10">
+                  {loading && negocios.length === 0 ? (
+                    <div className="flex flex-col gap-5">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="h-[200px] bg-slate-100 rounded-2xl animate-pulse">
+                          <div className="h-[130px] bg-slate-200 rounded-t-2xl" />
+                          <div className="p-3 space-y-2">
+                            <div className="h-4 bg-slate-200 rounded w-3/4" />
+                            <div className="h-3 bg-slate-200 rounded w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : negocios.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16">
+                      <div className="w-20 h-20 rounded-full bg-linear-to-br from-blue-100 to-blue-50 flex items-center justify-center ring-8 ring-blue-50 mb-5">
+                        <Store className="w-10 h-10 text-blue-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900">Sin resultados</h3>
+                      <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">Ajusta los filtros o amplía el radio</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4 2xl:gap-5 pb-4">
+                      {negocios.map((negocio) => (
+                        <div key={negocio.sucursalId} ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}>
+                          <CardNegocio
+                            negocio={negocio}
+                            seleccionado={negocio.sucursalId === negocioSeleccionadoId}
+                            onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Mapa fijo derecha */}
+                <div className="flex-1 relative rounded-2xl border border-slate-200 overflow-hidden">
+                  <MapaNegocio {...mapaProps} />
+                  {/* Viñeta sutil */}
+                  <div className="absolute inset-0 pointer-events-none z-5">
+                    <div className="absolute top-0 left-0 right-0 h-8 bg-linear-to-b from-white/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-white/30 to-transparent" />
+                    <div className="absolute top-0 bottom-0 left-0 w-8 bg-linear-to-r from-white/30 to-transparent" />
+                    <div className="absolute top-0 bottom-0 right-0 w-8 bg-linear-to-l from-white/30 to-transparent" />
+                  </div>
                 </div>
               </div>
             )}
+
           </div>
 
-          {/* Mapa integrado */}
-          <div className="flex-1 relative rounded-br-2xl overflow-hidden">
-            <MapContainer
-              center={centroInicial}
-              zoom={14}
-              className="w-full h-full"
-              zoomControl={false}
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* DROPDOWNS GLOBALES (posición fixed)                              */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+
+        {/* Dropdown distancia */}
+        {dropdownDistancia && (
+          <div
+            data-dropdown
+            className="fixed w-[280px] bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-99999 py-4 px-5"
+            style={{ top: posDropdownDist.top, left: posDropdownDist.left }}
+          >
+            <div className="flex gap-2.5 mb-4">
+              <button
+                onClick={() => { if (cercaDeMi) toggleCercaDeMi(); }}
+                className={`flex-1 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all ${
+                  !cercaDeMi ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                }`}
+              >
+                Mi ciudad
+              </button>
+              <button
+                onClick={() => { if (!cercaDeMi) toggleCercaDeMi(); }}
+                className={`flex-1 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all ${
+                  cercaDeMi ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                }`}
+              >
+                Cerca de mí
+              </button>
+            </div>
+            {cercaDeMi && (
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-sm font-semibold text-slate-500">Distancia</span>
+                  <span className="text-base font-bold text-slate-800">{distancia} km</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="50"
+                  value={distancia}
+                  onChange={(e) => setDistancia(Number(e.target.value))}
+                  className="w-full h-2 rounded-full appearance-none cursor-pointer accent-blue-500"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 ${((distancia - 1) / 49) * 100}%, #e2e8f0 ${((distancia - 1) / 49) * 100}%)`,
+                  }}
+                />
+                <div className="flex justify-between mt-1.5">
+                  <span className="text-xs text-slate-400">1 km</span>
+                  <span className="text-xs text-slate-400">50 km</span>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => setDropdownDistancia(false)}
+              className="w-full mt-4 py-2 rounded-xl text-sm font-bold text-white cursor-pointer transition-all"
+              style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                keepBuffer={5}
-                updateWhenZooming={false}
-                updateWhenIdle={true}
-              />
+              Aplicar
+            </button>
+          </div>
+        )}
 
-              {latitud && longitud && (
-                <Marker position={[latitud, longitud]} icon={iconoUsuario}>
-                  <Popup>
-                    <p className="font-semibold text-center">Tu ubicación</p>
-                  </Popup>
-                </Marker>
-              )}
-
-              {negocios.map((negocio) => {
-                if (!negocio.latitud || !negocio.longitud) return null;
-                const posicion: [number, number] = [negocio.latitud, negocio.longitud];
-
+        {dropdownCategoria && (
+          <div
+            className="fixed bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-99999 py-1 overflow-hidden w-[220px]"
+            style={{ top: posicionDropdownCat.top, left: posicionDropdownCat.left }}
+          >
+            <div className="max-h-[300px] overflow-y-auto">
+              <button
+                onClick={() => { setCategoria(null); setSubcategorias([]); setDropdownCategoria(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${!categoria ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                data-testid="dropdown-cat-todas"
+              >
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!categoria ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                  {!categoria && <Check className="w-3 h-3 text-white" />}
+                </div>
+                Todas
+              </button>
+              {categorias.map((cat) => {
+                const isSelected = categoria === cat.id;
                 return (
-                  <Marker
-                    key={negocio.sucursalId}
-                    position={posicion}
-                    icon={getIconoMarker(negocio.sucursalId)}
-                    eventHandlers={{
-                      click: () => handleSeleccionarNegocio(negocio.sucursalId),
-                      add: (e) => { markerRefs.current[negocio.sucursalId] = e.target as L.Marker; },
-                      popupclose: () => { setNegocioSeleccionadoId(null); },
-                    }}
+                  <button
+                    key={cat.id}
+                    onClick={() => { setCategoria(cat.id); setSubcategorias([]); setDropdownCategoria(false); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${isSelected ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                    data-testid={`dropdown-cat-${cat.id}`}
                   >
-                    <Popup className="popup-negocio">
-                      <PopupNegocio
-                        negocio={negocio}
-                        onVerPerfil={() => navigate(`/negocios/${negocio.sucursalId}`)}
-                      />
-                    </Popup>
-                  </Marker>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    </div>
+                    {cat.nombre}
+                  </button>
                 );
               })}
-
-              <ControlesMapa onMapReady={(m) => { mapRef.current = m; }} />
-            </MapContainer>
-
-            {/* Viñeta difuminada en el mapa */}
-            <div className="absolute inset-0 pointer-events-none z-999">
-              <div className="absolute top-0 left-0 right-0 h-8 bg-linear-to-b from-white/50 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-white/50 to-transparent" />
-              <div className="absolute top-0 bottom-0 left-0 w-8 bg-linear-to-r from-white/50 to-transparent" />
-              <div className="absolute top-0 bottom-0 right-0 w-8 bg-linear-to-l from-white/50 to-transparent" />
             </div>
           </div>
-        </div>
+        )}
+
+        {dropdownSubcategoria && (
+          <div
+            className="fixed bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-99999 py-1 overflow-hidden w-[220px]"
+            style={{ top: posicionDropdownSub.top, left: posicionDropdownSub.left }}
+          >
+            <div className="max-h-[300px] overflow-y-auto">
+              <button
+                onClick={() => { setSubcategorias([]); setDropdownSubcategoria(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${subcategoriasSeleccionadas.length === 0 ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                data-testid="dropdown-subcat-todas"
+              >
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${subcategoriasSeleccionadas.length === 0 ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                  {subcategoriasSeleccionadas.length === 0 && <Check className="w-3 h-3 text-white" />}
+                </div>
+                Todas
+              </button>
+              {opcionesSubcategorias.map((sub) => {
+                const isSelected = subcategoriasSeleccionadas.includes(sub.id);
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => { setSubcategorias([sub.id]); setDropdownSubcategoria(false); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${isSelected ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                    data-testid={`dropdown-subcat-${sub.id}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    </div>
+                    <span className="truncate">{sub.nombre}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* POPUP FILTROS MOBILE                                             */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {popupFiltrosMovil && (
+          <div className="lg:hidden fixed inset-0 z-99999 flex items-center justify-center p-6">
+            {/* Overlay */}
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setPopupFiltrosMovil(false)}
+            />
+            {/* Contenido */}
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+              {/* Header */}
+              <div
+                className="relative px-5 py-4 overflow-hidden"
+                style={{ background: '#000000' }}
+              >
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.12) 0%, transparent 60%)' }}
+                />
+                <div className="relative z-10 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <SlidersHorizontal className="w-5 h-5 text-blue-400" />
+                    <span className="text-lg font-bold text-white">Ajustar búsqueda</span>
+                  </div>
+                  <button
+                    onClick={() => setPopupFiltrosMovil(false)}
+                    className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-5">
+
+                {/* Toggle Cerca de mí / En mi ciudad */}
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 mb-3">Ubicación</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { if (cercaDeMi) toggleCercaDeMi(); }}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all ${
+                        !cercaDeMi
+                          ? 'bg-slate-800 text-white shadow-md'
+                          : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                      }`}
+                      data-testid="filtro-en-mi-ciudad"
+                    >
+                      En mi ciudad
+                    </button>
+                    <button
+                      onClick={() => { if (!cercaDeMi) toggleCercaDeMi(); }}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all ${
+                        cercaDeMi
+                          ? 'bg-slate-800 text-white shadow-md'
+                          : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                      }`}
+                      data-testid="filtro-cerca-de-mi"
+                    >
+                      Cerca de mí
+                    </button>
+                  </div>
+                </div>
+
+                {/* Slider de distancia — solo si cercaDeMi */}
+                {cercaDeMi && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold text-slate-500">Distancia</p>
+                      <span className="text-lg font-bold text-slate-800">{distancia} km</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="50"
+                      value={distancia}
+                      onChange={(e) => setDistancia(Number(e.target.value))}
+                      className="w-full h-2 rounded-full appearance-none cursor-pointer accent-blue-500"
+                      style={{
+                        background: `linear-gradient(to right, #3b82f6 ${((distancia - 1) / 49) * 100}%, #e2e8f0 ${((distancia - 1) / 49) * 100}%)`,
+                      }}
+                      data-testid="slider-distancia-movil"
+                    />
+                    <div className="flex justify-between mt-1.5">
+                      <span className="text-xs text-slate-400">1 km</span>
+                      <span className="text-xs text-slate-400">50 km</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Filtros rápidos */}
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 mb-3">Servicios</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={toggleSoloCardya}
+                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all border flex items-center gap-1.5 ${
+                        soloCardya
+                          ? 'bg-slate-800 text-white border-slate-800'
+                          : 'bg-white text-slate-600 border-2 border-slate-300 hover:border-slate-400'
+                      }`}
+                      data-testid="filtro-cardya-movil"
+                    >
+                      <span className="text-base leading-none">💳</span> CardYA
+                    </button>
+                    <button
+                      onClick={toggleConEnvio}
+                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all border flex items-center gap-1.5 ${
+                        conEnvio
+                          ? 'bg-slate-800 text-white border-slate-800'
+                          : 'bg-white text-slate-600 border-2 border-slate-300 hover:border-slate-400'
+                      }`}
+                      data-testid="filtro-envio-movil"
+                    >
+                      <span className="text-base leading-none">📦</span> Envíos
+                    </button>
+                    <button
+                      onClick={toggleConServicioDomicilio}
+                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all border flex items-center gap-1.5 ${
+                        conServicioDomicilio
+                          ? 'bg-slate-800 text-white border-slate-800'
+                          : 'bg-white text-slate-600 border-2 border-slate-300 hover:border-slate-400'
+                      }`}
+                      data-testid="filtro-servicio-domicilio-movil"
+                    >
+                      <span className="text-base leading-none">🏠</span> Servicio a domicilio
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 pb-5 flex gap-3">
+                <button
+                  onClick={() => { limpiarFiltros(); setPopupFiltrosMovil(false); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 cursor-pointer transition-colors"
+                >
+                  Limpiar
+                </button>
+                <button
+                  onClick={() => setPopupFiltrosMovil(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer transition-all"
+                  style={{
+                    background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                  }}
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
-
-      {/* DROPDOWNS GLOBALES (se renderizan siempre, posición fixed) */}
-      {dropdownCategoria && (
-        <div
-          className="fixed bg-white rounded-xl shadow-2xl z-99999 border border-slate-200 overflow-hidden w-[220px]"
-          style={{ top: posicionDropdownCat.top, left: posicionDropdownCat.left }}
-        >
-          <div className="max-h-[300px] overflow-y-auto">
-            <button
-              onClick={() => {
-                setCategoria(null);
-                setSubcategorias([]);
-                setDropdownCategoria(false);
-              }}
-              className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${!categoria
-                ? 'bg-blue-50 text-blue-700 font-medium'
-                : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
-                }`}
-            >
-              <span>Todas</span>
-              {!categoria && <Check className="w-4 h-4 text-blue-600" />}
-            </button>
-            <div className="h-px bg-slate-100" />
-            {categorias.map((cat) => {
-              const isSelected = categoria === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => {
-                    setCategoria(cat.id);
-                    setSubcategorias([]);
-                    setDropdownCategoria(false);
-                  }}
-                  className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${isSelected
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
-                    }`}
-                >
-                  <span>{cat.nombre}</span>
-                  {isSelected && <Check className="w-4 h-4 text-blue-600" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {dropdownSubcategoria && (
-        <div
-          className="fixed bg-white rounded-xl shadow-2xl z-99999 border border-slate-200 overflow-hidden w-[220px]"
-          style={{ top: posicionDropdownSub.top, left: posicionDropdownSub.left }}
-        >
-          <div className="max-h-[300px] overflow-y-auto">
-            <button
-              onClick={() => {
-                setSubcategorias([]);
-                setDropdownSubcategoria(false);
-              }}
-              className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${subcategoriasSeleccionadas.length === 0
-                ? 'bg-blue-50 text-blue-700 font-medium'
-                : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
-                }`}
-            >
-              <span>Todas</span>
-              {subcategoriasSeleccionadas.length === 0 && <Check className="w-4 h-4 text-blue-600" />}
-            </button>
-            <div className="h-px bg-slate-100" />
-            {opcionesSubcategorias.map((sub) => {
-              const isSelected = subcategoriasSeleccionadas.includes(sub.id);
-              return (
-                <button
-                  key={sub.id}
-                  onClick={() => {
-                    setSubcategorias([sub.id]);
-                    setDropdownSubcategoria(false);
-                  }}
-                  className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${isSelected
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
-                    }`}
-                >
-                  <span className="truncate">{sub.nombre}</span>
-                  {isSelected && <Check className="w-4 h-4 text-slate-700 shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Estilos CSS para popups personalizados */}
-      <style>{POPUP_STYLES}</style>
-
-    </div>
+    </>
   );
 }
 

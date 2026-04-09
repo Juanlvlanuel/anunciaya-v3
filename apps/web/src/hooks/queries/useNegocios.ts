@@ -26,14 +26,14 @@ import type { NegocioResumen, NegocioCompleto } from '../../types/negocios';
 
 export function useNegociosLista() {
   const {
-    categoria, subcategorias, distancia,
-    metodosPago, soloCardya, conEnvio, busqueda,
+    categoria, subcategorias, distancia, cercaDeMi,
+    metodosPago, soloCardya, conEnvio, conServicioDomicilio, busqueda,
   } = useFiltrosNegociosStore();
   const { latitud, longitud } = useGpsStore();
 
   const filtros = {
-    categoria, subcategorias, distancia,
-    metodosPago, soloCardya, conEnvio, busqueda,
+    categoria, subcategorias, distancia, cercaDeMi,
+    metodosPago, soloCardya, conEnvio, conServicioDomicilio, busqueda,
     latitud, longitud,
   };
 
@@ -45,13 +45,14 @@ export function useNegociosLista() {
       if (latitud && longitud) {
         params.latitud = latitud;
         params.longitud = longitud;
-        params.distanciaMaxKm = distancia;
+        if (cercaDeMi) params.distanciaMaxKm = distancia;
       }
       if (categoria) params.categoriaId = categoria;
       if (subcategorias.length > 0) params.subcategoriaIds = subcategorias.join(',');
       if (metodosPago.length > 0) params.metodosPago = metodosPago.join(',');
       if (soloCardya) params.aceptaCardYA = true;
       if (conEnvio) params.tieneEnvio = true;
+      if (conServicioDomicilio) params.tieneServicioDomicilio = true;
       if (busqueda.trim()) params.busqueda = busqueda.trim();
 
       const response = await api.get<{ success: boolean; data: NegocioResumen[] }>(

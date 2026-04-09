@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAlertasKPIs } from '../../hooks/queries/useAlertas';
+import { useResenasKPIs } from '../../hooks/queries/useResenas';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -114,6 +115,9 @@ export function MenuBusinessStudio() {
   // Badge de alertas no leídas — React Query mantiene actualizado con staleTime 30s
   const kpisAlertasQuery = useAlertasKPIs();
   const alertasNoLeidas = kpisAlertasQuery.data?.noLeidas ?? 0;
+
+  const kpisResenasQuery = useResenasKPIs();
+  const opinionesPendientes = kpisResenasQuery.data?.pendientes ?? 0;
 
   // Filtrar opciones: ocultar "Sucursales" y "Puntos" para gerentes y dueños en sucursal secundaria
   const opcionesFiltradas = vistaComoGerente
@@ -248,6 +252,13 @@ export function MenuBusinessStudio() {
                     esActivo ? 'bg-white/20 text-white' : 'bg-red-500 text-white'
                   }`} data-testid="badge-alertas-menu">
                     {alertasNoLeidas > 99 ? '99+' : alertasNoLeidas}
+                  </span>
+                )}
+                {opcion.id === 'opiniones' && opinionesPendientes > 0 && (
+                  <span className={`text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold ${
+                    esActivo ? 'bg-white/20 text-white' : 'bg-red-500 text-white'
+                  }`} data-testid="badge-opiniones-menu">
+                    {opinionesPendientes > 99 ? '99+' : opinionesPendientes}
                   </span>
                 )}
               </span>

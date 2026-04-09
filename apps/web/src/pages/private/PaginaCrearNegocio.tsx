@@ -187,7 +187,7 @@ export function PaginaCrearNegocio() {
                   disabled={cargando}
                   className={`w-full pl-10 lg:pl-10 2xl:pl-12 pr-3 py-2.5 lg:py-2.5 2xl:py-3.5 bg-slate-50 border-2 rounded-lg lg:rounded-lg 2xl:rounded-xl text-sm lg:text-sm 2xl:text-base font-medium focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     !tocado
-                      ? 'border-slate-200 focus:border-blue-500 focus:bg-white'
+                      ? 'border-slate-200 focus:border-slate-500 focus:bg-white'
                       : nombreValido
                       ? 'border-green-500 bg-green-50'
                       : 'border-red-500 bg-red-50'

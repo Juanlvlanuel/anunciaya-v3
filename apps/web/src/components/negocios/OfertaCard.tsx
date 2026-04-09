@@ -336,7 +336,7 @@ const BadgeRectangular = ({ texto, gradient, border, icono, inModal = false }: B
             )}
 
             {/* Badge rectangular */}
-            <div className={`relative flex items-center gap-1 lg:gap-1.5 2xl:gap-1.5 bg-linear-to-r ${gradient} px-2 py-1.5 lg:px-3 lg:py-1.5 2xl:px-3.5 2xl:py-2 rounded-lg shadow-xl border ${border}`}>
+            <div className={`relative flex items-center gap-1 lg:gap-1.5 2xl:gap-1.5 bg-linear-to-r ${gradient} px-2 py-1.5 lg:px-3 lg:py-1.5 2xl:px-3.5 2xl:py-2 rounded-lg shadow-xl border-2 ${border}`}>
                 {icono && <span className="relative z-10">{icono}</span>}
                 <span className="relative z-10 text-sm lg:text-sm 2xl:text-base font-black text-white whitespace-nowrap">
                     {texto}
@@ -434,7 +434,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
             imagen: 'h-[60%]',
             panel: 'h-[40%] py-3 px-3 lg:py-3 lg:px-3 2xl:py-4 2xl:px-4',
             titulo: 'text-2xl lg:text-xl 2xl:text-3xl',
-            descripcion: 'text-sm lg:text-xs 2xl:text-sm',
+            descripcion: 'text-sm',
             gradiente: 'w-2 lg:w-1.5 2xl:w-2',
         },
         compact: {
@@ -442,7 +442,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
             imagen: 'h-[60%]',
             panel: 'h-[40%] py-3 px-2.5 lg:py-2.5 lg:px-2 2xl:py-3 2xl:px-2.5',
             titulo: 'text-base lg:text-sm 2xl:text-base',
-            descripcion: 'text-xs lg:text-[10px] 2xl:text-xs',
+            descripcion: 'text-sm',
             gradiente: 'w-1.5 lg:w-1 2xl:w-1.5',
         },
         zoom: {
@@ -462,7 +462,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
             imagen: 'w-[45%]',
             panel: 'w-[55%] py-2 px-3',
             titulo: 'text-xl',
-            descripcion: 'text-xs',
+            descripcion: 'text-sm',
             gradiente: 'w-1.5',
         },
         compact: {
@@ -470,7 +470,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
             imagen: 'w-[45%]',
             panel: 'w-[55%] py-2.5 px-2.5',
             titulo: 'text-base',
-            descripcion: 'text-xs',
+            descripcion: 'text-sm',
             gradiente: 'w-1',
         },
         zoom: {
@@ -520,7 +520,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
     if (esMobile) {
         return (
             <div className={`${s.card} group cursor-pointer ${className}`} onClick={onClick}>
-                <div className={`relative h-full flex flex-row overflow-visible rounded-xl shadow-2xl transition-all duration-300 group-hover:-translate-y-2 ${config.hoverShadow}`}>
+                <div className={`relative h-full flex flex-row overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                     {/* Badge */}
                     {renderBadge()}
@@ -543,7 +543,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
                         {/* Badge de Urgencia - Esquina inferior izquierda */}
                         {badgeUrgencia && (
                             <div className="absolute bottom-2 left-2 z-10">
-                                <div className={`px-2 py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border ${badgeUrgencia.border} text-white font-bold text-[10px] shadow-lg flex items-center gap-1 animate-pulseScale`}>
+                                <div className={`px-2.5 py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-sm shadow-lg flex items-center gap-1 animate-pulseScale`}>
                                     {badgeUrgencia.icono === "flame" ? (
                                         <Flame className="h-2.5 w-2.5 shrink-0" />
                                     ) : (
@@ -600,7 +600,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
     // LAYOUT DESKTOP: Vertical (ORIGINAL - sin cambios)
     return (
         <div className={`${s.card} group cursor-pointer ${className}`} onClick={onClick}>
-            <div className={`relative h-full flex flex-col overflow-visible rounded-xl shadow-2xl transition-all duration-300 group-hover:-translate-y-2 ${config.hoverShadow}`}>
+            <div className={`relative h-full flex flex-col overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                 {/* Badge */}
                 {renderBadge()}
@@ -624,7 +624,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
                     {badgeUrgencia && (
                         <div className="absolute bottom-0 left-0 right-0 h-14 flex items-center justify-center z-10"
                             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)" }}>
-                            <div className={`px-3 py-1.5 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border ${badgeUrgencia.border} text-white font-bold text-xs shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
+                            <div className={`px-3 py-1.5 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
                                 {badgeUrgencia.icono === "flame" ? (
                                     <Flame className="h-3 w-3 shrink-0" />
                                 ) : (

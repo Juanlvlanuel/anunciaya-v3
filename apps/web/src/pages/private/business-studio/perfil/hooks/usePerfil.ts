@@ -341,6 +341,8 @@ export function usePerfil() {
     sincronizadoRef.current = null;
     if (sucursalActiva) {
       qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+      // Sincronizar vista pública (mismos datos, diferente query key)
+      qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(sucursalActiva) });
     }
   }, [sucursalActiva, qc]);
 

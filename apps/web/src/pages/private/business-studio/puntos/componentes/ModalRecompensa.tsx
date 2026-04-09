@@ -329,7 +329,7 @@ export default function ModalRecompensa({
                           value={puntos}
                           onChange={(e) => setPuntos(e.target.value)}
                           placeholder="150"
-                          className="w-full h-11 px-4 pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                          className="w-full h-11 px-4 pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                           style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                         />
                         <span className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-linear-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
@@ -366,7 +366,7 @@ export default function ModalRecompensa({
                         onChange={(e) => setStock(e.target.value)}
                         disabled={stockIlimitado}
                         placeholder="50"
-                        className="w-full h-11 px-4 pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base font-medium text-slate-800 placeholder:text-slate-500 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                        className="w-full h-11 px-4 pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base font-medium text-slate-800 placeholder:text-slate-500 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                         style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                       />
                       <span className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-slate-200 text-slate-700 text-[11px] font-bold rounded-md pointer-events-none">
@@ -446,7 +446,7 @@ export default function ModalRecompensa({
                         value={puntos}
                         onChange={(e) => setPuntos(e.target.value)}
                         placeholder="150"
-                        className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 pr-14 lg:pr-12 2xl:pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                        className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 pr-14 lg:pr-12 2xl:pr-14 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                         style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                       />
                       <span className="absolute right-2.5 lg:right-1.5 2xl:right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 lg:px-1.5 2xl:px-2 bg-linear-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold rounded-md shadow-sm pointer-events-none">
@@ -487,7 +487,7 @@ export default function ModalRecompensa({
                       className={`w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 pr-14 lg:pr-12 2xl:pr-14 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed cursor-text [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden ${
                         !stockIlimitado && ((stock.length > 0 && Number(stock) <= 0) || stock.length === 0)
                           ? 'border-red-400 focus:ring-red-500/10'
-                          : 'border-slate-300 focus:ring-blue-500'
+                          : 'border-slate-300 focus:ring-slate-500'
                       }`}
                       style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                     />
@@ -519,7 +519,7 @@ export default function ModalRecompensa({
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
                   placeholder={esComprasFrecuentes ? 'Ej: Café gratis, Pizza mediana...' : 'Ej: Café gratis, Descuento 20%...'}
-                  className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text"
+                  className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text"
                   style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 />
               </div>
@@ -536,7 +536,7 @@ export default function ModalRecompensa({
                   onChange={(e) => setDescripcion(e.target.value)}
                   placeholder={esComprasFrecuentes ? 'Ej: Compra 4 cafés y el 5to va por nuestra cuenta' : 'Describe los detalles de la recompensa...'}
                   rows={esComprasFrecuentes ? 3 : 7}
-                  className="w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2.5 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text"
+                  className="w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2.5 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 resize-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 cursor-text"
                   style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 />
               </div>

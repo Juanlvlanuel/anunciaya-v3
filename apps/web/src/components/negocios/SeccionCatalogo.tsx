@@ -80,7 +80,7 @@ export function SeccionCatalogo({
   // ---------------------------------------------------------------------------
   const [modalAbierto, setModalAbierto] = useState(false);
   const [itemSeleccionado, setItemSeleccionado] = useState<ItemCatalogo | null>(null);
-  const { esMobile } = useBreakpoint();
+  const { esMobile, esDesktop } = useBreakpoint();
   // ---------------------------------------------------------------------------
   // CÁLCULOS
   // ---------------------------------------------------------------------------
@@ -89,16 +89,15 @@ export function SeccionCatalogo({
   const totalItems = catalogo.length;
 
   // Items para preview (destacados primero, luego los primeros)
+  const previewCount = esDesktop ? ITEMS_PREVIEW_DESKTOP : ITEMS_PREVIEW_LAPTOP;
   const itemsPreview = useMemo(() => {
-    // Ordenar: destacados primero
     const ordenados = [...catalogo].sort((a, b) => {
       if (a.destacado && !b.destacado) return -1;
       if (!a.destacado && b.destacado) return 1;
       return 0;
     });
-    // Tomar máximo para desktop (el CSS oculta los extras en móvil/laptop)
-    return ordenados.slice(0, ITEMS_PREVIEW_DESKTOP);
-  }, [catalogo]);
+    return ordenados.slice(0, previewCount);
+  }, [catalogo, previewCount]);
 
   // Cuántos items quedan por mostrar
   const itemsRestantesLaptop = Math.max(0, totalItems - ITEMS_PREVIEW_LAPTOP);
@@ -178,7 +177,7 @@ export function SeccionCatalogo({
           <h2 className="flex items-center gap-2 text-lg lg:text-base 2xl:text-lg font-semibold">
             <ShoppingBag className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
             <span>Catálogo</span>
-            <span className="text-sm font-normal text-slate-300">({totalItems})</span>
+            <span className="text-sm font-medium text-white/70">({totalItems})</span>
           </h2>
           {/* Móvil: "Ver todos" + flecha animada | Desktop: solo flecha */}
           {esMobile ? (
@@ -195,41 +194,47 @@ export function SeccionCatalogo({
 
         {/* Grid de preview con FAB externo */}
         <div className="relative">
-          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-2.5 2xl:gap-4 pr-0 lg:pr-8">
-            {/* Cards de preview */}
-            {itemsPreview.map((item, index) => (
-              <CardPreview
-                key={item.id}
-                item={item}
-                index={index}
-                onItemClick={handleItemClick}
-              />
-            ))}
+          {/* Mobile: scroll horizontal | Desktop: grid 4 items */}
+          <div className="flex gap-3 overflow-x-auto pb-2 lg:pb-0 lg:grid lg:grid-cols-3 2xl:grid-cols-4 lg:gap-2.5 2xl:gap-4 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {(esMobile
+              ? [...catalogo].sort((a, b) => (a.destacado && !b.destacado ? -1 : !a.destacado && b.destacado ? 1 : 0)).slice(0, 10)
+              : itemsPreview
+            ).map((item, index) => {
+              const esUltimoDesktop = !esMobile && index === itemsPreview.length - 1 && totalItems > itemsPreview.length;
+              return (
+                <div key={item.id} className="shrink-0 w-[45%] lg:w-auto relative">
+                  <CardPreview
+                    item={item}
+                    index={index}
+                    onItemClick={esUltimoDesktop ? () => handleAbrirModal() : handleItemClick}
+                  />
+                  {/* Overlay "Ver todos" en el último item desktop */}
+                  {esUltimoDesktop && (
+                    <div
+                      className="absolute inset-0 z-30 rounded-xl bg-black/60 flex flex-col items-center justify-center gap-1 cursor-pointer"
+                      onClick={(e) => { e.stopPropagation(); handleAbrirModal(); }}
+                    >
+                      <span className="text-3xl font-bold text-white">+{totalItems - itemsPreview.length}</span>
+                      <span className="text-sm font-semibold text-white/80">Ver todos</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {/* Botón "Ver todos" al final del scroll en mobile */}
+            {esMobile && catalogo.length > 10 && (
+              <div className="shrink-0 w-[45%] flex items-center justify-center">
+                <button
+                  onClick={handleAbrirModal}
+                  className="w-full h-full min-h-[120px] rounded-xl border-2 border-slate-300 flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
+                >
+                  <span className="text-2xl font-bold text-white">+{catalogo.length - 10}</span>
+                  <span className="text-sm font-semibold text-white/70">Ver todos</span>
+                </button>
+              </div>
+            )}
           </div>
-
-          {/* FAB circular - Solo Laptop */}
-          {itemsRestantesLaptop > 0 && (
-            <button
-              onClick={handleAbrirModal}
-              className="hidden lg:flex 2xl:hidden absolute -right-2 top-1/2 -translate-y-1/2 h-9 w-9 items-center justify-center gap-0.5 rounded-full bg-blue-600 text-white shadow-xl transition-colors hover:bg-blue-700 active:scale-95 cursor-pointer animate-pulseScale"
-              title={`Ver ${itemsRestantesLaptop} items más`}
-            >
-              <span className="text-[10px] font-bold">+{itemsRestantesLaptop}</span>
-              <ChevronRight className="h-3 w-3 animate-bounceX" />
-            </button>
-          )}
-
-          {/* FAB circular - Desktop */}
-          {itemsRestantesDesktop > 0 && (
-            <button
-              onClick={handleAbrirModal}
-              className="hidden 2xl:flex absolute -right-2 top-1/2 -translate-y-1/2 h-10 w-10 items-center justify-center gap-0.5 rounded-full bg-blue-600 text-white shadow-xl transition-colors hover:bg-blue-700 active:scale-95 cursor-pointer animate-pulseScale"
-              title={`Ver ${itemsRestantesDesktop} items más`}
-            >
-              <span className="text-xs font-bold">+{itemsRestantesDesktop}</span>
-              <ChevronRight className="h-3.5 w-3.5 animate-bounceX" />
-            </button>
-          )}
         </div>
       </div>
 
@@ -276,16 +281,9 @@ function CardPreview({
   const esServicio = item.tipo === 'servicio';
   const esDestacado = item.destacado === true;
 
-  // Clases para ocultar items según breakpoint
-  // index 0-1: visible en todos (móvil muestra 2)
-  // index 2: visible en lg+ (laptop muestra 3)
-  // index 3: visible en 2xl+ (desktop muestra 4)
-  const clasesVisibilidad =
-    index < 2
-      ? '' // Siempre visible
-      : index < 3
-        ? 'hidden lg:block' // Visible desde laptop
-        : 'hidden 2xl:block'; // Visible solo en desktop
+  // En mobile: todos visibles (scroll horizontal)
+  // En desktop: ocultar extras según breakpoint
+  const clasesVisibilidad = '';
 
   // Card DESTACADO
   if (esDestacado) {
@@ -343,7 +341,7 @@ function CardPreview({
       onClick={(e) => onItemClick?.(item, e)}
     >
       {/* Imagen con zoom hover y efecto shine */}
-      <div className="aspect-4/3 overflow-hidden bg-slate-100 relative">
+      <div className="aspect-4/3 overflow-hidden bg-slate-200 relative">
         {item.imagenPrincipal ? (
           <>
             <img
@@ -358,9 +356,9 @@ function CardPreview({
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             {esServicio ? (
-              <Wrench className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-slate-300" />
+              <Wrench className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-slate-600" />
             ) : (
-              <ImageIcon className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-slate-300" />
+              <ImageIcon className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-slate-600" />
             )}
           </div>
         )}

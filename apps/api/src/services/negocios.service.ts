@@ -29,6 +29,7 @@ interface FiltrosListaSucursales {
     metodosPago?: string[];
     aceptaCardYA?: boolean;
     tieneEnvio?: boolean;
+    tieneServicioDomicilio?: boolean;
     busqueda?: string;
     limite?: number;
     offset?: number;
@@ -187,6 +188,7 @@ export async function listarSucursalesCercanas(
             metodosPago,
             aceptaCardYA,
             tieneEnvio,
+            tieneServicioDomicilio,
             busqueda,
             limite = 20,
             offset = 0,
@@ -366,7 +368,12 @@ export async function listarSucursalesCercanas(
               ${tieneEnvio !== undefined ? sql`
                 AND s.tiene_envio_domicilio = ${tieneEnvio}
               ` : sql``}
-              
+
+              -- Filtro por servicio a domicilio
+              ${tieneServicioDomicilio !== undefined ? sql`
+                AND s.tiene_servicio_domicilio = ${tieneServicioDomicilio}
+              ` : sql``}
+
               -- Búsqueda por nombre
 
             -- Filtro por métodos de pago

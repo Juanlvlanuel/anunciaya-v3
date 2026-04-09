@@ -494,7 +494,7 @@ export function ModalCanjearVoucher({
                     onPaste={index === 0 ? handlePaste : undefined}
                     disabled={canjeando}
                     className={`w-11 h-14 lg:w-10 lg:h-12 2xl:w-11 2xl:h-14 text-center text-2xl lg:text-xl 2xl:text-2xl font-bold uppercase rounded-lg border-2 outline-none text-white disabled:opacity-50 disabled:cursor-not-allowed ${
-                      error ? 'border-red-400 bg-red-400/10' : 'border-white/20 focus:border-blue-400 bg-white/5'
+                      error ? 'border-red-400 bg-red-400/10' : 'border-white/20 focus:border-slate-400 bg-white/5'
                     }`}
                   />
                 ))}

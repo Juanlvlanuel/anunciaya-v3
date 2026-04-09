@@ -346,7 +346,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar persona o negocio..."
-              className="w-full pl-9 pr-3 py-2.5 lg:py-2 text-base lg:text-sm 2xl:text-base bg-slate-100 border-2 border-slate-300 rounded-xl outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30 placeholder:text-slate-500 text-slate-800 font-medium"
+              className="w-full pl-9 pr-3 py-2.5 lg:py-2 text-base lg:text-sm 2xl:text-base bg-slate-100 border-2 border-slate-300 rounded-xl outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 placeholder:text-slate-500 text-slate-800 font-medium"
             />
             {busqueda && (
               <button

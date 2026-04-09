@@ -204,7 +204,7 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
                             placeholder="Buscar ciudad..."
-                            className="w-full pl-10 lg:pl-9 2xl:pl-10 pr-4 py-3 lg:py-2.5 2xl:py-3 border-2 border-slate-300 bg-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                            className="w-full pl-10 lg:pl-9 2xl:pl-10 pr-4 py-3 lg:py-2.5 2xl:py-3 border-2 border-slate-300 bg-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-400 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                             style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                         />
                         {busqueda && (

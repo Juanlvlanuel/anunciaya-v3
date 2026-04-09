@@ -29,21 +29,21 @@ import { useEffect } from 'react';
 import {
   X,
   User,
-  Settings,
   LogOut,
   Wallet,
   ChevronRight,
-  Gift,
   Heart,
   FileText,
   MapPin,
   Briefcase,
   Lock,
   Ticket,
+  Bell,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useUiStore } from '../../stores/useUiStore';
+import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { ToggleModoUsuario } from '../ui/ToggleModoUsuario';
 
 // =============================================================================
@@ -69,6 +69,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
   const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
   const cerrarTodo = useUiStore((state) => state.cerrarTodo);
+
+  const togglePanelNotificaciones = useNotificacionesStore((state) => state.togglePanel);
 
   // ---------------------------------------------------------------------------
   // Hooks
@@ -231,12 +233,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           {/* Ubicación - PRIMERA OPCIÓN */}
           <MenuDrawerItem
             icon={MapPin}
-            label={
-              <span className="flex flex-col leading-tight">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Tu Ubicación</span>
-                <span className="text-sm font-semibold text-gray-900 truncate max-w-[150px] block">{ciudadData?.nombreCompleto || 'Seleccionar ubicación'}</span>
-              </span>
-            }
+            label={ciudadData?.nombre || 'Tu Ubicación'}
             bgColor="bg-gradient-to-br from-blue-500 to-blue-600"
             iconColor="text-white"
             hoverGradient="hover:from-blue-50"
@@ -255,8 +252,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                   iconoImagen="/IconoScanYA.webp"
                   label={
                     <span>
-                      <span className="text-blue-700 font-bold">Scan</span>
-                      <span className="text-red-600 font-bold">YA</span>
+                      <span className="text-gray-900 font-semibold">Scan</span>
+                      <span className="text-gray-900 font-semibold">YA</span>
                     </span>
                   }
                   bgColor="bg-linear-to-br from-orange-500 to-orange-600"
@@ -294,8 +291,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 iconoImagen="/IconoBS.webp"
                 label={
                   <span>
-                    <span className="text-blue-700 font-bold">Business</span>
-                    <span className="text-blue-700 font-bold"> Studio</span>
+                    <span className="text-gray-900 font-semibold">Business</span>
+                    <span className="text-gray-900 font-semibold"> Studio</span>
                   </span>
                 }
                 bgColor="bg-linear-to-br from-blue-500 to-blue-600"
@@ -306,14 +303,24 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 onClick={() => handleNavegar('/business-studio')}
               />
 
-              {/* Bolsa de Trabajo */}
+              {/* Empleos */}
               <MenuDrawerItem
                 icon={Briefcase}
-                label="Publica Vacantes"
+                label="Empleos"
                 bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
                 iconColor="text-white"
                 hoverGradient="hover:from-amber-50"
                 onClick={() => handleNavegar('/empleos')}
+              />
+
+              {/* Mis Guardados */}
+              <MenuDrawerItem
+                icon={Heart}
+                label="Mis Guardados"
+                bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
+                iconColor="text-white"
+                hoverGradient="hover:from-pink-50"
+                onClick={() => handleNavegar('/guardados')}
               />
 
               {/* Divisor después de sección comercial */}
@@ -329,8 +336,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 icon={Wallet}
                 label={
                   <span>
-                    <span className="text-gray-900">Card</span>
-                    <span className="text-amber-500 font-extrabold">YA</span>
+                    <span className="text-gray-900 font-semibold">Card</span>
+                    <span className="text-gray-900 font-semibold">YA</span>
                   </span>
                 }
                 bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
@@ -360,10 +367,20 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 onClick={() => handleNavegar('/mis-publicaciones')}
               />
 
-              {/* Bolsa de Trabajo */}
+              {/* Mis Guardados */}
+              <MenuDrawerItem
+                icon={Heart}
+                label="Mis Guardados"
+                bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
+                iconColor="text-white"
+                hoverGradient="hover:from-pink-50"
+                onClick={() => handleNavegar('/guardados')}
+              />
+
+              {/* Empleos */}
               <MenuDrawerItem
                 icon={Briefcase}
-                label="Bolsa de Trabajo"
+                label="Empleos"
                 bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
                 iconColor="text-white"
                 hoverGradient="hover:from-amber-50"
@@ -377,6 +394,16 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
           {/* === OPCIONES COMUNES (TODOS) === */}
 
+          {/* Notificaciones */}
+          <MenuDrawerItem
+            icon={Bell}
+            label="Notificaciones"
+            bgColor="bg-gradient-to-br from-red-400 to-red-600"
+            iconColor="text-white"
+            hoverGradient="hover:from-red-50"
+            onClick={() => { togglePanelNotificaciones(); onClose(); }}
+          />
+
           {/* Mi Perfil */}
           <MenuDrawerItem
             icon={User}
@@ -385,26 +412,6 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             iconColor="text-white"
             hoverGradient="hover:from-blue-50"
             onClick={() => handleNavegar('/perfil')}
-          />
-
-          {/* Configuración */}
-          <MenuDrawerItem
-            icon={Settings}
-            label="Configuración"
-            bgColor="bg-gradient-to-br from-slate-400 to-slate-600"
-            iconColor="text-white"
-            hoverGradient="hover:from-slate-50"
-            onClick={() => handleNavegar('/configuracion')}
-          />
-
-          {/* Guardados */}
-          <MenuDrawerItem
-            icon={Heart}
-            label="Mis Guardados"
-            bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
-            iconColor="text-white"
-            hoverGradient="hover:from-pink-50"
-            onClick={() => handleNavegar('/guardados')}
           />
         </div>
 

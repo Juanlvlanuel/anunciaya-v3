@@ -71,6 +71,7 @@ export function MainLayout() {
   const esCardYA = location.pathname.startsWith('/cardya');
   const esMisCupones = location.pathname.startsWith('/mis-cupones');
   const esGuardados = location.pathname.startsWith('/guardados');
+  const esNegocios = location.pathname === '/negocios';
 
   // Swipe horizontal entre módulos BS (solo móvil)
   useSwipeNavegacionBS(mobileMainRef);
@@ -98,9 +99,17 @@ export function MainLayout() {
   // Registrar ref de scroll en el store global
   // (para que useScrollDirection, useHideOnScroll, etc. funcionen)
   // ---------------------------------------------------------------------------
+  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios;
   useEffect(() => {
-    setMainScrollRef(esDesktop ? mainRef : mobileMainRef);
-  }, [esDesktop, setMainScrollRef]);
+    if (esDesktop) {
+      setMainScrollRef(mainRef);
+    } else if (esPaginaConHeaderPropio) {
+      // Páginas con scroll en body: limpiar ref para que hooks usen window
+      setMainScrollRef(null as unknown as React.RefObject<HTMLElement | null>);
+    } else {
+      setMainScrollRef(mobileMainRef);
+    }
+  }, [esDesktop, esPaginaConHeaderPropio, setMainScrollRef]);
 
   // ---------------------------------------------------------------------------
   // Detectar cambio de tamaño de pantalla
@@ -309,15 +318,18 @@ export function MainLayout() {
                 </aside>
               )}
             </>
+          ) : (esCardYA || esMisCupones || esGuardados || esNegocios) ? (
+            /* Páginas con header propio: scroll en body para que el navegador oculte su barra */
+            <main className="min-h-screen pb-20">
+              <Outlet />
+            </main>
           ) : (
             <div className="fixed inset-0 flex flex-col z-0">
               {/* MobileHeader — altura variable (con/sin BS sub-bar) */}
-              {!esCardYA && !esMisCupones && !esGuardados && (
-                <div className="shrink-0 z-50 mobile-header-landscape-hide">
-                  <MobileHeader />
-                  <BannerRateLimit />
-                </div>
-              )}
+              <div className="shrink-0 z-50 mobile-header-landscape-hide">
+                <MobileHeader />
+                <BannerRateLimit />
+              </div>
               {/* Main — ocupa el espacio restante exacto */}
               <main
                 ref={mobileMainRef}

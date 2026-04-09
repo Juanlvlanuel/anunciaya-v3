@@ -53,7 +53,7 @@ const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Vier
 const GRADIENTE = {
   bg: 'linear-gradient(135deg, #1e40af, #2563eb)',
   shadow: 'rgba(37,99,235,0.4)',
-  handle: '#1e40af',
+  handle: 'rgba(255,255,255,0.4)',
 };
 
 // =============================================================================
@@ -209,7 +209,7 @@ function TimelineHorarios({ horarios }: { horarios: Horario[] }) {
                       <span className="text-blue-700 font-semibold text-base lg:text-sm 2xl:text-base">
                         {DIAS_SEMANA[horario.diaSemana]}
                       </span>
-                      <span className="text-sm lg:text-[11px] 2xl:text-sm text-blue-500 font-medium">(Hoy)</span>
+                      <span className="text-sm lg:text-sm text-blue-500 font-medium">(Hoy)</span>
                     </div>
                   ) : (
                     <span className={`text-base lg:text-sm 2xl:text-base font-medium ${esCerrado ? 'text-slate-600' : 'text-slate-700'}`}>
@@ -218,11 +218,11 @@ function TimelineHorarios({ horarios }: { horarios: Horario[] }) {
                   )}
 
                   {horario.abierto ? (
-                    <span className={`text-sm lg:text-[11px] 2xl:text-sm font-medium ${esHoy ? 'text-blue-700 font-semibold' : 'text-slate-700'}`}>
+                    <span className={`text-sm lg:text-sm font-medium ${esHoy ? 'text-blue-700 font-semibold' : 'text-slate-700'}`}>
                       {formatearHora(horario.horaApertura)} - {formatearHora(horario.horaCierre)}
                     </span>
                   ) : (
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-medium">Cerrado</span>
+                    <span className="text-sm lg:text-sm text-red-600 font-medium">Cerrado</span>
                   )}
                 </div>
 
@@ -230,7 +230,7 @@ function TimelineHorarios({ horarios }: { horarios: Horario[] }) {
                 {tieneComida && esHoy && (
                   <div className="flex items-center gap-1.5 mt-1">
                     <UtensilsCrossed className="w-3 h-3 text-amber-500" />
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm text-amber-600 font-medium">
+                    <span className="text-sm lg:text-sm text-amber-600 font-medium">
                       Comida: {formatearHora(horario.comidaInicio!)} - {formatearHora(horario.comidaFin!)}
                     </span>
                   </div>
@@ -254,9 +254,9 @@ function FooterEstado({ info }: { info: InfoHorario }) {
       return (
         <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-emerald-100 border-2 border-emerald-300 rounded-xl">
           <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-emerald-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">Abierto</span>
+          <span className="text-emerald-700 text-sm lg:text-sm font-semibold">Abierto</span>
           {info.proximoCierre && (
-            <span className="text-emerald-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">
+            <span className="text-emerald-600 text-sm lg:text-sm font-medium">
               - Cierra a las {formatearHora(info.proximoCierre)}
             </span>
           )}
@@ -266,9 +266,9 @@ function FooterEstado({ info }: { info: InfoHorario }) {
       return (
         <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-slate-200 border-2 border-slate-300 rounded-xl">
           <div className="w-3 h-3 lg:w-2 lg:h-2 2xl:w-3 2xl:h-3 rounded-full bg-slate-600" />
-          <span className="text-slate-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">Cerrado</span>
+          <span className="text-slate-700 text-sm lg:text-sm font-semibold">Cerrado</span>
           {info.proximaApertura && (
-            <span className="text-slate-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">
+            <span className="text-slate-600 text-sm lg:text-sm font-medium">
               - Abre a las {formatearHora(info.proximaApertura)}
             </span>
           )}
@@ -278,9 +278,9 @@ function FooterEstado({ info }: { info: InfoHorario }) {
       return (
         <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-red-100 border-2 border-red-300 rounded-xl">
           <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-red-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">Cerrado hoy</span>
+          <span className="text-red-700 text-sm lg:text-sm font-semibold">Cerrado hoy</span>
           {info.proximaApertura && (
-            <span className="text-red-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">
+            <span className="text-red-600 text-sm lg:text-sm font-medium">
               - Abre mañana {formatearHora(info.proximaApertura)}
             </span>
           )}
@@ -290,9 +290,9 @@ function FooterEstado({ info }: { info: InfoHorario }) {
       return (
         <div className="flex items-center gap-2 p-3 lg:p-2 2xl:p-3 bg-amber-100 border-2 border-amber-300 rounded-xl">
           <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
-          <span className="text-amber-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">Horario de comida</span>
+          <span className="text-amber-700 text-sm lg:text-sm font-semibold">Horario de comida</span>
           {info.proximaApertura && (
-            <span className="text-amber-600 text-sm lg:text-[11px] 2xl:text-sm font-medium">
+            <span className="text-amber-600 text-sm lg:text-sm font-medium">
               - Regresa a las {formatearHora(info.proximaApertura)}
             </span>
           )}
@@ -339,7 +339,7 @@ export function ModalHorarios({ horarios, onClose, centrado }: ModalHorariosProp
             </div>
             <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
               <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white">Horarios</h3>
-              <span className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">Días y horarios de atención</span>
+              <span className="text-sm text-white/70 font-medium">Días y horarios de atención</span>
             </div>
           </div>
         </div>

@@ -58,6 +58,7 @@ interface FiltrosNegociosState {
   // ---------------------------------------------------------------------------
   // Estado - Filtros de distancia
   // ---------------------------------------------------------------------------
+  cercaDeMi: boolean;            // true = filtrar por distancia, false = toda la ciudad
   distancia: number;             // Radio en kilómetros (default: 5km)
 
   // ---------------------------------------------------------------------------
@@ -66,6 +67,7 @@ interface FiltrosNegociosState {
   metodosPago: string[];         // ['efectivo', 'tarjeta', 'transferencia', etc.]
   soloCardya: boolean;           // true = solo negocios que aceptan CardYA
   conEnvio: boolean;             // true = solo negocios con envío a domicilio
+  conServicioDomicilio: boolean; // true = solo negocios con servicio a domicilio
 
   // ---------------------------------------------------------------------------
   // Estado - Búsqueda por texto
@@ -87,6 +89,7 @@ interface FiltrosNegociosState {
   // ---------------------------------------------------------------------------
   // Acciones - Distancia
   // ---------------------------------------------------------------------------
+  toggleCercaDeMi: () => void;
   setDistancia: (km: number) => void;
 
   // ---------------------------------------------------------------------------
@@ -97,6 +100,7 @@ interface FiltrosNegociosState {
   setConEnvio: (valor: boolean) => void;
   toggleSoloCardya: () => void;
   toggleConEnvio: () => void;
+  toggleConServicioDomicilio: () => void;
 
   // ---------------------------------------------------------------------------
   // Acciones - Búsqueda
@@ -129,10 +133,12 @@ interface FiltrosNegociosState {
 const VALORES_INICIALES = {
   categoria: null,
   subcategorias: [],
+  cercaDeMi: false,          // Por defecto, toda la ciudad
   distancia: 5,              // 5 kilómetros por defecto
   metodosPago: [],
   soloCardya: false,
   conEnvio: false,
+  conServicioDomicilio: false,
   busqueda: '',
   vistaActiva: 'split' as const,
 };
@@ -216,12 +222,16 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
    * 
    * ✅ OPTIMIZACIÓN: Solo actualiza si realmente cambió
    */
+  toggleCercaDeMi: () => {
+    set((state) => ({ cercaDeMi: !state.cercaDeMi }));
+  },
+
   setDistancia: (km) => {
     const state = get();
-    
+
     // ✅ Verificar si realmente cambió
     if (state.distancia === km) return;
-    
+
     set({ distancia: km });
   },
 
@@ -293,6 +303,10 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
     set({ conEnvio: !get().conEnvio });
   },
 
+  toggleConServicioDomicilio: () => {
+    set({ conServicioDomicilio: !get().conServicioDomicilio });
+  },
+
   // ---------------------------------------------------------------------------
   // ACCIONES: Búsqueda
   // ---------------------------------------------------------------------------
@@ -348,7 +362,8 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
   resetearFiltrosTemporales: () => {
     set({
       busqueda: '',
-      distancia: 5, // Volver al valor por defecto
+      cercaDeMi: false,
+      distancia: 5,
     });
   },
 
@@ -381,6 +396,9 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
 
     // Con envío
     if (state.conEnvio) count++;
+
+    // Con servicio a domicilio
+    if (state.conServicioDomicilio) count++;
 
     // Búsqueda
     if (state.busqueda.trim() !== '') count++;

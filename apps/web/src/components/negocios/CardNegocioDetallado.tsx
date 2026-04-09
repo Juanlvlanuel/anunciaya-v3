@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Store, ChevronRight, Star, Bookmark } from 'lucide-react';
+import { Store, ChevronRight, Star } from 'lucide-react';
 import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
 import { ModalHorarios } from './ModalHorarios';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
@@ -88,6 +88,17 @@ const CARD_STYLES = `
   @keyframes cndStatusPulse {
     0%, 100% { transform: scale(1); opacity: 0.5; }
     50% { transform: scale(2.4); opacity: 0; }
+  }
+  @keyframes cardHeartBounce {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.35); }
+    50% { transform: scale(0.9); }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+  @keyframes cardHeartRingPulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.3); opacity: 0; }
   }
 `;
 
@@ -235,8 +246,8 @@ export function CardNegocioDetallado({
         <div
             ref={cardRef}
             onMouseEnter={handleMouseEnter}
-            className={`relative w-full h-60 2xl:h-[220px] rounded-2xl cursor-default transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${className}`}
-            style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.06)' }}
+            className={`relative w-full h-60 2xl:h-[220px] rounded-2xl cursor-default ${className}`}
+            style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -271,8 +282,8 @@ export function CardNegocioDetallado({
                         style={{ zIndex: 2 }}
                     />
                 ) : (
-                    <div className="absolute inset-0 w-full h-full bg-linear-to-br from-slate-100 to-slate-200 flex items-center justify-center" style={{ zIndex: 2 }}>
-                        <Store className="w-10 h-10 text-slate-300" />
+                    <div className="absolute inset-0 w-full h-full bg-slate-200 flex items-center justify-center" style={{ zIndex: 2 }}>
+                        <Store className="w-10 h-10 text-slate-600" />
                     </div>
                 )}
 
@@ -330,24 +341,32 @@ export function CardNegocioDetallado({
                     </button>
                 )}
 
-                {/* Bookmark button */}
-                {showBookmark && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onClickBookmark?.(e); }}
-                        className={`absolute top-1.5 right-1.5 z-15 w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer border transition-all ${
-                            bookmarkSelected
-                                ? 'bg-amber-500/30 border-amber-400/50'
-                                : 'bg-black/25 backdrop-blur-[10px] border-white/10'
-                        }`}
-                    >
-                        <Bookmark
-                            className="w-5 h-5"
-                            fill={bookmarkSelected ? '#f59e0b' : 'rgba(255,255,255,0.7)'}
-                            stroke={bookmarkSelected ? 'white' : 'rgba(255,255,255,0.9)'}
-                            strokeWidth={2}
-                        />
-                    </button>
-                )}
+                {/* Heart / Select button */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); onClickBookmark?.(e); }}
+                    className={`absolute top-1.5 right-1.5 z-15 w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer overflow-visible ${
+                        bookmarkSelected
+                            ? 'bg-red-500 border-2 border-red-500'
+                            : 'bg-black/25 backdrop-blur-[10px] border border-white/10'
+                    }`}
+                >
+                    {bookmarkSelected ? (
+                        <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    ) : (
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                            <path
+                                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                                fill="#ef4444"
+                                stroke="white"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                        </svg>
+                    )}
+                </button>
             </div>
 
             {/* Bottom content — fuera del wrapper para no recortarse */}
@@ -413,16 +432,16 @@ export function CardNegocioDetallado({
                             onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleChat(e); }}
                             className="cursor-pointer flex items-center gap-1.5 bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
                         >
-                            <img src="/ChatYA.webp" alt="ChatYA" className="h-7 w-auto" />
+                            <img src="/ChatYA.webp" alt="ChatYA" className="h-9 w-auto" />
                         </button>
                         {negocio.whatsapp && (
                             <>
-                                <div className="w-px h-5 bg-white/18" />
+                                <div className="w-px h-6 bg-white/18" />
                                 <button
                                     onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp}`, '_blank'); }}
-                                    className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
+                                    className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70"
                                 >
-                                    <WhatsAppIcon className="w-6 h-6 text-green-500" />
+                                    <WhatsAppIcon className="w-8 h-8 text-green-500" />
                                 </button>
                             </>
                         )}
@@ -430,10 +449,10 @@ export function CardNegocioDetallado({
 
                     <button
                         onClick={(e) => { e.stopPropagation(); onClick(); }}
-                        className="flex items-center gap-1 rounded-[10px] px-3.5 py-[7px] text-[13px] font-bold text-white cursor-pointer border-0 active:scale-95 transition-transform"
+                        className="flex items-center gap-1 rounded-[10px] px-3.5 py-[7px] text-[13px] font-bold text-white cursor-pointer border-0 active:scale-95"
                         style={{
-                            background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
-                            boxShadow: `0 3px 14px ${accent.from}55`,
+                            background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                            boxShadow: '0 3px 14px rgba(15,23,42,0.50)',
                         }}
                     >
                         Ver Perfil

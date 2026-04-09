@@ -19,11 +19,12 @@
  * CREADO: Enero 2026
  */
 
-import { X, MessageCircle, Bookmark, BookmarkCheck, Truck, Flame, Clock } from 'lucide-react';
+import { X, MessageCircle, Heart, Truck, Flame, Clock } from 'lucide-react';
 import { useGuardados } from '@/hooks/useGuardados';
 import { api } from '@/services/api';
 import { DropdownCompartir } from '../compartir';
 import { Modal } from '../ui/Modal';
+import Tooltip from '../ui/Tooltip';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useChatYAStore } from '@/stores/useChatYAStore';
 import { useUiStore } from '@/stores/useUiStore';
@@ -360,7 +361,8 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                 mostrarHeader={false}
                 paddingContenido="none"
                 ancho="sm"
-                className="min-w-[330px] max-w-[80vw] lg:min-w-[306px] lg:max-w-[408px] 2xl:min-w-[357px] 2xl:max-w-[476px] p-2 lg:p-3"
+                zIndice="z-75"
+                className="min-w-[330px] max-w-[80vw] lg:min-w-[306px] lg:max-w-[408px] 2xl:min-w-[357px] 2xl:max-w-[476px] overflow-visible!"
             >
                 {/* Badge principal - FUERA del contenedor blanco */}
                 <div className="absolute top-6 left-6 lg:top-7 lg:left-7 z-100 animate-float">
@@ -391,36 +393,38 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                     className="relative bg-white rounded-2xl w-full max-h-[90vh] lg:max-h-[90vh] overflow-visible shadow-2xl"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Contenedor con scroll solo vertical, sin overflow-x */}
-                    <div className="overflow-y-auto max-h-[90vh] lg:max-h-[90vh] rounded-2xl">
+                    {/* Contenedor con scroll solo vertical */}
+                    <div className="overflow-y-auto overflow-x-hidden max-h-[90vh] lg:max-h-[90vh] rounded-2xl">
                         {/* Card de oferta ampliada */}
                         <div className="relative flex flex-col">
 
                             {/* Botones flotantes (Compartir, Guardar, Cerrar) - Más pequeños en móvil */}
-                            <div className="absolute top-3 right-3 lg:top-4 lg:right-4 z-20 flex gap-1.5 lg:gap-2">
-                            <DropdownCompartir
-                                url={`${window.location.origin}/p/oferta/${getId(oferta)}`}
-                                texto={`¡Mira esta oferta en AnunciaYA!\n\n${oferta.titulo}`}
-                                titulo={oferta.titulo}
-                                variante="glass"
-                                onShare={handleShare}
-                            />
-                            <button
-                                onClick={handleGuardar}
-                                className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white hover:border-blue-500 transition-all duration-200 group cursor-pointer"
-                            >
-                                {guardado ? (
-                                    <BookmarkCheck className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600 transition-colors" />
-                                ) : (
-                                    <Bookmark className="w-4 h-4 lg:w-5 lg:h-5 text-slate-700 group-hover:text-blue-500 transition-colors" />
-                                )}
-                            </button>
-                            <button
-                                onClick={onClose}
-                                className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white hover:border-red-500 transition-all duration-200 group cursor-pointer"
-                            >
-                                <X className="w-4 h-4 lg:w-5 lg:h-5 text-slate-700 group-hover:text-red-500 transition-colors" />
-                            </button>
+                            <div className="absolute top-3 right-3 z-20 flex gap-2">
+                            <Tooltip text="Compartir" position="bottom">
+                                <DropdownCompartir
+                                    url={`${window.location.origin}/p/oferta/${getId(oferta)}`}
+                                    texto={`¡Mira esta oferta en AnunciaYA!\n\n${oferta.titulo}`}
+                                    titulo={oferta.titulo}
+                                    variante="glass"
+                                    onShare={handleShare}
+                                />
+                            </Tooltip>
+                            <Tooltip text={guardado ? 'Quitar de guardados' : 'Guardar'} position="bottom">
+                                <button
+                                    onClick={handleGuardar}
+                                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer"
+                                >
+                                    <Heart className={`w-5 h-5 ${guardado ? 'text-red-500 fill-current' : 'text-slate-700'}`} />
+                                </button>
+                            </Tooltip>
+                            <Tooltip text="Cerrar" position="bottom">
+                                <button
+                                    onClick={onClose}
+                                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer"
+                                >
+                                    <X className="w-5 h-5 text-slate-700" />
+                                </button>
+                            </Tooltip>
                             </div>
 
                             {/* Imagen responsive a 3 niveles - Más alta en móvil */}
@@ -442,7 +446,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                             {badgeUrgencia && (
                                 <div className="absolute bottom-0 left-0 right-0 h-14 flex items-center justify-end pr-3 lg:pr-4 z-10"
                                     style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)" }}>
-                                    <div className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
+                                    <div className={`px-2.5 py-1 lg:px-3 lg:py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
                                         {badgeUrgencia.icono === "flame" ? (
                                             <Flame className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
                                         ) : (
@@ -479,64 +483,58 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                 </div>
                             )}
 
-                            {/* Info adicional */}
-                            <div className="pl-2.5 pr-2.5 mb-2.5 lg:mb-3.5">
-                                {oferta.fechaFin && (
-                                    <>
-                                        {/* Línea separadora */}
-                                        <div className="h-px bg-linear-to-r from-transparent via-white/30 to-transparent mb-2.5" />
-                                        
-                                        {/* Fecha simple sin fondo - Más grande */}
-                                        <div className="flex items-center gap-2 px-1">
-                                            <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-white/70 shrink-0" />
-                                            <span className="text-white/70 text-xs lg:text-sm font-medium">Válida hasta:</span>
-                                            <span className="text-white text-sm lg:text-base font-bold">
-                                                {new Date(oferta.fechaFin).toLocaleDateString('es-MX', { 
-                                                    day: 'numeric', 
-                                                    month: 'long', 
-                                                    year: 'numeric' 
-                                                })}
-                                            </span>
-                                        </div>
-                                    </>
-                                )}
-                                
-                                {oferta.compraMinima && parseFloat(oferta.compraMinima) > 0 && (
-                                    <>
-                                        {/* Línea separadora */}
-                                        <div className="h-px bg-linear-to-r from-transparent via-white/30 to-transparent mb-2.5 mt-2.5" />
-                                        
-                                        {/* Compra mínima simple sin fondo - Más grande */}
-                                        <div className="flex items-center gap-2 px-1">
-                                            <span className="text-white/70 text-base lg:text-lg font-bold shrink-0">$</span>
-                                            <span className="text-white/70 text-xs lg:text-sm font-medium">Compra mínima:</span>
-                                            <span className="text-white text-sm lg:text-base font-bold">
-                                                ${parseFloat(oferta.compraMinima).toFixed(2)} MXN
-                                            </span>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            {/* Info + Contacto en 2 columnas */}
+                            <div className="px-3 pb-2.5">
+                                {/* Línea separadora */}
+                                <div className="h-px bg-linear-to-r from-transparent via-white/30 to-transparent mb-2.5" />
 
-                            {/* Botones de contacto */}
-                            <div className="flex gap-2 pl-2.5 pr-2.5">
-                                <button
-                                    onClick={handleChatYA}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2 lg:py-2.5 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-200 cursor-pointer"
-                                >
-                                    <img src="/ChatYA.webp" alt="ChatYA" className="h-6 lg:h-7 w-auto" />
-                                </button>
+                                <div className="flex items-center justify-between">
+                                    {/* Izquierda: Fecha + Compra mínima */}
+                                    <div className="flex flex-col gap-1">
+                                        {oferta.fechaFin && (
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="w-5 h-5 text-white/70 shrink-0" />
+                                                <div className="flex flex-col">
+                                                    <span className="text-white/70 text-sm font-medium">Válida hasta:</span>
+                                                    <span className="text-white text-sm font-bold">
+                                                        {new Date(oferta.fechaFin).toLocaleDateString('es-MX', {
+                                                            day: 'numeric',
+                                                            month: 'long',
+                                                            year: 'numeric'
+                                                        })}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {oferta.compraMinima && parseFloat(oferta.compraMinima) > 0 && (
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-white/70 text-sm font-bold shrink-0">$</span>
+                                                <span className="text-white/70 text-sm font-medium">Compra mínima:</span>
+                                                <span className="text-white text-sm font-bold">
+                                                    ${parseFloat(oferta.compraMinima).toFixed(2)} MXN
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
 
-                                {/* Mostrar WhatsApp siempre - TODO: Condicionar con whatsapp real */}
-                                <button
-                                    onClick={handleWhatsApp}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2 lg:py-2.5 rounded-xl bg-linear-to-r from-green-500 to-green-600 text-white font-semibold shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105 transition-all duration-200 cursor-pointer"
-                                >
-                                    <svg className="w-5 h-5 lg:w-6 lg:h-6" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                    </svg>
-                                    <span className="text-[11px] lg:text-xs">WhatsApp</span>
-                                </button>
+                                    {/* Derecha: Iconos de contacto */}
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <button
+                                            onClick={handleChatYA}
+                                            className="cursor-pointer hover:scale-110"
+                                        >
+                                            <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
+                                        </button>
+                                        <button
+                                            onClick={handleWhatsApp}
+                                            className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-[6px]"
+                                        >
+                                            <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         </div>

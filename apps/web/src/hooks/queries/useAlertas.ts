@@ -202,6 +202,8 @@ export function useMarcarAlertaResuelta() {
 
     onSuccess: () => {
       queryClientInstance.invalidateQueries({ queryKey: queryKeys.alertas.kpis(sucursalId) });
+      // Sincronizar widget de alertas del Dashboard
+      queryClientInstance.invalidateQueries({ queryKey: queryKeys.dashboard.alertas(sucursalId) });
     },
   });
 }
@@ -341,6 +343,8 @@ export function useEliminarAlerta() {
 
     onSuccess: () => {
       queryClientInstance.invalidateQueries({ queryKey: queryKeys.alertas.kpis(sucursalId) });
+      // Sincronizar widget de alertas del Dashboard
+      queryClientInstance.invalidateQueries({ queryKey: queryKeys.dashboard.alertas(sucursalId) });
     },
   });
 }

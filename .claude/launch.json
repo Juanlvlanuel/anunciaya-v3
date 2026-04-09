@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Web (Vite)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@anunciaya/web", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "API (Express)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@anunciaya/api", "dev"],
+      "port": 4000
+    }
+  ]
+}

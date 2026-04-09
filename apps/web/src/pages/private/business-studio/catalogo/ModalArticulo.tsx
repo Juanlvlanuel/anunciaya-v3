@@ -379,7 +379,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                           }
                           setMostrarDropdown(!mostrarDropdown);
                         }}
-                        className="w-full h-11 flex items-center justify-between px-4 bg-slate-100 border-2 border-slate-300 rounded-lg hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base cursor-pointer"
+                        className="w-full h-11 flex items-center justify-between px-4 bg-slate-100 border-2 border-slate-300 rounded-lg hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 text-base cursor-pointer"
                         style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -408,7 +408,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                           placeholder="0.00"
                           min="0"
                           step="0.01"
-                          className={`w-full h-11 pl-7 pr-3 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base font-medium text-slate-800 placeholder:text-slate-500 ${precioVacio ? 'border-red-400' : 'border-slate-300'}`}
+                          className={`w-full h-11 pl-7 pr-3 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base font-medium text-slate-800 placeholder:text-slate-500 ${precioVacio ? 'border-red-400' : 'border-slate-300'}`}
                           style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                         />
                       </div>
@@ -525,7 +525,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                         }
                         setMostrarDropdown(!mostrarDropdown);
                       }}
-                      className="w-full h-10 2xl:h-11 flex items-center justify-between px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm 2xl:text-base cursor-pointer"
+                      className="w-full h-10 2xl:h-11 flex items-center justify-between px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm 2xl:text-base cursor-pointer"
                       style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -554,7 +554,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                         placeholder="0.00"
                         min="0"
                         step="0.01"
-                        className={`w-full h-10 2xl:h-11 pl-6 2xl:pl-7 pr-2.5 2xl:pr-3 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 ${precioVacio ? 'border-red-400' : 'border-slate-300'}`}
+                        className={`w-full h-10 2xl:h-11 pl-6 2xl:pl-7 pr-2.5 2xl:pr-3 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 ${precioVacio ? 'border-red-400' : 'border-slate-300'}`}
                         style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                       />
                     </div>
@@ -597,7 +597,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                           }}
                           placeholder="Escribe la categoría…"
                           autoFocus
-                          className="w-full px-3 py-1.5 border border-blue-300 rounded text-sm lg:text-xs 2xl:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-1.5 border border-blue-300 rounded text-sm lg:text-xs 2xl:text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                         />
                         <div className="flex gap-1 mt-1.5">
                           <button
@@ -714,7 +714,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                     onChange={(e) => setNombre(e.target.value)}
                     placeholder={`Nombre del ${tipo}`}
                     maxLength={100}
-                    className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                    className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                     style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                   />
                 </div>
@@ -735,7 +735,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                     placeholder={tipo === 'servicio' ? 'Describe brevemente el servicio: qué incluye, duración, beneficios…' : 'Describe brevemente el producto: materiales, características, beneficios…'}
                     rows={4}
                     maxLength={500}
-                    className="flex-1 w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2.5 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                    className="flex-1 w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2.5 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 resize-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
                   />
                 </div>
 
@@ -747,7 +747,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                     type="checkbox"
                     checked={precioDesde}
                     onChange={(e) => setPrecioDesde(e.target.checked)}
-                    className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-600 rounded focus:ring-slate-500"
                   />
                   <span className="text-sm lg:text-xs 2xl:text-sm text-slate-600">
                     Mostrar como "Desde ${precioStr || '0.00'}"

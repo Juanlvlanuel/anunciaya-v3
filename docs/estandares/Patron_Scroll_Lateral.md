@@ -50,7 +50,7 @@ Este documento describe el patrón de scroll implementado en AnunciaYA donde:
 </div>
 
 // CONTENIDO CENTRAL - Sin altura fija, con padding-top
-<main className="lg:ml-[240px] 2xl:ml-[320px] lg:mr-[272px] 2xl:mr-[352px] lg:pt-[90px]">
+<main className="lg:ml-60 2xl:ml-80 lg:mr-[272px] 2xl:mr-[352px] lg:pt-[90px]">
   <Outlet />
 </main>
 

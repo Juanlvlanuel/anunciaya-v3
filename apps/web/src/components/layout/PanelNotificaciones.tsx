@@ -771,7 +771,7 @@ export function PanelNotificaciones() {
           iconoTitulo={<Bell className="w-5 h-5 text-white" />}
           mostrarHeader={false}
           sinScrollInterno={true}
-          alturaMaxima="md"
+          alturaMaxima="xl"
         >
           {/* Header gradiente */}
           <div

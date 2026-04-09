@@ -149,10 +149,12 @@ export default function TablaHistorialVouchers({
 
   if (vouchers.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-        <Inbox className="w-12 h-12 mb-3 text-slate-300" strokeWidth={1.5} />
-        <p className="text-sm font-semibold text-slate-600">Sin vouchers aún</p>
-        <p className="text-xs text-slate-600 mt-1">Canjea recompensas para ver tus vouchers aquí</p>
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-24 h-24 rounded-full bg-linear-to-br from-amber-100 to-amber-50 flex items-center justify-center ring-8 ring-amber-50 mb-6">
+          <Ticket className="w-12 h-12 lg:w-16 lg:h-16 text-amber-400" strokeWidth={1.5} />
+        </div>
+        <h3 className="text-xl lg:text-2xl font-bold text-gray-900">Sin vouchers aún</h3>
+        <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">Canjea recompensas<br />para ver tus vouchers aquí</p>
       </div>
     );
   }

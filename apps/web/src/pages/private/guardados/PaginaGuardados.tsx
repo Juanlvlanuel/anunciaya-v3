@@ -34,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import { OfertaCard, ModalOfertaDetalle } from '@/components/negocios';
 import { CardNegocioDetallado } from '@/components/negocios/CardNegocioDetallado';
 import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/config/queryKeys';
 import api from '@/services/api';
 import { useOfertasGuardadas, useNegociosSeguidos } from '@/hooks/queries/useMisGuardados';
 import notificar from '@/utils/notificaciones';
@@ -243,6 +244,15 @@ export function PaginaGuardados() {
 
             notificar.exito('Eliminados correctamente');
             qc.invalidateQueries({ queryKey: ['guardados'] });
+            // Sincronizar estado followed/likes en vistas de negocios
+            if (tabActivo === 'negocios') {
+                qc.invalidateQueries({ queryKey: ['negocios', 'lista'] });
+                negociosOriginales
+                    .filter(n => idsAEliminar.includes(n.id))
+                    .forEach(n => {
+                        qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(n.sucursalId) });
+                    });
+            }
         } catch (error) {
             console.error('Error al eliminar guardados:', error);
             
@@ -407,7 +417,7 @@ export function PaginaGuardados() {
                                                 className="h-0.5 w-20 2xl:w-24 rounded-full"
                                                 style={{ background: 'linear-gradient(90deg, transparent, rgba(244,63,94,0.7))' }}
                                             />
-                                            <span className="text-xs 2xl:text-[13px] font-semibold text-rose-400/70 uppercase tracking-[3px]">
+                                            <span className="text-sm 2xl:text-base font-semibold text-rose-400/70 uppercase tracking-[3px]">
                                                 colección personal
                                             </span>
                                             <div
@@ -423,7 +433,7 @@ export function PaginaGuardados() {
                                             <span className="text-2xl 2xl:text-3xl font-extrabold text-rose-400 leading-none">
                                                 {ofertas.length}
                                             </span>
-                                            <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                            <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
                                                 Ofertas
                                             </span>
                                         </div>
@@ -432,7 +442,7 @@ export function PaginaGuardados() {
                                             <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none">
                                                 {negocios.length}
                                             </span>
-                                            <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                            <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
                                                 Negocios
                                             </span>
                                         </div>
@@ -450,7 +460,7 @@ export function PaginaGuardados() {
                                                 key={id}
                                                 data-testid={`tab-guardados-${id}`}
                                                 onClick={() => handleCambiarTab(id)}
-                                                className="flex items-center gap-1.5 lg:gap-2.5 px-2 lg:px-7 2xl:px-9 py-2.5 lg:py-3.5 text-sm lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
+                                                className="flex items-center gap-2 lg:gap-2.5 px-4 lg:px-7 2xl:px-9 py-3 lg:py-3.5 text-base lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
                                                 style={{
                                                     color: tabActivo === id ? '#fb7185' : 'rgba(255,255,255,0.50)',
                                                     fontWeight: tabActivo === id ? 700 : 500,
@@ -460,7 +470,7 @@ export function PaginaGuardados() {
                                                 <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" />
                                                 {label}
                                                 {badge > 0 && (
-                                                    <span className="text-[10px] font-bold bg-rose-500 text-white px-1.5 rounded-full">{badge}</span>
+                                                    <span className="text-[10px] font-bold bg-rose-500 text-white w-5 h-5 rounded-full flex items-center justify-center">{badge}</span>
                                                 )}
                                                 {tabActivo === id && (
                                                     <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-rose-400" />
@@ -641,7 +651,7 @@ function ContenidoOfertas({
                 <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">
                     No tienes ofertas guardadas
                 </h3>
-                <p className="text-sm lg:text-base text-gray-600 mb-6 max-w-md mx-auto">
+                <p className="text-base lg:text-lg font-medium text-gray-600 mb-6 max-w-md mx-auto">
                     Explora ofertas increíbles de negocios locales y guarda tus favoritas para no
                     perderlas
                 </p>
@@ -731,7 +741,7 @@ function ContenidoNegocios({
                 <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">
                     No sigues ningún negocio
                 </h3>
-                <p className="text-sm lg:text-base text-gray-600 mb-6 max-w-md mx-auto">
+                <p className="text-base lg:text-lg font-medium text-gray-600 mb-6 max-w-md mx-auto">
                     Descubre negocios locales increíbles y síguelos para estar al tanto de sus
                     novedades
                 </p>
@@ -796,7 +806,7 @@ function EstadoProximamente({ tipo }: EstadoProximamenteProps) {
             </div>
 
             <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">{titulo}</h3>
-            <p className="text-sm lg:text-base text-gray-600 mb-6 max-w-md mx-auto">
+            <p className="text-base lg:text-lg font-medium text-gray-600 mb-6 max-w-md mx-auto">
                 {descripcion}
             </p>
 

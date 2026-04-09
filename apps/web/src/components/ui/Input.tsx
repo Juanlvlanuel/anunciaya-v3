@@ -145,7 +145,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       // Estilos según estado de validación
       let estadoClasses = '';
       if (isValid === null) {
-        estadoClasses = 'border-slate-300 focus:border-blue-500';
+        estadoClasses = 'border-slate-300 focus:border-slate-500';
       } else if (isValid === true) {
         estadoClasses = 'border-green-500 bg-green-100';
       } else {

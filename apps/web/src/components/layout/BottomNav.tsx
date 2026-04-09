@@ -22,12 +22,13 @@
  */
 
 import { useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Store, ShoppingCart, Tag, Gift, BarChart3 } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useHideOnScroll } from '../../hooks/useHideOnScroll';
+import { useFiltrosNegociosStore } from '../../stores/useFiltrosNegociosStore';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -99,8 +100,13 @@ export function BottomNav() {
   const usuario = useAuthStore((state) => state.usuario);
   const esComercial = usuario?.modoActivo === 'comercial';
 
-  // Auto-hide al hacer scroll down (solo móvil)
-  const { hideStyle, forzarMostrar } = useHideOnScroll({ direction: 'down' });
+  // Desactivar auto-hide solo en vista mapa de Negocios
+  const location = useLocation();
+  const vistaActiva = useFiltrosNegociosStore((s) => s.vistaActiva);
+  const esMapaNegocios = location.pathname === '/negocios' && vistaActiva === 'mapa';
+
+  // Auto-hide al hacer scroll down (solo móvil, desactivado en mapa de Negocios)
+  const { hideStyle, forzarMostrar } = useHideOnScroll({ direction: 'down', disabled: esMapaNegocios });
 
   // Exponer forzarMostrar globalmente para que MainLayout lo use al cerrar teclado
   useEffect(() => {

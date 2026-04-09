@@ -53,67 +53,41 @@ interface VistaCompraRequeridaProps {
 function VistaCompraRequerida({ onCerrar }: VistaCompraRequeridaProps) {
     return (
         <>
-            {/* Ilustración y mensaje */}
-            <div className="text-center mb-4">
-                <div className="w-16 h-16 mx-auto mb-3 bg-amber-50 rounded-full flex items-center justify-center">
-                    <svg
-                        className="w-8 h-8 text-amber-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                        />
-                    </svg>
+            {/* Mensaje */}
+            <div className="text-center mb-5">
+                <div className="w-16 h-16 mx-auto mb-3 bg-amber-100 rounded-full flex items-center justify-center">
+                    <Star className="w-8 h-8 text-amber-500" />
                 </div>
-                <h4 className="text-lg font-semibold text-slate-800 mb-1">
-                    ¡Compra verificada requerida!
+                <h4 className="text-lg font-bold text-slate-800 mb-2">
+                    Compra verificada requerida
                 </h4>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                    Para garantizar reseñas auténticas, necesitas haber realizado una compra
-                    verificada mostrando tu{' '}
-                    <span className="font-semibold text-amber-600">CardYA</span> en este negocio.
+                <p className="text-slate-600 text-sm font-medium leading-relaxed">
+                    Solo usuarios con compras registradas en<br />
+                    <span className="font-bold text-amber-600">CardYA</span> pueden opinar.
                 </p>
             </div>
 
-            {/* Pasos */}
-            <div className="bg-slate-50 rounded-xl p-4 mb-4">
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                    ¿Cómo funciona?
-                </p>
-                <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                            1
-                        </div>
-                        <p className="text-sm text-slate-600">Visita el negocio y realiza tu compra</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                            2
-                        </div>
-                        <p className="text-sm text-slate-600">
-                            Muestra tu <span className="font-semibold text-amber-600">CardYA</span>{' '}
-                            para que el negocio la escanee
-                        </p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                            3
-                        </div>
-                        <p className="text-sm text-slate-600">¡Listo! Podrás dejar tu reseña verificada</p>
-                    </div>
+            {/* Pasos compactos */}
+            <div className="bg-slate-200 rounded-xl p-4 mb-5 space-y-2.5">
+                <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 bg-amber-500 text-white rounded-full flex items-center justify-center text-sm font-bold shrink-0">1</div>
+                    <p className="text-sm text-slate-700 font-medium">Compra en el negocio</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 bg-amber-500 text-white rounded-full flex items-center justify-center text-sm font-bold shrink-0">2</div>
+                    <p className="text-sm text-slate-700 font-medium">Identifícate con tu cuenta CardYA</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 bg-amber-500 text-white rounded-full flex items-center justify-center text-sm font-bold shrink-0">3</div>
+                    <p className="text-sm text-slate-700 font-medium">¡Listo! Ya puedes dejar tu reseña</p>
                 </div>
             </div>
 
             {/* Botón */}
             <button
                 onClick={onCerrar}
-                className="w-full py-3 bg-linear-to-r from-amber-400 to-orange-500 text-white font-semibold rounded-xl hover:from-amber-500 hover:to-orange-600 transition-all cursor-pointer"
+                className="w-full py-3 text-white font-semibold rounded-xl cursor-pointer active:scale-95"
+                style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
             >
                 Entendido
             </button>
@@ -225,12 +199,12 @@ function FormularioCalificacion({ onCerrar, onEnviar, resenaEditar, onEditar }: 
                     name="textarea-resena"
                     value={texto}
                     onChange={(e) => setTexto(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-none text-slate-700 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-none text-base font-medium text-slate-800 placeholder:text-slate-500"
                     rows={4}
                     maxLength={500}
                     placeholder="¿Qué te gustó? ¿Qué podría mejorar? Tu opinión ayuda a otros usuarios..."
                 />
-                <p className="text-xs text-slate-400 text-right mt-1">
+                <p className="text-sm text-slate-600 font-medium text-right mt-1">
                     {texto.length}/500 caracteres
                 </p>
             </div>
@@ -239,18 +213,19 @@ function FormularioCalificacion({ onCerrar, onEnviar, resenaEditar, onEditar }: 
             <div className="flex gap-3">
                 <button
                     onClick={handleCancelar}
-                    className="flex-1 px-4 py-3 border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                    className="flex-1 px-4 py-3 border-2 border-slate-300 text-slate-600 font-semibold rounded-xl cursor-pointer"
                 >
                     Cancelar
                 </button>
                 <button
                     onClick={handleEnviar}
                     disabled={selectedRating === 0 || enviando}
-                    className={`flex-1 px-4 py-3 font-semibold rounded-xl transition-all cursor-pointer ${
+                    className={`flex-1 px-4 py-3 font-semibold rounded-xl transition-all active:scale-95 ${
                         selectedRating > 0 && !enviando
-                            ? 'bg-linear-to-r from-amber-400 to-orange-500 text-white hover:from-amber-500 hover:to-orange-600'
-                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            ? 'text-white cursor-pointer'
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
+                    style={selectedRating > 0 && !enviando ? { background: 'linear-gradient(135deg, #1e293b, #0f172a)' } : undefined}
                 >
                     {enviando ? 'Enviando...' : esEdicion ? 'Guardar Cambios' : 'Publicar Reseña'}
                 </button>
@@ -304,22 +279,23 @@ export function ModalEscribirResena({
                 titulo={esEdicion ? "Editar Reseña" : "Escribir Reseña"}
                 iconoTitulo={<Star className="w-5 h-5 text-white fill-current" />}
                 mostrarHeader={false}
+                headerOscuro
                 sinScrollInterno={true}
                 alturaMaxima={tieneCompraVerificada ? 'lg' : 'md'}
             >
-                {/* Header personalizado con gradiente */}
-                <div className="bg-linear-to-r from-amber-400 to-orange-500 px-4 py-3 shrink-0">
-                    <div className="flex items-center justify-between">
-                        <h3 className="flex items-center gap-2 text-base font-semibold text-white">
-                            <Star className="w-5 h-5 fill-current" />
-                            <span>{esEdicion ? "Editar Reseña" : "Escribir Reseña"}</span>
-                        </h3>
-                        <button
-                            onClick={onCerrar}
-                            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
-                        >
-                            <X className="w-5 h-5 text-white" />
-                        </button>
+                {/* Header con gradiente amber */}
+                <div
+                    className="relative px-4 pt-8 pb-3 shrink-0 overflow-hidden"
+                    style={{ background: '#e8910a' }}
+                >
+                    <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                    <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+                                <Star className="w-4.5 h-4.5 text-white fill-current" />
+                            </div>
+                            <h3 className="text-white font-bold text-lg">{esEdicion ? "Editar Reseña" : "Escribir Reseña"}</h3>
+                        </div>
                     </div>
                 </div>
 
@@ -342,19 +318,19 @@ export function ModalEscribirResena({
             paddingContenido="none"
             mostrarHeader={false}
         >
-            {/* Header con gradiente */}
-            <div className="bg-linear-to-r from-amber-400 to-orange-500 px-4 py-3 lg:px-4 lg:py-2.5 2xl:px-6 2xl:py-4 rounded-t-xl">
-                <div className="flex items-center justify-between">
-                    <h3 className="flex items-center gap-2 text-base lg:text-sm 2xl:text-lg font-semibold text-white">
-                        <Star className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 fill-current" />
-                        <span>{esEdicion ? "Editar Reseña" : "Escribir Reseña"}</span>
-                    </h3>
-                    <button
-                        onClick={onCerrar}
-                        className="p-1 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
-                    >
-                        <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
-                    </button>
+            {/* Header con gradiente amber */}
+            <div
+                className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl"
+                style={{ background: '#e8910a' }}
+            >
+                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                <div className="relative flex items-center justify-between">
+                    <div className="flex items-center gap-2 2xl:gap-3">
+                        <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+                            <Star className="w-4 h-4 2xl:w-4.5 2xl:h-4.5 text-white fill-current" />
+                        </div>
+                        <h3 className="text-white font-bold text-base 2xl:text-lg">{esEdicion ? "Editar Reseña" : "Escribir Reseña"}</h3>
+                    </div>
                 </div>
             </div>
 

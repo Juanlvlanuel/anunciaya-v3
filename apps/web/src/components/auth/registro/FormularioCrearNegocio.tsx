@@ -163,7 +163,7 @@ export function FormularioCrearNegocio({
                   disabled={cargando}
                   className={`w-full pl-10 pr-4 py-3 bg-slate-50 border-2 rounded-xl text-sm font-medium focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     !tocado
-                      ? 'border-slate-200 focus:border-blue-500 focus:bg-white'
+                      ? 'border-slate-200 focus:border-slate-500 focus:bg-white'
                       : nombreValido
                       ? 'border-green-500 bg-green-50'
                       : 'border-red-500 bg-red-50'

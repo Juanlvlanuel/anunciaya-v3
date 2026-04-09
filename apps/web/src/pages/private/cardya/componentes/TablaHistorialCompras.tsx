@@ -11,7 +11,7 @@
  */
 
 import { useState, Fragment } from 'react';
-import { TrendingUp, TrendingDown, Gift, Store, Calendar, Inbox, ArrowUpDown, ChevronUp, ChevronDown, Ticket } from 'lucide-react';
+import { TrendingUp, TrendingDown, Gift, Store, Calendar, Clock, Inbox, ArrowUpDown, ChevronUp, ChevronDown, Ticket } from 'lucide-react';
 // ArrowUpDown, ChevronUp, ChevronDown se usan en los headers de tabla para ordenamiento
 import type { Transaccion, TipoTransaccion } from '../../../../types/cardya';
 
@@ -116,10 +116,12 @@ export default function TablaHistorialCompras({
 
   if (transacciones.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-        <Inbox className="w-12 h-12 mb-3 text-slate-300" strokeWidth={1.5} />
-        <p className="text-sm font-semibold text-slate-600">Sin transacciones</p>
-        <p className="text-xs text-slate-600 mt-1">Aún no has ganado ni canjeado puntos</p>
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-24 h-24 rounded-full bg-linear-to-br from-amber-100 to-amber-50 flex items-center justify-center ring-8 ring-amber-50 mb-6">
+          <Clock className="w-12 h-12 lg:w-16 lg:h-16 text-amber-400" strokeWidth={1.5} />
+        </div>
+        <h3 className="text-xl lg:text-2xl font-bold text-gray-900">Sin transacciones</h3>
+        <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">Aún no has ganado ni canjeado puntos</p>
       </div>
     );
   }

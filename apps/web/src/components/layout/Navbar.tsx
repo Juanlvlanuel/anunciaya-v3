@@ -139,7 +139,7 @@ const MODULOS_BS = [
   { nombre: 'Alertas', ruta: '/business-studio/alertas' },
   { nombre: 'Catálogo', ruta: '/business-studio/catalogo' },
   { nombre: 'Promociones', ruta: '/business-studio/ofertas' },
-  { nombre: 'Puntos', ruta: '/business-studio/puntos' },
+  { nombre: 'Puntos y Recompensas', ruta: '/business-studio/puntos' },
   { nombre: 'Rifas', ruta: '/business-studio/rifas' },
   { nombre: 'Empleados', ruta: '/business-studio/empleados' },
   { nombre: 'Vacantes', ruta: '/business-studio/vacantes' },
@@ -990,8 +990,8 @@ export const Navbar = () => {
                           <DropdownItem
                             icon={FileText}
                             label="Mis Publicaciones"
-                            bgColor="bg-purple-100"
-                            iconColor="text-purple-600"
+                            bgColor="bg-gradient-to-br from-purple-400 to-purple-600"
+                            iconColor="text-white"
                             hoverGradient="hover:from-purple-50"
                             onClick={() => {
                               navigate('/mis-publicaciones');
@@ -999,43 +999,32 @@ export const Navbar = () => {
                             }}
                           />
 
-                          <div className="lg:my-1.5 lg:mx-3 2xl:my-2 2xl:mx-4 my-2 mx-4 h-px bg-linear-to-r from-transparent via-gray-300 to-transparent"></div>
                         </>
                       )}
 
                       {/* Opciones comunes */}
                       <DropdownItem
-                        icon={User}
-                        label="Mi Perfil"
-                        bgColor="bg-blue-100"
-                        iconColor="text-blue-600"
-                        hoverGradient="hover:from-blue-50"
-                        onClick={() => {
-                          navigate('/perfil');
-                          setDropdownAbierto(false);
-                        }}
-                      />
-
-                      <DropdownItem
-                        icon={Settings}
-                        label="Configuración"
-                        bgColor="bg-gray-100"
-                        iconColor="text-gray-600"
-                        hoverGradient="hover:from-gray-50"
-                        onClick={() => {
-                          navigate('/configuracion');
-                          setDropdownAbierto(false);
-                        }}
-                      />
-
-                      <DropdownItem
                         icon={Heart}
                         label="Mis Guardados"
-                        bgColor="bg-pink-100"
-                        iconColor="text-pink-600"
+                        bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
+                        iconColor="text-white"
                         hoverGradient="hover:from-pink-50"
                         onClick={() => {
                           navigate('/guardados');
+                          setDropdownAbierto(false);
+                        }}
+                      />
+
+                      <div className="lg:my-1.5 lg:mx-3 2xl:my-2 2xl:mx-4 my-2 mx-4 h-px bg-linear-to-r from-transparent via-gray-300 to-transparent"></div>
+
+                      <DropdownItem
+                        icon={User}
+                        label="Mi Perfil"
+                        bgColor="bg-gradient-to-br from-blue-400 to-blue-600"
+                        iconColor="text-white"
+                        hoverGradient="hover:from-blue-50"
+                        onClick={() => {
+                          navigate('/perfil');
                           setDropdownAbierto(false);
                         }}
                       />

@@ -192,7 +192,7 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                     <h2 className="flex items-center gap-2 text-lg lg:text-base 2xl:text-lg font-semibold">
                         <Tag className="h-5 w-5" />
                         <span>Ofertas</span>
-                        <span className="text-sm font-normal text-slate-300">({ofertasOrdenadas.length})</span>
+                        <span className="text-sm font-medium text-white/70">({ofertasOrdenadas.length})</span>
                     </h2>
                     {/* Móvil: "Ver todas" + flecha animada | Desktop: solo flecha */}
                     {esMobile ? (
@@ -214,32 +214,42 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                         - Móvil: 1 columna (cards horizontales)
                         - Desktop: 3 columnas (cards verticales)
                     */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3 lg:gap-5 2xl:gap-6 pr-0 lg:pr-8">
-                        {ofertasVisibles.map((oferta) => (
-                            <div key={getId(oferta)}>
-                                {/* 
-                                    inModal NO se pasa → por defecto es false
-                                    Resultado: Animaciones COMPLETAS
-                                    - Float: translateY(-15px) + rotate(5deg)
-                                    - Ripple: Ondas expandiéndose
-                                */}
-                                <div onClick={() => handleClickOferta(oferta)} className="cursor-pointer">
-                                    <OfertaCard oferta={oferta} size="normal" />
+                    {/* Mobile: scroll horizontal | Desktop: grid */}
+                    <div className="flex gap-3 overflow-x-auto pt-4 pb-4 lg:pt-0 lg:pb-0 lg:grid lg:grid-cols-2 2xl:grid-cols-3 lg:gap-5 2xl:gap-6 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                        {(esMobile ? ofertasOrdenadas.slice(0, 10) : ofertasVisibles).map((oferta, index) => {
+                            const esUltimoDesktop = !esMobile && index === ofertasVisibles.length - 1 && tienemasOfertas;
+                            return (
+                                <div key={getId(oferta)} className="shrink-0 w-full lg:w-auto relative">
+                                    <div onClick={() => esUltimoDesktop ? setModalAbierto(true) : handleClickOferta(oferta)} className="cursor-pointer">
+                                        <OfertaCard oferta={oferta} size="normal" />
+                                    </div>
+                                    {/* Overlay "Ver todas" en el último item desktop */}
+                                    {esUltimoDesktop && (
+                                        <div
+                                            className="absolute inset-0 z-30 rounded-xl bg-black/60 flex flex-col items-center justify-center gap-1 cursor-pointer"
+                                            onClick={(e) => { e.stopPropagation(); setModalAbierto(true); }}
+                                        >
+                                            <span className="text-3xl font-bold text-white">+{ofertasRestantes}</span>
+                                            <span className="text-sm font-semibold text-white/80">Ver todas</span>
+                                        </div>
+                                    )}
                                 </div>
+                            );
+                        })}
+                        {/* Botón "Ver todas" al final del scroll en mobile */}
+                        {esMobile && ofertasOrdenadas.length > 10 && (
+                            <div className="shrink-0 w-full flex items-center justify-center">
+                                <button
+                                    onClick={() => setModalAbierto(true)}
+                                    className="w-full h-full min-h-[120px] rounded-xl border-2 border-slate-300 flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95"
+                                    style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
+                                >
+                                    <span className="text-2xl font-bold text-white">+{ofertasOrdenadas.length - 10}</span>
+                                    <span className="text-sm font-semibold text-white/70">Ver todas</span>
+                                </button>
                             </div>
-                        ))}
+                        )}
                     </div>
-
-                    {/* FAB circular para ver más - Solo laptop y desktop */}
-                    {tienemasOfertas && (
-                        <button
-                            onClick={() => setModalAbierto(true)}
-                            className="hidden lg:flex absolute -right-2 top-1/2 -translate-y-1/2 h-9 w-9 2xl:h-10 2xl:w-10 items-center justify-center gap-0.5 rounded-full bg-blue-600 text-white shadow-xl transition-colors hover:bg-blue-700 active:scale-95 cursor-pointer animate-pulseScale z-10"
-                        >
-                            <span className="text-[10px] 2xl:text-xs font-bold">+{ofertasRestantes}</span>
-                            <ChevronRight className="h-3 w-3 2xl:h-3.5 2xl:w-3.5 animate-bounceX" />
-                        </button>
-                    )}
                 </div>
             </div>
 

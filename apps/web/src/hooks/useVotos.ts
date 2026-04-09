@@ -41,9 +41,11 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { notificar } from '../utils/notificaciones';
 import { useAuthStore } from '../stores/useAuthStore';
+import { queryKeys } from '../config/queryKeys';
 import type { EntityType } from '../types/negocios';
 
 // =============================================================================
@@ -171,6 +173,18 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
 
   // Obtener sucursalActiva si está en modo comercial
   const sucursalActiva = useAuthStore((state) => state.usuario?.sucursalActiva);
+  const qc = useQueryClient();
+
+  // Invalidar queries relacionados para sincronizar liked/followed entre vistas
+  const invalidarCaches = () => {
+    if (entityType === 'sucursal') {
+      qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(entityId) });
+      qc.invalidateQueries({ queryKey: ['negocios', 'lista'] });
+      qc.invalidateQueries({ queryKey: ['guardados', 'negocios'] });
+    } else if (entityType === 'oferta') {
+      qc.invalidateQueries({ queryKey: ['guardados', 'ofertas'] });
+    }
+  };
 
   // =============================================================================
   // ESTADO LOCAL
@@ -229,7 +243,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
         votanteSucursalId: sucursalActiva || null,
       });
 
-
+      invalidarCaches();
     } catch (error: any) {
       console.error('❌ Error al dar like:', error);
       
@@ -266,7 +280,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
       // votanteSucursalId se agrega automáticamente por el interceptor en modo comercial
       await api.delete(`/votos/${entityType}/${entityId}/like`);
 
-
+      invalidarCaches();
     } catch (error: any) {
       console.error('❌ Error al quitar like:', error);
       
@@ -323,7 +337,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
       });
 
       notificar.exito('¡Siguiendo!');
-
+      invalidarCaches();
     } catch (error: any) {
       console.error('❌ Error al seguir:', error);
       
@@ -360,7 +374,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
       await api.delete(`/votos/${entityType}/${entityId}/follow`);
 
       notificar.info('Dejaste de seguir');
-
+      invalidarCaches();
     } catch (error: any) {
       console.error('❌ Error al quitar de guardados:', error);
       

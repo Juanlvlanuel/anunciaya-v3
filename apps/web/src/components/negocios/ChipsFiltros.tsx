@@ -6,8 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   MapPin,
+  Locate,
   CreditCard,
   Truck,
+  Home,
   X,
   ChevronDown,
   Store,
@@ -19,6 +21,8 @@ import {
 
 export interface ChipsFiltrosProps {
   variante: 'flotante' | 'inline';
+  cercaDeMi: boolean;
+  toggleCercaDeMi: () => void;
   distancia: number;
   setDistancia: (v: number) => void;
   categoria: number | null;
@@ -37,6 +41,12 @@ export interface ChipsFiltrosProps {
   toggleSoloCardya: () => void;
   conEnvio: boolean;
   toggleConEnvio: () => void;
+  conServicioDomicilio: boolean;
+  toggleConServicioDomicilio: () => void;
+  dropdownDistancia: boolean;
+  setDropdownDistancia: (v: boolean) => void;
+  posDropdownDist: { top: number; left: number };
+  setPosDropdownDist: (v: { top: number; left: number }) => void;
   filtrosActivos: () => number;
   limpiarFiltros: () => void;
 }
@@ -47,6 +57,7 @@ export interface ChipsFiltrosProps {
 
 export function ChipsFiltros({
   variante,
+  cercaDeMi, toggleCercaDeMi,
   distancia, setDistancia,
   categoria, categorias,
   dropdownCategoria, setDropdownCategoria, btnCategoriaRef, setPosicionDropdownCat,
@@ -54,6 +65,9 @@ export function ChipsFiltros({
   dropdownSubcategoria, setDropdownSubcategoria, btnSubcategoriaRef, setPosicionDropdownSub,
   soloCardya, toggleSoloCardya,
   conEnvio, toggleConEnvio,
+  conServicioDomicilio, toggleConServicioDomicilio,
+  dropdownDistancia, setDropdownDistancia,
+  posDropdownDist, setPosDropdownDist,
   filtrosActivos, limpiarFiltros,
 }: ChipsFiltrosProps) {
   const esFlotante = variante === 'flotante';
@@ -61,6 +75,7 @@ export function ChipsFiltros({
   // Estado local del slider: visual instantáneo, commit al store solo al soltar
   const [distanciaLocal, setDistanciaLocal] = useState(distancia);
   const [arrastrando, setArrastrando] = useState(false);
+  const btnDistanciaRef = React.useRef<HTMLButtonElement>(null);
 
   // Sincronizar si el store cambia externamente (ej: limpiar filtros)
   useEffect(() => {
@@ -72,11 +87,11 @@ export function ChipsFiltros({
     ? 'rounded-full shadow-lg px-3 py-2 lg:px-3.5 lg:py-2 text-sm lg:text-[13px]'
     : 'rounded-full px-3.5 py-2 text-[13px]';
   const chipInactivo = esFlotante
-    ? 'bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400'
-    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400';
+    ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400'
+    : 'bg-white/10 text-white/70 border-white/15 hover:bg-white/20 hover:text-white hover:border-white/30';
   const chipActivo = esFlotante
-    ? 'bg-blue-600 text-white border-blue-600 shadow-blue-200'
-    : 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200';
+    ? 'bg-slate-800 text-white border-slate-800 shadow-slate-300'
+    : 'bg-white text-slate-900 border-white shadow-md shadow-white/30';
   const limpiarSize = esFlotante ? 'w-8 h-8 lg:w-9 lg:h-9' : 'w-8 h-8';
 
   const abrirDropdown = (
@@ -96,23 +111,26 @@ export function ChipsFiltros({
 
   return (
     <>
-      {/* Distancia — slider inline */}
-      <div className="shrink-0 flex items-center gap-2 bg-white/10 rounded-full px-3.5 py-1.5 border border-white/10">
-        <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-        <span className="text-[13px] font-semibold text-white whitespace-nowrap min-w-12 text-center">{distanciaLocal} km</span>
-        <input
-          type="range"
-          min="1"
-          max="50"
-          value={distanciaLocal}
-          onChange={(e) => { setDistanciaLocal(Number(e.target.value)); setArrastrando(true); }}
-          onMouseUp={() => { setArrastrando(false); setDistancia(distanciaLocal); }}
-          onTouchEnd={() => { setArrastrando(false); setDistancia(distanciaLocal); }}
-          className="w-[90px] h-[5px] rounded-full appearance-none cursor-pointer accent-blue-500"
-          style={{
-            background: `linear-gradient(to right, #3b82f6 ${((distanciaLocal - 1) / 49) * 100}%, rgba(255,255,255,0.15) ${((distanciaLocal - 1) / 49) * 100}%)`,
+      {/* Ubicación — chip con dropdown (dropdown se renderiza en PaginaNegocios) */}
+      <div className="relative shrink-0" data-dropdown>
+        <button
+          ref={btnDistanciaRef}
+          onClick={() => {
+            if (btnDistanciaRef.current) {
+              const rect = btnDistanciaRef.current.getBoundingClientRect();
+              setPosDropdownDist({ top: rect.bottom + 8, left: rect.left });
+            }
+            setDropdownDistancia(!dropdownDistancia);
           }}
-        />
+          className={`${chipBase} flex items-center gap-1.5 font-semibold transition-all cursor-pointer border w-[140px] justify-center whitespace-nowrap ${
+            cercaDeMi ? chipActivo : chipInactivo
+          }`}
+          data-testid="chip-cerca-de-mi"
+        >
+          <Locate className="w-3.5 h-3.5" />
+          {cercaDeMi ? `${distanciaLocal} km` : 'Mi ciudad'}
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownDistancia ? 'rotate-180' : ''}`} />
+        </button>
       </div>
 
       {/* Categoría */}
@@ -127,6 +145,7 @@ export function ChipsFiltros({
           className={`${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border ${
             categoria ? chipActivo : chipInactivo
           }`}
+          data-testid="chip-categoria"
         >
           <Store className="w-3.5 h-3.5" />
           {categoria ? categorias.find(c => c.id === categoria)?.nombre || 'Categoría' : 'Categoría'}
@@ -147,6 +166,7 @@ export function ChipsFiltros({
               !categoria ? 'opacity-40 cursor-default ' + chipInactivo
               : subcategoriasSeleccionadas.length > 0 ? chipActivo : chipInactivo + ' cursor-pointer'
             }`}
+            data-testid="chip-subcategoria"
           >
             {subcategoriasSeleccionadas.length > 0
               ? opcionesSubcategorias.find(s => s.id === subcategoriasSeleccionadas[0])?.nombre || 'Sub'
@@ -161,6 +181,7 @@ export function ChipsFiltros({
         className={`shrink-0 ${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border ${
           soloCardya ? chipActivo : chipInactivo
         }`}
+        data-testid="chip-cardya"
       >
         <CreditCard className="w-3.5 h-3.5" />
         CardYA
@@ -172,9 +193,22 @@ export function ChipsFiltros({
         className={`shrink-0 ${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border ${
           conEnvio ? chipActivo : chipInactivo
         }`}
+        data-testid="chip-envio"
       >
         <Truck className="w-3.5 h-3.5" />
-        Envío
+        Envíos
+      </button>
+
+      {/* A domicilio */}
+      <button
+        onClick={toggleConServicioDomicilio}
+        className={`shrink-0 ${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border ${
+          conServicioDomicilio ? chipActivo : chipInactivo
+        }`}
+        data-testid="chip-servicio-domicilio"
+      >
+        <Home className="w-3.5 h-3.5" />
+        Servicio a domicilio
       </button>
 
       {/* Limpiar - Siempre visible */}
@@ -190,6 +224,7 @@ export function ChipsFiltros({
           }
         `}
         title={filtrosActivos() > 0 ? "Limpiar filtros" : "Sin filtros activos"}
+        data-testid="chip-limpiar"
       >
         <X className="w-4 h-4" />
       </button>

@@ -35,6 +35,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { notificar } from '../utils/notificaciones';
 
@@ -131,10 +132,12 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
     onGuardadoChange,
   } = params;
 
+  const qc = useQueryClient();
+
   // =============================================================================
   // ESTADO LOCAL
   // =============================================================================
-  
+
   const [guardado, setGuardado] = useState(initialGuardado);
   const [loading, setLoading] = useState(false);
 
@@ -183,6 +186,7 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
         entityId,
       });
 
+      qc.invalidateQueries({ queryKey: ['guardados'] });
       notificar.exito('¡Guardado!');
 
     } catch (error: unknown) {
@@ -220,6 +224,7 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
 
       await api.delete(`/guardados/${entityType}/${entityId}`);
 
+      qc.invalidateQueries({ queryKey: ['guardados'] });
       notificar.info('Quitado de guardados');
 
     } catch (error: unknown) {

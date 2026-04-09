@@ -209,7 +209,7 @@ export default function PaginaMisCupones() {
                                                     className="h-0.5 w-20 2xl:w-24 rounded-full"
                                                     style={{ background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.7))' }}
                                                 />
-                                                <span className="text-xs 2xl:text-[13px] font-semibold text-emerald-400/70 uppercase tracking-[3px]">
+                                                <span className="text-sm 2xl:text-base font-semibold text-emerald-400/70 uppercase tracking-[3px]">
                                                     cuponera digital
                                                 </span>
                                                 <div
@@ -225,7 +225,7 @@ export default function PaginaMisCupones() {
                                                 <span className="text-2xl 2xl:text-3xl font-extrabold text-emerald-400 leading-none">
                                                     {totalActivos}
                                                 </span>
-                                                <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                                <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
                                                     Activos
                                                 </span>
                                             </div>
@@ -234,7 +234,7 @@ export default function PaginaMisCupones() {
                                                 <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none">
                                                     {totalUsados}
                                                 </span>
-                                                <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
+                                                <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
                                                     Usados
                                                 </span>
                                             </div>
@@ -253,7 +253,7 @@ export default function PaginaMisCupones() {
                                                     key={tab.id}
                                                     data-testid={`tab-${tab.id}`}
                                                     onClick={() => setTabActivo(tab.id)}
-                                                    className="flex items-center gap-1.5 lg:gap-2.5 px-2 lg:px-7 2xl:px-9 py-2.5 lg:py-3.5 text-sm lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
+                                                    className="flex items-center gap-2 lg:gap-2.5 px-4 lg:px-7 2xl:px-9 py-3 lg:py-3.5 text-base lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
                                                     style={{
                                                         color: esActivo ? '#10b981' : 'rgba(255,255,255,0.50)',
                                                         fontWeight: esActivo ? 700 : 500,
@@ -285,15 +285,18 @@ export default function PaginaMisCupones() {
                             <Spinner tamanio="lg" />
                         </div>
                     ) : cuponesFiltrados.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-slate-200 flex items-center justify-center mb-4">
-                                <Ticket className="w-8 h-8 text-slate-400" />
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <div className="w-24 h-24 rounded-full bg-linear-to-br from-emerald-100 to-emerald-50 flex items-center justify-center ring-8 ring-emerald-50 mb-6">
+                                <Ticket className="w-12 h-12 lg:w-16 lg:h-16 text-emerald-400" />
                             </div>
-                            <p className="text-lg font-bold text-slate-700">
+                            <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
                                 {tabActivo === 'activos' ? 'No tienes cupones activos' : 'No has usado cupones'}
-                            </p>
-                            <p className="text-sm text-slate-600 font-medium mt-1">
-                                {tabActivo === 'activos' ? 'Cuando un negocio te envíe un cupón, aparecerá aquí' : 'Los cupones expirados y revocados aparecerán aquí'}
+                            </h3>
+                            <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
+                                {tabActivo === 'activos'
+                                  ? <>Cuando un negocio te envíe un cupón,<br />aparecerá aquí</>
+                                  : <>Los cupones expirados y revocados<br />aparecerán aquí</>
+                                }
                             </p>
                         </div>
                     ) : (

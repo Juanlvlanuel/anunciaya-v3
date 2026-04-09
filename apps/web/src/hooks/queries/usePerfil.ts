@@ -79,9 +79,6 @@ export function usePerfilSucursales() {
 // =============================================================================
 
 export function usePerfilCategorias() {
-  const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
-  const habilitado = modoActivo === 'comercial';
-
   return useQuery({
     queryKey: queryKeys.perfil.categorias(),
     queryFn: async () => {
@@ -90,7 +87,6 @@ export function usePerfilCategorias() {
       );
       return response.data.success ? response.data.data : [];
     },
-    enabled: habilitado,
     staleTime: 10 * 60 * 1000, // 10 min — datos estáticos
   });
 }

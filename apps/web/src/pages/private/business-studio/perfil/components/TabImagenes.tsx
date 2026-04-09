@@ -21,6 +21,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Image, Trash2, Plus, Loader2, Store, UserCircle, Images, Camera } from 'lucide-react';
 import type { DatosImagenes, DatosInformacion } from '../hooks/usePerfil';
 import { useR2Upload } from '../../../../../hooks/useR2Upload';
@@ -28,6 +29,7 @@ import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { api } from '../../../../../services/api';
 import { notificar } from '../../../../../utils/notificaciones';
 import { eliminarImagenHuerfana } from '../../../../../services/r2Service';
+import { queryKeys } from '../../../../../config/queryKeys';
 
 // Helper: presigned URL para imágenes de negocios
 async function generarUrlUploadNegocio(nombreArchivo: string, contentType: string, carpeta = 'negocios') {
@@ -95,6 +97,7 @@ export default function TabImagenes({
 
   const negocioId = useAuthStore((state) => state.usuario?.negocioId);
   const sucursalActiva = useAuthStore((state) => state.usuario?.sucursalActiva);
+  const qc = useQueryClient();
 
   // ✅ NUEVO: Estado unificado para ModalImagenes
   const [modalImagenes, setModalImagenes] = useState<{
@@ -156,6 +159,7 @@ export default function TabImagenes({
       try {
         await api.post(`/negocios/${negocioId}/logo`, { logoUrl: url });
         setDatosImagenes({ ...datosImagenes, logoUrl: url });
+        if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
         notificar.exito('Logo guardado correctamente');
       } catch (error) {
         console.error('Error al guardar logo en BD:', error);
@@ -175,6 +179,7 @@ export default function TabImagenes({
       try {
         await api.post(`/negocios/sucursal/${sucursalActiva}/foto-perfil`, { fotoPerfilUrl: url });
         setDatosImagenes({ ...datosImagenes, fotoPerfilUrl: url });
+        qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
         notificar.exito('Foto de perfil guardada');
       } catch (error) {
         console.error('Error al guardar foto de perfil en BD:', error);
@@ -194,6 +199,7 @@ export default function TabImagenes({
       try {
         await api.post(`/negocios/${negocioId}/portada`, { portadaUrl: url });
         setDatosImagenes({ ...datosImagenes, portadaUrl: url });
+        if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
         notificar.exito('Portada guardada correctamente');
       } catch (error) {
         console.error('Error al guardar portada en BD:', error);
@@ -316,6 +322,7 @@ export default function TabImagenes({
           ...datosImagenes,
           galeria: [...(datosImagenes.galeria || []), ...imagenesNuevas],
         });
+        if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
       }
     } catch (error) {
       console.error('Error al subir galería:', error);
@@ -354,6 +361,7 @@ export default function TabImagenes({
     if (id) {
       try {
         await api.delete(`/negocios/${negocioId}/galeria/${id}`);
+        if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
         notificar.exito('Imagen eliminada');
       } catch (error) {
         console.error('Error al eliminar de BD:', error);
@@ -378,6 +386,7 @@ export default function TabImagenes({
 
     try {
       if (negocioId) await api.delete(`/negocios/${negocioId}/logo`);
+      if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
       notificar.exito('Logo eliminado');
     } catch (error) {
       setDatosImagenes({ ...datosImagenes, logoUrl: urlAnterior });
@@ -399,6 +408,7 @@ export default function TabImagenes({
 
     try {
       if (sucursalActiva) await api.delete(`/negocios/sucursal/${sucursalActiva}/foto-perfil`);
+      if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
       notificar.exito('Foto de perfil eliminada');
     } catch (error) {
       setDatosImagenes({ ...datosImagenes, fotoPerfilUrl: urlAnterior });
@@ -420,6 +430,7 @@ export default function TabImagenes({
 
     try {
       if (negocioId) await api.delete(`/negocios/${negocioId}/portada`);
+      if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
       notificar.exito('Portada eliminada');
     } catch (error) {
       setDatosImagenes({ ...datosImagenes, portadaUrl: urlAnterior });

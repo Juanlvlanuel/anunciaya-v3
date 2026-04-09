@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../../config/queryKeys';
 import { useNegocioPerfil, useNegocioOfertas, useNegocioCatalogo, useNegocioResenas } from '../../../hooks/queries/useNegocios';
 import type { NegocioCompleto } from '../../../types/negocios';
 import { useVotos } from '../../../hooks/useVotos';
@@ -55,6 +56,9 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../components/negocios/ModalHorarios';
+import { ModalBottom } from '../../../components/ui/ModalBottom';
+import { Modal } from '../../../components/ui/Modal';
+import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 // useNegociosCacheStore eliminado — React Query maneja caché
@@ -66,6 +70,7 @@ import { useLockScroll } from '../../../hooks/useLockScroll';
 import { DropdownCompartir, ModalAuthRequerido } from '../../../components/compartir';
 import { LayoutPublico } from '../../../components/layout';
 import { ModalImagenes } from '../../../components/ui';
+import Tooltip from '../../../components/ui/Tooltip';
 
 // Fix de iconos de Leaflet (necesario en Vite/React)
 // @ts-expect-error - Leaflet no exporta el tipo correcto para _getIconUrl
@@ -179,9 +184,10 @@ interface ModalMapaProps {
     userLat: number | null;
     userLng: number | null;
     onClose: () => void;
+    onChat?: () => void;
 }
 
-function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
+function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProps) {
 
     const mapRef = useRef<L.Map | null>(null);
 
@@ -227,8 +233,8 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                 style={{ height: '75vh' }}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* HEADER CON GRADIENTE SUAVE */}
-                <div className="bg-linear-to-r from-blue-50 to-slate-100 border-b border-slate-200">
+                {/* HEADER OSCURO */}
+                <div style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
                     <div className="flex items-center justify-between px-4 py-3 lg:px-5 lg:py-3 2xl:px-6 2xl:py-4">
                         {/* Info del negocio */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -236,18 +242,18 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                                 <img
                                     src={negocio.logoUrl}
                                     alt={negocio.negocioNombre}
-                                    className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 rounded-xl object-cover shadow-sm"
+                                    className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 rounded-full object-cover border-2 border-white/20"
                                 />
                             ) : (
-                                <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
-                                    <span className="text-lg font-bold text-slate-400">{negocio.negocioNombre.charAt(0)}</span>
+                                <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-white/15 rounded-xl flex items-center justify-center border-2 border-white/20">
+                                    <span className="text-lg font-bold text-white">{negocio.negocioNombre.charAt(0)}</span>
                                 </div>
                             )}
                             <div className="min-w-0 flex-1">
-                                <h3 className="text-base lg:text-lg 2xl:text-xl font-bold text-slate-800 truncate">
+                                <h3 className="text-base lg:text-lg 2xl:text-xl font-bold text-white truncate">
                                     {negocio.negocioNombre}
                                 </h3>
-                                <p className="text-sm lg:text-sm 2xl:text-base text-slate-500 truncate">
+                                <p className="text-sm lg:text-sm 2xl:text-base text-white/60 font-medium truncate">
                                     {negocio.direccion}
                                 </p>
                             </div>
@@ -260,16 +266,16 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                                     const url = `https://www.google.com/maps/dir/?api=1&destination=${negocio.latitud},${negocio.longitud}`;
                                     window.open(url, '_blank');
                                 }}
-                                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 2xl:px-5 2xl:py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm lg:text-sm 2xl:text-base rounded-xl shadow-md hover:shadow-lg transition-all"
+                                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 2xl:px-5 2xl:py-2.5 bg-white text-slate-800 font-bold text-sm lg:text-sm 2xl:text-base rounded-xl shadow-md cursor-pointer active:scale-95"
                             >
                                 <Navigation className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                 <span className="hidden sm:inline">Cómo llegar</span>
                             </button>
                             <button
                                 onClick={onClose}
-                                className="w-9 h-9 lg:w-10 lg:h-10 2xl:w-11 2xl:h-11 flex items-center justify-center hover:bg-white/60 rounded-xl transition-colors"
+                                className="w-9 h-9 lg:w-10 lg:h-10 2xl:w-11 2xl:h-11 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 cursor-pointer"
                             >
-                                <X className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-500" />
+                                <X className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
                             </button>
                         </div>
                     </div>
@@ -291,41 +297,41 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                         )}
                     </div>
 
-                    {/* Controles de zoom personalizados - HORIZONTAL */}
-                    <div className="absolute bottom-6 right-3 z-1000 flex flex-row gap-1.5">
+                    {/* Controles de zoom personalizados - HORIZONTAL en contenedor único */}
+                    <div className="absolute bottom-6 right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
                         <button
                             onClick={() => {
                                 if (mapRef.current) {
                                     if (userLat && userLng) {
-                                        // Centrar entre negocio y usuario
                                         mapRef.current.fitBounds([
                                             [negocio.latitud, negocio.longitud],
                                             [userLat, userLng]
                                         ], { padding: [50, 50] });
                                     } else {
-                                        // Centrar solo en negocio
                                         mapRef.current.setView([negocio.latitud, negocio.longitud], 16);
                                     }
                                 }
                             }}
-                            className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 bg-white hover:bg-slate-50 rounded-lg shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Centrar mapa"
                         >
-                            <Crosshair className="w-4 h-4 lg:w-4 lg:h-4 text-slate-600" />
+                            <Crosshair className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
                         </button>
+                        <div className="w-px h-auto bg-slate-700 my-1.5" />
                         <button
                             onClick={() => mapRef.current?.setZoom((mapRef.current?.getZoom() || 14) + 1)}
-                            className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 bg-white hover:bg-slate-50 rounded-lg shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Acercar"
                         >
-                            <Plus className="w-4 h-4 lg:w-4 lg:h-4 text-slate-600" />
+                            <Plus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
                         </button>
+                        <div className="w-px h-auto bg-slate-700 my-1.5" />
                         <button
                             onClick={() => mapRef.current?.setZoom((mapRef.current?.getZoom() || 14) - 1)}
-                            className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 bg-white hover:bg-slate-50 rounded-lg shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Alejar"
                         >
-                            <Minus className="w-4 h-4 lg:w-4 lg:h-4 text-slate-600" />
+                            <Minus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
                         </button>
                     </div>
 
@@ -350,28 +356,38 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                             position={[negocio.latitud, negocio.longitud]}
                             icon={negocioIcon}
                         >
-                            <Popup className="popup-perfil">
+                            <Popup className="popup-negocio" autoPan={true} autoPanPadding={[70, 70]}>
                                 <div>
-                                    {/* Header azul */}
-                                    <div className="bg-linear-to-r from-blue-500 to-blue-600 px-4 py-3">
-                                        <div className="flex items-center gap-3">
+                                    {/* Header oscuro con glow azul */}
+                                    <div
+                                        className="relative px-4 py-3 overflow-hidden"
+                                        style={{ background: '#000000' }}
+                                    >
+                                        <div
+                                            className="absolute inset-0 pointer-events-none"
+                                            style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.12) 0%, transparent 60%)' }}
+                                        />
+                                        <div className="relative z-10 flex items-center gap-3">
                                             {negocio.logoUrl ? (
                                                 <img
                                                     src={negocio.logoUrl}
                                                     alt={negocio.negocioNombre}
-                                                    className="w-11 h-11 rounded-xl object-cover shrink-0 border-2 border-white/30 shadow-lg"
+                                                    className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-white/20"
                                                 />
                                             ) : (
-                                                <div className="w-11 h-11 rounded-xl shrink-0 border-2 border-white/30 shadow-lg bg-black/20 flex items-center justify-center">
-                                                    <span className="text-white font-bold text-lg">{negocio.negocioNombre.charAt(0)}</span>
+                                                <div
+                                                    className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center"
+                                                    style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
+                                                >
+                                                    <span className="text-white font-bold text-base">{negocio.negocioNombre.charAt(0)}</span>
                                                 </div>
                                             )}
-                                            <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                                <h3 className="text-[16px] font-bold text-white leading-tight truncate">
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="text-[17px] font-bold text-white leading-tight truncate">
                                                     {negocio.negocioNombre}
                                                 </h3>
-                                                {negocio.sucursalNombre?.includes(`${negocio.negocioNombre} - `) && (
-                                                    <p className="text-[12px] font-medium text-blue-100 truncate">
+                                                {negocio.totalSucursales > 1 && (
+                                                    <p className="text-sm font-medium text-white/70 truncate mt-0.5">
                                                         Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
                                                     </p>
                                                 )}
@@ -380,60 +396,66 @@ function ModalMapa({ negocio, userLat, userLng, onClose }: ModalMapaProps) {
                                     </div>
 
                                     {/* Body */}
-                                    <div className="px-4 py-2.5">
-                                        {/* Status — Rating — Distancia */}
-                                        <div className="flex items-center justify-between text-[13px]">
+                                    <div className="px-4 py-4">
+                                        <div className="flex items-center justify-center gap-3 pb-3 text-[14px]">
                                             {negocio.estaAbierto !== null && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: negocio.estaAbierto ? '#22c55e' : '#ef4444' }} />
-                                                    <span className={`font-semibold ${negocio.estaAbierto ? 'text-green-600' : 'text-red-500'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2 h-2 rounded-full" style={{ background: negocio.estaAbierto ? '#22c55e' : '#ef4444' }} />
+                                                    <span className={`font-bold ${negocio.estaAbierto ? 'text-green-600' : 'text-red-500'}`}>
                                                         {negocio.estaAbierto ? 'Abierto' : 'Cerrado'}
                                                     </span>
                                                 </div>
                                             )}
                                             {negocio.totalCalificaciones > 0 && (
-                                                <div className="flex items-center gap-1">
-                                                    <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                                                    <span className="font-bold text-slate-800">{negocio.calificacion.toFixed(1)}</span>
-                                                    <span className="text-[12px] text-slate-400">({negocio.totalCalificaciones})</span>
-                                                </div>
+                                                <>
+                                                    <div className="w-px h-4 bg-slate-400" />
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Star className="w-4.5 h-4.5 text-amber-400 fill-amber-400" />
+                                                        <span className="font-bold text-slate-800">{negocio.calificacion.toFixed(1)}</span>
+                                                        <span className="text-[13px] text-slate-600 font-medium">({negocio.totalCalificaciones})</span>
+                                                    </div>
+                                                </>
                                             )}
                                             {negocio.distanciaKm !== null && (
-                                                <div className="flex items-center gap-1 text-slate-500">
-                                                    <MapPin className="w-3.5 h-3.5" />
-                                                    <span className="font-medium">
-                                                        {negocio.distanciaKm < 1 ? `${Math.round(negocio.distanciaKm * 1000)} m` : `${negocio.distanciaKm.toFixed(1)} km`}
-                                                    </span>
-                                                </div>
+                                                <>
+                                                    <div className="w-px h-4 bg-slate-400" />
+                                                    <div className="flex items-center gap-1.5 text-slate-600">
+                                                        <MapPin className="w-4 h-4" />
+                                                        <span className="font-bold">
+                                                            {negocio.distanciaKm < 1 ? `${Math.round(negocio.distanciaKm * 1000)} m` : `${negocio.distanciaKm.toFixed(1)} km`}
+                                                        </span>
+                                                    </div>
+                                                </>
                                             )}
                                         </div>
 
                                         {/* Dirección */}
-                                        <p className="text-[12px] text-slate-400 mt-1.5 leading-tight truncate">
-                                            {negocio.direccion}
-                                        </p>
+                                        <div className="flex items-center gap-2 pt-1 pb-1 border-t border-slate-300">
+                                            <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
+                                            <p className="text-[14px] font-bold text-slate-500 leading-snug line-clamp-2 pt-0.5">
+                                                {negocio.direccion}
+                                            </p>
+                                        </div>
 
-                                        {/* Separador */}
-                                        <div className="h-px bg-slate-100 my-2" />
+                                        <div className="h-px bg-slate-300 my-3" />
 
-                                        {/* ChatYA + WhatsApp */}
-                                        <div className="flex items-center gap-3">
+                                        {/* Contacto */}
+                                        <div className="flex items-center justify-center gap-4">
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); }}
-                                                className="cursor-pointer flex items-center gap-1.5 bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
+                                                onClick={(e) => { e.stopPropagation(); onChat?.(); }}
+                                                className="cursor-pointer hover:scale-110"
                                             >
-                                                <img src="/ChatYA.webp" alt="ChatYA" className="h-8 w-auto" />
+                                                <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
                                             </button>
                                             {negocio.whatsapp && (
-                                                <>
-                                                    <div className="w-px h-6 bg-slate-200" />
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }}
-                                                        className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
-                                                    >
-                                                        <img src="/whatsapp.webp" alt="WhatsApp" className="w-8 h-8" />
-                                                    </button>
-                                                </>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }}
+                                                    className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-[6px]"
+                                                >
+                                                    <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                                    </svg>
+                                                </button>
                                             )}
                                         </div>
                                     </div>
@@ -524,6 +546,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     });
 
 
+    const [modalGaleriaAbierto, setModalGaleriaAbierto] = useState(false);
+    const { esMobile: esMobileGaleria } = useBreakpoint();
+
     // Distancia del usuario
     const [distanciaKm, setDistanciaKm] = useState<number | null>(null);
 
@@ -604,7 +629,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 })
                 .catch(() => {});
         }
-    }, [negocio?.sucursalId]);
+    }, [negocio?.sucursalId, negocio?.totalLikes]);
 
     const { liked, followed, toggleLike, toggleFollow } = useVotos({
         entityType: 'sucursal',
@@ -870,7 +895,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         <div className="space-y-6">
                             {/* Ubicación skeleton */}
                             <div className="h-6 w-80 bg-slate-200 animate-pulse rounded-lg" />
-                            <div className="h-px bg-slate-200" />
+                            <div className="h-px bg-slate-300" />
 
                             {/* Sección skeleton */}
                             <div>
@@ -955,29 +980,44 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 <div className="absolute inset-0 bg-black/20 pointer-events-none rounded-b-3xl lg:rounded-b-none lg:rounded-br-[3rem]" />
 
                 {/* MÉTRICAS GLASSMORPHISM - Solo móvil */}
-                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-5 py-2.5 px-3 bg-white/60 backdrop-blur-md lg:hidden">
+                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-4 py-2.5 px-3 bg-white/60 backdrop-blur-md lg:hidden">
+                    {negocio.horarios && negocio.horarios.length > 0 && (() => {
+                        const info = calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria);
+                        const abierto = info.estado === 'abierto';
+                        return (
+                            <>
+                                <div className="flex items-center gap-1.5">
+                                    <span className={`w-2 h-2 rounded-full ${abierto ? 'bg-green-500' : 'bg-red-500'}`} />
+                                    <span className={`text-sm font-bold ${abierto ? 'text-green-600' : 'text-red-500'}`}>
+                                        {abierto ? 'Abierto' : 'Cerrado'}
+                                    </span>
+                                </div>
+                                <div className="h-5 w-px bg-slate-400/50" />
+                            </>
+                        );
+                    })()}
                     <div className="flex items-center gap-1.5">
-                        <Heart className="w-6 h-6 text-red-500 fill-current" />
-                        <span className="text-base font-bold text-slate-700">{totalLikes ?? 0}</span>
+                        <Heart className="w-5 h-5 text-red-500 fill-current" />
+                        <span className="text-sm font-bold text-slate-700">{totalLikes ?? 0}</span>
                     </div>
                     <div className="h-5 w-px bg-slate-400/50" />
                     <div className="flex items-center gap-1.5">
-                        <Eye className="w-6 h-6 text-slate-500" />
-                        <span className="text-base font-bold text-slate-700">{totalVisitas ?? 0}</span>
+                        <Eye className="w-5 h-5 text-slate-500" />
+                        <span className="text-sm font-bold text-slate-700">{totalVisitas ?? 0}</span>
                     </div>
                     <div className="h-5 w-px bg-slate-400/50" />
                     <div className="flex items-center gap-1.5">
-                        <Star className={`w-6 h-6 ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} />
-                        <span className="text-base font-bold text-slate-700">
-                            {tieneCalificacion ? `${promedioResenas.toFixed(1)} (${negocio?.totalCalificaciones ?? 0})` : '0'}
+                        <Star className={`w-5 h-5 ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} />
+                        <span className="text-sm font-bold text-slate-700">
+                            {tieneCalificacion ? `${promedioResenas.toFixed(1)}` : '0'}
                         </span>
                     </div>
                     {distanciaKm !== null && (
                         <>
                             <div className="h-5 w-px bg-slate-400/50" />
                             <div className="flex items-center gap-1.5">
-                                <Navigation className="w-6 h-6 text-blue-500" />
-                                <span className="text-base font-bold text-blue-600">
+                                <Navigation className="w-5 h-5 text-blue-500" />
+                                <span className="text-sm font-bold text-blue-600">
                                     {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)}m` : `${distanciaKm.toFixed(1)}km`}
                                 </span>
                             </div>
@@ -989,44 +1029,37 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     <div className="px-12 lg:px-16 2xl:px-20 h-full relative">
                         {/* Botón Volver (oculto en modo preview) */}
                         {!esModoPreview && (
-                            <div className="pointer-events-auto absolute top-14 lg:top-4 left-5 2xl:left-7.5 group">
-                                <button onClick={handleVolver} className="cursor-pointer p-2 2xl:p-2.5 rounded-lg border-2 bg-white/90 border-white text-slate-700 hover:bg-slate-100 hover:border-slate-400 hover:text-slate-900 backdrop-blur-sm transition-all">
-                                    <ArrowLeft className="w-4 h-4 2xl:w-5 2xl:h-5" />
-                                </button>
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                    Volver
-                                </div>
+                            <div className="pointer-events-auto absolute top-14 lg:top-4 left-5 2xl:left-7.5">
+                                <Tooltip text="Volver" position="bottom">
+                                    <button onClick={handleVolver} className="cursor-pointer p-2.5 lg:p-2 2xl:p-2.5 rounded-full border-2 bg-white/90 border-white text-slate-700 backdrop-blur-sm shadow-lg">
+                                        <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                    </button>
+                                </Tooltip>
                             </div>
                         )}
 
                         <div className="absolute top-14 lg:top-4 right-5 2xl:right-7.5 flex gap-2 pointer-events-auto">
                             {/* Botón Like */}
-                            <div className="relative group">
-                                <button onClick={handleLikeConAuth} className={`cursor-pointer p-2 2xl:p-2.5 rounded-lg border-2 backdrop-blur-sm transition-all ${liked ? 'bg-red-50 border-red-500 text-red-500' : 'bg-white/90 border-white text-slate-700 hover:bg-red-50 hover:border-red-500 hover:text-red-500'}`}>
-                                    <Heart className={`w-4 h-4 2xl:w-5 2xl:h-5 ${liked ? 'fill-current' : ''}`} />
+                            <Tooltip text={liked ? 'Quitar like' : 'Like'} position="bottom">
+                                <button onClick={handleLikeConAuth} className={`cursor-pointer p-2.5 lg:p-2 2xl:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${liked ? 'bg-red-50 border-red-500 text-red-500' : 'bg-white/90 border-white text-slate-700'}`}>
+                                    <Heart className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${liked ? 'fill-current' : ''}`} />
                                 </button>
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                    Like
-                                </div>
-                            </div>
+                            </Tooltip>
                             {/* Botón Seguir */}
-                            <div className="relative group">
-                                <button onClick={handleSaveConAuth} className={`cursor-pointer p-2 2xl:p-2.5 rounded-lg border-2 backdrop-blur-sm transition-all ${followed ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white/90 border-white text-slate-700 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600'}`}>
-                                    <Bell className={`w-4 h-4 2xl:w-5 2xl:h-5 ${followed ? 'fill-current' : ''}`} />
+                            <Tooltip text={followed ? 'Dejar de seguir' : 'Seguir'} position="bottom">
+                                <button onClick={handleSaveConAuth} className={`cursor-pointer p-2.5 lg:p-2 2xl:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${followed ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white/90 border-white text-slate-700'}`}>
+                                    <Bell className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${followed ? 'fill-current' : ''}`} />
                                 </button>
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                    {followed ? 'Dejar de seguir' : 'Seguir'}
-                                </div>
-                            </div>
+                            </Tooltip>
                             {/* Botón Compartir */}
-                            <div className="group">
+                            <Tooltip text="Compartir" position="bottom">
                                 <DropdownCompartir
                                     url={`${window.location.origin}/p/negocio/${sucursalId}`}
                                     texto={`¡Mira este negocio en AnunciaYA!\n\n${negocio?.negocioNombre}`}
                                     titulo={negocio?.negocioNombre || 'Negocio'}
                                     variante="hero"
                                 />
-                            </div>
+                            </Tooltip>
                         </div>
                     </div>
                 </div>
@@ -1067,23 +1100,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
                                 </p>
                             )}
-                            {/* Badges envío más grandes */}
-                            {(negocio.tieneEnvioDomicilio || negocio.tieneServicioDomicilio) && (
-                                <div className="flex flex-wrap gap-3 mt-1">
-                                    {negocio.tieneEnvioDomicilio && (
-                                        <span className="flex items-center gap-2 text-base font-semibold text-emerald-600">
-                                            <Truck className="w-5 h-5" />
-                                            Envío
-                                        </span>
-                                    )}
-                                    {negocio.tieneServicioDomicilio && (
-                                        <span className="flex items-center gap-2 text-base font-semibold text-blue-600">
-                                            <Home className="w-5 h-5" />
-                                            A domicilio
-                                        </span>
-                                    )}
-                                </div>
-                            )}
+
                         </div>
                     </div>
 
@@ -1111,12 +1128,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     <div className="flex items-center gap-3">
                                         <h1 className="lg:text-2xl 2xl:text-4xl font-bold text-slate-900 truncate">{negocio.negocioNombre}</h1>
                                         {negocio.aceptaCardya && (
-                                            <div className="relative group cursor-pointer shrink-0">
-                                                <CreditCard className="lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-amber-500 animate-bounce" style={{ animationDuration: '2s' }} />
-                                                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                                    Acepta CardYA
+                                            <Tooltip text="Acepta CardYA" position="bottom">
+                                                <div className="cursor-pointer shrink-0">
+                                                    <CreditCard className="lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-amber-500 animate-bounce" style={{ animationDuration: '2s' }} />
                                                 </div>
-                                            </div>
+                                            </Tooltip>
                                         )}
                                     </div>
 
@@ -1182,15 +1198,15 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     {(negocio.tieneEnvioDomicilio || negocio.tieneServicioDomicilio) && (
                                         <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 lg:items-start 2xl:items-end">
                                             {negocio.tieneEnvioDomicilio && (
-                                                <div className="flex items-center gap-1 lg:gap-1 2xl:gap-2 lg:px-2 lg:py-1 2xl:px-4 2xl:py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
-                                                    <Truck className="lg:w-3 lg:h-3 2xl:w-5 2xl:h-5 text-emerald-600" />
-                                                    <span className="lg:text-[10px] 2xl:text-sm font-medium text-emerald-700">Envío a domicilio</span>
+                                                <div className="flex items-center gap-1.5 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
+                                                    <Truck className="lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white" />
+                                                    <span className="lg:text-[11px] 2xl:text-sm font-semibold text-white">Envíos</span>
                                                 </div>
                                             )}
                                             {negocio.tieneServicioDomicilio && (
-                                                <div className="flex items-center gap-1 lg:gap-1 2xl:gap-2 lg:px-2 lg:py-1 2xl:px-4 2xl:py-2 bg-white border border-blue-200 rounded-lg">
-                                                    <Home className="lg:w-3 lg:h-3 2xl:w-5 2xl:h-5 text-blue-600" />
-                                                    <span className="lg:text-[10px] 2xl:text-sm font-medium text-blue-700">Servicio a domicilio</span>
+                                                <div className="flex items-center gap-1.5 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
+                                                    <Home className="lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white" />
+                                                    <span className="lg:text-[11px] 2xl:text-sm font-semibold text-white">Servicio a Domicilio</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1209,113 +1225,85 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
             <div className="lg:mt-12 2xl:mt-0">
                 {!seccionExpandida && (
                     <div className="mt-4 lg:mt-2 2xl:mt-4">
-                        {/* MÓVIL: Contactos + Horario + Ubicación */}
-                        <div className="flex flex-col items-center gap-5 lg:hidden">
-                            {/* Contactos - Iconos en círculos con separadores */}
-                            <div className="flex items-center justify-center gap-4 px-4">
+                        {/* MÓVIL: Iconos contacto + Horario */}
+                        <div className="flex flex-col items-center gap-4 lg:hidden">
+                            {/* Fila de iconos: Phone + WhatsApp + ChatYA + Ubicación */}
+                            <div className="flex items-center justify-center gap-3">
                                 {negocio.telefono && (
-                                    <>
-                                        <a
-                                            href={`tel:${negocio.telefono.replace(/\s+/g, '')}`}
-                                            className="w-10 h-10 bg-slate-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
-                                            title="Llamar"
-                                        >
-                                            <Phone className="w-5 h-5 text-white" />
-                                        </a>
-                                        <div className="h-8 w-0.5 bg-linear-to-b from-transparent via-slate-300 to-transparent" />
-                                    </>
+                                    <a
+                                        href={`tel:${negocio.telefono.replace(/\s+/g, '')}`}
+                                        className="w-11 h-11 bg-slate-500 rounded-full flex items-center justify-center shadow-md cursor-pointer"
+                                    >
+                                        <Phone className="w-5 h-5 text-white" />
+                                    </a>
                                 )}
                                 {negocio.whatsapp && (
-                                    <>
-                                        <a
-                                            href={`https://wa.me/${negocio.whatsapp.replace(/\D/g, '')}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="hover:scale-105 transition-transform"
-                                            title="WhatsApp"
-                                        >
-                                            <img src="/whatsapp.webp" alt="WhatsApp" className="w-10 h-10" />
-                                        </a>
-                                        <div className="h-8 w-0.5 bg-linear-to-b from-transparent via-slate-300 to-transparent" />
-                                    </>
+                                    <a href={`https://wa.me/${negocio.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                                        <img src="/whatsapp.webp" alt="WhatsApp" className="w-11 h-11" />
+                                    </a>
                                 )}
+                                <button onClick={handleChatYA} className="cursor-pointer">
+                                    <img src="/ChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
+                                </button>
                                 <button
-                                    onClick={handleChatYA}
-                                    className="hover:scale-105 transition-transform cursor-pointer"
-                                    title="ChatYA"
+                                    onClick={() => setModalMapaAbierto(true)}
+                                    className="w-11 h-11 rounded-full flex items-center justify-center shadow-md cursor-pointer"
+                                    style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}
                                 >
-                                    <img src="/ChatYA.webp" alt="ChatYA" className="h-10 w-auto" />
+                                    <MapPin className="w-6 h-6 text-white animate-pulse" style={{ animationDuration: '2s' }} />
                                 </button>
                             </div>
 
-                            {/* Línea separadora sutil */}
-                            <div className="w-48 h-0.5 bg-linear-to-r from-transparent via-slate-400 to-transparent" />
-
-                            {/* Horario */}
+                            {/* Horario pill */}
+                            <div className="flex justify-center">
                             {negocio.horarios && negocio.horarios.length > 0 && (() => {
                                 const infoHorario = calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria);
                                 const { estado, proximaApertura, proximoCierre } = infoHorario;
-
                                 const config = {
                                     abierto: {
-                                        bg: 'bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700',
+                                        bg: 'bg-linear-to-r from-green-500 to-emerald-600',
                                         icon: <Clock className="w-4 h-4 text-white animate-spin" style={{ animationDuration: '8s' }} />,
                                         texto: 'Abierto',
                                         subtexto: `Cierra ${formatearHora(proximoCierre || '')}`,
                                     },
                                     cerrado: {
-                                        bg: 'bg-linear-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700',
+                                        bg: 'bg-linear-to-r from-rose-500 to-red-600',
                                         icon: <Clock className="w-4 h-4 text-white" />,
                                         texto: 'Cerrado',
                                         subtexto: `Abre ${formatearHora(proximaApertura || '')}`,
                                     },
                                     cerrado_hoy: {
-                                        bg: 'bg-linear-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700',
+                                        bg: 'bg-linear-to-r from-rose-500 to-red-600',
                                         icon: <Clock className="w-4 h-4 text-white" />,
                                         texto: 'Cerrado hoy',
-                                        subtexto: proximaApertura ? `Abre ${formatearHora(proximaApertura)}` : '',
+                                        subtexto: '',
                                     },
                                     comida: {
-                                        bg: 'bg-linear-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600',
+                                        bg: 'bg-linear-to-r from-amber-400 to-orange-500',
                                         icon: <UtensilsCrossed className="w-4 h-4 text-white" />,
                                         texto: 'Horario de comida',
                                         subtexto: `Regresa ${formatearHora(proximaApertura || '')}`,
                                     }
                                 };
-
                                 const { bg, icon, texto, subtexto } = config[estado];
-
                                 return (
                                     <button
                                         onClick={() => setModalHorariosAbierto(true)}
-                                        className={`flex items-center gap-1.5 px-4 py-2 ${bg} rounded-full shadow-md hover:shadow-lg transition-all cursor-pointer`}
+                                        className={`flex items-center gap-1.5 px-4 py-2 ${bg} rounded-full shadow-md cursor-pointer`}
                                     >
                                         {icon}
-                                        <span className="text-white font-medium text-sm">{texto}</span>
+                                        <span className="text-white font-bold text-sm">{texto}</span>
                                         {subtexto && (
                                             <>
-                                                <span className="text-white/70 text-sm">·</span>
-                                                <span className="text-white/90 text-sm">{subtexto}</span>
+                                                <span className="text-white/70 text-sm font-semibold">·</span>
+                                                <span className="text-white/90 text-sm font-semibold">{subtexto}</span>
                                             </>
                                         )}
-                                        <ChevronDown className="w-5 h-5 text-white/80" />
+                                        <ChevronDown className="w-4 h-4 text-white/80" />
                                     </button>
                                 );
                             })()}
-
-                            {/* Línea separadora sutil */}
-                            <div className="w-48 h-0.5 bg-linear-to-r from-transparent via-slate-400 to-transparent" />
-
-                            {/* Dirección con icono animado */}
-                            <button
-                                onClick={handleDirecciones}
-                                className="flex items-center gap-1 text-left w-full px-5 cursor-pointer hover:opacity-80 transition-opacity"
-                            >
-                                <MapPin className="w-8 h-8 text-blue-500 shrink-0 animate-bounce" style={{ animationDuration: '2s' }} />
-                                <p className="text-slate-700 text-sm font-semibold leading-relaxed line-clamp-2">
-                                    {negocio.direccion}, {negocio.ciudad}
-                                </p>
-                            </button>
+                            </div>
                         </div>
 
                         {/* DESKTOP: Solo ubicación (horario va en sidebar) */}
@@ -1366,72 +1354,75 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         {/* ============ GALERÍA ============ */}
                         {!seccionExpandida && galeriaImagenes.length > 0 && (
                             <div className="px-5 lg:px-0">
-                                <div className="flex items-center justify-between mb-4 lg:mb-3 2xl:mb-4 bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 text-white px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-xl">
+                                {/* Header — mismo estilo que Ofertas y Catálogo */}
+                                <button
+                                    onClick={() => setModalGaleriaAbierto(true)}
+                                    className="w-full flex items-center justify-between mb-4 lg:mb-3 2xl:mb-4 bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 hover:from-slate-700 hover:via-slate-600 hover:to-slate-500 text-white px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-xl cursor-pointer"
+                                >
                                     <h2 className="flex items-center gap-2 text-lg lg:text-base 2xl:text-lg font-semibold">
                                         <ImageIcon className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                         <span>Galería</span>
-                                        <span className="text-sm font-normal text-slate-300">({galeriaImagenes.length})</span>
+                                        <span className="text-sm font-medium text-white/70">({galeriaImagenes.length})</span>
                                     </h2>
-                                    {/* Flechas de navegación */}
-                                    {hayMasImagenes && (
-                                        <div className="flex items-center gap-2">
-                                            {/* ← Anterior */}
-                                            {paginaGaleria > 0 && (
-                                                <button
-                                                    onClick={anteriorPaginaGaleria}
-                                                    className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-all hover:scale-110"
-                                                >
-                                                    <ChevronLeft className="w-5 h-5" />
-                                                </button>
-                                            )}
+                                    {/* Móvil: "Ver todas" + flecha | Desktop: solo flecha */}
+                                    <div className="lg:hidden flex items-center gap-1.5 bg-white/20 px-3 py-1.5 rounded-full">
+                                        <span className="text-sm font-medium">Ver todas</span>
+                                        <ChevronRight className="h-5 w-5 animate-bounceX" />
+                                    </div>
+                                    <div className="hidden lg:flex h-7 w-7 2xl:h-8 2xl:w-8 items-center justify-center rounded-full bg-white/20 hover:bg-white/30">
+                                        <ChevronRight className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                                    </div>
+                                </button>
 
-                                            {/* Siguiente → */}
-                                            {paginaGaleria < totalPaginasGaleria - 1 && (
-                                                <button
-                                                    onClick={siguientePaginaGaleria}
-                                                    className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-all hover:scale-110 cursor-pointer"
-                                                >
-                                                    <ChevronRight className="w-5 h-5" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
-                                    {imagenesActuales.map((imagen, index) => {
-                                        const indiceReal = paginaGaleria * IMAGENES_POR_PAGINA + index;
+                                {/* Mobile: scroll horizontal (max 10) | Desktop: grid (max 4) */}
+                                <div className="flex gap-3 overflow-x-auto pb-2 lg:pb-0 lg:grid lg:grid-cols-3 2xl:grid-cols-4 lg:gap-3 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                    {(() => {
+                                        const limitDesktop = window.innerWidth >= 1536 ? 4 : 3;
+                                        const limit = window.innerWidth < 1024 ? 10 : limitDesktop;
+                                        return galeriaImagenes.slice(0, limit).map((imagen, index) => {
+                                        const esUltimaDesktop = window.innerWidth >= 1024 && index === limit - 1 && galeriaImagenes.length > limit;
                                         return (
                                             <div
-                                                key={`${paginaGaleria}-${index}-${imagen.id}`}
-                                                className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-100 cursor-pointer group"
-                                                onClick={() => abrirGaleria(indiceReal)}
+                                                key={`galeria-${index}-${imagen.id}`}
+                                                className="shrink-0 w-[60%] h-[160px] lg:w-auto lg:h-[160px] 2xl:h-[190px] relative rounded-xl overflow-hidden bg-slate-200 cursor-pointer group"
+                                                onClick={() => esUltimaDesktop ? setModalGaleriaAbierto(true) : abrirGaleria(index)}
                                             >
                                                 <img
                                                     src={imagen.url}
                                                     alt={imagen.titulo || 'Imagen'}
                                                     loading="lazy"
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                                    className={`w-full h-full object-cover transition-transform group-hover:scale-105 ${esUltimaDesktop ? 'brightness-50' : ''}`}
                                                 />
+                                                {esUltimaDesktop && (
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                        <span className="text-3xl font-bold text-white">+{galeriaImagenes.length - limit}</span>
+                                                        <span className="text-sm font-semibold text-white/80">Ver todas</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
-                                    })}
+                                    });
+                                    })()}
+                                    {/* Botón "Ver todas" al final — solo mobile scroll */}
+                                    {window.innerWidth < 1024 && galeriaImagenes.length > 10 && (
+                                        <div
+                                            className="shrink-0 w-[60%] relative aspect-4/3 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95"
+                                            style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
+                                            onClick={() => setModalGaleriaAbierto(true)}
+                                        >
+                                            <span className="text-2xl font-bold text-white">+{galeriaImagenes.length - 10}</span>
+                                            <span className="text-sm font-semibold text-white/70">Ver todas</span>
+                                        </div>
+                                    )}
                                 </div>
-
-                                {/* Indicador de página */}
-                                {hayMasImagenes && (
-                                    <p className="text-center text-xs text-slate-400 mt-3">
-                                        Página {paginaGaleria + 1} de {totalPaginasGaleria}
-                                    </p>
-                                )}
                             </div>
                         )}
 
                     </div>
 
                     {/* ============ SIDEBAR CONTACTO (SIN STICKY) ============ */}
-                    <div className="px-5 lg:px-0">
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:p-4 2xl:p-6">
+                    <div className="px-5 lg:px-0 mt-6 lg:mt-0">
+                        <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-6 lg:p-4 2xl:p-6">
 
                             {/* HORARIO - Solo desktop */}
                             <div className="hidden lg:block mb-4">
@@ -1479,9 +1470,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                             </div>
                                             {/* Texto centrado */}
                                             <div className="flex-1 flex flex-col items-center">
-                                                <span className="text-white font-semibold lg:text-xs 2xl:text-base">{texto}</span>
+                                                <span className="text-white font-bold lg:text-[11px] 2xl:text-base">{texto}</span>
                                                 {subtexto && (
-                                                    <span className="text-white/90 lg:text-[10px] 2xl:text-sm">{subtexto}</span>
+                                                    <span className="text-white/90 lg:text-[11px] 2xl:text-sm font-medium">{subtexto}</span>
                                                 )}
                                             </div>
                                             <ChevronDown className="lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white/80 shrink-0" />
@@ -1492,7 +1483,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                             {/* UBICACIÓN - Solo desktop */}
                             <div className="hidden lg:block">
-                                <h4 className="flex items-center gap-2 lg:text-xs 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider lg:mb-3 2xl:mb-3">
+                                <h4 className="flex items-center gap-2 lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider lg:mb-3 2xl:mb-3">
                                     <MapPin className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                     <span>Ubicación</span>
                                 </h4>
@@ -1514,94 +1505,68 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                 updateWhenIdle={true}
                                             />
                                             <Marker position={[negocio.latitud, negocio.longitud]}>
-                                                <Popup className="popup-perfil">
+                                                <Popup className="popup-sidebar" autoPan={true} autoPanPadding={[40, 40]}>
                                                     <div>
-                                                        {/* Header azul */}
-                                                        <div className="bg-linear-to-r from-blue-500 to-blue-600 px-4 py-3">
-                                                            <div className="flex items-center gap-3">
+                                                        {/* Header oscuro compacto */}
+                                                        <div className="relative px-3 py-2 overflow-hidden" style={{ background: '#000000' }}>
+                                                            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.12) 0%, transparent 60%)' }} />
+                                                            <div className="relative z-10 flex items-center gap-2">
                                                                 {negocio.logoUrl ? (
-                                                                    <img
-                                                                        src={negocio.logoUrl}
-                                                                        alt={negocio.negocioNombre}
-                                                                        className="w-11 h-11 rounded-xl object-cover shrink-0 border-2 border-white/30 shadow-lg"
-                                                                    />
+                                                                    <img src={negocio.logoUrl} alt={negocio.negocioNombre} className="w-8 h-8 rounded-full object-cover shrink-0 border-2 border-white/20" />
                                                                 ) : (
-                                                                    <div className="w-11 h-11 rounded-xl shrink-0 border-2 border-white/30 shadow-lg bg-black/20 flex items-center justify-center">
-                                                                        <span className="text-white font-bold text-lg">{negocio.negocioNombre.charAt(0)}</span>
+                                                                    <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}>
+                                                                        <span className="text-white font-bold text-sm">{negocio.negocioNombre.charAt(0)}</span>
                                                                     </div>
                                                                 )}
-                                                                <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                                                    <h3 className="text-[16px] font-bold text-white leading-tight truncate">
-                                                                        {negocio.negocioNombre}
-                                                                    </h3>
-                                                                    {negocio.totalSucursales > 1 && (
-                                                                        <p className="text-[12px] font-medium text-blue-100 truncate">
-                                                                            Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
-                                                                        </p>
-                                                                    )}
-                                                                </div>
+                                                                <h3 className="text-sm font-bold text-white leading-tight truncate">{negocio.negocioNombre}</h3>
                                                             </div>
                                                         </div>
 
-                                                        {/* Body */}
-                                                        <div className="px-4 py-2.5">
-                                                            {/* Status — Rating — Distancia */}
-                                                            <div className="flex items-center justify-between text-[13px]">
+                                                        {/* Body compacto */}
+                                                        <div className="px-3 py-2.5">
+                                                            <div className="flex items-center justify-center gap-2 pb-2 text-[12px]">
                                                                 {negocio.horarios?.length > 0 && (() => {
                                                                     const info = calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria);
                                                                     const abierto = info.estado === 'abierto';
                                                                     return (
-                                                                        <div className="flex items-center gap-1.5">
+                                                                        <div className="flex items-center gap-1">
                                                                             <span className="w-1.5 h-1.5 rounded-full" style={{ background: abierto ? '#22c55e' : '#ef4444' }} />
-                                                                            <span className={`font-semibold ${abierto ? 'text-green-600' : 'text-red-500'}`}>
-                                                                                {abierto ? 'Abierto' : 'Cerrado'}
-                                                                            </span>
+                                                                            <span className={`font-bold ${abierto ? 'text-green-600' : 'text-red-500'}`}>{abierto ? 'Abierto' : 'Cerrado'}</span>
                                                                         </div>
                                                                     );
                                                                 })()}
                                                                 {tieneCalificacion && (
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                                                                        <span className="font-bold text-slate-800">{promedioResenas.toFixed(1)}</span>
-                                                                        <span className="text-[12px] text-slate-400">({negocio?.totalCalificaciones ?? 0})</span>
-                                                                    </div>
+                                                                    <>
+                                                                        <div className="w-px h-3 bg-slate-400" />
+                                                                        <div className="flex items-center gap-1">
+                                                                            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                                                                            <span className="font-bold text-slate-800">{promedioResenas.toFixed(1)}</span>
+                                                                        </div>
+                                                                    </>
                                                                 )}
                                                                 {distanciaKm !== null && (
-                                                                    <div className="flex items-center gap-1 text-slate-500">
-                                                                        <MapPin className="w-3.5 h-3.5" />
-                                                                        <span className="font-medium">
-                                                                            {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)} m` : `${distanciaKm.toFixed(1)} km`}
-                                                                        </span>
-                                                                    </div>
+                                                                    <>
+                                                                        <div className="w-px h-3 bg-slate-400" />
+                                                                        <div className="flex items-center gap-1 text-slate-600">
+                                                                            <MapPin className="w-3 h-3" />
+                                                                            <span className="font-bold">{distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)} m` : `${distanciaKm.toFixed(1)} km`}</span>
+                                                                        </div>
+                                                                    </>
                                                                 )}
                                                             </div>
 
-                                                            {/* Dirección */}
-                                                            <p className="text-[12px] text-slate-400 mt-1.5 leading-tight truncate">
-                                                                {negocio.direccion}
-                                                            </p>
+                                                            <p className="text-[12px] font-semibold text-slate-600 leading-tight truncate border-t border-slate-300 pt-2">{negocio.direccion}</p>
 
-                                                            {/* Separador */}
-                                                            <div className="h-px bg-slate-100 my-2" />
-
-                                                            {/* ChatYA + WhatsApp */}
-                                                            <div className="flex items-center gap-3">
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleChatYA(); }}
-                                                                    className="cursor-pointer flex items-center gap-1.5 bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
-                                                                >
-                                                                    <img src="/ChatYA.webp" alt="ChatYA" className="h-8 w-auto" />
+                                                            <div className="flex items-center justify-center gap-3 mt-2 pt-2 border-t border-slate-300">
+                                                                <button onClick={(e) => { e.stopPropagation(); handleChatYA(); }} className="cursor-pointer hover:scale-110">
+                                                                    <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-8 w-auto" />
                                                                 </button>
                                                                 {negocio.whatsapp && (
-                                                                    <>
-                                                                        <div className="w-px h-6 bg-slate-200" />
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }}
-                                                                            className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70 transition-opacity"
-                                                                        >
-                                                                            <img src="/whatsapp.webp" alt="WhatsApp" className="w-8 h-8" />
-                                                                        </button>
-                                                                    </>
+                                                                    <button onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }} className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-[4px]">
+                                                                        <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="currentColor">
+                                                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                                                        </svg>
+                                                                    </button>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -1611,7 +1576,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         </MapContainer>
                                     </div>
                                 ) : (
-                                    <div className="w-full h-80 2xl:h-72 bg-slate-100 rounded-xl flex items-center justify-center mb-5 2xl:mb-4">
+                                    <div className="w-full h-80 2xl:h-72 bg-slate-200 rounded-xl flex items-center justify-center mb-5 2xl:mb-4">
                                         <MapPin className="w-12 h-12 text-slate-400" />
                                     </div>
                                 )}
@@ -1620,14 +1585,15 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 <div className="flex gap-2 mb-5 2xl:mb-4">
                                     <button
                                         onClick={handleDirecciones}
-                                        className="flex-1 flex items-center justify-center gap-2 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3 bg-linear-to-r from-blue-500 to-blue-600 text-white font-semibold lg:text-sm 2xl:text-base rounded-xl hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all cursor-pointer"
+                                        className="flex-1 flex items-center justify-center gap-2 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3 text-white font-semibold lg:text-sm 2xl:text-base rounded-xl shadow-md cursor-pointer active:scale-95"
+                                        style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
                                     >
                                         <Navigation className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                         <span>Cómo llegar</span>
                                     </button>
                                     <button
                                         onClick={() => setModalMapaAbierto(true)}
-                                        className="shrink-0 flex items-center justify-center gap-2 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold lg:text-sm 2xl:text-base rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
+                                        className="shrink-0 flex items-center justify-center gap-2 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3 bg-slate-200 text-slate-700 font-semibold lg:text-sm 2xl:text-base rounded-xl border-2 border-slate-300 cursor-pointer"
                                         title="Ver mapa completo"
                                     >
                                         <Maximize2 className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
@@ -1635,10 +1601,10 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 </div>
 
                                 {/* SEPARADOR */}
-                                <div className="my-5 2xl:my-4 h-px bg-slate-200" />
+                                <div className="my-5 2xl:my-4 h-px bg-slate-300" />
 
                                 {/* CONTACTO */}
-                                <h4 className="flex items-center gap-2 lg:text-xs 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider lg:mb-3 2xl:mb-3">
+                                <h4 className="flex items-center gap-2 lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider lg:mb-3 2xl:mb-3">
                                     <Send className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                     <span>Contacto</span>
                                 </h4>
@@ -1647,7 +1613,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 {negocio.telefono && (
                                     <a
                                         href={`tel:${negocio.telefono.replace(/\s+/g, '')}`}
-                                        className="flex items-center gap-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2 lg:mb-2 2xl:mb-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-lg transition-all cursor-pointer group hover:scale-[1.02]"
+                                        className="flex items-center gap-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2 lg:mb-2 2xl:mb-2 bg-slate-200 border-2 border-slate-300 rounded-lg cursor-pointer group"
                                     >
                                         <Phone className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
                                         <span className="lg:text-sm 2xl:text-base font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
@@ -1660,7 +1626,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 {negocio.correo && (
                                     <a
                                         href={`mailto:${negocio.correo}`}
-                                        className="flex items-center gap-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2 lg:mb-3 2xl:mb-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-lg transition-all cursor-pointer group hover:scale-[1.02]"
+                                        className="flex items-center gap-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2 lg:mb-3 2xl:mb-3 bg-slate-200 border-2 border-slate-300 rounded-lg cursor-pointer group"
                                     >
                                         <Mail className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
                                         <span className="lg:text-sm 2xl:text-base font-medium text-slate-700 group-hover:text-blue-600 transition-colors truncate">
@@ -1671,7 +1637,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                                 <div className="flex lg:gap-3 2xl:gap-4 items-center">
                                     {negocio.whatsapp && (
-                                        <div className="relative group">
+                                        <Tooltip text="WhatsApp" position="top">
                                             <button
                                                 onClick={handleWhatsApp}
                                                 className="hover:scale-110 transition-transform cursor-pointer"
@@ -1682,12 +1648,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                     className="lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain"
                                                 />
                                             </button>
-                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                WhatsApp
-                                            </div>
-                                        </div>
+                                        </Tooltip>
                                     )}
-                                    <div className="relative group">
+                                    <Tooltip text="ChatYA" position="top">
                                         <button
                                             onClick={handleChatYA}
                                             className="lg:h-8 2xl:h-10 hover:scale-110 transition-transform flex items-center cursor-pointer"
@@ -1698,14 +1661,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                 className="lg:h-8 2xl:h-10 w-auto object-contain"
                                             />
                                         </button>
-                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                            ChatYA
-                                        </div>
-                                    </div>
+                                    </Tooltip>
                                 </div>
 
                                 {/* SEPARADOR */}
-                                <div className="my-5 2xl:my-4 h-px bg-slate-200" />
+                                <div className="my-5 2xl:my-4 h-px bg-slate-300" />
                             </div>
 
                             {/* REDES SOCIALES - Sin correo */}
@@ -1718,89 +1678,101 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     <div className="flex items-center gap-3 lg:gap-3 2xl:gap-4">
                                         {/* Sitio Web */}
                                         {negocio.sitioWeb && (
-                                            <div className="relative group">
+                                            <Tooltip text="Sitio Web" position="top">
                                                 <a href={negocio.sitioWeb} target="_blank" rel="noopener noreferrer" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full bg-slate-700 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer">
                                                     <svg className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
                                                 </a>
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                    Sitio Web
-                                                </div>
-                                            </div>
+                                            </Tooltip>
                                         )}
                                         {/* Facebook */}
                                         {negocio.redesSociales?.facebook && (
-                                            <div className="relative group">
+                                            <Tooltip text="Facebook" position="top">
                                                 <a href={negocio.redesSociales.facebook} target="_blank" rel="noopener noreferrer" className="block hover:scale-110 transition-transform cursor-pointer">
                                                     <img src="/facebook.webp" alt="Facebook" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain" />
                                                 </a>
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                    Facebook
-                                                </div>
-                                            </div>
+                                            </Tooltip>
                                         )}
                                         {/* Instagram */}
                                         {negocio.redesSociales?.instagram && (
-                                            <div className="relative group">
+                                            <Tooltip text="Instagram" position="top">
                                                 <a href={negocio.redesSociales.instagram} target="_blank" rel="noopener noreferrer" className="block hover:scale-110 transition-transform cursor-pointer">
                                                     <img src="/instagram.webp" alt="Instagram" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain" />
                                                 </a>
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                    Instagram
-                                                </div>
-                                            </div>
+                                            </Tooltip>
                                         )}
                                         {/* X (Twitter) */}
                                         {negocio.redesSociales?.twitter && (
-                                            <div className="relative group">
+                                            <Tooltip text="X" position="top">
                                                 <a href={negocio.redesSociales.twitter} target="_blank" rel="noopener noreferrer" className="block hover:scale-110 transition-transform cursor-pointer">
                                                     <img src="/twitter.webp" alt="X" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain" />
                                                 </a>
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                    X
-                                                </div>
-                                            </div>
+                                            </Tooltip>
                                         )}
                                         {/* TikTok */}
                                         {negocio.redesSociales?.tiktok && (
-                                            <div className="relative group">
+                                            <Tooltip text="TikTok" position="top">
                                                 <a href={negocio.redesSociales.tiktok} target="_blank" rel="noopener noreferrer" className="block hover:scale-110 transition-transform cursor-pointer">
                                                     <img src="/tiktok.webp" alt="TikTok" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain" />
                                                 </a>
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                    TikTok
-                                                </div>
-                                            </div>
+                                            </Tooltip>
                                         )}
                                     </div>
                                 </>
                             )}
 
                             {/* SEPARADOR */}
-                            <div className="my-5 2xl:my-4 h-px bg-slate-200" />
+                            <div className="my-5 2xl:my-4 h-px bg-slate-300" />
 
                             {/* MÉTODOS DE PAGO */}
                             {negocio.metodosPago && negocio.metodosPago.length > 0 && (
                                 <div>
-                                    <h4 className="flex items-center gap-2 text-base lg:text-xs 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3 lg:mb-3 2xl:mb-3">
+                                    <h4 className="flex items-center gap-2 text-base lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3 lg:mb-3 2xl:mb-3">
                                         <CreditCard className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                         <span>Métodos de Pago</span>
                                     </h4>
-                                    <div className="flex lg:flex-col gap-2">
+                                    <div className="flex flex-wrap lg:flex-col gap-2">
                                         {agruparMetodosPago(negocio.metodosPago).map((tipo) => {
-                                            let bgColor = 'bg-slate-100';
-                                            let textColor = 'text-slate-600';
-                                            if (tipo.toLowerCase().includes('efectivo')) { bgColor = 'bg-green-50'; textColor = 'text-green-700'; }
-                                            else if (tipo.toLowerCase().includes('tarjeta')) { bgColor = 'bg-blue-50'; textColor = 'text-blue-700'; }
-                                            else if (tipo.toLowerCase().includes('transfer')) { bgColor = 'bg-purple-50'; textColor = 'text-purple-700'; }
+                                            let bgColor = 'bg-slate-200';
+                                            let textColor = 'text-slate-700';
+                                            if (tipo.toLowerCase().includes('efectivo')) { bgColor = 'bg-green-100'; textColor = 'text-green-700'; }
+                                            else if (tipo.toLowerCase().includes('tarjeta')) { bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; }
+                                            else if (tipo.toLowerCase().includes('transfer')) { bgColor = 'bg-purple-100'; textColor = 'text-purple-700'; }
 
                                             return (
-                                                <span key={tipo} className={`px-3 py-1.5 lg:px-2 lg:py-1 2xl:px-3 2xl:py-1.5 ${bgColor} ${textColor} rounded-lg text-sm lg:text-xs 2xl:text-sm font-medium`}>
+                                                <span key={tipo} className={`px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 ${bgColor} ${textColor} rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold`}>
                                                     {nombreMetodoPago(tipo)}
                                                 </span>
                                             );
                                         })}
                                     </div>
                                 </div>
+                            )}
+
+                            {/* SERVICIOS A DOMICILIO — Solo móvil */}
+                            {(negocio.tieneEnvioDomicilio || negocio.tieneServicioDomicilio) && (
+                                <>
+                                    <div className="my-5 2xl:my-4 h-px bg-slate-300 lg:hidden" />
+                                    <div className="lg:hidden">
+                                        <h4 className="flex items-center gap-2 text-base font-semibold text-slate-600 uppercase tracking-wider mb-3">
+                                            <Truck className="w-5 h-5" />
+                                            <span>Servicios</span>
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {negocio.tieneEnvioDomicilio && (
+                                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
+                                                    <Truck className="w-4 h-4 text-white" />
+                                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white">Envíos</span>
+                                                </div>
+                                            )}
+                                            {negocio.tieneServicioDomicilio && (
+                                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
+                                                    <Home className="w-4 h-4 text-white" />
+                                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white">A Domicilio</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>
@@ -1831,6 +1803,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     });
                                     if (res.data.success) {
                                         qc.invalidateQueries({ queryKey: ['negocios', 'resenas', sucursalId] });
+                                        // Actualizar rating promedio y total calificaciones en el header
+                                        qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(sucursalId!) });
                                     }
                                 } catch (error: unknown) {
                                     const axiosError = error as { response?: { data?: { message?: string } } };
@@ -1845,6 +1819,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     });
                                     if (res.data.success) {
                                         qc.invalidateQueries({ queryKey: ['negocios', 'resenas', sucursalId] });
+                                        // Actualizar rating promedio y total calificaciones en el header
+                                        qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(sucursalId!) });
                                     }
                                 } catch (error: unknown) {
                                     const axiosError = error as { response?: { data?: { message?: string } } };
@@ -1860,25 +1836,178 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
             {/* MODAL MAPA EXPANDIDO */}
             {modalMapaAbierto && negocio.latitud && negocio.longitud && (
-                <ModalMapa
-                    negocio={{
-                        negocioNombre: negocio.negocioNombre,
-                        sucursalNombre: negocio.sucursalNombre,
-                        totalSucursales: negocio.totalSucursales,
-                        logoUrl: negocio.logoUrl,
-                        whatsapp: negocio.whatsapp,
-                        direccion: negocio.direccion,
-                        latitud: negocio.latitud,
-                        longitud: negocio.longitud,
-                        estaAbierto: negocio.horarios?.length > 0 ? calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria).estado === 'abierto' : null,
-                        calificacion: promedioResenas,
-                        totalCalificaciones: negocio?.totalCalificaciones ?? 0,
-                        distanciaKm,
-                    }}
-                    userLat={userLat}
-                    userLng={userLng}
-                    onClose={() => setModalMapaAbierto(false)}
-                />
+                esMobileGaleria ? (
+                    /* MOBILE: ModalBottom */
+                    <ModalBottom
+                        abierto={modalMapaAbierto}
+                        onCerrar={() => setModalMapaAbierto(false)}
+                        titulo="Ubicación"
+                        iconoTitulo={<MapPin className="w-5 h-5 text-white" />}
+                        mostrarHeader={false}
+                        headerOscuro
+                        sinScrollInterno={true}
+                        alturaMaxima="xl"
+                        className="h-[90vh]!"
+                    >
+                        {/* Header */}
+                        <div
+                            className="relative px-4 pt-8 pb-3 shrink-0 overflow-hidden"
+                            style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
+                        >
+                            <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                            <div className="relative flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    {negocio.logoUrl ? (
+                                        <img src={negocio.logoUrl} alt={negocio.negocioNombre} className="w-10 h-10 rounded-full object-cover border-2 border-white/20" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-white/15 border-2 border-white/20 flex items-center justify-center">
+                                            <span className="text-white font-bold">{negocio.negocioNombre.charAt(0)}</span>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h3 className="text-white font-bold text-lg">{negocio.negocioNombre}</h3>
+                                        <p className="text-white/60 text-sm font-medium truncate max-w-[200px]">{negocio.direccion}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        const url = `https://www.google.com/maps/dir/?api=1&destination=${negocio.latitud},${negocio.longitud}`;
+                                        window.open(url, '_blank');
+                                    }}
+                                    className="px-3 py-2 bg-white text-slate-800 font-bold text-sm rounded-xl shadow-md cursor-pointer active:scale-95"
+                                >
+                                    <Navigation className="w-4 h-4 inline mr-1" />
+                                    Ir
+                                </button>
+                            </div>
+                        </div>
+                        {/* Estilos popup dentro del ModalBottom */}
+                        <style>{`
+                            .popup-negocio .leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 16px !important; overflow: hidden !important; border: 2px solid #94a3b8 !important; box-shadow: 0 4px 24px rgba(0,0,0,0.12) !important; }
+                            .popup-negocio .leaflet-popup-content { margin: 0 !important; min-width: 240px !important; max-width: 270px !important; }
+                            .popup-negocio .leaflet-popup-close-button { top: 8px !important; right: 8px !important; width: 30px !important; height: 30px !important; font-size: 20px !important; font-weight: 700 !important; color: rgba(255,255,255,0.7) !important; background: rgba(255,255,255,0.15) !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; line-height: 0 !important; padding: 0 0 1px 0 !important; cursor: pointer !important; z-index: 9999 !important; position: absolute !important; }
+                            .popup-negocio .leaflet-popup-close-button:hover { color: #fff !important; background: rgba(255,255,255,0.3) !important; }
+                            .popup-negocio p { margin: 0 !important; }
+                        `}</style>
+                        {/* Mapa */}
+                        <div className="flex-1 min-h-0 relative overflow-visible">
+                            <MapContainer
+                                center={[negocio.latitud, negocio.longitud]}
+                                zoom={16}
+                                scrollWheelZoom={true}
+                                zoomControl={false}
+                                className="w-full h-full"
+                            >
+                                <TileLayer
+                                    attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                />
+                                <Marker position={[negocio.latitud, negocio.longitud]}>
+                                    <Popup className="popup-negocio" autoPan={true} autoPanPadding={[70, 70]}>
+                                        <div>
+                                            <div className="relative px-4 py-3 overflow-hidden" style={{ background: '#000000' }}>
+                                                <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.12) 0%, transparent 60%)' }} />
+                                                <div className="relative z-10 flex items-center gap-3">
+                                                    {negocio.logoUrl ? (
+                                                        <img src={negocio.logoUrl} alt={negocio.negocioNombre} className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-white/20" />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}>
+                                                            <span className="text-white font-bold text-base">{negocio.negocioNombre.charAt(0)}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="min-w-0 flex-1">
+                                                        <h3 className="text-[17px] font-bold text-white leading-tight truncate">{negocio.negocioNombre}</h3>
+                                                        {negocio.totalSucursales > 1 && (
+                                                            <p className="text-sm font-medium text-white/70 truncate mt-0.5">
+                                                                Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="px-4 py-4">
+                                                <div className="flex items-center justify-center gap-3 pb-3 text-[14px]">
+                                                    {negocio.horarios?.length > 0 && (() => {
+                                                        const info = calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria);
+                                                        const abierto = info.estado === 'abierto';
+                                                        return (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="w-2 h-2 rounded-full" style={{ background: abierto ? '#22c55e' : '#ef4444' }} />
+                                                                <span className={`font-bold ${abierto ? 'text-green-600' : 'text-red-500'}`}>{abierto ? 'Abierto' : 'Cerrado'}</span>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                    {negocio.totalCalificaciones > 0 && (
+                                                        <>
+                                                            <div className="w-px h-4 bg-slate-400" />
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Star className="w-4.5 h-4.5 text-amber-400 fill-amber-400" />
+                                                                <span className="font-bold text-slate-800">{promedioResenas.toFixed(1)}</span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {distanciaKm !== null && (
+                                                        <>
+                                                            <div className="w-px h-4 bg-slate-400" />
+                                                            <div className="flex items-center gap-1.5 text-slate-600">
+                                                                <MapPin className="w-4 h-4" />
+                                                                <span className="font-bold">{distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)} m` : `${distanciaKm.toFixed(1)} km`}</span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2 pt-1 pb-1 border-t border-slate-300">
+                                                    <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
+                                                    <p className="text-[14px] font-bold text-slate-500 leading-snug line-clamp-2 pt-0.5">{negocio.direccion}</p>
+                                                </div>
+                                                <div className="h-px bg-slate-300 my-3" />
+                                                <div className="flex items-center justify-center gap-4">
+                                                    <button onClick={(e) => { e.stopPropagation(); handleChatYA(); }} className="cursor-pointer hover:scale-110">
+                                                        <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
+                                                    </button>
+                                                    {negocio.whatsapp && (
+                                                        <button onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }} className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-[6px]">
+                                                            <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Popup>
+                                </Marker>
+                                {userLat && userLng && (
+                                    <Marker position={[userLat, userLng]}>
+                                        <Popup><p className="font-semibold text-center">Tu ubicación</p></Popup>
+                                    </Marker>
+                                )}
+                            </MapContainer>
+                        </div>
+                    </ModalBottom>
+                ) : (
+                    /* DESKTOP: Modal existente */
+                    <ModalMapa
+                        negocio={{
+                            negocioNombre: negocio.negocioNombre,
+                            sucursalNombre: negocio.sucursalNombre,
+                            totalSucursales: negocio.totalSucursales,
+                            logoUrl: negocio.logoUrl,
+                            whatsapp: negocio.whatsapp,
+                            direccion: negocio.direccion,
+                            latitud: negocio.latitud,
+                            longitud: negocio.longitud,
+                            estaAbierto: negocio.horarios?.length > 0 ? calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria).estado === 'abierto' : null,
+                            calificacion: promedioResenas,
+                            totalCalificaciones: negocio?.totalCalificaciones ?? 0,
+                            distanciaKm,
+                        }}
+                        userLat={userLat}
+                        userLng={userLng}
+                        onClose={() => setModalMapaAbierto(false)}
+                        onChat={handleChatYA}
+                    />
+                )
             )}
 
             {/* MODAL AUTH REQUERIDO */}
@@ -1899,24 +2028,174 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 />
             )}
 
+            {/* Modal Galería */}
+            {modalGaleriaAbierto && galeriaImagenes.length > 0 && (
+                esMobileGaleria ? (
+                    <ModalBottom
+                        abierto={modalGaleriaAbierto}
+                        onCerrar={() => setModalGaleriaAbierto(false)}
+                        titulo="Galería"
+                        iconoTitulo={<ImageIcon className="w-5 h-5 text-white" />}
+                        mostrarHeader={false}
+                        headerOscuro
+                        sinScrollInterno={true}
+                        alturaMaxima="lg"
+                        className="h-[80vh]!"
+                    >
+                        {/* Header con gradiente slate */}
+                        <div
+                            className="relative px-4 pt-8 pb-3 shrink-0 overflow-hidden"
+                            style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
+                        >
+                            <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                            <div className="relative flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+                                    <ImageIcon className="w-4.5 h-4.5 text-white" />
+                                </div>
+                                <h3 className="text-white font-bold text-lg">Galería ({galeriaImagenes.length})</h3>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto min-h-0 p-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                {galeriaImagenes.map((imagen, index) => (
+                                    <div
+                                        key={`modal-galeria-${imagen.id}`}
+                                        className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-200 cursor-pointer"
+                                        onClick={() => abrirGaleria(index)}
+                                    >
+                                        <img src={imagen.url} alt={imagen.titulo || 'Imagen'} loading="lazy" className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </ModalBottom>
+                ) : (
+                    <Modal
+                        abierto={modalGaleriaAbierto}
+                        onCerrar={() => setModalGaleriaAbierto(false)}
+                        mostrarHeader={false}
+                        ancho="lg"
+                        paddingContenido="none"
+                        className="flex flex-col h-[80vh]!"
+                    >
+                        {/* Header con gradiente slate */}
+                        <div
+                            className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl"
+                            style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
+                        >
+                            <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                            <div className="relative flex items-center justify-between">
+                                <div className="flex items-center gap-2 2xl:gap-3">
+                                    <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+                                        <ImageIcon className="w-4 h-4 2xl:w-4.5 2xl:h-4.5 text-white" />
+                                    </div>
+                                    <h3 className="text-white font-bold text-base 2xl:text-lg">Galería ({galeriaImagenes.length})</h3>
+                                </div>
+                                <button onClick={() => setModalGaleriaAbierto(false)} className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 cursor-pointer">
+                                    <X className="w-4 h-4 text-white" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto min-h-0 p-3 2xl:p-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                {galeriaImagenes.map((imagen, index) => (
+                                    <div
+                                        key={`modal-galeria-${imagen.id}`}
+                                        className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-200 cursor-pointer"
+                                        onClick={() => abrirGaleria(index)}
+                                    >
+                                        <img src={imagen.url} alt={imagen.titulo || 'Imagen'} loading="lazy" className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </Modal>
+                )
+            )}
+
             {/* Estilos CSS para popups del mapa */}
             <style>{`
-                .popup-perfil .leaflet-popup-content-wrapper {
+                .popup-sidebar .leaflet-popup-content-wrapper {
+                    padding: 0;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    border: 2px solid #94a3b8;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+                }
+                .popup-sidebar .leaflet-popup-content {
+                    margin: 0 !important;
+                    width: 220px !important;
+                    min-width: 220px !important;
+                    max-width: 220px !important;
+                }
+                .popup-sidebar .leaflet-popup-close-button {
+                    top: 6px !important;
+                    right: 6px !important;
+                    width: 24px !important;
+                    height: 24px !important;
+                    font-size: 14px !important;
+                    font-weight: 700 !important;
+                    color: rgba(255,255,255,0.7) !important;
+                    background: rgba(255,255,255,0.15) !important;
+                    border-radius: 50% !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    line-height: 0 !important;
+                    padding: 0 !important;
+                    cursor: pointer !important;
+                    z-index: 9999 !important;
+                    position: absolute !important;
+                }
+                .popup-sidebar .leaflet-popup-close-button:hover {
+                    color: #fff !important;
+                    background: rgba(255,255,255,0.3) !important;
+                }
+                .popup-sidebar p { margin: 0 !important; }
+                .popup-negocio .leaflet-popup-content-wrapper {
                     padding: 0;
                     border-radius: 16px;
                     overflow: hidden;
+                    border: 2px solid #94a3b8;
                     box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
                 }
-                .popup-perfil .leaflet-popup-content {
+                .popup-negocio .leaflet-popup-content {
                     margin: 0;
                     min-width: 240px;
                     max-width: 270px;
                 }
-                .popup-perfil .leaflet-popup-tip {
+                .popup-negocio .leaflet-popup-tip {
                     box-shadow: 0 2px 4px rgba(0,0,0,0.06);
                 }
-                .popup-perfil p {
+                .popup-negocio p {
                     margin: 0 !important;
+                }
+                .popup-negocio .leaflet-popup-close-button {
+                    top: 8px !important;
+                    right: 8px !important;
+                    width: 30px !important;
+                    height: 30px !important;
+                    font-size: 20px !important;
+                    font-weight: 700 !important;
+                    color: rgba(255,255,255,0.7) !important;
+                    background: rgba(255,255,255,0.15) !important;
+                    border-radius: 50% !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    line-height: 0 !important;
+                    padding: 0 0 1px 0 !important;
+                    text-indent: 0 !important;
+                    text-align: center !important;
+                    transition: all 0.15s !important;
+                    cursor: pointer !important;
+                    z-index: 9999 !important;
+                    pointer-events: auto !important;
+                    position: absolute !important;
+                }
+                .popup-negocio .leaflet-popup-close-button:hover {
+                    color: #fff !important;
+                    background: rgba(255,255,255,0.3) !important;
                 }
             `}</style>
         </div>

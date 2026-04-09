@@ -292,6 +292,10 @@ export function useRevocarTransaccion() {
       queryClientInstance.invalidateQueries({
         queryKey: ['transacciones', 'kpis', sucursalId],
       });
+      // Invalidar Dashboard — los KPIs y gráfica de ventas cambian con una revocación
+      queryClientInstance.invalidateQueries({
+        queryKey: queryKeys.dashboard.all(),
+      });
     },
   });
 }

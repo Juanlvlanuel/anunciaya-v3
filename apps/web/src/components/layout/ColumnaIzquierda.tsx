@@ -201,6 +201,32 @@ const TEMAS_COLUMNA: Record<string, TemaColumna> = {
     ctaButtonClass: '',
     widgetDark: true,
   },
+
+  // ── Tema Negocios: Dark con acentos blue ──
+  negocios: {
+    background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)',
+    borderColor: 'border-white/5',
+    widgetWrapperBg: 'bg-slate-100',
+    textPrimary: 'text-white',
+    textSecondary: 'text-white/50',
+    textMuted: 'text-white/50',
+    chevronColor: 'text-white',
+    listHoverBg: 'hover:bg-white/5',
+    listHoverBorder: 'hover:border-l-blue-500',
+    cuponesIconBg: 'bg-blue-400/10',
+    cuponesIconColor: 'text-blue-400',
+    cuponesAccent: 'text-blue-400/70',
+    vencerIconBg: 'bg-blue-400/10',
+    vencerIconColor: 'text-blue-400',
+    vencerAccent: 'text-blue-400/70',
+    ctaBg: '',
+    ctaBorder: 'border-white/5',
+    ctaIconBg: '',
+    ctaPriceColor: 'text-white',
+    ctaHighlight: 'text-blue-400',
+    ctaButtonClass: '',
+    widgetDark: true,
+  },
 };
 
 /**
@@ -211,6 +237,7 @@ function detectarTema(pathname: string): TemaColumna {
   if (pathname.startsWith('/cardya')) return TEMAS_COLUMNA.cardya;
   if (pathname.startsWith('/mis-cupones')) return TEMAS_COLUMNA.cupones;
   if (pathname.startsWith('/guardados')) return TEMAS_COLUMNA.guardados;
+  if (pathname.startsWith('/negocios')) return TEMAS_COLUMNA.negocios;
   return TEMAS_COLUMNA.default;
 }
 

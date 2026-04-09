@@ -236,7 +236,7 @@ export function Modal({
         )}
 
         {/* Contenido con scroll */}
-        <div className={`${paddings[paddingContenido]} flex-1 min-h-0 overflow-y-auto`}>{children}</div>
+        <div className={`${paddings[paddingContenido]} flex-1 min-h-0 ${paddingContenido === 'none' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>{children}</div>
       </div>
     </div>,
     document.body

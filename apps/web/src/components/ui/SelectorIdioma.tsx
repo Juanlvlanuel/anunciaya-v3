@@ -133,7 +133,7 @@ export function SelectorIdioma({
                     bg-white border border-gray-300 rounded-lg 
                     ${s.padding} ${s.text} 
                     cursor-pointer hover:border-gray-400
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                    focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500
                     ${className}
                 `}
             >

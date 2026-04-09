@@ -31,6 +31,8 @@ import {
     MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useAlertasKPIs } from '../../hooks/queries/useAlertas';
+import { useResenasKPIs } from '../../hooks/queries/useResenas';
 
 // =============================================================================
 // TIPOS
@@ -92,6 +94,14 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
     const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
     const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
 
+    // Badge de alertas no leídas
+    const kpisAlertasQuery = useAlertasKPIs();
+    const alertasNoLeidas = kpisAlertasQuery.data?.noLeidas ?? 0;
+
+    // Badge de opiniones sin responder
+    const kpisResenasQuery = useResenasKPIs();
+    const opinionesPendientes = kpisResenasQuery.data?.pendientes ?? 0;
+
     // Filtrar opciones: ocultar "Sucursales" y "Puntos" para gerentes y dueños en sucursal secundaria
     const opcionesFiltradas = vistaComoGerente
         ? opcionesMenu.filter((opcion) => opcion.id !== 'sucursales' && opcion.id !== 'puntos')
@@ -151,8 +161,18 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                                     }`}
                             >
                                 <Icono className={`w-5 h-5 ${esActivo ? 'text-blue-500' : 'text-gray-400'}`} />
-                                <span className={`font-medium ${esActivo ? 'text-blue-600' : ''}`}>
+                                <span className={`font-medium whitespace-nowrap flex items-center gap-2 ${esActivo ? 'text-blue-600' : ''}`}>
                                     {opcion.label}
+                                    {opcion.id === 'alertas' && alertasNoLeidas > 0 && (
+                                        <span className="text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold bg-red-500 text-white">
+                                            {alertasNoLeidas > 99 ? '99+' : alertasNoLeidas}
+                                        </span>
+                                    )}
+                                    {opcion.id === 'opiniones' && opinionesPendientes > 0 && (
+                                        <span className="text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold bg-red-500 text-white">
+                                            {opinionesPendientes > 99 ? '99+' : opinionesPendientes}
+                                        </span>
+                                    )}
                                 </span>
                             </button>
                         );

@@ -83,7 +83,6 @@ const PaginaDinamicas = () => <PlaceholderPage nombre="🎲 Dinámicas" />;
 const PaginaEmpleos = () => <PlaceholderPage nombre="💼 Bolsa de Trabajo" />;
 
 // Páginas de usuario
-const PaginaConfiguracion = () => <PlaceholderPage nombre="⚙️ Configuración" />;
 
 // Páginas de cuenta comercial
 const PaginaConfigurarNegocio = () => <PlaceholderPage nombre="🏪 Configurar Negocio" />;
@@ -265,10 +264,6 @@ const router = createBrowserRouter([
           {
             path: '/perfil',
             element: <PaginaPerfil />,
-          },
-          {
-            path: '/configuracion',
-            element: <PaginaConfiguracion />,
           },
           {
             path: '/guardados',

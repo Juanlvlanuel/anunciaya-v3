@@ -131,7 +131,7 @@ export function MenuContextualContacto({ contacto, posicion, onCerrar }: MenuCon
               onKeyDown={handleKeyDown}
               placeholder="Escribe un alias..."
               maxLength={60}
-              className="w-full bg-slate-100 border-2 border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30 focus:bg-white font-medium pr-7"
+              className="w-full bg-slate-100 border-2 border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 focus:bg-white font-medium pr-7"
             />
             {valorAlias && (
               <button

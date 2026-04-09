@@ -138,7 +138,7 @@ export function SeccionResenas({
 
   return (
     <>
-      <div className="space-y-3 lg:space-y-2 2xl:space-y-3">
+      <div className="space-y-3 lg:space-y-2 2xl:space-y-3 lg:pb-4 2xl:pb-6">
         {/* Header con degradado */}
         <div
           className="flex items-center justify-between bg-linear-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-600 hover:via-amber-500 hover:to-yellow-500 text-white rounded-xl px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 cursor-pointer transition-all"
@@ -162,15 +162,15 @@ export function SeccionResenas({
                   e.stopPropagation();
                   handleEscribirResena();
                 }}
-                className="flex items-center gap-1 px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 bg-white hover:bg-amber-50 text-amber-500 rounded-lg text-xs lg:text-xs 2xl:text-xs font-medium transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 lg:px-2.5 lg:py-1 2xl:px-4 2xl:py-2 bg-white text-amber-600 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
-                <span className="hidden lg:inline">Escribir</span>
+                <Plus className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                Escribir
               </button>
             )}
             {tieneResenas && (
-              <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all hover:scale-110">
-                <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+              <div className="hidden lg:flex w-7 h-7 2xl:w-8 2xl:h-8 bg-white/20 hover:bg-white/30 rounded-full items-center justify-center hover:scale-110">
+                <ChevronRight className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
               </div>
             )}
           </div>
@@ -194,7 +194,7 @@ export function SeccionResenas({
             {hayMasResenas && (
               <button
                 onClick={() => setModalAbierto(true)}
-                className="w-full py-2 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1"
+                className="w-full py-2 text-sm font-semibold text-amber-600 hover:bg-amber-100 rounded-lg cursor-pointer flex items-center justify-center gap-1"
               >
                 Ver todas las reseñas ({resenas.length})
                 <ChevronRight className="w-4 h-4" />
@@ -203,7 +203,7 @@ export function SeccionResenas({
           </div>
         ) : (
           /* Estado vacío - Compacto */
-          <div className="bg-amber-50 rounded-xl p-6 text-center border border-amber-200">
+          <div className="bg-amber-100 rounded-xl p-6 text-center border-2 border-amber-300">
             <div className="w-12 h-12 mx-auto mb-3 bg-amber-100 rounded-full flex items-center justify-center">
               <Star className="w-6 h-6 text-amber-500" />
             </div>
@@ -216,7 +216,8 @@ export function SeccionResenas({
             {onEscribirResena && (
               <button
                 onClick={handleEscribirResena}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-white font-semibold rounded-lg cursor-pointer active:scale-95"
+                style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
               >
                 <Plus className="w-4 h-4" />
                 Escribir reseña
@@ -265,7 +266,7 @@ interface CardResenaCompactaProps {
 function CardResenaCompacta({ resena, onClick }: CardResenaCompactaProps) {
   return (
     <div
-      className="flex flex-col gap-0 p-3 bg-white rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer"
+      className="flex flex-col gap-0 p-3 bg-white rounded-xl border-2 border-slate-300 shadow-md cursor-pointer"
       onClick={onClick}
     >
       <div className="flex gap-3">
@@ -278,8 +279,8 @@ function CardResenaCompacta({ resena, onClick }: CardResenaCompactaProps) {
               className="w-10 h-10 rounded-full object-cover"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
-              <User className="w-5 h-5 text-slate-500" />
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+              <User className="w-5 h-5 text-indigo-700" />
             </div>
           )}
         </div>
@@ -288,10 +289,10 @@ function CardResenaCompacta({ resena, onClick }: CardResenaCompactaProps) {
         <div className="flex-1 min-w-0">
           {/* Header: nombre + fecha */}
           <div className="flex items-center justify-between gap-2 mb-0.5">
-            <span className="font-medium text-slate-900 text-sm truncate">
+            <span className="font-semibold text-slate-900 text-sm truncate">
               {resena.autor.nombre}
             </span>
-            <span className="text-xs text-slate-400 shrink-0">
+            <span className="text-sm text-slate-600 font-medium shrink-0">
               {formatearFecha(resena.createdAt)}
             </span>
           </div>
@@ -311,14 +312,14 @@ function CardResenaCompacta({ resena, onClick }: CardResenaCompactaProps) {
 
           {/* Texto */}
           {resena.texto && (
-            <p className="text-sm text-slate-600 line-clamp-2">{resena.texto}</p>
+            <p className="text-sm text-slate-600 font-medium line-clamp-2">{resena.texto}</p>
           )}
         </div>
       </div>
 
       {/* Respuesta del negocio */}
       {resena.respuestaNegocio && (
-        <div className="mt-2 p-2.5 bg-blue-50 rounded-lg border border-blue-100">
+        <div className="mt-2 p-2.5 bg-blue-100 rounded-lg border-2 border-blue-300">
           <div className="flex items-center gap-2 mb-1">
             {resena.respuestaNegocio.negocioLogo ? (
               <img
@@ -331,14 +332,14 @@ function CardResenaCompacta({ resena, onClick }: CardResenaCompactaProps) {
                 {resena.respuestaNegocio.negocioNombre?.charAt(0).toUpperCase()}
               </div>
             )}
-            <span className="text-xs font-semibold text-blue-700 truncate">
+            <span className="text-sm font-semibold text-blue-700 truncate">
               {resena.respuestaNegocio.negocioNombre}
             </span>
-            <span className="text-[10px] text-blue-400 ml-auto shrink-0">
+            <span className="text-sm text-blue-600 font-medium ml-auto shrink-0">
               {formatearFecha(resena.respuestaNegocio.fecha)}
             </span>
           </div>
-          <p className="text-xs text-slate-600 line-clamp-2">{resena.respuestaNegocio.texto}</p>
+          <p className="text-sm text-slate-600 font-medium line-clamp-2">{resena.respuestaNegocio.texto}</p>
         </div>
       )}
     </div>

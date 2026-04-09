@@ -117,7 +117,7 @@ const MODULOS_BS = [
   { nombre: 'Alertas', ruta: '/business-studio/alertas' },
   { nombre: 'Catálogo', ruta: '/business-studio/catalogo' },
   { nombre: 'Promociones', ruta: '/business-studio/ofertas' },
-  { nombre: 'Puntos', ruta: '/business-studio/puntos' },
+  { nombre: 'Puntos y Recompensas', ruta: '/business-studio/puntos' },
   { nombre: 'Rifas', ruta: '/business-studio/rifas' },
   { nombre: 'Empleados', ruta: '/business-studio/empleados' },
   { nombre: 'Vacantes', ruta: '/business-studio/vacantes' },
@@ -220,7 +220,7 @@ export function MobileHeader() {
     if (location.pathname.includes('/alertas')) return 'Alertas';
     if (location.pathname.includes('/catalogo')) return 'Catálogo';
     if (location.pathname.includes('/ofertas')) return 'Promociones';
-    if (location.pathname.includes('/puntos')) return 'Puntos';
+    if (location.pathname.includes('/puntos')) return 'Puntos y Recompensas';
     if (location.pathname.includes('/rifas')) return 'Rifas';
     if (location.pathname.includes('/empleados')) return 'Empleados';
     if (location.pathname.includes('/vacantes')) return 'Vacantes';
@@ -372,17 +372,6 @@ export function MobileHeader() {
 
               {/* === Lado Derecho: Acciones === */}
               <div className="flex items-center gap-1">
-                {/* Botón Buscar */}
-                {!esBusinessStudio && (
-                  <button
-                    onClick={handleAbrirBuscador}
-                    className="p-2 rounded-full text-white/90 hover:bg-white/20 hover:text-white transition-all"
-                    title="Buscar"
-                  >
-                    <Search className="w-6 h-6" />
-                  </button>
-                )}
-
                 {/* Botón Preview (solo en Business Studio) */}
                 {esBusinessStudio && (
                   <button
@@ -400,20 +389,6 @@ export function MobileHeader() {
                     )}
                   </button>
                 )}
-
-                {/* Botón Notificaciones */}
-                <button
-                  onClick={togglePanel}
-                  className="relative p-2 text-white/90 hover:bg-white/20 hover:text-white rounded-full transition-colors"
-                  title="Notificaciones"
-                >
-                  <Bell className="w-6 h-6" />
-                  {cantidadNoLeidas > 0 && (
-                    <span className="absolute top-0 right-0 min-w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold pulse-badge px-1">
-                      {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
-                    </span>
-                  )}
-                </button>
 
                 {/* Botón Menú */}
                 <button
@@ -477,7 +452,7 @@ export function MobileHeader() {
                     />
                   );
                 })()}
-                <span className="font-bold text-white text-lg">
+                <span className="font-bold text-white text-lg whitespace-nowrap truncate">
                   {obtenerSeccionActual()}
                 </span>
               </div>

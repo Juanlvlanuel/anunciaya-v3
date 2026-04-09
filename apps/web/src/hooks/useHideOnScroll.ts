@@ -79,9 +79,8 @@ export function useHideOnScroll({
 
   const handleScroll = useCallback(() => {
     const el = mainScrollRef?.current;
-    if (!el) return;
-
-    const scrollTop = el.scrollTop;
+    // Si no hay ref, usar window scroll (páginas con header propio)
+    const scrollTop = el ? el.scrollTop : window.scrollY;
     const now = Date.now();
 
     // En top → siempre visible
@@ -140,17 +139,17 @@ export function useHideOnScroll({
     }
 
     const el = mainScrollRef?.current;
-    if (!el) return;
+    const target = el || window;
 
     const onScroll = () => {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(handleScroll);
     };
 
-    el.addEventListener('scroll', onScroll, { passive: true });
+    target.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
-      el.removeEventListener('scroll', onScroll);
+      target.removeEventListener('scroll', onScroll);
       cancelAnimationFrame(rafRef.current);
     };
   }, [isMobile, disabled, mainScrollRef, handleScroll]);
