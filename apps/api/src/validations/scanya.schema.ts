@@ -284,18 +284,6 @@ export const actualizarConfigScanYASchema = z.object({
   fotoTicket: z
     .enum(['nunca', 'opcional', 'obligatoria'])
     .optional(),
-  alertaMontoAlto: z
-    .number()
-    .min(0, 'El monto de alerta no puede ser negativo')
-    .nullable()
-    .optional(),
-  alertaTransaccionesHora: z
-    .number()
-    .int('Debe ser un número entero')
-    .min(1, 'Mínimo 1 transacción por hora')
-    .max(1000, 'Máximo 1000 transacciones por hora')
-    .nullable()
-    .optional(),
   requiereNumeroOrden: z
     .boolean()
     .optional(),

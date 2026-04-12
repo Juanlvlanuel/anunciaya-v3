@@ -39,6 +39,7 @@ import clientesRoutes from './clientes.routes';
 import cardyaRoutes from './cardya.routes';
 import notificacionesRoutes from './notificaciones.routes';
 import chatyaRoutes from './chatya.routes';
+import reportesRoutes from './reportes.routes';
 
 const router: Router = Router();
 
@@ -122,6 +123,9 @@ router.use('/notificaciones', notificacionesRoutes);
 
 // Rutas de ChatYA (Chat 1:1)
 router.use('/chatya', chatyaRoutes);
+
+// Rutas de Business Studio - Reportes
+router.use('/business/reportes', reportesRoutes);
 
 // Aquí se agregarán más rutas:
 // router.use('/marketplace', marketplaceRoutes);

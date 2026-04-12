@@ -7,6 +7,110 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [12 Abril 2026] - BS Reportes: Módulo Completo (Sprint 11)
+
+### ✨ Agregado
+
+**Módulo de Reportes — 5 tabs con KPIs, tablas y cards visuales**
+- **Tab Ventas:** 4 KPIs (Total vendido, Venta promedio, Transacciones, Canceladas) + 3 tablas (Ventas por día, Métodos de pago, Horarios pico)
+- **Tab Clientes:** 4 KPIs (Clientes, Compra promedio, En riesgo, Inactivos) + 3 tablas (Top 10 gasto con avatar, Top 10 frecuencia con avatar, Clientes nuevos por semana) + Modal detalle clientes inactivos/en riesgo con navegación al módulo Clientes
+- **Tab Empleados:** 4 KPIs (Empleados, Ventas totales, Mejor vendedor, Alertas) + Tabla desempeño con columnas clickeables para ordenar. Incluye al dueño como pseudo-empleado (badge "Dueño"). Empleados inactivos/eliminados con ventas aparecen con badge "Inactivo"
+- **Tab Promociones:** 2 KPIs (Descuento total, Por vencer) + 3 funnels (Ofertas públicas con vistas/clicks/shares, Cupones privados, Recompensas) + 3 cards visuales (Oferta más popular por clicks, Mejor cupón por canjes, Mejor recompensa por canjes) con imagen, badge tipo, pill de métrica, gradientes estilo CardNegocio
+- **Tab Reseñas:** 3 KPIs (Total reseñas, Sin responder, Tasa respuesta) + 3 tablas (Distribución de estrellas, Tendencia de rating por semana, Respuestas por persona con avatar y badge Dueño)
+
+**Componentes reutilizables**
+- `KpiCard` en `ReporteUI.tsx` — 6 colores semánticos con gradientes, tamaños idénticos al Dashboard BS
+- `CarouselKPI` reutilizado — scroll horizontal en móvil con fades dinámicos
+- `CardMejorPromocion` — card visual reutilizable para ofertas, cupones y recompensas
+- `formatearSemana()` — formatea "16 - 22 Feb 2026" en español con manejo inteligente de mes/año
+
+**Layout responsivo**
+- PC: Header + KPIs en Row 1 (flex-row), Tabs a la derecha en Row 2 con `lg:mt-7 2xl:mt-14`, Filter, Body
+- Móvil: KPIs arriba de todo (mt-5), Tabs, Filter, Body
+- Prop `solo: 'kpis' | 'body'` en cada Tab — renderizado doble sin duplicar fetch (React Query deduplica)
+
+**Filtro universal de fechas**
+- DatePicker custom + rangos rápidos (7d, 30d, 3m, 1a, Todo)
+- `placeholderData: keepPreviousData` — sin flash al cambiar filtros
+- Zustand store para tab activo y rango
+
+**Exportación XLSX** por tab con ExcelJS + headers estilizados
+
+### 🐛 Corregido
+
+**Bug crítico: Reseñas — sin-responder/tasa/tiempo siempre incorrectos**
+- Los queries usaban `respondidoPorEmpleadoId IS NULL` en la reseña original del cliente (campo que nunca se actualiza). Reescrito con `NOT EXISTS` + self-join sobre filas de respuesta (`autor_tipo='negocio'`). Ahora cuenta correctamente respuestas del dueño, gerente y empleados
+
+**Bug: Empleados — solo mostraba empleados con ventas**
+- Query original hacía `FROM puntosTransacciones INNER JOIN empleados`, excluyendo empleados sin ventas. Refactorizado a partir de `FROM empleados` con LEFT JOIN de transacciones
+
+**Bug: Promociones — `fechaFinNorm` nunca se usaba**
+- Variable calculada pero ninguna de las queries la aplicaba. Al filtrar por rango custom, el tab mostraba datos sin límite superior. Corregido en las 4 queries que lo necesitan
+
+**Bug: Empleados modal — estado stale tras toggle activo**
+- `useToggleEmpleadoActivo` solo hacía optimistic update de la lista, no del detalle. El modal mostraba el estado anterior. Agregado optimistic update + rollback del detalle en toggle, actualizar, eliminar y horarios
+
+### 🗑️ Eliminado
+
+**Código muerto de KPIs removidos**
+- `ventasPorSemana` (BE query + interface + FE + tests) — reemplazado por filtro de fechas universal
+- `concentracionIngresos` (BE query + interface + FE + tests) — ruido visual, no accionable
+- `totalTurnos` en EmpleadoReporte (BE query + XLSX + interface) — no se mostraba en UI
+- `velocidadCanjeDias` en Promociones — no accionable
+- `tasaPorTipo` en Promociones — nombres crudos de BD, mayormente 0%
+- `puntos` (histórico total) en Promociones — es lealtad, no promociones; global sin filtro de fecha
+
+**Limpieza imports**
+- `recompensas`, `scanyaTurnos` eliminados de imports de `reportes.service.ts`
+
+### 📝 Documentación
+
+- Nuevo: `docs/arquitectura/Reportes.md` — documento completo del módulo
+- Actualizado: `docs/arquitectura/Business_Studio.md` — Reportes marcado como completado
+- Actualizado: `docs/ROADMAP.md` — Sprint 11 agregado, BS progreso actualizado
+- Actualizado: `docs/CHANGELOG.md` — esta entrada
+
+---
+
+## [11 Abril 2026] - Audit React Query BS + Limpieza ScanYA Legacy
+
+### 🔧 Corregido
+
+**Audit React Query — 11 modulos BS auditados**
+- ~30 invalidaciones cross-modulo corregidas en 8 hooks de React Query
+- Dashboard: `handleGuardarOferta/Articulo` ahora usan hooks RQ en vez de service directo
+- Transacciones: `useRevocarTransaccion` invalida clientes, puntos, dashboard, reportes. Optimistic incluye `motivoRevocacion`
+- Mi Perfil: helper `invalidarCachesNegocio(actualizaAuth?)` invalida 5 caches + sincroniza `useAuthStore` (logo, foto, nombre, correo)
+- Promociones: helper `invalidarOfertasRelacionadas` para las 4 mutaciones + acciones directas de cupones
+- Puntos: `useActualizarConfigPuntos` invalida clientes (niveles recalculados). Recompensas invalidan `['cardya', 'recompensas']`
+- Alertas: 3 mutaciones agregan invalidacion de `dashboard.alertas` (ruta distinta a `queryKeys.alertas.all()`)
+- Empleados: 4 mutaciones invalidan `transacciones.operadores` (dropdown de filtro)
+- Reportes: 5 tabs ahora se invalidan desde Transacciones, Ofertas, Resenas, Puntos, Empleados
+
+**Bugs de display encontrados y corregidos**
+- `PanelCampanas`: prop `totalActivas` no se destructuraba — badge mostraba `length` limitado a 5 en vez del total real
+- `ModalDetalleTransaccionBS`: texto "Los puntos fueron devueltos" era de vouchers, corregido a "Se descontaron {N} pts del saldo del cliente"
+- `ModalDetalleCliente`: `FilaTransaccion` ahora muestra TX revocadas con monto/puntos tachados + badge "Revocada"
+
+### 🗑️ Eliminado
+
+**Limpieza ScanYA legacy**
+- Columnas `alerta_monto_alto` y `alerta_transacciones_hora` de `scanya_configuracion` (legacy, reemplazadas por sistema de Alertas BS)
+- 6 archivos de codigo limpiados: schema Drizzle, Zod, service, controller, tipos frontend, doc arquitectura
+
+**Limpieza drizzle-kit**
+- Eliminados artefactos de drizzle-kit: `drizzle.config.ts`, 2 archivos SQL de migracion, carpeta `meta/` con journal y snapshots
+- Removida dependencia `drizzle-kit` de devDependencies (el proyecto maneja migraciones con SQL manual en PGAdmin/Supabase)
+
+### 📝 Documentacion
+
+- `docs/estandares/PATRON_REACT_QUERY.md`: reglas 8-9, 6 patrones avanzados, mapa completo cross-modulo (~35 queries), 5 lecciones clave
+- `docs/estandares/LECCIONES_TECNICAS.md`: 7 lecciones nuevas (authStore paralelo, cross-tab, display bugs, granularidad, drizzle-kit vs ORM, ScanYA independiente, codigo legacy)
+- `docs/reportes/audit-react-query-completo-abril-2026.md`: reporte unificado (ronda 1 + ronda 2 + limpieza ScanYA)
+- `docs/arquitectura/ScanYA.md`: actualizado (columnas legacy + nota migracion alertas)
+
+---
+
 ## [5 Abril 2026] - BS Empleados: Módulo Completo (Sprint 10)
 
 ### ✨ Agregado

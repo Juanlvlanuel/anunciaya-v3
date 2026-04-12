@@ -1032,8 +1032,6 @@ export async function obtenerConfigScanYAController(req: Request, res: Response)
  * Body esperado:
  * {
  *   "fotoTicket": "opcional",  // "nunca" | "opcional" | "obligatoria"
- *   "alertaMontoAlto": 5000,   // o null para desactivar
- *   "alertaTransaccionesHora": 20,  // o null para desactivar
  *   "requiereNumeroOrden": false
  * }
  */

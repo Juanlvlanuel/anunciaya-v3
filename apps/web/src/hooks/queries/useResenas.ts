@@ -135,6 +135,16 @@ export function useResponderResena() {
           }
         );
       }
+      // Invalidación cross-módulo: la sección de reseñas del detalle público
+      // del negocio (donde los clientes ven las reseñas con las respuestas
+      // del comerciante) usa una query key distinta.
+      queryClientInstance.invalidateQueries({
+        queryKey: ['negocios', 'resenas', sucursalId],
+      });
+      // Tab de reseñas del módulo Reportes BS (% respondidas, etc.)
+      queryClientInstance.invalidateQueries({
+        queryKey: ['reportes', 'resenas'],
+      });
     },
   });
 }

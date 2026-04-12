@@ -149,6 +149,13 @@ export const queryKeys = {
       ['cardya', 'movimientos', negocioId, filtros] as const,
   },
 
+  // ─── Business Studio — Reportes ────────────────────────────────────────────
+  reportes: {
+    all: () => ['reportes'] as const,
+    tab: (sucursalId: string, tab: string, periodo: string) =>
+      ['reportes', tab, sucursalId, periodo] as const,
+  },
+
   // ─── Mis Cupones ──────────────────────────────────────────────────────────
   cupones: {
     all: () => ['cupones'] as const,

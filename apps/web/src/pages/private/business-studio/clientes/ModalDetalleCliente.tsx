@@ -124,31 +124,41 @@ function FilaTransaccion({
   puntos,
   concepto,
   fecha,
+  estado,
 }: {
   monto: number;
   puntos: number;
   concepto: string | null;
   fecha: string;
+  estado: 'confirmado' | 'pendiente' | 'cancelado';
 }) {
+  const revocada = estado === 'cancelado';
   return (
     <div className="flex items-center gap-2.5 py-2 lg:py-1.5 2xl:py-2 border-b border-slate-300 last:border-0">
-      <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-        <ShoppingBag className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-emerald-600" />
+      <div className={`w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0 ${revocada ? 'bg-slate-200' : 'bg-emerald-100'}`}>
+        <ShoppingBag className={`w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${revocada ? 'text-slate-400' : 'text-emerald-600'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800">
+          <span className={`text-base lg:text-sm 2xl:text-base font-semibold ${revocada ? 'line-through text-slate-400' : 'text-slate-800'}`}>
             {formatearMoneda(monto)}
           </span>
-          <span className="text-base lg:text-sm 2xl:text-base font-bold text-emerald-600">
+          <span className={`text-base lg:text-sm 2xl:text-base font-bold ${revocada ? 'line-through text-slate-400' : 'text-emerald-600'}`}>
             +{puntos.toLocaleString()} pts
           </span>
         </div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 truncate">
-            {concepto || 'Compra'}
-          </span>
-          <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 shrink-0">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {revocada && (
+              <span className="shrink-0 inline-flex items-center px-1.5 py-0 rounded text-[10px] lg:text-[10px] font-bold bg-red-100 text-red-600">
+                Revocada
+              </span>
+            )}
+            <span className={`text-base lg:text-sm 2xl:text-base font-medium truncate ${revocada ? 'text-slate-400' : 'text-slate-600'}`}>
+              {concepto || 'Compra'}
+            </span>
+          </div>
+          <span className={`text-base lg:text-sm 2xl:text-base font-medium shrink-0 ${revocada ? 'text-slate-400' : 'text-slate-600'}`}>
             {formatearFechaTransaccion(fecha)}
           </span>
         </div>
@@ -511,6 +521,7 @@ export default function ModalDetalleCliente({
                       puntos={tx.puntosOtorgados}
                       concepto={tx.concepto}
                       fecha={tx.createdAt || ''}
+                      estado={tx.estado}
                     />
                   ))}
                 </div>

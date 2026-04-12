@@ -39,11 +39,26 @@
 
 - **Expresiones JS en `sql` template** — Drizzle no evalúa expresiones dentro de `${a + b}` o `${a - b}` en template literals. Pre-calcular en variable JS antes de interpolar: `const limite = min + 1; sql\`LIMIT ${limite}\``. Descubierto en `alertas-motor.service.ts` (LIMIT y resta de días).
 - **Filtro sucursal + registros globales** — Cuando hay registros que pueden no tener `sucursal_id` (ej: alertas a nivel negocio), siempre usar `AND (sucursal_id = X OR sucursal_id IS NULL)` en vez de `AND sucursal_id = X`. Sin el `OR IS NULL` se pierden registros globales.
+- **drizzle-kit no es Drizzle ORM** — El ORM en runtime solo necesita `schema.ts` y `relations.ts`. Los archivos de migracion (`0000_xxx.sql`), journal (`_journal.json`) y snapshots (`meta/`) son artefactos de `drizzle-kit`, una CLI separada para generar migraciones automaticas. Este proyecto no usa drizzle-kit — las migraciones se manejan manualmente con SQL en PGAdmin (dev) y Supabase (prod). Los artefactos fueron eliminados en Abril 2026 junto con la dependencia `drizzle-kit` de devDependencies.
 
 ### Stores y Caché
 
 - **Skeleton solo en primera carga** — Usar `const esCargaInicial = datos === null` (o `.length === 0`) para decidir si mostrar spinner. Recargas posteriores muestran datos del caché al instante y actualizan silenciosamente. Patrón usado en Clientes, Transacciones, Alertas, Dashboard.
 - **No limpiar store al desmontar** — Si quieres caché persistente entre navegaciones, no llamar `limpiar()` en el `return` del `useEffect`. El store conserva datos y la próxima visita los muestra al instante. Descubierto en `PaginaDashboard.tsx`.
+
+### React Query — Invalidación Cruzada
+
+- **Invalidar TODOS los módulos que muestran el mismo dato** — Una mutación que cambia datos en un módulo puede dejar cachés stale en otros módulos que consumen los mismos datos con query keys distintos. Ejemplo real: revocar transacción invalidaba `transacciones.kpis` pero no `dashboard.kpis` — el Dashboard mostraba totales incorrectos. Otro ejemplo: escribir reseña invalidaba la lista de reseñas pero no `negocios.detalle`, que contiene `calificacionPromedio` — el rating en el header no se actualizaba. Regla: antes de escribir `onSuccess`, preguntarse _"¿qué otros módulos muestran estos mismos datos?"_. Descubierto en auditoría de Abril 2026 — 7 bugs corregidos. Ver reporte completo en `docs/reportes/audit-react-query-completo-abril-2026.md`.
+
+- **Escrituras fuera de `useMutation` también necesitan invalidar caché** — No todas las escrituras al backend pasan por `useMutation`. Componentes como `TabImagenes.tsx` (8 operaciones de imagen) y hooks como `useGuardados.ts` usaban `api.post/delete` directamente y actualizaban estado local, pero no invalidaban el caché de React Query. Resultado: al navegar fuera y volver, la UI mostraba datos viejos del caché. Regla: toda llamada `api.post/put/delete` exitosa debe ir seguida de `qc.invalidateQueries()` con los query keys afectados.
+
+- **`useAuthStore` es una cache paralela a React Query** — Navbar, ColumnaIzquierda, MenuDrawer y SelectorSucursalesInline leen datos del negocio/sucursal (`logoNegocio`, `fotoPerfilNegocio`, `nombreNegocio`, `nombreSucursalAsignada`, `correoNegocio`, `correoSucursalAsignada`) directamente del store de Zustand persistido al login, NO desde React Query. Invalidar queries no basta — hay que hacer `useAuthStore.getState().setUsuario({ ...actual, campo: valor })` también. Descubierto al cambiar logo en Mi Perfil: queries se actualizaban pero sidebar/header seguian con el logo viejo.
+
+- **React Query NO sincroniza entre pestanas del navegador** — Cada tab tiene su propio `QueryClient` en memoria. `invalidateQueries` en Pestana A no toca la cache de Pestana B. Los fixes intra-pestana cubren el caso real del MVP (dueno en una sola tab). Para cross-tab hay 3 opciones futuras: (A) bajar staleTime a 30s; (B) `@tanstack/query-broadcast-client-experimental`; (C) WebSocket push.
+
+- **Display bugs disfrazados de cache** — No todo "datos viejos" es un problema de invalidacion. Dos casos encontrados: (a) `PanelCampanas` aceptaba prop `totalActivas` pero no lo destructuraba — mostraba `campanasNoVencidas.length` (limitado a 5 por el endpoint, no el total real); (b) `ModalDetalleTransaccionBS` mostraba "Los puntos fueron devueltos al saldo del cliente" al revocar ventas, cuando ese texto solo aplica a vouchers. Regla: al investigar un bug de sincronizacion, verificar primero que el componente use las fuentes de verdad correctas antes de asumir que es un problema de invalidacion.
+
+- **Invalidaciones granulares — prefix match** — Preferir keys parciales (`['modulo', 'subkey', sucursalId]`) sobre keys totales (`['modulo']`). React Query hace match posicional: `['dashboard', 'kpis', sucursalId]` invalida todas las variantes de periodo sin tocar `['dashboard', 'campanas']` ni `['dashboard', 'alertas']`. Usar `queryKeys.dashboard.all()` (`['dashboard']`) invalida TODO el modulo innecesariamente. Descubierto en `useRevocarTransaccion` que invalidaba campanas/interacciones/alertas cuando solo kpis y ventas cambiaban.
 
 ### Reglas de Negocio
 
@@ -107,3 +122,11 @@
 - **Hooks antes de early returns** — Los `useRef` y `useEffect` del history deben ir ANTES de cualquier `if (!abierto) return null`. Violar esto causa "Rendered more hooks than during the previous render" (descubierto en ModalCanjearVoucher).
 
 - **Reset de estado al cerrar con X** — Al cerrar con X (`onClose`/`onCerrarTodo`), resetear estados internos como `voucherDetalle` o `transaccionDetalle` a null. Si no se resetean, al reabrir el modal se muestra el último sub-nivel visitado en vez de la lista principal.
+
+### ScanYA y BS — Independencia de frontend
+
+- **ScanYA y BS estan unidos por el backend, no por el frontend** — ScanYA usa el patron viejo (service directo + state local + callback). BS usa React Query + Zustand. No comparten cache de frontend — el backend es la fuente de verdad. Cuando ScanYA registra una venta, BS se entera al hacer su proximo fetch (maximo 2 min por staleTime). Esto es aceptable porque ScanYA corre en el dispositivo del operador y BS en el dispositivo del dueno. No tiene sentido agregar `invalidateQueries` a ScanYA porque cada tab/dispositivo tiene su propio `QueryClient` en memoria. Decision tomada en Abril 2026: no migrar ScanYA a React Query.
+
+### Codigo legacy encontrado
+
+- **`alertaMontoAlto` y `alertaTransaccionesHora` en `scanya_configuracion`** — Dos columnas legacy que existian en BD, schema, tipos, validadores y service, pero nunca fueron usados por el motor de alertas real (`alertas-motor.service.ts` lee de `alertas_configuracion`, no de `scanya_configuracion`). Fueron reemplazados por el sistema centralizado de Alertas BS con umbrales dinamicos (multiplicador del promedio vs valores fijos). Eliminados en Abril 2026. Los campos utiles de la misma tabla (`fotoTicket`, `requiereNumeroOrden`) se conservaron — tienen logica activa en ScanYA pero no tienen UI de configuracion aun.

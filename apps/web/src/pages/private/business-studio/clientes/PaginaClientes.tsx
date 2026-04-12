@@ -23,6 +23,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -263,6 +264,10 @@ function FilaMovil({
 // =============================================================================
 
 export default function PaginaClientes() {
+  // ─── Query params (navegación desde otro módulo con filtro preseteado) ───
+  const [searchParams, setSearchParams] = useSearchParams();
+  const busquedaQueryParam = searchParams.get('busqueda');
+
   // ─── Store — solo UI ──────────────────────────────────────────────────────
   const { busqueda, setBusqueda, nivelFiltro, setNivelFiltro, limpiar } = useClientesStore();
 
@@ -297,6 +302,30 @@ export default function PaginaClientes() {
       setBusqueda(valor);
     }, 300);
   }, [setBusqueda]);
+
+  // ─── Sincronizar textoBusqueda con el store cuando cambia externamente ───
+  useEffect(() => {
+    setTextoBusqueda(busqueda);
+  }, [busqueda]);
+
+  // ─── Aplicar búsqueda desde query param (navegación desde modal de Reportes) ───
+  // En Strict Mode el componente monta → desmonta → monta, y el cleanup limpia el store.
+  // Por eso re-aplicamos el query param en cada mount mientras esté presente en la URL.
+  useEffect(() => {
+    if (busquedaQueryParam) {
+      setBusqueda(busquedaQueryParam);
+      setTextoBusqueda(busquedaQueryParam);
+    }
+  }, [busquedaQueryParam, setBusqueda]);
+
+  // Quitar el query param DESPUÉS del primer render completo (cuando ya no hay doble-mount)
+  useEffect(() => {
+    if (!busquedaQueryParam) return;
+    const timer = setTimeout(() => {
+      setSearchParams({}, { replace: true });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [busquedaQueryParam, setSearchParams]);
 
   // ─── Limpiar filtros UI al desmontar (navegar fuera) ───
   useEffect(() => {

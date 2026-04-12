@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 7 Abril 2026
-**Versión:** 2.0 (React Query migration completa BS + secciones públicas)
+**Última actualización:** 12 Abril 2026
+**Versión:** 2.1 (BS Reportes completado — 11/14 módulos)
 
 ---
 
@@ -55,7 +55,7 @@ Business Studio es el **centro de administración completo** para negocios regis
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 10 de 14 módulos completados (71%). Migración React Query: 10/10 BS completo.
+**Progreso actual:** 11 de 14 módulos completados (79%). Migración React Query: 11/11 BS completo.
 
 ---
 
@@ -212,7 +212,7 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 12 | Reportes | `/business-studio/reportes` | FileBarChart | ⏳ Pendiente |
+| 12 | Reportes | `/business-studio/reportes` | FileBarChart | ✅ Completo |
 | 13 | Sucursales | `/business-studio/sucursales` | Building2 | ⏳ Pendiente |
 | 14 | Mi Perfil | `/business-studio/perfil` | User | ✅ 100% |
 
@@ -524,12 +524,13 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### Reportes ⏳
+### Reportes ✅
 
-**Tiempo estimado:** ~3 días
+**Sprint 11 — 12 Abril 2026**
 
-**Funcionalidad esperada:**
-- Ventas, productos top, horarios pico, export CSV
+5 tabs con KPIs coloridos (CarouselKPI), tablas y cards visuales. Filtro universal de fechas (DatePicker + rangos rápidos). Exportación XLSX. Incluye al dueño en la tabla de empleados, fix de reseñas sin-responder con self-join, funnels de ofertas/cupones/recompensas con cards de "más popular".
+
+**Documento dedicado:** `docs/arquitectura/Reportes.md`
 
 ---
 
@@ -1046,9 +1047,9 @@ export async function actualizarInfoGeneral() { ... }
 
 ## ✅ Verificación
 
-**Última verificación:** 6 Abril 2026
+**Última verificación:** 12 Abril 2026
 
-**Módulos completados:** 10/14 ✅
+**Módulos completados:** 11/14 ✅
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
@@ -1059,13 +1060,14 @@ export async function actualizarInfoGeneral() { ... }
 - Opiniones (07/03/2026)
 - Alertas (03/04/2026)
 - Empleados (05/04/2026)
+- Reportes (12/04/2026)
 
-**Módulos pendientes:** 4/14
-- Reportes, Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
+**Módulos pendientes:** 3/14
+- Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
 
-**Progreso:** 10/14 módulos = 71%
+**Progreso:** 11/14 módulos = 79%
 
-**Migración React Query:** 10/10 módulos BS completados (Abril 2026)
+**Migración React Query:** 11/11 módulos BS completados (Abril 2026)
 - Todos los datos del servidor en `hooks/queries/`
 - Stores Zustand simplificados a solo estado UI
 - 4 stores eliminados (Artículos, Ofertas, Reseñas, Empleados)
@@ -1073,6 +1075,6 @@ export async function actualizarInfoGeneral() { ... }
 
 ---
 
-**Última actualización:** 7 Abril 2026
+**Última actualización:** 12 Abril 2026
 **Autor:** Equipo AnunciaYA  
 **Versión:** 1.1 (100% Verificado contra código real)

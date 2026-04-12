@@ -262,7 +262,7 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export default function PanelCampanas({ campanas, onEditar, vistaMobil = false }: PanelCampanasProps) {
+export default function PanelCampanas({ campanas, totalActivas, onEditar, vistaMobil = false }: PanelCampanasProps) {
 
   // PRIMERO: Filtrar solo ofertas (no cupones) que NO estén vencidas
   const campanasNoVencidas = campanas.filter(campana => {
@@ -274,8 +274,11 @@ export default function PanelCampanas({ campanas, onEditar, vistaMobil = false }
   // SEGUNDO: Tomar las primeras 3 de las NO vencidas
   const campanasVisibles = campanasNoVencidas.slice(0, MAX_CAMPANAS_VISIBLES);
 
-  // Total de campañas NO vencidas
-  const total = campanasNoVencidas.length;
+  // Total real de ofertas activas viene del KPI del backend (COUNT completo).
+  // Fallback al length de la lista cuando no se pasa totalActivas — la lista
+  // está limitada a 5 registros por el endpoint, así que sub-reportaría
+  // cuando hay más de 5 activas. Por eso se prefiere totalActivas.
+  const total = totalActivas ?? campanasNoVencidas.length;
 
   // Click en campaña - solo pasa el ID para cargar datos completos
   const handleClickCampana = (campana: Campana) => {

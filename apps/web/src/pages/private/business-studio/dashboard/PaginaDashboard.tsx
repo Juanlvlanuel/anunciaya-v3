@@ -22,9 +22,9 @@
 import { useState, useMemo } from 'react';
 import { useDashboardStore } from '../../../../stores/useDashboardStore';
 import { useDashboard, useDashboardRefresh } from '../../../../hooks/queries/useDashboard';
-import { useAuthStore } from '../../../../stores/useAuthStore';
-import ofertasService from '../../../../services/ofertasService';
-import articulosService from '../../../../services/articulosService';
+import { useCrearOferta, useActualizarOferta } from '../../../../hooks/queries/useOfertas';
+import { useCrearArticulo } from '../../../../hooks/queries/useArticulos';
+import * as ofertasService from '../../../../services/ofertasService';
 import { notificar } from '../../../../utils/notificaciones';
 import type { Oferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../../types/ofertas';
 import type { CrearArticuloInput, ActualizarArticuloInput } from '../../../../types/articulos';
@@ -134,8 +134,8 @@ const PERIODOS: { valor: Periodo; label: string }[] = [
   { valor: 'hoy', label: 'Hoy' },
   { valor: 'semana', label: '7 días' },
   { valor: 'mes', label: '30 días' },
-  { valor: 'trimestre', label: '90 días' },
-  { valor: 'anio', label: '12 meses' },
+  { valor: 'trimestre', label: '3 meses' },
+  { valor: 'anio', label: '1 año' },
 ];
 
 export default function PaginaDashboard() {
@@ -146,6 +146,12 @@ export default function PaginaDashboard() {
   const { periodo, setPeriodo } = useDashboardStore();
   const { kpis, ventas, campanas, interacciones, alertas, cargandoKpis } = useDashboard(periodo);
   const { refetchTodo } = useDashboardRefresh();
+
+  // Mutaciones de ofertas y artículos — usar hooks de React Query
+  // para que actualicen sus propias cachés (no solo las del dashboard).
+  const crearOfertaMutacion = useCrearOferta();
+  const actualizarOfertaMutacion = useActualizarOferta();
+  const crearArticuloMutacion = useCrearArticulo();
 
   // Estado para animación del botón refresh
   const [refrescando, setRefrescando] = useState(false);
@@ -200,37 +206,39 @@ export default function PaginaDashboard() {
   };
 
   // Guardar oferta (crear o actualizar)
+  // Usa las mutaciones de React Query para que la caché de ofertas
+  // también quede sincronizada (no solo la del dashboard).
+  // Los hooks ya muestran notificaciones y manejan errores internamente.
   const handleGuardarOferta = async (datos: CrearOfertaInput | ActualizarOfertaInput) => {
     try {
       if (ofertaSeleccionada) {
-        // Actualizar
-        await ofertasService.actualizarOferta(ofertaSeleccionada.id, datos as ActualizarOfertaInput);
+        await actualizarOfertaMutacion.mutateAsync({
+          id: ofertaSeleccionada.id,
+          datos: datos as ActualizarOfertaInput,
+        });
+        // useActualizarOferta no notifica éxito — mantener mensaje aquí.
         notificar.exito('Oferta actualizada');
       } else {
-        // Crear
-        await ofertasService.crearOferta(datos as CrearOfertaInput);
-        notificar.exito('Oferta creada');
+        // useCrearOferta ya notifica éxito internamente.
+        await crearOfertaMutacion.mutateAsync(datos as CrearOfertaInput);
       }
       handleCerrarModal();
-      // Recargar datos del dashboard
+      // Refrescar paneles del dashboard (campañas, KPIs derivados).
       refetchTodo();
-    } catch (error) {
-      console.error('Error al guardar oferta:', error);
-      notificar.error('Error al guardar la oferta');
+    } catch {
+      // El hook ya mostró el toast de error — no duplicar.
     }
   };
 
-  // Guardar artículo (crear o actualizar)
+  // Guardar artículo — desde el dashboard siempre es crear.
+  // useCrearArticulo ya notifica éxito/error internamente.
   const handleGuardarArticulo = async (datos: CrearArticuloInput | ActualizarArticuloInput) => {
     try {
-      // Solo crear (desde el dashboard siempre es nuevo)
-      await articulosService.crearArticulo(datos as CrearArticuloInput);
-      notificar.exito('Artículo creado');
+      await crearArticuloMutacion.mutateAsync(datos as CrearArticuloInput);
       setModalArticuloAbierto(false);
       refetchTodo();
-    } catch (error) {
-      console.error('Error al guardar artículo:', error);
-      notificar.error('Error al guardar el artículo');
+    } catch {
+      // El hook ya mostró el toast de error — no duplicar.
     }
   };
 
@@ -408,7 +416,7 @@ export default function PaginaDashboard() {
                 { valor: 'hoy', label: 'Hoy' },
                 { valor: 'semana', label: '7d' },
                 { valor: 'mes', label: '30d' },
-                { valor: 'trimestre', label: '90d' },
+                { valor: 'trimestre', label: '3m' },
               ].map(({ valor, label }) => (
                 <button
                   key={valor}

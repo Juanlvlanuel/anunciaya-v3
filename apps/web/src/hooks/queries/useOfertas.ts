@@ -44,6 +44,14 @@ export function useOfertasLista() {
 // =============================================================================
 // INVALIDAR CACHÉ (para operaciones inline que no son mutaciones formales)
 // =============================================================================
+// Invalida todas las caches que muestran ofertas del negocio/sucursal:
+// - ofertas.porSucursal: lista del módulo Promociones BS
+// - dashboard.campanas: panel "Ofertas" del Dashboard BS (lista)
+// - dashboard.kpis: badge "Ofertas Activas" del Dashboard BS (contador)
+// - ['negocios', 'ofertas', sucursalId]: sección pública del detalle del negocio
+// - ['reportes', 'promociones']: tab de promociones del módulo Reportes BS
+// No invalida cupones.lista(usuarioId) porque es cache del cliente receptor
+// (otra sesión) — solo se resolvería con WebSocket push.
 
 export function useOfertasInvalidar() {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
@@ -51,6 +59,10 @@ export function useOfertasInvalidar() {
 
   const invalidar = () => {
     qc.invalidateQueries({ queryKey: queryKeys.ofertas.porSucursal(sucursalId) });
+    qc.invalidateQueries({ queryKey: queryKeys.dashboard.campanas(sucursalId) });
+    qc.invalidateQueries({ queryKey: ['dashboard', 'kpis', sucursalId] });
+    qc.invalidateQueries({ queryKey: ['negocios', 'ofertas', sucursalId] });
+    qc.invalidateQueries({ queryKey: ['reportes', 'promociones'] });
   };
 
   const actualizarLocal = (actualizador: (ofertas: Oferta[]) => Oferta[]) => {
@@ -66,6 +78,22 @@ export function useOfertasInvalidar() {
 // =============================================================================
 // MUTACIÓN: Crear oferta (optimista)
 // =============================================================================
+
+/**
+ * Invalida todas las caches que muestran ofertas del negocio (usado por las
+ * 4 mutaciones del módulo). Mismas keys que `useOfertasInvalidar`, extraído
+ * como helper sin hook para poder llamarlo dentro de onSuccess/onError.
+ */
+function invalidarOfertasRelacionadas(
+  qc: ReturnType<typeof useQueryClient>,
+  sucursalId: string
+) {
+  qc.invalidateQueries({ queryKey: queryKeys.ofertas.porSucursal(sucursalId) });
+  qc.invalidateQueries({ queryKey: queryKeys.dashboard.campanas(sucursalId) });
+  qc.invalidateQueries({ queryKey: ['dashboard', 'kpis', sucursalId] });
+  qc.invalidateQueries({ queryKey: ['negocios', 'ofertas', sucursalId] });
+  qc.invalidateQueries({ queryKey: ['reportes', 'promociones'] });
+}
 
 export function useCrearOferta() {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
@@ -124,7 +152,7 @@ export function useCrearOferta() {
     },
 
     onSuccess: (respuesta, datos) => {
-      qc.invalidateQueries({ queryKey: queryKeys.ofertas.porSucursal(sucursalId) });
+      invalidarOfertasRelacionadas(qc, sucursalId);
       notificar.exito(datos.visibilidad === 'privado' ? 'Cupón enviado exitosamente' : 'Oferta creada correctamente');
     },
   });
@@ -181,7 +209,7 @@ export function useActualizarOferta() {
     },
 
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.ofertas.porSucursal(sucursalId) });
+      invalidarOfertasRelacionadas(qc, sucursalId);
     },
   });
 }
@@ -224,7 +252,7 @@ export function useEliminarOferta() {
     },
 
     onSuccess: (_data, _id, context) => {
-      qc.invalidateQueries({ queryKey: queryKeys.ofertas.porSucursal(sucursalId) });
+      invalidarOfertasRelacionadas(qc, sucursalId);
       notificar.exito(context?.esCupon ? 'Cupón eliminado correctamente' : 'Oferta eliminada correctamente');
     },
   });
@@ -288,10 +316,12 @@ export function useDuplicarOferta() {
     },
 
     onSuccess: (_respuesta, { datos }) => {
+      // Invalidar ofertas.porSucursal para cada sucursal destino
       datos.sucursalesIds.forEach((sid) => {
         qc.invalidateQueries({ queryKey: queryKeys.ofertas.porSucursal(sid) });
       });
-      qc.invalidateQueries({ queryKey: queryKeys.ofertas.porSucursal(sucursalId) });
+      // Invalidar el resto de caches (propias de la sucursal actual)
+      invalidarOfertasRelacionadas(qc, sucursalId);
       notificar.exito('Oferta duplicada');
     },
   });

@@ -47,6 +47,7 @@ export function useArticulosLista() {
 
 export function useCrearArticulo() {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
+  const negocioId = useAuthStore((s) => s.usuario?.negocioId ?? '');
   const qc = useQueryClient();
 
   return useMutation({
@@ -96,6 +97,8 @@ export function useCrearArticulo() {
 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.articulos.porSucursal(sucursalId) });
+      // Catálogo público del negocio (vista de clientes en /negocios/:id)
+      qc.invalidateQueries({ queryKey: ['negocios', 'catalogo', negocioId] });
       notificar.exito('Artículo creado correctamente');
     },
   });
@@ -107,6 +110,7 @@ export function useCrearArticulo() {
 
 export function useActualizarArticulo() {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
+  const negocioId = useAuthStore((s) => s.usuario?.negocioId ?? '');
   const qc = useQueryClient();
 
   return useMutation({
@@ -150,6 +154,8 @@ export function useActualizarArticulo() {
 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.articulos.porSucursal(sucursalId) });
+      // Catálogo público del negocio (vista de clientes en /negocios/:id)
+      qc.invalidateQueries({ queryKey: ['negocios', 'catalogo', negocioId] });
     },
   });
 }
@@ -160,6 +166,7 @@ export function useActualizarArticulo() {
 
 export function useEliminarArticulo() {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
+  const negocioId = useAuthStore((s) => s.usuario?.negocioId ?? '');
   const qc = useQueryClient();
 
   return useMutation({
@@ -190,6 +197,8 @@ export function useEliminarArticulo() {
 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.articulos.porSucursal(sucursalId) });
+      // Catálogo público del negocio (vista de clientes en /negocios/:id)
+      qc.invalidateQueries({ queryKey: ['negocios', 'catalogo', negocioId] });
       notificar.exito('Artículo eliminado correctamente');
     },
   });
@@ -201,6 +210,7 @@ export function useEliminarArticulo() {
 
 export function useDuplicarArticulo() {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
+  const negocioId = useAuthStore((s) => s.usuario?.negocioId ?? '');
   const qc = useQueryClient();
 
   return useMutation({
@@ -258,6 +268,10 @@ export function useDuplicarArticulo() {
       });
       // También invalidar la sucursal actual por si acaso
       qc.invalidateQueries({ queryKey: queryKeys.articulos.porSucursal(sucursalId) });
+      // Catálogo público del negocio — el endpoint devuelve artículos de
+      // todas las sucursales, así que una sola invalidación cubre todos
+      // los duplicados creados.
+      qc.invalidateQueries({ queryKey: ['negocios', 'catalogo', negocioId] });
       notificar.exito('Artículo duplicado');
     },
   });

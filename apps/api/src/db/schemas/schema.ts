@@ -1631,8 +1631,6 @@ export const scanyaConfiguracion = pgTable("scanya_configuracion", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	negocioId: uuid("negocio_id").notNull(),
 	fotoTicket: varchar("foto_ticket", { length: 20 }).default('opcional'),
-	alertaMontoAlto: numeric("alerta_monto_alto", { precision: 10, scale: 2 }).default('5000'),
-	alertaTransaccionesHora: integer("alerta_transacciones_hora").default(20),
 	requiereNumeroOrden: boolean("requiere_numero_orden").default(false).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),

@@ -175,8 +175,6 @@ export interface CanjearVoucherInput {
  */
 export interface ActualizarConfigScanYAInput {
   fotoTicket?: OpcionFotoTicket;
-  alertaMontoAlto?: number | null;
-  alertaTransaccionesHora?: number | null;
   requiereNumeroOrden?: boolean;
 }
 
@@ -457,8 +455,6 @@ export interface RecordatorioScanYA {
 export interface ConfiguracionScanYA {
   // Config ScanYA (operaciÃ³n PWA)
   fotoTicket: OpcionFotoTicket;
-  alertaMontoAlto: number | null;
-  alertaTransaccionesHora: number | null;
   requiereNumeroOrden: boolean;
   // Config Puntos (cÃ¡lculo de puntos)
   puntosPorPeso: number;

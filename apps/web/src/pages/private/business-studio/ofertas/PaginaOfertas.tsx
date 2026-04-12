@@ -61,6 +61,8 @@ import {
     RefreshCw,
     CheckCircle2,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../../../config/queryKeys';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import {
     useOfertasLista,
@@ -410,6 +412,7 @@ export function PaginaOfertas() {
     const { usuario } = useAuthStore();
     const totalSucursales = useAuthStore((s) => s.totalSucursales);
     // React Query — datos del servidor
+    const qc = useQueryClient();
     const { data: ofertas = [], isLoading } = useOfertasLista();
     const { invalidar: invalidarOfertas, actualizarLocal } = useOfertasInvalidar();
     const crearMutation = useCrearOferta();
@@ -678,7 +681,11 @@ export function PaginaOfertas() {
             if (res.success) {
                 notificar.exito(res.message || 'Cupón revocado');
                 actualizarLocal(prev => prev.map(o => o.id === oferta.id ? { ...o, activo: false, estado: 'inactiva' as const } : o));
+                // invalidarOfertas ahora cubre lista, dashboard y negocios públicos.
                 invalidarOfertas();
+                // Lista de clientes asignados al cupón: el estado de cada cliente
+                // cambia al revocar masivamente.
+                qc.invalidateQueries({ queryKey: queryKeys.ofertas.clientesAsignados(oferta.id) });
             } else {
                 notificar.error(res.message || 'Error al revocar');
             }
@@ -698,6 +705,7 @@ export function PaginaOfertas() {
                 notificar.exito(res.message || 'Cupón reactivado');
                 actualizarLocal(prev => prev.map(o => o.id === oferta.id ? { ...o, activo: true, estado: 'activa' as const } : o));
                 invalidarOfertas();
+                qc.invalidateQueries({ queryKey: queryKeys.ofertas.clientesAsignados(oferta.id) });
             } else {
                 notificar.error(res.message || 'Error al reactivar');
             }

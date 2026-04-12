@@ -25,6 +25,7 @@ import type {
   CrearEmpleadoInput,
   ActualizarEmpleadoInput,
   HorarioEmpleado,
+  PermisosEmpleado,
 } from '../../types/empleados';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { queryKeys } from '../../config/queryKeys';
@@ -122,6 +123,12 @@ export function useCrearEmpleado() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.empleados.lista(sucursalId) });
       qc.invalidateQueries({ queryKey: queryKeys.empleados.kpis(sucursalId) });
+      // Invalidar solo el tab Empleados del reporte para que el nuevo empleado aparezca.
+      // No tocamos los otros tabs (ventas/clientes/promociones/reseñas) porque no
+      // muestran info dependiente del estado del empleado.
+      qc.invalidateQueries({ queryKey: ['reportes', 'empleados'] });
+      // Dropdown de operadores en Transacciones BS (refleja nombre del empleado)
+      qc.invalidateQueries({ queryKey: queryKeys.transacciones.operadores(sucursalId) });
       notificar.exito('Empleado creado');
     },
   });
@@ -140,12 +147,32 @@ export function useActualizarEmpleado() {
       empleadosService.actualizarEmpleado(id, datos),
 
     onMutate: async ({ id, datos }) => {
+      // Cancelar fetches en vuelo de lista y detalle
       await qc.cancelQueries({ queryKey: ['empleados', 'lista', sucursalId] });
+      await qc.cancelQueries({ queryKey: queryKeys.empleados.detalle(id) });
 
-      const snapshot = qc.getQueriesData<{
+      // Snapshots para rollback
+      const snapshotLista = qc.getQueriesData<{
         pages: { empleados: EmpleadoResumen[] }[];
       }>({ queryKey: ['empleados', 'lista', sucursalId] });
+      const snapshotDetalle = qc.getQueryData<EmpleadoDetalle | null>(
+        queryKeys.empleados.detalle(id)
+      );
 
+      // Helper: permisos mergeados (solo los que vienen en datos)
+      const permisosActualizados = <T extends { permisos?: unknown }>(old: T): PermisosEmpleado => {
+        const permisosPrevios = (old.permisos ?? {}) as PermisosEmpleado;
+        return {
+          ...permisosPrevios,
+          ...(datos.puedeRegistrarVentas !== undefined ? { puedeRegistrarVentas: datos.puedeRegistrarVentas } : {}),
+          ...(datos.puedeProcesarCanjes !== undefined ? { puedeProcesarCanjes: datos.puedeProcesarCanjes } : {}),
+          ...(datos.puedeVerHistorial !== undefined ? { puedeVerHistorial: datos.puedeVerHistorial } : {}),
+          ...(datos.puedeResponderChat !== undefined ? { puedeResponderChat: datos.puedeResponderChat } : {}),
+          ...(datos.puedeResponderResenas !== undefined ? { puedeResponderResenas: datos.puedeResponderResenas } : {}),
+        };
+      };
+
+      // Actualización optimista de la LISTA
       qc.setQueriesData<{
         pages: { empleados: EmpleadoResumen[]; [key: string]: unknown }[];
         pageParams: unknown[];
@@ -162,14 +189,7 @@ export function useActualizarEmpleado() {
                   ? {
                       ...e,
                       ...datos,
-                      permisos: {
-                        ...e.permisos,
-                        ...(datos.puedeRegistrarVentas !== undefined ? { puedeRegistrarVentas: datos.puedeRegistrarVentas } : {}),
-                        ...(datos.puedeProcesarCanjes !== undefined ? { puedeProcesarCanjes: datos.puedeProcesarCanjes } : {}),
-                        ...(datos.puedeVerHistorial !== undefined ? { puedeVerHistorial: datos.puedeVerHistorial } : {}),
-                        ...(datos.puedeResponderChat !== undefined ? { puedeResponderChat: datos.puedeResponderChat } : {}),
-                        ...(datos.puedeResponderResenas !== undefined ? { puedeResponderResenas: datos.puedeResponderResenas } : {}),
-                      },
+                      permisos: permisosActualizados(e),
                     }
                   : e
               ),
@@ -178,14 +198,32 @@ export function useActualizarEmpleado() {
         }
       );
 
-      return { snapshot };
+      // Actualización optimista del DETALLE (el modal se refresca al instante)
+      qc.setQueryData<EmpleadoDetalle | null>(
+        queryKeys.empleados.detalle(id),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ...datos,
+            permisos: permisosActualizados(old),
+          };
+        }
+      );
+
+      return { snapshotLista, snapshotDetalle };
     },
 
-    onError: (_err, _vars, context) => {
-      if (context?.snapshot) {
-        context.snapshot.forEach(([key, value]) => {
+    onError: (_err, { id }, context) => {
+      // Restaurar lista
+      if (context?.snapshotLista) {
+        context.snapshotLista.forEach(([key, value]) => {
           qc.setQueryData(key, value);
         });
+      }
+      // Restaurar detalle
+      if (context?.snapshotDetalle !== undefined) {
+        qc.setQueryData(queryKeys.empleados.detalle(id), context.snapshotDetalle);
       }
       const mensaje = _err instanceof Error ? _err.message : 'Error al actualizar empleado';
       notificar.error(mensaje);
@@ -193,8 +231,12 @@ export function useActualizarEmpleado() {
 
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: queryKeys.empleados.kpis(sucursalId) });
-      // Invalidar detalle si estaba cargado
+      // Invalidar detalle para sincronizar con el servidor (updatedAt, etc.)
       qc.invalidateQueries({ queryKey: queryKeys.empleados.detalle(id) });
+      // Invalidar solo el tab Empleados del reporte (el cambio de nombre solo afecta ahí)
+      qc.invalidateQueries({ queryKey: ['reportes', 'empleados'] });
+      // Dropdown de operadores en Transacciones BS (nombre del empleado puede cambiar)
+      qc.invalidateQueries({ queryKey: queryKeys.transacciones.operadores(sucursalId) });
     },
   });
 }
@@ -212,12 +254,22 @@ export function useToggleEmpleadoActivo() {
       empleadosService.toggleActivo(id, activo),
 
     onMutate: async ({ id, activo }) => {
+      // Cancelamos los fetches en vuelo tanto de la lista como del detalle
+      // para que no pisen nuestra actualización optimista.
       await qc.cancelQueries({ queryKey: ['empleados', 'lista', sucursalId] });
+      await qc.cancelQueries({ queryKey: queryKeys.empleados.detalle(id) });
 
-      const snapshot = qc.getQueriesData<{
+      // Snapshot de la lista (para rollback en onError)
+      const snapshotLista = qc.getQueriesData<{
         pages: { empleados: EmpleadoResumen[] }[];
       }>({ queryKey: ['empleados', 'lista', sucursalId] });
 
+      // Snapshot del detalle (para rollback en onError)
+      const snapshotDetalle = qc.getQueryData<EmpleadoDetalle | null>(
+        queryKeys.empleados.detalle(id)
+      );
+
+      // Actualización optimista de la LISTA
       qc.setQueriesData<{
         pages: { empleados: EmpleadoResumen[]; [key: string]: unknown }[];
         pageParams: unknown[];
@@ -237,19 +289,37 @@ export function useToggleEmpleadoActivo() {
         }
       );
 
-      return { snapshot };
+      // Actualización optimista del DETALLE (para que el modal muestre el nuevo estado al instante)
+      qc.setQueryData<EmpleadoDetalle | null>(
+        queryKeys.empleados.detalle(id),
+        (old) => (old ? { ...old, activo } : old)
+      );
+
+      return { snapshotLista, snapshotDetalle };
     },
 
-    onError: (_err, _vars, context) => {
-      if (context?.snapshot) {
-        context.snapshot.forEach(([key, value]) => {
+    onError: (_err, { id }, context) => {
+      // Restaurar lista
+      if (context?.snapshotLista) {
+        context.snapshotLista.forEach(([key, value]) => {
           qc.setQueryData(key, value);
         });
       }
+      // Restaurar detalle
+      if (context?.snapshotDetalle !== undefined) {
+        qc.setQueryData(queryKeys.empleados.detalle(id), context.snapshotDetalle);
+      }
     },
 
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: queryKeys.empleados.kpis(sucursalId) });
+      // Invalidar el detalle para que el modal se sincronice con el servidor
+      // (trae por ej. updatedAt actualizado, además del activo)
+      qc.invalidateQueries({ queryKey: queryKeys.empleados.detalle(id) });
+      // Invalidar solo el tab Empleados del reporte (el badge "Inactivo" solo aparece ahí)
+      qc.invalidateQueries({ queryKey: ['reportes', 'empleados'] });
+      // Dropdown de operadores en Transacciones BS (puede filtrar por estado activo)
+      qc.invalidateQueries({ queryKey: queryKeys.transacciones.operadores(sucursalId) });
     },
   });
 }
@@ -302,8 +372,15 @@ export function useEliminarEmpleado() {
       notificar.error(mensaje);
     },
 
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: queryKeys.empleados.kpis(sucursalId) });
+      // Removemos el detalle de la cache (el empleado ya no existe operativamente)
+      // para evitar que el modal muestre datos stale si se vuelve a abrir.
+      qc.removeQueries({ queryKey: queryKeys.empleados.detalle(id) });
+      // Invalidar solo el tab Empleados del reporte (el badge "Inactivo" solo aparece ahí)
+      qc.invalidateQueries({ queryKey: ['reportes', 'empleados'] });
+      // Dropdown de operadores en Transacciones BS (el empleado eliminado desaparece)
+      qc.invalidateQueries({ queryKey: queryKeys.transacciones.operadores(sucursalId) });
       notificar.exito('Empleado eliminado');
     },
   });
@@ -320,12 +397,35 @@ export function useActualizarHorarios() {
     mutationFn: ({ id, horarios }: { id: string; horarios: HorarioEmpleado[] }) =>
       empleadosService.actualizarHorarios(id, horarios),
 
-    onError: (_err) => {
+    onMutate: async ({ id, horarios }) => {
+      // Cancelar fetch en vuelo del detalle para que no pise nuestra actualización optimista
+      await qc.cancelQueries({ queryKey: queryKeys.empleados.detalle(id) });
+
+      // Snapshot del detalle para rollback
+      const snapshotDetalle = qc.getQueryData<EmpleadoDetalle | null>(
+        queryKeys.empleados.detalle(id)
+      );
+
+      // Actualización optimista del detalle (el modal muestra los nuevos horarios al instante)
+      qc.setQueryData<EmpleadoDetalle | null>(
+        queryKeys.empleados.detalle(id),
+        (old) => (old ? { ...old, horarios } : old)
+      );
+
+      return { snapshotDetalle };
+    },
+
+    onError: (_err, { id }, context) => {
+      // Restaurar detalle si la mutación falla
+      if (context?.snapshotDetalle !== undefined) {
+        qc.setQueryData(queryKeys.empleados.detalle(id), context.snapshotDetalle);
+      }
       const mensaje = _err instanceof Error ? _err.message : 'Error al actualizar horarios';
       notificar.error(mensaje);
     },
 
     onSuccess: (_data, { id }) => {
+      // Invalidar para sincronizar con el servidor (updatedAt, etc.)
       qc.invalidateQueries({ queryKey: queryKeys.empleados.detalle(id) });
       notificar.exito('Horarios actualizados');
     },

@@ -549,7 +549,7 @@ export default function ModalDetalleTransaccionBS({
               </p>
             )}
             <p className="text-base lg:text-sm 2xl:text-base text-red-600 font-medium mt-1 ml-6">
-              Los puntos fueron devueltos al saldo del cliente.
+              Se descontaron {tx.puntosOtorgados.toLocaleString()} pts del saldo del cliente.
             </p>
           </div>
         </div>

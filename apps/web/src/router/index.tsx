@@ -92,7 +92,7 @@ import BSPaginaAlertas from '../pages/private/business-studio/alertas/PaginaAler
 const BSPaginaRifas = () => <PlaceholderPage nombre="🎁 Rifas" />;
 import BSPaginaEmpleados from '../pages/private/business-studio/empleados/PaginaEmpleados';
 const BSPaginaVacantes = () => <PlaceholderPage nombre="💼 Vacantes" />;
-const BSPaginaReportes = () => <PlaceholderPage nombre="📈 Reportes" />;
+import BSPaginaReportes from '../pages/private/business-studio/reportes/PaginaReportes';
 const BSPaginaSucursales = () => <PlaceholderPage nombre="🏢 Sucursales" />;
 
 // Página 404

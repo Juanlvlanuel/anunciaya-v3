@@ -149,6 +149,13 @@ export function useMarcarAlertaLeida() {
         queryClientInstance.setQueryData(queryKeys.alertas.kpis(sucursalId), context.snapshotKPIs);
       }
     },
+
+    onSuccess: () => {
+      // Sincronizar widget de alertas del Dashboard (banner + panel)
+      queryClientInstance.invalidateQueries({
+        queryKey: queryKeys.dashboard.alertas(sucursalId),
+      });
+    },
   });
 }
 
@@ -245,6 +252,10 @@ export function useMarcarTodasLeidas() {
         queryKeys.alertas.kpis(sucursalId),
         (old) => old ? { ...old, noLeidas: 0 } : old
       );
+      // Sincronizar widget de alertas del Dashboard (banner + panel)
+      queryClientInstance.invalidateQueries({
+        queryKey: queryKeys.dashboard.alertas(sucursalId),
+      });
     },
   });
 }
@@ -361,8 +372,12 @@ export function useEliminarResueltas() {
     mutationFn: () => alertasService.eliminarAlertasResueltas(),
 
     onSuccess: () => {
-      // Invalidar lista y KPIs para reflejar la eliminación
+      // Invalidar lista y KPIs del módulo Alertas para reflejar la eliminación
       queryClientInstance.invalidateQueries({ queryKey: queryKeys.alertas.all() });
+      // Sincronizar widget de alertas del Dashboard (ruta distinta)
+      queryClientInstance.invalidateQueries({
+        queryKey: queryKeys.dashboard.alertas(sucursalId),
+      });
     },
   });
 }

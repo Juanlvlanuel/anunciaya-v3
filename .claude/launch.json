@@ -2,6 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Dev (All)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-r", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
       "name": "Web (Vite)",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@anunciaya/web", "dev"],

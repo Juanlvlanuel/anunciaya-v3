@@ -243,7 +243,7 @@ export function useRevocarTransaccion() {
     mutationFn: ({ id, motivo }: { id: string; motivo: string }) =>
       transaccionesService.revocarTransaccion(id, motivo),
 
-    onMutate: async ({ id }) => {
+    onMutate: async ({ id, motivo }) => {
       // Cancelar fetches en curso para evitar sobreescritura del update optimista
       await queryClientInstance.cancelQueries({
         queryKey: ['transacciones', 'historial', sucursalId],
@@ -255,7 +255,24 @@ export function useRevocarTransaccion() {
         pageParams: number[];
       }>({ queryKey: ['transacciones', 'historial', sucursalId] });
 
-      // Marcar como cancelado en todas las páginas del historial en caché
+      // Extraer el clienteId de la TX desde el caché — se usa en onSuccess
+      // para invalidar las queries del módulo Clientes del cliente afectado.
+      let clienteIdAfectado: string | undefined;
+      for (const [, value] of snapshot) {
+        if (!value) continue;
+        for (const page of value.pages) {
+          const tx = page.historial.find((t) => t.id === id);
+          if (tx) {
+            clienteIdAfectado = tx.clienteId;
+            break;
+          }
+        }
+        if (clienteIdAfectado) break;
+      }
+
+      // Marcar como cancelado en todas las páginas del historial en caché.
+      // Llenamos también motivoRevocacion para que al reabrir el modal de la
+      // misma transacción se muestre el motivo sin esperar al refetch.
       queryClientInstance.setQueriesData<{
         pages: { historial: TransaccionPuntos[]; total: number }[];
         pageParams: number[];
@@ -268,14 +285,20 @@ export function useRevocarTransaccion() {
             pages: old.pages.map((page) => ({
               ...page,
               historial: page.historial.map((t) =>
-                t.id === id ? { ...t, estado: 'cancelado' as const } : t
+                t.id === id
+                  ? {
+                      ...t,
+                      estado: 'cancelado' as const,
+                      motivoRevocacion: motivo,
+                    }
+                  : t
               ),
             })),
           };
         }
       );
 
-      return { snapshot };
+      return { snapshot, clienteIdAfectado };
     },
 
     onError: (_err, _vars, context) => {
@@ -287,15 +310,69 @@ export function useRevocarTransaccion() {
       }
     },
 
-    onSuccess: () => {
+    onSuccess: (_data, _vars, context) => {
+      // Invalidar historial para sincronizar con el servidor (updatedAt,
+      // campos derivados, etc.). Sin esto el motivoRevocacion solo vive
+      // en el optimistic hasta que gcTime expire.
+      queryClientInstance.invalidateQueries({
+        queryKey: ['transacciones', 'historial', sucursalId],
+      });
       // Invalidar KPIs de ventas para reflejar la revocación
       queryClientInstance.invalidateQueries({
         queryKey: ['transacciones', 'kpis', sucursalId],
       });
-      // Invalidar Dashboard — los KPIs y gráfica de ventas cambian con una revocación
+      // Invalidar Dashboard — solo KPIs y gráfica de ventas.
+      // Campañas, interacciones y alertas NO cambian con una revocación.
       queryClientInstance.invalidateQueries({
-        queryKey: queryKeys.dashboard.all(),
+        queryKey: ['dashboard', 'kpis', sucursalId],
       });
+      queryClientInstance.invalidateQueries({
+        queryKey: ['dashboard', 'ventas', sucursalId],
+      });
+
+      // ── Invalidación cross-módulo: Clientes ─────────────────────────────
+      // Una revocación cambia puntos, total gastado, promedio y visitas del
+      // cliente afectado. Invalidamos las queries del módulo Clientes para
+      // que el modal de detalle y la tabla muestren datos frescos.
+      const clienteId = context?.clienteIdAfectado;
+      if (clienteId) {
+        queryClientInstance.invalidateQueries({
+          queryKey: queryKeys.clientes.detalle(clienteId),
+        });
+        queryClientInstance.invalidateQueries({
+          queryKey: queryKeys.clientes.historial(clienteId),
+        });
+      }
+      // KPIs y lista del módulo pueden cambiar (inactivos, distribución por
+      // nivel, total gastado por fila). Invalidamos sin filtros para que
+      // todas las variantes paginadas/filtradas se refresquen.
+      queryClientInstance.invalidateQueries({
+        queryKey: queryKeys.clientes.kpis(sucursalId),
+      });
+      queryClientInstance.invalidateQueries({
+        queryKey: ['clientes', 'lista', sucursalId],
+      });
+      // Selector plano de clientes (para asignar cupones exclusivos) también
+      // muestra puntos/gastado de cada cliente.
+      queryClientInstance.invalidateQueries({
+        queryKey: queryKeys.clientes.selector(sucursalId),
+      });
+
+      // ── Invalidación cross-módulo: Puntos ────────────────────────────────
+      // Las estadísticas del módulo Puntos BS (total otorgado/canjeado por
+      // período) cambian cuando se revoca una TX. Invalidamos sin periodo
+      // para cubrir todas las variantes en caché.
+      queryClientInstance.invalidateQueries({
+        queryKey: ['puntos', 'estadisticas', sucursalId],
+      });
+
+      // ── Invalidación cross-módulo: Reportes ──────────────────────────────
+      // Revocar una TX afecta los tabs de ventas (totales), clientes
+      // (actividad del cliente) y empleados (rendimiento del operador que
+      // registró la TX). Los tabs de promociones y reseñas no se afectan.
+      queryClientInstance.invalidateQueries({ queryKey: ['reportes', 'ventas'] });
+      queryClientInstance.invalidateQueries({ queryKey: ['reportes', 'clientes'] });
+      queryClientInstance.invalidateQueries({ queryKey: ['reportes', 'empleados'] });
     },
   });
 }

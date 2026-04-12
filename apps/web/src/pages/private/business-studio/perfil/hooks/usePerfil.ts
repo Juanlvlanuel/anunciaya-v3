@@ -336,13 +336,22 @@ export function usePerfil() {
     setLoading(false);
   }, [perfil, sucursalesData, sucursalActiva]);
 
-  // Refetch helper — invalida React Query cache para recargar
+  // Refetch helper — invalida React Query cache para recargar.
+  // Incluye todas las caches que muestran datos del negocio/sucursal:
+  // - perfil.sucursal: formulario y vista previa de Mi Perfil
+  // - perfil.sucursales: lista global usada por SelectorSucursalesInline
+  //   (header/sidebar) y modales de Duplicar en Catálogo/Ofertas
+  // - negocios.detalle: página pública del negocio (mismo endpoint, diferente key)
+  // - negocios.lista: cards de la sección pública Negocios (nombre, horarios, etc.)
+  // - guardados.negocios: cards en "Mis Guardados" del usuario
   const refetch = useCallback(() => {
     sincronizadoRef.current = null;
     if (sucursalActiva) {
       qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
-      // Sincronizar vista pública (mismos datos, diferente query key)
       qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(sucursalActiva) });
+      qc.invalidateQueries({ queryKey: ['negocios', 'lista'] });
+      qc.invalidateQueries({ queryKey: ['guardados', 'negocios'] });
+      qc.invalidateQueries({ queryKey: ['perfil', 'sucursales'] });
     }
   }, [sucursalActiva, qc]);
 
@@ -446,13 +455,21 @@ export function usePerfil() {
               }),
             });
 
-            // Actualizar nombreNegocio en authStore si cambió el nombre
-            if (usuario && datosInformacion.nombre !== datosInicialesInformacion.nombre) {
-              const usuarioActual = useAuthStore.getState().usuario;
-              if (usuarioActual) {
+            // Sincronizar authStore con los campos que se leen desde Navbar,
+            // MenuDrawer, SelectorSucursalesInline y ColumnaIzquierda.
+            // Estos componentes NO usan React Query para estos datos, leen
+            // directo del store de Zustand persistido al login.
+            const usuarioActual = useAuthStore.getState().usuario;
+            if (usuarioActual) {
+              const cambioNombre = datosInformacion.nombre !== datosInicialesInformacion.nombre;
+              const cambioNombreSucursal =
+                datosInformacion.totalSucursales > 1 &&
+                datosInformacion.nombreSucursal !== datosInicialesInformacion.nombreSucursal;
+              if (cambioNombre || cambioNombreSucursal) {
                 useAuthStore.getState().setUsuario({
                   ...usuarioActual,
-                  nombreNegocio: datosInformacion.nombre,
+                  ...(cambioNombre && { nombreNegocio: datosInformacion.nombre }),
+                  ...(cambioNombreSucursal && { nombreSucursalAsignada: datosInformacion.nombreSucursal }),
                 });
               }
             }
@@ -486,6 +503,26 @@ export function usePerfil() {
               sitioWeb: !vistaComoGerenteGuardado ? datosContacto.sitioWeb : undefined,
               redesSociales: datosContacto.redesSociales,
             });
+
+            // Sincronizar authStore: Navbar y MenuDrawer muestran el email
+            // (correoNegocio / correoSucursalAsignada) como fallback, y el
+            // nombre de sucursal cuando se edita en vista gerente.
+            const usuarioActual = useAuthStore.getState().usuario;
+            if (usuarioActual) {
+              const cambioEmail =
+                datosInicialesContacto && datosContacto.email !== datosInicialesContacto.email;
+              useAuthStore.getState().setUsuario({
+                ...usuarioActual,
+                ...(cambioEmail && vistaComoGerenteGuardado
+                  ? { correoSucursalAsignada: datosContacto.email }
+                  : cambioEmail
+                  ? { correoNegocio: datosContacto.email }
+                  : {}),
+                ...(cambioNombreSucursal && {
+                  nombreSucursalAsignada: datosInformacion.nombreSucursal,
+                }),
+              });
+            }
           } catch (error) {
             setDatosContacto(datosAnteriores);
             errores.push('Contacto');

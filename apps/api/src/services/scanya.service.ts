@@ -3777,8 +3777,6 @@ export async function obtenerConfigScanYA(
 ): Promise<RespuestaServicio<{
     // Config ScanYA (operación PWA)
     fotoTicket: string;
-    alertaMontoAlto: number | null;
-    alertaTransaccionesHora: number | null;
     requiereNumeroOrden: boolean;
     // Config Puntos (cálculo de puntos)
     puntosPorPeso: number;
@@ -3797,8 +3795,6 @@ export async function obtenerConfigScanYA(
         const [configScanYA] = await db
             .select({
                 fotoTicket: scanyaConfiguracion.fotoTicket,
-                alertaMontoAlto: scanyaConfiguracion.alertaMontoAlto,
-                alertaTransaccionesHora: scanyaConfiguracion.alertaTransaccionesHora,
                 requiereNumeroOrden: scanyaConfiguracion.requiereNumeroOrden,
             })
             .from(scanyaConfiguracion)
@@ -3830,8 +3826,6 @@ export async function obtenerConfigScanYA(
             data: {
                 // Config ScanYA
                 fotoTicket: configScanYA?.fotoTicket || 'opcional',
-                alertaMontoAlto: configScanYA?.alertaMontoAlto ? parseFloat(configScanYA.alertaMontoAlto) : 5000,
-                alertaTransaccionesHora: configScanYA?.alertaTransaccionesHora ?? 20,
                 requiereNumeroOrden: configScanYA?.requiereNumeroOrden || false,
                 // Config Puntos
                 puntosPorPeso: configPuntos?.puntosPorPeso ? parseFloat(configPuntos.puntosPorPeso) : 0.1,
@@ -3873,8 +3867,6 @@ export async function actualizarConfigScanYA(
     datos: ActualizarConfigScanYAInput
 ): Promise<RespuestaServicio<{
     fotoTicket: string;
-    alertaMontoAlto: number | null;
-    alertaTransaccionesHora: number | null;
     requiereNumeroOrden: boolean;
 }>> {
     try {
@@ -3908,12 +3900,6 @@ export async function actualizarConfigScanYA(
         if (datos.fotoTicket !== undefined) {
             datosActualizar.fotoTicket = datos.fotoTicket;
         }
-        if (datos.alertaMontoAlto !== undefined) {
-            datosActualizar.alertaMontoAlto = datos.alertaMontoAlto?.toString() || null;
-        }
-        if (datos.alertaTransaccionesHora !== undefined) {
-            datosActualizar.alertaTransaccionesHora = datos.alertaTransaccionesHora;
-        }
         if (datos.requiereNumeroOrden !== undefined) {
             datosActualizar.requiereNumeroOrden = datos.requiereNumeroOrden;
         }
@@ -3931,8 +3917,6 @@ export async function actualizarConfigScanYA(
                 .where(eq(scanyaConfiguracion.negocioId, payload.negocioId))
                 .returning({
                     fotoTicket: scanyaConfiguracion.fotoTicket,
-                    alertaMontoAlto: scanyaConfiguracion.alertaMontoAlto,
-                    alertaTransaccionesHora: scanyaConfiguracion.alertaTransaccionesHora,
                     requiereNumeroOrden: scanyaConfiguracion.requiereNumeroOrden,
                 });
         } else {
@@ -3942,14 +3926,10 @@ export async function actualizarConfigScanYA(
                 .values({
                     negocioId: payload.negocioId,
                     fotoTicket: datos.fotoTicket || 'opcional',
-                    alertaMontoAlto: datos.alertaMontoAlto?.toString() || '5000',
-                    alertaTransaccionesHora: datos.alertaTransaccionesHora || 20,
                     requiereNumeroOrden: datos.requiereNumeroOrden || false,
                 })
                 .returning({
                     fotoTicket: scanyaConfiguracion.fotoTicket,
-                    alertaMontoAlto: scanyaConfiguracion.alertaMontoAlto,
-                    alertaTransaccionesHora: scanyaConfiguracion.alertaTransaccionesHora,
                     requiereNumeroOrden: scanyaConfiguracion.requiereNumeroOrden,
                 });
         }
@@ -3959,8 +3939,6 @@ export async function actualizarConfigScanYA(
             message: 'Configuración actualizada',
             data: {
                 fotoTicket: configFinal.fotoTicket || 'opcional',
-                alertaMontoAlto: configFinal.alertaMontoAlto ? parseFloat(configFinal.alertaMontoAlto) : null,
-                alertaTransaccionesHora: configFinal.alertaTransaccionesHora,
                 requiereNumeroOrden: configFinal.requiereNumeroOrden || false,
             },
             code: 200,

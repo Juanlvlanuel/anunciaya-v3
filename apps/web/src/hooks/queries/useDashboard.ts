@@ -102,23 +102,32 @@ export function useDashboardMutaciones() {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
   const queryClientInstance = useQueryClient();
 
+  /**
+   * Invalida las caches que muestran alertas. El banner del dashboard y el
+   * módulo Alertas BS usan queries separadas sobre los mismos datos, así que
+   * al marcar una alerta leída (o varias) hay que refrescar ambas.
+   */
+  const invalidarCachesAlertas = () => {
+    queryClientInstance.invalidateQueries({
+      queryKey: queryKeys.dashboard.alertas(sucursalId),
+    });
+    queryClientInstance.invalidateQueries({
+      queryKey: ['alertas', 'lista', sucursalId],
+    });
+    queryClientInstance.invalidateQueries({
+      queryKey: queryKeys.alertas.kpis(sucursalId),
+    });
+  };
+
   const marcarAlertaLeida = useMutation({
     mutationFn: (alertaId: string) => dashboardService.marcarAlertaLeida(alertaId),
-    onSuccess: () => {
-      queryClientInstance.invalidateQueries({
-        queryKey: queryKeys.dashboard.alertas(sucursalId),
-      });
-    },
+    onSuccess: invalidarCachesAlertas,
   });
 
   const marcarTodasLeidas = useMutation({
     mutationFn: (alertaIds: string[]) =>
       Promise.all(alertaIds.map((id) => dashboardService.marcarAlertaLeida(id))),
-    onSuccess: () => {
-      queryClientInstance.invalidateQueries({
-        queryKey: queryKeys.dashboard.alertas(sucursalId),
-      });
-    },
+    onSuccess: invalidarCachesAlertas,
   });
 
   return { marcarAlertaLeida, marcarTodasLeidas };

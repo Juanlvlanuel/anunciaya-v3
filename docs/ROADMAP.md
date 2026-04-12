@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 5 Abril 2026
+> **Última actualización:** 12 Abril 2026
 > **Progreso global:** 98% completado
-> **Fase actual:** BS Empleados ✅ — próximo: BS Reportes
+> **Fase actual:** BS Reportes ✅ — próximo: BS Sucursales
 
 ---
 
@@ -19,7 +19,7 @@
 | **Sistema Lealtad + CardYA** (5.6-5.7) | ✅ 100% | - |
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
-| **Business Studio** (5.4) | ⏳ 71% (10/14 módulos) | Reportes, Sucursales, Rifas, Vacantes |
+| **Business Studio** (5.4) | ⏳ 79% (11/14 módulos) | Sucursales, Rifas, Vacantes |
 | **Secciones Públicas** (6.x) | ⏳ 0% | Ofertas, MarketPlace, Dinámicas, Empleos |
 | **Panel Admin** (6.7) | ⏳ 0% | ~2 semanas. Vendedores, métricas, gestión negocios/usuarios, Stripe, reportes |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
@@ -34,7 +34,7 @@
 - ⏳ BS 80% (12/14) — no alcanzado, pasa a Q2
 
 **Q2 (Abril-Junio) — Meta:**
-- [ ] Business Studio 100% (14/14 módulos) — faltan: Reportes, Sucursales, Rifas, Vacantes
+- [ ] Business Studio 100% (14/14 módulos) — faltan: Sucursales, Rifas, Vacantes
 - [ ] Secciones públicas: Ofertas, MarketPlace, Dinámicas, Empleos
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto
@@ -57,6 +57,8 @@
 | Sprint 8 | Auditoría Recompensas/Sellos + Niveles condicional + Notificaciones | 1 Abr 2026 |
 | Sprint 9 | BS Alertas: 16 tipos, motor detección, configuración, testing | 3 Abr 2026 |
 | Sprint 10 | BS Empleados: CRUD, 5 permisos, revocación sesiones, testing | 5 Abr 2026 |
+| Sprint 10.5 | Audit React Query BS: ~30 invalidaciones cross-módulo + limpieza ScanYA legacy | 11 Abr 2026 |
+| Sprint 11 | BS Reportes: 5 tabs, KPIs, funnels, cards, filtro fechas, XLSX | 12 Abr 2026 |
 
 > Detalle completo en el CHANGELOG.
 

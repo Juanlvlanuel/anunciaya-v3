@@ -262,8 +262,6 @@ CREATE TABLE scanya_configuracion (
   id SERIAL PRIMARY KEY,
   negocio_id UUID UNIQUE REFERENCES negocios(id),
   foto_ticket VARCHAR(20) DEFAULT 'opcional',
-  alerta_monto_alto DECIMAL(10,2) DEFAULT 5000,
-  alerta_transacciones_hora INTEGER DEFAULT 10,
   requiere_numero_orden BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -271,10 +269,10 @@ CREATE TABLE scanya_configuracion (
 ```
 
 **Campos clave:**
-- `foto_ticket`: `'obligatoria'` | `'opcional'` | `'no'`
-- `alerta_monto_alto`: Monto que dispara alerta de seguridad
-- `alerta_transacciones_hora`: Número de transacciones que dispara alerta
+- `foto_ticket`: `'obligatoria'` | `'opcional'` | `'nunca'`
 - `requiere_numero_orden`: Si pide número de orden al registrar venta
+
+> **Nota:** Los campos `alerta_monto_alto` y `alerta_transacciones_hora` existían en versiones anteriores pero se eliminaron en Abril 2026. Fueron reemplazados por el sistema de alertas configurables del módulo Alertas BS (`alertas_configuracion`), que usa umbrales dinámicos (multiplicador del promedio) en lugar de valores fijos. Ver `monto_inusual` y `cliente_frecuente` en el catálogo de alertas.
 
 **Relación:** 1:1 con `negocios`
 
@@ -618,8 +616,7 @@ PUT    /api/scanya/configuracion          ← Solo dueño
 GET /api/scanya/configuracion
 Response: {
   // Config operativa (scanya_configuracion)
-  fotoTicket: 'obligatoria' | 'opcional' | 'no',
-  alertaMontoAlto: number,
+  fotoTicket: 'obligatoria' | 'opcional' | 'nunca',
   requiereNumeroOrden: boolean,
   
   // Config de puntos (puntos_configuracion)

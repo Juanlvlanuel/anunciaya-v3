@@ -84,6 +84,7 @@ export function usePuntosEstadisticas(periodo: PeriodoEstadisticas) {
 // =============================================================================
 
 export function useActualizarConfigPuntos() {
+  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
   const qc = useQueryClient();
 
   return useMutation({
@@ -144,6 +145,17 @@ export function useActualizarConfigPuntos() {
       if (respuesta.data) {
         qc.setQueryData(queryKeys.puntos.configuracion(), respuesta.data);
       }
+      // Cambiar rangos de niveles (bronce/plata/oro) hace que el backend
+      // recalcule el nivelActual de los clientes existentes. Invalidamos las
+      // caches de clientes para que los detalles, la lista, los KPIs
+      // (distribucionNivel) y el selector de cupones muestren el nivel
+      // actualizado de inmediato.
+      qc.invalidateQueries({ queryKey: ['clientes', 'detalle'] });
+      qc.invalidateQueries({ queryKey: ['clientes', 'lista', sucursalId] });
+      qc.invalidateQueries({ queryKey: queryKeys.clientes.kpis(sucursalId) });
+      qc.invalidateQueries({ queryKey: queryKeys.clientes.selector(sucursalId) });
+      // Tab de clientes del módulo Reportes (distribución por nivel)
+      qc.invalidateQueries({ queryKey: ['reportes', 'clientes'] });
     },
   });
 }
@@ -211,6 +223,10 @@ export function useCrearRecompensa() {
           (old) => old?.map((r) => r.id.startsWith('temp_') ? respuesta.data! : r) ?? []
         );
       }
+      // CardYA (modo personal) usa una query key distinta para las mismas
+      // recompensas del negocio. Invalidamos para que si el dueño cambia a
+      // modo personal para probar su propia recompensa, la vea al instante.
+      qc.invalidateQueries({ queryKey: ['cardya', 'recompensas'] });
       notificar.exito('Recompensa creada');
     },
   });
@@ -272,6 +288,8 @@ export function useActualizarRecompensa() {
           (old) => old?.map((r) => r.id === id ? respuesta.data! : r) ?? []
         );
       }
+      // Sincronizar cache de CardYA (modo personal)
+      qc.invalidateQueries({ queryKey: ['cardya', 'recompensas'] });
     },
   });
 }
@@ -310,6 +328,8 @@ export function useEliminarRecompensa() {
     },
 
     onSuccess: () => {
+      // Sincronizar cache de CardYA (modo personal)
+      qc.invalidateQueries({ queryKey: ['cardya', 'recompensas'] });
       notificar.exito('Recompensa eliminada');
     },
   });

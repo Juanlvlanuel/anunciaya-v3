@@ -99,6 +99,49 @@ export default function TabImagenes({
   const sucursalActiva = useAuthStore((state) => state.usuario?.sucursalActiva);
   const qc = useQueryClient();
 
+  /**
+   * Invalida todas las caches que muestran datos del negocio/sucursal después
+   * de modificar una imagen (logo, foto perfil, portada, galería).
+   *
+   * Invalida React Query:
+   * - perfil.sucursal: vista previa interna y formulario de Mi Perfil
+   * - perfil.sucursales: lista global usada por SelectorSucursalesInline
+   *   (header/sidebar) y por los modales de Duplicar de Catálogo y Ofertas
+   * - negocios.detalle: página pública del negocio
+   * - negocios.lista: cards de la sección pública Negocios
+   * - guardados.negocios: cards en "Mis Guardados" del usuario
+   *
+   * Sincroniza opcionalmente campos del useAuthStore (Zustand, NO React Query)
+   * que Navbar y ColumnaIzquierda leen directo del store al renderizar:
+   * - logoNegocio: logo que aparece en el sidebar y header
+   * - fotoPerfilNegocio / fotoPerfilSucursalAsignada: foto redonda en header
+   */
+  const invalidarCachesNegocio = (
+    actualizaAuth?: Partial<Pick<
+      NonNullable<ReturnType<typeof useAuthStore.getState>['usuario']>,
+      'logoNegocio' | 'fotoPerfilNegocio' | 'fotoPerfilSucursalAsignada'
+    >>
+  ) => {
+    if (!sucursalActiva) return;
+    qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+    qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(sucursalActiva) });
+    qc.invalidateQueries({ queryKey: ['negocios', 'lista'] });
+    qc.invalidateQueries({ queryKey: ['guardados', 'negocios'] });
+    // Lista global de sucursales: usa negocioId como parte de la key, pero el
+    // prefix ['perfil', 'sucursales'] cubre todas las variantes existentes.
+    qc.invalidateQueries({ queryKey: ['perfil', 'sucursales'] });
+
+    if (actualizaAuth) {
+      const usuarioActual = useAuthStore.getState().usuario;
+      if (usuarioActual) {
+        useAuthStore.getState().setUsuario({
+          ...usuarioActual,
+          ...actualizaAuth,
+        });
+      }
+    }
+  };
+
   // ✅ NUEVO: Estado unificado para ModalImagenes
   const [modalImagenes, setModalImagenes] = useState<{
     isOpen: boolean;
@@ -159,7 +202,7 @@ export default function TabImagenes({
       try {
         await api.post(`/negocios/${negocioId}/logo`, { logoUrl: url });
         setDatosImagenes({ ...datosImagenes, logoUrl: url });
-        if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+        invalidarCachesNegocio({ logoNegocio: url });
         notificar.exito('Logo guardado correctamente');
       } catch (error) {
         console.error('Error al guardar logo en BD:', error);
@@ -179,7 +222,12 @@ export default function TabImagenes({
       try {
         await api.post(`/negocios/sucursal/${sucursalActiva}/foto-perfil`, { fotoPerfilUrl: url });
         setDatosImagenes({ ...datosImagenes, fotoPerfilUrl: url });
-        qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+        // Navbar y MenuDrawer leen fotoPerfilNegocio / fotoPerfilSucursalAsignada
+        // desde useAuthStore; sincronizamos ambos para que se refresquen al instante.
+        invalidarCachesNegocio({
+          fotoPerfilNegocio: url,
+          fotoPerfilSucursalAsignada: url,
+        });
         notificar.exito('Foto de perfil guardada');
       } catch (error) {
         console.error('Error al guardar foto de perfil en BD:', error);
@@ -199,7 +247,7 @@ export default function TabImagenes({
       try {
         await api.post(`/negocios/${negocioId}/portada`, { portadaUrl: url });
         setDatosImagenes({ ...datosImagenes, portadaUrl: url });
-        if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+        invalidarCachesNegocio();
         notificar.exito('Portada guardada correctamente');
       } catch (error) {
         console.error('Error al guardar portada en BD:', error);
@@ -322,7 +370,7 @@ export default function TabImagenes({
           ...datosImagenes,
           galeria: [...(datosImagenes.galeria || []), ...imagenesNuevas],
         });
-        if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+        invalidarCachesNegocio();
       }
     } catch (error) {
       console.error('Error al subir galería:', error);
@@ -361,7 +409,7 @@ export default function TabImagenes({
     if (id) {
       try {
         await api.delete(`/negocios/${negocioId}/galeria/${id}`);
-        if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+        invalidarCachesNegocio();
         notificar.exito('Imagen eliminada');
       } catch (error) {
         console.error('Error al eliminar de BD:', error);
@@ -386,7 +434,7 @@ export default function TabImagenes({
 
     try {
       if (negocioId) await api.delete(`/negocios/${negocioId}/logo`);
-      if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+      invalidarCachesNegocio({ logoNegocio: null });
       notificar.exito('Logo eliminado');
     } catch (error) {
       setDatosImagenes({ ...datosImagenes, logoUrl: urlAnterior });
@@ -408,7 +456,10 @@ export default function TabImagenes({
 
     try {
       if (sucursalActiva) await api.delete(`/negocios/sucursal/${sucursalActiva}/foto-perfil`);
-      if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+      invalidarCachesNegocio({
+        fotoPerfilNegocio: null,
+        fotoPerfilSucursalAsignada: null,
+      });
       notificar.exito('Foto de perfil eliminada');
     } catch (error) {
       setDatosImagenes({ ...datosImagenes, fotoPerfilUrl: urlAnterior });
@@ -430,7 +481,7 @@ export default function TabImagenes({
 
     try {
       if (negocioId) await api.delete(`/negocios/${negocioId}/portada`);
-      if (sucursalActiva) qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+      invalidarCachesNegocio();
       notificar.exito('Portada eliminada');
     } catch (error) {
       setDatosImagenes({ ...datosImagenes, portadaUrl: urlAnterior });

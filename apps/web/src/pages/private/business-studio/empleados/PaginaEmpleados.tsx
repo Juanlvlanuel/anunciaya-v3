@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
 	UserCog,
 	Search,
@@ -126,6 +127,23 @@ export default function PaginaEmpleados() {
 		}, 400);
 		return () => clearTimeout(timer);
 	}, [busquedaLocal, busqueda]);
+
+	// ─── Aplicar búsqueda desde query param (navegación desde Reportes) ───
+	const [searchParams, setSearchParams] = useSearchParams();
+	const busquedaQueryParam = searchParams.get('busqueda');
+	useEffect(() => {
+		if (busquedaQueryParam) {
+			setBusquedaLocal(busquedaQueryParam);
+			setBusqueda(busquedaQueryParam);
+		}
+	}, [busquedaQueryParam]);
+	useEffect(() => {
+		if (!busquedaQueryParam) return;
+		const timer = setTimeout(() => {
+			setSearchParams({}, { replace: true });
+		}, 100);
+		return () => clearTimeout(timer);
+	}, [busquedaQueryParam, setSearchParams]);
 
 	const handleClickEmpleado = useCallback((emp: EmpleadoResumen) => {
 		setEmpleadoSeleccionadoId(emp.id);
