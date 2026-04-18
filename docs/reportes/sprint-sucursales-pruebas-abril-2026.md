@@ -106,7 +106,7 @@ Al construir el recolector de basura R2 como infraestructura del Panel Admin (co
 
 | Sub-prueba | Descripción | Cómo probarla | Prioridad |
 |:-:|------|------|:-:|
-| **5.1** | **Eliminación de sucursal con contenido exclusivo** (la prueba original) | Crear sucursal nueva → subir perfil/portada/galería/artículo nuevo/oferta nueva exclusivos → anotar URLs R2 → eliminar sucursal → verificar que esas URLs desaparecieron de R2 Y que las imágenes de Matriz (clonadas/compartidas) NO se tocaron | Alta |
+| **5.1** | **Eliminación de sucursal con contenido exclusivo** (la prueba original) ✅ | Ejecutada 18 Abril 2026 con "Sucursal Prueba R2" (contenido: 1 perfil, 1 portada, 8 galería, 4 ofertas R2, 5 artículos R2 exclusivos, 6 artículos Cloudinary compartidos, 1 oferta Cloudinary compartida). Resultado: 18 archivos R2 eliminados limpiamente, URLs Cloudinary compartidas protegidas por reference count, `huerfanas: 0` y `rotas: 0` post-cleanup | ✅ Alta |
 | **5.2** | **Editar imagen** en artículo/logo/portada/perfil | En cada uno: subir imagen nueva → verificar que la anterior desaparece de R2 con reference count correcto | Alta |
 | **5.3** | **Eliminar mensaje chat con adjunto** | Enviar imagen/audio/documento en chat → eliminar el mensaje → verificar que el archivo R2 se borra (y socket propaga eliminación al frontend) | Media |
 | **5.4** | **Seguridad del endpoint admin** (5 casos) | Request sin `x-admin-secret` → 401; con secret incorrecto → 401; sin `ADMIN_SECRET` en env → 503; POST sin `confirmacion` → 400; POST con valor distinto a `SI_BORRAR_HUERFANAS` → 400 | Media |
@@ -239,7 +239,7 @@ Lo que queda para cerrar el 100%:
 
 | # | Sub-prueba | Prioridad | Tiempo |
 |:-:|------|:---------:|:------:|
-| 5.1 | Eliminación sucursal con contenido exclusivo (prueba original) | Alta | ~15 min |
+| ~~5.1~~ | ~~Eliminación sucursal con contenido exclusivo (prueba original)~~ — ✅ **Completada 18 Abril 2026** | — | — |
 | 5.2 | Editar imagen en artículo/logo/portada/perfil → anterior se borra | Alta | ~15 min |
 | 5.3 | Eliminar mensaje chat con adjunto → archivo R2 se borra | Media | ~15 min |
 | 5.4 | Seguridad endpoint admin (5 casos: 401/400/503) | Media | ~10 min |
