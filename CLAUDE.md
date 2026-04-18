@@ -20,7 +20,7 @@ Super-app para comercio local en México. Conecta negocios físicos con consumid
 - **Frontend:** React 19 + Vite + Tailwind v4 + Zustand + TanStack Query v5
 - **Backend:** Express 5 + Node >=18 + Socket.io
 - **BD:** PostgreSQL + PostGIS (Supabase, 1 schema público, ~71 tablas) + Redis (Upstash, via ioredis)
-- **Archivos:** Cloudinary + Cloudflare R2
+- **Archivos:** Cloudflare R2
 - **Hosting:** Render (backend) + Vercel (frontend) + Supabase (BD) + Upstash (Redis)
 - **ORM:** Drizzle ORM + Zod (validación runtime)
 - **Pagos:** Stripe — suscripción comercial $449 MXN/mes
@@ -115,6 +115,18 @@ router.post('/articulos',
 ### Interceptor Axios (frontend)
 
 `api.ts` agrega `?sucursalId=` automáticamente en modo comercial. Frontend NO pasa sucursalId manual. Backend filtra con `WHERE sucursal_id = $sucursalId`.
+
+### Gestión de Archivos (R2)
+
+Los archivos (imágenes, audios, documentos) viven en Cloudflare R2. El proyecto tiene un **Recolector de Basura** operativo en `/api/admin/mantenimiento/r2-reconcile` que detecta y limpia archivos huérfanos usando mark-and-sweep + reference counting + multi-BD cross-ambiente.
+
+**Reglas obligatorias cuando tu código borre o reemplace un archivo R2:**
+
+1. **Usar el helper `eliminarImagenSiHuerfana(url, excluirId?)`** de `negocioManagement.service.ts` en lugar de `eliminarArchivo(url)` directo. El helper verifica reference count contra las tablas relevantes (sucursales, artículos, negocios, galería, ofertas, recompensas) antes de tocar storage.
+2. **Agregar cualquier columna nueva con URL de imagen al `IMAGE_REGISTRY`** en `apps/api/src/utils/imageRegistry.ts`. Si no está ahí, el Recolector la tratará como huérfana y podría borrar archivos en uso.
+3. **Soft-deletes que sobrescriban campos con URLs** (ej. chat): capturar URLs antes del UPDATE y limpiar storage después con reference count.
+
+Ver detalle completo: `docs/arquitectura/Mantenimiento_R2.md` y `docs/arquitectura/Panel_Admin.md`.
 
 ### Multi-Sucursal
 

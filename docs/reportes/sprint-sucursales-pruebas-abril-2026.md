@@ -97,8 +97,26 @@ Al cerrar las 14 recomendaciones (1-5, 7, 10-14, 16-18), quedaron **6 pruebas de
 | **2** | Filtrado por sucursal — vista gerente | #6 | ⏳ Pendiente | Verificar que gerente solo ve su sucursal |
 | **3** | Cupones cross-sucursal en ScanYA | #7 | ✅ **Completa** | Gerente Matriz canjeó Pizza Mediana, empleado Norte canjeó Zapatos |
 | **4** | Revocación de sesión ScanYA (3 escenarios: manual, desactivar, eliminar) | #8 | ✅ **Completa** | Defensa en 3 capas validada: middleware + refresh + socket |
-| **5** | R2 cleanup al eliminar sucursal | #9 | 🟡 Parcial | Infraestructura R2 reconcile probada exhaustivamente; prueba directa de eliminación de sucursal pendiente |
+| **5** | R2 cleanup — validación integral del recolector de basura (9 sub-pruebas) | #9 | 🟡 Parcial | Infraestructura operativa y probada vía cleanup global de 128 archivos; 9 sub-pruebas de validación en vivo pendientes (ver detalle abajo) |
 | **6** | Typo detection de email | #10 | ✅ **Completa** | Los 10 dominios probados con Levenshtein ≤ 2 |
+
+### 🔬 Prueba 5 — Sub-pruebas detalladas
+
+Al construir el recolector de basura R2 como infraestructura del Panel Admin (colateral del sprint), la Prueba 5 creció de "verificar cleanup al eliminar sucursal" a **"validación integral del sistema completo"**. Son 9 sub-pruebas que cubren: flujo end-to-end, los 13 fixes de bugs fuente en vivo, casos edge y seguridad.
+
+| Sub-prueba | Descripción | Cómo probarla | Prioridad |
+|:-:|------|------|:-:|
+| **5.1** | **Eliminación de sucursal con contenido exclusivo** (la prueba original) | Crear sucursal nueva → subir perfil/portada/galería/artículo nuevo/oferta nueva exclusivos → anotar URLs R2 → eliminar sucursal → verificar que esas URLs desaparecieron de R2 Y que las imágenes de Matriz (clonadas/compartidas) NO se tocaron | Alta |
+| **5.2** | **Editar imagen** en artículo/logo/portada/perfil | En cada uno: subir imagen nueva → verificar que la anterior desaparece de R2 con reference count correcto | Alta |
+| **5.3** | **Eliminar mensaje chat con adjunto** | Enviar imagen/audio/documento en chat → eliminar el mensaje → verificar que el archivo R2 se borra (y socket propaga eliminación al frontend) | Media |
+| **5.4** | **Seguridad del endpoint admin** (5 casos) | Request sin `x-admin-secret` → 401; con secret incorrecto → 401; sin `ADMIN_SECRET` en env → 503; POST sin `confirmacion` → 400; POST con valor distinto a `SI_BORRAR_HUERFANAS` → 400 | Media |
+| **5.5** | **Periodo de gracia** (archivo reciente no se borra) | Subir archivo a R2 manualmente sin referenciar en BD → correr reconcile dentro de los primeros 5 min → debe aparecer en `ignoradasPorGracia`, NO en `huerfanas`. Tras 5 min, nueva ejecución lo marca como huérfano | Media |
+| **5.6** | **Multi-BD failover** (secundaria offline) | Simular Supabase inaccesible (apagar VPN o cambiar `DATABASE_URL_PRODUCTION` a URL inválida temporalmente) → reconcile debe continuar solo con BD principal sin crashear, con warning en consola | Baja |
+| **5.7** | **URLs rotas** (archivo R2 borrado manual) | Borrar un archivo directamente desde Cloudflare R2 cuya URL sigue referenciada en BD → correr reconcile → debe aparecer en `rotas` con `ubicacion: "tabla.columna"` (o `ambiente:tabla.columna` con multi-BD) | Baja |
+| **5.8** | **Reference counting compartido** | Forzar escenario: 2 artículos con misma URL (ej. clonado de Matriz con fallback Cloudinary) → eliminar uno → la imagen NO se borra de R2 (log: "Imagen conservada, usada por N artículo/s"). Eliminar el segundo → ahora sí se borra | Baja |
+| **5.9** | **Cron ChatYA** (ejecución manual) | Forzar la ejecución del cron `limpiarConversacionesInactivas` (temporalmente bajar el umbral de 6 meses a segundos o correr la función directo desde un script) → verificar que elimina conversaciones Y limpia sus archivos R2 | Baja |
+
+**Total estimado:** ~90 min para ejecutar las 9 sub-pruebas (la 5.1 ~15 min, las 5.2-5.3 ~30 min, las demás 45 min).
 
 ---
 
@@ -187,7 +205,7 @@ Durante las pruebas se identificaron **13 flujos** que generaban archivos huérf
 |-------|:-----:|:---------:|:---------:|:----------:|:-:|
 | Lista 1 — 12 secciones BS Sucursales | 12 | 12 ✅ | 0 | 0 | **100%** |
 | Lista 2 — 18 recomendaciones post-sprint | 18 | 14 | 1 | 3 | **78%** |
-| Lista 3 — 6 pruebas de testing | 6 | 3 | 1 | 2 | **50%** |
+| Lista 3 — 6 pruebas de testing | 6 | 3 | 1 (con 9 sub-pruebas) | 2 | **50%** |
 
 ## Bugs y fixes
 
@@ -208,15 +226,37 @@ Durante las pruebas se identificaron **13 flujos** que generaban archivos huérf
 
 # 🎯 Pendientes priorizados
 
-Lo único que queda para cerrar el 100%:
+Lo que queda para cerrar el 100%:
 
-| # | Prueba / Tarea | Lista | Prioridad | Tiempo |
-|---|----------------|:-----:|:---------:|:------:|
+### Nivel 1 — Filtrado (testing de alto impacto)
+
+| # | Prueba | Lista | Prioridad | Tiempo |
+|---|--------|:-----:|:---------:|:------:|
 | 1 | Prueba 1 — Filtrado por sucursal vista dueño (12 módulos BS) | L3 #1, L2 #6 | Alta | ~2h |
 | 2 | Prueba 2 — Filtrado por sucursal vista gerente | L3 #2, L2 #6 | Alta | ~1h |
-| 3 | Prueba 5 completa — Validación directa de R2 cleanup en eliminación de sucursal | L3 #5, L2 #9 | Media | ~15 min |
-| 4 | Revocación ScanYA E2E automatizado | L2 #8 | Media (manual ✅) | Sprint futuro |
-| 5 | Tutorial primera vez al crear sucursal | L2 #15 | Baja (UX opcional) | ~1h |
+
+### Nivel 2 — Recolector de Basura R2 (9 sub-pruebas)
+
+| # | Sub-prueba | Prioridad | Tiempo |
+|:-:|------|:---------:|:------:|
+| 5.1 | Eliminación sucursal con contenido exclusivo (prueba original) | Alta | ~15 min |
+| 5.2 | Editar imagen en artículo/logo/portada/perfil → anterior se borra | Alta | ~15 min |
+| 5.3 | Eliminar mensaje chat con adjunto → archivo R2 se borra | Media | ~15 min |
+| 5.4 | Seguridad endpoint admin (5 casos: 401/400/503) | Media | ~10 min |
+| 5.5 | Periodo de gracia (archivo reciente no se borra) | Media | ~10 min |
+| 5.6 | Multi-BD failover (secundaria offline) | Baja | ~10 min |
+| 5.7 | URLs rotas (archivo R2 borrado manual) | Baja | ~5 min |
+| 5.8 | Reference counting compartido (2 recursos, 1 URL) | Baja | ~10 min |
+| 5.9 | Cron ChatYA forzado manual | Baja | ~15 min |
+
+**Subtotal nivel 2:** ~90 min si se hacen todas.
+
+### Nivel 3 — Futuro / opcionales
+
+| # | Tarea | Lista | Prioridad | Tiempo |
+|---|-------|:-----:|:---------:|:------:|
+| 6 | Revocación ScanYA E2E automatizado | L2 #8 | Media (manual ✅) | Sprint futuro |
+| 7 | Tutorial primera vez al crear sucursal | L2 #15 | Baja (UX opcional) | ~1h |
 
 ---
 
