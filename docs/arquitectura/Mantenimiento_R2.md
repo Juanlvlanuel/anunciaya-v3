@@ -1,7 +1,8 @@
-# 🧹 Mantenimiento R2 — Reconcile de Imágenes Huérfanas
+# 🧹 Mantenimiento R2 — Recolector de Basura de Archivos Huérfanos
 
-**Última actualización:** 17 Abril 2026
+**Última actualización:** 18 Abril 2026
 **Estado:** ✅ Operacional
+**Patrón técnico:** recolector de basura con algoritmo mark-and-sweep + reference counting + reconciliación cross-ambiente
 
 ---
 
@@ -10,6 +11,20 @@
 Con el tiempo, el bucket R2 acumula archivos huérfanos: imágenes subidas por el frontend pero nunca referenciadas en BD (uploads abandonados), imágenes anteriores al reemplazo (antes de los fixes de abril 2026), archivos dejados por eliminaciones incompletas, etc.
 
 Borrar manualmente es tedioso y riesgoso (es fácil borrar un archivo que sí se usa). Esta herramienta automatiza el proceso con **0% de falsos positivos** como garantía.
+
+## Patrón técnico — Recolector de Basura
+
+El sistema implementa un **recolector de basura (garbage collector) de archivos huérfanos** — mismo concepto que el GC de memoria en lenguajes como JavaScript o Java, pero aplicado al storage R2 en vez de a RAM.
+
+**Algoritmo: Mark-and-Sweep**
+1. **Mark (marcar)** — `listarUrlsEnUso()` recorre el registry y marca como "vivos" todos los archivos referenciados por algún registro de BD
+2. **Sweep (barrer)** — `ejecutarLimpiezaR2()` compara el universo R2 contra los marcados y elimina los no marcados (huérfanos)
+
+**Extensiones sobre el algoritmo base:**
+- **Reference counting**: antes de borrar un archivo verifica si otros registros lo referencian (previene el bug de URLs compartidas entre ofertas/artículos clonados entre sucursales)
+- **Reconciliación cross-ambiente**: consulta múltiples BDs (local + producción) antes de decidir que un archivo es huérfano — necesario cuando el bucket R2 es compartido entre ambientes
+
+Análogos conocidos en otros ecosistemas: `django-cleanup` (Django), `purge_unattached` (Rails ActiveStorage), `git lfs prune` (Git LFS), `npm prune` (npm). Todos son recolectores de basura de recursos huérfanos con variaciones del mismo patrón.
 
 ---
 

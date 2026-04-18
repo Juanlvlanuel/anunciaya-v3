@@ -69,8 +69,11 @@ anunciaya/
 **5 Públicas:** Negocios ✅, MarketPlace 🚧, Ofertas 🚧, Dinámicas 🚧, Empleos 🚧
 **3 Secundarias:** CardYA ✅, ChatYA ✅ (componente flotante, sin ruta dedicada), Perfil ✅
 **3 Comerciales:** Business Studio ✅, ScanYA ✅, Onboarding ✅
+**Administración del Sistema:** Panel Admin 🚧 (infraestructura backend lista, UI pendiente)
 
 > 🚧 = Ruta existe en el router pero está como placeholder (sin implementar)
+
+> **Panel Admin ≠ Business Studio**: el Panel Admin es para el equipo interno de AnunciaYA **+ vendedores/embajadores externos** que venden membresías a comerciantes. Cross-negocio: aprobar/suspender negocios, mantenimiento, reportes globales, gestión de ventas y comisiones. BS es para dueños de UN negocio. Panel Admin tiene múltiples roles (admin, vendedor) con permisos distintos. Convención de carpetas: `controllers/admin/`, `services/admin/`, `routes/admin/` con `index.ts` agregador. Ver `docs/arquitectura/Panel_Admin.md`.
 
 ---
 
@@ -248,8 +251,17 @@ docs/
 │   ├── Negocios.md
 │   ├── Onboarding.md
 │   ├── ScanYA.md
+│   ├── Sucursales.md
+│   ├── Empleados.md
+│   ├── Promociones.md
+│   ├── Notificaciones.md
+│   ├── Alertas.md
+│   ├── Reportes.md
+│   ├── Clientes_Transacciones.md
 │   ├── Guardados.md
-│   └── Clientes_Transacciones.md
+│   ├── Panel_Admin.md          ← infraestructura admin del sistema
+│   └── Mantenimiento_R2.md     ← reconcile de imágenes huérfanas (sub-sección Mantenimiento del Panel Admin)
+├── migraciones/                → SQL one-shot que debe ejecutarse manualmente (ej. tabla r2_reconcile_log)
 ├── legacy/                     → Documentos históricos
 └── reportes/                   → Reportes de auditorías UX y tokens por módulo
 ```

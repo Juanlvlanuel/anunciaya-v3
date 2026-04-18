@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 16 Abril 2026
+> **Última actualización:** 17 Abril 2026
 > **Progreso global:** 98% completado
-> **Fase actual:** BS Sucursales ✅ — próximo: Secciones Públicas o Rifas/Vacantes (bloqueados)
+> **Fase actual:** BS Sucursales ✅ + Panel Admin (infra backend) ✅ — próximo: Secciones Públicas o Rifas/Vacantes (bloqueados)
 
 ---
 
@@ -21,7 +21,7 @@
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
 | **Business Studio** (5.4) | ⏳ 86% (12/14 módulos) | Rifas, Vacantes (bloqueados) |
 | **Secciones Públicas** (6.x) | ⏳ 0% | Ofertas, MarketPlace, Dinámicas, Empleos |
-| **Panel Admin** (6.7) | ⏳ 0% | ~2 semanas. Vendedores, métricas, gestión negocios/usuarios, Stripe, reportes |
+| **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
 
 ---

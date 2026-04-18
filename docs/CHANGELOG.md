@@ -7,6 +7,69 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [17 Abril 2026 — Sprint de cierre] - Resumen consolidado del día
+
+> **Infraestructura de mantenimiento R2 + auditoría sistemática de leaks de archivos + arranque del Panel Admin.**
+
+Esta entrada resume las tres oleadas de trabajo del 17 de abril en una sola vista. Los bullets técnicos completos siguen en las entradas detalladas más abajo.
+
+### 🎯 Lo más importante
+
+1. **Herramienta operativa de mantenimiento R2** — endpoint admin que detecta y limpia archivos huérfanos en el bucket, con 0% de falsos positivos garantizados por: registry exhaustivo, reference-count, dry-run por defecto, periodo de gracia, tope de borrados, multi-BD cross-ambiente. Con auditoría persistente en tabla `r2_reconcile_log`
+2. **11 bugs fuente de leaks de archivos corregidos** — cada flujo que borra o reemplaza imágenes ahora verifica referencias antes de tocar storage. Cubre artículos, ofertas, recompensas, galería, logos, portadas, perfiles, mensajes de chat (soft-delete + conversaciones), revocación de cupones, eliminación de sucursales y el cron diario de limpieza
+3. **Arquitectura del Panel Admin iniciada** — convención `controllers/admin/`, `services/admin/`, `routes/admin/` con middleware temporal `requireAdminSecret` listo para reemplazar por auth admin real cuando haya UI. Primera sección operativa: Mantenimiento
+4. **Limpieza histórica ejecutada con éxito** — 128 archivos huérfanos eliminados del bucket en una sola pasada, 0 fallas, con auditoría registrada. Bucket ahora al 100% en balance `enR2 = enBD` por carpeta
+
+### 🧭 Otros ejes del mismo día (entradas detalladas más abajo)
+
+- **Notificaciones por sucursal** — filtrado contextual (BS vs fuera de BS), fan-out a gerentes, limpieza automática al cerrar ciclo, socket de eliminación en vivo, marcar todas leídas por contexto
+- **Promociones** — estados computados con CASE, paleta unificada de badges, política de visibilidad de cupones vencidos
+- **Visitas del cliente** — cálculo unificado entre tabla/modal/export, incluye canjes puros de voucher
+- **Validación live** de inputs (nick de empleado, correo de contacto con typo detection, teléfono)
+- **Bloqueo login ScanYA** en sucursal desactivada
+- **Varios fixes puntuales** — interceptor Axios 4xx, GREATEST defensivo, orden CASE SQL, paleta badges transacciones
+
+### 📚 Documentación creada/actualizada
+
+- `docs/arquitectura/Panel_Admin.md` ← NUEVO (paraguas del Panel Admin)
+- `docs/arquitectura/Mantenimiento_R2.md` ← NUEVO (reconcile R2, multi-BD, auditoría)
+- `docs/migraciones/2026-04-17-r2-reconcile-log.sql` ← NUEVO (migración SQL)
+- `docs/arquitectura/Notificaciones.md` — filtrado por sucursal, destinatarios, limpieza automática
+- `docs/arquitectura/Promociones.md` v3.1 — estados computados, paleta unificada
+- `docs/arquitectura/ScanYA.md` v1.4 — bloqueo login sucursal desactivada + cleanup notificaciones
+- `docs/arquitectura/CardYA.md` v2.1 — notificaciones nivel negocio + GREATEST defensivo
+- `docs/arquitectura/Empleados.md` — validación live nick + InputCorreoValidado modo contacto
+- `docs/arquitectura/Sucursales.md` — edge case login desactivada
+- `docs/arquitectura/Clientes_Transacciones.md` v3.2 — cálculo de visitas + filtro cancelados
+- `docs/arquitectura/Sistema.md` v9.1 — Panel Admin como tercer ámbito operativo
+- `docs/estandares/LECCIONES_TECNICAS.md` — ~7 reglas nuevas (reference count, text-scan-urls, soft-delete con URLs, interceptor 4xx, GREATEST, orden CASE, multi-BD reconcile)
+- `docs/estandares/PATRON_REACT_QUERY.md` — mutations deben verificar `res.success`
+- `docs/ROADMAP.md` — Panel Admin 10% (infra backend)
+- `CLAUDE.md` — Panel Admin agregado como ámbito "Administración del Sistema"
+
+### 🗂️ Archivos nuevos relevantes
+
+```
+apps/api/src/
+├── middleware/adminSecret.middleware.ts        ← NUEVO
+├── routes/admin/index.ts                        ← NUEVO (agregador)
+├── routes/admin/mantenimiento.routes.ts         ← NUEVO
+├── controllers/admin/mantenimiento.controller.ts ← NUEVO
+├── services/admin/mantenimiento.service.ts      ← NUEVO (reconcile R2)
+├── db/reconcileConnections.ts                   ← NUEVO (multi-BD)
+└── utils/imageRegistry.ts                       ← NUEVO (19 campos registrados)
+```
+
+### ✅ Estado final
+
+- Bucket R2: balanceado al 100% (0 huérfanos)
+- 11 flujos de borrado/reemplazo de imágenes ahora limpian storage correctamente
+- Cron diario a las 3 AM ya no genera huérfanos
+- Sistema reusable para futuro Panel Admin (solo cambia middleware cuando haya auth real)
+- 128 archivos basura eliminados con auditoría verificable
+
+---
+
 ## [17 Abril 2026] - Notificaciones por sucursal, estados computados de cupones, validación live de inputs
 
 ### ✨ Agregado
