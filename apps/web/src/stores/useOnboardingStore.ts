@@ -40,6 +40,9 @@ interface ProgresoOnboarding {
         nombre: string;
         esBorrador: boolean;
     };
+    sucursal?: {
+        id: string;
+    } | null;
 }
 
 /**
@@ -344,6 +347,7 @@ export const useOnboardingStore = create<OnboardingState>()(
                     // ✅ UN SOLO SET - Todos los cambios juntos
                     set({
                         negocioId: miNegocio.id,
+                        sucursalId: progreso.sucursal?.id ?? null,
                         pasoActual,
                         pasosCompletados,
                         completado: progreso.onboardingCompletado,

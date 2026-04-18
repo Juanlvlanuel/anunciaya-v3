@@ -22,7 +22,17 @@ import {
     negocioHorarios,
     negocioMetodosPago,
     negocioGaleria,
+    articulos,
+    articuloSucursales,
+    ofertas,
+    empleados,
+    dinamicas,
+    dinamicaPremios,
+    bolsaTrabajo,
+    puntosTransacciones,
+    transaccionesEvidencia,
     usuarios,
+    recompensas,
 } from '../db/schemas/schema';
 import type {
     UbicacionInput,
@@ -32,6 +42,10 @@ import type {
 } from '../validations/onboarding.schema';
 
 import { v2 as cloudinary } from 'cloudinary';
+import { duplicarArchivo, eliminarArchivo, esUrlR2 } from './r2.service.js';
+import { getZonaHorariaPorEstado } from '../utils/zonaHoraria.js';
+import { revocarSesionesEmpleado } from '../utils/tokenStoreScanYA.js';
+import { emitirAUsuario } from '../socket.js';
 
 // ============================================
 // INFORMACIÓN GENERAL DEL NEGOCIO
@@ -210,6 +224,54 @@ export const actualizarRedesSocialesSucursal = async (
 };
 
 // ============================================
+// HELPERS INTERNOS — empleados de sucursal
+// ============================================
+
+/**
+ * Revoca las sesiones ScanYA de todos los empleados de una sucursal.
+ * - Cierra turnos activos (hora_fin = NOW)
+ * - Marca timestamp de revocación en Redis para cada empleado
+ * - Emite socket 'scanya:sesion-revocada' al usuario-dueño (ScanYA filtra por empleadoId)
+ *
+ * Se usa al DESACTIVAR o ELIMINAR una sucursal.
+ * No falla el flujo si alguna revocación individual falla — solo log.
+ */
+async function revocarEmpleadosDeSucursal(sucursalId: string, motivo: string): Promise<void> {
+	const empleadosSucursal = await db
+		.select({ id: empleados.id, usuarioId: empleados.usuarioId })
+		.from(empleados)
+		.where(eq(empleados.sucursalId, sucursalId));
+
+	if (empleadosSucursal.length === 0) return;
+
+	const empleadoIds = empleadosSucursal.map((e) => e.id);
+
+	// Cerrar turnos ScanYA abiertos en una sola query
+	await db.execute(sql`
+		UPDATE scanya_turnos
+		SET hora_fin = NOW(), notas_cierre = ${motivo}
+		WHERE hora_fin IS NULL AND empleado_id IN (${sql.join(empleadoIds.map((id) => sql`${id}`), sql`, `)})
+	`);
+
+	// Revocar cada empleado en Redis + emitir socket
+	for (const emp of empleadosSucursal) {
+		try {
+			await revocarSesionesEmpleado(emp.id);
+		} catch (err) {
+			console.error(`No se pudo revocar sesión ScanYA del empleado ${emp.id}:`, err);
+		}
+
+		if (emp.usuarioId) {
+			emitirAUsuario(emp.usuarioId, 'scanya:sesion-revocada', {
+				empleadoId: emp.id,
+				motivo,
+				timestamp: new Date().toISOString(),
+			});
+		}
+	}
+}
+
+// ============================================
 // UBICACIÓN DE SUCURSAL
 // ============================================
 
@@ -238,6 +300,10 @@ export const actualizarSucursal = async (
         const ubicacionPostGIS = `SRID=4326;POINT(${data.longitud} ${data.latitud})`;
 
         // 3. Actualizar datos de la sucursal
+        //    La zona horaria se deriva SIEMPRE del estado para evitar inconsistencias
+        //    (ignoramos la que venga del cliente).
+        const zonaHorariaDerivada = getZonaHorariaPorEstado(data.estado);
+
         await db
             .update(negocioSucursales)
             .set({
@@ -245,7 +311,7 @@ export const actualizarSucursal = async (
                 estado: data.estado,
                 direccion: data.direccion,
                 ubicacion: sql`ST_GeogFromText(${ubicacionPostGIS})`,
-                zonaHoraria: data.zonaHoraria,
+                zonaHoraria: zonaHorariaDerivada,
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocioSucursales.id, sucursalId));
@@ -408,6 +474,14 @@ export const actualizarHorariosSucursal = async (
  */
 export const actualizarLogoNegocio = async (negocioId: string, logoUrl: string) => {
     try {
+        // Capturar el logo anterior antes de sobrescribir para limpiar R2/Cloudinary
+        // (sin esto se acumulaban imágenes viejas al cambiar logo).
+        const [anterior] = await db
+            .select({ logoUrl: negocios.logoUrl })
+            .from(negocios)
+            .where(eq(negocios.id, negocioId))
+            .limit(1);
+
         await db
             .update(negocios)
             .set({
@@ -415,6 +489,12 @@ export const actualizarLogoNegocio = async (negocioId: string, logoUrl: string) 
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocios.id, negocioId));
+
+        if (anterior?.logoUrl && anterior.logoUrl !== logoUrl) {
+            eliminarImagenSiHuerfana(anterior.logoUrl).catch(err =>
+                console.warn('No se pudo limpiar logo anterior:', err)
+            );
+        }
 
         return { success: true, message: 'Logo actualizado correctamente' };
     } catch (error) {
@@ -435,13 +515,29 @@ export const actualizarPortadaSucursal = async (
     portadaUrl: string
 ) => {
     try {
+        // Obtener la URL anterior antes de sobrescribir — se borra de R2 después
+        // del UPDATE si ya no la usa nadie más. Sin esto se acumulan leaks cada
+        // vez que el dueño cambia la imagen.
+        const [anterior] = await db
+            .select({ portadaUrl: negocioSucursales.portadaUrl })
+            .from(negocioSucursales)
+            .where(eq(negocioSucursales.id, sucursalId))
+            .limit(1);
+
         await db
-            .update(negocioSucursales)  // ← CAMBIÓ
+            .update(negocioSucursales)
             .set({
                 portadaUrl: portadaUrl,
                 updatedAt: new Date().toISOString(),
             })
-            .where(eq(negocioSucursales.id, sucursalId));  // ← CAMBIÓ
+            .where(eq(negocioSucursales.id, sucursalId));
+
+        // Cleanup de la imagen anterior (si existía, era distinta y no la usa nadie más)
+        if (anterior?.portadaUrl && anterior.portadaUrl !== portadaUrl) {
+            eliminarImagenSiHuerfana(anterior.portadaUrl, sucursalId).catch(err =>
+                console.warn('No se pudo limpiar portada anterior:', err)
+            );
+        }
 
         return { success: true, message: 'Portada actualizada correctamente' };
     } catch (error) {
@@ -521,6 +617,113 @@ function extraerPublicIdDeUrl(url: string | null): string | null {
     } catch (error) {
         console.error('Error al extraer publicId:', error);
         return null;
+    }
+}
+
+/**
+ * Verifica si una URL de imagen está siendo usada en otro registro del sistema
+ * (portada/perfil de otra sucursal, artículos, galería, ofertas). Si está huérfana
+ * la borra de R2 o Cloudinary según corresponda.
+ *
+ * Se usa al reemplazar imagen de portada o foto de perfil de una sucursal — evita
+ * que la imagen anterior quede como basura en el storage, pero también protege
+ * contra borrar por error una URL compartida con otro registro (pueden quedar
+ * compartidas por el fallback del clonado cuando `duplicarArchivo` no puede
+ * replicar — típicamente con Cloudinary).
+ *
+ * @param url - URL de la imagen potencialmente huérfana
+ * @param excluirSucursalId - UUID de la sucursal que acaba de cambiar su imagen
+ *                            (para NO contar su propia nueva URL como "uso previo")
+ */
+export async function eliminarImagenSiHuerfana(
+    url: string,
+    excluirSucursalId?: string
+): Promise<void> {
+    try {
+        // 1. ¿Otra sucursal la usa como portada o perfil?
+        const condicionesSucursal = [
+            sql`(${negocioSucursales.portadaUrl} = ${url} OR ${negocioSucursales.fotoPerfil} = ${url})`,
+        ];
+        if (excluirSucursalId) {
+            condicionesSucursal.push(sql`${negocioSucursales.id} != ${excluirSucursalId}`);
+        }
+        const [{ total: enSucursales }] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(negocioSucursales)
+            .where(and(...condicionesSucursal));
+
+        if (enSucursales > 0) {
+            console.log(`ℹ️ Imagen conservada (usada por otra sucursal): ${url}`);
+            return;
+        }
+
+        // 2. ¿Algún artículo la usa como imagen principal o adicional?
+        const [{ total: enArticulos }] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(articulos)
+            .where(sql`${articulos.imagenPrincipal} = ${url} OR ${url} = ANY(${articulos.imagenesAdicionales})`);
+
+        if (enArticulos > 0) {
+            console.log(`ℹ️ Imagen conservada (usada por ${enArticulos} artículo/s): ${url}`);
+            return;
+        }
+
+        // 3. ¿Algún negocio la usa como logo?
+        const [{ total: enNegocios }] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(negocios)
+            .where(eq(negocios.logoUrl, url));
+
+        if (enNegocios > 0) {
+            console.log(`ℹ️ Imagen conservada (usada como logo de negocio): ${url}`);
+            return;
+        }
+
+        // 4. ¿Alguna imagen de galería la referencia?
+        const [{ total: enGaleria }] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(negocioGaleria)
+            .where(eq(negocioGaleria.url, url));
+
+        if (enGaleria > 0) {
+            console.log(`ℹ️ Imagen conservada (usada en galería): ${url}`);
+            return;
+        }
+
+        // 5. ¿Alguna oferta la referencia?
+        const [{ total: enOfertas }] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(ofertas)
+            .where(eq(ofertas.imagen, url));
+
+        if (enOfertas > 0) {
+            console.log(`ℹ️ Imagen conservada (usada por ${enOfertas} oferta/s): ${url}`);
+            return;
+        }
+
+        // 6. ¿Alguna recompensa la referencia?
+        const [{ total: enRecompensas }] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(recompensas)
+            .where(eq(recompensas.imagenUrl, url));
+
+        if (enRecompensas > 0) {
+            console.log(`ℹ️ Imagen conservada (usada por ${enRecompensas} recompensa/s): ${url}`);
+            return;
+        }
+
+        // 7. Huérfana — eliminar del storage correspondiente
+        if (esUrlR2(url)) {
+            await eliminarArchivo(url);
+        } else {
+            // Cloudinary
+            const publicId = extraerPublicIdDeUrl(url);
+            if (publicId) {
+                await cloudinary.uploader.destroy(publicId);
+            }
+        }
+    } catch (error) {
+        console.error('Error en eliminarImagenSiHuerfana:', error);
     }
 }
 
@@ -702,7 +905,7 @@ export const eliminarPortadaSucursal = async (sucursalId: string) => {
  */
 export const eliminarImagenGaleria = async (imageId: number) => {
     try {
-        // 1. Obtener cloudinaryPublicId (este SÍ existe en galería)
+        // 1. Obtener URL e identificadores
         const [imagen] = await db
             .select({
                 cloudinaryPublicId: negocioGaleria.cloudinaryPublicId,
@@ -716,23 +919,20 @@ export const eliminarImagenGaleria = async (imageId: number) => {
             throw new Error('Imagen no encontrada');
         }
 
-        // 2. Obtener publicId (primero intentar campo, luego extraer de URL)
-        const publicId = imagen.cloudinaryPublicId || extraerPublicIdDeUrl(imagen.url);
-
-        // 3. Eliminar de Cloudinary (si hay publicId)
-        if (publicId) {
-            try {
-                await cloudinary.uploader.destroy(publicId);
-            } catch (cloudinaryError) {
-                console.error('Error al eliminar imagen de Cloudinary:', cloudinaryError);
-                // Continuar aunque falle Cloudinary
-            }
-        }
-
-        // 4. Eliminar registro de BD
+        // 2. Eliminar registro de BD primero
         await db
             .delete(negocioGaleria)
             .where(eq(negocioGaleria.id, imageId));
+
+        // 3. Eliminar archivo del storage correspondiente (R2 o Cloudinary).
+        // Antes solo se limpiaba Cloudinary — las imágenes de galería que vivían
+        // en R2 quedaban huérfanas al borrarse. El helper `eliminarImagenSiHuerfana`
+        // verifica reference-count antes de borrar (protección contra compartición).
+        if (imagen.url) {
+            eliminarImagenSiHuerfana(imagen.url).catch(err =>
+                console.error('No se pudo limpiar archivo de galería:', err)
+            );
+        }
 
         return {
             success: true,
@@ -858,6 +1058,14 @@ export const actualizarFotoPerfilSucursal = async (
     fotoPerfilUrl: string
 ) => {
     try {
+        // Obtener la URL anterior para limpiar después del UPDATE (ver comentario
+        // en actualizarPortadaSucursal sobre el leak de imágenes antiguas).
+        const [anterior] = await db
+            .select({ fotoPerfil: negocioSucursales.fotoPerfil })
+            .from(negocioSucursales)
+            .where(eq(negocioSucursales.id, sucursalId))
+            .limit(1);
+
         await db
             .update(negocioSucursales)
             .set({
@@ -865,6 +1073,12 @@ export const actualizarFotoPerfilSucursal = async (
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocioSucursales.id, sucursalId));
+
+        if (anterior?.fotoPerfil && anterior.fotoPerfil !== fotoPerfilUrl) {
+            eliminarImagenSiHuerfana(anterior.fotoPerfil, sucursalId).catch(err =>
+                console.warn('No se pudo limpiar foto de perfil anterior:', err)
+            );
+        }
 
         return { success: true, message: 'Foto de perfil actualizada correctamente' };
     } catch (error) {
@@ -928,6 +1142,588 @@ export const actualizarServicioDomicilio = async (
 };
 
 // ============================================
+// CRUD SUCURSALES
+// ============================================
+
+/**
+ * Crea una nueva sucursal para un negocio
+ * La sucursal se crea como NO principal y activa.
+ * También crea 7 registros de horarios vacíos (cerrado por defecto).
+ */
+export const crearSucursal = async (
+	negocioId: string,
+	datos: {
+		nombre: string;
+		ciudad: string;
+		estado: string;
+		direccion?: string;
+		telefono?: string;
+		whatsapp?: string;
+		correo?: string;
+		latitud: number;
+		longitud: number;
+	}
+) => {
+	try {
+		// 1. Validar que no exista otra sucursal con el mismo nombre en este negocio
+		//    (comparación case-insensitive, ignorando espacios al principio/fin)
+		const nombreNormalizado = datos.nombre.trim().toLowerCase();
+		const sucursalesExistentes = await db
+			.select({ nombre: negocioSucursales.nombre })
+			.from(negocioSucursales)
+			.where(eq(negocioSucursales.negocioId, negocioId));
+
+		const duplicado = sucursalesExistentes.some(
+			(s) => s.nombre.trim().toLowerCase() === nombreNormalizado
+		);
+		if (duplicado) {
+			throw new Error('NOMBRE_DUPLICADO');
+		}
+
+		// 2. Buscar la sucursal principal para clonar datos
+		const [matriz] = await db
+			.select()
+			.from(negocioSucursales)
+			.where(and(
+				eq(negocioSucursales.negocioId, negocioId),
+				eq(negocioSucursales.esPrincipal, true),
+			));
+
+		// 3. Crear la nueva sucursal con coordenadas + PostGIS point
+		// SRID 4326 = WGS84 (estándar para lat/lng). Mismo patrón que actualizarSucursal.
+		const ubicacionPostGIS = `SRID=4326;POINT(${datos.longitud} ${datos.latitud})`;
+
+		// Zona horaria se determina por el estado de la sucursal (no de Matriz)
+		// para soportar correctamente negocios con sucursales en distintas zonas de México.
+		const zonaHoraria = getZonaHorariaPorEstado(datos.estado);
+
+		const [sucursal] = await db
+			.insert(negocioSucursales)
+			.values({
+				negocioId,
+				nombre: datos.nombre,
+				ciudad: datos.ciudad,
+				estado: datos.estado,
+				direccion: datos.direccion || null,
+				telefono: datos.telefono || null,
+				whatsapp: datos.whatsapp || null,
+				correo: datos.correo || null,
+				ubicacion: sql`ST_GeogFromText(${ubicacionPostGIS})`,
+				esPrincipal: false,
+				activa: true,
+				zonaHoraria,
+				// Heredar flags de servicio de Matriz (ofertas, CardYA, etc. se configuran per-sucursal)
+				...(matriz && {
+					tieneEnvioDomicilio: matriz.tieneEnvioDomicilio,
+					tieneServicioDomicilio: matriz.tieneServicioDomicilio,
+				}),
+			})
+			.returning();
+
+		// 3. Clonar horarios de Matriz (o crear vacíos si no hay Matriz)
+		if (matriz) {
+			const horariosMatriz = await db
+				.select()
+				.from(negocioHorarios)
+				.where(eq(negocioHorarios.sucursalId, matriz.id));
+
+			if (horariosMatriz.length > 0) {
+				const horariosClonados = horariosMatriz.map(h => ({
+					sucursalId: sucursal.id,
+					diaSemana: h.diaSemana,
+					abierto: h.abierto,
+					horaApertura: h.horaApertura,
+					horaCierre: h.horaCierre,
+					tieneHorarioComida: h.tieneHorarioComida,
+					comidaInicio: h.comidaInicio,
+					comidaFin: h.comidaFin,
+				}));
+				await db.insert(negocioHorarios).values(horariosClonados);
+			} else {
+				// Matriz sin horarios → crear vacíos
+				const horariosVacios = Array.from({ length: 7 }, (_, i) => ({
+					sucursalId: sucursal.id,
+					diaSemana: i,
+					abierto: false,
+					horaApertura: null,
+					horaCierre: null,
+					tieneHorarioComida: false,
+					comidaInicio: null,
+					comidaFin: null,
+				}));
+				await db.insert(negocioHorarios).values(horariosVacios);
+			}
+		} else {
+			// Sin Matriz → horarios vacíos
+			const horariosVacios = Array.from({ length: 7 }, (_, i) => ({
+				sucursalId: sucursal.id,
+				diaSemana: i,
+				abierto: false,
+				horaApertura: null,
+				horaCierre: null,
+				tieneHorarioComida: false,
+				comidaInicio: null,
+				comidaFin: null,
+			}));
+			await db.insert(negocioHorarios).values(horariosVacios);
+		}
+
+		// 4. Clonar métodos de pago de Matriz
+		if (matriz) {
+			const metodosMatriz = await db
+				.select()
+				.from(negocioMetodosPago)
+				.where(eq(negocioMetodosPago.sucursalId, matriz.id));
+
+			if (metodosMatriz.length > 0) {
+				const metodosClonados = metodosMatriz.map(m => ({
+					negocioId,
+					sucursalId: sucursal.id,
+					tipo: m.tipo,
+					activo: m.activo,
+					instrucciones: m.instrucciones,
+				}));
+				await db.insert(negocioMetodosPago).values(metodosClonados);
+			}
+		}
+
+		// 5. Clonar catálogo (duplicar artículos como registros independientes con imágenes en R2)
+		if (matriz) {
+			const articulosIds = await db
+				.select({ articuloId: articuloSucursales.articuloId })
+				.from(articuloSucursales)
+				.where(eq(articuloSucursales.sucursalId, matriz.id));
+
+			if (articulosIds.length > 0) {
+				const articulosOriginales = await db
+					.select()
+					.from(articulos)
+					.where(inArray(articulos.id, articulosIds.map(a => a.articuloId)));
+
+				for (const art of articulosOriginales) {
+					// Duplicar imagen principal en R2
+					let nuevaImagenPrincipal = art.imagenPrincipal;
+					if (art.imagenPrincipal) {
+						const duplicada = await duplicarArchivo(art.imagenPrincipal, 'articulos');
+						if (duplicada) nuevaImagenPrincipal = duplicada;
+					}
+
+					// Duplicar imágenes adicionales en R2
+					let nuevasImagenesAdicionales = art.imagenesAdicionales;
+					if (art.imagenesAdicionales && art.imagenesAdicionales.length > 0) {
+						const duplicadas: string[] = [];
+						for (const imgUrl of art.imagenesAdicionales) {
+							if (imgUrl && imgUrl.trim()) {
+								const duplicada = await duplicarArchivo(imgUrl, 'articulos');
+								duplicadas.push(duplicada || imgUrl);
+							}
+						}
+						if (duplicadas.length > 0) nuevasImagenesAdicionales = duplicadas;
+					}
+
+					// Crear artículo duplicado
+					const [nuevoArticulo] = await db
+						.insert(articulos)
+						.values({
+							negocioId,
+							tipo: art.tipo,
+							nombre: art.nombre,
+							descripcion: art.descripcion,
+							categoria: art.categoria,
+							sku: art.sku,
+							precioBase: art.precioBase,
+							precioDesde: art.precioDesde,
+							imagenPrincipal: nuevaImagenPrincipal,
+							imagenesAdicionales: nuevasImagenesAdicionales,
+							requiereCita: art.requiereCita,
+							duracionEstimada: art.duracionEstimada,
+							disponible: art.disponible,
+							destacado: art.destacado,
+							orden: art.orden,
+						})
+						.returning({ id: articulos.id });
+
+					// Asignar a la nueva sucursal
+					await db.insert(articuloSucursales).values({
+						articuloId: nuevoArticulo.id,
+						sucursalId: sucursal.id,
+					});
+				}
+			}
+		}
+
+		// 6. Duplicar imágenes de Matriz en R2 (foto perfil, portada, galería)
+		if (matriz) {
+			const imagenesActualizadas: Record<string, string> = {};
+
+			// Foto de perfil
+			if (matriz.fotoPerfil) {
+				const nuevaUrl = await duplicarArchivo(matriz.fotoPerfil, 'perfiles');
+				if (nuevaUrl) imagenesActualizadas.fotoPerfil = nuevaUrl;
+			}
+
+			// Portada
+			if (matriz.portadaUrl) {
+				const nuevaUrl = await duplicarArchivo(matriz.portadaUrl, 'portadas');
+				if (nuevaUrl) imagenesActualizadas.portadaUrl = nuevaUrl;
+			}
+
+			// Actualizar sucursal con URLs duplicadas
+			if (Object.keys(imagenesActualizadas).length > 0) {
+				await db
+					.update(negocioSucursales)
+					.set({ ...imagenesActualizadas, updatedAt: new Date().toISOString() })
+					.where(eq(negocioSucursales.id, sucursal.id));
+			}
+
+			// Galería
+			const galeriaMatriz = await db
+				.select()
+				.from(negocioGaleria)
+				.where(eq(negocioGaleria.sucursalId, matriz.id));
+
+			if (galeriaMatriz.length > 0) {
+				for (const img of galeriaMatriz) {
+					const nuevaUrl = await duplicarArchivo(img.url, 'galeria');
+					if (nuevaUrl) {
+						await db.insert(negocioGaleria).values({
+							negocioId,
+							sucursalId: sucursal.id,
+							url: nuevaUrl,
+							cloudinaryPublicId: null, // Es copia independiente en R2
+							titulo: img.titulo,
+							orden: img.orden,
+						});
+					}
+				}
+			}
+		}
+
+		// 7. Clonar ofertas públicas (NO cupones privados) con imágenes duplicadas en R2
+		//    Criterio: visibilidad = 'publico' → es oferta, 'privado' → es cupón asignado
+		if (matriz) {
+			const ofertasMatriz = await db
+				.select()
+				.from(ofertas)
+				.where(and(
+					eq(ofertas.sucursalId, matriz.id),
+					eq(ofertas.visibilidad, 'publico'),
+				));
+
+			if (ofertasMatriz.length > 0) {
+				for (const oferta of ofertasMatriz) {
+					// Duplicar imagen en R2 si existe
+					let nuevaImagen = oferta.imagen;
+					if (oferta.imagen) {
+						const duplicada = await duplicarArchivo(oferta.imagen, 'ofertas');
+						if (duplicada) nuevaImagen = duplicada;
+					}
+
+					// Insertar oferta clonada (sin historial de usos)
+					await db.insert(ofertas).values({
+						negocioId,
+						sucursalId: sucursal.id,
+						articuloId: oferta.articuloId,
+						titulo: oferta.titulo,
+						descripcion: oferta.descripcion,
+						imagen: nuevaImagen,
+						tipo: oferta.tipo,
+						valor: oferta.valor,
+						compraMinima: oferta.compraMinima,
+						fechaInicio: oferta.fechaInicio,
+						fechaFin: oferta.fechaFin,
+						limiteUsos: oferta.limiteUsos,
+						usosActuales: 0,
+						activo: oferta.activo,
+						visibilidad: 'publico',
+						limiteUsosPorUsuario: oferta.limiteUsosPorUsuario,
+					});
+				}
+			}
+		}
+
+		return { success: true, sucursal };
+	} catch (error) {
+		console.error('Error al crear sucursal:', error);
+		// Re-lanzar errores de validación conocidos con su mensaje intacto
+		if (error instanceof Error && error.message === 'NOMBRE_DUPLICADO') {
+			throw error;
+		}
+		throw new Error('Error al crear sucursal');
+	}
+};
+
+/**
+ * Activa o desactiva una sucursal.
+ * Si tiene gerente asignado y se desactiva → revocar gerente automáticamente.
+ */
+export const toggleActivaSucursal = async (
+	sucursalId: string,
+	activa: boolean
+) => {
+	try {
+		// Validar que la sucursal existe y no es la principal (si se está desactivando)
+		const [sucursal] = await db
+			.select({
+				id: negocioSucursales.id,
+				esPrincipal: negocioSucursales.esPrincipal,
+			})
+			.from(negocioSucursales)
+			.where(eq(negocioSucursales.id, sucursalId));
+
+		if (!sucursal) {
+			throw new Error('Sucursal no encontrada');
+		}
+
+		if (!activa && sucursal.esPrincipal) {
+			throw new Error('La Matriz no se puede desactivar');
+		}
+
+		if (!activa) {
+			// Si tiene gerente, revocarlo
+			const [gerente] = await db
+				.select({ id: usuarios.id })
+				.from(usuarios)
+				.where(eq(usuarios.sucursalAsignada, sucursalId));
+
+			if (gerente) {
+				await db
+					.update(usuarios)
+					.set({
+						sucursalAsignada: null,
+						negocioId: null,
+						modoActivo: 'personal',
+						perfil: 'personal',
+						tieneModoComercial: false,
+						updatedAt: new Date().toISOString(),
+					})
+					.where(eq(usuarios.id, gerente.id));
+			}
+
+			// Revocar sesiones ScanYA de todos los empleados de esta sucursal
+			// (empleado sigue existiendo en BD — al reactivar la sucursal podrá volver a iniciar sesión)
+			await revocarEmpleadosDeSucursal(sucursalId, 'Sucursal desactivada');
+		}
+
+		await db
+			.update(negocioSucursales)
+			.set({
+				activa,
+				updatedAt: new Date().toISOString(),
+			})
+			.where(eq(negocioSucursales.id, sucursalId));
+
+		return { success: true, message: activa ? 'Sucursal activada' : 'Sucursal desactivada' };
+	} catch (error) {
+		if (error instanceof Error && (
+			error.message.includes('principal') ||
+			error.message.includes('no encontrada')
+		)) {
+			throw error;
+		}
+		console.error('Error al cambiar estado de sucursal:', error);
+		throw new Error('Error al cambiar estado de sucursal');
+	}
+};
+
+/**
+ * Elimina una sucursal y todas sus imágenes de R2.
+ * La sucursal principal NO se puede eliminar.
+ * Si tiene gerente → revocar primero.
+ * Limpia imágenes de: sucursal, galería, artículos, ofertas, empleados,
+ * dinámicas, bolsa de trabajo y tickets ScanYA.
+ */
+export const eliminarSucursal = async (sucursalId: string) => {
+	try {
+		const [sucursal] = await db
+			.select({
+				esPrincipal: negocioSucursales.esPrincipal,
+				fotoPerfil: negocioSucursales.fotoPerfil,
+				portadaUrl: negocioSucursales.portadaUrl,
+			})
+			.from(negocioSucursales)
+			.where(eq(negocioSucursales.id, sucursalId));
+
+		if (!sucursal) {
+			throw new Error('Sucursal no encontrada');
+		}
+
+		if (sucursal.esPrincipal) {
+			throw new Error('La Matriz no se puede eliminar');
+		}
+
+		// ─── 0. Proteger historial: si hay transacciones, bloquear eliminación física ───
+		// Cuando una sucursal tiene ventas registradas (`puntos_transacciones`), no debe
+		// eliminarse para preservar el historial de negocio. En su lugar, el dueño debe
+		// desactivarla (lo cual ya revoca empleados y la oculta del feed público).
+		const [{ total: totalTransacciones }] = await db
+			.select({ total: sql<number>`count(*)::int` })
+			.from(puntosTransacciones)
+			.where(eq(puntosTransacciones.sucursalId, sucursalId));
+
+		if (totalTransacciones > 0) {
+			throw new Error('TIENE_HISTORIAL');
+		}
+
+		// ─── 1. Revocar gerente si tiene ───
+		const [gerente] = await db
+			.select({ id: usuarios.id })
+			.from(usuarios)
+			.where(eq(usuarios.sucursalAsignada, sucursalId));
+
+		if (gerente) {
+			await db
+				.update(usuarios)
+				.set({
+					sucursalAsignada: null,
+					negocioId: null,
+					modoActivo: 'personal',
+					perfil: 'personal',
+					tieneModoComercial: false,
+					updatedAt: new Date().toISOString(),
+				})
+				.where(eq(usuarios.id, gerente.id));
+		}
+
+		// ─── 1.1 Revocar sesiones ScanYA de los empleados ANTES del CASCADE ───
+		// Una vez que se elimine la sucursal, el FK CASCADE borrará los empleados;
+		// necesitamos sus IDs y usuarioId ahora para notificarlos y limpiar Redis.
+		await revocarEmpleadosDeSucursal(sucursalId, 'Sucursal eliminada');
+
+		// ─── 2. Recolectar TODAS las URLs de R2 a eliminar (queries en paralelo) ───
+		const urlsAEliminar: string[] = [];
+
+		// Sucursal: perfil + portada
+		if (sucursal.fotoPerfil) urlsAEliminar.push(sucursal.fotoPerfil);
+		if (sucursal.portadaUrl) urlsAEliminar.push(sucursal.portadaUrl);
+
+		// Queries en paralelo para recolectar URLs
+		const [galeriaImgs, articulosAsignados, ofertasImgs, empleadosFotos, dinamicasData, vacantesImgs, transaccionesSuc] = await Promise.all([
+			db.select({ url: negocioGaleria.url }).from(negocioGaleria).where(eq(negocioGaleria.sucursalId, sucursalId)),
+			db.select({ articuloId: articuloSucursales.articuloId }).from(articuloSucursales).where(eq(articuloSucursales.sucursalId, sucursalId)),
+			db.select({ imagen: ofertas.imagen }).from(ofertas).where(eq(ofertas.sucursalId, sucursalId)),
+			db.select({ fotoUrl: empleados.fotoUrl }).from(empleados).where(eq(empleados.sucursalId, sucursalId)),
+			db.select({ id: dinamicas.id, imagenUrl: dinamicas.imagenUrl }).from(dinamicas).where(eq(dinamicas.sucursalId, sucursalId)),
+			db.select({ portafolioUrl: bolsaTrabajo.portafolioUrl }).from(bolsaTrabajo).where(eq(bolsaTrabajo.sucursalId, sucursalId)),
+			db.select({ id: puntosTransacciones.id, fotoTicketUrl: puntosTransacciones.fotoTicketUrl }).from(puntosTransacciones).where(eq(puntosTransacciones.sucursalId, sucursalId)),
+		]);
+
+		// Galería
+		for (const img of galeriaImgs) if (img.url) urlsAEliminar.push(img.url);
+
+		// Ofertas/Cupones
+		for (const o of ofertasImgs) if (o.imagen) urlsAEliminar.push(o.imagen);
+
+		// Empleados
+		for (const e of empleadosFotos) if (e.fotoUrl) urlsAEliminar.push(e.fotoUrl);
+
+		// Dinámicas + sus premios
+		for (const d of dinamicasData) if (d.imagenUrl) urlsAEliminar.push(d.imagenUrl);
+
+		if (dinamicasData.length > 0) {
+			const premiosImgs = await db
+				.select({ imagenUrl: dinamicaPremios.imagenUrl })
+				.from(dinamicaPremios)
+				.where(inArray(dinamicaPremios.dinamicaId, dinamicasData.map(d => d.id)));
+
+			for (const p of premiosImgs) if (p.imagenUrl) urlsAEliminar.push(p.imagenUrl);
+		}
+
+		// Bolsa de trabajo
+		for (const v of vacantesImgs) if (v.portafolioUrl) urlsAEliminar.push(v.portafolioUrl);
+
+		// Tickets ScanYA + evidencia
+		if (transaccionesSuc.length > 0) {
+			for (const t of transaccionesSuc) if (t.fotoTicketUrl) urlsAEliminar.push(t.fotoTicketUrl);
+
+			const evidencias = await db
+				.select({ urlImagen: transaccionesEvidencia.urlImagen })
+				.from(transaccionesEvidencia)
+				.where(inArray(transaccionesEvidencia.transaccionId, transaccionesSuc.map(t => t.id)));
+
+			for (const ev of evidencias) if (ev.urlImagen) urlsAEliminar.push(ev.urlImagen);
+		}
+
+		// ─── 3. Artículos huérfanos: eliminar asignaciones, recolectar imágenes, borrar registros ───
+		await db.delete(articuloSucursales).where(eq(articuloSucursales.sucursalId, sucursalId));
+
+		const articulosHuerfanosIds: string[] = [];
+		for (const a of articulosAsignados) {
+			const [cuenta] = await db
+				.select({ total: sql<number>`count(*)::int` })
+				.from(articuloSucursales)
+				.where(eq(articuloSucursales.articuloId, a.articuloId));
+
+			if (cuenta.total === 0) articulosHuerfanosIds.push(a.articuloId);
+		}
+
+		if (articulosHuerfanosIds.length > 0) {
+			const articulosData = await db
+				.select({ id: articulos.id, imagenPrincipal: articulos.imagenPrincipal, imagenesAdicionales: articulos.imagenesAdicionales })
+				.from(articulos)
+				.where(inArray(articulos.id, articulosHuerfanosIds));
+
+			for (const art of articulosData) {
+				if (art.imagenPrincipal) urlsAEliminar.push(art.imagenPrincipal);
+				if (art.imagenesAdicionales) {
+					for (const imgUrl of art.imagenesAdicionales) {
+						if (imgUrl?.trim()) urlsAEliminar.push(imgUrl);
+					}
+				}
+			}
+
+			await db.delete(articulos).where(inArray(articulos.id, articulosHuerfanosIds));
+		}
+
+		// ─── 4. Eliminar imágenes de R2 en paralelo — solo las NO compartidas ───
+		// CRÍTICO: verificar que ningún otro artículo del sistema use la misma
+		// URL antes de borrar. Las URLs pueden compartirse entre artículos de
+		// distintas sucursales (fallback del clonado cuando `duplicarArchivo`
+		// no puede replicar, típicamente con Cloudinary). Filtrar solo R2 no
+		// es suficiente — también pueden existir URLs R2 compartidas.
+		const urlsR2 = urlsAEliminar.filter(url => esUrlR2(url));
+		if (urlsR2.length > 0) {
+			const urlsSeguras: string[] = [];
+			for (const url of urlsR2) {
+				const [{ total }] = await db
+					.select({ total: sql<number>`COUNT(*)::int` })
+					.from(articulos)
+					.where(sql`${articulos.imagenPrincipal} = ${url} OR ${url} = ANY(${articulos.imagenesAdicionales})`);
+
+				if (total === 0) {
+					urlsSeguras.push(url);
+				} else {
+					console.log(`ℹ️ Imagen R2 conservada (usada por ${total} artículo/s): ${url}`);
+				}
+			}
+
+			if (urlsSeguras.length > 0) {
+				await Promise.all(
+					urlsSeguras.map(url => eliminarArchivo(url).catch(err =>
+						console.warn('No se pudo eliminar de R2:', url, err)
+					))
+				);
+			}
+		}
+
+		// ─── 5. Hard delete: CASCADE elimina horarios, metodos_pago, galeria, etc. ───
+		await db.delete(negocioSucursales).where(eq(negocioSucursales.id, sucursalId));
+
+		return { success: true, message: 'Sucursal eliminada' };
+	} catch (error) {
+		if (error instanceof Error && (
+			error.message.includes('principal') ||
+			error.message.includes('no encontrada') ||
+			error.message === 'TIENE_HISTORIAL'
+		)) {
+			throw error;
+		}
+		console.error('Error al eliminar sucursal:', error);
+		throw new Error('Error al eliminar sucursal');
+	}
+};
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -967,4 +1763,9 @@ export default {
     // Envío y Servicio
     actualizarEnvioDomicilio,
     actualizarServicioDomicilio,
+
+    // CRUD Sucursales
+    crearSucursal,
+    toggleActivaSucursal,
+    eliminarSucursal,
 };

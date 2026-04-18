@@ -92,21 +92,15 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
                 className="flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-2 2xl:p-2.5 rounded-lg"
               >
                 {/* Avatar o Icono */}
-                {interaccion.avatar ? (
-                  <img
-                    src={interaccion.avatar}
-                    alt={interaccion.titulo}
-                    className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full object-cover shrink-0"
-                  />
-                ) : (
-                  <div className={`w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full ${bg} flex items-center justify-center shrink-0`}>
-                    {interaccion.tipo === 'compartido' ? (
-                      <Icono className={`w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 ${color}`} />
-                    ) : (
-                      <User className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-slate-600" />
-                    )}
-                  </div>
-                )}
+                <div className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full ${interaccion.avatar ? '' : bg} flex items-center justify-center shrink-0 overflow-hidden`}>
+                  {interaccion.avatar ? (
+                    <img src={interaccion.avatar} alt={interaccion.titulo} className="w-full h-full object-cover" />
+                  ) : interaccion.tipo === 'compartido' ? (
+                    <Icono className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 ${color}`} />
+                  ) : (
+                    <User className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-600" />
+                  )}
+                </div>
 
                 {/* Contenido */}
                 <div className="flex-1 min-w-0">

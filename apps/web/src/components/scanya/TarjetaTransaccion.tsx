@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { TransaccionScanYA } from '@/types/scanya';
+import { obtenerIniciales } from '../../utils/obtenerIniciales';
 
 // =============================================================================
 // TIPOS
@@ -57,11 +58,6 @@ const getNivel = (nivel: string) => {
   }
 };
 
-const obtenerIniciales = (nombre: string): string => {
-  const partes = nombre.trim().split(/\s+/);
-  if (partes.length >= 2) return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
-  return nombre.slice(0, 2).toUpperCase();
-};
 
 // =============================================================================
 // COLORES

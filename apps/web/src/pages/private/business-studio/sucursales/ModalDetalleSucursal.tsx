@@ -1,0 +1,390 @@
+/**
+ * ModalDetalleSucursal.tsx
+ * =========================
+ * Modal de solo lectura con detalle de sucursal + sección gerente.
+ *
+ * Sección Gerente:
+ * - Si tiene gerente → avatar + nombre + correo + botones (Revocar, Reenviar credenciales)
+ * - Si no tiene → formulario inline para asignar gerente:
+ *   - Correo primero (detecta cuenta existente o nueva)
+ *   - Nombre / apellidos (auto-llenados y deshabilitados si es promoción)
+ *
+ * Ubicación: apps/web/src/pages/private/business-studio/sucursales/ModalDetalleSucursal.tsx
+ */
+
+import { useState } from 'react';
+import {
+	Building2,
+	MapPin,
+	Phone,
+	Mail,
+	Star,
+	User,
+	UserPlus,
+	UserCheck,
+	KeyRound,
+	UserMinus,
+	Pencil,
+} from 'lucide-react';
+import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
+import { InputCorreoValidado, type ResultadoValidacionCorreo } from '../../../../components/ui/InputCorreoValidado';
+import {
+	useSucursalGerente,
+	useCrearGerente,
+	useRevocarGerente,
+	useReenviarCredenciales,
+} from '../../../../hooks/queries/useSucursales';
+import { Spinner } from '../../../../components/ui/Spinner';
+import { notificar } from '../../../../utils/notificaciones';
+import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import type { SucursalResumen } from '../../../../types/sucursales';
+
+interface Props {
+	sucursal: SucursalResumen;
+	onCerrar: () => void;
+	onEditar: () => void;
+}
+
+export function ModalDetalleSucursal({ sucursal, onCerrar, onEditar }: Props) {
+	const { usuario } = useAuthStore();
+	const gerenteQuery = useSucursalGerente(sucursal.id);
+	// Si el query ya completó, confiar en él (incluso si es null después de revocar).
+	// Solo usar el prop como fallback mientras carga.
+	const gerente = gerenteQuery.isSuccess ? gerenteQuery.data : sucursal.gerente;
+	const crearGerenteMutation = useCrearGerente();
+	const revocarGerenteMutation = useRevocarGerente();
+	const reenviarMutation = useReenviarCredenciales();
+
+	// Estado para formulario de crear gerente
+	const [mostrarFormGerente, setMostrarFormGerente] = useState(false);
+	const [gerenteNombre, setGerenteNombre] = useState('');
+	const [gerenteApellidos, setGerenteApellidos] = useState('');
+	const [gerenteCorreo, setGerenteCorreo] = useState('');
+	const [validacionCorreo, setValidacionCorreo] = useState<ResultadoValidacionCorreo>({ valido: false });
+	const [creandoGerente, setCreandoGerente] = useState(false);
+
+	const correosExcluidos = usuario?.correo ? [usuario.correo] : [];
+	const esPromocion = validacionCorreo.tipo === 'promocion';
+
+	const handleCrearGerente = async () => {
+		if (!validacionCorreo.valido) {
+			notificar.error('El correo no es válido');
+			return;
+		}
+
+		// En promoción: backend usa los datos del usuario existente (nombre/apellidos son ignorados).
+		// En creación: se requiere nombre y apellidos del formulario.
+		if (!esPromocion && (!gerenteNombre.trim() || !gerenteApellidos.trim())) {
+			notificar.error('Nombre y apellidos son obligatorios');
+			return;
+		}
+
+		setCreandoGerente(true);
+		try {
+			await crearGerenteMutation.mutateAsync({
+				sucursalId: sucursal.id,
+				datos: {
+					nombre: (esPromocion && validacionCorreo.existente ? validacionCorreo.existente.nombre : gerenteNombre).trim(),
+					apellidos: (esPromocion && validacionCorreo.existente ? validacionCorreo.existente.apellidos : gerenteApellidos).trim(),
+					correo: gerenteCorreo.trim(),
+				},
+			});
+			setMostrarFormGerente(false);
+			setGerenteNombre('');
+			setGerenteApellidos('');
+			setGerenteCorreo('');
+			setValidacionCorreo({ valido: false });
+		} catch {
+			// Error ya notificado
+		} finally {
+			setCreandoGerente(false);
+		}
+	};
+
+	const handleRevocar = async () => {
+		const ok = await notificar.confirmar(
+			`¿Revocar a "${gerente?.nombre}" como gerente? Su cuenta quedará como usuario personal.`
+		);
+		if (ok) revocarGerenteMutation.mutate(sucursal.id);
+	};
+
+	const handleReenviar = async () => {
+		const ok = await notificar.confirmar('¿Reenviar credenciales provisionales? Se generará una nueva contraseña.');
+		if (ok) reenviarMutation.mutate(sucursal.id);
+	};
+
+	return (
+		<ModalAdaptativo
+			abierto={true}
+			onCerrar={onCerrar}
+			ancho="md"
+			mostrarHeader={false}
+			paddingContenido="none"
+			sinScrollInterno
+			alturaMaxima="lg"
+			headerOscuro
+			className="max-lg:[background:linear-gradient(180deg,#1e293b_2.5rem,rgb(248,250,252)_2.5rem)]"
+		>
+			<div data-testid="modal-detalle-sucursal" className="flex flex-col max-h-[80vh] lg:max-h-[75vh]">
+				{/* Header — cambia de contexto si el sub-flujo de asignar gerente está abierto */}
+				<div
+					className="shrink-0 px-4 lg:px-3 2xl:px-4 pt-8 pb-3 lg:py-3 2xl:py-4 lg:rounded-t-2xl"
+					style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 4px 16px rgba(30,41,59,0.3)' }}
+				>
+					<div className="flex items-center gap-3">
+						<div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-xl lg:rounded-lg 2xl:rounded-xl bg-white/10 flex items-center justify-center">
+							{mostrarFormGerente ? (
+								<UserPlus className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
+							) : (
+								<Building2 className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
+							)}
+						</div>
+						<div className="flex-1 min-w-0">
+							{mostrarFormGerente ? (
+								<>
+									<h2 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
+										Asignar gerente
+									</h2>
+									<p className="text-base lg:text-xs 2xl:text-sm text-white/70 font-medium truncate">
+										{sucursal.nombre}
+									</p>
+								</>
+							) : (
+								<>
+									<div className="flex items-center gap-2">
+										<h2 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
+											{sucursal.nombre}
+										</h2>
+										{sucursal.esPrincipal && (
+											<Star className="w-4 h-4 fill-amber-300 text-amber-300 shrink-0" />
+										)}
+									</div>
+									<p className="text-base lg:text-xs 2xl:text-sm text-white/70 font-medium">
+										{sucursal.activa ? 'Activa' : 'Inactiva'}
+									</p>
+								</>
+							)}
+						</div>
+					</div>
+				</div>
+
+				{/* Contenido scroll */}
+				<div className="flex-1 overflow-y-auto px-4 lg:px-3 2xl:px-4 py-3 space-y-4">
+					{/* Datos de la sucursal */}
+					<div className="space-y-2">
+						<h3 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 uppercase tracking-wider">Información</h3>
+
+						{sucursal.ciudad && (
+							<div className="flex items-center gap-2">
+								<MapPin className="w-4 h-4 text-slate-600 shrink-0" />
+								<span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">
+									{sucursal.direccion ? `${sucursal.direccion}, ` : ''}{sucursal.ciudad}{sucursal.estado ? `, ${sucursal.estado}` : ''}
+								</span>
+							</div>
+						)}
+
+						{sucursal.telefono && (
+							<div className="flex items-center gap-2">
+								<Phone className="w-4 h-4 text-slate-600 shrink-0" />
+								<span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">{sucursal.telefono}</span>
+							</div>
+						)}
+
+						{sucursal.correo && (
+							<div className="flex items-center gap-2">
+								<Mail className="w-4 h-4 text-slate-600 shrink-0" />
+								<span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">{sucursal.correo}</span>
+							</div>
+						)}
+					</div>
+
+					{/* ── Sección Gerente ── */}
+					<div className="border-t border-slate-200 pt-4">
+						<h3 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 uppercase tracking-wider mb-3">Gerente</h3>
+
+						{gerenteQuery.isPending ? (
+							<div className="flex justify-center py-4"><Spinner /></div>
+						) : gerente ? (
+							/* ── Gerente asignado ── */
+							<div className="bg-indigo-50 rounded-xl p-3 border-2 border-indigo-200">
+								<div className="flex items-center gap-3">
+									<div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+										{gerente.avatarUrl ? (
+											<img src={gerente.avatarUrl} alt={gerente.nombre} className="w-full h-full rounded-full object-cover" />
+										) : (
+											<span className="text-sm font-bold text-indigo-700">
+												{obtenerIniciales(`${gerente.nombre} ${gerente.apellidos}`)}
+											</span>
+										)}
+									</div>
+									<div className="flex-1 min-w-0">
+										<p className="text-sm font-bold text-slate-800 truncate">{gerente.nombre} {gerente.apellidos}</p>
+										<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 truncate">{gerente.correo}</p>
+										{gerente.requiereCambioContrasena && (
+											<span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-sm font-bold bg-amber-100 text-amber-700 mt-1">
+												Pendiente de activación
+											</span>
+										)}
+									</div>
+								</div>
+
+								<div className={`flex gap-2 mt-3 ${gerente.requiereCambioContrasena ? '' : 'justify-end'}`}>
+									{/* Reenviar credenciales solo si el gerente aún no activó su cuenta.
+									    Si ya la activó, su contraseña es definitiva y puede usar "Olvidé mi contraseña" del login. */}
+									{gerente.requiereCambioContrasena ? (
+										<>
+											<button
+												onClick={handleReenviar}
+												disabled={reenviarMutation.isPending}
+												className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold
+													text-indigo-700 bg-white border-2 border-indigo-300 hover:bg-indigo-100 cursor-pointer
+													disabled:opacity-50 disabled:cursor-not-allowed"
+												data-testid="btn-reenviar-credenciales"
+											>
+												{reenviarMutation.isPending ? <Spinner tamanio="sm" /> : <KeyRound className="w-3.5 h-3.5" />}
+												Reenviar credenciales
+											</button>
+											<button
+												onClick={handleRevocar}
+												disabled={revocarGerenteMutation.isPending}
+												className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold
+													text-red-700 bg-white border-2 border-red-300 hover:bg-red-100 cursor-pointer
+													disabled:opacity-50 disabled:cursor-not-allowed"
+												data-testid="btn-revocar-gerente"
+											>
+												{revocarGerenteMutation.isPending ? <Spinner tamanio="sm" /> : <UserMinus className="w-3.5 h-3.5" />}
+												Revocar gerente
+											</button>
+										</>
+									) : (
+										<button
+											onClick={handleRevocar}
+											disabled={revocarGerenteMutation.isPending}
+											className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold
+												text-red-600 hover:bg-red-100 cursor-pointer
+												disabled:opacity-50 disabled:cursor-not-allowed"
+											data-testid="btn-revocar-gerente"
+										>
+											{revocarGerenteMutation.isPending ? <Spinner tamanio="sm" /> : <UserMinus className="w-3.5 h-3.5" />}
+											Revocar gerente
+										</button>
+									)}
+								</div>
+							</div>
+						) : mostrarFormGerente ? (
+							/* ── Formulario crear/asignar gerente ── */
+							<div className="bg-slate-200 rounded-xl p-3 space-y-2.5" data-testid="form-crear-gerente">
+								{/* Correo primero — al detectar cuenta existente auto-llena nombre/apellidos */}
+								<InputCorreoValidado
+									label="Correo *"
+									value={gerenteCorreo}
+									onChange={setGerenteCorreo}
+									correosExcluidos={correosExcluidos}
+									mensajeExclusion="No puedes asignarte como gerente de tu propia sucursal"
+									modo="gerente"
+									onValidezCambio={setValidacionCorreo}
+									placeholder="gerente@email.com"
+									testIdPrefix="input-gerente-correo"
+								/>
+								<div>
+									<label className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 block">Nombre *</label>
+									<input
+										value={esPromocion && validacionCorreo.existente ? validacionCorreo.existente.nombre : gerenteNombre}
+										onChange={e => setGerenteNombre(e.target.value)}
+										disabled={esPromocion}
+										className="w-full h-10 lg:h-9 2xl:h-10 px-3 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 border-2 border-slate-300 rounded-lg bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+										placeholder="Nombre del gerente"
+										data-testid="input-gerente-nombre"
+									/>
+								</div>
+								<div>
+									<label className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 block">Apellidos *</label>
+									<input
+										value={esPromocion && validacionCorreo.existente ? validacionCorreo.existente.apellidos : gerenteApellidos}
+										onChange={e => setGerenteApellidos(e.target.value)}
+										disabled={esPromocion}
+										className="w-full h-10 lg:h-9 2xl:h-10 px-3 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 border-2 border-slate-300 rounded-lg bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+										placeholder="Apellidos del gerente"
+										data-testid="input-gerente-apellidos"
+									/>
+								</div>
+								{/* Solo mostrar descripción cuando la validación del correo determinó el tipo y hay nombre */}
+								{validacionCorreo.valido && (esPromocion ? validacionCorreo.existente : gerenteNombre.trim()) && (
+									<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+										{esPromocion && validacionCorreo.existente
+											? `${validacionCorreo.existente.nombre} recibirá una invitación por correo.`
+											: `${gerenteNombre.trim()} recibirá sus credenciales de acceso por correo.`}
+									</p>
+								)}
+								<div className="flex gap-2">
+									<button
+										onClick={() => setMostrarFormGerente(false)}
+										className="flex-1 px-3 py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-600 border-2 border-slate-300 hover:bg-slate-200 cursor-pointer"
+										data-testid="btn-cancelar-gerente"
+									>
+										Cancelar
+									</button>
+									<button
+										onClick={handleCrearGerente}
+										disabled={creandoGerente || !validacionCorreo.valido || (!esPromocion && (!gerenteNombre.trim() || !gerenteApellidos.trim()))}
+										className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold
+											text-white bg-linear-to-r from-slate-700 to-slate-800
+											hover:from-slate-800 hover:to-slate-900 cursor-pointer
+											disabled:opacity-50 disabled:cursor-not-allowed"
+										data-testid="btn-confirmar-gerente"
+									>
+										{creandoGerente && <Spinner tamanio="sm" color="white" />}
+										{esPromocion ? (
+											<><UserCheck className="w-3.5 h-3.5" /> Asignar gerente</>
+										) : (
+											<>Crear cuenta</>
+										)}
+									</button>
+								</div>
+							</div>
+						) : (
+							/* ── Sin gerente — botón asignar ── */
+							<button
+								onClick={() => setMostrarFormGerente(true)}
+								className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-300 text-slate-600 hover:border-slate-400 hover:bg-slate-200 cursor-pointer"
+								data-testid="btn-asignar-gerente"
+							>
+								<UserPlus className="w-5 h-5" />
+								<span className="text-sm font-bold">Asignar gerente</span>
+							</button>
+						)}
+					</div>
+				</div>
+
+				{/* Footer — se oculta durante el sub-flujo de asignar gerente para evitar clicks accidentales */}
+				{!mostrarFormGerente && (
+				<div className="shrink-0 px-4 lg:px-3 2xl:px-4 py-3 border-t border-slate-200 flex gap-3">
+					<button
+						onClick={onCerrar}
+						className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl
+							px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer
+							border-2 border-slate-400 text-slate-600 bg-transparent
+							hover:bg-slate-200 hover:border-slate-500"
+						data-testid="btn-cerrar-detalle"
+					>
+						Cerrar
+					</button>
+					<button
+						onClick={onEditar}
+						className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl
+							px-4 py-2.5 text-sm lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5 cursor-pointer
+							bg-linear-to-r from-slate-700 to-slate-800 text-white
+							shadow-lg shadow-slate-700/30
+							hover:from-slate-800 hover:to-slate-900"
+						data-testid="btn-editar-perfil"
+					>
+						<Pencil className="w-4 h-4" />
+						Editar en Mi Perfil
+					</button>
+				</div>
+				)}
+			</div>
+		</ModalAdaptativo>
+	);
+}

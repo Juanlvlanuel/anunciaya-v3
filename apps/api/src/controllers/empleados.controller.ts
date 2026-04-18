@@ -3,6 +3,12 @@
  * ========================
  * Controlador del módulo de Empleados — Business Studio.
  *
+ * Permisos:
+ * - Dueño: CRUD total sobre todos los empleados de todas sus sucursales.
+ * - Gerente: CRUD solo sobre empleados de SU sucursal asignada.
+ *   - Al crear/editar: sucursalId se fuerza a la suya (no puede elegir otra).
+ *   - Al operar sobre un empleado existente: se valida que pertenece a su sucursal.
+ *
  * Ubicación: apps/api/src/controllers/empleados.controller.ts
  */
 
@@ -22,8 +28,20 @@ interface RequestConNegocio extends Request {
 	negocioId?: string;
 }
 
-function esGerente(req: RequestConNegocio): boolean {
-	return !!(req as any).usuario?.sucursalAsignada;
+function sucursalAsignadaDelUsuario(req: RequestConNegocio): string | null {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return ((req as any).usuario?.sucursalAsignada as string | null | undefined) ?? null;
+}
+
+/**
+ * Si el usuario es gerente, valida que el empleado pertenezca a su sucursal.
+ * Si es dueño (sucursalAsignada=null), no aplica restricción.
+ * Retorna true si puede operar, false si debe bloquearse con 403.
+ */
+async function gerentePuedeOperarSobreEmpleado(req: RequestConNegocio, empleadoId: string): Promise<boolean> {
+	const sucursalGerente = sucursalAsignadaDelUsuario(req);
+	if (!sucursalGerente) return true; // es dueño
+	return empleadosService.empleadoPerteneceASucursal(empleadoId, sucursalGerente);
 }
 
 /**
@@ -76,10 +94,37 @@ export async function obtenerDetalleController(req: RequestConNegocio, res: Resp
 		const parsed = empleadoIdSchema.safeParse(req.params);
 		if (!parsed.success) return res.status(400).json({ success: false, error: 'ID inválido' });
 
+		// Si es gerente, solo puede ver empleados de su sucursal
+		if (!(await gerentePuedeOperarSobreEmpleado(req, parsed.data.id))) {
+			return res.status(403).json({ success: false, error: 'Este empleado no pertenece a tu sucursal' });
+		}
+
 		const detalle = await empleadosService.obtenerDetalle(negocioId, parsed.data.id);
 		if (!detalle) return res.status(404).json({ success: false, error: 'Empleado no encontrado' });
 
 		return res.json({ success: true, data: detalle });
+	} catch (error) {
+		next(error);
+	}
+}
+
+/**
+ * GET /api/business/empleados/verificar-nick?nick=xxx&excluirId=uuid
+ *
+ * Endpoint usado por el formulario de crear/editar empleado para validación en vivo
+ * con debounce. Devuelve disponibilidad + hasta 3 sugerencias libres con sufijo numérico.
+ */
+export async function verificarNickController(req: RequestConNegocio, res: Response, next: NextFunction) {
+	try {
+		const nick = typeof req.query.nick === 'string' ? req.query.nick : '';
+		const excluirId = typeof req.query.excluirId === 'string' ? req.query.excluirId : undefined;
+
+		if (!nick.trim()) {
+			return res.json({ success: true, data: { disponible: false, sugerencias: [] } });
+		}
+
+		const resultado = await empleadosService.verificarDisponibilidadNick(nick, excluirId);
+		return res.json({ success: true, data: resultado });
 	} catch (error) {
 		next(error);
 	}
@@ -93,15 +138,18 @@ export async function crearEmpleadoController(req: RequestConNegocio, res: Respo
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
-		if (esGerente(req)) {
-			return res.status(403).json({ success: false, error: 'Solo el dueño puede crear empleados' });
-		}
+		// Si es gerente, forzar la sucursal asignada (no puede elegir otra)
+		const sucursalGerente = sucursalAsignadaDelUsuario(req);
+		const body = sucursalGerente
+			? { ...req.body, sucursalId: sucursalGerente }
+			: req.body;
 
-		const parsed = crearEmpleadoSchema.safeParse(req.body);
+		const parsed = crearEmpleadoSchema.safeParse(body);
 		if (!parsed.success) {
 			return res.status(400).json({ success: false, error: 'Datos inválidos', detalles: parsed.error.flatten() });
 		}
 
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const empleado = await empleadosService.crearEmpleado(negocioId, (req as any).usuario!.usuarioId, parsed.data);
 
 		return res.status(201).json({ success: true, data: empleado });
@@ -127,7 +175,17 @@ export async function actualizarEmpleadoController(req: RequestConNegocio, res: 
 		const paramsParsed = empleadoIdSchema.safeParse(req.params);
 		if (!paramsParsed.success) return res.status(400).json({ success: false, error: 'ID inválido' });
 
-		const bodyParsed = actualizarEmpleadoSchema.safeParse(req.body);
+		// Si es gerente: validar que el empleado sea de su sucursal y forzar sucursalId a la suya
+		const sucursalGerente = sucursalAsignadaDelUsuario(req);
+		if (sucursalGerente && !(await empleadosService.empleadoPerteneceASucursal(paramsParsed.data.id, sucursalGerente))) {
+			return res.status(403).json({ success: false, error: 'Este empleado no pertenece a tu sucursal' });
+		}
+
+		const body = sucursalGerente && req.body?.sucursalId !== undefined
+			? { ...req.body, sucursalId: sucursalGerente }
+			: req.body;
+
+		const bodyParsed = actualizarEmpleadoSchema.safeParse(body);
 		if (!bodyParsed.success) {
 			return res.status(400).json({ success: false, error: 'Datos inválidos', detalles: bodyParsed.error.flatten() });
 		}
@@ -160,6 +218,10 @@ export async function toggleActivoController(req: RequestConNegocio, res: Respon
 		const paramsParsed = empleadoIdSchema.safeParse(req.params);
 		if (!paramsParsed.success) return res.status(400).json({ success: false, error: 'ID inválido' });
 
+		if (!(await gerentePuedeOperarSobreEmpleado(req, paramsParsed.data.id))) {
+			return res.status(403).json({ success: false, error: 'Este empleado no pertenece a tu sucursal' });
+		}
+
 		const bodyParsed = toggleActivoSchema.safeParse(req.body);
 		if (!bodyParsed.success) return res.status(400).json({ success: false, error: 'Datos inválidos' });
 
@@ -182,12 +244,12 @@ export async function eliminarEmpleadoController(req: RequestConNegocio, res: Re
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
-		if (esGerente(req)) {
-			return res.status(403).json({ success: false, error: 'Solo el dueño puede eliminar empleados' });
-		}
-
 		const parsed = empleadoIdSchema.safeParse(req.params);
 		if (!parsed.success) return res.status(400).json({ success: false, error: 'ID inválido' });
+
+		if (!(await gerentePuedeOperarSobreEmpleado(req, parsed.data.id))) {
+			return res.status(403).json({ success: false, error: 'Este empleado no pertenece a tu sucursal' });
+		}
 
 		const eliminado = await empleadosService.eliminarEmpleado(negocioId, parsed.data.id);
 		if (!eliminado) return res.status(404).json({ success: false, error: 'Empleado no encontrado' });
@@ -211,6 +273,10 @@ export async function actualizarHorariosController(req: RequestConNegocio, res: 
 
 		const paramsParsed = empleadoIdSchema.safeParse(req.params);
 		if (!paramsParsed.success) return res.status(400).json({ success: false, error: 'ID inválido' });
+
+		if (!(await gerentePuedeOperarSobreEmpleado(req, paramsParsed.data.id))) {
+			return res.status(403).json({ success: false, error: 'Este empleado no pertenece a tu sucursal' });
+		}
 
 		const bodyParsed = horariosEmpleadoSchema.safeParse(req.body);
 		if (!bodyParsed.success) {
@@ -237,20 +303,27 @@ export async function revocarSesionController(req: RequestConNegocio, res: Respo
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
-		if (esGerente(req)) {
-			return res.status(403).json({ success: false, error: 'Solo el dueño puede revocar sesiones' });
-		}
-
 		const parsed = empleadoIdSchema.safeParse(req.params);
 		if (!parsed.success) return res.status(400).json({ success: false, error: 'ID inválido' });
 
+		if (!(await gerentePuedeOperarSobreEmpleado(req, parsed.data.id))) {
+			return res.status(403).json({ success: false, error: 'Este empleado no pertenece a tu sucursal' });
+		}
+
 		try {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			await empleadosService.revocarSesionEmpleado(negocioId, parsed.data.id, (req as any).usuario!.usuarioId);
 		} catch (err) {
 			if ((err as Error).message === 'EMPLEADO_NO_ENCONTRADO') {
 				return res.status(404).json({ success: false, error: 'Empleado no encontrado' });
 			}
-			// Redis falla — continuar igualmente, el turno ya se cerró
+			if ((err as Error).message === 'REDIS_REVOCATION_FAILED') {
+				return res.status(500).json({
+					success: false,
+					error: 'El turno se cerró pero no se pudo revocar el token. El empleado podría seguir operando hasta que expire el token. Contacta al soporte.',
+				});
+			}
+			throw err;
 		}
 
 		return res.json({ success: true, message: 'Sesiones de ScanYA revocadas' });

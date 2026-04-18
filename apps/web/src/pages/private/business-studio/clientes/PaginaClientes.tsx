@@ -56,6 +56,7 @@ import { Spinner } from '../../../../components/ui/Spinner';
 import { ModalImagenes } from '../../../../components/ui/ModalImagenes';
 import type { ClienteCompleto } from '../../../../types/clientes';
 import type { NivelCardYA } from '../../../../types/clientes';
+import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import ModalDetalleCliente from './ModalDetalleCliente';
 
 // =============================================================================
@@ -219,7 +220,7 @@ function FilaMovil({
         {cliente.avatarUrl ? (
           <img src={cliente.avatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <Users className="w-8 h-8 text-indigo-700" />
+          <span className="text-lg font-bold text-indigo-700">{obtenerIniciales(cliente.nombre)}</span>
         )}
       </div>
       {cliente.avatarUrl && (
@@ -483,7 +484,7 @@ export default function PaginaClientes() {
                 }}
               >
                 <div
-                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
                 >
                   <Users className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
@@ -506,7 +507,7 @@ export default function PaginaClientes() {
                 }}
               >
                 <div
-                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}
                 >
                   <UserPlus className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
@@ -529,7 +530,7 @@ export default function PaginaClientes() {
                 }}
               >
                 <div
-                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                  className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
                 >
                   <UserMinus className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
@@ -553,7 +554,7 @@ export default function PaginaClientes() {
                   }}
                 >
                   <div
-                    className="w-6 lg:w-6 2xl:w-7 h-6 lg:h-6 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                    className="w-6 lg:w-6 2xl:w-7 h-6 lg:h-6 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                     style={{ background: 'linear-gradient(135deg, #fef08a, #fde047)', boxShadow: '0 3px 8px rgba(202,138,4,0.25)' }}
                   >
                     <Crown className="w-3 lg:w-3 2xl:w-3.5 h-3 lg:h-3 2xl:h-3.5 text-yellow-700" />
@@ -727,12 +728,12 @@ export default function PaginaClientes() {
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                         <div
                           onClick={(e) => { if (c.avatarUrl) { e.stopPropagation(); setAvatarUrl(c.avatarUrl); } }}
-                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${c.avatarUrl ? 'cursor-pointer' : ''}`}
+                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${c.avatarUrl ? 'cursor-pointer' : ''}`}
                         >
                           {c.avatarUrl ? (
                             <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <Users className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4.5 2xl:h-4.5 text-indigo-700" />
+                            <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(c.nombre)}</span>
                           )}
                         </div>
                         <div className="min-w-0">

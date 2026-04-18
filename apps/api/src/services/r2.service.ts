@@ -8,7 +8,7 @@
  * Usado principalmente para fotos de tickets en ScanYA
  */
 
-import { PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { r2Client, r2Config } from '../config/r2.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -329,5 +329,66 @@ export async function duplicarArchivo(
     } catch (error) {
         console.error('Error en duplicarArchivo R2:', error);
         return null;
+    }
+}
+
+// =============================================================================
+// FUNCIÓN 7: LISTAR OBJETOS DEL BUCKET (para reconcile)
+// =============================================================================
+
+/**
+ * Representa un objeto almacenado en R2 con su URL pública y metadata.
+ */
+export interface ObjetoR2 {
+    key: string;
+    url: string;
+    size: number;
+    lastModified: Date;
+    /** Primera parte del key, ej. 'portadas' en 'portadas/archivo.webp' */
+    carpeta: string;
+}
+
+/**
+ * Lista TODOS los objetos del bucket R2 con paginación automática.
+ *
+ * ⚠️ Usar con cuidado — si el bucket tiene cientos de miles de objetos puede
+ * ser costoso. Para el caso de AnunciaYA (MB de imágenes) es seguro.
+ *
+ * @param prefix Filtra por prefijo (ej. 'portadas/' para solo esa carpeta)
+ * @returns Array con todos los objetos del bucket
+ */
+export async function listarObjetosR2(prefix?: string): Promise<ObjetoR2[]> {
+    const objetos: ObjetoR2[] = [];
+    let continuationToken: string | undefined;
+
+    try {
+        do {
+            const command = new ListObjectsV2Command({
+                Bucket: r2Config.bucketName,
+                Prefix: prefix,
+                ContinuationToken: continuationToken,
+                MaxKeys: 1000, // máximo por página de S3
+            });
+
+            const respuesta = await r2Client.send(command);
+
+            for (const obj of respuesta.Contents ?? []) {
+                if (!obj.Key) continue;
+                objetos.push({
+                    key: obj.Key,
+                    url: `${r2Config.publicUrl}/${obj.Key}`,
+                    size: obj.Size ?? 0,
+                    lastModified: obj.LastModified ?? new Date(0),
+                    carpeta: obj.Key.split('/')[0] ?? 'root',
+                });
+            }
+
+            continuationToken = respuesta.IsTruncated ? respuesta.NextContinuationToken : undefined;
+        } while (continuationToken);
+
+        return objetos;
+    } catch (error) {
+        console.error('Error en listarObjetosR2:', error);
+        throw error;
     }
 }

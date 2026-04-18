@@ -83,7 +83,7 @@ export function VistaLogin({
         });
 
         if (response.success && response.data) {
-          const { requiere2FA, tokenTemporal, usuario, accessToken, refreshToken } = response.data;
+          const { requiere2FA, requiereCambioContrasena, tokenTemporal, usuario, accessToken, refreshToken } = response.data;
 
           if (recordarCorreo) {
             localStorage.setItem(STORAGE_KEY_EMAIL, email);
@@ -91,7 +91,10 @@ export function VistaLogin({
             localStorage.removeItem(STORAGE_KEY_EMAIL);
           }
 
-          if (requiere2FA && tokenTemporal) {
+          if (requiereCambioContrasena && tokenTemporal) {
+            onActualizarDatos({ email, tokenTemporal2FA: tokenTemporal });
+            onCambiarVista('cambiarContrasena');
+          } else if (requiere2FA && tokenTemporal) {
             onActualizarDatos({ email, tokenTemporal2FA: tokenTemporal });
             onCambiarVista('2fa');
           } else if (usuario && accessToken && refreshToken) {

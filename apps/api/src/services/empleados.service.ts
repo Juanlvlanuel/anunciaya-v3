@@ -10,6 +10,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { emitirAUsuario } from '../socket.js';
+import { revocarSesionesEmpleado } from '../utils/tokenStoreScanYA.js';
 import type {
 	EmpleadoResumen,
 	EmpleadoDetalle,
@@ -33,6 +34,18 @@ async function verificarPropiedadEmpleado(negocioId: string, empleadoId: string)
 		SELECT e.id FROM empleados e
 		INNER JOIN negocio_sucursales ns ON ns.id = e.sucursal_id
 		WHERE e.id = ${empleadoId} AND ns.negocio_id = ${negocioId} AND e.eliminado_at IS NULL
+	`);
+	return ((resultado as { rows: unknown[] }).rows.length) > 0;
+}
+
+/**
+ * Verifica que un empleado pertenece a una sucursal específica (no solo al negocio).
+ * Usado para validar que un gerente solo opere sobre empleados de SU sucursal.
+ */
+export async function empleadoPerteneceASucursal(empleadoId: string, sucursalId: string): Promise<boolean> {
+	const resultado = await db.execute(sql`
+		SELECT id FROM empleados
+		WHERE id = ${empleadoId} AND sucursal_id = ${sucursalId} AND eliminado_at IS NULL
 	`);
 	return ((resultado as { rows: unknown[] }).rows.length) > 0;
 }
@@ -219,6 +232,56 @@ async function obtenerEstadisticasTurnos(empleadoId: string): Promise<Estadistic
 		puntosOtorgados: (row?.puntos_otorgados as number) ?? 0,
 		ultimoTurno: (row?.ultimo_turno as string) ?? null,
 	};
+}
+
+// ============================================================================
+// Verificar disponibilidad de nick
+// ============================================================================
+
+/**
+ * Verifica si un nick está disponible.
+ * Si NO lo está, devuelve hasta 3 sugerencias libres con sufijo numérico (juan2, juan3, ...).
+ *
+ * El nick es globalmente único (unique index `idx_empleados_nick_unique` sobre la columna
+ * `nick`). Esta función no filtra por negocio — un nick ocupado en otro negocio también
+ * se considera no disponible.
+ */
+export async function verificarDisponibilidadNick(
+	nick: string,
+	excluirEmpleadoId?: string
+): Promise<{ disponible: boolean; sugerencias: string[] }> {
+	const nickNormalizado = nick.trim().toLowerCase();
+
+	if (!nickNormalizado) {
+		return { disponible: false, sugerencias: [] };
+	}
+
+	// Check principal
+	const existe = await db.execute(sql`
+		SELECT id FROM empleados
+		WHERE nick = ${nickNormalizado}
+		  ${excluirEmpleadoId ? sql`AND id != ${excluirEmpleadoId}` : sql``}
+		LIMIT 1
+	`);
+
+	if ((existe as { rows: unknown[] }).rows.length === 0) {
+		return { disponible: true, sugerencias: [] };
+	}
+
+	// Buscar hasta 3 sugerencias libres con sufijo numérico
+	// Prueba `nick2`, `nick3`, ... hasta acumular 3 disponibles (máximo 20 intentos)
+	const sugerencias: string[] = [];
+	for (let i = 2; i <= 21 && sugerencias.length < 3; i++) {
+		const candidato = `${nickNormalizado}${i}`;
+		const ocupado = await db.execute(sql`
+			SELECT id FROM empleados WHERE nick = ${candidato} LIMIT 1
+		`);
+		if ((ocupado as { rows: unknown[] }).rows.length === 0) {
+			sugerencias.push(candidato);
+		}
+	}
+
+	return { disponible: false, sugerencias };
 }
 
 // ============================================================================
@@ -425,17 +488,26 @@ export async function revocarSesionEmpleado(
 		WHERE empleado_id = ${empleadoId} AND hora_fin IS NULL
 	`);
 
-	// 2. Revocar tokens en Redis
-	const { revocarSesionesEmpleado } = await import('../utils/tokenStoreScanYA.js');
-	await revocarSesionesEmpleado(empleadoId);
+	// 2. Revocar tokens en Redis — bloquea al empleado en futuros requests
+	try {
+		await revocarSesionesEmpleado(empleadoId);
+	} catch (err) {
+		console.error('❌ Error al revocar tokens en Redis:', err);
+		throw new Error('REDIS_REVOCATION_FAILED');
+	}
 
-	// 3. Notificar en tiempo real vía Socket.io
+	// 3. Notificar en tiempo real al empleado para que ScanYA cierre sesión.
+	// El empleado no tiene cuenta de AnunciaYA propia — entra a ScanYA con nick+PIN.
+	// ScanYA se conecta al socket usando el usuarioId del DUEÑO (negocioUsuarioId en el token).
+	// Todos los empleados y el dueño están en el mismo room. Por eso el payload incluye
+	// empleadoId — el frontend de ScanYA filtra y solo actúa si coincide con el suyo.
 	const [empleado] = (await db.execute(sql`
 		SELECT usuario_id FROM empleados WHERE id = ${empleadoId}
 	`)).rows as { usuario_id: string }[];
 
 	if (empleado?.usuario_id) {
 		emitirAUsuario(empleado.usuario_id, 'scanya:sesion-revocada', {
+			empleadoId,
 			motivo: 'Sesión revocada por administrador',
 			timestamp: new Date().toISOString(),
 		});

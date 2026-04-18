@@ -43,6 +43,7 @@ import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { ModalBottom } from '../ui/ModalBottom';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { Notificacion } from '../../types/notificaciones';
+import { obtenerIniciales } from '../../utils/obtenerIniciales';
 
 // =============================================================================
 // HELPERS
@@ -182,13 +183,6 @@ const obtenerRutaDestino = (notificacion: Notificacion): string | null => {
 // HELPERS: Iniciales y colores para avatares
 // =============================================================================
 
-const obtenerIniciales = (nombre: string): string => {
-  const partes = nombre.trim().split(/\s+/);
-  if (partes.length >= 2) {
-    return `${partes[0][0]}${partes[1][0]}`.toUpperCase();
-  }
-  return partes[0].slice(0, 2).toUpperCase();
-};
 
 const COLORES_INICIALES = [
   'linear-gradient(135deg, #3b82f6, #1d4ed8)',

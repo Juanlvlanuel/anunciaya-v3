@@ -15,7 +15,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Send, Star, User } from 'lucide-react';
+import { MessageSquare, Send, Star } from 'lucide-react';
+import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { Spinner } from '../../../../components/ui/Spinner';
 import type { ResenaBS } from '../../../../types/resenas';
@@ -107,6 +108,7 @@ export function ModalResponder({
             abierto={abierto}
             onCerrar={onCerrar}
             ancho="md"
+            headerOscuro
             mostrarHeader={false}
             paddingContenido="none"
             sinScrollInterno
@@ -127,17 +129,13 @@ export function ModalResponder({
 
                     <div className="relative flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
                         {/* Avatar */}
-                        {resena.autor.avatarUrl ? (
-                            <img
-                                src={resena.autor.avatarUrl}
-                                alt={resena.autor.nombre}
-                                className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full object-cover border-2 border-white/30 shrink-0"
-                            />
-                        ) : (
-                            <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full bg-white/15 border-2 border-white/30 flex items-center justify-center shrink-0">
-                                <User className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
-                            </div>
-                        )}
+                        <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center shrink-0 overflow-hidden">
+                            {resena.autor.avatarUrl ? (
+                                <img src={resena.autor.avatarUrl} alt={resena.autor.nombre} className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="text-base font-bold text-white">{obtenerIniciales(resena.autor.nombre)}</span>
+                            )}
+                        </div>
 
                         {/* Nombre + estrellas */}
                         <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">

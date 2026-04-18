@@ -283,7 +283,12 @@ export async function obtenerDetalleClienteController(
       return;
     }
 
-    const resultado = await obtenerDetalleCliente(negocioId, clienteId);
+    // sucursalId llega por el interceptor Axios (automático en modo comercial).
+    // El service filtra visitas/gastado por sucursal si viene — alinea el modal
+    // con la tabla de Clientes (ambas respetan la sucursal activa).
+    const sucursalId = typeof req.query.sucursalId === 'string' ? req.query.sucursalId : undefined;
+
+    const resultado = await obtenerDetalleCliente(negocioId, clienteId, sucursalId);
 
     res.status(resultado.code || 200).json(resultado);
   } catch (error) {

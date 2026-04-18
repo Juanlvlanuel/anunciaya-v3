@@ -28,11 +28,9 @@ import {
   Users,
   Receipt,
   Eye,
-  Package,
-  Tag,
-  Clock,
   Lock,
   Ticket,
+  MapPin,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { obtenerSucursalesNegocio } from '../../services/negociosService';
@@ -128,7 +126,7 @@ const TEMAS_COLUMNA: Record<string, TemaColumna> = {
   cardya: {
     background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)',
     borderColor: 'border-white/5',
-    widgetWrapperBg: 'bg-slate-100',
+    widgetWrapperBg: 'bg-slate-200',
     textPrimary: 'text-white',
     textSecondary: 'text-white/50',
     textMuted: 'text-white/50',
@@ -154,7 +152,7 @@ const TEMAS_COLUMNA: Record<string, TemaColumna> = {
   cupones: {
     background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)',
     borderColor: 'border-white/5',
-    widgetWrapperBg: 'bg-slate-100',
+    widgetWrapperBg: 'bg-slate-200',
     textPrimary: 'text-white',
     textSecondary: 'text-white/50',
     textMuted: 'text-white/50',
@@ -180,7 +178,7 @@ const TEMAS_COLUMNA: Record<string, TemaColumna> = {
   guardados: {
     background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)',
     borderColor: 'border-white/5',
-    widgetWrapperBg: 'bg-slate-100',
+    widgetWrapperBg: 'bg-slate-200',
     textPrimary: 'text-white',
     textSecondary: 'text-white/50',
     textMuted: 'text-white/50',
@@ -206,7 +204,7 @@ const TEMAS_COLUMNA: Record<string, TemaColumna> = {
   negocios: {
     background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)',
     borderColor: 'border-white/5',
-    widgetWrapperBg: 'bg-slate-100',
+    widgetWrapperBg: 'bg-slate-200',
     textPrimary: 'text-white',
     textSecondary: 'text-white/50',
     textMuted: 'text-white/50',
@@ -354,7 +352,8 @@ export function ColumnaIzquierda() {
   // Variables para header y botones (modo comercial)
   const logoNegocio = usuario?.logoNegocio;
   const nombreNegocio = usuario?.nombreNegocio || 'Mi Negocio';
-  const onboardingCompletado = usuario?.onboardingCompletado ?? false;
+  // Gerentes NUNCA ven onboarding — tratar como completado
+  const onboardingCompletado = !!usuario?.sucursalAsignada || (usuario?.onboardingCompletado ?? false);
   const participaPuntos = usuario?.participaPuntos ?? true;
   const esGerente = !!usuario?.sucursalAsignada;
   const sucursalPrincipalId = useAuthStore((s) => s.sucursalPrincipalId);
@@ -368,11 +367,13 @@ export function ColumnaIzquierda() {
   const setEsSucursalPrincipal = useAuthStore((s) => s.setEsSucursalPrincipal);
 
   useEffect(() => {
+    // Gerentes mantienen su sucursal asignada — no resetear a la principal
+    if (esGerente) return;
     if (sucursalPrincipalId && usuario?.sucursalActiva !== sucursalPrincipalId) {
       setSucursalActiva(sucursalPrincipalId);
       setEsSucursalPrincipal(true);
     }
-  }, [esBusinessStudio]);
+  }, [esBusinessStudio, esGerente]);
 
   // Si estamos en Business Studio → Mostrar menú BS
   if (esBusinessStudio) {
@@ -384,51 +385,34 @@ export function ColumnaIzquierda() {
   }
 
   return esComercial ? (
-    <div className="absolute inset-0 bg-white overflow-y-auto flex flex-col">
+    <div className="absolute inset-0 bg-white overflow-y-auto overflow-x-hidden flex flex-col">
       {/* ===== NEGOCIO ACTIVO - Header mejorado ===== */}
-      <div className="border-b-2 border-slate-200 bg-linear-to-r from-slate-200 to-slate-50">
-        <div className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-4 lg:py-2.5 2xl:py-4">
-          {/* Logo - Clickeable para ver imagen grande (solo si hay logo) */}
+      <div className="bg-linear-to-r from-slate-200 to-slate-100">
+        <button
+          onClick={() => onboardingCompletado ? navigate(`/negocios/${sucursalParaPerfil}`) : navigate('/business/onboarding')}
+          className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-4 lg:py-2.5 2xl:py-4 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
+        >
+          {/* Logo */}
           {logoNegocio ? (
-            <button
-              onClick={() => setModalLogoAbierto(true)}
-              className="w-12 h-12 lg:w-9 lg:h-9 2xl:w-13 2xl:h-13 rounded-xl overflow-hidden shadow-lg ring-2 ring-slate-200 shrink-0 cursor-pointer hover:ring-blue-400 transition-all"
-            >
+            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-lg overflow-hidden shadow-lg ring-2 ring-slate-200 shrink-0">
               <img src={logoNegocio} alt={nombreNegocio} className="w-full h-full object-cover" />
-            </button>
+            </div>
           ) : (
-            <div className="w-12 h-12 lg:w-9 lg:h-9 2xl:w-13 2xl:h-13 bg-linear-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-slate-200 shrink-0">
+            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 bg-linear-to-br from-orange-400 to-orange-500 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-slate-200 shrink-0">
               <Store className="w-6 h-6 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6 text-white" />
             </div>
           )}
 
-          {/* Nombre y link */}
-          <div className="flex-1 min-w-0 text-left">
+          {/* Nombre y subtítulo */}
+          <div className="flex-1 min-w-0">
             <p className="font-bold text-black text-sm lg:text-xs 2xl:text-base truncate">{nombreNegocio}</p>
-            {onboardingCompletado ? (
-              <button
-                onClick={() => navigate(`/negocios/${sucursalParaPerfil}`)}
-                className="text-xs lg:text-[10px] 2xl:text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
-              >
-                Ver mi negocio <Eye className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 inline-block ml-0.5" />
-              </button>
-            ) : (
-              <span className="text-xs lg:text-[10px] 2xl:text-sm text-slate-400">
-                Pendiente de configurar
-              </span>
-            )}
+            <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 -mt-0.5 block">
+              {onboardingCompletado ? 'Ver Perfil' : 'Pendiente de configurar'}
+            </span>
           </div>
 
-          {/* Flecha - Solo si onboarding completado */}
-          {onboardingCompletado && (
-            <button
-              onClick={() => navigate(`/negocios/${sucursalParaPerfil}`)}
-              className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 flex items-center justify-center rounded-full hover:bg-blue-100 transition-colors cursor-pointer"
-            >
-              <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500" />
-            </button>
-          )}
-        </div>
+          <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 shrink-0" />
+        </button>
       </div>
 
       {/* Modal para ver logo grande */}
@@ -441,51 +425,47 @@ export function ColumnaIzquierda() {
       )}
 
       {/* ===== NAVEGACIÓN - Business Studio y ScanYA ===== */}
-      <nav className="border-b-2 border-slate-200">
+      <nav>
         {/* Business Studio */}
         <button
           onClick={() => navigate(onboardingCompletado ? '/business-studio' : '/business/onboarding')}
-          className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3
-                   hover:bg-blue-50 transition-all duration-150 cursor-pointer
-                   border-l-4 border-l-transparent hover:border-l-blue-500"
+          className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
         >
-          <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 float-icon">
+          <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 float-icon shrink-0">
             <img src="/IconoBS.webp" alt="Business Studio" className="w-full h-full object-contain" />
           </div>
-          <div className="flex-1 min-w-0 leading-tight text-left">
+          <div className="flex-1 min-w-0 leading-tight">
             <span className="font-bold text-black text-sm lg:text-xs 2xl:text-base block">
               {onboardingCompletado ? 'Business Studio' : 'Configura tu Negocio'}
             </span>
-            <span className="text-xs lg:text-[10px] 2xl:text-xs text-slate-600 -mt-0.5 block">
-              {onboardingCompletado ? 'Gestionar negocio' : 'Completar registro'}
+            <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 -mt-0.5 block">
+              {onboardingCompletado ? 'Gestionar Negocio' : 'Completar registro'}
             </span>
           </div>
-          <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" />
+          <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 shrink-0" />
         </button>
 
         {/* ScanYA - Deshabilitado si CardYA no está activo */}
         {participaPuntos ? (
           <button
             onClick={() => navigate('/scanya')}
-            className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3
-                     hover:bg-blue-50 transition-all duration-150 cursor-pointer
-                     border-l-4 border-l-transparent hover:border-l-blue-500"
+            className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
           >
-            <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 float-icon" style={{ animationDelay: '0.5s' }}>
+            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 float-icon shrink-0" style={{ animationDelay: '0.5s' }}>
               <img src="/IconoScanYA.webp" alt="ScanYA" className="w-full h-full object-contain" />
             </div>
-            <div className="flex-1 min-w-0 leading-tight text-left">
+            <div className="flex-1 min-w-0 leading-tight">
               <span className="font-bold text-black text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
-              <span className="text-xs lg:text-[10px] 2xl:text-xs text-slate-600 -mt-0.5 block">Registrar ventas</span>
+              <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 -mt-0.5 block">Registrar Ventas</span>
             </div>
-            <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" />
+            <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 shrink-0" />
           </button>
         ) : (
           <div
             className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3
                      bg-slate-50 border-l-4 border-l-slate-300 opacity-60 cursor-not-allowed"
           >
-            <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 relative">
+            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 relative shrink-0">
               <img src="/IconoScanYA.webp" alt="ScanYA" className="w-full h-full object-contain grayscale" />
               <div className="absolute -bottom-1 -right-1 w-4 h-4 lg:w-3.5 lg:h-3.5 bg-slate-400 rounded-full flex items-center justify-center">
                 <Lock className="w-2.5 h-2.5 lg:w-2 lg:h-2 text-white" />
@@ -493,9 +473,9 @@ export function ColumnaIzquierda() {
             </div>
             <div className="flex-1 min-w-0 leading-tight text-left">
               <span className="font-bold text-slate-500 text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
-              <span className="text-xs lg:text-[10px] 2xl:text-xs text-slate-400 -mt-0.5 block">Activa CardYA primero</span>
+              <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400 -mt-0.5 block">Activa CardYA primero</span>
             </div>
-            <Lock className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-400" />
+            <Lock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500" />
           </div>
         )}
       </nav>
@@ -659,152 +639,110 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
 
   return (
     <>
-      {/* ===== RESUMEN DE HOY o BANNER CARDYA DESACTIVADO ===== */}
+      {/* Espacio flexible - empuja resumen y tip hacia abajo */}
+      <div className="flex-1" />
+
+      {/* ===== RESUMEN DE HOY (card) ===== */}
       {participaPuntos ? (
         <>
-          {/* ===== RESUMEN DE HOY - Header ===== */}
-          <div className="px-4 lg:px-3 2xl:px-4 pt-6 lg:pt-4 2xl:pt-6 pb-3 lg:pb-2 2xl:pb-3 bg-linear-to-r from-blue-100 to-slate-50 border-b-2 border-slate-200">
-            <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
-              <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 bg-blue-600 rounded-lg lg:rounded-md 2xl:rounded-lg flex items-center justify-center shadow-sm">
-                <BarChart3 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white" />
+          {/* Card */}
+          <div className="mx-3 lg:mx-2 2xl:mx-3 mb-2 lg:mb-1.5 2xl:mb-2 rounded-xl border-2 border-slate-300 bg-white shadow-md overflow-hidden">
+          {/* Header */}
+          <div className="px-3 lg:px-2.5 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 flex items-center gap-2" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
+            <BarChart3 className="w-4 h-4 text-white shrink-0" />
+            <p className="font-bold text-white text-sm lg:text-xs 2xl:text-base flex-1 whitespace-nowrap">
+              Resumen del Día
+            </p>
+            {tieneMuchasSuc && sucActual && (
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={irSucAnterior}
+                  disabled={indiceSuc === 0}
+                  className={`p-0.5 rounded-full ${indiceSuc === 0 ? 'text-white/30' : 'text-white/80 hover:bg-white/10 active:scale-95 cursor-pointer'}`}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="text-sm lg:text-[11px] 2xl:text-sm text-white/70 font-bold">
+                  {indiceSuc + 1}/{sucursales.length}
+                </span>
+                <button
+                  onClick={irSucSiguiente}
+                  disabled={indiceSuc === sucursales.length - 1}
+                  className={`p-0.5 rounded-full ${indiceSuc === sucursales.length - 1 ? 'text-white/30' : 'text-white/80 hover:bg-white/10 active:scale-95 cursor-pointer'}`}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-black text-sm lg:text-xs 2xl:text-base">
-                  Resumen de Hoy
-                </p>
-                {/* Selector de sucursal (solo dueños con 2+) */}
-                {tieneMuchasSuc && sucActual && (
-                  <div className="flex items-center gap-0.5 lg:gap-1 2xl:gap-1.5 mt-0.5">
-                    <span className="text-xs lg:text-xs 2xl:text-sm font-semibold text-blue-600 truncate max-w-[110px] lg:max-w-[120px] 2xl:max-w-[140px]">
-                      {sucActual.nombre}
-                    </span>
-                    <button
-                      onClick={irSucAnterior}
-                      disabled={indiceSuc === 0}
-                      className={`p-0.5 rounded ${indiceSuc === 0 ? 'text-gray-300' : 'text-blue-500 active:scale-95 cursor-pointer'}`}
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5" />
-                    </button>
-                    <span className="text-[10px] lg:text-xs 2xl:text-xs text-slate-400 font-semibold">
-                      {indiceSuc + 1}/{sucursales.length}
-                    </span>
-                    <button
-                      onClick={irSucSiguiente}
-                      disabled={indiceSuc === sucursales.length - 1}
-                      className={`p-0.5 rounded ${indiceSuc === sucursales.length - 1 ? 'text-gray-300' : 'text-blue-500 active:scale-95 cursor-pointer'}`}
-                    >
-                      <ChevronRight className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
-
-          {/* ===== VENTAS con indicador ===== */}
-          <div className="px-4 lg:px-3 2xl:px-4 py-4 lg:py-2.5 2xl:py-4 border-b-2 border-slate-200 bg-linear-to-r from-emerald-50/50 to-white">
-            <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
-              <div className="w-11 h-11 lg:w-8 lg:h-8 2xl:w-11 2xl:h-11 bg-linear-to-br from-emerald-400 to-green-600 rounded-xl lg:rounded-lg 2xl:rounded-xl flex items-center justify-center shadow-md">
-                <TrendingUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+          {/* Nombre de sucursal (solo con 2+) */}
+          {tieneMuchasSuc && sucActual && (
+            <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 border-b-[1.5px] border-slate-300">
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-200 rounded-lg flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-700" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2 lg:gap-1.5 2xl:gap-2">
-                  <p className="text-2xl lg:text-lg 2xl:text-2xl font-black text-emerald-600">
-                    ${ventasTotales.toLocaleString()}
-                  </p>
-                  {ventasTotales > 0 && (
-                    <span className="text-xs lg:text-[10px] 2xl:text-xs font-semibold text-emerald-500 bg-emerald-100 px-1.5 lg:px-1 2xl:px-1.5 py-0.5 rounded">
-                      ↑
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-700 font-semibold">Ventas del día</p>
-              </div>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black truncate">
+                {sucActual.esPrincipal ? 'Matriz' : sucActual.nombre}
+              </p>
             </div>
-          </div>
+          )}
 
-          {/* ===== CLIENTES Y TRANSACCIONES con iconos ===== */}
-          <div className="grid grid-cols-2 border-b-2 border-slate-200">
+          {/* Métricas */}
+          <div className="divide-y-[1.5px] divide-slate-300">
+            {/* Ventas */}
+            <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5">
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-emerald-200 rounded-lg flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-emerald-700" />
+              </div>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black flex-1">Ventas</p>
+              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-600 mr-1">${ventasTotales.toLocaleString()}</p>
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 shrink-0" />
+            </div>
+
+            {/* Clientes */}
             <button
               onClick={() => navigate('/business-studio/clientes')}
-              className="px-3 lg:px-2 2xl:px-3 py-4 lg:py-2.5 2xl:py-4 text-center border-r-2 border-slate-200 hover:bg-blue-50 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
             >
-              <div className="flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 mb-1 lg:mb-0.5 2xl:mb-1">
-                <Users className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5 text-blue-500" />
-                <p className="text-2xl lg:text-lg 2xl:text-2xl font-black text-blue-600">{clientes}</p>
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-200 rounded-lg flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-700" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-700 font-semibold">Clientes</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black flex-1">Clientes</p>
+              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-600 mr-1">{clientes}</p>
+              <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-500 shrink-0" />
             </button>
+
+            {/* Transacciones */}
             <button
               onClick={() => navigate('/business-studio/transacciones')}
-              className="px-3 lg:px-2 2xl:px-3 py-4 lg:py-2.5 2xl:py-4 text-center hover:bg-blue-50 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
             >
-              <div className="flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 mb-1 lg:mb-0.5 2xl:mb-1">
-                <Receipt className="w-5 h-5 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5 text-blue-500" />
-                <p className="text-2xl lg:text-lg 2xl:text-2xl font-black text-blue-600">{transacciones}</p>
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-indigo-200 rounded-lg flex items-center justify-center shrink-0">
+                <Receipt className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-indigo-700" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-700 font-semibold">Transacciones</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black flex-1">Transacciones</p>
+              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-600 mr-1">{transacciones}</p>
+              <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-500 shrink-0" />
             </button>
+          </div>
           </div>
         </>
       ) : null}
 
-      {/* Espacio flexible - empuja acciones y tip hacia abajo */}
-      <div className="flex-1" />
-
-      {/* Divisor sutil */}
-      <div className="mx-4 border-t border-slate-200" />
-
-      {/* ===== ACCIONES RÁPIDAS ===== */}
-      <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3">
-        <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 mb-2.5 lg:mb-1.5 2xl:mb-2.5">
-          <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-slate-400" />
-          <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-700 font-semibold uppercase tracking-wide">Acciones rápidas</p>
-        </div>
-        <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
-          <button
-            onClick={() => navigate('/business-studio/catalogo')}
-            className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-1.5 2xl:p-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors text-left cursor-pointer"
-          >
-            <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 bg-amber-200 rounded-lg lg:rounded-md 2xl:rounded-lg flex items-center justify-center">
-              <Package className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-amber-700" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black">Agregar producto</p>
-              <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-600">Catálogo</p>
-            </div>
-            <ChevronRight className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-slate-400" />
-          </button>
-          <button
-            onClick={() => navigate('/business-studio/ofertas')}
-            className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 p-2.5 lg:p-1.5 2xl:p-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors text-left cursor-pointer"
-          >
-            <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 bg-rose-200 rounded-lg lg:rounded-md 2xl:rounded-lg flex items-center justify-center">
-              <Tag className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-rose-700" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black">Crear oferta</p>
-              <p className="text-xs lg:text-[10px] 2xl:text-xs text-slate-600">Promociones</p>
-            </div>
-            <ChevronRight className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-slate-400" />
-          </button>
-        </div>
-      </div>
-
       {/* ===== TIP DEL DÍA ===== */}
-      <div className="px-3 lg:px-2 2xl:px-3 py-2.5 lg:py-1.5 2xl:py-2.5">
-        <div className="bg-linear-to-r from-orange-600 to-amber-500 rounded-lg lg:rounded-md 2xl:rounded-lg p-3 lg:p-2 2xl:p-3 tip-glow shadow-xl">
-          <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 text-white">
-            <span className="text-3xl lg:text-xl 2xl:text-3xl tip-bounce shrink-0">💡</span>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-sm lg:text-[11px] 2xl:text-base mb-1.5 lg:mb-1 2xl:mb-1.5 uppercase tracking-wide">
-                Tip del día
-              </p>
-              <p className="text-xs lg:text-[10px] 2xl:text-sm leading-snug font-normal opacity-90 line-clamp-3 lg:line-clamp-2 2xl:line-clamp-3">
-                {tipDelDia}
-              </p>
-            </div>
+      <div className="mx-3 lg:mx-2 2xl:mx-3 mb-3 lg:mb-2 2xl:mb-3">
+        <div className="rounded-xl p-3 lg:p-2.5 2xl:p-3" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
+          {/* Label arriba */}
+          <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
+            <span className="text-base lg:text-sm 2xl:text-base">💡</span>
+            <span className="text-sm lg:text-xs 2xl:text-base font-bold text-amber-400">
+              Tip del Día
+            </span>
           </div>
+          {/* Tip text */}
+          <p className="text-sm lg:text-xs 2xl:text-sm leading-relaxed font-medium text-white/85 line-clamp-3 lg:line-clamp-2 2xl:line-clamp-3 italic">
+            {tipDelDia}
+          </p>
         </div>
       </div>
     </>

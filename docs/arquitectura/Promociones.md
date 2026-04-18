@@ -1,7 +1,7 @@
 # 🏷️ Promociones — Ofertas y Cupones
 
-**Última actualización:** 7 Abril 2026
-**Versión:** 3.0 (Migración React Query — abril 2026)
+**Última actualización:** 17 Abril 2026
+**Versión:** 3.1 (Estados computados + paleta unificada de badges — abril 2026)
 **Estado:** ✅ Operacional (Ofertas públicas + Cupones privados + ChatYA + Tiempo real)
 
 > **MIGRACIÓN REACT QUERY (Abril 2026):**
@@ -364,6 +364,54 @@ Cuando un cliente usa un cupón:
 
 ---
 
+## 7.1 Estados computados (CASE en SQL)
+
+El estado que ve el usuario en la UI **no siempre coincide** con `oferta_usuarios.estado` almacenado en BD. Esto es intencional: el estado almacenado captura la última acción del usuario sobre el cupón (activo / usado / revocado), pero no refleja el paso del tiempo (vencimiento) ni el agotamiento global de la oferta.
+
+Por eso los queries que alimentan la UI calculan un **estado computado** con `CASE` en SQL:
+
+### `obtenerClientesAsignados` y `obtenerMisCupones` (cupones)
+
+Orden de prioridad (primer match gana):
+
+1. `ou.estado = 'revocado'` → **revocado**
+2. `ou.estado = 'usado'` → **usado**
+3. `o.fecha_fin < NOW()` → **vencido**
+4. Caso contrario → **activo**
+
+Ejemplo: un cupón con `estado='activo'` pero `fecha_fin < NOW()` se muestra como **Vencido** en Mis Cupones y en TabClientes de BS. Antes, el backend devolvía `'activo'` crudo y la UI lo pintaba verde, causando confusión.
+
+### `obtenerOfertas` (ofertas públicas)
+
+Orden de prioridad corregido (abril 2026):
+
+1. `activo = false` → **inactiva**
+2. `fecha_inicio > NOW()` → **próxima**
+3. `limite_usos IS NOT NULL AND usos_actuales >= limite_usos` → **agotada**
+4. `fecha_fin < NOW()` → **vencida**
+5. Caso contrario → **activa**
+
+> **Bug corregido:** antes `vencida` se evaluaba antes que `agotada`. Una oferta que se agotó y luego venció aparecía como "Vencida" cuando el motivo real de cierre fue el agotamiento. La prioridad actual refleja la causa-raíz: si se agotó, siempre cuenta como agotada aunque también haya vencido.
+
+---
+
+## 7.2 Paleta unificada de badges
+
+Para evitar confusión visual (por ejemplo "Activo" y "Usado" ambos en verde), los estados de cupones usan una paleta única aplicada en los 3 puntos donde se muestran (BS `PaginaOfertas`, BS `TabClientes`, cliente `CardCupon`):
+
+| Estado | Color | Uso |
+|--------|-------|-----|
+| Activo | `emerald` | Cupón vigente y sin usar |
+| Usado | `sky` | Ya canjeado (histórico legítimo) |
+| Vencido | `amber` | `fecha_fin < NOW()` y no usado |
+| Revocado | `red` | Revocado por el comerciante |
+
+Label unificado: se usa **"Vencido"** en toda la UI (antes aparecía "Expirado" en algunos lados).
+
+Los KPIs de la página de Promociones en BS siguen la misma paleta: "Usados" en sky, "Vencidos" en amber.
+
+---
+
 ## 8. Revocación y Reactivación
 
 ### Revocar cupón (masivo)
@@ -417,6 +465,19 @@ Revoca un solo usuario específico. Mismo flujo pero para un `usuarioId` del bod
 - Grid de CardCupon (1 col móvil, 3 lg, 4 2xl)
 - Deep link desde notificaciones: `/mis-cupones?id=uuid` (cambia al tab correcto según estado)
 
+### Política de visibilidad — cupones vencidos
+
+El backend `obtenerMisCupones` **filtra los cupones con estado computado `vencido` que nunca fueron usados** (`usado_at IS NULL`). Esos cupones no aparecen en ningún tab de Mis Cupones.
+
+**Razón:** mostrarle al cliente un cupón que se venció sin haberlo canjeado genera frustración sin aportar valor. No hay nada que pueda hacer con él.
+
+**Qué sí se muestra:**
+- Cupones **usados vencidos** (fecha_fin < NOW y usado_at NOT NULL) → aparecen en tab "Usados" como historial legítimo del canje
+- Cupones **revocados** → aparecen en tab "Historial"
+- Cupones **activos dentro de vigencia** → tab "Activos"
+
+La lógica vive en el query SQL con `HAVING` / `WHERE` combinando el CASE computado y `ou.usado_at`.
+
 **Hook:** `useMisCuponesLista()` (React Query)
 - Datos cacheados automáticamente por React Query (no recarga cada vez)
 - Pre-carga logos e imágenes al cargar datos (`new Image()`)
@@ -460,18 +521,27 @@ CarouselCupones.tsx (en components/layout/)
 
 **Endpoint:** `POST /api/scanya/validar-codigo`
 
-**Flujo de validación (11 pasos):**
+**Flujo de validación (10 pasos):**
 1. Buscar código en `oferta_usuarios.codigo_personal`
 2. Verificar estado del cupón — rechazar si `usado`, `revocado` o `expirado`
 3. Verificar que el código pertenece al cliente
 4. Verificar que la oferta pertenece al negocio
-5. Verificar sucursal (null = todas)
-6. Verificar activa
-7. Verificar fechas (inicio/fin)
-8. Verificar límite de usos totales
-9. Verificar límite por usuario
-10. Retornar datos del descuento
-11. Al confirmar: marca `oferta_usuarios.estado = 'usado'`
+5. Verificar activa
+6. Verificar fechas (inicio/fin)
+7. Verificar límite de usos totales
+8. Verificar límite por usuario
+9. Retornar datos del descuento
+10. Al confirmar: marca `oferta_usuarios.estado = 'usado'`
+
+### Alcance de canje por sucursal
+
+Las ofertas se crean asociadas a la sucursal activa del dueño en el momento de creación (`ofertas.sucursal_id` queda con el UUID de esa sucursal). Sin embargo, **el canje de cupones no está restringido por sucursal**: un cupón emitido por una oferta de cualquier sucursal del negocio puede canjearse en cualquier otra sucursal del mismo negocio.
+
+La única validación al canjear es que la oferta pertenezca al negocio del ScanYA activo (paso 4 de la lista superior). No se valida coincidencia entre `ofertas.sucursal_id` y la sucursal del ScanYA.
+
+`oferta_usos.sucursal_id` registra dónde ocurrió el canje — esto permite a los reportes del gerente incluir los canjes realizados en su sucursal, independientemente de dónde se emitió la oferta original (ver `docs/arquitectura/Reportes.md`).
+
+En la UI del cliente, `ModalVoucherGenerado.tsx` muestra "Válido en: [nombre del negocio]" (no la sucursal), consistente con el comportamiento de canje global por negocio.
 
 **UI en ScanYA:** Sección "Código de cupón" es la **segunda sección** del acordeón en ModalRegistrarVenta (después de cliente, antes de concepto/monto).
 

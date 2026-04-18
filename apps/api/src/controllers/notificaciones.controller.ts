@@ -34,8 +34,11 @@ export async function obtenerNotificacionesController(req: Request, res: Respons
     const modo = (req.query.modo as ModoNotificacion) || 'personal';
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = parseInt(req.query.offset as string) || 0;
+    // En modo comercial el interceptor axios agrega `sucursalId` automáticamente.
+    // Se filtran las notificaciones por sucursal activa (+ las generales del negocio).
+    const sucursalId = typeof req.query.sucursalId === 'string' ? req.query.sucursalId : undefined;
 
-    const resultado = await obtenerNotificaciones(usuarioId, modo, limit, offset);
+    const resultado = await obtenerNotificaciones(usuarioId, modo, limit, offset, sucursalId);
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -104,8 +107,12 @@ export async function marcarTodasLeidasController(req: Request, res: Response) {
   try {
     const usuarioId = obtenerUsuarioId(req);
     const modo = (req.query.modo as ModoNotificacion) || 'personal';
+    // sucursalId llega por query param (frontend lo manda según contexto: BS vs
+    // fuera de BS). Respeta el contexto de sucursal activa para no marcar como
+    // leídas notificaciones de otras sucursales no visibles en el panel.
+    const sucursalId = typeof req.query.sucursalId === 'string' ? req.query.sucursalId : undefined;
 
-    const resultado = await marcarTodasComoLeidas(usuarioId, modo);
+    const resultado = await marcarTodasComoLeidas(usuarioId, modo, sucursalId);
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -173,8 +180,10 @@ export async function contarNoLeidasController(req: Request, res: Response) {
   try {
     const usuarioId = obtenerUsuarioId(req);
     const modo = (req.query.modo as ModoNotificacion) || 'personal';
+    // Mismo filtro por sucursal activa que obtenerNotificaciones
+    const sucursalId = typeof req.query.sucursalId === 'string' ? req.query.sucursalId : undefined;
 
-    const resultado = await contarNoLeidas(usuarioId, modo);
+    const resultado = await contarNoLeidas(usuarioId, modo, sucursalId);
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({

@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserCog, AlertTriangle, ArrowUp, ArrowDown, Users, DollarSign, Trophy, ShieldAlert } from 'lucide-react';
 import { useReporteEmpleados } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';
+import { obtenerIniciales } from '../../../../../utils/obtenerIniciales';
 import { CarouselKPI } from '../../../../../components/ui/CarouselKPI';
 import { PanelTitulo, formatearMonto, KpiCard } from './ReporteUI';
 
@@ -148,6 +149,7 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
 
   // ─── Solo Body (tabla de desempeño) ──────────────────────────────────
   return (
+    <>
     <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-empleados">
         <PanelTitulo icono={UserCog} titulo="Desempeño por empleado" />
 
@@ -197,13 +199,13 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
             const contenidoFila = (
               <>
                 <div className="flex items-center gap-2 px-3 py-2 min-w-0">
-                  {e.fotoUrl ? (
-                    <img src={e.fotoUrl} alt="" className="w-6 h-6 2xl:w-7 2xl:h-7 rounded-full object-cover shrink-0" />
-                  ) : (
-                    <div className="w-6 h-6 2xl:w-7 2xl:h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] 2xl:text-[11px] font-bold text-indigo-700">{e.nombre.charAt(0)}</span>
-                    </div>
-                  )}
+                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                    {e.fotoUrl ? (
+                      <img src={e.fotoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(e.nombre)}</span>
+                    )}
+                  </div>
                   <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate">{e.nombre}</span>
                   {e.esDueno && (
                     <span className="shrink-0 text-[10px] lg:text-[9px] 2xl:text-[10px] font-bold text-indigo-700 bg-indigo-100 border border-indigo-300 px-1.5 py-0.5 rounded-md">
@@ -259,23 +261,29 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
           })}
         </div>
 
-        {/* Móvil — cards */}
-        <div className="lg:hidden">
-          {empleadosOrdenados.map((e, i) => {
-            const noClickeable = e.esDueno || e.inactivo;
-            const claseCard = `w-full text-left p-3 border-b-[1.5px] border-slate-300 ${noClickeable ? '' : 'lg:cursor-pointer'} ${e.inactivo ? 'opacity-60' : ''} ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`;
-            const contenidoCard = (
-              <>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {e.fotoUrl ? (
-                      <img src={e.fotoUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                        <span className="text-[11px] font-bold text-indigo-700">{e.nombre.charAt(0)}</span>
-                      </div>
-                    )}
-                    <span className="text-base font-bold text-slate-800 truncate">{e.nombre}</span>
+    </div>
+
+      {/* Móvil — cards (fuera del box) */}
+      <div className="lg:hidden space-y-2 mt-3">
+        {empleadosOrdenados.map((e) => {
+          const noClickeable = e.esDueno || e.inactivo;
+          const claseCard = `w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden ${noClickeable ? '' : 'cursor-pointer hover:border-slate-400 hover:shadow-sm'} ${e.inactivo ? 'opacity-60' : ''}`;
+          const contenidoCard = (
+            <>
+              {/* Avatar */}
+              <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                {e.fotoUrl ? (
+                  <img src={e.fotoUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-lg font-bold text-indigo-700">{obtenerIniciales(e.nombre)}</span>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-base font-bold text-slate-800 truncate">{e.nombre}</p>
                     {e.esDueno && (
                       <span className="shrink-0 text-[10px] font-bold text-indigo-700 bg-indigo-100 border border-indigo-300 px-1.5 py-0.5 rounded-md">
                         Dueño
@@ -287,53 +295,53 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
                       </span>
                     )}
                   </div>
+                  <p className="text-sm font-bold text-emerald-600 mt-0.5">{formatearMonto(e.montoTotal)}</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold bg-slate-200 text-slate-700">
+                    <DollarSign className="w-3 h-3" />
+                    Prom. {formatearMonto(e.ticketPromedio)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold bg-blue-100 text-blue-700">
+                    <Trophy className="w-3 h-3" />
+                    {e.totalTransacciones} ventas
+                  </span>
                   {e.alertas > 0 && (
-                    <span className="flex items-center gap-1 text-sm font-bold text-red-600 shrink-0">
-                      <AlertTriangle className="w-3.5 h-3.5" />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold bg-red-100 text-red-700">
+                      <AlertTriangle className="w-3 h-3" />
                       {e.alertas}
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <span className="text-sm font-medium text-slate-600">Ventas</span>
-                    <p className="text-base font-bold text-slate-800">{e.totalTransacciones}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-600">Total vendido</span>
-                    <p className="text-base font-bold text-emerald-600">{formatearMonto(e.montoTotal)}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-600">Venta prom.</span>
-                    <p className="text-base font-bold text-emerald-600">{formatearMonto(e.ticketPromedio)}</p>
-                  </div>
-                </div>
-              </>
-            );
-            if (noClickeable) {
-              return (
-                <div
-                  key={e.empleadoId}
-                  className={claseCard}
-                  data-testid={`empleado-card-${e.empleadoId}`}
-                >
-                  {contenidoCard}
-                </div>
-              );
-            }
+              </div>
+            </>
+          );
+          if (noClickeable) {
             return (
-              <button
+              <div
                 key={e.empleadoId}
-                type="button"
-                onClick={() => abrirEmpleadoEnModulo(e.nombre)}
                 className={claseCard}
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                 data-testid={`empleado-card-${e.empleadoId}`}
               >
                 {contenidoCard}
-              </button>
+              </div>
             );
-          })}
-        </div>
-    </div>
+          }
+          return (
+            <button
+              key={e.empleadoId}
+              type="button"
+              onClick={() => abrirEmpleadoEnModulo(e.nombre)}
+              className={claseCard}
+              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+              data-testid={`empleado-card-${e.empleadoId}`}
+            >
+              {contenidoCard}
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }

@@ -75,8 +75,8 @@ interface ModalAdaptativoProps {
 
   // --- Props exclusivas de Modal (escritorio) ---
 
-  /** Ancho máximo en escritorio: 'sm' | 'md' | 'lg' | 'xl' | 'full' */
-  ancho?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  /** Ancho máximo en escritorio: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'wide' */
+  ancho?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'wide';
   /** Padding del contenido en escritorio */
   paddingContenido?: 'none' | 'sm' | 'md' | 'lg';
 

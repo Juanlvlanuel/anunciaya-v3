@@ -46,6 +46,17 @@ import {
     actualizarImagenesController,
     actualizarOperacionController,
 } from '../controllers/negocios.controller';
+import {
+    kpisSucursalesController,
+    listarSucursalesConGerenteController,
+    crearSucursalController,
+    toggleActivaSucursalController,
+    eliminarSucursalController,
+    obtenerGerenteSucursalController,
+    crearGerenteController,
+    reenviarCredencialesController,
+    revocarGerenteController,
+} from '../controllers/sucursales.controller';
 import { verificarToken } from '../middleware/auth';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware';
 import { verificarNegocio } from '../middleware/negocio.middleware';
@@ -362,7 +373,42 @@ router.get('/sucursal/:id/horarios', async (req, res) => {
  *   ]
  * }
  */
+// =============================================================================
+// BS SUCURSALES — CRUD + GERENTES (solo dueños)
+// Las rutas específicas van ANTES de /:negocioId/sucursales para evitar match
+// =============================================================================
+
+// KPIs de sucursales
+router.get('/:negocioId/sucursales/kpis', verificarToken, verificarNegocio, kpisSucursalesController);
+
+// Lista de sucursales con gerente incluido (LEFT JOIN)
+router.get('/:negocioId/sucursales/lista', verificarToken, verificarNegocio, listarSucursalesConGerenteController);
+
+// Lista básica de sucursales (existente — usado por SelectorSucursalesInline, etc.)
 router.get('/:negocioId/sucursales', obtenerSucursalesNegocioController);
+
+// Crear nueva sucursal
+router.post('/:negocioId/sucursales', verificarToken, verificarNegocio, crearSucursalController);
+
+// Toggle activa/inactiva
+router.patch('/sucursal/:id/toggle-activa', verificarToken, verificarNegocio, toggleActivaSucursalController);
+
+// Eliminar sucursal (soft delete)
+router.delete('/sucursal/:id/eliminar', verificarToken, verificarNegocio, eliminarSucursalController);
+
+// Obtener gerente de una sucursal
+router.get('/sucursal/:id/gerente', verificarToken, verificarNegocio, obtenerGerenteSucursalController);
+
+// Crear cuenta de gerente
+router.post('/sucursal/:id/crear-gerente', verificarToken, verificarNegocio, crearGerenteController);
+
+// Reenviar credenciales provisionales
+router.post('/sucursal/:id/reenviar-credenciales', verificarToken, verificarNegocio, reenviarCredencialesController);
+
+// Revocar gerente
+router.delete('/sucursal/:id/revocar-gerente', verificarToken, verificarNegocio, revocarGerenteController);
+
+// =============================================================================
 
 /**
  * GET /api/negocios/:id

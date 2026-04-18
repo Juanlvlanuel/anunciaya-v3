@@ -19,6 +19,7 @@ import {
   obtenerReportePromociones,
   obtenerReporteResenas,
   obtenerClientesInactivos,
+  obtenerDetallePromocion,
 } from '../services/reportes.service.js';
 import type { PeriodoEstadisticas, RespuestaServicio } from '../types/puntos.types.js';
 
@@ -62,6 +63,9 @@ export async function obtenerReporteController(req: Request, res: Response): Pro
   const periodo = (req.query.periodo as PeriodoEstadisticas) || 'mes';
   const fechaInicio = req.query.fechaInicio as string | undefined;
   const fechaFin = req.query.fechaFin as string | undefined;
+  // Los gerentes no deben ver al dueño en reportes de empleados
+  const esGerente = !!req.usuario?.sucursalAsignada;
+  const incluirDueno = !esGerente;
 
   let resultado: RespuestaServicio<unknown>;
 
@@ -73,7 +77,7 @@ export async function obtenerReporteController(req: Request, res: Response): Pro
       resultado = await obtenerReporteClientes(negocioId, sucursalId, periodo, fechaInicio, fechaFin);
       break;
     case 'empleados':
-      resultado = await obtenerReporteEmpleados(negocioId, sucursalId, periodo, fechaInicio, fechaFin);
+      resultado = await obtenerReporteEmpleados(negocioId, sucursalId, periodo, fechaInicio, fechaFin, incluirDueno);
       break;
     case 'promociones':
       resultado = await obtenerReportePromociones(negocioId, sucursalId, periodo, fechaInicio, fechaFin);
@@ -110,6 +114,9 @@ export async function exportarReporteController(req: Request, res: Response): Pr
   const periodo = (req.query.periodo as PeriodoEstadisticas) || 'mes';
   const fechaInicioExp = req.query.fechaInicio as string | undefined;
   const fechaFinExp = req.query.fechaFin as string | undefined;
+  // Los gerentes no deben ver al dueño en reportes de empleados (incluye export XLSX)
+  const esGerenteExp = !!req.usuario?.sucursalAsignada;
+  const incluirDuenoExp = !esGerenteExp;
 
   // Obtener datos del reporte
   let resultado: RespuestaServicio<unknown>;
@@ -121,7 +128,7 @@ export async function exportarReporteController(req: Request, res: Response): Pr
       resultado = await obtenerReporteClientes(negocioId, sucursalId, periodo, fechaInicioExp, fechaFinExp);
       break;
     case 'empleados':
-      resultado = await obtenerReporteEmpleados(negocioId, sucursalId, periodo, fechaInicioExp, fechaFinExp);
+      resultado = await obtenerReporteEmpleados(negocioId, sucursalId, periodo, fechaInicioExp, fechaFinExp, incluirDuenoExp);
       break;
     case 'promociones':
       resultado = await obtenerReportePromociones(negocioId, sucursalId, periodo, fechaInicioExp, fechaFinExp);
@@ -189,7 +196,29 @@ export async function obtenerClientesInactivosController(req: Request, res: Resp
     return;
   }
 
-  const resultado = await obtenerClientesInactivos(negocioId, tipo);
+  const sucursalId = obtenerSucursalId(req);
+  const resultado = await obtenerClientesInactivos(negocioId, tipo, sucursalId);
+  res.status(resultado.success ? 200 : 500).json(resultado);
+}
+
+// =============================================================================
+// GET /api/business/reportes/detalle-promocion?tipo=ofertas|cupones|recompensas
+// =============================================================================
+
+export async function obtenerDetallePromocionController(req: Request, res: Response): Promise<void> {
+  const negocioId = obtenerNegocioId(req);
+  if (!negocioId) {
+    res.status(401).json({ success: false, message: 'No autenticado' });
+    return;
+  }
+
+  const tipo = req.query.tipo as string;
+  if (tipo !== 'ofertas' && tipo !== 'cupones' && tipo !== 'recompensas') {
+    res.status(400).json({ success: false, message: 'Tipo inválido. Opciones: ofertas, cupones, recompensas' });
+    return;
+  }
+
+  const resultado = await obtenerDetallePromocion(negocioId, tipo);
   res.status(resultado.success ? 200 : 500).json(resultado);
 }
 

@@ -1,14 +1,18 @@
 # Empleados — Arquitectura
 
-> **Última actualización:** 7 Abril 2026
-> **Estado:** ✅ Completo (incluye upload avatar desde ScanYA)
-> **Sprint:** 10
+> **Última actualización:** 17 Abril 2026
+> **Estado:** ✅ Completo (incluye upload avatar desde ScanYA, CRUD por dueños y gerentes, validación live de nick + correo + teléfono)
+> **Sprint:** 10 (inicial) / 12 (permisos gerente) / post-12 (validación live de inputs)
 
 ---
 
 ## Resumen
 
-Módulo de gestión de empleados para Business Studio. Permite al dueño crear, editar, activar/desactivar y eliminar empleados con permisos granulares, horarios semanales, estadísticas de turnos ScanYA, y revocación remota de sesiones.
+Módulo de gestión de empleados para Business Studio. Permite gestionar empleados con permisos granulares, horarios semanales, estadísticas de turnos ScanYA, y revocación remota de sesiones.
+
+**Modelo de permisos:**
+- **Dueño**: CRUD total sobre empleados de todas sus sucursales
+- **Gerente**: CRUD sobre empleados SOLO de su sucursal asignada
 
 ---
 
@@ -67,6 +71,52 @@ Módulo de gestión de empleados para Business Studio. Permite al dueño crear, 
 
 ---
 
+## Política de permisos dueño vs gerente
+
+El módulo de Empleados reconoce dos roles con permisos diferenciados:
+
+### Dueño (`sucursalAsignada = null`)
+
+- CRUD total sobre empleados de **todas las sucursales** de su negocio
+- Sin restricciones (el frontend ya filtra por sucursal activa vía interceptor axios, pero el backend NO restringe)
+
+### Gerente (`sucursalAsignada = UUID`)
+
+- CRUD sobre empleados **solo de su sucursal asignada**
+- Si intenta operar sobre un empleado de otra sucursal → **403** "Este empleado no pertenece a tu sucursal"
+- Al **crear**: el `sucursalId` del body se sobreescribe con su sucursal asignada (no puede elegir otra)
+- Al **editar**: si intenta cambiar el `sucursalId`, se fuerza al suyo
+- Al **ver detalle / toggle / eliminar / revocar sesión / editar horarios**: se valida que el empleado pertenezca a su sucursal antes de operar
+
+### Helper clave
+
+En `services/empleados.service.ts`:
+```typescript
+// Valida que un empleado pertenezca a una sucursal específica (no solo al negocio).
+export async function empleadoPerteneceASucursal(
+  empleadoId: string,
+  sucursalId: string
+): Promise<boolean>
+```
+
+En `controllers/empleados.controller.ts`:
+```typescript
+// Retorna true si el usuario es dueño (sucursalAsignada=null) o
+// si es gerente Y el empleado pertenece a su sucursal.
+async function gerentePuedeOperarSobreEmpleado(
+  req: RequestConNegocio,
+  empleadoId: string
+): Promise<boolean>
+```
+
+### Frontend
+
+- Botón "Nuevo empleado" visible para dueños y gerentes
+- Botones "Revocar sesión ScanYA" y "Eliminar empleado" en `ModalDetalleEmpleado` visibles para ambos roles
+- Modal de crear/editar NO tiene selector de sucursal — usa `usuario.sucursalActiva` (que para un gerente siempre es su asignada)
+
+---
+
 ## Arquitectura Backend
 
 ### Archivos
@@ -75,8 +125,8 @@ Módulo de gestión de empleados para Business Studio. Permite al dueño crear, 
 |---------|-------------|
 | `types/empleados.types.ts` | Interfaces: EmpleadoResumen, EmpleadoDetalle, KPIs, Permisos, Horarios |
 | `validations/empleados.schema.ts` | Zod schemas: crear, actualizar, horarios, toggle, filtros |
-| `services/empleados.service.ts` | CRUD + horarios + estadísticas + revocación sesión |
-| `controllers/empleados.controller.ts` | 10 controllers con permisos dueño/gerente |
+| `services/empleados.service.ts` | CRUD + horarios + estadísticas + revocación sesión. Helper `empleadoPerteneceASucursal()` |
+| `controllers/empleados.controller.ts` | 10 controllers con permisos dueño/gerente. Helper `gerentePuedeOperarSobreEmpleado()` |
 | `routes/empleados.routes.ts` | 10 endpoints bajo `/api/business/empleados` |
 | `utils/tokenStoreScanYA.ts` | Revocación sesiones en Redis (timestamp) |
 
@@ -87,27 +137,37 @@ BASE: /api/business/empleados
 MIDDLEWARE: verificarToken, verificarNegocio
 
 GET    /kpis                → KPIs (total, activos, inactivos, calificación)
+GET    /verificar-nick      → Disponibilidad de nick + 3 sugerencias si está tomado
 GET    /                    → Lista paginada con filtros
-GET    /:id                 → Detalle completo (horarios + estadísticas)
-POST   /                    → Crear empleado (solo dueño)
-PUT    /:id                 → Actualizar empleado
-PATCH  /:id/activo          → Toggle activo/inactivo
-DELETE /:id                 → Eliminar empleado (solo dueño)
-PUT    /:id/horarios        → Guardar horarios semanales
-POST   /:id/revocar-sesion  → Revocar sesiones ScanYA (solo dueño)
+GET    /:id                 → Detalle completo (gerente solo su sucursal → 403)
+POST   /                    → Crear empleado (gerente: sucursalId se fuerza al suyo)
+PUT    /:id                 → Actualizar empleado (gerente: solo su sucursal → 403)
+PATCH  /:id/activo          → Toggle activo/inactivo (gerente: solo su sucursal → 403)
+DELETE /:id                 → Eliminar empleado (gerente: solo su sucursal → 403)
+PUT    /:id/horarios        → Guardar horarios semanales (gerente: solo su sucursal → 403)
+POST   /:id/revocar-sesion  → Revocar sesiones ScanYA (gerente: solo su sucursal → 403)
 ```
 
 ### Revocación remota de sesiones
 
 **Flujo:**
-1. Dueño presiona "Cerrar sesión en ScanYA" en ModalDetalleEmpleado
+1. Dueño o gerente presiona "Cerrar sesión en ScanYA" en ModalDetalleEmpleado
 2. Backend: cierra turno activo (`scanya_turnos.hora_fin = NOW()`)
 3. Backend: guarda timestamp de revocación en Redis (`scanya_revocado:{empleadoId}`)
-4. Backend: emite `scanya:sesion-revocada` vía Socket.io
-5. Middleware `verificarTokenScanYA`: compara `iat` del token con timestamp de revocación
+4. Backend: emite `scanya:sesion-revocada` vía Socket.io con `empleadoId` en el payload
+5. Middleware `verificarTokenScanYA`: compara `iat` del token con timestamp de revocación en cada request
 6. Si `iat < revocación` → 401 "Sesión revocada por el administrador"
+7. Endpoint `refrescarTokenScanYA`: también aplica el mismo check — impide que un refresh automático del cliente genere un token nuevo con `iat > revocación` que burlaría la verificación del middleware
+8. Frontend ScanYA escucha el socket y filtra por `empleadoId` (todos los empleados del negocio están en el mismo room del dueño). Solo el empleado afectado dispara `logout('revocada_admin')`
 
 **Redis:** `scanya_revocado:{empleadoId}` → timestamp (TTL 13h)
+
+**Defensa en tres capas:**
+- Middleware de autenticación — rechaza tokens con `iat < revocación`
+- Endpoint de refresh — también consulta Redis antes de emitir nuevos tokens (evita bypass por ciclo de refresh automático del cliente)
+- Socket.io — expulsa al empleado en tiempo real sin esperar a su próxima acción
+
+**Socket:** el empleado no tiene cuenta de usuario AnunciaYA. ScanYA conecta el socket usando `negocioUsuarioId` (el ID del dueño) como identificador de room. Todos los empleados del negocio y el dueño comparten el mismo room `usuario:{negocioUsuarioId}`. Por eso el payload del evento incluye `empleadoId` — el frontend filtra para que solo el empleado revocado cierre su sesión.
 
 ### Verificación de propiedad
 
@@ -200,6 +260,45 @@ WHERE e.id = $empleadoId AND ns.negocio_id = $negocioId
 
 ---
 
+## Validación live de inputs en ModalEmpleado
+
+> **Agregado:** 17 Abril 2026
+
+El modal de crear/editar empleado valida en vivo tres campos críticos con feedback inmediato: **nick**, **correo** y **teléfono**.
+
+### Nick — disponibilidad en tiempo real
+
+**Endpoint:** `GET /api/business/empleados/verificar-nick?nick=juan&excluirEmpleadoId=<uuid?>`
+
+- Consulta `empleados` filtrando por `negocio_id` del usuario autenticado (la unicidad es por negocio, no global)
+- En modo edición recibe `excluirEmpleadoId` para no marcar como duplicado al propio empleado que se está editando
+- Si el nick está tomado, genera **3 sugerencias** en base al nick solicitado (sufijos numéricos y variantes cortas) para que el dueño pueda elegir con un click (chips)
+- Debounce de 400ms en el input antes de disparar la query
+- Indicadores visuales: spinner (validando) / CheckCircle2 verde (disponible) / XCircle rojo (tomado) + chips de sugerencias
+
+**Archivos:**
+- `services/empleados.service.ts` → `verificarDisponibilidadNick(nick, excluirEmpleadoId?)`
+- `controllers/empleados.controller.ts` → `verificarNickController`
+- `routes/empleados.routes.ts` → `GET /verificar-nick`
+
+### Correo — formato + typo detection (modo `contacto`)
+
+Usa el componente `InputCorreoValidado` en modo `contacto`:
+
+- Valida formato RFC 5322 (regex)
+- Detecta typos en dominios comunes con distancia Levenshtein (`gmail.cof` → sugerencia `gmail.com`)
+- **NO consulta** la BD de usuarios AnunciaYA (a diferencia del modo `registro`): el correo del empleado es un dato de contacto, no una cuenta de usuario. Un empleado no se registra en AnunciaYA por tener correo aquí
+- Botón "Corregir" aplica la sugerencia con un click
+- X clickeable para limpiar el input en caso de error
+
+El mismo modo `contacto` se usa en `ModalCrearSucursal` para el correo de la sucursal.
+
+### Teléfono — formato MX
+
+Componente `InputTelefono` con máscara y validación de 10 dígitos.
+
+---
+
 ## Bugs corregidos durante desarrollo
 
 - **`verificarPermiso` no se usaba** — Las rutas de ScanYA no tenían middleware de permisos. Agregado a 7 rutas.
@@ -210,6 +309,7 @@ WHERE e.id = $empleadoId AND ns.negocio_id = $negocioId
 - **`fuera_horario` spam** — Anti-duplicado por `tx.id` generaba 1 alerta por transacción. Cambiado a `sucursalId` (1 por día).
 - **UUID validation Zod** — `z.string().uuid()` rechaza UUIDs con variante no-estándar. Cambiado a regex.
 - **Import Redis** — `tokenStoreScanYA.ts` importaba `redis` como default en vez de named export.
+- **Mutations de React Query resolvían incluso con 4xx** — El interceptor Axios envolvía todas las respuestas en `{ success, data, error, message }` y resolvía la promesa aunque el backend respondiera 400/409. Las 6 mutations de `hooks/queries/useEmpleados.ts` (Crear, Actualizar, ToggleActivo, Eliminar, ActualizarHorarios, RevocarSesion) mostraban toast de éxito aunque el backend rechazara la operación (ej: nick duplicado → "Empleado creado" falsamente). **Fix:** todas las mutations ahora verifican `res.success` y hacen `throw new Error(res.error ?? res.message)` para que `onError` dispare correctamente.
 
 ---
 

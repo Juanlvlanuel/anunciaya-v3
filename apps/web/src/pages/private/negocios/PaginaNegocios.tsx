@@ -260,9 +260,9 @@ function PopupNegocio({ negocio, onVerPerfil, onChat }: PopupNegocioProps) {
             <h3 className="text-[17px] font-bold text-white leading-tight truncate">
               {negocio.negocioNombre}
             </h3>
-            {negocio.sucursalNombre?.includes(`${negocio.negocioNombre} - `) && (
+            {negocio.totalSucursales > 1 && (
               <p className="text-sm font-medium text-white/70 truncate mt-0.5">
-                Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
+                {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
               </p>
             )}
           </div>

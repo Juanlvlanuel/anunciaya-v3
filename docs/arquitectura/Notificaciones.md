@@ -18,7 +18,166 @@
 | `actorImagenUrl` | string \| null | Personal: logo del negocio. Comercial: avatar del cliente |
 | `actorNombre` | string \| null | Personal: nombre del negocio. Comercial: nombre del cliente |
 | `referenciaId` | string \| null | ID de la entidad relacionada |
-| `referenciaTipo` | string \| null | Tipo de entidad: `transaccion`, `voucher`, `oferta`, `cupon`, `recompensa`, `resena` |
+| `referenciaTipo` | string \| null | Tipo de entidad: `transaccion`, `voucher`, `oferta`, `cupon`, `recompensa`, `resena`, `alerta` |
+| `negocioId` | string | Negocio dueño de la notificación |
+| `sucursalId` | string \| null | Sucursal del evento. `null` = evento a nivel negocio (ver "Filtrado por sucursal") |
+
+---
+
+## Filtrado por sucursal (modo comercial)
+
+Las notificaciones comerciales se filtran por la sucursal del **contexto de navegación actual**, no por la última sucursal seleccionada en el selector.
+
+### Regla de `sucursal_id` al crear la notificación
+
+| Tipo de evento | `sucursal_id` | Razón |
+|---------------|---------------|-------|
+| Venta / canje de cupón (ScanYA) | Sucursal donde ocurrió | Cada venta es específica de una sucursal |
+| Reseña nueva | Sucursal donde se dejó | Reseñas son por sucursal |
+| Voucher cobrado / entregado (ScanYA) | Sucursal donde se entregó | Cierre de evento específico |
+| Voucher pendiente (cliente canjeó puntos) | `null` | Cualquier sucursal puede entregarlo |
+| Stock bajo / recompensa agotada | `null` | Recompensas son a nivel negocio, no por sucursal |
+| Alerta de seguridad | `alerta.sucursalId` o `null` | Puede ser específica o general |
+
+**Eventos de negocio** (`sucursal_id = null`) aparecen en cualquier contexto — son tareas o avisos que cualquier operador debe ver sin importar qué sucursal tenga activa.
+
+### Regla de filtrado al leer (`obtenerNotificaciones`)
+
+Cuando hay `sucursalId` en la query:
+
+```sql
+WHERE usuario_id = X AND modo = 'comercial'
+  AND (sucursal_id = ${sucursalId} OR sucursal_id IS NULL)
+```
+
+### ¿Qué `sucursalId` se pasa?
+
+El cálculo lo hace el service del frontend (`obtenerSucursalIdParaFiltro` en `notificacionesService.ts`):
+
+| Rol | Contexto (URL actual) | `sucursalId` pasado |
+|-----|----------------------|---------------------|
+| **Gerente** | cualquiera | Su `sucursalAsignada` (fijo, no puede cambiar) |
+| **Dueño** | `/business-studio/*` | `usuario.sucursalActiva` (selector del navbar) |
+| **Dueño** | fuera de BS (inicio, ofertas, etc.) | `sucursalPrincipalId` (Matriz) |
+| **Usuario personal** | cualquiera | `undefined` (sin filtro) |
+
+El helper `obtenerSucursalIdParaFiltro` se exporta para que el store `useNotificacionesStore` aplique el mismo filtro al recibir notificaciones por socket en tiempo real. Si una notificación llega de una sucursal distinta al contexto actual del dueño, el listener la descarta (no la agrega al panel).
+
+El helper se usa también en los endpoints de escritura que deben respetar el contexto — no solo los de lectura. En particular:
+- `GET /notificaciones` (listado) — filtra por sucursal
+- `GET /notificaciones/no-leidas` (badge) — filtra por sucursal
+- `PATCH /notificaciones/marcar-todas` — marca solo las del contexto actual (no pisa Sucursal Norte desde Matriz)
+
+### Exclusión del interceptor axios
+
+La ruta `/notificaciones` está en `RUTAS_SIN_SUCURSAL` (`api.ts`) para que el interceptor no sobreescriba el `sucursalId` que el service envía explícitamente. Esto es crítico porque el interceptor usa `usuario.sucursalActiva`, pero fuera de BS se necesita `sucursalPrincipalId`.
+
+### Triggers de refresh automático
+
+El panel de notificaciones recarga automáticamente en 2 momentos:
+
+- **`setSucursalActiva`** (`useAuthStore`): cuando el dueño cambia sucursal en el selector de BS
+- **`MainLayout` useEffect**: cuando cambia `esBusinessStudio` (entrar/salir de `/business-studio/*`)
+
+Ambos llaman a `cargarNotificaciones('comercial')` que reemplaza el estado del store con los datos filtrados del backend.
+
+---
+
+## Destinatarios por tipo de evento
+
+Quiénes reciben cada notificación comercial al ocurrir el evento:
+
+| Evento | Dueño | Gerente de la sucursal | Empleados ScanYA |
+|--------|-------|------------------------|-------------------|
+| Venta registrada | ✅ | ✅ (solo el de esa sucursal) | ❌ |
+| Voucher cobrado / entregado | ✅ | ✅ (solo el de esa sucursal) | ❌ |
+| Nueva reseña | ✅ | ✅ (solo el de esa sucursal) | ❌ |
+| Voucher pendiente (cliente canjeó puntos) | ✅ | ✅ (**todos** los gerentes del negocio) | ✅ (todos, vía `notificarNegocioCompleto`) |
+| Stock bajo / agotado | ✅ | ❌ | ❌ |
+| Alerta de seguridad | ✅ | ❌ (los empleados sí via `notificarNegocioCompleto`) | ✅ |
+
+**Patrón de notificar al gerente en ScanYA (venta/voucher cobrado):**
+
+```typescript
+// Ejemplo: registrarVenta en scanya.service.ts
+const payloadComercial = { modo: 'comercial', sucursalId: payload.sucursalId, ... };
+
+// Dueño (siempre)
+crearNotificacion({ ...payloadComercial, usuarioId: negocioDueno.usuarioId });
+
+// Gerente de la sucursal (si existe y no es el dueño)
+const [gerente] = await db.select({ id: usuarios.id })
+    .from(usuarios)
+    .where(eq(usuarios.sucursalAsignada, payload.sucursalId));
+
+if (gerente && gerente.id !== negocioDueno.usuarioId) {
+    crearNotificacion({ ...payloadComercial, usuarioId: gerente.id });
+}
+```
+
+---
+
+## Limpieza automática de notificaciones
+
+Algunas notificaciones quedan **desactualizadas** cuando el evento que las originó se cierra. Para mantener el panel limpio, ciertos flujos borran las notificaciones relacionadas al cerrar el ciclo.
+
+### Voucher entregado → borra "voucher_pendiente"
+
+Cuando un empleado/gerente/dueño entrega un voucher en ScanYA (`validarVoucher`), el service ejecuta:
+
+```sql
+DELETE FROM notificaciones
+WHERE tipo = 'voucher_pendiente'
+  AND referencia_tipo = 'voucher'
+  AND referencia_id = ${voucherId}
+```
+
+Esto elimina las notificaciones "Recompensa por entregar" que vieron dueño + todos los gerentes + empleados. En su lugar se crea la notificación nueva "Recompensa entregada" (`voucher_cobrado`) solo para el dueño y gerente de la sucursal donde ocurrió el canje.
+
+### Voucher expirado automáticamente → borra "voucher_pendiente"
+
+Cuando un voucher nunca se canjea y pasa su `expira_at`, el job pasivo `expirarVouchersVencidos` (en `puntos.service.ts`, se dispara al listar canjes de BS) marca el voucher como `expirado`, devuelve los puntos al cliente y **elimina las notificaciones `voucher_pendiente` asociadas**:
+
+```sql
+DELETE FROM notificaciones
+WHERE tipo = 'voucher_pendiente'
+  AND referencia_tipo = 'voucher'
+  AND referencia_id = ${voucherId}
+```
+
+Sin esto, quedaban como "zombies" apuntando a vouchers que ya no se pueden entregar (el dueño/gerentes veían "Recompensa por entregar" para algo que ya expiró).
+
+### Cliente cancela voucher → borra todas las notificaciones del voucher
+
+Cuando el cliente cancela su propio voucher desde CardYA (`cancelarVoucher`), el service borra **todas** las notificaciones relacionadas con ese voucher:
+
+```sql
+DELETE FROM notificaciones
+WHERE referencia_id = ${voucherId}
+  AND referencia_tipo = 'voucher'
+```
+
+Incluye `voucher_generado` (personal), `voucher_pendiente` (comerciales) y cualquier otra.
+
+### Socket `notificacion:eliminada` — actualización del panel en vivo
+
+Hasta abril 2026 solo emitíamos `notificacion:nueva` al crear. Al borrar, el panel del usuario conservaba la tarjeta hasta que se cerrara/reabriera o se recargara la página. Zombies visuales temporales.
+
+Ahora **todos los flujos que borran notificaciones lo hacen vía el helper `eliminarNotificacionesPorReferencia()`** (en `notificaciones.service.ts`), que además de hacer el DELETE emite `notificacion:eliminada` con el payload `{ ids: string[] }` a cada usuario afectado.
+
+**Frontend** (`useNotificacionesStore.registrarListenerNotificaciones`) tiene un listener del evento que llama a `eliminarVariasPorIds(ids)`:
+- Filtra localmente las notificaciones con esos IDs
+- Decrementa `totalNoLeidas` por las que eran no leídas
+- Sin fetch, sin parpadeo
+
+Flujos que emiten hoy:
+- `validarVoucher` en `scanya.service.ts` (voucher entregado)
+- `cancelarVoucher` en `cardya.service.ts` (cliente cancela)
+- `expirarVouchersVencidos` en `puntos.service.ts` (job de expiración)
+
+### Regla general
+
+Si una notificación pierde sentido semántico al cerrarse el ciclo de la entidad referenciada, debe borrarse. Ej: un cupón revocado no necesita mantener la notificación "Recibiste un cupón" en el panel del cliente.
 
 ---
 
@@ -304,7 +463,7 @@ Algunas notificaciones no tienen `referenciaTipo` (ej: cambio de sistema de nive
 |---|------|--------|---------|-------|----------|----------|
 | 21 | `alerta_seguridad` | `{titulo alerta}` | `{descripcion alerta}` | ⚠️ | alertas | Solo severidad `alta`: monto_inusual, cliente_frecuente, empleado_destacado, caida_ventas, racha_resenas_negativas |
 
-> Modo `comercial`. Sin `actorNombre`. Se envía al dueño + `notificarNegocioCompleto()` para empleados. `referenciaTipo: 'alerta'`. Socket.io emite `alerta:nueva`.
+> Modo `comercial`. Sin `actorNombre`. Se envía al dueño + `notificarNegocioCompleto()` para empleados. `referenciaTipo: 'alerta'`. Socket.io emite `alerta:nueva`. `sucursalId` se toma de `alerta.sucursalId` cuando la alerta es específica de una sucursal; `null` si es a nivel negocio.
 
 ---
 
@@ -368,18 +527,22 @@ El frontend aplica transformaciones automáticas para notificaciones existentes 
 
 | Archivo | Notificaciones | Descripción |
 |---------|---------------|-------------|
-| `apps/api/src/services/notificaciones.service.ts` | — | `crearNotificacion()`, `notificarSucursal()`, `notificarNegocioCompleto()` |
-| `apps/api/src/services/scanya.service.ts` | 5 | Ventas (normal, cupón, gratis), voucher cobrado, recompensa desbloqueada (sellos) |
+| `apps/api/src/services/notificaciones.service.ts` | — | `crearNotificacion()`, `notificarSucursal()`, `notificarNegocioCompleto()`, `obtenerNotificaciones()` y `contarNoLeidas()` con filtro por `sucursalId` |
+| `apps/api/src/services/scanya.service.ts` | 5 | Ventas (normal, cupón, gratis) a dueño + gerente, voucher cobrado a dueño + gerente (elimina `voucher_pendiente` relacionado), recompensa desbloqueada (sellos) |
 | `apps/api/src/services/ofertas.service.ts` | 8 | Cupones (asignar, recordatorio, reactivar, revocar), ofertas (nueva, activada, exclusiva) |
 | `apps/api/src/services/puntos.service.ts` | 4 | Nueva recompensa, recompensa desbloqueada (compras frecuentes), sistema de niveles desactivado/activado |
-| `apps/api/src/services/cardya.service.ts` | 4 | Voucher generado, voucher pendiente (dueño + empleados), stock bajo/agotado |
-| `apps/api/src/services/resenas.service.ts` | 2 | Nueva reseña (al dueño), respuesta reseña (al cliente) |
+| `apps/api/src/services/cardya.service.ts` | 4 | Voucher generado, voucher pendiente (dueño + todos los gerentes + empleados vía `notificarNegocioCompleto`), stock bajo/agotado (`sucursal_id=null`, evento de negocio) |
+| `apps/api/src/services/resenas.service.ts` | 2 | Nueva reseña (dueño + gerente de la sucursal), respuesta reseña (al cliente) |
+| `apps/api/src/services/alertas.service.ts` | 1 | Alerta de seguridad (dueño + empleados de la sucursal vía `notificarNegocioCompleto`) |
 | `apps/web/src/components/layout/PanelNotificaciones.tsx` | — | Renderizado frontend (IconoNotificacion, ContenidoItem, 5 modos, expansión inline) |
-| `apps/web/src/types/notificaciones.ts` | — | Tipos TypeScript frontend |
+| `apps/web/src/components/layout/MainLayout.tsx` | — | `useEffect` que recarga notificaciones al entrar/salir de `/business-studio/*` |
+| `apps/web/src/types/notificaciones.ts` | — | Tipos TypeScript frontend (incluye `sucursalId`) |
 | `apps/api/src/types/notificaciones.types.ts` | — | Tipos TypeScript backend |
-| `apps/web/src/stores/useNotificacionesStore.ts` | — | Store Zustand (Socket.io listener, paginación, CRUD) |
-| `apps/web/src/services/notificacionesService.ts` | — | Wrapper Axios para endpoints |
-| `apps/api/src/controllers/notificaciones.controller.ts` | — | 5 controllers (listar, contar, marcar leída, marcar todas, eliminar) |
+| `apps/web/src/stores/useNotificacionesStore.ts` | — | Store Zustand + listener Socket.io. `agregarNotificacion` descarta notificaciones que no coinciden con la sucursal del contexto actual |
+| `apps/web/src/stores/useAuthStore.ts` | — | `setSucursalActiva` dispara `cargarNotificaciones('comercial')` al cambiar sucursal en BS |
+| `apps/web/src/services/notificacionesService.ts` | — | Wrapper Axios. Exporta `obtenerSucursalIdParaFiltro()` — calcula la sucursal del contexto actual (rol + URL) |
+| `apps/web/src/services/api.ts` | — | `/notificaciones` incluido en `RUTAS_SIN_SUCURSAL` para que el interceptor no sobreescriba el `sucursalId` que el service envía explícitamente |
+| `apps/api/src/controllers/notificaciones.controller.ts` | — | 5 controllers (listar, contar, marcar leída, marcar todas, eliminar). Los que listan leen `sucursalId` del query |
 | `apps/api/src/routes/notificaciones.routes.ts` | — | Rutas protegidas con `verificarToken` |
 
 ---
@@ -414,3 +577,5 @@ Algunas notificaciones apuntan a un tab pero la entidad ya migró a otro. Ejempl
 - [ ] Agregar campo `negocioLogoUrl` separado de `actorImagenUrl` para distinguir logo del negocio vs imagen del contenido
 - [ ] Notificaciones pendientes de crear: `nuevo_marketplace`, `nueva_dinamica`, `nuevo_empleo` (secciones placeholder)
 - [ ] Notificación `nuevo_cliente` — aún no implementada en el backend
+- [ ] Evaluar si los gerentes deben recibir `stock_bajo` / `agotado` (actualmente solo el dueño)
+- [ ] Empleados ScanYA aún no tienen panel de notificaciones visible — las notificaciones se guardan para su `usuarioId` pero no hay UI

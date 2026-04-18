@@ -60,6 +60,7 @@ function mapearSucursalResumen(row: SucursalResumenRow) {
         // Datos de la sucursal
         sucursalId: row.sucursal_id,
         sucursalNombre: row.sucursal_nombre,
+        esPrincipal: row.es_principal,
         direccion: row.direccion,
         ciudad: row.ciudad,
         estado: row.estado,
@@ -87,6 +88,9 @@ function mapearSucursalResumen(row: SucursalResumenRow) {
         liked: row.liked,
         followed: row.followed,
         estaAbierto: row.esta_abierto,
+
+        // Conteo de sucursales
+        totalSucursales: row.total_sucursales,
     };
 }
 
@@ -209,6 +213,7 @@ export async function listarSucursalesCercanas(
                -- Datos de la sucursal
                 s.id as sucursal_id,
                 s.nombre as sucursal_nombre,
+                s.es_principal,
                 s.direccion,
                 s.ciudad,
                 s.telefono,
@@ -321,8 +326,16 @@ export async function listarSucursalesCercanas(
                     WHERE nh.sucursal_id = s.id
                     AND nh.dia_semana = EXTRACT(DOW FROM (CURRENT_TIMESTAMP AT TIME ZONE s.zona_horaria))::INTEGER
                     LIMIT 1
-                ) as esta_abierto
-                
+                ) as esta_abierto,
+
+                -- Total de sucursales activas del negocio
+                (
+                    SELECT COUNT(*)::integer
+                    FROM negocio_sucursales ns
+                    WHERE ns.negocio_id = n.id
+                    AND ns.activa = true
+                ) as total_sucursales
+
             FROM negocios n
             INNER JOIN negocio_sucursales s ON s.negocio_id = n.id
             
@@ -593,13 +606,24 @@ export async function obtenerPerfilSucursal(
                 
             FROM negocio_sucursales s
             INNER JOIN negocios n ON n.id = s.negocio_id
-            
+
             WHERE s.id = ${sucursalId}
-              AND s.activa = true
+              AND (
+                  -- Caso general: la sucursal está activa (visible para todos)
+                  s.activa = true
+                  -- Excepción: el usuario autenticado es el dueño del negocio
+                  OR ${userId ? sql`n.usuario_id = ${userId}` : sql`FALSE`}
+                  -- Excepción: el usuario autenticado es el gerente de esta sucursal
+                  OR EXISTS (
+                      SELECT 1 FROM usuarios u
+                      WHERE u.id = ${userId ?? null}
+                        AND u.sucursal_asignada = s.id
+                  )
+              )
               AND n.activo = true
               AND n.es_borrador = false
               AND n.onboarding_completado = true
-            
+
             LIMIT 1
         `;
 

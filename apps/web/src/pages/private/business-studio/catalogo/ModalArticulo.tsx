@@ -45,6 +45,7 @@ interface ModalArticuloProps {
   articulo?: Articulo | null;
   categoriasExistentes?: string[];
   tipoInicial?: 'producto' | 'servicio';
+  permitirCambioTipo?: boolean;
   onGuardar: (datos: CrearArticuloInput | ActualizarArticuloInput) => Promise<void>;
   onCerrar: () => void;
 }
@@ -54,15 +55,15 @@ interface ModalArticuloProps {
 // =============================================================================
 
 const GRADIENTES_TIPO = {
-  producto: { bg: 'linear-gradient(135deg, #1e40af, #2563eb)', shadow: 'rgba(37,99,235,0.4)', handle: '#1e40af' },
-  servicio: { bg: 'linear-gradient(135deg, #1e293b, #1e3a5f)', shadow: 'rgba(30,58,95,0.4)', handle: '#1e293b' },
+  producto: { bg: 'linear-gradient(135deg, #1e40af, #2563eb)', shadow: 'rgba(37,99,235,0.4)', handle: 'rgba(255,255,255,0.4)' },
+  servicio: { bg: 'linear-gradient(135deg, #1e293b, #1e3a5f)', shadow: 'rgba(30,58,95,0.4)', handle: 'rgba(255,255,255,0.4)' },
 };
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial = 'producto', onGuardar, onCerrar }: ModalArticuloProps) {
+export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial = 'producto', permitirCambioTipo = false, onGuardar, onCerrar }: ModalArticuloProps) {
   const esEdicion = !!articulo;
 
   // ===========================================================================
@@ -80,6 +81,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
     top: 0, left: 0, width: 0, maxHeight: 0, openUpwards: false,
   });
   const botonRef = useRef<HTMLButtonElement>(null);
+  const botonRefDesktop = useRef<HTMLButtonElement>(null);
   const [precioStr, setPrecioStr] = useState(
     articulo?.precioBase ? String(Number(articulo.precioBase)) : ''
   );
@@ -123,6 +125,13 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
     }
   }, [articulo]);
 
+  // Helper: obtener el botón visible (móvil o desktop)
+  const obtenerBotonActivo = () => {
+    const movil = botonRef.current;
+    if (movil && movil.offsetWidth > 0) return movil;
+    return botonRefDesktop.current;
+  };
+
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -135,8 +144,9 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
     };
 
     const updatePosition = () => {
-      if (mostrarDropdown && botonRef.current) {
-        const rect = botonRef.current.getBoundingClientRect();
+      const botonActivo = obtenerBotonActivo();
+      if (mostrarDropdown && botonActivo) {
+        const rect = botonActivo.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const spaceBelow = viewportHeight - rect.bottom;
         const spaceAbove = rect.top;
@@ -145,11 +155,13 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
           ? Math.min(spaceAbove - 20, 300)
           : Math.min(spaceBelow - 20, 300);
 
+        // Usar coordenadas del viewport directamente (sin scroll offset)
+        // porque el portal se renderiza con position: fixed
         setDropdownPosition({
           top: shouldOpenUpwards
-            ? rect.top + window.scrollY - maxHeight - 4
-            : rect.bottom + window.scrollY + 4,
-          left: rect.left + window.scrollX,
+            ? rect.top - maxHeight - 4
+            : rect.bottom + 4,
+          left: rect.left,
           width: rect.width,
           maxHeight,
           openUpwards: shouldOpenUpwards,
@@ -279,24 +291,53 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                 }
               </div>
 
-              {/* Título */}
+              {/* Título + subtítulo con toggle inline */}
               <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
                 <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white truncate">
                   {esEdicion ? (articulo?.nombre || 'Editar') : tipo === 'servicio' ? 'Nuevo servicio' : 'Nuevo producto'}
                 </h3>
-                <span className="text-sm lg:text-xs 2xl:text-sm text-white/70">
-                  {esEdicion ? (tipo === 'servicio' ? 'Editando servicio' : 'Editando producto') : 'Completa los campos'}
-                </span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-semibold">
+                    {esEdicion ? (tipo === 'servicio' ? 'Editando servicio' : 'Editando producto') : 'Completa los campos'}
+                  </span>
+                  {/* Toggle tipo inline — solo Onboarding */}
+                  {permitirCambioTipo && !esEdicion && (
+                    <div className="flex items-center rounded-full border border-white/20 bg-white/10 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setTipo('producto')}
+                        className={`flex items-center gap-1 px-2 py-0.5 text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
+                          tipo === 'producto' ? 'bg-white/25 text-white' : 'text-white/40 hover:text-white/70'
+                        }`}
+                      >
+                        <Package className="w-3 h-3" />
+                        Prod.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTipo('servicio')}
+                        className={`flex items-center gap-1 px-2 py-0.5 text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
+                          tipo === 'servicio' ? 'bg-white/25 text-white' : 'text-white/40 hover:text-white/70'
+                        }`}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Serv.
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Badge tipo */}
-              <span className="flex items-center gap-1.5 px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 rounded-full border border-white/20 bg-white/15 text-white text-sm lg:text-[11px] 2xl:text-sm font-semibold shrink-0">
-                {tipo === 'servicio'
-                  ? <Wrench className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
-                  : <Package className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
-                }
-                {tipo === 'servicio' ? 'Servicio' : 'Producto'}
-              </span>
+              {/* Badge tipo — BS Catálogo (estático) */}
+              {!(permitirCambioTipo && !esEdicion) && (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 rounded-full border border-white/20 bg-white/15 text-white text-sm lg:text-[11px] 2xl:text-sm font-semibold shrink-0">
+                  {tipo === 'servicio'
+                    ? <Wrench className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+                    : <Package className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+                  }
+                  {tipo === 'servicio' ? 'Servicio' : 'Producto'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -369,9 +410,9 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                               : Math.min(spaceBelow - 20, 260);
                             setDropdownPosition({
                               top: shouldOpenUpwards
-                                ? rect.top + window.scrollY - maxHeight - 4
-                                : rect.bottom + window.scrollY + 4,
-                              left: rect.left + window.scrollX,
+                                ? rect.top - maxHeight - 4
+                                : rect.bottom + 4,
+                              left: rect.left,
                               width: rect.width,
                               maxHeight,
                               openUpwards: shouldOpenUpwards,
@@ -501,11 +542,11 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                   <div className="relative dropdown-categoria">
                     <span className="block text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">Categoría</span>
                     <button
-                      ref={botonRef}
+                      ref={botonRefDesktop}
                       type="button"
                       onClick={() => {
-                        if (!mostrarDropdown && botonRef.current) {
-                          const rect = botonRef.current.getBoundingClientRect();
+                        if (!mostrarDropdown && botonRefDesktop.current) {
+                          const rect = botonRefDesktop.current.getBoundingClientRect();
                           const viewportHeight = window.innerHeight;
                           const spaceBelow = viewportHeight - rect.bottom;
                           const spaceAbove = rect.top;
@@ -515,9 +556,9 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                             : Math.min(spaceBelow - 20, 260);
                           setDropdownPosition({
                             top: shouldOpenUpwards
-                              ? rect.top + window.scrollY - maxHeight - 4
-                              : rect.bottom + window.scrollY + 4,
-                            left: rect.left + window.scrollX,
+                              ? rect.top - maxHeight - 4
+                              : rect.bottom + 4,
+                            left: rect.left,
                             width: rect.width,
                             maxHeight,
                             openUpwards: shouldOpenUpwards,

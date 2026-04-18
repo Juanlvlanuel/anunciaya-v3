@@ -1,7 +1,7 @@
 # 📱 ScanYA - Sistema de Punto de Venta
 
-**Última actualización:** 3 Abril 2026  
-**Versión:** 1.3 (Incluye integración Alertas)  
+**Última actualización:** 17 Abril 2026  
+**Versión:** 1.4 (Bloqueo login sucursal desactivada + limpieza notificaciones al canjear voucher)  
 **Estado:** ✅ 100% Operativo (16/16 fases)
 
 ---
@@ -384,6 +384,48 @@ ALTER TABLE puntos_configuracion ADD COLUMN (
   nivel_oro_multiplicador DECIMAL(3,2) DEFAULT 1.5
 );
 ```
+
+---
+
+## 🚫 Bloqueo de login en sucursal desactivada
+
+> **Agregado:** 17 Abril 2026
+
+Cuando el dueño desactiva una sucursal desde Business Studio (`negocio_sucursales.activa = false`), **ningún usuario puede loguearse a ScanYA contra esa sucursal**. La validación aplica a los 3 flujos de login:
+
+| Flujo | Validación |
+|-------|-----------|
+| `loginDueno` con `sucursalId` específico | Rechaza si la sucursal elegida está desactivada |
+| `loginDueno` fallback a Matriz | Rechaza si Matriz está desactivada (caso raro pero posible) |
+| `loginDueno` como gerente | Rechaza si la sucursal asignada del gerente está desactivada |
+| `loginEmpleado` | Rechaza si la sucursal del empleado está desactivada |
+
+**Respuesta:** `403 { success: false, message: 'La sucursal está desactivada', code: 403 }`
+
+**Motivo:** evita que empleados sigan operando ScanYA (registrar ventas, canjear vouchers, otorgar puntos) en sucursales que el dueño quiso cerrar operativamente. Las sesiones ya abiertas en esa sucursal siguen funcionando hasta que se revocan manualmente desde BS — el bloqueo solo aplica a nuevos logins.
+
+**Archivos:** `services/scanya.service.ts` — funciones `loginDueno` (3 paths) y `loginEmpleado`.
+
+---
+
+## 🧹 Limpieza de notificaciones de voucher al canjearse
+
+> **Agregado:** 17 Abril 2026
+
+Cuando CardYA genera un voucher, emite una notificación `tipo = 'voucher_pendiente'` a dueño + gerentes del negocio (ver `docs/arquitectura/CardYA.md`). Esa notificación queda en el panel hasta que el voucher se entregue.
+
+**Al validar el voucher en ScanYA (`validarVoucher`), se eliminan todas las notificaciones relacionadas:**
+
+```sql
+DELETE FROM notificaciones
+WHERE tipo = 'voucher_pendiente'
+  AND referencia_tipo = 'voucher'
+  AND referencia_id = $voucherId
+```
+
+**Motivo:** el evento que motivaba la notificación (voucher pendiente de entrega) dejó de existir. Mantenerla en el panel es ruido.
+
+**Después del canje**, `validarVoucher` emite una nueva notificación `voucher_cobrado` al dueño y al gerente de la sucursal donde ocurrió el canje — esto sí queda como registro histórico.
 
 ---
 

@@ -13,7 +13,7 @@
  * AMPLIADO: Fase 5.4.1 - Catálogo CRUD
  */
 
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, ne, or } from 'drizzle-orm';
 import { db } from '../db';
 import { articulos, articuloSucursales } from '../db/schemas/schema';
 import { duplicarImagen, eliminarImagen } from './cloudinary.service.js';
@@ -30,6 +30,43 @@ async function eliminarImagenInteligente(url: string): Promise<void> {
     } else {
         await eliminarImagen(url);
     }
+}
+
+/**
+ * Cuenta cuántos artículos del negocio siguen referenciando una URL de imagen,
+ * excluyendo opcionalmente uno (típicamente el que se está actualizando).
+ *
+ * Se revisan dos campos:
+ * - `imagen_principal` (varchar directo)
+ * - `imagenes_adicionales` (array) — se usa `ANY(...)` para buscar la URL dentro
+ *
+ * Uso: antes de borrar una imagen anterior al actualizar un artículo, verificar
+ * que NO esté siendo usada por otro artículo del negocio (puede compartirse
+ * entre sucursales por el clonado de URLs Cloudinary al crear sucursal).
+ *
+ * Sin esto, editar la imagen desde una sucursal rompe la imagen de las demás.
+ */
+async function imagenEsUsadaPorOtroArticulo(
+    url: string,
+    excluirArticuloId?: string
+): Promise<boolean> {
+    const condiciones = [
+        or(
+            eq(articulos.imagenPrincipal, url),
+            sql`${url} = ANY(${articulos.imagenesAdicionales})`
+        )!,
+    ];
+
+    if (excluirArticuloId) {
+        condiciones.push(ne(articulos.id, excluirArticuloId));
+    }
+
+    const [{ total }] = await db
+        .select({ total: sql<number>`COUNT(*)::int` })
+        .from(articulos)
+        .where(and(...condiciones));
+
+    return total > 0;
 }
 
 /** Duplica una imagen detectando si está en R2 o Cloudinary */
@@ -493,11 +530,25 @@ export async function actualizarArticulo(
             };
         });
 
-        // 4. Eliminar imagen anterior (R2 o Cloudinary según origen)
+        // 4. Eliminar imagen anterior (R2 o Cloudinary según origen).
+        // CRÍTICO: verificar primero que ningún otro artículo la use. Las URLs
+        // Cloudinary se comparten entre sucursales cuando se crean por clonado
+        // (duplicarArchivo solo sabe copiar en R2, para Cloudinary cae en fallback
+        // a URL original). Sin esta verificación, editar la imagen desde una
+        // sucursal dejaría a las demás apuntando a un archivo borrado.
         if (imagenAEliminar) {
-            eliminarImagenInteligente(imagenAEliminar).catch((err) => {
-                console.error('⚠️ Error al eliminar imagen anterior:', err);
-            });
+            (async () => {
+                try {
+                    const enUso = await imagenEsUsadaPorOtroArticulo(imagenAEliminar, articuloId);
+                    if (!enUso) {
+                        await eliminarImagenInteligente(imagenAEliminar);
+                    } else {
+                        console.log(`ℹ️ Imagen conservada (compartida con otros artículos): ${imagenAEliminar}`);
+                    }
+                } catch (err) {
+                    console.error('⚠️ Error al procesar imagen anterior:', err);
+                }
+            })();
         }
 
         return resultado;
@@ -550,11 +601,22 @@ export async function eliminarArticulo(
                 .delete(articulos)
                 .where(eq(articulos.id, articuloId));
 
-            // 4. Eliminar imagen (R2 o Cloudinary según origen)
+            // 4. Eliminar imagen (R2 o Cloudinary según origen).
+            // CRÍTICO: verificar que ningún otro artículo la use antes de borrar
+            // (ver nota en actualizarArticulo sobre URLs compartidas por clonado).
             if (imagenUrl) {
-                eliminarImagenInteligente(imagenUrl).catch(err => {
-                    console.error('Error eliminando imagen de artículo:', err);
-                });
+                (async () => {
+                    try {
+                        const enUso = await imagenEsUsadaPorOtroArticulo(imagenUrl);
+                        if (!enUso) {
+                            await eliminarImagenInteligente(imagenUrl);
+                        } else {
+                            console.log(`ℹ️ Imagen conservada (compartida con otros artículos): ${imagenUrl}`);
+                        }
+                    } catch (err) {
+                        console.error('Error procesando imagen de artículo eliminado:', err);
+                    }
+                })();
             }
 
             return {

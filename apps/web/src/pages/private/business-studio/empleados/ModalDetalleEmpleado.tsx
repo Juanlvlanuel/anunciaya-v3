@@ -29,9 +29,9 @@ import {
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
-import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useToggleEmpleadoActivo, useEliminarEmpleado, useRevocarSesion } from '../../../../hooks/queries/useEmpleados';
 import { notificar } from '../../../../utils/notificaciones';
+import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import type { EmpleadoDetalle } from '../../../../types/empleados';
 import { LABELS_PERMISOS, DIAS_SEMANA } from '../../../../types/empleados';
 
@@ -50,8 +50,6 @@ interface Props {
 }
 
 export function ModalDetalleEmpleado({ empleado, onCerrar, onEditar }: Props) {
-	const { usuario } = useAuthStore();
-	const esGerente = !!usuario?.sucursalAsignada;
 	const toggleActivoMutation = useToggleEmpleadoActivo();
 	const eliminarMutation = useEliminarEmpleado();
 	const revocarMutation = useRevocarSesion();
@@ -105,11 +103,11 @@ export function ModalDetalleEmpleado({ empleado, onCerrar, onEditar }: Props) {
 				>
 					<div className="flex items-center gap-3">
 						{/* Avatar */}
-						<div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0 overflow-hidden">
+						<div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full bg-white/20 flex items-center justify-center shrink-0 overflow-hidden">
 							{empleado.fotoUrl ? (
 								<img src={empleado.fotoUrl} alt="" className="w-full h-full object-cover" />
 							) : (
-								<span className="text-xl font-bold text-white">{empleado.nombre.charAt(0)}</span>
+								<span className="text-base font-bold text-white">{obtenerIniciales(empleado.nombre)}</span>
 							)}
 						</div>
 						<div className="flex-1 min-w-0">
@@ -254,7 +252,7 @@ export function ModalDetalleEmpleado({ empleado, onCerrar, onEditar }: Props) {
 								Editar
 							</button>
 
-							{!esGerente && empleado.nick && (
+							{empleado.nick && (
 								<Tooltip text="Cerrar sesión en ScanYA">
 									<button
 										onClick={handleRevocarSesion}
@@ -281,17 +279,15 @@ export function ModalDetalleEmpleado({ empleado, onCerrar, onEditar }: Props) {
 									</button>
 								</Tooltip>
 
-								{!esGerente && (
-									<Tooltip text="Eliminar empleado">
-										<button
-											onClick={handleEliminar}
-											className="flex items-center justify-center px-3 py-2.5 rounded-xl text-red-400 hover:text-red-600 hover:bg-red-100 cursor-pointer"
-											data-testid="btn-eliminar-empleado"
-										>
-											<Trash2 className="w-5 h-5" />
-										</button>
-									</Tooltip>
-								)}
+								<Tooltip text="Eliminar empleado">
+									<button
+										onClick={handleEliminar}
+										className="flex items-center justify-center px-3 py-2.5 rounded-xl text-red-400 hover:text-red-600 hover:bg-red-100 cursor-pointer"
+										data-testid="btn-eliminar-empleado"
+									>
+										<Trash2 className="w-5 h-5" />
+									</button>
+								</Tooltip>
 							</div>
 						</div>
 					</div>

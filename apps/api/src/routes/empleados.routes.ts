@@ -20,6 +20,7 @@ router.use(verificarNegocio);
 
 // --- Lectura ---
 router.get('/kpis', empleadosController.obtenerKPIsController);
+router.get('/verificar-nick', empleadosController.verificarNickController);
 router.get('/', empleadosController.obtenerEmpleadosController);
 router.get('/:id', empleadosController.obtenerDetalleController);
 

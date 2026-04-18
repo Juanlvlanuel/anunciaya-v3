@@ -8,9 +8,12 @@
  *
  * QUÉ HACE:
  * 1. Busca conversaciones donde updated_at < hace 6 meses
- * 2. Elimina mensajes asociados (CASCADE lo hace automático)
- * 3. Hard delete de la conversación
- * 4. TODO Sprint 6: Limpiar archivos R2 asociados
+ * 2. Por cada conversación: recolecta URLs R2 de sus mensajes (imagen/audio/
+ *    documento/cupón), hace hard delete (mensajes caen por CASCADE) y limpia
+ *    los archivos R2 con reference-count contra otros mensajes.
+ *
+ * Fix 17 Abril 2026: implementada la limpieza R2 — antes era `TODO Sprint 6`
+ * y los archivos quedaban huérfanos para siempre al expirar las conversaciones.
  *
  * CÓMO SE ACTIVA:
  * Se importa y ejecuta desde app.ts o index.ts del backend.
@@ -19,6 +22,8 @@
 import { db } from '../db/index.js';
 import { chatConversaciones, chatMensajes } from '../db/schemas/schema.js';
 import { sql, lt, eq, and } from 'drizzle-orm';
+import { eliminarArchivo, esUrlR2 } from '../services/r2.service.js';
+import { env } from '../config/env.js';
 
 // =============================================================================
 // FUNCIÓN PRINCIPAL DE LIMPIEZA
@@ -51,21 +56,45 @@ async function limpiarConversacionesInactivas(): Promise<void> {
 
     let eliminadas = 0;
 
+    // Regex para extraer URLs R2 de los mensajes (cubre URL directa y JSON con metadatos)
+    const dominioEscapado = env.R2_PUBLIC_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regexR2 = new RegExp(`${dominioEscapado}/[^\\s"'}\`<>]+`, 'g');
+
     for (const conv of inactivas) {
       try {
-        // TODO Sprint 6: Antes de eliminar, limpiar archivos R2
-        // const mensajesConArchivos = await db.select(...)
-        //   .from(chatMensajes)
-        //   .where(and(
-        //     eq(chatMensajes.conversacionId, conv.id),
-        //     sql`tipo IN ('imagen', 'audio', 'documento')`
-        //   ));
-        // for (const msg of mensajesConArchivos) { await eliminarDeR2(msg.contenido); }
+        // 1. Recolectar URLs R2 de TODOS los mensajes antes del CASCADE
+        const mensajes = await db
+          .select({ contenido: chatMensajes.contenido })
+          .from(chatMensajes)
+          .where(eq(chatMensajes.conversacionId, conv.id));
 
-        // Hard delete (los mensajes se eliminan por CASCADE)
+        const urlsR2: string[] = [];
+        for (const m of mensajes) {
+          if (!m.contenido) continue;
+          const matches = m.contenido.match(regexR2);
+          if (matches) urlsR2.push(...matches);
+        }
+
+        // 2. Hard delete (los mensajes caen por CASCADE)
         await db
           .delete(chatConversaciones)
           .where(eq(chatConversaciones.id, conv.id));
+
+        // 3. Limpiar archivos R2 con reference-count contra otros mensajes
+        // (por si la misma URL está en otra conversación — reenvíos/citas)
+        for (const url of [...new Set(urlsR2)]) {
+          try {
+            const [{ total }] = await db
+              .select({ total: sql<number>`COUNT(*)::int` })
+              .from(chatMensajes)
+              .where(sql`${chatMensajes.contenido} LIKE ${`%${url}%`}`);
+            if (total === 0 && esUrlR2(url)) {
+              await eliminarArchivo(url);
+            }
+          } catch (err) {
+            console.error(`[ChatYA Cron] Error limpiando R2 ${url}:`, err);
+          }
+        }
 
         eliminadas++;
       } catch (err) {

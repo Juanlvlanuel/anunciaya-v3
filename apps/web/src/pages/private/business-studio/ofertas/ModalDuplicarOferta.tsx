@@ -188,6 +188,7 @@ export function ModalDuplicarOferta({ oferta, onDuplicar, onCerrar }: ModalDupli
             abierto={true}
             onCerrar={onCerrar}
             ancho="md"
+            headerOscuro
             mostrarHeader={false}
             paddingContenido="none"
             sinScrollInterno={true}

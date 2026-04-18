@@ -24,6 +24,7 @@
 17. [CarouselKPI — Fade Dinámico](#17-carouselkpi--fade-dinámico)
 18. [Swipe entre Páginas (Business Studio)](#18-swipe-entre-páginas-business-studio)
 19. [Tooltip](#19-tooltip)
+20. [Avatares](#20-avatares)
 
 ---
 
@@ -1627,3 +1628,56 @@ px-3 py-1.5  rounded-lg  whitespace-nowrap
 boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
 Flecha: borde CSS, color #0f172a
 ```
+
+---
+
+## 20. Avatares
+
+Todos los avatares de usuario (clientes, empleados, gerentes, dueños) siguen un estándar único.
+
+### Forma
+
+Siempre `rounded-full` (círculo). Nunca `rounded-xl` ni `rounded-lg`.
+
+### Tamaños
+
+| Tamaño | Clases | Texto fallback | Uso |
+|--------|--------|----------------|-----|
+| **sm** | `w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8` | `text-xs font-bold` | Tablas, reportes, listas compactas |
+| **md** | `w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11` | `text-base font-bold` | Cards móvil, modal headers, interacciones |
+| **lg** | `w-20 h-20` | `text-lg font-bold` | Panel detalle, avatar grande clickeable |
+
+### Fallback (sin foto)
+
+Siempre **2 iniciales** con `obtenerIniciales(nombre)` de `utils/obtenerIniciales.ts`.
+Nunca `charAt(0)` sola. Nunca iconos (`<User>`, `<Users>`).
+
+### Colores contextuales por módulo
+
+| Módulo | Fondo | Texto | En modal header (dark bg) |
+|--------|-------|-------|---------------------------|
+| Clientes | `bg-indigo-100` | `text-indigo-700` | `bg-white/20 text-white` |
+| Transacciones | `bg-indigo-100` | `text-indigo-700` | `bg-white/20 text-white` |
+| Empleados | `bg-slate-200` | `text-slate-600` | `bg-white/20 text-white` |
+| Opiniones | `bg-amber-100` | `text-amber-700` | `bg-white/20 text-white` |
+| Reportes | `bg-indigo-100` | `text-indigo-700` | — |
+
+### Estructura base
+
+```tsx
+<div className="[SIZE] rounded-full [BG] flex items-center justify-center shrink-0 overflow-hidden">
+  {fotoUrl ? (
+    <img src={fotoUrl} alt="" className="w-full h-full object-cover" />
+  ) : (
+    <span className="[TEXT_SIZE] font-bold [TEXT_COLOR]">
+      {obtenerIniciales(nombre)}
+    </span>
+  )}
+</div>
+```
+
+### Variantes especiales
+
+- **Opiniones en página:** agregar `ring-2 ring-amber-200` al contenedor
+- **Modal header dark:** usar `bg-white/20` + `text-white` (fallback) o `border-2 border-white/30` (imagen)
+- **Avatar clickeable (detalle):** agregar `cursor-pointer` cuando hay foto, conectar con `ModalImagenes`

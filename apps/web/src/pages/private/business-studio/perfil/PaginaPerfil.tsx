@@ -264,24 +264,12 @@ export default function PaginaPerfil() {
               <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
                 Mi Perfil
               </h1>
-              <div className="flex items-center gap-2 flex-wrap lg:mt-0.5 -mt-0.5">
-                <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">
-                  Administra tu Información
-                </p>
-                {mostrarKpiSucursal && (
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border-2 text-xs font-semibold ${
-                    esPrincipal
-                      ? 'bg-blue-100 border-blue-300 text-blue-700'
-                      : 'bg-amber-100 border-amber-300 text-amber-700'
-                  }`}>
-                    {esPrincipal
-                      ? <Store className="w-3 h-3 shrink-0" />
-                      : <GitBranch className="w-3 h-3 shrink-0" />
-                    }
-                    {esPrincipal ? 'Principal' : 'Sucursal'}
-                  </span>
-                )}
-              </div>
+              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium lg:mt-0.5 -mt-0.5">
+                {mostrarKpiSucursal
+                  ? `Editando: ${esPrincipal ? 'Matriz' : datosInformacion.nombreSucursal || 'Sucursal'}`
+                  : 'Administra tu Información'
+                }
+              </p>
             </div>
           </div>
 

@@ -173,7 +173,7 @@ export default function SelectorSucursalesInline() {
 
           {/* Segunda línea: "Matriz" o Nombre de Sucursal */}
           <span className="text-xs lg:text-xs 2xl:text-sm font-bold text-cyan-300">
-            {sucursalActual?.nombre}
+            {sucursalActual?.esPrincipal ? 'Matriz' : sucursalActual?.nombre}
           </span>
         </div>
 

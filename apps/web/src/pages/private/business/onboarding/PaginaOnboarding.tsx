@@ -15,13 +15,14 @@
  * Ubicación: apps/web/src/pages/private/business/onboarding/PaginaOnboarding.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Home, MapPin, Phone, Clock,
   Image, CreditCard, Star, ShoppingCart
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { notificar } from '@/utils/notificaciones';
 import { Spinner } from '@/components/ui';
 import { LayoutOnboarding, ModalPausar } from './componentes';
@@ -80,13 +81,33 @@ const pasoInfo = [
 
 export function PaginaOnboarding() {
   const navigate = useNavigate();
+  const usuario = useAuthStore((s) => s.usuario);
+  const esGerente = !!usuario?.sucursalAsignada;
+  const bloqueoMostradoRef = useRef(false);
+
+  // Blindaje: gerentes no pueden acceder al onboarding
+  // Se usa ref para evitar toast duplicado por StrictMode o re-renders
+  useEffect(() => {
+    if (esGerente && !bloqueoMostradoRef.current) {
+      bloqueoMostradoRef.current = true;
+      notificar.error('Los gerentes no pueden crear negocios');
+      navigate('/inicio', { replace: true });
+    }
+  }, [esGerente, navigate]);
+
   const pasoActual = useOnboardingStore(state => state.pasoActual);
   const inicializarOnboarding = useOnboardingStore(state => state.inicializarOnboarding);
   const [mostrarModalPausar, setMostrarModalPausar] = useState(false);
   const [inicializando, setInicializando] = useState(true);
 
-  // Inicializar onboarding al montar
+  // Inicializar onboarding al montar (solo si NO es gerente — evita ruido del store)
   useEffect(() => {
+    if (esGerente) {
+      // Gerente: no se inicializa el store porque ya se está redirigiendo fuera
+      setInicializando(false);
+      return;
+    }
+
     let isMounted = true;
 
     const inicializar = async () => {
@@ -122,7 +143,13 @@ export function PaginaOnboarding() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [esGerente]);
+
+  // Gerentes: no renderizar nada mientras se ejecuta la redirección
+  // Evita el flash de "Cargando onboarding..." antes del navigate
+  if (esGerente) {
+    return null;
+  }
 
   // Mostrar spinner mientras inicializa
   if (inicializando) {

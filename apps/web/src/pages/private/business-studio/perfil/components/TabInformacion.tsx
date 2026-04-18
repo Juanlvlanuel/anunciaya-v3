@@ -221,7 +221,7 @@ export default function TabInformacion({
             )}
 
             {/* Nombre de la Sucursal */}
-            {datosInformacion.totalSucursales > 1 && (
+            {datosInformacion.totalSucursales > 1 && !datosInformacion.esPrincipal && (
               <div>
                 <label htmlFor="input-nombre-sucursal"
                   className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">

@@ -40,6 +40,7 @@ import cardyaRoutes from './cardya.routes';
 import notificacionesRoutes from './notificaciones.routes';
 import chatyaRoutes from './chatya.routes';
 import reportesRoutes from './reportes.routes';
+import adminRoutes from './admin/index.js';
 
 const router: Router = Router();
 
@@ -126,6 +127,10 @@ router.use('/chatya', chatyaRoutes);
 
 // Rutas de Business Studio - Reportes
 router.use('/business/reportes', reportesRoutes);
+
+// Rutas de mantenimiento administrativo (protegidas por x-admin-secret)
+// Preparadas para ser consumidas por el futuro Panel Admin
+router.use('/admin', adminRoutes);
 
 // Aquí se agregarán más rutas:
 // router.use('/marketplace', marketplaceRoutes);

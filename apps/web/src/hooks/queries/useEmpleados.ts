@@ -113,7 +113,16 @@ export function useCrearEmpleado() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (datos: CrearEmpleadoInput) => empleadosService.crearEmpleado(datos),
+    mutationFn: async (datos: CrearEmpleadoInput) => {
+      // El interceptor de axios (api.ts) convierte respuestas 4xx/5xx con formato
+      // { success: false } en promesas resueltas. Debemos verificar manualmente
+      // el flag `success` y hacer throw para que React Query ejecute onError.
+      const res = await empleadosService.crearEmpleado(datos);
+      if (!res.success) {
+        throw new Error((res as unknown as { error?: string }).error ?? res.message ?? 'Error al crear empleado');
+      }
+      return res.data;
+    },
 
     onError: (_err) => {
       const mensaje = _err instanceof Error ? _err.message : 'Error al crear empleado';
@@ -121,7 +130,9 @@ export function useCrearEmpleado() {
     },
 
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.empleados.lista(sucursalId) });
+      // Invalidar con prefix (sin filtros) para que matchee todas las variantes de filtros en cache.
+      // queryKeys.empleados.lista(sucursalId) incluiría `undefined` al final y no hace match con keys que tienen filtros.
+      qc.invalidateQueries({ queryKey: ['empleados', 'lista', sucursalId] });
       qc.invalidateQueries({ queryKey: queryKeys.empleados.kpis(sucursalId) });
       // Invalidar solo el tab Empleados del reporte para que el nuevo empleado aparezca.
       // No tocamos los otros tabs (ventas/clientes/promociones/reseñas) porque no
@@ -143,8 +154,13 @@ export function useActualizarEmpleado() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, datos }: { id: string; datos: ActualizarEmpleadoInput }) =>
-      empleadosService.actualizarEmpleado(id, datos),
+    mutationFn: async ({ id, datos }: { id: string; datos: ActualizarEmpleadoInput }) => {
+      const res = await empleadosService.actualizarEmpleado(id, datos);
+      if (!res.success) {
+        throw new Error((res as unknown as { error?: string }).error ?? res.message ?? 'Error al actualizar empleado');
+      }
+      return res.data;
+    },
 
     onMutate: async ({ id, datos }) => {
       // Cancelar fetches en vuelo de lista y detalle
@@ -250,8 +266,13 @@ export function useToggleEmpleadoActivo() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, activo }: { id: string; activo: boolean }) =>
-      empleadosService.toggleActivo(id, activo),
+    mutationFn: async ({ id, activo }: { id: string; activo: boolean }) => {
+      const res = await empleadosService.toggleActivo(id, activo);
+      if (!res.success) {
+        throw new Error((res as unknown as { error?: string }).error ?? res.message ?? 'Error al cambiar estado del empleado');
+      }
+      return res.data;
+    },
 
     onMutate: async ({ id, activo }) => {
       // Cancelamos los fetches en vuelo tanto de la lista como del detalle
@@ -333,7 +354,13 @@ export function useEliminarEmpleado() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => empleadosService.eliminarEmpleado(id),
+    mutationFn: async (id: string) => {
+      const res = await empleadosService.eliminarEmpleado(id);
+      if (!res.success) {
+        throw new Error((res as unknown as { error?: string }).error ?? res.message ?? 'Error al eliminar empleado');
+      }
+      return res.data;
+    },
 
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: ['empleados', 'lista', sucursalId] });
@@ -394,8 +421,13 @@ export function useActualizarHorarios() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, horarios }: { id: string; horarios: HorarioEmpleado[] }) =>
-      empleadosService.actualizarHorarios(id, horarios),
+    mutationFn: async ({ id, horarios }: { id: string; horarios: HorarioEmpleado[] }) => {
+      const res = await empleadosService.actualizarHorarios(id, horarios);
+      if (!res.success) {
+        throw new Error((res as unknown as { error?: string }).error ?? res.message ?? 'Error al actualizar horarios');
+      }
+      return res.data;
+    },
 
     onMutate: async ({ id, horarios }) => {
       // Cancelar fetch en vuelo del detalle para que no pise nuestra actualización optimista
@@ -438,7 +470,13 @@ export function useActualizarHorarios() {
 
 export function useRevocarSesion() {
   return useMutation({
-    mutationFn: (id: string) => empleadosService.revocarSesion(id),
+    mutationFn: async (id: string) => {
+      const res = await empleadosService.revocarSesion(id);
+      if (!res.success) {
+        throw new Error((res as unknown as { error?: string }).error ?? res.message ?? 'Error al revocar sesión');
+      }
+      return res.data;
+    },
 
     onError: (_err) => {
       const mensaje = _err instanceof Error ? _err.message : 'Error al revocar sesión';

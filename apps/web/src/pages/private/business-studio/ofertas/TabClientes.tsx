@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, X, Users, ChevronDown, Check, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Spinner } from '../../../../components/ui/Spinner';
+import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import type { ClienteAsignado } from '../../../../services/ofertasService';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 
@@ -70,9 +71,9 @@ const ACTIVIDADES: { valor: FiltroActividad; label: string }[] = [
 
 function getBadgeEstado(estado: string): { label: string; clases: string; Icono: React.ComponentType<{ className?: string }> } {
     switch (estado) {
-        case 'activo': return { label: 'Activo', clases: 'bg-emerald-600 text-white', Icono: CheckCircle };
-        case 'usado': return { label: 'Usado', clases: 'bg-slate-200 text-slate-700', Icono: CheckCircle };
-        case 'expirado': return { label: 'Expirado', clases: 'bg-amber-100 text-amber-700', Icono: Clock };
+        case 'activo': return { label: 'Activo', clases: 'bg-emerald-100 text-emerald-700', Icono: CheckCircle };
+        case 'usado': return { label: 'Usado', clases: 'bg-sky-100 text-sky-700', Icono: CheckCircle };
+        case 'expirado': return { label: 'Vencido', clases: 'bg-amber-100 text-amber-700', Icono: Clock };
         case 'revocado': return { label: 'Revocado', clases: 'bg-red-100 text-red-700', Icono: XCircle };
         default: return { label: estado, clases: 'bg-slate-200 text-slate-700', Icono: AlertTriangle };
     }
@@ -197,15 +198,13 @@ export function TabClientes({
                                     className="w-full flex items-center gap-2.5 lg:gap-1.5 2xl:gap-2.5 p-3 lg:p-2 2xl:p-3 text-left cursor-pointer border-b border-slate-300 last:border-b-0 hover:bg-slate-200"
                                 >
                                     {/* Avatar */}
-                                    {cliente.avatarUrl ? (
-                                        <img src={cliente.avatarUrl} alt={cliente.nombre} className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full object-cover shrink-0 border-2 border-slate-300" />
-                                    ) : (
-                                        <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">
-                                                {cliente.nombre.charAt(0).toUpperCase()}
-                                            </span>
-                                        </div>
-                                    )}
+                                    <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                        {cliente.avatarUrl ? (
+                                            <img src={cliente.avatarUrl} alt={cliente.nombre} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(cliente.nombre)}</span>
+                                        )}
+                                    </div>
 
                                     {/* Info */}
                                     <div className="flex-1 min-w-0">

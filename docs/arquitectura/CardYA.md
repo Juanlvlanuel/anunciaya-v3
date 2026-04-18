@@ -1,7 +1,7 @@
 # 💳 CardYA - Sistema de Lealtad para Clientes
 
-**Última actualización:** 7 Abril 2026
-**Versión:** 2.0 (Migración React Query — abril 2026)
+**Última actualización:** 17 Abril 2026
+**Versión:** 2.1 (Notificaciones a nivel negocio + GREATEST defensivo en cancelarVoucher)
 **Estado:** ✅ 100% Operacional
 
 > **MIGRACIÓN REACT QUERY (Abril 2026):**
@@ -771,6 +771,39 @@ El desbloqueo ocurre **únicamente** en `otorgarPuntos()` de `scanya.service.ts`
 - Frontend: `apps/web/src/pages/private/cardya/componentes/CardRecompensaCliente.tsx` → UI tarjeta sellos
 - Frontend: `apps/web/src/components/scanya/ModalRegistrarVenta.tsx` → selección tarjeta + pantalla éxito
 - Schema: `apps/api/src/db/schemas/schema.ts` → tablas `recompensa_progreso`, `puntos_transacciones.recompensa_sellos_id`
+
+---
+
+## 🔔 Notificaciones emitidas por CardYA
+
+> **Actualizado:** 17 Abril 2026 — todas las notificaciones de CardYA son eventos a nivel negocio (`sucursalId: null`) y se reparten a dueño + gerentes por fan-out.
+
+| Evento | Tipo | `sucursalId` | Destinatarios |
+|--------|------|--------------|---------------|
+| Voucher generado (pendiente de entrega) | `voucher_pendiente` | `null` | Dueño + todos los gerentes del negocio |
+| Stock de recompensa bajo | `stock_bajo` | `null` | Dueño + todos los gerentes del negocio |
+| Stock de recompensa agotado | `stock_agotado` | `null` | Dueño + todos los gerentes del negocio |
+
+**¿Por qué `sucursalId: null`?**
+- Las recompensas se definen a nivel negocio, no por sucursal. El stock es global.
+- Los vouchers se canjean en cualquier sucursal del mismo negocio (ver `docs/arquitectura/Promociones.md` §10).
+- Mantener estas notificaciones "pegadas" a una sucursal sería una decisión arbitraria.
+
+**Fan-out a gerentes:** `generarVoucher` consulta `usuarios WHERE negocio_id = X AND sucursal_asignada IS NOT NULL` y crea una copia de la notificación por cada gerente. Así el gerente de cualquier sucursal ve el voucher pendiente y puede canjearlo.
+
+**Limpieza al canjear:** Al validar el voucher en ScanYA (`validarVoucher`), se eliminan las notificaciones `voucher_pendiente` con `referencia_id = voucherId` (ver `docs/arquitectura/ScanYA.md`). Evita que el panel quede con recordatorios obsoletos.
+
+### Fix defensivo: `cancelarVoucher`
+
+Al cancelar un voucher (cliente arrepentido antes del canje), se restaura el progreso de la recompensa y se resta `puntos_usados` al contador `puntos_canjeados_total` de la billetera:
+
+```typescript
+puntosCanjeadosTotal: sql`GREATEST(${puntosBilletera.puntosCanjeadosTotal} - ${v.puntosUsados}, 0)`,
+```
+
+**Por qué `GREATEST(..., 0)`:** el check constraint de la columna exige `>= 0`. En billeteras legacy, el `puntos_canjeados_total` almacenado puede ser menor que la suma real de vouchers canjeados (inconsistencias históricas). Sin `GREATEST`, la resta rompe el constraint. El clamp a 0 es seguro: un total negativo no tiene sentido semántico.
+
+Ver `docs/estandares/LECCIONES_TECNICAS.md` → sección "SQL y Base de Datos".
 
 ---
 

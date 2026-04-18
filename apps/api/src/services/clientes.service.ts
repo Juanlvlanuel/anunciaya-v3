@@ -255,16 +255,20 @@ export async function obtenerClientes(
             return { success: true, message: 'Clientes obtenidos', data: [], code: 200 };
         }
 
-        // Condiciones para contar visitas (respetar filtro de sucursal)
+        // Condiciones para contar visitas (respetar filtro de sucursal).
+        // Filtra estado = 'confirmado' — las transacciones revocadas o canceladas
+        // no cuentan como visita (la operación fue anulada). Mismo criterio que
+        // obtenerDetalleCliente y obtenerClientesParaExportar.
         const condicionesVisitas = [
             eq(puntosTransacciones.negocioId, negocioId),
             inArray(puntosTransacciones.clienteId, clienteIds),
+            sql`${puntosTransacciones.estado} = 'confirmado'`,
         ];
         if (filtros.sucursalId) {
             condicionesVisitas.push(eq(puntosTransacciones.sucursalId, filtros.sucursalId));
         }
 
-        const visitas = await db
+        const visitasTx = await db
             .select({
                 clienteId: puntosTransacciones.clienteId,
                 totalVisitas: sql<number>`COUNT(*)`,
@@ -273,7 +277,35 @@ export async function obtenerClientes(
             .where(and(...condicionesVisitas))
             .groupBy(puntosTransacciones.clienteId);
 
-        const visitasMap = new Map(visitas.map(v => [v.clienteId, Number(v.totalVisitas)]));
+        // Sumar vouchers canjeados como visita (canje puro sin venta acompañante
+        // no genera puntos_transacciones, pero el cliente sí visitó físicamente
+        // el negocio para reclamar su recompensa — cuenta como visita genuina).
+        const condicionesVouchers = [
+            eq(vouchersCanje.negocioId, negocioId),
+            inArray(vouchersCanje.usuarioId, clienteIds),
+            sql`${vouchersCanje.estado} = 'usado'`,
+        ];
+        if (filtros.sucursalId) {
+            condicionesVouchers.push(eq(vouchersCanje.sucursalId, filtros.sucursalId));
+        }
+
+        const visitasVouchers = await db
+            .select({
+                clienteId: vouchersCanje.usuarioId,
+                totalVouchers: sql<number>`COUNT(*)`,
+            })
+            .from(vouchersCanje)
+            .where(and(...condicionesVouchers))
+            .groupBy(vouchersCanje.usuarioId);
+
+        // Combinar ambos contadores por cliente
+        const visitasMap = new Map<string, number>();
+        for (const v of visitasTx) {
+            visitasMap.set(v.clienteId, Number(v.totalVisitas));
+        }
+        for (const v of visitasVouchers) {
+            visitasMap.set(v.clienteId, (visitasMap.get(v.clienteId) ?? 0) + Number(v.totalVouchers));
+        }
 
         // Combinar clientes con visitas
         const clientesConVisitas: ClienteCompleto[] = clientes.map(c => ({
@@ -319,7 +351,8 @@ export async function obtenerClientes(
  */
 export async function obtenerDetalleCliente(
     negocioId: string,
-    clienteId: string
+    clienteId: string,
+    sucursalId?: string
 ): Promise<RespuestaServicio<ClienteDetalle>> {
     try {
         // Billetera del cliente en este negocio
@@ -361,7 +394,18 @@ export async function obtenerDetalleCliente(
             };
         }
 
-        // Estadísticas de transacciones
+        // Estadísticas de transacciones (filtra por sucursal activa si viene —
+        // alinea con la tabla de Clientes para que el gerente no vea métricas
+        // globales del negocio al abrir el modal desde su sucursal)
+        const condicionesStatsTx = [
+            eq(puntosTransacciones.negocioId, negocioId),
+            eq(puntosTransacciones.clienteId, clienteId),
+            sql`estado = 'confirmado'`,
+        ];
+        if (sucursalId) {
+            condicionesStatsTx.push(eq(puntosTransacciones.sucursalId, sucursalId));
+        }
+
         const [stats] = await db
             .select({
                 totalVisitas: sql<number>`COUNT(*)`,
@@ -369,27 +413,24 @@ export async function obtenerDetalleCliente(
                 promedioCompra: sql<number>`COALESCE(AVG(monto_compra), 0)`,
             })
             .from(puntosTransacciones)
-            .where(
-                and(
-                    eq(puntosTransacciones.negocioId, negocioId),
-                    eq(puntosTransacciones.clienteId, clienteId),
-                    sql`estado = 'confirmado'`
-                )
-            );
+            .where(and(...condicionesStatsTx));
 
-        // Vouchers estadísticas
+        // Vouchers estadísticas (mismo criterio: filtro por sucursal si viene)
+        const condicionesStatsVouchers = [
+            eq(vouchersCanje.negocioId, negocioId),
+            eq(vouchersCanje.usuarioId, clienteId),
+        ];
+        if (sucursalId) {
+            condicionesStatsVouchers.push(eq(vouchersCanje.sucursalId, sucursalId));
+        }
+
         const [vouchersStats] = await db
             .select({
                 totalVouchers: sql<number>`COUNT(*)`,
                 vouchersUsados: sql<number>`COUNT(*) FILTER (WHERE estado = 'usado')`,
             })
             .from(vouchersCanje)
-            .where(
-                and(
-                    eq(vouchersCanje.negocioId, negocioId),
-                    eq(vouchersCanje.usuarioId, clienteId)
-                )
-            );
+            .where(and(...condicionesStatsVouchers));
 
         // Configuración de niveles del negocio
         const [configNiveles] = await db
@@ -417,7 +458,9 @@ export async function obtenerDetalleCliente(
                 nivelActual: billetera?.nivelActual ?? 'bronce',
                 clienteDesde: billetera?.createdAt ?? null,
                 ultimaActividad: billetera?.ultimaActividad ?? null,
-                totalVisitas: Number(stats.totalVisitas),
+                // Visitas = ventas con puntos + vouchers canjeados (un canje puro de voucher
+                // también es una visita física del cliente al negocio)
+                totalVisitas: Number(stats.totalVisitas) + Number(vouchersStats.vouchersUsados),
                 totalGastado: Number(stats.totalGastado),
                 promedioCompra: Number(Number(stats.promedioCompra).toFixed(2)),
                 totalVouchers: Number(vouchersStats.totalVouchers),
@@ -551,8 +594,32 @@ export async function obtenerClientesParaExportar(
 
         const estadisticasMap = new Map(estadisticas.map(e => [e.clienteId, e]));
 
+        // Sumar vouchers canjeados como visita (canje puro no genera tx pero es visita real)
+        const condicionesVouchersExport = [
+            eq(vouchersCanje.negocioId, negocioId),
+            inArray(vouchersCanje.usuarioId, clienteIds),
+            sql`${vouchersCanje.estado} = 'usado'`,
+        ];
+        if (filtros.sucursalId) {
+            condicionesVouchersExport.push(eq(vouchersCanje.sucursalId, filtros.sucursalId));
+        }
+
+        const visitasVouchersExport = await db
+            .select({
+                clienteId: vouchersCanje.usuarioId,
+                totalVouchers: sql<number>`COUNT(*)`,
+            })
+            .from(vouchersCanje)
+            .where(and(...condicionesVouchersExport))
+            .groupBy(vouchersCanje.usuarioId);
+
+        const vouchersMapExport = new Map(
+            visitasVouchersExport.map(v => [v.clienteId, Number(v.totalVouchers)])
+        );
+
         const resultado: ClienteExportar[] = clientes.map(c => {
             const stats = estadisticasMap.get(c.id);
+            const vouchersUsados = vouchersMapExport.get(c.id) ?? 0;
             return {
                 id: c.id,
                 nombre: c.nombre?.trim() || '',
@@ -563,7 +630,7 @@ export async function obtenerClientesParaExportar(
                 puntosAcumuladosTotal: Number(c.puntosAcumuladosTotal),
                 puntosCanjeadosTotal: Number(c.puntosCanjeadosTotal),
                 totalGastado: stats ? Number(stats.totalGastado) : 0,
-                totalVisitas: stats ? Number(stats.totalVisitas) : 0,
+                totalVisitas: (stats ? Number(stats.totalVisitas) : 0) + vouchersUsados,
                 ultimaActividad: c.ultimaActividad,
             };
         });

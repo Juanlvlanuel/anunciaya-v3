@@ -86,6 +86,7 @@ export const usuarios = pgTable("usuarios", {
 	negocioId: uuid('negocio_id').references((): AnyPgColumn => negocios.id, { onDelete: 'set null' }),
 	sucursalAsignada: uuid('sucursal_asignada').references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'set null' }),
 	ultimaConexion: timestamp("ultima_conexion", { withTimezone: true, mode: 'string' }),
+	requiereCambioContrasena: boolean("requiere_cambio_contrasena").default(false).notNull(),
 }, (table) => [
 	index("idx_usuarios_correo_verificado").using("btree", table.correoVerificado.asc().nullsLast()),
 	index("idx_usuarios_created_at").using("btree", table.createdAt.asc().nullsLast()),

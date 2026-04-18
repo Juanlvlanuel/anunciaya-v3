@@ -23,7 +23,7 @@ import {
   ofertaUsos,
   ofertas,
 } from '../db/schemas/schema.js';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, isNotNull } from 'drizzle-orm';
 import type {
   RespuestaServicio,
   BilleteraNegocio,
@@ -39,7 +39,7 @@ import type {
   FiltrosRecompensas,
   FiltrosVouchers,
 } from '../types/cardya.types.js';
-import { crearNotificacion, obtenerSucursalPrincipal, notificarNegocioCompleto } from './notificaciones.service.js';
+import { crearNotificacion, eliminarNotificacionesPorReferencia, obtenerSucursalPrincipal, notificarNegocioCompleto } from './notificaciones.service.js';
 
 // =============================================================================
 // BILLETERAS Y PUNTOS
@@ -587,6 +587,8 @@ export async function generarVoucher(
         .limit(1);
 
       if (negocioDuenoStock) {
+        // Stock bajo es un evento a nivel negocio (las recompensas no son por sucursal),
+        // por eso NO se asigna sucursalId: debe aparecer en cualquier sucursal activa del dueño.
         crearNotificacion({
           usuarioId: negocioDuenoStock.usuarioId,
           modo: 'comercial',
@@ -594,7 +596,6 @@ export async function generarVoucher(
           titulo: `¡Stock bajo! Quedan ${recomp.stock - 1}`,
           mensaje: `La recompensa "${recomp.nombre}" se está agotando`,
           negocioId: recomp.negocioId,
-          sucursalId: sucursalPrincipalId ?? undefined,
           referenciaId: recompensaId,
           referenciaTipo: 'recompensa',
           icono: '⚠️',
@@ -613,6 +614,7 @@ export async function generarVoucher(
         .limit(1);
 
       if (negocioDuenoAgotado) {
+        // Agotada también es evento de negocio (sin sucursalId → aparece en cualquier sucursal activa)
         crearNotificacion({
           usuarioId: negocioDuenoAgotado.usuarioId,
           modo: 'comercial',
@@ -620,7 +622,6 @@ export async function generarVoucher(
           titulo: '¡Recompensa agotada!',
           mensaje: `"${recomp.nombre}" ya no tiene stock disponible`,
           negocioId: recomp.negocioId,
-          sucursalId: sucursalPrincipalId ?? undefined,
           referenciaId: recompensaId,
           referenciaTipo: 'recompensa',
           icono: '🚫',
@@ -661,34 +662,49 @@ export async function generarVoucher(
       .limit(1);
 
     if (negocioDueno) {
-      crearNotificacion({
-        usuarioId: negocioDueno.usuarioId,
-        modo: 'comercial',
-        tipo: 'voucher_pendiente',
+      // Voucher pendiente NO es de sucursal específica: el cliente puede recogerlo en cualquiera.
+      // Por eso no se asigna sucursalId (aparece en toda sucursal activa del dueño/gerente).
+      const payloadVoucher = {
+        modo: 'comercial' as const,
+        tipo: 'voucher_pendiente' as const,
         titulo: 'Recompensa por entregar',
         mensaje: `Canjeó sus puntos por: ${recomp.nombre}`,
         negocioId: recomp.negocioId,
-        sucursalId: sucursalPrincipalId ?? undefined,
         referenciaId: resultado.id,
-        referenciaTipo: 'voucher',
+        referenciaTipo: 'voucher' as const,
         icono: '🎟️',
         actorImagenUrl: clienteParaAvatar?.avatarUrl ?? undefined,
         actorNombre: clienteParaAvatar ? `${clienteParaAvatar.nombre} ${clienteParaAvatar.apellidos || ''}`.trim() : undefined,
+      };
+
+      // Dueño del negocio
+      crearNotificacion({
+        ...payloadVoucher,
+        usuarioId: negocioDueno.usuarioId,
       }).catch((err) => console.error('Error notificación dueño voucher:', err));
 
-      // Notificar a empleados de TODAS las sucursales (cualquiera puede entregar)
-      notificarNegocioCompleto(recomp.negocioId, {
-        modo: 'comercial',
-        tipo: 'voucher_pendiente',
-        titulo: 'Recompensa por entregar',
-        mensaje: `Canjeó sus puntos por: ${recomp.nombre}`,
-        negocioId: recomp.negocioId,
-        referenciaId: resultado.id,
-        referenciaTipo: 'voucher',
-        icono: '🎟️',
-        actorImagenUrl: clienteParaAvatar?.avatarUrl ?? undefined,
-        actorNombre: clienteParaAvatar ? `${clienteParaAvatar.nombre} ${clienteParaAvatar.apellidos || ''}`.trim() : undefined,
-      }).catch((err) => console.error('Error notificación empleados voucher:', err));
+      // Notificar a TODOS los gerentes del negocio (cualquiera puede entregar el premio)
+      const gerentes = await db
+        .select({ id: usuarios.id })
+        .from(usuarios)
+        .where(
+          and(
+            eq(usuarios.negocioId, recomp.negocioId),
+            isNotNull(usuarios.sucursalAsignada),
+          )
+        );
+
+      for (const gerente of gerentes) {
+        if (gerente.id === negocioDueno.usuarioId) continue;
+        crearNotificacion({
+          ...payloadVoucher,
+          usuarioId: gerente.id,
+        }).catch((err) => console.error('Error notificación gerente voucher:', err));
+      }
+
+      // Notificar a empleados (tabla empleados de ScanYA) de TODAS las sucursales
+      notificarNegocioCompleto(recomp.negocioId, payloadVoucher)
+        .catch((err) => console.error('Error notificación empleados voucher:', err));
     }
 
     return {
@@ -814,11 +830,14 @@ export async function cancelarVoucher(
     }
 
     await db.transaction(async (tx) => {
+      // Defensivo: GREATEST evita que `puntos_canjeados_total` vaya negativo
+      // si por algún motivo (data legacy, inconsistencia previa) el contador estaba en 0.
+      // El check constraint `puntos_billetera_totales_check` exige que los contadores sean >= 0.
       await tx
         .update(puntosBilletera)
         .set({
           puntosDisponibles: sql`${puntosBilletera.puntosDisponibles} + ${v.puntosUsados}`,
-          puntosCanjeadosTotal: sql`${puntosBilletera.puntosCanjeadosTotal} - ${v.puntosUsados}`,
+          puntosCanjeadosTotal: sql`GREATEST(${puntosBilletera.puntosCanjeadosTotal} - ${v.puntosUsados}, 0)`,
         })
         .where(eq(puntosBilletera.id, v.billeteraId));
 
@@ -863,13 +882,16 @@ export async function cancelarVoucher(
           ));
       }
 
-      // Limpiar notificaciones de este voucher
-      await tx.delete(notificaciones).where(
-        and(
-          eq(notificaciones.referenciaId, voucherId),
-          eq(notificaciones.referenciaTipo, 'voucher')
-        )
-      );
+    });
+
+    // Limpiar notificaciones del voucher DESPUÉS del commit. Usa el helper
+    // que emite `notificacion:eliminada` por socket a cada usuario afectado,
+    // así el panel se actualiza en vivo sin recargar.
+    // Se ejecuta fuera de la transacción para que si el commit falla, no
+    // toquemos notificaciones que aún deben existir.
+    await eliminarNotificacionesPorReferencia({
+      referenciaTipo: 'voucher',
+      referenciaId: voucherId,
     });
 
     return { success: true, message: `Voucher cancelado. Puntos devueltos: +${v.puntosUsados}` };

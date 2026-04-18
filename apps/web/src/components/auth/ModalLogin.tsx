@@ -24,13 +24,14 @@ import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { VistaLogin } from './vistas/VistaLogin';
 import { Vista2FA } from './vistas/Vista2FA';
 import { VistaRecuperar } from './vistas/VistaRecuperar';
+import { VistaCambiarContrasena } from './vistas/VistaCambiarContrasena';
 
 // =============================================================================
 // TIPOS
 // =============================================================================
 
 /** Vistas disponibles en el modal */
-export type VistaAuth = 'login' | '2fa' | 'recuperar';
+export type VistaAuth = 'login' | '2fa' | 'recuperar' | 'cambiarContrasena';
 
 /** Datos que se pasan entre vistas */
 export interface DatosAuth {
@@ -47,7 +48,7 @@ export interface DatosAuth {
 const GRADIENTE = {
   bg: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
   shadow: 'rgba(29, 78, 216, 0.4)',
-  handle: '#1d4ed8',
+  handle: 'rgba(255,255,255,0.4)',
 };
 
 const VISTAS_CONFIG = {
@@ -65,6 +66,11 @@ const VISTAS_CONFIG = {
     Icono: KeyRound,
     titulo: 'Recuperar contraseña',
     subtitulo: 'Restablece tu acceso',
+  },
+  cambiarContrasena: {
+    Icono: KeyRound,
+    titulo: 'Cambiar contraseña',
+    subtitulo: 'Crea tu contraseña definitiva',
   },
 } as const;
 
@@ -197,6 +203,13 @@ export function ModalLogin() {
               emailInicial={datosAuth.email}
               onCambiarVista={cambiarVista}
               onActualizarDatos={actualizarDatos}
+            />
+          )}
+          {vistaActual === 'cambiarContrasena' && (
+            <VistaCambiarContrasena
+              tokenTemporal={datosAuth.tokenTemporal2FA}
+              onCambiarVista={cambiarVista}
+              onCerrarModal={handleCerrar}
             />
           )}
         </div>

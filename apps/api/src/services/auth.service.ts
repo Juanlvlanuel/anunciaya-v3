@@ -17,7 +17,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { env } from '../config/env.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { redis } from '../db/redis.js';
 import { usuarios, usuarioCodigosRespaldo, negocios } from '../db/schemas/schema.js';
@@ -675,7 +675,7 @@ export async function loginUsuario(
   datos: LoginInput,
   ip?: string | null,
   userAgent?: string | null
-): Promise<RespuestaServicio<{ usuario: UsuarioPublico; accessToken: string; refreshToken: string; requiere2FA?: boolean; tokenTemporal?: string }>> {
+): Promise<RespuestaServicio<{ usuario: UsuarioPublico; accessToken: string; refreshToken: string; requiere2FA?: boolean; requiereCambioContrasena?: boolean; tokenTemporal?: string }>> {
   try {
     // Buscar usuario por correo
     const [usuario] = await db
@@ -693,7 +693,8 @@ export async function loginUsuario(
     }
 
     // Verificar que el correo esté verificado
-    if (!usuario.correoVerificado) {
+    // Excepción: cuentas de gerente con cambio de contraseña pendiente (correoVerificado=false es esperado)
+    if (!usuario.correoVerificado && !usuario.requiereCambioContrasena) {
       return {
         success: false,
         message: 'Debes verificar tu correo antes de iniciar sesión',
@@ -771,6 +772,27 @@ export async function loginUsuario(
       if (usuario.sucursalAsignada) {
         datosNegocioGerente = await obtenerDatosNegocio(usuario.negocioId, usuario.sucursalAsignada);
       }
+    }
+
+    // -------------------------------------------------------------------------
+    // Verificar si requiere cambio de contraseña provisional (gerentes nuevos)
+    // -------------------------------------------------------------------------
+    if (usuario.requiereCambioContrasena) {
+      const tokenTemporal = crypto.randomUUID();
+      await guardarTokenTemporal2FA(usuario.id, tokenTemporal); // Reutilizar Redis TTL 5 min
+
+      return {
+        success: true,
+        message: 'Debes cambiar tu contraseña provisional',
+        data: {
+          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, usuario.sucursalAsignada, datosNegocioGerente),
+          accessToken: '',
+          refreshToken: '',
+          requiereCambioContrasena: true,
+          tokenTemporal,
+        },
+        code: 200,
+      };
     }
 
     // -------------------------------------------------------------------------
@@ -1759,6 +1781,96 @@ async function eliminarTokenTemporal2FA(token: string): Promise<void> {
 }
 
 // =============================================================================
+// FUNCIÓN: CAMBIAR CONTRASEÑA PROVISIONAL (gerentes nuevos)
+// =============================================================================
+
+/**
+ * Permite a un gerente nuevo cambiar su contraseña provisional.
+ * Requiere el token temporal generado en el login.
+ * Después de cambiar: requiereCambioContrasena = false, correoVerificado = true.
+ */
+export async function cambiarContrasenaProvisional(
+  tokenTemporal: string,
+  nuevaContrasena: string
+): Promise<RespuestaServicio> {
+  try {
+    // Verificar token temporal (la provisional ya se validó en el login,
+    // el tokenTemporal certifica que ese paso fue exitoso).
+    const usuarioId = await verificarTokenTemporal2FA(tokenTemporal);
+    if (!usuarioId) {
+      return {
+        success: false,
+        message: 'Token expirado o inválido. Inicia sesión nuevamente.',
+        code: 401,
+      };
+    }
+
+    // Buscar usuario
+    const [usuario] = await db
+      .select({
+        id: usuarios.id,
+        contrasenaHash: usuarios.contrasenaHash,
+        requiereCambioContrasena: usuarios.requiereCambioContrasena,
+      })
+      .from(usuarios)
+      .where(eq(usuarios.id, usuarioId))
+      .limit(1);
+
+    if (!usuario || !usuario.requiereCambioContrasena) {
+      return {
+        success: false,
+        message: 'Esta cuenta no requiere cambio de contraseña',
+        code: 400,
+      };
+    }
+
+    if (!usuario.contrasenaHash) {
+      return { success: false, message: 'Error de configuración de cuenta', code: 500 };
+    }
+
+    // Verificar que la nueva contraseña sea diferente de la provisional
+    const mismaContrasena = await bcrypt.compare(nuevaContrasena, usuario.contrasenaHash);
+    if (mismaContrasena) {
+      return {
+        success: false,
+        message: 'La nueva contraseña debe ser diferente a la provisional',
+        code: 400,
+      };
+    }
+
+    // Hashear nueva contraseña y actualizar
+    const nuevaContrasenaHash = await bcrypt.hash(nuevaContrasena, SALT_ROUNDS);
+
+    await db
+      .update(usuarios)
+      .set({
+        contrasenaHash: nuevaContrasenaHash,
+        requiereCambioContrasena: false,
+        correoVerificado: true,
+        correoVerificadoAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(usuarios.id, usuarioId));
+
+    // Limpiar token temporal
+    await eliminarTokenTemporal2FA(tokenTemporal);
+
+    return {
+      success: true,
+      message: 'Contraseña actualizada. Ya puedes iniciar sesión.',
+      code: 200,
+    };
+  } catch (error) {
+    console.error('Error al cambiar contraseña provisional:', error);
+    return {
+      success: false,
+      message: 'Error al cambiar contraseña',
+      code: 500,
+    };
+  }
+}
+
+// =============================================================================
 // FUNCIÓN 14: GENERAR 2FA (secreto + QR)
 // =============================================================================
 
@@ -2520,6 +2632,78 @@ export async function obtenerInfoModo(
     return {
       success: false,
       message: 'Error al obtener información de modo',
+      code: 500,
+    };
+  }
+}
+
+// ============================================================================
+// VERIFICAR DISPONIBILIDAD DE CORREO
+// ============================================================================
+
+export interface RespuestaVerificarCorreo {
+  disponible: boolean;
+  existente?: {
+    nombre: string;
+    apellidos: string;
+    tieneNegocio: boolean; // true si ya es dueño o gerente de algún negocio
+  };
+}
+
+/**
+ * Verifica si un correo ya está registrado en la tabla usuarios.
+ * Usado para validación en tiempo real al crear cuentas.
+ *
+ * - Si NO existe → { disponible: true }
+ * - Si existe → { disponible: false, existente: { nombre, apellidos, tieneNegocio } }
+ *   Permite al frontend decidir si la cuenta es elegible para ser promovida
+ *   (ej: a gerente de sucursal, solo si tieneNegocio = false).
+ *
+ * @param correo - Correo a verificar (case-insensitive)
+ */
+export async function verificarDisponibilidadCorreo(
+  correo: string
+): Promise<RespuestaServicio<RespuestaVerificarCorreo>> {
+  try {
+    const [usuario] = await db
+      .select({
+        id: usuarios.id,
+        nombre: usuarios.nombre,
+        apellidos: usuarios.apellidos,
+        negocioId: usuarios.negocioId,
+        sucursalAsignada: usuarios.sucursalAsignada,
+      })
+      .from(usuarios)
+      .where(sql`LOWER(${usuarios.correo}) = LOWER(${correo})`)
+      .limit(1);
+
+    if (!usuario) {
+      return {
+        success: true,
+        message: 'Correo disponible',
+        data: { disponible: true },
+        code: 200,
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Correo ya registrado',
+      data: {
+        disponible: false,
+        existente: {
+          nombre: usuario.nombre,
+          apellidos: usuario.apellidos,
+          tieneNegocio: !!(usuario.negocioId || usuario.sucursalAsignada),
+        },
+      },
+      code: 200,
+    };
+  } catch (error) {
+    console.error('❌ Error en verificarDisponibilidadCorreo:', error);
+    return {
+      success: false,
+      message: 'Error al verificar disponibilidad del correo',
       code: 500,
     };
   }

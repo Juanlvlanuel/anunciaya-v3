@@ -25,10 +25,13 @@ import {
   activar2faController,
   verificar2faController,
   desactivar2faController,
-  cambiarModoController,       
+  cambiarModoController,
   obtenerInfoModoController,
+  cambiarContrasenaProvisionalController,
+  verificarDisponibilidadCorreoController,
 } from '../controllers/auth.controller.js';
 import { verificarToken } from '../middleware/auth.js';
+import { limitadorVerificacionCorreo } from '../middleware/rateLimiter.js';
 
 const router: Router = Router();
 
@@ -56,6 +59,9 @@ router.post('/olvide-contrasena', olvideContrasena);
 
 // POST /api/auth/restablecer-contrasena - Establecer nueva contraseña con código
 router.post('/restablecer-contrasena', restablecerContrasenaController);
+
+// POST /api/auth/cambiar-contrasena-provisional - Cambiar contraseña provisional (gerentes nuevos)
+router.post('/cambiar-contrasena-provisional', cambiarContrasenaProvisionalController);
 
 // POST /api/auth/google - Login con Google OAuth
 router.post('/google', googleAuth);
@@ -96,5 +102,15 @@ router.patch('/modo', verificarToken, cambiarModoController);
 
 // GET /api/auth/modo-info - Obtiene información sobre el modo actual del usuario
 router.get('/modo-info', verificarToken, obtenerInfoModoController);
+
+// GET /api/auth/verificar-disponibilidad-correo?correo=xxx
+// Verifica si un correo ya está registrado. Usado para feedback en tiempo real
+// al crear cuentas (ej: crear gerente desde BS Sucursales).
+router.get(
+  '/verificar-disponibilidad-correo',
+  verificarToken,
+  limitadorVerificacionCorreo,
+  verificarDisponibilidadCorreoController
+);
 
 export default router;

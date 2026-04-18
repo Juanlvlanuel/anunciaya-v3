@@ -472,7 +472,8 @@ async function notificarAlertaAlta(alerta: AlertaCompleta): Promise<void> {
 	const duenoId = (negocioResult as unknown as { rows: { usuario_id: string }[] }).rows[0]?.usuario_id;
 	if (!duenoId) return;
 
-	// Crear notificación en el sistema
+	// Crear notificación en el sistema (atada a la sucursal de la alerta para que el filtro
+	// del panel la muestre solo cuando el dueño tenga esa sucursal activa)
 	await crearNotificacion({
 		usuarioId: duenoId,
 		modo: 'comercial',
@@ -480,6 +481,7 @@ async function notificarAlertaAlta(alerta: AlertaCompleta): Promise<void> {
 		titulo: alerta.titulo,
 		mensaje: alerta.descripcion,
 		negocioId: alerta.negocioId,
+		sucursalId: alerta.sucursalId ?? undefined,
 		referenciaId: alerta.id,
 		referenciaTipo: 'alerta',
 	});
@@ -491,6 +493,7 @@ async function notificarAlertaAlta(alerta: AlertaCompleta): Promise<void> {
 		titulo: alerta.titulo,
 		mensaje: alerta.descripcion,
 		negocioId: alerta.negocioId,
+		sucursalId: alerta.sucursalId ?? undefined,
 		referenciaId: alerta.id,
 		referenciaTipo: 'alerta',
 	});

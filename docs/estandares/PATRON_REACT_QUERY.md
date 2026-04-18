@@ -120,7 +120,16 @@ export function useCrearItem() {
   const queryClientInstance = useQueryClient();
 
   return useMutation({
-    mutationFn: (datos: DatosNuevoItem) => moduloService.crear(datos),
+    mutationFn: async (datos: DatosNuevoItem) => {
+      const res = await moduloService.crear(datos);
+      // ⚠️ OBLIGATORIO — ver sección "Mutations: verificar res.success" abajo
+      if (!res.success) {
+        throw new Error(
+          (res as unknown as { error?: string }).error ?? res.message ?? 'Error al crear'
+        );
+      }
+      return res.data;
+    },
     onSuccess: () => {
       queryClientInstance.invalidateQueries({
         queryKey: queryKeys.modulo.all(),
@@ -687,6 +696,27 @@ Las 4 mutaciones usan el helper privado `invalidarOfertasRelacionadas`. Las acci
 
 **Read-only:** sin mutaciones propias. Todas las invalidaciones hacia `['reportes', ...]` vienen desde los módulos que producen los datos (ver arriba).
 
+#### Sucursales
+
+Las 6 mutaciones usan el helper `useInvalidarSucursales` como estándar de invalidación. Cualquier operación sobre sucursales afecta tanto a BS como al feed público, por lo que el helper invalida los 3 scopes de una sola vez.
+
+| Helper | Invalida |
+|---|---|
+| `useInvalidarSucursales` | `sucursales.all()`, `perfil.sucursales(negocioId)`, `negocios.all()` |
+
+| Mutación | Archivo | Invalida |
+|---|---|---|
+| `useCrearSucursal` | `useSucursales.ts` | `useInvalidarSucursales` (KPIs y lista de BS + selector navbar + feed público) |
+| `useToggleSucursalActiva` | `useSucursales.ts` | optimistic en lista con snapshot de todas las variantes del queryKey → `useInvalidarSucursales` en `onSuccess`. Si se desactiva la sucursal activa del dueño → `setSucursalActiva(principalId)` en authStore |
+| `useEliminarSucursal` | `useSucursales.ts` | `useInvalidarSucursales` + `removeQueries(sucursales.gerente(sucursalId))`. Si se elimina la sucursal activa → cambia a la principal en authStore. **Error TIENE_HISTORIAL no muestra toast genérico** — el componente ofrece desactivar como alternativa |
+| `useCrearGerente` | `useSucursales.ts` | `useInvalidarSucursales` + `invalidateQueries(sucursales.gerente(sucursalId))` |
+| `useRevocarGerente` | `useSucursales.ts` | `useInvalidarSucursales` + `invalidateQueries(sucursales.gerente(sucursalId))` |
+| `useReenviarCredenciales` | `useSucursales.ts` | — (acción pura: regenera contraseña y dispara email, no afecta ninguna query cacheada) |
+
+**Patrón cross-módulo crítico:** el feed público (`PaginaNegocios`, `PaginaPerfilNegocio`) vive bajo `queryKeys.negocios.*` mientras BS usa `sucursales.*` y `perfil.*`. Sin invalidar los 3 scopes, el dueño tiene que recargar para ver que su sucursal desapareció/apareció del feed público al cambiar su estado.
+
+**Helper interno relacionado (no de React Query):** el backend tiene `revocarEmpleadosDeSucursal(sucursalId, motivo)` en `negocioManagement.service.ts` que se ejecuta automáticamente en `toggleActivaSucursal(false)` y `eliminarSucursal` (rama A). Cierra turnos ScanYA abiertos, marca timestamp en Redis y emite socket `scanya:sesion-revocada`. No requiere invalidación en el frontend porque ScanYA usa sesiones aparte (no comparte caché de React Query).
+
 ---
 
 ### Por query afectada
@@ -731,6 +761,12 @@ Lista inversa: para cada query "receptora", qué mutaciones la tocan. Útil al a
 | `reportes.tab(sid, 'empleados', ...)` | `useRevocarTransaccion`, `useEmpleados.*` (4 mutaciones) |
 | `reportes.tab(sid, 'promociones', ...)` | `useOfertas.*` (helper) + acciones directas |
 | `reportes.tab(sid, 'resenas', ...)` | `useResponderResena` |
+| `sucursales.kpis(negocioId)` | `useCrearSucursal`, `useToggleSucursalActiva`, `useEliminarSucursal`, `useCrearGerente`, `useRevocarGerente` (todas vía `useInvalidarSucursales`) |
+| `sucursales.lista(negocioId, filtros)` | las 5 arriba + optimistic en `useToggleSucursalActiva` |
+| `sucursales.gerente(sucursalId)` | `useCrearGerente`, `useRevocarGerente` (invalidate), `useEliminarSucursal` (removeQueries) |
+| `perfil.sucursales(negocioId)` | todas las mutaciones de Sucursales (vía `useInvalidarSucursales`) + `guardarTodo`, `TabImagenes` de Mi Perfil |
+| `perfil.sucursal(sucursalActiva)` | `guardarTodo`, `TabImagenes` (Mi Perfil) |
+| `negocios.all()` (prefix) — lista + detalle + perfil individual del feed público | todas las mutaciones de Sucursales (vía `useInvalidarSucursales`) + `guardarTodo`, `TabImagenes` (campos visibles en el feed: nombre, logo, portada, galería) |
 
 ---
 
@@ -785,6 +821,24 @@ Durante el audit aparecieron mutaciones "sueltas" en componentes que llamaban di
 
 Siempre que encuentres `api.post`/`api.put`/`api.delete` en un componente, verifica qué keys afecta y agrega las `invalidateQueries` correspondientes. Excepción: llamadas de métricas fire-and-forget (ver Regla 6).
 
+#### 6. Mutaciones de BS que afectan al feed público
+
+Cuando una operación desde Business Studio cambia algo visible en el feed público (Negocios, perfil público de sucursal), hay que invalidar **ambos scopes**:
+
+- El scope propio del módulo BS (`sucursales.*`, `perfil.*`, `ofertas.*`, etc.)
+- `queryKeys.negocios.all()` (prefix que cubre `negocios.lista`, `negocios.detalle(id)` y pre-fetches del feed)
+
+Caso real: activar/desactivar una sucursal invalidaba `sucursales.all` y `perfil.sucursales` pero el feed público (`PaginaNegocios` y `PaginaPerfilNegocio`) seguía mostrándola o sin mostrarla hasta recargar. El dueño hacía el toggle en BS pero al abrir "Ver mi Negocio" en otra pestaña veía estado viejo.
+
+Regla: al añadir una mutación en BS que pueda alterar la vista pública, agregar `queryKeys.negocios.all()` al helper de invalidación. El patrón está implementado en `useInvalidarSucursales` — usar como referencia al crear helpers similares para otros módulos.
+
+Campos de BS que se reflejan en el feed público y por lo tanto requieren invalidar `negocios.all()`:
+- Datos de sucursal: `activa`, `nombre`, `direccion`, `ciudad`, `telefono`, `whatsapp`
+- Datos del negocio: `nombre`, `logoUrl`, `descripcion`, `sitioWeb`, `redesSociales`, `categorias`
+- Imágenes: `fotoPerfil`, `portadaUrl`, galería
+- Horarios, métodos de pago, flags de servicio (`tieneEnvio`, `tieneDomicilio`)
+- Ofertas públicas (no cupones privados)
+
 ---
 
 ## staleTime vs gcTime — Diferencia
@@ -823,6 +877,8 @@ Flujo típico:
 | Puntos (BS) | `hooks/queries/usePuntos.ts` | `usePuntosStore.ts` (solo periodo) | ✅ |
 | Empleados (BS) | `hooks/queries/useEmpleados.ts` | *(eliminado)* | ✅ |
 | Mi Perfil (BS) | `hooks/queries/usePerfil.ts` | *(no aplica — hook local de formulario)* | ✅ |
+| Sucursales (BS) | `hooks/queries/useSucursales.ts` | *(no aplica — filtros UI locales)* | ✅ |
+| Reportes (BS) | `hooks/queries/useReportes.ts` | *(no aplica — read-only)* | ✅ |
 
 **Secciones públicas migradas:**
 
@@ -870,6 +926,8 @@ Al migrar un módulo, verificar que se completaron todos estos pasos:
 - [ ] Reemplazar `cargarMas()` con `query.fetchNextPage()` en botones y observers
 - [ ] Eliminar referencias obsoletas al store en otros componentes (modales, overlays)
 - [ ] Verificar invalidación cruzada: ¿qué otros módulos muestran estos mismos datos?
+- [ ] ¿La mutación afecta algo visible al feed público? → invalidar `queryKeys.negocios.all()` (ver Lección #6)
+- [ ] ¿La mutación cambia campos del `useAuthStore` (nombre, logo, correo)? → llamar `setUsuario(...)` además (ver Regla 9)
 - [ ] Buscar `api.post/put/delete` en componentes del módulo — todas deben invalidar caché
 - [ ] Correr `tsc --noEmit` — zero errores
 - [ ] Verificar en el navegador: filtros no causan temblor, datos cargan correctamente
@@ -925,4 +983,47 @@ Resultado: la mayoría de huecos eran cross-módulo. Se extrajeron lecciones sob
 1. Consulta el mapa para ver el patrón de un módulo similar
 2. Usa la tabla "Por query afectada" para descubrir qué caches pueden quedar stale
 3. Si tocas algún campo del `useAuthStore`, sincronízalo con `setUsuario(...)` además de invalidar queries
-4. Si encuentras una query nueva que depende de datos de otro módulo, actualiza este mapa
+4. Si la mutación cambia algo visible al feed público (ver lista de campos en Lección #6), agrega `queryKeys.negocios.all()` al helper de invalidación
+5. Si encuentras una query nueva que depende de datos de otro módulo, actualiza este mapa
+
+---
+
+## Mutations: verificar `res.success` (obligatorio)
+
+> **Agregado:** 17 Abril 2026
+
+### El problema
+
+El interceptor de Axios en `apps/web/src/services/api.ts` envuelve **todas las respuestas HTTP** (incluidas las 4xx/5xx) en un objeto `{ success: boolean, data?, error?, message? }` y **resuelve** la promesa. No rechaza. Esto significa que un backend que responde 409 "Nick duplicado" llega al `mutationFn` como un valor válido, y React Query dispara `onSuccess` → toast verde "Empleado creado" aunque el empleado no se haya creado.
+
+### La regla
+
+**Toda mutation cuyo `mutationFn` llama a un service que retorna la envoltura `{ success, data, error }` DEBE verificar `res.success` antes de devolver `res.data`:**
+
+```typescript
+mutationFn: async (datos: MiInput) => {
+  const res = await miService.miOperacion(datos);
+  if (!res.success) {
+    throw new Error(
+      (res as unknown as { error?: string }).error ?? res.message ?? 'Error'
+    );
+  }
+  return res.data;
+}
+```
+
+El `throw` dentro de `mutationFn` hace que React Query ejecute `onError` en lugar de `onSuccess` — el toast de error se muestra correctamente.
+
+### Cast explícito a `{ error?: string }`
+
+Los tipos de respuesta del backend varían: algunos endpoints devuelven `error`, otros `message`, otros ambos. El cast `as unknown as { error?: string }` es defensivo: si el tipo de retorno declarado no incluye `error`, el compilador falla sin él. Es preferible al `any`.
+
+### Mutations optimistas — no saltarse la regla
+
+Aunque uses `onMutate` para update optimista, `mutationFn` igual debe verificar `res.success`. Si el backend rechaza, `onError` dispara y puedes hacer rollback con el snapshot. Sin la verificación, `onSuccess` dispara aunque el backend haya fallado → el cambio optimista queda "confirmado" en caché y genera inconsistencias al recargar.
+
+### Historial
+
+Este patrón se estableció en abril 2026 tras descubrir que las 6 mutations de `hooks/queries/useEmpleados.ts` (Crear, Actualizar, ToggleActivo, Eliminar, ActualizarHorarios, RevocarSesion) mostraban toast de éxito aunque el backend rechazara (ej: nick duplicado). Todas fueron reescritas con el patrón anterior. Aplicar la regla a cualquier mutation nueva en el proyecto.
+
+Ver también: `docs/estandares/LECCIONES_TECNICAS.md` → "Axios y Manejo de Errores".

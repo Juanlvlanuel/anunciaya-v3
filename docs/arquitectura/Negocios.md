@@ -1318,11 +1318,12 @@ CREATE TABLE metricas_entidad (
       "verificado": false,
       
       "sucursalId": "uuid",
-      "sucursalNombre": "Imprenta Fin US - Centro",
+      "sucursalNombre": "Sucursal Centro",
+      "esPrincipal": false,
       "direccion": "Melchor Ocampo 123",
       "ciudad": "Puerto Peñasco, Sonora",
-      "telefono": "+526381128286",
-      "whatsapp": "+526381128286",
+      "telefono": "+52 6381128286",
+      "whatsapp": "+52 6381128286",
       "tieneEnvioDomicilio": false,
       "tieneServicioDomicilio": false,
       "calificacionPromedio": "0.0",
@@ -1330,11 +1331,11 @@ CREATE TABLE metricas_entidad (
       "totalLikes": 1,
       "totalVisitas": 0,
       "activa": true,
-      
+
       "latitud": 31.317956,
       "longitud": -113.5089739,
       "distanciaKm": 0.0036,  // Calculado con PostGIS
-      
+
       "categorias": [
         {
           "id": 45,
@@ -1346,12 +1347,13 @@ CREATE TABLE metricas_entidad (
           }
         }
       ],
-      
+
       "metodosPago": ["efectivo", "tarjeta_debito"],
-      
+
       "liked": true,
       "followed": true,
-      "estaAbierto": false
+      "estaAbierto": false,
+      "totalSucursales": 2  // Conteo de sucursales activas del negocio
     }
   ]
 }
@@ -1363,6 +1365,32 @@ CREATE TABLE metricas_entidad (
 - ✅ PostGIS `ST_DWithin` para búsqueda por radio
 - ✅ Filtros combinables (todos opcionales)
 - ✅ Estado `liked/followed` según usuario y modo
+- ✅ Solo incluye sucursales con `activa = true` (las desactivadas no aparecen en el feed)
+
+### Identificación de sucursal en `CardNegocio` y popups
+
+El feed y el perfil público usan `esPrincipal` + `totalSucursales` para decidir cómo rotular cada card/popup bajo el nombre del negocio:
+
+| `totalSucursales` | `esPrincipal` | Texto mostrado |
+|-------------------|---------------|----------------|
+| `1` | — | Categoría del negocio (ej: "Panaderías") |
+| `> 1` | `true` | `"Matriz"` |
+| `> 1` | `false` | `sucursalNombre` (ej: "Sucursal Centro") |
+
+La regla se aplica de forma consistente en:
+- `CardNegocio` (feed lista)
+- `PaginaNegocios` (popup del mapa)
+- `PaginaPerfilNegocio` en 5 puntos: header mobile, header desktop, popup del mapa dentro de `ModalMapa`, popup fullscreen en `ModalBottom` y popup compacto del sidebar
+
+Negocios con una sola sucursal no muestran etiqueta adicional (la Matriz única se infiere del nombre del negocio). Negocios multi-sucursal siempre distinguen con "Matriz" o el nombre de sucursal.
+
+### Control de visibilidad de sucursales desactivadas
+
+La query aplica `WHERE s.activa = true`. Cuando un dueño desactiva una sucursal desde BS → Sucursales (ya sea por `toggleActivaSucursal` directo o a través del flujo de eliminación con historial), el feed público la oculta automáticamente.
+
+El endpoint `GET /sucursal/:id` (perfil completo de una sucursal individual) tiene una excepción: devuelve la sucursal aunque esté desactivada si el `userId` del token pertenece al dueño del negocio o al gerente asignado. Esto permite que el dueño siga editando datos desde Mi Perfil mientras la sucursal está apagada, sin exponerla públicamente.
+
+Cada mutation de sucursales (`useCrearSucursal`, `useToggleSucursalActiva`, `useEliminarSucursal`) invalida `queryKeys.negocios.all()` además de las keys de BS, para que el feed público refleje los cambios en tiempo real sin recargar la página.
 
 ---
 

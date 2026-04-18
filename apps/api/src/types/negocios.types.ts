@@ -117,6 +117,7 @@ export interface SucursalResumenRow {
     // Datos de la sucursal
     sucursal_id: string;
     sucursal_nombre: string;
+    es_principal: boolean;
     direccion: string | null;
     ciudad: string | null;
     estado: string | null;
@@ -143,6 +144,9 @@ export interface SucursalResumenRow {
     liked: boolean;
     followed: boolean;
     esta_abierto: boolean | null;
+
+    // Conteo de sucursales del negocio (usado para decidir qué mostrar: Matriz/SucursalX/Categoría)
+    total_sucursales: number;
 
     // Arrays anidados
     categorias: Array<{

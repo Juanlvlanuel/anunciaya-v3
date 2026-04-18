@@ -37,7 +37,6 @@ import {
     Search,
     Send,
     Star,
-    User,
     Clock,
     CheckCircle2,
     AlertCircle,
@@ -50,6 +49,7 @@ import { useResenasLista, useResenasKPIs, useResponderResena } from '../../../..
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { notificar } from '../../../../utils/notificaciones';
+import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import { ModalResponder } from './ModalResponder';
 import type { ResenaBS } from '../../../../types/resenas';
 
@@ -321,7 +321,7 @@ export function PaginaOpiniones() {
                                 }}
                             >
                                 <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #fde68a, #fbbf24)', boxShadow: '0 3px 8px rgba(245,158,11,0.25)' }}
                                 >
                                     <Star className="w-4 h-4 text-amber-800 fill-amber-800" />
@@ -344,7 +344,7 @@ export function PaginaOpiniones() {
                                 }}
                             >
                                 <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
                                 >
                                     <MessageSquare className="w-4 h-4 text-blue-700" />
@@ -367,7 +367,7 @@ export function PaginaOpiniones() {
                                 }}
                             >
                                 <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #fed7aa, #fdba74)', boxShadow: '0 3px 8px rgba(234,88,12,0.25)' }}
                                 >
                                     <AlertCircle className="w-4 h-4 text-orange-800" />
@@ -422,9 +422,10 @@ export function PaginaOpiniones() {
                                 onClick={() => { setFiltroEstado('todas'); setFiltroEstrellas(null); }}
                                 className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${
                                     filtroEstado === 'todas' && filtroEstrellas === null
-                                        ? 'bg-slate-800 text-white border-slate-800'
+                                        ? 'text-white border-slate-700 shadow-sm'
                                         : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                                 }`}
+                                style={filtroEstado === 'todas' && filtroEstrellas === null ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                             >
                                 <MessageSquare className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                                 Todas {kpis ? `(${kpis.total})` : ''}
@@ -435,9 +436,10 @@ export function PaginaOpiniones() {
                                 onClick={() => setFiltroEstado((prev) => prev === 'pendientes' ? 'todas' : 'pendientes')}
                                 className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${
                                     filtroEstado === 'pendientes'
-                                        ? 'bg-slate-800 text-white border-slate-800'
+                                        ? 'text-white border-slate-700 shadow-sm'
                                         : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                                 }`}
+                                style={filtroEstado === 'pendientes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                             >
                                 <AlertCircle className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                                 Pendientes {kpis ? `(${kpis.pendientes})` : ''}
@@ -556,17 +558,13 @@ export function PaginaOpiniones() {
                                     >
                                         {/* Header: avatar + info + badge */}
                                         <div className="flex items-start gap-2 lg:gap-1.5 2xl:gap-2 p-2.5 2xl:p-3 pb-0 2xl:pb-0">
-                                            {resena.autor.avatarUrl ? (
-                                                <img
-                                                    src={resena.autor.avatarUrl}
-                                                    alt={resena.autor.nombre}
-                                                    className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full object-cover shrink-0 ring-2 ring-amber-200"
-                                                />
-                                            ) : (
-                                                <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 ring-2 ring-indigo-200">
-                                                    <User className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-indigo-700" />
-                                                </div>
-                                            )}
+                                            <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-amber-200">
+                                                {resena.autor.avatarUrl ? (
+                                                    <img src={resena.autor.avatarUrl} alt={resena.autor.nombre} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-xs font-bold text-amber-700">{obtenerIniciales(resena.autor.nombre)}</span>
+                                                )}
+                                            </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="font-bold text-sm lg:text-[11px] 2xl:text-sm text-slate-900 truncate">
@@ -661,17 +659,13 @@ export function PaginaOpiniones() {
                             >
                                 {/* Header: avatar + info + badge */}
                                 <div className="flex items-start gap-2 p-3 pb-0">
-                                    {resena.autor.avatarUrl ? (
-                                        <img
-                                            src={resena.autor.avatarUrl}
-                                            alt={resena.autor.nombre}
-                                            className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-amber-200"
-                                        />
-                                    ) : (
-                                        <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 ring-2 ring-indigo-200">
-                                            <User className="w-4 h-4 text-indigo-700" />
-                                        </div>
-                                    )}
+                                    <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-amber-200">
+                                        {resena.autor.avatarUrl ? (
+                                            <img src={resena.autor.avatarUrl} alt={resena.autor.nombre} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-xs font-bold text-amber-700">{obtenerIniciales(resena.autor.nombre)}</span>
+                                        )}
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5">
                                             <span className="font-bold text-sm text-slate-900 truncate">

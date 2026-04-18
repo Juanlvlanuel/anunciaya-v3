@@ -40,7 +40,7 @@ const campoCorreo = z
  * - Máximo 72 caracteres (límite de bcrypt)
  * - Al menos 1 mayúscula, 1 minúscula, 1 número
  */
-const campoContrasena = z
+export const campoContrasena = z
   .string()
   .min(8, 'La contraseña debe tener al menos 8 caracteres')
   .max(72, 'La contraseña no puede exceder 72 caracteres')

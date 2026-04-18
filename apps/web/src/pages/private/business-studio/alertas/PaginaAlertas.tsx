@@ -58,6 +58,7 @@ import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { notificar } from '../../../../utils/notificaciones';
+import Tooltip from '../../../../components/ui/Tooltip';
 import { ModalDetalleAlerta } from './ModalDetalleAlerta';
 import { ModalConfiguracion } from './ModalConfiguracion';
 import type { AlertaCompleta, CategoriaAlerta, SeveridadAlerta } from '../../../../types/alertas';
@@ -788,16 +789,16 @@ function FilaAlertaDesktop({ alerta, indice, onClick, onEliminar }: {
 			{/* Estado (fusionado con acción) */}
 			<div className="flex items-center justify-center">
 				{alerta.resuelta ? (
-					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] 2xl:text-xs font-bold bg-emerald-100 text-emerald-700">
+					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-emerald-100 text-emerald-700">
 						<CheckCircle2 className="w-3 h-3" />
 						Resuelta
 					</span>
 				) : alerta.leida ? (
-					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] 2xl:text-xs font-bold bg-slate-200 text-slate-500">
+					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-slate-200 text-slate-600">
 						Leída
 					</span>
 				) : (
-					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] 2xl:text-xs font-bold bg-red-100 text-red-600">
+					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-red-100 text-red-600">
 						<div className="w-1.5 h-1.5 rounded-full bg-red-500" />
 						Nueva
 					</span>
@@ -806,13 +807,15 @@ function FilaAlertaDesktop({ alerta, indice, onClick, onEliminar }: {
 
 			{/* Eliminar */}
 			<div className="flex items-center justify-center">
-				<button
-					onClick={e => onEliminar(e, alerta.id)}
-					className="p-1.5 rounded-lg hover:bg-red-100 text-red-400 hover:text-red-600 cursor-pointer"
-					data-testid={`btn-eliminar-${alerta.id}`}
-				>
-					<Trash2 className="w-4 h-4 2xl:w-4.5 2xl:h-4.5" />
-				</button>
+				<Tooltip text="Eliminar">
+					<button
+						onClick={e => onEliminar(e, alerta.id)}
+						className="p-1.5 rounded-lg hover:bg-red-100 text-red-600 cursor-pointer"
+						data-testid={`btn-eliminar-${alerta.id}`}
+					>
+						<Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+					</button>
+				</Tooltip>
 			</div>
 		</div>
 	);

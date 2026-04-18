@@ -5,6 +5,7 @@
 import { Star, MessageSquare, MessageCircleWarning, Reply, Users } from 'lucide-react';
 import { useReporteResenas } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';
+import { obtenerIniciales } from '../../../../../utils/obtenerIniciales';
 import { CarouselKPI } from '../../../../../components/ui/CarouselKPI';
 import { PanelTitulo, TablaHeader, KpiCard, formatearSemana } from './ReporteUI';
 
@@ -131,13 +132,13 @@ export function TabResenas({ fechaInicio, fechaFin, solo = 'body' }: TabResenasP
                   data-testid={`responder-${r.id}`}
                 >
                   {/* Avatar */}
-                  {r.fotoUrl ? (
-                    <img src={r.fotoUrl} alt="" className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full object-cover shrink-0" />
-                  ) : (
-                    <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                      <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-indigo-700">{r.nombre.charAt(0)}</span>
-                    </div>
-                  )}
+                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                    {r.fotoUrl ? (
+                      <img src={r.fotoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(r.nombre)}</span>
+                    )}
+                  </div>
                   {/* Nombre + badge */}
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
                     <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate">{r.nombre}</span>

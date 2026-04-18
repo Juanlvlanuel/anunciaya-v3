@@ -21,7 +21,6 @@ import {
   negocioSucursales,
   ofertas,
   ofertaUsos,
-  ofertaUsuarios,
   resenas,
   alertasSeguridad,
   vouchersCanje,
@@ -91,7 +90,7 @@ interface PromocionResumen {
 interface ReportePromociones {
   funnelOfertas: { activas: number; vistas: number; clicks: number; shares: number; expiradas: number };
   mejorOferta: PromocionResumen | null;
-  funnelCupones: { emitidos: number; canjeados: number; expirados: number; activos: number };
+  funnelCupones: { emitidos: number; canjeados: number; revocados: number; expirados: number; activos: number };
   mejorCupon: PromocionResumen | null;
   funnelRecompensas: { generados: number; canjeados: number; expirados: number; pendientes: number };
   mejorRecompensa: PromocionResumen | null;
@@ -322,24 +321,52 @@ export async function obtenerReporteClientes(
     const hace15 = new Date(ahora.getTime() - 15 * 24 * 60 * 60 * 1000);
     const hace30 = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const condsBilletera = [eq(puntosBilletera.negocioId, negocioId)];
+    // Si hay sucursalId, calcular "riesgo/perdidos" usando la última transacción confirmada
+    // en ESA sucursal (la tabla puntos_billetera es por negocio, no por sucursal).
+    // Si no hay sucursalId, se usa el cache de puntos_billetera (más rápido).
+    const condSucBilletera = sucursalId ? sql`AND sucursal_id = ${sucursalId}` : sql``;
 
-    const [riesgoRaw] = await db
-      .select({ cantidad: sql<number>`COUNT(*)::int` })
-      .from(puntosBilletera)
-      .where(and(
-        ...condsBilletera,
-        sql`ultima_actividad < ${hace15.toISOString()}`,
-        sql`ultima_actividad >= ${hace30.toISOString()}`,
-      ));
+    const [riesgoRaw] = sucursalId
+      ? (await db.execute(sql`
+          SELECT COUNT(*)::int as cantidad FROM (
+            SELECT cliente_id, MAX(created_at) as ultima
+            FROM puntos_transacciones
+            WHERE negocio_id = ${negocioId}
+              AND estado = 'confirmado'
+              ${condSucBilletera}
+            GROUP BY cliente_id
+          ) clientes_actividad
+          WHERE ultima < ${hace15.toISOString()}
+            AND ultima >= ${hace30.toISOString()}
+        `)).rows as unknown as { cantidad: number }[]
+      : await db
+          .select({ cantidad: sql<number>`COUNT(*)::int` })
+          .from(puntosBilletera)
+          .where(and(
+            eq(puntosBilletera.negocioId, negocioId),
+            sql`ultima_actividad < ${hace15.toISOString()}`,
+            sql`ultima_actividad >= ${hace30.toISOString()}`,
+          ));
 
-    const [perdidosRaw] = await db
-      .select({ cantidad: sql<number>`COUNT(*)::int` })
-      .from(puntosBilletera)
-      .where(and(
-        ...condsBilletera,
-        sql`ultima_actividad < ${hace30.toISOString()}`,
-      ));
+    const [perdidosRaw] = sucursalId
+      ? (await db.execute(sql`
+          SELECT COUNT(*)::int as cantidad FROM (
+            SELECT cliente_id, MAX(created_at) as ultima
+            FROM puntos_transacciones
+            WHERE negocio_id = ${negocioId}
+              AND estado = 'confirmado'
+              ${condSucBilletera}
+            GROUP BY cliente_id
+          ) clientes_actividad
+          WHERE ultima < ${hace30.toISOString()}
+        `)).rows as unknown as { cantidad: number }[]
+      : await db
+          .select({ cantidad: sql<number>`COUNT(*)::int` })
+          .from(puntosBilletera)
+          .where(and(
+            eq(puntosBilletera.negocioId, negocioId),
+            sql`ultima_actividad < ${hace30.toISOString()}`,
+          ));
 
     // ── Total de clientes únicos y gasto promedio por cliente ─────────────
     const [resumenRaw] = await db
@@ -413,39 +440,96 @@ interface ClienteDetalleInactivo {
 
 export async function obtenerClientesInactivos(
   negocioId: string,
-  tipo: 'riesgo' | 'inactivos'
+  tipo: 'riesgo' | 'inactivos',
+  sucursalId?: string,
 ): Promise<RespuestaServicio<ClienteDetalleInactivo[]>> {
   try {
     const ahora = new Date();
     const hace15 = new Date(ahora.getTime() - 15 * 24 * 60 * 60 * 1000);
     const hace30 = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    let condicionRiesgo;
-    if (tipo === 'riesgo') {
-      // Entre 15 y 30 días sin comprar
-      condicionRiesgo = sql`${puntosBilletera.ultimaActividad} < ${hace15.toISOString()} AND ${puntosBilletera.ultimaActividad} >= ${hace30.toISOString()}`;
-    } else {
-      // Más de 30 días sin comprar
-      condicionRiesgo = sql`${puntosBilletera.ultimaActividad} < ${hace30.toISOString()}`;
-    }
+    // Si hay sucursalId, calcular la última actividad basada en transacciones de ESA sucursal.
+    // Si no, usar el cache de puntos_billetera (última actividad global del cliente).
+    let clientes: Array<{
+      clienteId: string;
+      nombre: string | null;
+      apellidos: string | null;
+      telefono: string | null;
+      correo: string;
+      ultimaActividad: string | null;
+      puntosDisponibles: number | null;
+    }>;
 
-    const clientes = await db
-      .select({
-        clienteId: puntosBilletera.usuarioId,
-        nombre: usuarios.nombre,
-        apellidos: usuarios.apellidos,
-        telefono: usuarios.telefono,
-        correo: usuarios.correo,
-        ultimaActividad: puntosBilletera.ultimaActividad,
-        puntosDisponibles: puntosBilletera.puntosDisponibles,
-      })
-      .from(puntosBilletera)
-      .innerJoin(usuarios, eq(puntosBilletera.usuarioId, usuarios.id))
-      .where(and(
-        eq(puntosBilletera.negocioId, negocioId),
-        condicionRiesgo,
-      ))
-      .orderBy(sql`${puntosBilletera.ultimaActividad} DESC NULLS LAST`);
+    if (sucursalId) {
+      // Subquery: última transacción confirmada del cliente en ESTA sucursal
+      const filtroTiempo = tipo === 'riesgo'
+        ? sql`ultima < ${hace15.toISOString()} AND ultima >= ${hace30.toISOString()}`
+        : sql`ultima < ${hace30.toISOString()}`;
+
+      const resultadoRaw = await db.execute(sql`
+        SELECT
+          b.usuario_id AS "clienteId",
+          u.nombre,
+          u.apellidos,
+          u.telefono,
+          u.correo,
+          actividad.ultima::text AS "ultimaActividad",
+          b.puntos_disponibles AS "puntosDisponibles"
+        FROM (
+          SELECT cliente_id, MAX(created_at) as ultima
+          FROM puntos_transacciones
+          WHERE negocio_id = ${negocioId}
+            AND estado = 'confirmado'
+            AND sucursal_id = ${sucursalId}
+          GROUP BY cliente_id
+        ) actividad
+        INNER JOIN puntos_billetera b ON b.usuario_id = actividad.cliente_id AND b.negocio_id = ${negocioId}
+        INNER JOIN usuarios u ON u.id = actividad.cliente_id
+        WHERE ${filtroTiempo}
+        ORDER BY actividad.ultima DESC NULLS LAST
+      `);
+      clientes = (resultadoRaw as unknown as { rows: Array<{
+        clienteId: string;
+        nombre: string | null;
+        apellidos: string | null;
+        telefono: string | null;
+        correo: string;
+        ultimaActividad: string | null;
+        puntosDisponibles: number | null;
+      }> }).rows;
+    } else {
+      const condicionRiesgo = tipo === 'riesgo'
+        ? sql`${puntosBilletera.ultimaActividad} < ${hace15.toISOString()} AND ${puntosBilletera.ultimaActividad} >= ${hace30.toISOString()}`
+        : sql`${puntosBilletera.ultimaActividad} < ${hace30.toISOString()}`;
+
+      const raw = await db
+        .select({
+          clienteId: puntosBilletera.usuarioId,
+          nombre: usuarios.nombre,
+          apellidos: usuarios.apellidos,
+          telefono: usuarios.telefono,
+          correo: usuarios.correo,
+          ultimaActividad: puntosBilletera.ultimaActividad,
+          puntosDisponibles: puntosBilletera.puntosDisponibles,
+        })
+        .from(puntosBilletera)
+        .innerJoin(usuarios, eq(puntosBilletera.usuarioId, usuarios.id))
+        .where(and(
+          eq(puntosBilletera.negocioId, negocioId),
+          condicionRiesgo,
+        ))
+        .orderBy(sql`${puntosBilletera.ultimaActividad} DESC NULLS LAST`);
+
+      clientes = raw.map(c => ({
+        clienteId: c.clienteId,
+        nombre: c.nombre,
+        apellidos: c.apellidos,
+        telefono: c.telefono,
+        correo: c.correo,
+        ultimaActividad: c.ultimaActividad,
+        puntosDisponibles: c.puntosDisponibles,
+      }));
+    }
 
     const resultado: ClienteDetalleInactivo[] = clientes.map((c) => {
       const ultima = c.ultimaActividad ? new Date(c.ultimaActividad) : null;
@@ -483,6 +567,7 @@ export async function obtenerReporteEmpleados(
   periodo: PeriodoEstadisticas = 'mes',
   fechaInicioCustom?: string,
   fechaFinCustom?: string,
+  incluirDueno: boolean = true,
 ): Promise<RespuestaServicio<ReporteEmpleados>> {
   try {
     const fechaInicio = fechaInicioCustom ? new Date(fechaInicioCustom) : calcularFechaInicio(periodo);
@@ -620,8 +705,8 @@ export async function obtenerReporteEmpleados(
     // ── Paso 4: Merge — dueño + todos los empleados ───────────────────────
     const filas: EmpleadoReporte[] = [];
 
-    // Dueño (siempre incluido si existe la info)
-    if (duenoInfo) {
+    // Dueño (solo si se solicita incluirlo — gerentes no lo ven en sus reportes)
+    if (duenoInfo && incluirDueno) {
       const nombreCompleto = [duenoInfo.nombre, duenoInfo.apellidos].filter(Boolean).join(' ').trim() || 'Dueño';
       filas.push({
         empleadoId: duenoInfo.id,
@@ -697,22 +782,30 @@ export async function obtenerReportePromociones(
     const fechaInicio = fechaInicioCustom ? new Date(fechaInicioCustom) : calcularFechaInicio(periodo);
     const fechaFinNorm = fechaFinCustom && fechaFinCustom.length === 10 ? `${fechaFinCustom}T23:59:59` : fechaFinCustom;
 
+    // Filtro de sucursal: incluir ofertas de esa sucursal específica + globales (sucursal_id IS NULL).
+    // Las ofertas globales aplican a todas las sucursales del negocio.
+    const condSucOferta = sucursalId
+      ? sql`AND (${ofertas.sucursalId} = ${sucursalId} OR ${ofertas.sucursalId} IS NULL)`
+      : sql``;
+
     // ── Funnel ofertas públicas ───────────────────────────────────────────
     // Ofertas activas y expiradas del negocio (visibilidad pública)
-    const condsOfertasPublicas = [
-      eq(ofertas.negocioId, negocioId),
-      sql`${ofertas.visibilidad} = 'publico'`,
-    ];
+    const [funnelOfertasRaw] = await db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE activo = true AND fecha_fin > NOW())::int AS activas,
+        COUNT(*) FILTER (WHERE fecha_fin <= NOW())::int AS expiradas
+      FROM ofertas
+      WHERE negocio_id = ${negocioId}
+        AND visibilidad = 'publico'
+        ${condSucOferta}
+    `).then(r => r.rows as unknown as { activas: number; expiradas: number }[]);
 
-    const [funnelOfertasRaw] = await db
-      .select({
-        activas: sql<number>`COUNT(*) FILTER (WHERE ${ofertas.activo} = true AND ${ofertas.fechaFin} > NOW())::int`,
-        expiradas: sql<number>`COUNT(*) FILTER (WHERE ${ofertas.fechaFin} <= NOW())::int`,
-      })
-      .from(ofertas)
-      .where(and(...condsOfertasPublicas));
+    // Métricas de engagement (vistas, clicks, shares) de ofertas del negocio
+    // Si hay sucursalId, sumar solo las métricas de ofertas que aplican a esa sucursal + globales
+    const condSucOfertaSub = sucursalId
+      ? sql`AND (sucursal_id = ${sucursalId} OR sucursal_id IS NULL)`
+      : sql``;
 
-    // Métricas de engagement (vistas, clicks, shares) de todas las ofertas del negocio
     const [metricasOfertasRaw] = await db
       .select({
         vistas: sql<number>`COALESCE(SUM(${metricasEntidad.totalViews}), 0)::int`,
@@ -722,7 +815,7 @@ export async function obtenerReportePromociones(
       .from(metricasEntidad)
       .where(and(
         eq(metricasEntidad.entityType, 'oferta'),
-        sql`${metricasEntidad.entityId} IN (SELECT id FROM ofertas WHERE negocio_id = ${negocioId} AND visibilidad = 'publico')`,
+        sql`${metricasEntidad.entityId} IN (SELECT id FROM ofertas WHERE negocio_id = ${negocioId} AND visibilidad = 'publico' ${condSucOfertaSub})`,
       ));
 
     // Mejor oferta pública (por clicks — las ofertas no tienen "canje" directo)
@@ -743,33 +836,50 @@ export async function obtenerReportePromociones(
       .where(and(
         eq(ofertas.negocioId, negocioId),
         sql`${ofertas.visibilidad} = 'publico'`,
+        sucursalId
+          ? sql`(${ofertas.sucursalId} = ${sucursalId} OR ${ofertas.sucursalId} IS NULL)`
+          : sql`TRUE`,
       ))
       .orderBy(sql`${metricasEntidad.totalClicks} DESC NULLS LAST`)
       .limit(1);
 
-    // ── Funnel cupones (oferta_usuarios = cupones privados) ────────────────
-    const condsOfertaUsuarios = [
-      sql`oferta_id IN (SELECT id FROM ofertas WHERE negocio_id = ${negocioId})`,
-      gte(ofertaUsuarios.asignadoAt, fechaInicio.toISOString()),
-    ];
-    if (fechaFinNorm) condsOfertaUsuarios.push(sql`${ofertaUsuarios.asignadoAt} <= ${fechaFinNorm}`);
+    // Filtro de sucursal para oferta_usos y vouchers_canje (tablas que registran donde ocurrió el canje)
+    const condSucOfertaUsos = sucursalId ? sql`AND sucursal_id = ${sucursalId}` : sql``;
+    const condSucVouchers = sucursalId ? sql`AND sucursal_id = ${sucursalId}` : sql``;
 
-    const [funnelCuponesRaw] = await db
-      .select({
-        emitidos: sql<number>`COUNT(*)::int`,
-        canjeados: sql<number>`COUNT(*) FILTER (WHERE estado = 'usado')::int`,
-        expirados: sql<number>`COUNT(*) FILTER (WHERE estado = 'expirado')::int`,
-        activos: sql<number>`COUNT(*) FILTER (WHERE estado = 'activo')::int`,
-      })
-      .from(ofertaUsuarios)
-      .where(and(...condsOfertaUsuarios));
+    // ── Funnel cupones (oferta_usuarios = cupones privados) ────────────────
+    // Cruza con ofertas.fecha_fin para determinar expirados correctamente:
+    // - estado 'activo' + oferta vencida → expirado (aunque el campo no se actualizó)
+    // - estado 'activo' + oferta vigente → realmente activo
+    const condFechaFinCupones = fechaFinNorm ? sql`AND ou.asignado_at <= ${fechaFinNorm}` : sql``;
+    // Para cupones filtramos por la sucursal a la que aplica la oferta (o globales)
+    const condSucCupones = sucursalId
+      ? sql`AND (o.sucursal_id = ${sucursalId} OR o.sucursal_id IS NULL)`
+      : sql``;
+    const funnelCuponesResult = await db.execute(sql`
+      SELECT
+        COUNT(*)::int AS emitidos,
+        COUNT(*) FILTER (WHERE ou.estado = 'usado')::int AS canjeados,
+        COUNT(*) FILTER (WHERE ou.estado = 'revocado')::int AS revocados,
+        COUNT(*) FILTER (WHERE ou.estado = 'expirado' OR (ou.estado = 'activo' AND o.fecha_fin < NOW()))::int AS expirados,
+        COUNT(*) FILTER (WHERE ou.estado = 'activo' AND o.fecha_fin >= NOW())::int AS activos
+      FROM oferta_usuarios ou
+      INNER JOIN ofertas o ON o.id = ou.oferta_id
+      WHERE o.negocio_id = ${negocioId}
+        AND ou.asignado_at >= ${fechaInicio.toISOString()}
+        ${condFechaFinCupones}
+        ${condSucCupones}
+    `);
+    const funnelCuponesRaw = funnelCuponesResult.rows[0] as { emitidos: number; canjeados: number; revocados: number; expirados: number; activos: number } | undefined;
 
     // ── Funnel vouchers (vouchers_canje = recompensas canjeadas) ──────────
+    // Filtra por la sucursal DONDE se canjeó el voucher
     const condsVouchers = [
       eq(vouchersCanje.negocioId, negocioId),
       gte(vouchersCanje.createdAt, fechaInicio.toISOString()),
     ];
     if (fechaFinNorm) condsVouchers.push(sql`${vouchersCanje.createdAt} <= ${fechaFinNorm}`);
+    if (sucursalId) condsVouchers.push(eq(vouchersCanje.sucursalId, sucursalId));
 
     const [funnelVouchersRaw] = await db
       .select({
@@ -782,11 +892,13 @@ export async function obtenerReportePromociones(
       .where(and(...condsVouchers));
 
     // ── Descuento total otorgado ───────────────────────────────────────────
+    // oferta_usos.sucursal_id indica en qué sucursal se usó el cupón
     const condsUsos = [
       sql`oferta_id IN (SELECT id FROM ofertas WHERE negocio_id = ${negocioId})`,
       gte(ofertaUsos.createdAt, fechaInicio.toISOString()),
     ];
     if (fechaFinNorm) condsUsos.push(sql`${ofertaUsos.createdAt} <= ${fechaFinNorm}`);
+    if (sucursalId) condsUsos.push(eq(ofertaUsos.sucursalId, sucursalId));
 
     const [descuentoRaw] = await db
       .select({
@@ -797,26 +909,26 @@ export async function obtenerReportePromociones(
 
     // ── Mejor cupón del período ────────────────────────────────────────────
     const condFechaFinMejorCupon = fechaFinNorm ? sql`AND ou.created_at <= ${fechaFinNorm}` : sql``;
-    const mejorCuponRaw = await db
-      .select({
-        titulo: ofertas.titulo,
-        tipo: ofertas.tipo,
-        valor: ofertas.valor,
-        imagen: ofertas.imagen,
-        descripcion: ofertas.descripcion,
-        canjes: sql<number>`COUNT(ou.id)::int`,
-      })
-      .from(ofertas)
-      .innerJoin(sql`oferta_usos ou`, sql`ou.oferta_id = ${ofertas.id}`)
-      .where(and(
-        eq(ofertas.negocioId, negocioId),
-        sql`ou.created_at >= ${fechaInicio.toISOString()} ${condFechaFinMejorCupon}`,
-      ))
-      .groupBy(ofertas.id, ofertas.titulo, ofertas.tipo, ofertas.valor, ofertas.imagen, ofertas.descripcion)
-      .orderBy(sql`COUNT(ou.id) DESC`)
-      .limit(1);
+    const mejorCuponRaw = await db.execute(sql`
+      SELECT
+        o.titulo,
+        o.tipo,
+        o.valor,
+        o.imagen,
+        o.descripcion,
+        COUNT(ou.id)::int AS canjes
+      FROM ofertas o
+      INNER JOIN oferta_usos ou ON ou.oferta_id = o.id
+      WHERE o.negocio_id = ${negocioId}
+        AND ou.created_at >= ${fechaInicio.toISOString()}
+        ${condFechaFinMejorCupon}
+        ${condSucOfertaUsos ? sql`AND ou.sucursal_id = ${sucursalId}` : sql``}
+      GROUP BY o.id, o.titulo, o.tipo, o.valor, o.imagen, o.descripcion
+      ORDER BY COUNT(ou.id) DESC
+      LIMIT 1
+    `).then(r => r.rows as unknown as Array<{ titulo: string; tipo: string; valor: string | null; imagen: string | null; descripcion: string | null; canjes: number }>);
 
-    // ── Cupones/vouchers por vencer (dato global, no depende del filtro de fecha) ─
+    // ── Cupones/vouchers por vencer (filtra por sucursal si aplica) ───────
     const ahora = new Date();
     const en7dias = new Date(ahora.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -828,10 +940,15 @@ export async function obtenerReportePromociones(
         eq(ofertas.activo, true),
         sql`fecha_fin <= ${en7dias.toISOString()}`,
         sql`fecha_fin > ${ahora.toISOString()}`,
+        sucursalId
+          ? sql`(${ofertas.sucursalId} = ${sucursalId} OR ${ofertas.sucursalId} IS NULL)`
+          : sql`TRUE`,
       ));
 
     // ── Mejor recompensa del período (más canjes/vouchers generados) ──────
+    // Filtra por la sucursal donde se generó el voucher
     const condFechaFinMejorRecompensa = fechaFinNorm ? sql`AND vc.created_at <= ${fechaFinNorm}` : sql``;
+    const condSucMejorRecompensa = sucursalId ? sql`AND vc.sucursal_id = ${sucursalId}` : sql``;
     const mejorRecompensaRaw = await db.execute(sql`
       SELECT
         r.nombre AS titulo,
@@ -845,6 +962,7 @@ export async function obtenerReportePromociones(
       WHERE r.negocio_id = ${negocioId}
         AND vc.created_at >= ${fechaInicio.toISOString()}
         ${condFechaFinMejorRecompensa}
+        ${condSucMejorRecompensa}
       GROUP BY r.id, r.nombre, r.tipo, r.puntos_requeridos, r.imagen_url, r.descripcion
       ORDER BY COUNT(vc.id) DESC
       LIMIT 1
@@ -871,7 +989,7 @@ export async function obtenerReportePromociones(
           metrica: mejorOfertaRaw[0].clicks ?? 0,
           metricaLabel: 'clicks',
         } : null,
-        funnelCupones: funnelCuponesRaw ?? { emitidos: 0, canjeados: 0, expirados: 0, activos: 0 },
+        funnelCupones: funnelCuponesRaw ?? { emitidos: 0, canjeados: 0, revocados: 0, expirados: 0, activos: 0 },
         mejorCupon: mejorCuponRaw[0] ? {
           titulo: mejorCuponRaw[0].titulo ?? '',
           tipo: mejorCuponRaw[0].tipo ?? '',
@@ -1153,5 +1271,139 @@ export async function obtenerReporteResenas(
   } catch (error) {
     console.error('Error obteniendo reporte de reseñas:', error);
     return { success: false, message: 'Error al obtener reporte de reseñas' };
+  }
+}
+
+// =============================================================================
+// 6. DETALLE PROMOCIONES (para modales)
+// =============================================================================
+
+type TipoDetallePromocion = 'ofertas' | 'cupones' | 'recompensas';
+
+interface DetalleOferta {
+  id: string;
+  titulo: string;
+  tipo: string;
+  imagen: string | null;
+  vistas: number;
+  clicks: number;
+  shares: number;
+  activa: boolean;
+  expirada: boolean;
+}
+
+interface DetalleCupon {
+  id: string;
+  titulo: string;
+  tipo: string;
+  imagen: string | null;
+  enviados: number;
+  canjeados: number;
+  revocados: number;
+  expirados: number;
+  activos: number;
+}
+
+interface DetalleRecompensa {
+  id: string;
+  nombre: string;
+  tipo: string;
+  imagen: string | null;
+  puntosRequeridos: number;
+  generados: number;
+  canjeados: number;
+  expirados: number;
+  pendientes: number;
+}
+
+export async function obtenerDetallePromocion(
+  negocioId: string,
+  tipo: TipoDetallePromocion,
+): Promise<RespuestaServicio<DetalleOferta[] | DetalleCupon[] | DetalleRecompensa[]>> {
+  try {
+    if (tipo === 'ofertas') {
+      // Ofertas públicas con métricas de engagement
+      const ofertasRaw = await db.execute(sql`
+        SELECT
+          o.id,
+          o.titulo,
+          o.tipo,
+          o.imagen,
+          o.activo AS activa,
+          o.fecha_fin < NOW() AS expirada,
+          COALESCE(me.total_views, 0)::int AS vistas,
+          COALESCE(me.total_clicks, 0)::int AS clicks,
+          COALESCE(me.total_shares, 0)::int AS shares
+        FROM ofertas o
+        LEFT JOIN metricas_entidad me
+          ON me.entity_type = 'oferta' AND me.entity_id = o.id
+        WHERE o.negocio_id = ${negocioId}
+          AND o.visibilidad = 'publico'
+        ORDER BY COALESCE(me.total_clicks, 0) DESC
+      `);
+      return {
+        success: true,
+        message: 'Detalle de ofertas obtenido',
+        data: ofertasRaw.rows as unknown as DetalleOferta[],
+      };
+    }
+
+    if (tipo === 'cupones') {
+      // Cupones privados con desglose de estados por oferta
+      const cuponesRaw = await db.execute(sql`
+        SELECT
+          o.id,
+          o.titulo,
+          o.tipo,
+          o.imagen,
+          COUNT(ou.id)::int AS enviados,
+          COUNT(*) FILTER (WHERE ou.estado = 'usado')::int AS canjeados,
+          COUNT(*) FILTER (WHERE ou.estado = 'revocado')::int AS revocados,
+          COUNT(*) FILTER (WHERE ou.estado = 'expirado' OR (ou.estado = 'activo' AND o.fecha_fin < NOW()))::int AS expirados,
+          COUNT(*) FILTER (WHERE ou.estado = 'activo' AND o.fecha_fin >= NOW())::int AS activos
+        FROM ofertas o
+        INNER JOIN oferta_usuarios ou ON ou.oferta_id = o.id
+        WHERE o.negocio_id = ${negocioId}
+          AND o.visibilidad = 'privado'
+        GROUP BY o.id, o.titulo, o.tipo, o.imagen
+        ORDER BY COUNT(ou.id) DESC
+      `);
+      return {
+        success: true,
+        message: 'Detalle de cupones obtenido',
+        data: cuponesRaw.rows as unknown as DetalleCupon[],
+      };
+    }
+
+    if (tipo === 'recompensas') {
+      // Recompensas con desglose de vouchers
+      const recompensasRaw = await db.execute(sql`
+        SELECT
+          r.id,
+          r.nombre,
+          r.tipo,
+          r.imagen_url AS imagen,
+          r.puntos_requeridos AS "puntosRequeridos",
+          COUNT(vc.id)::int AS generados,
+          COUNT(*) FILTER (WHERE vc.estado = 'usado')::int AS canjeados,
+          COUNT(*) FILTER (WHERE vc.estado = 'expirado')::int AS expirados,
+          COUNT(*) FILTER (WHERE vc.estado IN ('pendiente', 'aprobacion_pendiente'))::int AS pendientes
+        FROM recompensas r
+        LEFT JOIN vouchers_canje vc ON vc.recompensa_id = r.id
+        WHERE r.negocio_id = ${negocioId}
+        GROUP BY r.id, r.nombre, r.tipo, r.imagen_url, r.puntos_requeridos
+        ORDER BY COUNT(vc.id) DESC
+      `);
+      return {
+        success: true,
+        message: 'Detalle de recompensas obtenido',
+        data: recompensasRaw.rows as unknown as DetalleRecompensa[],
+      };
+    }
+
+    return { success: false, message: 'Tipo de detalle no válido' };
+  } catch (error) {
+    console.error('Error obteniendo detalle de promoción:', error);
+    return { success: false, message: 'Error al obtener detalle de promoción' };
   }
 }

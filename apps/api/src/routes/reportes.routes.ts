@@ -15,6 +15,7 @@ import {
   obtenerReporteController,
   exportarReporteController,
   obtenerClientesInactivosController,
+  obtenerDetallePromocionController,
 } from '../controllers/reportes.controller.js';
 
 import { verificarToken } from '../middleware/auth.js';
@@ -45,5 +46,11 @@ router.get('/exportar', exportarReporteController);
  * Lista detallada de clientes en riesgo o inactivos
  */
 router.get('/clientes-inactivos', obtenerClientesInactivosController);
+
+/**
+ * GET /api/business/reportes/detalle-promocion?tipo=ofertas|cupones|recompensas
+ * Detalle por item para modales de Promociones
+ */
+router.get('/detalle-promocion', obtenerDetallePromocionController);
 
 export default router;

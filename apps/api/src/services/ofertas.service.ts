@@ -15,9 +15,10 @@
  * CREADO: Fase 5.4.2 - Sistema Completo de Ofertas
  */
 
-import { sql, eq, and, count } from 'drizzle-orm';
+import { sql, eq, and, count, ne } from 'drizzle-orm';
 import { db } from '../db';
-import { ofertas, ofertaUsos, ofertaUsuarios } from '../db/schemas/schema';
+import { ofertas, ofertaUsos, ofertaUsuarios, chatMensajes } from '../db/schemas/schema';
+import { env } from '../config/env.js';
 import { duplicarImagen } from './cloudinary.service';
 import { generarPresignedUrl, duplicarArchivo, esUrlR2, eliminarArchivo } from './r2.service.js';
 import type {
@@ -564,17 +565,25 @@ export async function obtenerOfertas(negocioId: string, sucursalId: string) {
         COALESCE(me.total_clicks, 0) as total_clicks,
 
         -- Estado calculado
+        -- Orden de prioridad:
+        --   1. inactiva (desactivada manualmente)
+        --   2. proxima (aún no empieza)
+        --   3. agotada (cumplió su propósito: todos los usos o cupones canjeados).
+        --      Prevalece sobre 'vencida' porque una oferta cuyo cupón se canjeó antes
+        --      de vencer debe reportarse como "usada", no como "vencida sin canjear".
+        --   4. vencida (pasó fecha_fin sin haberse agotado)
+        --   5. activa
         CASE
           WHEN NOT o.activo THEN 'inactiva'
           WHEN CURRENT_TIMESTAMP < o.fecha_inicio THEN 'proxima'
-          WHEN CURRENT_TIMESTAMP > o.fecha_fin THEN 'vencida'
           WHEN o.limite_usos IS NOT NULL AND o.usos_actuales >= o.limite_usos THEN 'agotada'
-          -- Cupones: todos los asignados están usados
+          -- Cupones privados: todos los asignados están usados (no quedan 'activo'/'expirado')
           WHEN o.visibilidad = 'privado' AND (
             SELECT COUNT(*) FROM oferta_usuarios ou WHERE ou.oferta_id = o.id
           ) > 0 AND NOT EXISTS (
             SELECT 1 FROM oferta_usuarios ou WHERE ou.oferta_id = o.id AND ou.estado NOT IN ('usado', 'revocado')
           ) THEN 'agotada'
+          WHEN CURRENT_TIMESTAMP > o.fecha_fin THEN 'vencida'
           ELSE 'activa'
         END as estado
 
@@ -744,6 +753,51 @@ export async function actualizarOferta(
         .where(eq(ofertas.id, ofertaId))
         .returning();
 
+      // 3.1 Limpiar imagen anterior de R2 si fue reemplazada o eliminada.
+      // CRÍTICO: verificar reference-count antes de borrar — la misma URL puede
+      // estar compartida con otra oferta (por fallback del clonado cuando
+      // duplicarImagenInteligente no pudo replicar, típicamente con Cloudinary)
+      // o estar referenciada dentro de contenido JSON de chat_mensajes tipo 'cupon'.
+      // Sin este check, editar la imagen de una oferta rompería las otras.
+      if (
+        datos.imagen !== undefined &&
+        ofertaExistente.imagen &&
+        ofertaExistente.imagen !== datos.imagen &&
+        esUrlR2(ofertaExistente.imagen)
+      ) {
+        const urlAnterior = ofertaExistente.imagen;
+        (async () => {
+          try {
+            const [{ total: enOtrasOfertas }] = await db
+              .select({ total: sql<number>`COUNT(*)::int` })
+              .from(ofertas)
+              .where(and(eq(ofertas.imagen, urlAnterior), ne(ofertas.id, ofertaId)));
+
+            if (enOtrasOfertas > 0) {
+              console.log(`ℹ️ Imagen de oferta conservada (usada por ${enOtrasOfertas} oferta/s): ${urlAnterior}`);
+              return;
+            }
+
+            // También puede estar embebida en chat_mensajes tipo 'cupon' (JSON con campo `imagen`)
+            const mensajesCupon = await db.execute(sql`
+              SELECT COUNT(*)::int AS total
+              FROM chat_mensajes
+              WHERE tipo = 'cupon'
+                AND contenido::jsonb->>'imagen' = ${urlAnterior}
+            `);
+            const totalMensajes = Number((mensajesCupon.rows[0] as Record<string, unknown>)?.total ?? 0);
+            if (totalMensajes > 0) {
+              console.log(`ℹ️ Imagen de oferta conservada (usada en ${totalMensajes} mensaje/s cupón): ${urlAnterior}`);
+              return;
+            }
+
+            await eliminarArchivo(urlAnterior);
+          } catch (err) {
+            console.error('No se pudo procesar imagen anterior de oferta en R2:', err);
+          }
+        })();
+      }
+
       // 4. Notificar si se activó una oferta que estaba oculta
       if (datos.activo === true && !ofertaExistente.activo) {
         const clientesConBilletera = await tx
@@ -854,6 +908,11 @@ export async function eliminarOferta(
       `);
 
       // 6. Actualizar preview de conversaciones afectadas
+      // Acumulamos URLs R2 de conversaciones que se van a eliminar por completo
+      // (mensajes sin archivos adjuntos ya no hay — eran solo el cupón borrado).
+      // CRÍTICO: si la conversación tenía también imágenes/audios/documentos de
+      // chat normal, esos archivos R2 quedaban huérfanos antes de este fix.
+      const urlsR2ABorrar: string[] = [];
       for (const row of conversacionesAfectadas.rows) {
         const convId = (row as Record<string, unknown>).conversacion_id as string;
         const tiene = await tx.execute(sql`
@@ -876,9 +935,44 @@ export async function eliminarOferta(
             WHERE chat_conversaciones.id = ${convId}
           `);
         } else {
+          // Recolectar URLs R2 de TODOS los mensajes (vivos y eliminados) antes del DELETE
+          const mensajesBorrados = await tx.execute(sql`
+            SELECT contenido, tipo FROM chat_mensajes WHERE conversacion_id = ${convId}
+          `);
+          const dominioEscapado = env.R2_PUBLIC_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`${dominioEscapado}/[^\\s"'}\`<>]+`, 'g');
+          for (const mRow of mensajesBorrados.rows) {
+            const contenido = (mRow as Record<string, unknown>).contenido as string | null;
+            if (!contenido) continue;
+            const matches = contenido.match(regex);
+            if (matches) urlsR2ABorrar.push(...matches);
+          }
+
           await tx.execute(sql`DELETE FROM chat_mensajes WHERE conversacion_id = ${convId}`);
           await tx.execute(sql`DELETE FROM chat_conversaciones WHERE id = ${convId}`);
         }
+      }
+
+      // 6.1 Limpiar archivos R2 (fuera de la transacción) con reference-count
+      // contra otros mensajes que pudieran tener las mismas URLs (raro pero posible)
+      if (urlsR2ABorrar.length > 0) {
+        const urlsUnicas = [...new Set(urlsR2ABorrar)];
+        // fire-and-forget — no bloquear la respuesta
+        (async () => {
+          for (const url of urlsUnicas) {
+            try {
+              const [{ total }] = await db
+                .select({ total: sql<number>`COUNT(*)::int` })
+                .from(chatMensajes)
+                .where(sql`${chatMensajes.contenido} LIKE ${`%${url}%`}`);
+              if (total === 0 && esUrlR2(url)) {
+                await eliminarArchivo(url);
+              }
+            } catch (err) {
+              console.error('Error limpiando archivo R2 en eliminarOferta:', url, err);
+            }
+          }
+        })();
       }
 
       // 7. Emitir sockets para actualización en tiempo real
@@ -892,9 +986,26 @@ export async function eliminarOferta(
       // 8. Eliminar oferta (CASCADE eliminará registros relacionados)
       await tx.delete(ofertas).where(eq(ofertas.id, ofertaId));
 
-      // 9. Eliminar imagen de R2 (fuera de la transacción no bloquea)
+      // 9. Eliminar imagen de R2 con reference-count (evita romper otras
+      // ofertas que compartan URL por fallback del clonado).
+      // Los chat_mensajes tipo 'cupon' de esta oferta ya se borraron en paso 5.
       if (imagenUrl && esUrlR2(imagenUrl)) {
-        eliminarArchivo(imagenUrl).catch(err => console.error('Error eliminando imagen de oferta:', err));
+        (async () => {
+          try {
+            const [{ total }] = await db
+              .select({ total: sql<number>`COUNT(*)::int` })
+              .from(ofertas)
+              .where(eq(ofertas.imagen, imagenUrl));
+
+            if (total === 0) {
+              await eliminarArchivo(imagenUrl);
+            } else {
+              console.log(`ℹ️ Imagen de oferta conservada (usada por ${total} oferta/s): ${imagenUrl}`);
+            }
+          } catch (err) {
+            console.error('Error eliminando imagen de oferta:', err);
+          }
+        })();
       }
 
       return {
@@ -1677,6 +1788,9 @@ export async function revocarCuponMasivo(
     `);
 
     // Actualizar preview de conversaciones afectadas (poner el último mensaje real)
+    // Acumulamos URLs R2 de conversaciones que se eliminan por completo para
+    // limpiarlas después del DELETE (ver nota en eliminarOferta sobre el bug).
+    const urlsR2ABorrar: string[] = [];
     for (const row of conversacionesAfectadas.rows) {
       const convId = (row as Record<string, unknown>).conversacion_id as string;
       await db.execute(sql`
@@ -1699,9 +1813,42 @@ export async function revocarCuponMasivo(
         SELECT 1 FROM chat_mensajes WHERE conversacion_id = ${convId} AND eliminado = false LIMIT 1
       `);
       if (tiene.rows.length === 0) {
+        // Recolectar URLs R2 antes del DELETE CASCADE
+        const mensajesBorrados = await db.execute(sql`
+          SELECT contenido, tipo FROM chat_mensajes WHERE conversacion_id = ${convId}
+        `);
+        const dominioEscapado = env.R2_PUBLIC_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`${dominioEscapado}/[^\\s"'}\`<>]+`, 'g');
+        for (const mRow of mensajesBorrados.rows) {
+          const contenido = (mRow as Record<string, unknown>).contenido as string | null;
+          if (!contenido) continue;
+          const matches = contenido.match(regex);
+          if (matches) urlsR2ABorrar.push(...matches);
+        }
+
         await db.execute(sql`DELETE FROM chat_mensajes WHERE conversacion_id = ${convId}`);
         await db.execute(sql`DELETE FROM chat_conversaciones WHERE id = ${convId}`);
       }
+    }
+
+    // Limpiar archivos R2 recolectados con reference-count
+    if (urlsR2ABorrar.length > 0) {
+      const urlsUnicas = [...new Set(urlsR2ABorrar)];
+      (async () => {
+        for (const url of urlsUnicas) {
+          try {
+            const [{ total }] = await db
+              .select({ total: sql<number>`COUNT(*)::int` })
+              .from(chatMensajes)
+              .where(sql`${chatMensajes.contenido} LIKE ${`%${url}%`}`);
+            if (total === 0 && esUrlR2(url)) {
+              await eliminarArchivo(url);
+            }
+          } catch (err) {
+            console.error('Error limpiando archivo R2 en revocarCuponMasivo:', url, err);
+          }
+        }
+      })();
     }
 
     // Eliminar notificaciones originales de asignación (cupon_asignado)
@@ -1823,18 +1970,23 @@ export async function reactivarCupon(ofertaId: string, negocioId: string) {
 
 export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string) {
   try {
-    const condiciones = [eq(ofertaUsuarios.usuarioId, usuarioId)];
-
-    if (filtroEstado && filtroEstado !== 'todos') {
-      condiciones.push(eq(ofertaUsuarios.estado, filtroEstado));
-    }
-
+    // El estado efectivo del cupón se computa cruzando con la fecha fin de la oferta padre:
+    // - revocado → siempre gana (el comerciante lo revocó explícitamente)
+    // - usado → el cliente lo canjeó
+    // - si la oferta ya venció y no se usó → 'expirado' (aunque en BD diga 'activo')
+    // - resto → 'activo'
+    // El filtro opcional por `estado` también se aplica sobre el estado efectivo.
     const query = sql`
       SELECT
         ou.id as cupon_id,
         ou.oferta_id,
         ou.codigo_personal,
-        ou.estado,
+        CASE
+          WHEN ou.estado = 'revocado' THEN 'revocado'
+          WHEN ou.estado = 'usado' THEN 'usado'
+          WHEN o.fecha_fin < NOW() THEN 'expirado'
+          ELSE 'activo'
+        END as estado,
         ou.motivo,
         ou.asignado_at,
         ou.usado_at,
@@ -1864,13 +2016,23 @@ export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string
       JOIN negocios n ON n.id = o.negocio_id
       LEFT JOIN negocio_sucursales ns ON ns.id = o.sucursal_id
       WHERE ou.usuario_id = ${usuarioId}
-      ${filtroEstado && filtroEstado !== 'todos' ? sql`AND ou.estado = ${filtroEstado}` : sql``}
+        -- Ocultar cupones que expiraron sin usarse: no aportan valor al cliente
+        -- y sólo generan frustración. Los usados (con usado_at) sí se muestran como historial.
+        AND NOT (ou.estado = 'activo' AND o.fecha_fin < NOW())
+        -- Ocultar revocados también (el comerciante los canceló, no tiene sentido mostrarlos)
+        AND ou.estado != 'revocado'
+      ${filtroEstado && filtroEstado !== 'todos' ? sql`AND (
+        CASE
+          WHEN ou.estado = 'usado' THEN 'usado'
+          ELSE 'activo'
+        END
+      ) = ${filtroEstado}` : sql``}
       ORDER BY
-        CASE ou.estado
-          WHEN 'activo' THEN 1
-          WHEN 'usado' THEN 2
-          WHEN 'expirado' THEN 3
-          WHEN 'revocado' THEN 4
+        CASE
+          WHEN ou.estado = 'revocado' THEN 4
+          WHEN ou.estado = 'usado' THEN 2
+          WHEN o.fecha_fin < NOW() THEN 3
+          ELSE 1
         END,
         ou.asignado_at DESC
     `;
@@ -1950,6 +2112,18 @@ export async function revelarCodigoCupon(ofertaUsuarioId: string, usuarioId: str
 
 export async function obtenerClientesAsignados(ofertaId: string, negocioId: string) {
   try {
+    // El estado efectivo se computa cruzando con la fecha fin de la oferta padre:
+    // - `ou.estado = 'revocado'` → revocado (el dueño lo revocó explícitamente)
+    // - `ou.estado = 'usado'` → usado (canje real registrado)
+    // - Oferta venció (fecha_fin < NOW) y no está revocado/usado → expirado
+    // - Resto → activo
+    //
+    // Se confía en `ou.estado` (no en `ou.usado_at`). Pueden existir registros legacy
+    // con `usado_at` poblado sin que `estado` se haya marcado como 'usado' — se tratan
+    // como no-canjeados. El campo autoritativo es `estado`.
+    //
+    // No se muta `oferta_usuarios.estado` en BD: si el dueño extiende la vigencia,
+    // los cupones vuelven automáticamente a 'activo' sin migración.
     const resultado = await db.execute(sql`
       SELECT
         u.id,
@@ -1958,7 +2132,12 @@ export async function obtenerClientesAsignados(ofertaId: string, negocioId: stri
         u.correo,
         u.avatar_url,
         ou.id as cupon_id,
-        ou.estado,
+        CASE
+          WHEN ou.estado = 'revocado' THEN 'revocado'
+          WHEN ou.estado = 'usado' THEN 'usado'
+          WHEN o.fecha_fin < NOW() THEN 'expirado'
+          ELSE 'activo'
+        END as estado,
         ou.codigo_personal,
         ou.motivo,
         ou.asignado_at,

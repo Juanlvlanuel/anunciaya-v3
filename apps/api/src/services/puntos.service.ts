@@ -58,8 +58,9 @@ import type {
   PeriodoEstadisticas
 } from '../types/puntos.types.js';
 import { generarPresignedUrl, eliminarArchivo } from './r2.service.js';
+import { eliminarImagenSiHuerfana } from './negocioManagement.service.js';
 import { startOfDay, subDays, subMonths, subYears } from 'date-fns';
-import { crearNotificacion, obtenerSucursalPrincipal } from './notificaciones.service.js';
+import { crearNotificacion, eliminarNotificacionesPorReferencia, obtenerSucursalPrincipal } from './notificaciones.service.js';
 
 // =============================================================================
 // VALORES POR DEFECTO
@@ -645,20 +646,26 @@ export async function actualizarRecompensa(
     if (datos.numeroComprasRequeridas !== undefined) datosActualizar.numeroComprasRequeridas = datos.numeroComprasRequeridas;
     if (datos.requierePuntos !== undefined) datosActualizar.requierePuntos = datos.requierePuntos;
 
-    // Manejo de imagen
-    if (datos.eliminarImagen && recompensaActual.imagenUrl) {
-      // Eliminar imagen actual de R2
-      await eliminarArchivo(recompensaActual.imagenUrl);
-      datosActualizar.imagenUrl = null;
-    } else if (datos.imagenUrl && datos.imagenUrl !== recompensaActual.imagenUrl) {
-      // Nueva imagen (ya subida por frontend)
-      datosActualizar.imagenUrl = datos.imagenUrl;
+    // Manejo de imagen.
+    // Nota: se usa `eliminarImagenSiHuerfana` en vez de `eliminarArchivo` directo
+    // para hacer reference-count contra TODAS las tablas que pueden referenciar
+    // la misma URL (sucursales, artículos, negocios, galería, ofertas, recompensas).
+    // Evita romper otras entidades que compartan la URL por fallback del clonado.
+    const urlAnterior = recompensaActual.imagenUrl;
+    let limpiarUrlAnterior = false;
 
-      // Eliminar imagen anterior de R2
-      if (recompensaActual.imagenUrl) {
-        await eliminarArchivo(recompensaActual.imagenUrl);
-      }
+    if (datos.eliminarImagen && urlAnterior) {
+      datosActualizar.imagenUrl = null;
+      limpiarUrlAnterior = true;
+    } else if (datos.imagenUrl && datos.imagenUrl !== urlAnterior) {
+      datosActualizar.imagenUrl = datos.imagenUrl;
+      if (urlAnterior) limpiarUrlAnterior = true;
     }
+
+    // La limpieza de la URL anterior se hace DESPUÉS del UPDATE para que el
+    // reference-count no cuente la fila que acabamos de actualizar
+    // (declaración aquí por alcance — la ejecución está más abajo).
+    const _urlAnteriorParaLimpiar = limpiarUrlAnterior ? urlAnterior : null;
 
     // Actualizar en BD
     const [recompensaActualizada] = await db
@@ -666,6 +673,13 @@ export async function actualizarRecompensa(
       .set(datosActualizar)
       .where(eq(recompensas.id, id))
       .returning();
+
+    // Limpiar imagen anterior con reference-count (ver nota arriba).
+    if (_urlAnteriorParaLimpiar) {
+      eliminarImagenSiHuerfana(_urlAnteriorParaLimpiar).catch(err =>
+        console.error('No se pudo limpiar imagen anterior de recompensa:', err)
+      );
+    }
 
     // Transformar a camelCase
     // Contar canjes
@@ -753,9 +767,12 @@ export async function eliminarRecompensa(
       .delete(recompensas)
       .where(eq(recompensas.id, id));
 
-    // Eliminar imagen de R2
+    // Eliminar imagen con reference-count (evita romper otras entidades que
+    // compartan la URL por fallback del clonado).
     if (recompensa.imagenUrl) {
-      await eliminarArchivo(recompensa.imagenUrl);
+      eliminarImagenSiHuerfana(recompensa.imagenUrl).catch(err =>
+        console.error('Error eliminando imagen de recompensa:', err)
+      );
     }
 
     return {
@@ -1436,6 +1453,18 @@ export async function expirarVouchersVencidos(
           puntosDisponibles: sql`puntos_disponibles + ${voucher.puntosUsados}`,
         })
         .where(eq(puntosBilletera.id, voucher.billeteraId));
+
+      // Limpiar notificaciones "voucher_pendiente" que ya no aplican —
+      // el voucher nunca se canjeó y ahora está expirado. Sin esto, las
+      // notificaciones quedan en el panel del dueño/gerentes apuntando a
+      // vouchers que ya no se pueden entregar.
+      // El helper también emite `notificacion:eliminada` por socket a los
+      // usuarios afectados para actualizar el panel en vivo.
+      await eliminarNotificacionesPorReferencia({
+        tipo: 'voucher_pendiente',
+        referenciaTipo: 'voucher',
+        referenciaId: voucher.id,
+      });
 
       vouchersExpirados++;
       puntosDevueltos += voucher.puntosUsados;

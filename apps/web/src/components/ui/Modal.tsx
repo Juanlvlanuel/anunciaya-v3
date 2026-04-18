@@ -42,7 +42,7 @@ interface ModalProps {
   /** Contenido del modal */
   children: ReactNode;
   /** Ancho máximo del modal */
-  ancho?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  ancho?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'wide';
   /** ¿Cerrar al hacer clic fuera? */
   cerrarAlClickFuera?: boolean;
   /** ¿Cerrar con tecla Escape? */
@@ -72,6 +72,7 @@ const anchos = {
   lg: 'max-w-sm lg:max-w-lg 2xl:max-w-xl',
   xl: 'max-w-md lg:max-w-xl 2xl:max-w-2xl',
   full: 'max-w-lg lg:max-w-2xl 2xl:max-w-3xl',
+  wide: 'max-w-lg lg:max-w-4xl 2xl:max-w-5xl',
 };
 
 /**

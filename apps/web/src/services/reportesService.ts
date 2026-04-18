@@ -68,12 +68,54 @@ export interface PromocionResumen {
 export interface ReportePromociones {
   funnelOfertas: { activas: number; vistas: number; clicks: number; shares: number; expiradas: number };
   mejorOferta: PromocionResumen | null;
-  funnelCupones: { emitidos: number; canjeados: number; expirados: number; activos: number };
+  funnelCupones: { emitidos: number; canjeados: number; revocados: number; expirados: number; activos: number };
   mejorCupon: PromocionResumen | null;
   funnelRecompensas: { generados: number; canjeados: number; expirados: number; pendientes: number };
   mejorRecompensa: PromocionResumen | null;
   descuentoTotal: number;
   porVencer: number;
+}
+
+export interface DetalleOferta {
+  id: string;
+  titulo: string;
+  tipo: string;
+  imagen: string | null;
+  vistas: number;
+  clicks: number;
+  shares: number;
+  activa: boolean;
+  expirada: boolean;
+}
+
+export interface DetalleCupon {
+  id: string;
+  titulo: string;
+  tipo: string;
+  imagen: string | null;
+  enviados: number;
+  canjeados: number;
+  revocados: number;
+  expirados: number;
+  activos: number;
+}
+
+export interface DetalleRecompensa {
+  id: string;
+  nombre: string;
+  tipo: string;
+  imagen: string | null;
+  puntosRequeridos: number;
+  generados: number;
+  canjeados: number;
+  expirados: number;
+  pendientes: number;
+}
+
+export type TipoDetallePromocion = 'ofertas' | 'cupones' | 'recompensas';
+
+export async function getDetallePromocion(tipo: TipoDetallePromocion) {
+  return get<DetalleOferta[] | DetalleCupon[] | DetalleRecompensa[]>(`/business/reportes/detalle-promocion?tipo=${tipo}`);
 }
 
 export interface RespuestaPorResponder {

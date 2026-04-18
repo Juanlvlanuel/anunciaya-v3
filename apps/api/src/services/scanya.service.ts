@@ -49,7 +49,7 @@ import {
     listarOperadoresNegocio
 } from './negocios.service.js';
 import { verificarExpiraciones, expirarVouchersVencidos } from './puntos.service.js';
-import { crearNotificacion } from './notificaciones.service.js';
+import { crearNotificacion, eliminarNotificacionesPorReferencia } from './notificaciones.service.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -254,7 +254,7 @@ export async function loginDueno(
             if (datos.sucursalId) {
                 // Verificar que la sucursal pertenezca al negocio
                 const [sucursalEncontrada] = await db
-                    .select({ id: negocioSucursales.id, nombre: negocioSucursales.nombre })
+                    .select({ id: negocioSucursales.id, nombre: negocioSucursales.nombre, activa: negocioSucursales.activa })
                     .from(negocioSucursales)
                     .where(
                         and(
@@ -269,6 +269,13 @@ export async function loginDueno(
                         success: false,
                         message: 'Sucursal no encontrada o no pertenece al negocio',
                         code: 404,
+                    };
+                }
+                if (!sucursalEncontrada.activa) {
+                    return {
+                        success: false,
+                        message: 'Esta sucursal está desactivada. Reactívala antes de operar en ScanYA.',
+                        code: 403,
                     };
                 }
                 sucursal = sucursalEncontrada;
@@ -314,6 +321,7 @@ export async function loginDueno(
                     id: negocioSucursales.id,
                     nombre: negocioSucursales.nombre,
                     negocioId: negocioSucursales.negocioId,
+                    activa: negocioSucursales.activa,
                 })
                 .from(negocioSucursales)
                 .where(eq(negocioSucursales.id, usuario.sucursalAsignada!))
@@ -324,6 +332,17 @@ export async function loginDueno(
                     success: false,
                     message: 'Tu sucursal asignada no existe',
                     code: 404,
+                };
+            }
+
+            // Si el gerente llega a iniciar login con su sucursal desactivada,
+            // rechazar. (En teoría `toggleActivaSucursal` ya lo revoca,
+            // pero esto cubre el caso de tokens viejos en localStorage.)
+            if (!sucursalAsignada.activa) {
+                return {
+                    success: false,
+                    message: 'Tu sucursal asignada está desactivada. Contacta al dueño del negocio.',
+                    code: 403,
                 };
             }
 
@@ -536,6 +555,7 @@ export async function loginEmpleado(
                 id: negocioSucursales.id,
                 nombre: negocioSucursales.nombre,
                 negocioId: negocioSucursales.negocioId,
+                activa: negocioSucursales.activa,
             })
             .from(negocioSucursales)
             .where(eq(negocioSucursales.id, empleado.sucursalId))
@@ -546,6 +566,16 @@ export async function loginEmpleado(
                 success: false,
                 message: 'Sucursal no encontrada',
                 code: 404,
+            };
+        }
+
+        // Si la sucursal está desactivada, no permitir login.
+        // El dueño debe reactivarla o asignar el empleado a otra sucursal.
+        if (!sucursal.activa) {
+            return {
+                success: false,
+                message: 'Esta sucursal está desactivada. Contacta al dueño del negocio.',
+                code: 403,
             };
         }
 
@@ -705,7 +735,7 @@ export async function refrescarTokenScanYA(
             };
         }
 
-        // Si es empleado, verificar que aún estÃ© activo
+        // Si es empleado, verificar que aún esté activo
         if (payload.tipo === 'empleado' && payload.empleadoId) {
             const [empleado] = await db
                 .select({ activo: empleados.activo })
@@ -718,6 +748,20 @@ export async function refrescarTokenScanYA(
                     success: false,
                     message: 'Cuenta de empleado desactivada',
                     code: 403,
+                };
+            }
+
+            // Verificar revocación remota en Redis.
+            // Sin este check, un refresh generaría un token nuevo con iat posterior
+            // al revocadoAt, permitiendo que el empleado revocado siga operando.
+            const { estaTokenRevocado } = await import('../utils/tokenStoreScanYA.js');
+            const iatPayload = (payload as unknown as { iat?: number }).iat ?? 0;
+            const revocado = await estaTokenRevocado(payload.empleadoId, iatPayload);
+            if (revocado) {
+                return {
+                    success: false,
+                    message: 'Sesión revocada por el administrador',
+                    code: 401,
                 };
             }
         }
@@ -1455,21 +1499,12 @@ export async function validarCupon(
         // -------------------------------------------------------------------------
         // Paso 3: Verificar que la oferta pertenezca a este negocio
         // -------------------------------------------------------------------------
+        // Nota: los cupones pueden canjearse en cualquier sucursal del negocio.
+        // El `oferta_usos.sucursal_id` registra dónde ocurrió el canje para reportes.
         if (oferta.negocioId !== payload.negocioId) {
             return {
                 success: false,
                 message: 'Este código no es válido para este negocio',
-                code: 400,
-            };
-        }
-
-        // -------------------------------------------------------------------------
-        // Paso 3: Verificar sucursal (null = todas las sucursales)
-        // -------------------------------------------------------------------------
-        if (oferta.sucursalId && oferta.sucursalId !== payload.sucursalId) {
-            return {
-                success: false,
-                message: 'Este código no es válido para esta sucursal',
                 code: 400,
             };
         }
@@ -2129,10 +2164,11 @@ export async function otorgarPuntos(
         if (negocioDueno) {
             const nombreCliente = `${cliente.nombre} ${cliente.apellidos || ''}`.trim();
 
-            crearNotificacion({
-                usuarioId: negocioDueno.usuarioId,
-                modo: 'comercial',
-                tipo: 'puntos_ganados',
+            // Payload compartido entre el dueño y (si aplica) el gerente de la sucursal.
+            // El filtro del panel de notificaciones por `sucursalId` decide a quién mostrarla.
+            const payloadNotificacionComercial = {
+                modo: 'comercial' as const,
+                tipo: 'puntos_ganados' as const,
                 titulo: esCuponGratis
                     ? 'Canjeó cupón'
                     : esVentaConCupon
@@ -2146,11 +2182,31 @@ export async function otorgarPuntos(
                 negocioId: payload.negocioId,
                 sucursalId: payload.sucursalId,
                 referenciaId: resultado.transaccionId,
-                referenciaTipo: 'transaccion',
+                referenciaTipo: 'transaccion' as const,
                 icono: esCuponGratis ? '🎟️' : esVentaConCupon ? '🎟️' : '🎯',
                 actorImagenUrl: cliente.avatarUrl ?? undefined,
                 actorNombre: nombreCliente,
+            };
+
+            // Notificar al dueño del negocio (siempre)
+            crearNotificacion({
+                ...payloadNotificacionComercial,
+                usuarioId: negocioDueno.usuarioId,
             }).catch((err) => console.error('Error notificación dueño:', err));
+
+            // Notificar también al gerente de la sucursal (si existe y es distinto del dueño)
+            const [gerente] = await db
+                .select({ id: usuarios.id })
+                .from(usuarios)
+                .where(eq(usuarios.sucursalAsignada, payload.sucursalId))
+                .limit(1);
+
+            if (gerente && gerente.id !== negocioDueno.usuarioId) {
+                crearNotificacion({
+                    ...payloadNotificacionComercial,
+                    usuarioId: gerente.id,
+                }).catch((err) => console.error('Error notificación gerente:', err));
+            }
         }
 
         // Notificar si tarjeta de sellos se desbloqueó
@@ -2863,6 +2919,20 @@ export async function validarVoucher(
             .where(eq(vouchersCanje.id, voucher.id));
 
         // -------------------------------------------------------------------------
+        // Paso 5.1: Limpiar notificaciones "voucher_pendiente" del voucher entregado
+        // -------------------------------------------------------------------------
+        // Cuando el voucher ya fue entregado, las notificaciones pendientes que vieron
+        // el dueño/gerentes/empleados pierden sentido — se eliminan para que el panel
+        // refleje el estado real sin tareas "zombie" que ya no aplican.
+        // El helper también emite `notificacion:eliminada` por Socket.io a cada
+        // usuario afectado para que el panel se actualice en vivo sin recargar.
+        await eliminarNotificacionesPorReferencia({
+            tipo: 'voucher_pendiente',
+            referenciaTipo: 'voucher',
+            referenciaId: voucher.id,
+        });
+
+        // -------------------------------------------------------------------------
         // Paso 5.5: Notificar al cliente (voucher cobrado)
         // -------------------------------------------------------------------------
         // Obtener logo del negocio para notificación personal
@@ -2887,22 +2957,40 @@ export async function validarVoucher(
             actorNombre: negocioDueno?.nombre ?? undefined,
         }).catch((err) => console.error('Error notificación voucher:', err));
 
-        // Notificar al dueño (voucher entregado)
+        // Notificar al dueño (voucher entregado) — y al gerente de la sucursal si existe
         if (negocioDueno) {
-            crearNotificacion({
-                usuarioId: negocioDueno.usuarioId,
-                modo: 'comercial',
-                tipo: 'voucher_cobrado',
+            const payloadVoucherComercial = {
+                modo: 'comercial' as const,
+                tipo: 'voucher_cobrado' as const,
                 titulo: 'Recompensa entregada',
                 mensaje: `Se entregó: ${recompensa.nombre}`,
                 negocioId: voucher.negocioId,
                 sucursalId: payload.sucursalId,
                 referenciaId: voucher.id,
-                referenciaTipo: 'voucher',
+                referenciaTipo: 'voucher' as const,
                 icono: '✅',
                 actorImagenUrl: cliente?.avatarUrl ?? undefined,
                 actorNombre: cliente ? `${cliente.nombre} ${cliente.apellidos || ''}`.trim() : undefined,
+            };
+
+            crearNotificacion({
+                ...payloadVoucherComercial,
+                usuarioId: negocioDueno.usuarioId,
             }).catch((err) => console.error('Error notificación dueño voucher entregado:', err));
+
+            // Gerente de la sucursal (si existe y es distinto del dueño)
+            const [gerente] = await db
+                .select({ id: usuarios.id })
+                .from(usuarios)
+                .where(eq(usuarios.sucursalAsignada, payload.sucursalId))
+                .limit(1);
+
+            if (gerente && gerente.id !== negocioDueno.usuarioId) {
+                crearNotificacion({
+                    ...payloadVoucherComercial,
+                    usuarioId: gerente.id,
+                }).catch((err) => console.error('Error notificación gerente voucher entregado:', err));
+            }
         }
 
         // -------------------------------------------------------------------------

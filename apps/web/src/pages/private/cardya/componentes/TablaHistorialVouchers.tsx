@@ -29,7 +29,7 @@ import type { Voucher, EstadoVoucher } from '../../../../types/cardya';
 // TIPOS DE ORDENAMIENTO
 // =============================================================================
 
-type ColumnaOrdenVoucher = 'puntos' | 'createdAt' | 'expiraAt';
+type ColumnaOrdenVoucher = 'puntos' | 'usadoAt' | 'expiraAt';
 type DireccionOrden = 'asc' | 'desc';
 
 interface EstadoOrden {
@@ -159,20 +159,25 @@ export default function TablaHistorialVouchers({
     );
   }
 
+  const ORDEN_ESTADO: Record<EstadoVoucher, number> = {
+    pendiente: 0,
+    usado: 1,
+    expirado: 2,
+    cancelado: 3,
+  };
+
   // Vouchers ordenados según estado de orden
   const vouchersOrdenados = [...vouchersFiltrados].sort((a, b) => {
     if (!orden) {
-      const fechaA = new Date(a.usadoAt || a.createdAt).getTime();
-      const fechaB = new Date(b.usadoAt || b.createdAt).getTime();
-      return fechaB - fechaA;
+      return ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado];
     }
 
     const dir = orden.direccion === 'asc' ? 1 : -1;
     switch (orden.columna) {
       case 'puntos':
         return (a.puntosUsados - b.puntosUsados) * dir;
-      case 'createdAt':
-        return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
+      case 'usadoAt':
+        return ((a.usadoAt ? new Date(a.usadoAt).getTime() : 0) - (b.usadoAt ? new Date(b.usadoAt).getTime() : 0)) * dir;
       case 'expiraAt':
         return (new Date(a.expiraAt).getTime() - new Date(b.expiraAt).getTime()) * dir;
     }
@@ -353,11 +358,11 @@ export default function TablaHistorialVouchers({
                     </th>
                     <th className="px-4 lg:px-3 2xl:px-5 py-2 text-left text-[11px] 2xl:text-sm font-semibold text-white/70 uppercase tracking-wider">
                       <button
-                        onClick={() => alternarOrden('createdAt')}
+                        onClick={() => alternarOrden('usadoAt')}
                         className="inline-flex items-center gap-1 cursor-pointer hover:text-amber-300 transition-colors outline-none focus:outline-none uppercase group"
                       >
-                        <span>Fecha Canje</span>
-                        {orden?.columna === 'createdAt' ? (
+                        <span>Fecha Uso</span>
+                        {orden?.columna === 'usadoAt' ? (
                           orden.direccion === 'desc' ? (
                             <ChevronDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400" />
                           ) : (
@@ -461,7 +466,7 @@ export default function TablaHistorialVouchers({
                             )}
                           </td>
                           <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
-                            {formatearFecha(voucher.createdAt)}
+                            {voucher.usadoAt ? formatearFecha(voucher.usadoAt) : <span className="text-slate-400">—</span>}
                           </td>
                           <td className="px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                             {formatearFecha(voucher.expiraAt)}

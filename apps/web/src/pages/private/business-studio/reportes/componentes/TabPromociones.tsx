@@ -2,12 +2,14 @@
  * TabPromociones.tsx — Pestaña de Promociones del módulo Reportes BS
  */
 
+import { useState } from 'react';
 import { Tag, Gift, Award, Percent, CalendarClock, Flame, Megaphone } from 'lucide-react';
-import type { PromocionResumen } from '../../../../../services/reportesService';
+import type { PromocionResumen, TipoDetallePromocion } from '../../../../../services/reportesService';
 import { useReportePromociones } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../../components/ui/CarouselKPI';
 import { PanelTitulo, TablaHeader, formatearMonto, KpiCard } from './ReporteUI';
+import { ModalDetallePromocion } from './ModalDetallePromocion';
 
 interface TabPromocionesProps {
   fechaInicio: string;
@@ -17,6 +19,7 @@ interface TabPromocionesProps {
 
 export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabPromocionesProps) {
   const { data, isPending } = useReportePromociones(fechaInicio, fechaFin);
+  const [modalTipo, setModalTipo] = useState<TipoDetallePromocion | null>(null);
 
   if (isPending) {
     if (solo === 'kpis') return null;
@@ -65,8 +68,8 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
     <div className="space-y-3 lg:space-y-2 2xl:space-y-3" data-testid="reporte-promociones">
       {/* Fila 1: Ofertas + Cupones + Recompensas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-2 2xl:gap-3">
-        {/* Funnel Ofertas públicas */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-funnel-ofertas">
+        {/* Funnel Ofertas públicas — clickeable */}
+        <button type="button" onClick={() => setModalTipo('ofertas')} className="text-left bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-ofertas">
           <PanelTitulo icono={Megaphone} titulo="Ofertas (públicas)" />
           <TablaHeader columnas={['Métrica', 'Cantidad']} />
           {[
@@ -81,16 +84,17 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
               <div className={`flex items-center px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold ${item.color}`}>{item.valor.toLocaleString('es-MX')}</div>
             </div>
           ))}
-        </div>
+        </button>
 
-        {/* Funnel Cupones */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-funnel-cupones">
+        {/* Funnel Cupones — clickeable + con Revocados */}
+        <button type="button" onClick={() => setModalTipo('cupones')} className="text-left bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-cupones">
           <PanelTitulo icono={Tag} titulo="Cupones (privados)" />
           <TablaHeader columnas={['Estado', 'Cantidad']} />
           {[
             { estado: 'Emitidos', valor: data.funnelCupones.emitidos, color: 'text-slate-800' },
             { estado: 'Canjeados', valor: data.funnelCupones.canjeados, color: 'text-emerald-600' },
-            { estado: 'Expirados', valor: data.funnelCupones.expirados, color: 'text-red-600' },
+            { estado: 'Revocados', valor: data.funnelCupones.revocados, color: 'text-red-600' },
+            { estado: 'Expirados', valor: data.funnelCupones.expirados, color: 'text-amber-600' },
             { estado: 'Activos', valor: data.funnelCupones.activos, color: 'text-indigo-600' },
           ].map((item, i) => (
             <div key={item.estado} className={`grid gap-px ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`} style={{ gridTemplateColumns: '1fr 1fr' }}>
@@ -98,10 +102,10 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
               <div className={`flex items-center px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold ${item.color}`}>{item.valor}</div>
             </div>
           ))}
-        </div>
+        </button>
 
-        {/* Funnel Recompensas */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-funnel-recompensas">
+        {/* Funnel Recompensas — clickeable */}
+        <button type="button" onClick={() => setModalTipo('recompensas')} className="text-left bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-recompensas">
           <PanelTitulo icono={Gift} titulo="Recompensas" />
           <TablaHeader columnas={['Estado', 'Cantidad']} />
           {[
@@ -115,7 +119,7 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
               <div className={`flex items-center px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold ${item.color}`}>{item.valor}</div>
             </div>
           ))}
-        </div>
+        </button>
       </div>
 
       {/* Fila 2: Oferta más popular + Mejor cupón + Mejor recompensa */}
@@ -124,6 +128,15 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
         <CardMejorPromocion promo={data.mejorCupon} titulo="Mejor cupón" iconoPlaceholder={Tag} emptyText="Sin canjes de cupones" testId="reporte-mejor-cupon" />
         <CardMejorPromocion promo={data.mejorRecompensa} titulo="Mejor recompensa" iconoPlaceholder={Gift} emptyText="Sin canjes de recompensas" testId="reporte-mejor-recompensa" />
       </div>
+
+      {/* Modal detalle */}
+      {modalTipo && (
+        <ModalDetallePromocion
+          abierto={modalTipo !== null}
+          onCerrar={() => setModalTipo(null)}
+          tipo={modalTipo}
+        />
+      )}
     </div>
   );
 }

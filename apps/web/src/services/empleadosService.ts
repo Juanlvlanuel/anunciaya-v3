@@ -24,6 +24,16 @@ export async function obtenerKPIs() {
 	return get<KPIsEmpleados>('/business/empleados/kpis');
 }
 
+// --- Verificación de nick (validación en vivo del formulario) ---
+
+export async function verificarNick(nick: string, excluirId?: string) {
+	const query = new URLSearchParams({ nick });
+	if (excluirId) query.set('excluirId', excluirId);
+	return get<{ disponible: boolean; sugerencias: string[] }>(
+		`/business/empleados/verificar-nick?${query.toString()}`
+	);
+}
+
 // --- CRUD ---
 
 export async function obtenerEmpleados(params: {

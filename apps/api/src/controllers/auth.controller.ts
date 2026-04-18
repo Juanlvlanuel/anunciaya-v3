@@ -12,6 +12,7 @@
  * Ubicación: apps/api/src/controllers/auth.controller.ts
  */
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 
 import {
   registroSchema,
@@ -27,6 +28,7 @@ import {
   activar2faSchema,
   verificar2faSchema,
   desactivar2faSchema,
+  campoContrasena,
 } from '../validations/auth.schema.js';
 import {
   registrarUsuario,
@@ -46,8 +48,10 @@ import {
   activar2fa,
   verificar2fa,
   desactivar2fa,
-  cambiarModo,       
+  cambiarModo,
   obtenerInfoModo,
+  cambiarContrasenaProvisional,
+  verificarDisponibilidadCorreo,
 } from '../services/auth.service.js';
 
 // =============================================================================
@@ -858,4 +862,79 @@ export async function obtenerInfoModoController(
       message: 'Error al obtener información de modo',
     });
   }
+}
+
+// =============================================================================
+// CONTROLLER: CAMBIAR CONTRASEÑA PROVISIONAL (gerentes nuevos)
+// =============================================================================
+
+/**
+ * POST /api/auth/cambiar-contrasena-provisional
+ *
+ * Permite a un gerente nuevo cambiar su contraseña provisional.
+ * El tokenTemporal (generado en el login tras validar la provisional)
+ * es suficiente como prueba de autenticación — no se vuelve a pedir la provisional.
+ * Body: { tokenTemporal, nuevaContrasena }
+ */
+export async function cambiarContrasenaProvisionalController(req: Request, res: Response): Promise<void> {
+  const schema = z.object({
+    tokenTemporal: z.string().min(1, 'Token requerido'),
+    nuevaContrasena: campoContrasena,
+  });
+
+  const validacion = schema.safeParse(req.body);
+  if (!validacion.success) {
+    res.status(400).json({
+      success: false,
+      message: 'Datos inválidos',
+      errors: formatearErroresZod(validacion.error),
+    });
+    return;
+  }
+
+  const { tokenTemporal, nuevaContrasena } = validacion.data;
+  const resultado = await cambiarContrasenaProvisional(tokenTemporal, nuevaContrasena);
+
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
+    message: resultado.message,
+  });
+}
+
+// =============================================================================
+// CONTROLLER: VERIFICAR DISPONIBILIDAD DE CORREO
+// =============================================================================
+
+const verificarCorreoQuerySchema = z.object({
+  correo: z.string().email('Correo inválido').trim().toLowerCase(),
+});
+
+/**
+ * GET /api/auth/verificar-disponibilidad-correo?correo=xxx
+ *
+ * Verifica si un correo ya está registrado. Usado para feedback en tiempo real
+ * al crear cuentas (ej: crear gerente desde BS Sucursales).
+ *
+ * Requiere autenticación (verificarToken) para evitar enumeración de usuarios.
+ */
+export async function verificarDisponibilidadCorreoController(req: Request, res: Response): Promise<void> {
+  const validacion = verificarCorreoQuerySchema.safeParse(req.query);
+
+  if (!validacion.success) {
+    res.status(400).json({
+      success: false,
+      message: 'Correo inválido',
+      errors: formatearErroresZod(validacion.error),
+    });
+    return;
+  }
+
+  const { correo } = validacion.data;
+  const resultado = await verificarDisponibilidadCorreo(correo);
+
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
+    message: resultado.message,
+    data: resultado.data,
+  });
 }

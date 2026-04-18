@@ -490,6 +490,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Actualizar estado
     set({ usuario: usuarioActualizado });
 
+    // Recargar notificaciones: cada sucursal tiene su propio feed de notificaciones
+    // (ventas, reseñas, alertas, etc. asociadas a la sucursal activa). El interceptor
+    // de axios ya agrega `sucursalId` automáticamente al request.
+    if (usuarioActualizado.modoActivo === 'comercial') {
+      (async () => {
+        try {
+          const { cargarNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
+          cargarNotificaciones('comercial');
+        } catch (error) {
+          console.error('[AUTH] Error recargando notificaciones al cambiar sucursal:', error);
+        }
+      })();
+    }
   },
 
   setEsSucursalPrincipal: (valor: boolean) => {

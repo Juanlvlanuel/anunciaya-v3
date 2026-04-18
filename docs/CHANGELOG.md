@@ -7,6 +7,589 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [17 Abril 2026] - Notificaciones por sucursal, estados computados de cupones, validación live de inputs
+
+### ✨ Agregado
+
+**Filtrado de notificaciones por sucursal (modo comercial)**
+- `obtenerNotificaciones` y `contarNoLeidas` ahora aceptan `sucursalId` opcional y filtran con `(sucursal_id = $X OR sucursal_id IS NULL)` — las notificaciones con `sucursal_id = NULL` son eventos a nivel negocio y se ven siempre
+- Frontend calcula la sucursal según contexto (helper `obtenerSucursalIdParaFiltro`):
+  - Gerente: su `sucursalAsignada` (fija)
+  - Dueño dentro de Business Studio: la `sucursalActiva` del selector
+  - Dueño fuera de BS (inicio, marketplace, ScanYA web): `sucursalPrincipalId` (Matriz)
+- Recarga automática al entrar/salir de BS (efecto en `MainLayout`) y al cambiar sucursal activa (`setSucursalActiva` en `useAuthStore`)
+- Filtro en socket `notificacion:nueva` (`agregarNotificacion`) — si llega una notificación de otra sucursal, se ignora localmente
+
+**Destinatarios ampliados a gerentes**
+- Ventas, reseñas y vouchers cobrados ahora notifican tanto al dueño como al gerente de la sucursal afectada (antes solo al dueño)
+- `voucher_pendiente` (de CardYA) se emite con `sucursalId: null` (evento a nivel negocio) y se envía por fan-out a todos los gerentes del negocio
+
+**Limpieza automática de notificaciones de voucher al canjearse**
+- Al validar un voucher en ScanYA (`validarVoucher`), se eliminan las notificaciones `tipo = 'voucher_pendiente'` con `referencia_id = voucherId`
+- Evita que el panel quede con recordatorios obsoletos de vouchers ya entregados
+
+**Validación live de nick de empleado**
+- Nuevo endpoint `GET /api/business/empleados/verificar-nick?nick=X&excluirEmpleadoId=Y?`
+- Si el nick está tomado, devuelve 3 sugerencias (sufijos numéricos y variantes) presentadas como chips clickeables en el modal
+- Debounce 400ms + indicadores visuales (spinner / check / X)
+
+**`InputCorreoValidado` modo `contacto`**
+- Nuevo modo para correos que son dato de contacto (no cuenta de usuario): valida formato y detecta typos de dominio, pero NO consulta la BD de usuarios
+- Usado en `ModalEmpleado` (correo del empleado) y `ModalCrearSucursal` (correo de la sucursal)
+- X en el indicador de error ahora es clickeable para limpiar el input
+
+**Bloqueo de login ScanYA en sucursal desactivada**
+- `loginEmpleado`, `loginDueno` (3 paths: `sucursalId` específico, fallback Matriz, gerente) ahora validan `sucursal.activa = true` antes de emitir token
+- Respuesta `403 "La sucursal está desactivada"` si la sucursal fue deshabilitada desde BS mientras había sesiones abiertas
+
+### 🐛 Corregido
+
+**Cupones mostrando estado incorrecto**
+- El backend devolvía `oferta_usuarios.estado` crudo; un cupón activo que vencía seguía apareciendo como "Activo"
+- `obtenerClientesAsignados` y `obtenerMisCupones` ahora calculan estado con CASE (prioridad: revocado > usado > vencido > activo)
+
+**Ofertas "Vencidas" cuando en realidad estaban agotadas**
+- Orden del CASE en `obtenerOfertas` corregido: ahora evalúa `agotada` antes que `vencida`. Una oferta que se agotó y luego venció se muestra como "Agotada" (causa real del cierre)
+
+**Paleta de badges confusa (Activo y Usado ambos verdes)**
+- Nueva paleta unificada aplicada en BS `PaginaOfertas`, BS `TabClientes` y cliente `CardCupon`:
+  - Activo → emerald
+  - Usado → **sky** (antes verde)
+  - Vencido → amber (label unificado, antes "Expirado" en algunos puntos)
+  - Revocado → red
+
+**Cupones vencidos sin canjear generan frustración al cliente**
+- `obtenerMisCupones` filtra cupones con estado computado `vencido` y `usado_at IS NULL` — no aparecen en ningún tab de Mis Cupones
+- Los usados vencidos sí se conservan en tab "Usados" (historial legítimo)
+
+**Cancelar voucher con constraint violation**
+- `cancelarVoucher` resta `puntos_usados` a `puntos_canjeados_total`; en billeteras legacy con total inconsistente, la resta iba a negativo y rompía el check constraint
+- Fix defensivo: `puntosCanjeadosTotal: sql\`GREATEST(puntos_canjeados_total - puntos_usados, 0)\``
+
+**Toast "Empleado creado" aparecía aunque el backend rechazara**
+- El interceptor Axios resolvía la promesa con `{ success: false, error }` para respuestas 4xx en lugar de rechazarla
+- Las mutations de `hooks/queries/useEmpleados.ts` no verificaban `res.success` y ejecutaban `onSuccess` siempre
+- Fix aplicado a las 6 mutations (Crear, Actualizar, ToggleActivo, Eliminar, ActualizarHorarios, RevocarSesion): `throw new Error(res.error ?? res.message)` cuando `!res.success`
+
+**Nueva herramienta: Reconcile de imágenes huérfanas en R2**
+- Endpoint admin `GET /api/admin/mantenimiento/r2-reconcile` reporta imágenes en R2 que ya no están referenciadas por ningún registro en BD (huérfanas) y URLs en BD que apuntan a archivos inexistentes (rotas). Respuesta JSON con detalle por carpeta
+- Endpoint admin `POST /api/admin/mantenimiento/r2-reconcile/ejecutar` borra las huérfanas. Requiere body `{ "confirmacion": "SI_BORRAR_HUERFANAS" }` para evitar ejecuciones accidentales
+- Estructura de carpetas preparada para el Panel Admin: `controllers/admin/`, `services/admin/`, `routes/admin/` con `index.ts` agregador. Sub-secciones futuras (negocios, usuarios, reportes-globales, etc.) siguen el mismo patrón
+- Tipo de campo `text-scan-urls` en el registry: extrae URLs R2 embebidas con regex sobre columnas tipo texto/JSON. Cubre `chat_mensajes.contenido` (audios, imágenes, documentos, cupones) donde el formato varía según el tipo de mensaje
+- `CARPETAS_PROTEGIDAS` en el registry — lista de carpetas R2 que el reconcile nunca toca aunque no estén referenciadas en BD (assets del equipo, ej. `brand/`)
+- Tabla `r2_reconcile_log` para auditoría: cada ejecución registra `ejecutado_at`, `dry_run`, `carpetas` filtradas, counts y `detalle` JSONB con las eliminaciones. Migración en `docs/migraciones/2026-04-17-r2-reconcile-log.sql`
+- Endpoint `GET /api/admin/mantenimiento/r2-reconcile/log` para consultar el histórico desde el futuro Panel Admin
+- `text-scan-urls` extendido con cast `::text` automático — ahora soporta columnas JSONB además de text/varchar. Cobertura completa: agregado `marketplace.imagenes` al registry (estructura variable, antes pendiente)
+- Fix posterior en `extraerUrlsR2DeMensajeChat`: el contenido de mensajes tipo imagen puede ser URL directa o JSON con metadatos (`{"url": "...", "ancho": ..., "miniatura": "data:..."}`). El helper original solo capturaba URL directa → archivos quedaban huérfanos al eliminar mensajes con JSON. Reescrito con regex que matchea el dominio R2 — cubre cualquier formato presente o futuro
+- **Multi-BD cross-ambiente** en el reconcile: cuando el bucket R2 es compartido entre dev y prod (mismas credenciales en `.env`), ejecutar reconcile desde un solo ambiente puede borrar archivos del otro. Nuevo módulo `apps/api/src/db/reconcileConnections.ts` arma una lista de conexiones (principal + secundaria si está accesible). `listarUrlsEnUso` y `detectarUrlsRotas` iteran sobre todas y unen resultados. Cuando se ejecuta desde local con `DATABASE_URL_PRODUCTION` configurada, el reconcile consulta ambas BDs y solo marca como huérfano lo que NINGUNA referencia. El cleanup es 100% seguro cross-ambiente
+- Protegidos por middleware temporal `requireAdminSecret` (header `x-admin-secret` contra env var `ADMIN_SECRET`). Preparado para migrarse a auth admin real cuando exista el Panel Admin sin cambios en controllers/service
+- Garantías de 0% falsos positivos: `IMAGE_REGISTRY` exhaustivo (17 campos de 13 tablas) como fuente única de verdad, dry-run por defecto, re-verificación atómica antes de borrar, periodo de gracia de 5 min para uploads recientes, tope de 500 borrados por ejecución
+- Arquitectura reutilizable — el futuro Panel Admin consumirá los mismos endpoints sin refactor
+- Doc: nuevo `docs/arquitectura/Mantenimiento_R2.md`
+
+**Ofertas: revocar/eliminar cupón con conversaciones huérfanas dejaba archivos R2 colgados**
+- Cuando `eliminarOferta` o `revocarCuponMasivo` dejaba una conversación sin mensajes vivos, se ejecutaba `DELETE FROM chat_mensajes WHERE conversacion_id = X` — borrando **todos** los mensajes de esa conversación incluyendo imágenes/audios/documentos del chat normal que nada tenían que ver con la oferta. Los archivos R2 adjuntos quedaban huérfanos
+- Este era el bug fuente principal de los ~120 archivos huérfanos de chat que detectó el reconcile
+- Fix: recolección de URLs R2 con regex sobre el `contenido` de cada mensaje ANTES del DELETE, y limpieza posterior con reference-count contra otras conversaciones
+
+**Cron job ChatYA: limpieza diaria de conversaciones inactivas no limpiaba R2**
+- `limpiarConversacionesInactivas` (corre diariamente a las 3 AM) hace hard delete de conversaciones con `updated_at > 6 meses`. Comentario explícito `TODO Sprint 6: Limpiar archivos R2` sin implementar
+- Cada ejecución del cron eliminaba conversaciones con CASCADE pero dejaba todos sus archivos R2 colgados → acumulación silenciosa de huérfanos a lo largo del tiempo
+- Fix: el cron ahora recolecta URLs R2 de los mensajes antes del CASCADE y las limpia con reference-count
+
+**ChatYA: eliminar mensajes con archivo adjunto dejaba leaks en R2**
+- `eliminarMensaje` hacía soft-delete (reemplazaba `contenido` por "Se eliminó este mensaje") pero **no borraba el archivo R2 adjunto**. Los archivos de imagen/audio/documento/cupón quedaban huérfanos para siempre
+- `eliminarConversacion` tenía 2 bugs similares: al limpiar mensajes "invisibles para ambos participantes" no tocaba R2, y el hard-delete cuando ambos eliminaban la conversación tenía un TODO sin implementar (comentario explícito `TODO Sprint 6: Limpiar archivos R2`)
+- Fix en `chatya.service.ts`: nuevos helpers `extraerUrlsR2DeMensajeChat(contenido, tipo)` y `limpiarUrlR2DeMensajeHuerfana(url, excluirId)` con reference-count contra otros mensajes (por si la URL está duplicada en reenvíos o respuestas citadas)
+- Los 3 flujos (eliminar mensaje, limpieza de invisibles, hard-delete de conversación) ahora capturan URLs ANTES del delete y limpian R2 después
+
+**Galería de sucursal: al eliminar imagen no se borraba de R2**
+- `eliminarImagenGaleria` solo limpiaba Cloudinary, las URLs R2 quedaban colgadas
+- Fix: ahora usa `eliminarImagenSiHuerfana` que detecta el storage correcto (R2 o Cloudinary) y hace reference-count
+
+**Ofertas: reemplazar o eliminar oferta borraba imagen sin reference-count**
+- `actualizarOferta` y `eliminarOferta` ejecutaban `eliminarArchivo` sin verificar si otras ofertas o mensajes de chat tipo cupón compartían la URL (escenario posible por fallback del clonado cuando `duplicarImagenInteligente` no puede replicar — típicamente Cloudinary)
+- Fix: reference-count contra tabla `ofertas` y contra campo `imagen` dentro de `chat_mensajes.contenido` (JSON) antes de borrar. Solo se borra si nadie más la usa
+
+**Recompensas: reemplazar o eliminar recompensa borraba imagen sin reference-count**
+- `actualizarRecompensa` y `eliminarRecompensa` tenían el mismo patrón directo de `eliminarArchivo`
+- Fix: usan el helper compartido `eliminarImagenSiHuerfana` (ahora extendido para verificar todas las tablas relevantes: sucursales, artículos, negocios, galería, ofertas, recompensas)
+
+**Helper `eliminarImagenSiHuerfana` generalizado**
+- Se exporta desde `negocioManagement.service.ts` y reutiliza en otros services (puntos, galería, en el futuro donde se necesite)
+- Verifica reference-count contra 6 tablas: `negocio_sucursales` (portada/perfil), `articulos` (principal/adicionales), `negocios` (logo), `negocio_galeria` (url), `ofertas` (imagen), `recompensas` (imagen_url)
+- Borra del storage correcto (R2 vía `eliminarArchivo` o Cloudinary vía `cloudinary.uploader.destroy`)
+
+**Reemplazar logo, portada o foto de perfil dejaba la imagen anterior como basura en R2/Cloudinary**
+- `actualizarLogoNegocio`, `actualizarPortadaSucursal` y `actualizarFotoPerfilSucursal` actualizaban la URL en BD pero NO borraban el archivo anterior del storage. Cada vez que el dueño cambiaba una imagen, la anterior quedaba colgada acumulando cuota/costo
+- Fix: las 3 funciones ahora capturan la URL previa antes del UPDATE y, tras completarlo, llaman al nuevo helper `eliminarImagenSiHuerfana(url, excluirSucursalId?)` que verifica que la imagen no esté siendo usada en otra parte antes de borrarla. Revisa: `negocio_sucursales.portada_url`, `negocio_sucursales.foto_perfil`, `articulos.imagen_principal`, `articulos.imagenes_adicionales`, `negocios.logo_url`
+- El helper borra de R2 (con `eliminarArchivo`) o Cloudinary (con `cloudinary.uploader.destroy`) según el origen
+- Protección adicional contra el mismo patrón que causaba el 404 anterior: si una URL llegó a compartirse entre sucursales por el fallback del clonado, el helper detecta el uso compartido y conserva el archivo
+
+**CRÍTICO: editar o eliminar un artículo dejaba a otras sucursales con imagen rota (404)**
+- El clonado de Matriz al crear sucursales nuevas usa `duplicarArchivo` (solo funciona con R2). Para URLs de Cloudinary el código cae al fallback `nuevaUrl = urlOriginal` → 3 artículos (uno por sucursal) apuntan al mismo archivo Cloudinary
+- Al editar un artículo en una sucursal (reemplazando la imagen) o al eliminarlo, el backend hacía `eliminarImagenInteligente(urlVieja)` **sin verificar si otros artículos la usaban**. Borraba el archivo de Cloudinary/R2 y dejaba a las otras sucursales con `imagen_principal` apuntando a un archivo inexistente (404 en toda la UI pública y BS)
+- Mismo patrón en `eliminarSucursal` — las URLs R2 de artículos huérfanos se borraban sin reference count; si otra sucursal los seguía usando, rompía la imagen
+- Fix en `articulos.service.ts`: nuevo helper `imagenEsUsadaPorOtroArticulo(url, excluirId?)` que cuenta referencias en `imagen_principal` + `imagenes_adicionales` antes de borrar. Aplicado en `actualizarArticulo` y `eliminarArticulo`
+- Fix en `negocioManagement.service.ts` `eliminarSucursal`: reference count para URLs R2 antes del `eliminarArchivo` en paralelo
+- Query diagnóstica para detectar artículos actualmente compartiendo URL: `SELECT imagen_principal, COUNT(DISTINCT id) FROM articulos WHERE imagen_principal IS NOT NULL GROUP BY imagen_principal HAVING COUNT(DISTINCT id) > 1;`
+
+**"Marcar todas como leídas" ignoraba la sucursal activa**
+- El endpoint `PATCH /api/notificaciones/marcar-todas` marcaba TODAS las notificaciones del usuario en ese modo, sin filtrar por sucursal
+- Desde Matriz, al presionar el botón se marcaban también las pendientes de Sucursal Norte (que ni siquiera eran visibles en ese contexto)
+- Fix: `marcarTodasComoLeidas` ahora acepta `sucursalId` opcional y filtra `(sucursal_id = X OR sucursal_id IS NULL)` en modo comercial. Mismo patrón que `obtenerNotificaciones` y `contarNoLeidas`
+- Frontend: `marcarTodasLeidas` service agrega `sucursalId` al query string usando el helper `obtenerSucursalIdParaFiltro()` (BS usa sucursal activa, fuera de BS usa Matriz)
+
+**Eliminación de notificaciones no se propagaba por Socket.io**
+- Al crear notificaciones emitíamos `notificacion:nueva` y el panel se actualizaba en vivo. Al borrarlas (voucher entregado, cancelado, expirado) no emitíamos nada → el usuario veía la tarjeta hasta cerrar/reabrir el panel o recargar
+- Fix: nuevo helper `eliminarNotificacionesPorReferencia(filtro)` en `notificaciones.service.ts` que hace el DELETE y emite `notificacion:eliminada` con `{ ids }` a cada usuario afectado
+- Los 3 flujos que borraban notifs con SQL crudo (`validarVoucher`, `cancelarVoucher`, `expirarVouchersVencidos`) ahora usan el helper
+- Frontend: nuevo listener en `useNotificacionesStore` + acción `eliminarVariasPorIds(ids)` que filtra localmente y ajusta el contador de no leídas. Sin fetch, sin parpadeo
+
+**Notificaciones `voucher_pendiente` quedaban huérfanas al expirar el voucher**
+- `validarVoucher` y `cancelarVoucher` ya limpiaban sus notificaciones, pero el job pasivo `expirarVouchersVencidos` (que marca como `expirado` los vouchers que nunca se canjearon) no las limpiaba
+- Resultado: el dueño/gerentes veían en su panel "Recompensa por entregar" apuntando a vouchers que ya no existían como pendientes (puntos ya devueltos al cliente). Zombies permanentes hasta que alguien las marcara como leídas manualmente
+- Fix: agregado `DELETE FROM notificaciones WHERE tipo='voucher_pendiente' AND referencia_id=voucher.id` en `expirarVouchersVencidos` (`puntos.service.ts`)
+- Completa la cobertura de los 3 flujos que cierran un voucher: entrega (ScanYA), cancelación (CardYA cliente), expiración automática (job)
+- Para datos históricos (vouchers expirados/canjeados antes de estos fixes), ejecutar una vez en SQL: `DELETE FROM notificaciones n USING vouchers_canje v WHERE n.tipo='voucher_pendiente' AND n.referencia_tipo='voucher' AND n.referencia_id::uuid=v.id AND v.estado != 'pendiente'`
+
+**"Visitas" del cliente quedaba descoordinado entre tabla, modal y export**
+- El conteo de visitas en la tabla de Clientes no coincidía con el del modal detalle (ej: tabla decía 109, modal decía 107). Causas múltiples:
+  1. **Canje puro de voucher** no contaba como visita — `validarVoucher` solo toca `vouchers_canje`, no inserta en `puntos_transacciones`. Un cliente que fue físicamente al negocio a reclamar su recompensa quedaba invisible
+  2. **Tabla contaba transacciones revocadas**, modal y export no — la tabla no filtraba por `estado='confirmado'`
+  3. **Modal detalle no respetaba filtro de sucursal** — siempre devolvía agregación global del negocio. Gerente veía 3 visitas en tabla (su sucursal) y 7 en modal (negocio completo)
+- Fix aplicado a los 3 queries en `clientes.service.ts`:
+  - `listarClientes`, `obtenerDetalleCliente`, `obtenerClientesParaExportar` ahora comparten la misma fórmula: `COUNT(tx WHERE estado='confirmado' Y sucursal) + COUNT(vouchers_canje WHERE estado='usado' Y sucursal)`
+  - `obtenerDetalleCliente` recibe ahora `sucursalId` opcional (leído del interceptor Axios en el controller)
+- Los cupones no requieren fix — ya pasan por `registrarVenta` (incluso los "gratis" con monto=0), por lo que ya estaban contados
+- Documentación: nueva sección §4.6 "Cálculo de Visitas" en `docs/arquitectura/Clientes_Transacciones.md`
+
+**BS Transacciones mostraba vouchers cancelados inflando el historial**
+- `obtenerCanjesVouchers` devolvía todos los estados — incluyendo `cancelado`. Resultado: la tabla mostraba "15 vouchers" pero los KPIs sumaban solo 7 (3 pendientes + 4 usados + 0 vencidos) porque los KPIs sí filtran por estado específico
+- Los vouchers cancelados son "arrepentimientos" del cliente antes del canje: no representan acción pendiente, ni canje real, ni vencimiento. No aportan al histórico operativo
+- Fix: filtro `estado != 'cancelado'` agregado a la condición base del service. El tipo `VoucherCanje['estado']` y el badge en `PaginaTransacciones` conservan `'cancelado'` con fallback defensivo para futuros contextos (modales de detalle, auditoría) donde sí convenga mostrarlos
+- Badge `BadgeEstadoCanje` actualizado también con la paleta unificada: Usado → sky, Vencido → amber, Cancelado → red
+
+**Dueño veía notificaciones de todas las sucursales mezcladas**
+- El interceptor Axios añadía `sucursalId` en `config.params`, pero `notificacionesService` ya lo mandaba en la URL — se duplicaba
+- Fix: `/notificaciones` agregado a `RUTAS_SIN_SUCURSAL` en `api.ts` para que el interceptor no duplique
+
+### 📚 Documentación
+
+- `Notificaciones.md` — nuevas secciones "Filtrado por sucursal", "Destinatarios por tipo de evento", "Limpieza automática"
+- `Promociones.md` v3.1 — secciones 7.1 (estados computados), 7.2 (paleta unificada) y política de visibilidad de cupones vencidos en §9
+- `Empleados.md` — sección "Validación live de inputs en ModalEmpleado" + endpoint `/verificar-nick` + bug del interceptor 4xx
+
+---
+
+## [16 Abril 2026] - BS Sucursales: Selector de mapa, clonado de ofertas, protección de historial
+
+### ✨ Agregado
+
+**Selector de coordenadas obligatorio al crear sucursal**
+- `ModalCrearSucursal` ahora incluye un mapa interactivo Leaflet con marcador arrastrable
+- Al seleccionar ciudad del autocomplete, las coordenadas se auto-llenan con el centro de la ciudad y el marcador aparece en el mapa
+- El usuario puede arrastrar el marcador (o tocar el mapa en móvil) para ajustar la ubicación exacta
+- Zod schema `crearSucursalSchema` requiere `latitud`/`longitud` como `z.number()` con validación `-90/90` y `-180/180`
+- Service `crearSucursal` construye `ubicacion` como `ST_GeogFromText('SRID=4326;POINT(lng lat)')` — mismo patrón que `actualizarSucursal`
+- Sin coordenadas → botón "Crear sucursal" deshabilitado
+
+**Popup fullscreen del mapa en los 3 puntos de edición de ubicación**
+- Ícono `Maximize2` flotante en la esquina superior derecha del mapa
+- Al click: overlay con `createPortal(document.body)` y `z-[99999]` para quedar por encima de cualquier modal padre
+- Header oscuro con gradiente `slate`, ícono `MapPin`, título "Ajustar ubicación" y botón `X` cerrar
+- Mapa fullscreen con `zoom=16`, `scrollWheelZoom` habilitado y `zoomControl` visible para ajuste preciso
+- El marcador se mantiene sincronizado entre el mapa pequeño y el fullscreen (comparten state)
+- Aplicado en: `ModalCrearSucursal`, `TabUbicacion` (Mi Perfil) y `PasoUbicacion` (Onboarding)
+
+**Zona horaria derivada automáticamente del estado**
+- Nuevo helper `apps/api/src/utils/zonaHoraria.ts` con función `getZonaHorariaPorEstado(estado)` que mapea los 32 estados mexicanos a sus 5 zonas IANA:
+  - `America/Tijuana` (Baja California)
+  - `America/Hermosillo` (Sonora)
+  - `America/Mazatlan` (Baja California Sur, Sinaloa, Nayarit, Chihuahua)
+  - `America/Cancun` (Quintana Roo)
+  - `America/Mexico_City` (resto del país)
+- `crearSucursal` y `actualizarSucursal` usan el helper — ya no se hereda zona horaria de Matriz ni se acepta la que llega del cliente
+- Normaliza el nombre de estado (lowercase, sin tildes) para tolerar variantes
+- Fallback seguro a `America/Mexico_City` si el estado no se reconoce
+
+**Validación de nombre duplicado de sucursal en 3 capas**
+- **UI en vivo** (`ModalCrearSucursal`): `useMemo` calcula `esNombreDuplicado` comparando con la lista cacheada de sucursales. Input con borde rojo + mensaje inline + botón "Crear sucursal" deshabilitado
+- **Guard pre-submit** (`handleGuardar`): `notificar.error` si hay duplicado antes de enviar
+- **Backend** (`negocioManagement.service.ts`): query contra `negocioSucursales` → `throw new Error('NOMBRE_DUPLICADO')`. Controller responde `409` con `code: 'NOMBRE_DUPLICADO'`. Frontend atrapa el code y muestra mensaje específico
+- Comparación case-insensitive con `trim().toLowerCase()` — "Sucursal Centro" colisiona con "SUCURSAL CENTRO" y "  sucursal centro  "
+
+**Componente reutilizable `InputTelefono` con lada separada**
+- Nuevo archivo `apps/web/src/components/ui/InputTelefono.tsx` con dos inputs: lada (máx 4 chars, default `+52`) + número de 10 dígitos
+- Exporta también `normalizarTelefono(tel)` para parseo consistente en formatos: `"+52 6381234567"`, `"+526381234567"`, `"6381234567"`
+- Guarda el valor en formato `"+52 6381234567"` (lada + espacio + 10 dígitos) — mismo formato que `TabContacto` de Mi Perfil
+- Usado en `ModalCrearSucursal` reemplazando los inputs simples
+- Zod schema acepta los 3 formatos (con lada y espacio, sin espacio, o solo 10 dígitos) por retrocompatibilidad
+
+**Checklist visual de clonado de Matriz**
+- Al final del formulario de crear sucursal, cuadro `bg-slate-200 border-2 border-slate-300` con lista de elementos que se clonarán de Matriz
+- Cada ítem con `CheckCircle2` emerald: Horarios, Métodos de pago, Imágenes (perfil, portada, galería), Catálogo y Ofertas
+- Sustituye el párrafo de texto plano que existía antes
+
+**Clonado de Ofertas al crear sucursal nueva**
+- `crearSucursal` ahora clona ofertas públicas (`visibilidad = 'publico'`) de Matriz a la sucursal nueva — paso 7 del flujo de creación
+- Imágenes de ofertas se duplican en R2 con `duplicarArchivo(url, 'ofertas')` — URL independiente por sucursal
+- Se preserva: título, descripción, tipo, valor, fechas, compra mínima, límites de uso
+- `usosActuales` se reinicia a 0 en la copia (sin heredar historial)
+- Cupones privados (`visibilidad = 'privado'`) NO se clonan — son asignaciones individuales a usuarios con `codigoPersonal`
+- Animación de progreso en `VistaProgreso` incluye el paso "Copiando ofertas" con ícono `Tag`
+
+**Cleanup R2 al actualizar imagen de oferta**
+- `actualizarOferta` (`ofertas.service.ts`) ahora detecta cuando `datos.imagen` cambia respecto a la anterior
+- Si la imagen anterior es URL de R2 propia (`esUrlR2`), se elimina con `eliminarArchivo` después del UPDATE (fire-and-forget con log de error)
+- Evita acumulación de imágenes huérfanas en el bucket cuando se reemplaza o elimina la imagen de una oferta existente
+
+**Revocación automática de empleados al desactivar/eliminar sucursal**
+- Nuevo helper interno `revocarEmpleadosDeSucursal(sucursalId, motivo)` en `negocioManagement.service.ts`:
+  - Cierra turnos ScanYA abiertos (`UPDATE scanya_turnos SET hora_fin = NOW(), notas_cierre = motivo`)
+  - Marca timestamp en Redis con `revocarSesionesEmpleado(empleadoId)`
+  - Emite socket `scanya:sesion-revocada` al `usuarioId` del dueño (ScanYA filtra por `empleadoId` y cierra la sesión del empleado afectado)
+- Se ejecuta en `toggleActivaSucursal` al desactivar con motivo `'Sucursal desactivada'`
+- Se ejecuta en `eliminarSucursal` **antes del DELETE físico** con motivo `'Sucursal eliminada'` — los IDs deben obtenerse antes del CASCADE que los borra
+- Los empleados NO se marcan inactivos en BD al desactivar la sucursal — al reactivarla pueden volver a iniciar sesión
+
+**Protección de historial: bloqueo de eliminación si hay transacciones**
+- `eliminarSucursal` cuenta `puntos_transacciones` de la sucursal; si `> 0` lanza `Error('TIENE_HISTORIAL')`
+- Controller responde `409` con `code: 'TIENE_HISTORIAL'`
+- Frontend (`handleEliminar` en `PaginaSucursales`) atrapa el code y ofrece alternativa: *"'Sucursal Centro' tiene ventas registradas. Para conservar el historial no se puede eliminar. ¿Quieres desactivarla?"*
+- Si el dueño acepta → se llama a `toggleActivaSucursal(false)` automáticamente
+- Si no hay historial (sucursal recién creada por error, sin uso) → eliminación física con CASCADE y cleanup R2 como siempre
+- Hook `useEliminarSucursal.onError` suprime el toast genérico cuando `code === 'TIENE_HISTORIAL'` — evita toast + confirm duplicados
+
+**Acceso del dueño/gerente a sucursales desactivadas**
+- `obtenerPerfilSucursal` (`negocios.service.ts`) tenía filtro `s.activa = true` que bloqueaba también a BS → Mi Perfil
+- Nueva lógica con `OR`: la sucursal se devuelve si está activa O el `userId` es el dueño del negocio O es el gerente asignado a esa sucursal
+- Resultado: usuarios anónimos/clientes siguen sin verla, pero el dueño puede seguir editando horarios, imágenes, dirección mientras la sucursal está "apagada" — útil para preparar la reactivación
+
+**Nombre de sucursal en feed público y perfil**
+- Query del feed (`listarSucursales` en `negocios.service.ts`) ahora selecciona `s.es_principal` y una subquery `(SELECT COUNT(*) FROM negocio_sucursales WHERE negocio_id = n.id AND activa = true)` como `total_sucursales`
+- `SucursalResumenRow` y `NegocioResumen` incluyen `esPrincipal: boolean` y `totalSucursales: number`
+- Regla unificada de visualización:
+  - `totalSucursales > 1` → muestra `"Matriz"` (si `esPrincipal`) o el nombre de sucursal
+  - `totalSucursales === 1` → muestra la categoría del negocio (como siempre)
+- Aplicado en `CardNegocio` (feed), `PaginaNegocios` (popup del mapa) y las 5 ubicaciones de `PaginaPerfilNegocio` (header mobile, header desktop, popup del mapa dentro de `ModalMapa`, popup fullscreen en `ModalBottom` y popup compacto del sidebar)
+
+### 🐛 Corregido
+
+**Zona horaria por defecto incorrecta en sucursales nuevas (bug crítico de horarios)**
+- `crearSucursal` no copiaba `zonaHoraria` al insertar la nueva sucursal → se aplicaba el default del schema `America/Mexico_City` aunque Matriz estuviera en otra zona (ej: Sonora con `America/Hermosillo`)
+- Desfase de +1 hora hacía que la query del feed público marcara la sucursal como "Cerrado" cuando en realidad estaba abierta (la hora calculada caía fuera del horario laboral)
+- El modal de horarios del frontend sí calculaba bien (usa la zona del array de horarios recibido) — creando inconsistencia visible: badge "Cerrado" vs "Abierto — Cierra a las 6:00 PM"
+- Fix: `crearSucursal` deriva `zonaHoraria` del `datos.estado` con el helper nuevo (ver Agregado)
+
+**Feed público no reflejaba cambios al activar/desactivar sucursal**
+- `useInvalidarSucursales` invalidaba `sucursales.all()` y `perfil.sucursales(negocioId)` pero no `negocios.all()` (queries del feed público de `PaginaNegocios` y `PaginaPerfilNegocio`)
+- Al desactivar una sucursal desde BS, el dueño tenía que recargar la página para verificar que había desaparecido del feed
+- Fix: el helper ahora invalida también `queryKeys.negocios.all()`. Lista, popup y perfil individual del feed se refrescan automáticamente
+
+**Flechas del header PC mostraban módulos restringidos a gerentes**
+- Cuando un gerente navegaba con las flechas `<` `>` del header en vista desktop (`Navbar.tsx`), podía llegar a "Puntos" y "Sucursales" aunque están restringidos para su rol
+- `MobileHeader.tsx` ya tenía el filtro correcto con `vistaComoGerente` y `modulosFiltrados`
+- Fix: `Navbar.tsx` ahora usa la misma lógica — nueva constante `RUTAS_OCULTAS_GERENTE = ['/business-studio/puntos', '/business-studio/sucursales']` y `modulosNavegables` filtrados según `vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente)`
+- Las flechas, índice del módulo actual y flags `hayModuloAnterior` / `hayModuloSiguiente` usan la lista filtrada
+
+**Popup compacto del sidebar de `PaginaPerfilNegocio` no mostraba nombre de sucursal**
+- Había 5 lugares con lógica de nombre de sucursal pero solo 4 usaban el condicional. El popup del sidebar (línea ~1521) tenía un markup propio más compacto y nunca había incluido el subtítulo
+- Fix: envuelto el `<h3>` en un `<div className="min-w-0 flex-1">` con el condicional estándar. Estructura consistente con los otros 4 popups del archivo
+
+**Mi Perfil bloqueado al desactivar la sucursal activa**
+- La query `obtenerPerfilSucursal` filtraba `s.activa = true` → al desactivar la sucursal actualmente seleccionada, Mi Perfil respondía 404 y el dueño no podía editarla
+- Fix: ver "Acceso del dueño/gerente a sucursales desactivadas" en Agregado
+
+**Inputs de teléfono/WhatsApp aceptaban letras**
+- Los inputs simples del modal permitían pegar o escribir cualquier carácter
+- Fix: reemplazados por `InputTelefono` que filtra `replace(/\D/g, '')` en cada cambio, `maxLength={10}` y `inputMode="numeric"` (teclado numérico en móvil)
+- Zod valida formato `^\+\d{1,3}\s?\d{10}$` o 10 dígitos crudos como fallback
+
+### 🔧 Cambios técnicos
+
+**`negocioSucursales` no tiene columnas `latitud`/`longitud` separadas**
+- El schema Drizzle solo define `ubicacion: text()` (PostGIS POINT serializado)
+- Las queries de perfil extraen las coordenadas con `ST_Y(s.ubicacion::geometry)` y `ST_X(s.ubicacion::geometry)`
+- `actualizarSucursal` y `crearSucursal` ya siguen este patrón — no se insertan columnas separadas que no existen
+
+**Navegación de edición de sucursal**
+- El botón ✏️ en BS → Sucursales llama a `handleEditar(suc)` que hace `setSucursalActiva(id)` + `navigate('/business-studio/perfil')`
+- No existe `ModalEditarSucursal` dedicado — la edición completa (datos, imágenes, horarios, ubicación) se hace en Mi Perfil del contexto de la sucursal seleccionada
+
+---
+
+## [16 Abril 2026] - BS Sucursales: Refinamiento post-Sprint 12
+
+### ✨ Agregado
+
+**Cupones canjeables en cualquier sucursal del mismo negocio**
+- Antes: un cupón emitido por una oferta de Sucursal X solo se podía canjear en Sucursal X
+- Ahora: los cupones se canjean en cualquier sucursal del mismo negocio. `oferta_usos.sucursal_id` sigue registrando dónde ocurrió el canje para reportes correctos
+- Backend: eliminada validación de sucursal específica en `validarCupon()` (`scanya.service.ts`). Solo valida que la oferta pertenezca al negocio del ScanYA activo
+- Las ofertas siguen creándose por sucursal (sin cambios en creación) — el cambio es solo en la lógica de canje
+
+**Filtros correctos por sucursal en Reportes (gerente)**
+- Auditoría de fugas de datos: gerentes veían información de otras sucursales en KPIs de Reportes
+- **Reporte Clientes** (`reportes.service.ts`):
+  - "Clientes en riesgo" y "Perdidos" ahora usan subquery sobre `puntos_transacciones` cuando hay `sucursalId` (la tabla `puntos_billetera` es por negocio, no por sucursal)
+  - `obtenerClientesInactivos` acepta `sucursalId` y aplica mismo subquery
+- **Reporte Promociones** (reescrito con filtros):
+  - Funnel ofertas públicas: `(sucursal_id = X OR sucursal_id IS NULL)` — incluye globales
+  - Métricas engagement (vistas/clicks/shares): filtradas a ofertas aplicables
+  - Funnel cupones: filtra por ofertas aplicables a la sucursal
+  - Funnel recompensas canjeadas: filtra por `vouchers_canje.sucursal_id` (donde se canjeó)
+  - Descuento total: filtra por `oferta_usos.sucursal_id`
+  - Mejor cupón/recompensa: filtran por sucursal del canje
+  - Por vencer: filtra ofertas aplicables a la sucursal
+- El dueño (sin filtro) ve agregados de todo el negocio como antes
+
+**Dueño ya no aparece en Reporte/Empleados cuando el usuario es gerente**
+- `obtenerReporteEmpleados` acepta nuevo parámetro `incluirDueno: boolean` (default `true`)
+- Controller pasa `!esGerente` como valor — gerentes no ven al dueño en su reporte
+- KPIs "Mejor vendedor", "Ventas totales" del tab Empleados ahora reflejan solo empleados reales del gerente
+
+**Validación inteligente de correo al asignar gerente**
+- Nuevo componente reutilizable `InputCorreoValidado` con 4 niveles de validación:
+  1. Formato (regex RFC 5322 simplificada) — inmediato
+  2. Auto-exclusión (no puede ser correo del dueño) — inmediato
+  3. Detección de typos de dominio con distancia Levenshtein (13 dominios comunes MX: gmail.com, hotmail.com, yahoo.com.mx, etc.) — con botón "Corregir"
+  4. Disponibilidad contra BD con debounce 400ms
+- Indicadores visuales: `XCircle` rojo (error), `Lightbulb` ámbar (typo), `CheckCircle2` verde (nuevo), `UserCheck` verde (promoción)
+- Callback `onValidezCambio` retorna `{ valido, tipo: 'nuevo' | 'promocion', existente? }` para que el padre adapte UI
+- Modos `'registro'` y `'gerente'` — diseñado genérico para uso futuro en registro y Mi Perfil
+- Nuevo endpoint `GET /auth/verificar-disponibilidad-correo` con `verificarToken` + rate limit (500/min dev, 30/min prod) — evita enumeración pública de usuarios
+- Nuevos archivos: `utils/validarCorreo.ts` (puro), `hooks/queries/useVerificarCorreo.ts`, `components/ui/InputCorreoValidado.tsx`
+
+**Promoción de cuentas personales existentes a gerente**
+- Refactor `crearCuentaGerente` → `asignarGerenteSucursal` que maneja dos casos:
+  - **Caso A — Creación**: correo no existe → crea usuario nuevo con contraseña provisional (como antes)
+  - **Caso B — Promoción**: correo existe y es 100% personal → actualiza usuario existente, NO toca contraseña, fuerza `requiereCambioContrasena = false`
+- Nuevo email template `enviarEmailGerenteAsignado` — notificación sin credenciales para promoción
+- Inputs de nombre/apellidos se auto-llenan y deshabilitan cuando se detecta cuenta existente (se toman de la BD)
+- Botón adaptativo: "Crear cuenta" (slate) / "Asignar gerente" (con ícono UserCheck) según tipo
+- Toast del backend ahora dice el mensaje correcto según tipo (creación vs promoción)
+
+**Gerentes ahora pueden gestionar empleados de SU sucursal**
+- Cambio de política: gerentes tienen CRUD completo sobre empleados de su sucursal asignada
+- Backend `empleados.controller.ts` reescrito con nueva lógica:
+  - Helper `gerentePuedeOperarSobreEmpleado(req, empleadoId)` — true si dueño o si gerente Y el empleado es de su sucursal
+  - Nuevo helper exportado `empleadoPerteneceASucursal(empleadoId, sucursalId)` en `empleados.service.ts`
+  - Al crear/editar: `sucursalId` del body se fuerza al de gerente (no puede elegir otra)
+  - Ver detalle / toggle / eliminar / revocar sesión / editar horarios: validan pertenencia a su sucursal → 403 si no
+  - Dueño mantiene control total sin cambios
+- Frontend: botón "Nuevo empleado" visible para gerentes; botones "Revocar sesión" y "Eliminar" visibles en modal detalle
+
+**Emails estilizados estilo ScanYA**
+- Plantilla `plantillaGerenteBase` actualizada: header con gradiente azul oficial ScanYA `linear-gradient(135deg, #02143D 10%, #001E70 50%, #034AE3 100%)` + logo AnunciaYA desde URL pública en R2 (`brand/anunciaya-logo2.png`)
+- Logo cargado por URL pública (no base64) — Gmail bloquea data URIs desde 2013. PNG para máxima compatibilidad con clientes de email
+- Alt vacío en `<img>` para no mostrar texto si la imagen falla
+- Aplica a los 4 templates: creación, promoción, credenciales reenviadas, revocación
+
+### 🐛 Corregido
+
+**Cambio de contraseña provisional — mala UX**
+- `VistaCambiarContrasena` pedía 3 campos: contraseña provisional + nueva + confirmar. Pedir la provisional de nuevo era redundante porque ya se validó en el login (el `tokenTemporal` lo certifica)
+- Simplificado: ahora solo pide nueva contraseña + confirmar
+- Backend `cambiarContrasenaProvisional(tokenTemporal, nuevaContrasena)` — firma reducida. La validación "nueva ≠ provisional" ahora se hace con `bcrypt.compare` contra `contrasenaHash` almacenado
+
+**Promoción no limpiaba `requiereCambioContrasena`**
+- Si un usuario existente tenía el flag en `true` de un flujo anterior (ej: ex-gerente que nunca cambió su contraseña provisional), al ser promovido seguía con el flag en true → el sistema le forzaba cambio de contraseña aunque ya tiene una válida
+- Fix: el `UPDATE` del caso promoción fuerza `requiereCambioContrasena: false`
+
+**Toast genérico ignoraba el tipo de asignación**
+- `useCrearGerente` mostraba siempre "Cuenta de gerente creada. Se enviaron las credenciales por correo." aunque fuera promoción
+- Fix: lee `respuesta.message` del backend (que ya es condicional según tipo)
+
+**`description de negocio sin peso explícito**
+- `PaginaPerfilNegocio.tsx` mostraba `negocioDescripcion` sin `font-medium` (peso mínimo según TOKENS_GLOBALES)
+- Fix: agregado `font-medium`
+
+**Bug: Matriz podía desactivarse/eliminarse (bug crítico)**
+- `toggleActivaSucursal` tenía `catch` preparado para error "principal" pero nadie lo lanzaba → cualquier sucursal podía desactivarse incluyendo Matriz
+- Fix backend: agregadas validaciones que lanzan "La Matriz no se puede desactivar/eliminar"
+- Fix frontend UI preventiva: botones Power y Trash de Matriz ahora `disabled`, color `slate-300`, tooltip explicativo — previene el error antes del click
+- Hook `useToggleSucursalActiva` y `useEliminarSucursal`: usan mensaje de error real del backend (no genérico)
+
+**Bug: modal stale tras revocar gerente**
+- `ModalDetalleSucursal` usaba `gerenteQuery.data ?? sucursal.gerente` — el `??` devolvía el prop viejo cuando el query retornaba `null` tras revocar
+- Fix: cambiado a `gerenteQuery.isSuccess ? gerenteQuery.data : sucursal.gerente` — confía en el query una vez completado
+
+**Bug: tabla de empleados no se actualizaba al crear (cache stale)**
+- `useCrearEmpleado` invalidaba con `queryKeys.empleados.lista(sucursalId)` que produce `['empleados', 'lista', sucursalId, undefined]` — no hacía prefix match con keys que incluyen filtros
+- Fix: invalidar con `['empleados', 'lista', sucursalId]` (sin el `undefined` final) — prefix match correcto
+
+### 🎨 UX del modal de asignar gerente
+
+**Header contextual** — al abrir el sub-flujo de asignar gerente, el header del modal cambia:
+- Icono: `Building2` → `UserPlus`
+- Título: nombre de sucursal → "Asignar gerente"
+- Subtítulo: estado (Activa) → nombre de sucursal
+
+**Footer oculto durante sub-flujo**
+- Cuando `mostrarFormGerente === true`, se ocultan "Cerrar" y "Editar en Mi Perfil" del footer para evitar clicks accidentales. Solo queda "Cancelar" y "Crear cuenta/Asignar gerente" del sub-flujo.
+
+**Orden del formulario invertido**
+- Antes: Nombre → Apellidos → Correo
+- Ahora: Correo → Nombre → Apellidos. Al escribir el correo se detecta si es cuenta existente y se auto-llenan nombre/apellidos.
+
+**Texto contextual condicional**
+- Solo aparece cuando el correo fue validado (no antes)
+- Promoción: "{Nombre} recibirá una invitación por correo."
+- Creación: "{Nombre} recibirá sus credenciales de acceso por correo."
+- Se personaliza con el primer nombre (sin apellidos) para evitar redundancia
+
+**Mensaje verde del input más conciso**
+- Antes: "Se promoverá cuenta existente de {Nombre} {Apellidos} a gerente"
+- Ahora: "Cuenta existente — se promoverá a modo comercial"
+- El nombre se muestra en el texto gris debajo del form (evita redundancia)
+
+**Botón "Revocar gerente" compacto cuando aparece solo**
+- Si el gerente ya activó su cuenta (`requiereCambioContrasena=false`), el botón "Reenviar credenciales" se oculta
+- "Revocar gerente" cambia a estilo compacto ghost alineado a la derecha (sin borde, hover con fondo rojo suave)
+
+### 📧 Rediseño completo de emails transaccionales
+
+**Plantilla base unificada (`plantillaBase`)** — 6 emails ahora comparten estilo:
+- Verificación de correo (registro)
+- Recuperación de contraseña
+- Gerente creado (caso creación)
+- Gerente asignado (caso promoción)
+- Credenciales reenviadas
+- Gerente revocado
+
+**Header con gradiente azul oficial ScanYA**
+- `linear-gradient(135deg, #02143D 10%, #001E70 50%, #034AE3 100%)`
+- Logo AnunciaYA blanco desde R2 pública (`brand/anunciaya-logo2.png`) — 180px
+- Logo clickeable con `<a href="${env.FRONTEND_URL}">` (abre en nueva pestaña)
+
+**Rediseño de cajas de código** (verificación, recuperación, provisionales)
+- Fondo `#e2e8f0` + borde `#94a3b8` — tonos slate con contraste
+- Código en `#0f172a` (casi negro) monospace 22px letter-spacing 3px
+- Label uppercase 11px con letter-spacing — estilo empresarial
+- Eliminados emojis (🚀 ⏱️ ⚠️) para aspecto más profesional
+
+**Cajas de alerta "Importante"** — nuevo estilo:
+- Barra lateral ámbar 4px (`#d97706`)
+- Fondo `#fef3c7` con texto `#78350f`
+- Sin emojis, `"Importante:"` en bold negro ámbar oscuro
+
+**Footer**: `"Tu Comunidad Local"` (antes `"Comercio Local en México"`)
+
+**Contexto de negocio/sucursal en emails de gerente**
+- Nuevo helper `obtenerContextoSucursal(sucursalId)` en `sucursales.service.ts` que retorna `{ nombreNegocio, nombreSucursal }` via JOIN
+- Emails personalizados: "Has sido asignado(a) como **gerente de \"Sucursal Centro\"** del negocio **\"Panadería Tijuana\"**"
+- Asunto: "Te asignaron como gerente en Panadería Tijuana" (antes genérico)
+- Helper `escape()` HTML-safe para nombres con caracteres especiales
+
+### 🛡️ Blindaje UX del onboarding para gerentes
+
+- `PaginaOnboarding.tsx`: `useRef` evita que el toast "Los gerentes no pueden crear negocios" se muestre 2 veces (StrictMode)
+- `useEffect` de inicialización del store hace early return si `esGerente` — evita toast erróneo "No se encontró un negocio asociado a tu cuenta"
+- Return `null` temprano en el render cuando es gerente — evita flash visual antes del redirect
+- Mensaje "Acceso restringido" en `/business-studio/sucursales`: rediseñado como card con fondo blanco, icono `Lock` con gradiente slate oscuro, shadow-lg y max-width 28rem — más sobrio y profesional
+
+### 🎨 Pequeños detalles visuales
+
+- Modal detalle de sucursal principal: quitado texto "Matriz" duplicado en badge (queda solo estrella dorada)
+- Tooltips de botones usan "Matriz" en vez de "sucursal principal" — consistente con UI
+- Dropdown de avatar: quitado prefijo "Suc." — queda solo nombre de sucursal (ej: "Sucursal Centro" en vez de "Suc. Sucursal Centro")
+
+### 📝 Documentación
+
+- Actualizado: `docs/arquitectura/Sucursales.md` — flujo dos casos (creación vs promoción), validación correo 4 niveles, emails, blindajes Matriz, flujo primer login actualizado
+- Actualizado: `docs/arquitectura/Empleados.md` — política permisos dueño vs gerente, helpers, fix cache
+- Actualizado: `docs/arquitectura/Promociones.md` — cupones canjeables cross-sucursal
+- Actualizado: `docs/arquitectura/Reportes.md` — aislamiento por sucursal para gerentes
+- Actualizado: `docs/ROADMAP.md` — Perfil Personal usuario + ScanYA multi-sucursal como sprints futuros
+- Nuevo: `docs/reportes/scanya-multi-sucursal-prompt-sprint.md` — prompt detallado para sprint futuro de ScanYA multi-sucursal
+
+---
+
+## [16 Abril 2026] - BS Sucursales: Módulo Completo (Sprint 12)
+
+### ✨ Agregado
+
+**Módulo BS Sucursales — CRUD multi-sucursal + gestión de gerentes**
+
+**CRUD Sucursales**
+- Página principal con KPIs (Total, Activas, Inactivas) en `CarouselKPI`
+- Filtros: chips estado (Todas/Activas/Inactivas) + buscador con `placeholderData: keepPreviousData`
+- Vista dual: cards móvil / tabla desktop con columna "Gerente"
+- Modal crear sucursal: formulario + **vista de progreso animado** con 5 pasos (Creando → Horarios → Métodos pago → Imágenes → Catálogo) sincronizados con el request real
+- Modal detalle sucursal: info + sección gerente (asignar/revocar/reenviar credenciales)
+- Toggle activa/inactiva (revoca gerente automáticamente si se desactiva)
+- Autocomplete de ciudades con `buscarCiudades` + auto-rellenado de estado
+
+**Clonación automática desde Matriz al crear sucursal**
+- **Horarios**: 7 registros clonados de Matriz (o vacíos si Matriz no tiene)
+- **Métodos de pago**: todos clonados con tipo/activo/instrucciones
+- **Catálogo**: artículos duplicados como **registros independientes** (no asignaciones compartidas) con imágenes R2 duplicadas — cada sucursal puede tener precios/imágenes/disponibilidad distintos
+- **Imágenes R2**: foto perfil → `perfiles/`, portada → `portadas/`, galería completa → `galeria/`. Usa `CopyObjectCommand` (server-side en R2, no pasa por el backend)
+- `duplicarArchivo()` helper en `r2.service.ts`
+
+**Gestión de gerentes — creación directa por el dueño**
+- Dueño crea cuenta del gerente desde el modal de detalle de sucursal (nombre, apellidos, correo)
+- Backend genera contraseña provisional (10 chars, 1 mayús + 1 minús + 1 número) con `crypto.randomInt` + bcrypt 12 rondas + Fisher-Yates shuffle
+- Email enviado al gerente con credenciales provisionales
+- Campo nuevo `requiereCambioContrasena` en `usuarios` marca el primer login
+- Revocación → vuelve a modo personal (`sucursalAsignada=null, negocioId=null, modoActivo='personal'`)
+- Reenviar credenciales regenera password y envía nuevo email
+
+**Blindajes anti-fraude**
+- Dueño NO puede asignarse a sí mismo como gerente (validación por correo)
+- Correo único en tabla `usuarios` (409 si ya existe)
+- Máximo 1 gerente por sucursal (validación en backend)
+- Gerente NO puede: crear negocio/onboarding, cambiar correo, cambiar `sucursalAsignada`, acceder a BS Sucursales
+- Revocación en tiempo real: middleware `validarAccesoSucursal` consulta BD en cada request (no requiere blacklist Redis)
+
+**Hard delete de sucursales con limpieza exhaustiva de R2**
+- Recolección paralela de URLs (7 queries `Promise.all`): sucursal, galería, ofertas/cupones, empleados, dinámicas + premios, bolsa de trabajo, transacciones + evidencia ScanYA
+- Detección de artículos huérfanos (sin otras sucursales asignadas) → eliminación de registro + imágenes
+- Eliminación paralela en R2 con `Promise.all` + filtrado con `esUrlR2()` (solo archivos de nuestro bucket)
+- CASCADE de PostgreSQL elimina horarios, métodos pago, galería, ofertas, empleados, dinámicas, bolsa trabajo, transacciones
+- Imágenes de ChatYA **NO** se eliminan (pertenecen a conversaciones de usuarios)
+
+**Arquitectura Backend**
+- `services/sucursales.service.ts` (nuevo): KPIs, lista con gerente (LEFT JOIN evita N+1), CRUD gerentes, helper `generarContrasenaProvisional()`
+- `controllers/sucursales.controller.ts` (nuevo): 9 controllers (5 CRUD + 4 gerentes) con `validarEsDueno()`
+- `validations/sucursales.schema.ts` (nuevo): Zod schemas
+- `negocioManagement.service.ts` (extendido): `crearSucursal` con clonación, `toggleActivaSucursal` con revocación auto, `eliminarSucursal` con limpieza R2
+- 9 rutas nuevas en `negocios.routes.ts`
+- 3 templates email: creación, reenvío credenciales, revocación
+
+**Arquitectura Frontend**
+- React Query: `useSucursales.ts` con 6 mutations (crear, toggle, eliminar, crear gerente, revocar gerente, reenviar credenciales)
+- Invalidación cruzada: todas las mutations invalidan `queryKeys.perfil.sucursales(negocioId)` para sincronizar `SelectorSucursalesInline` del Navbar
+- Guard doble: frontend oculta módulo a gerentes + backend retorna 403
+
+### 🐛 Corregido
+
+**Bug: portadas guardadas en carpeta `sucursales/` en lugar de `portadas/`**
+- `duplicarArchivo(url, 'sucursales')` al duplicar la portada — ahora usa `portadas/` correctamente y foto de perfil usa `perfiles/`
+
+**Bug: soft delete de sucursal dejaba datos huérfanos**
+- `eliminarSucursal` hacía `UPDATE activa=false` en vez de DELETE. Refactorizado a hard delete con CASCADE + limpieza R2 exhaustiva
+
+**Bug: `font-medium` mínimo en descripción de negocio**
+- `PaginaPerfilNegocio.tsx`: texto `negocioDescripcion` sin peso explícito → ahora `font-medium` cumpliendo `TOKENS_GLOBALES`
+
+### 📝 Documentación
+
+- Nuevo: `docs/arquitectura/Sucursales.md` — documento completo del módulo
+- Actualizado: `docs/arquitectura/Business_Studio.md` — Sucursales marcado completado (12/14 módulos)
+- Actualizado: `docs/ROADMAP.md` — Sprint 12 agregado
+- Actualizado: `CLAUDE.md` — BS módulos completados 12/14 (85.7%)
+
+### 🔄 Migración BD aplicada en producción (16 Abril 2026)
+
+```sql
+ALTER TABLE usuarios
+ADD COLUMN requiere_cambio_contrasena BOOLEAN NOT NULL DEFAULT false;
+```
+
+---
+
 ## [12 Abril 2026] - BS Reportes: Módulo Completo (Sprint 11)
 
 ### ✨ Agregado

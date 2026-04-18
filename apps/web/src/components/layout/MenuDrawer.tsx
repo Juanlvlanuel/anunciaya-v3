@@ -219,7 +219,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             <p className="text-sm text-gray-600 px-2 truncate w-full">
               {esComercial
                 ? (usuario?.sucursalAsignada
-                  ? `Suc. ${usuario.nombreSucursalAsignada}`
+                  ? usuario.nombreSucursalAsignada
                   : usuario.correoNegocio)
                 : usuario?.correo}
             </p>

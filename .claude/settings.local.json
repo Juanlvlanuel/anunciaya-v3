@@ -73,7 +73,34 @@
       "Bash(wc -l apps/web/src/pages/private/business-studio/opiniones/*.tsx apps/web/src/services/resenasService.ts apps/web/src/types/resenas.ts)",
       "Bash(wc -l apps/web/src/pages/private/business-studio/alertas/*.tsx)",
       "Bash(ls drizzle*)",
-      "Bash(pnpm install:*)"
+      "Bash(pnpm install:*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(find /E/AnunciaYA/anunciaya/apps -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" ! -path \"*/dist/*\" -exec grep -l \"cambiarPrincipal\\\\|esPrincipal.*Principal\\\\|Star.*Principal\" {} \\\\;)",
+      "Bash(grep -n \"fotoPerfil\\\\|portadaUrl\" /e/AnunciaYA/anunciaya/apps/api/src/services/*.service.ts)",
+      "Bash(pnpm tsc:*)",
+      "Bash(echo \"---EXIT: $?---\")",
+      "Bash(awk 'NR==245' E:/AnunciaYA/anunciaya/apps/web/src/pages/private/business-studio/sucursales/ModalDetalleSucursal.tsx)",
+      "Bash(echo \"---EXIT API: $?---\")",
+      "Bash(echo \"---EXIT WEB: $?---\")",
+      "Bash(awk 'NR>=239 && NR<=280' E:/AnunciaYA/anunciaya/apps/web/src/pages/private/business-studio/sucursales/ModalDetalleSucursal.tsx)",
+      "Bash(ls -la E:/AnunciaYA/anunciaya/apps/web/public/logo-anunciaya*.webp)",
+      "Bash(node -e \"const fs=require\\('fs'\\); const b=fs.readFileSync\\('E:/AnunciaYA/anunciaya/apps/web/public/logo-anunciaya-blanco.webp'\\); console.log\\('Size:', b.length, 'bytes'\\); const b64=b.toString\\('base64'\\); console.log\\('Base64 length:', b64.length\\); fs.writeFileSync\\('E:/AnunciaYA/anunciaya/apps/api/src/utils/_logoBase64.tmp', b64\\);\")",
+      "Bash(node -e \"try{require\\('sharp'\\); console.log\\('sharp OK'\\)}catch\\(e\\){console.log\\('no sharp'\\)}\")",
+      "Bash(ls -la E:/AnunciaYA/anunciaya/apps/web/public/icons/anunciaya-*.png)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(echo \"API_EXIT=$?\")",
+      "Bash(echo \"WEB_EXIT=$?\")",
+      "Bash(awk 'NR>=965 && NR<=990' E:/AnunciaYA/anunciaya/apps/api/src/services/negocioManagement.service.ts)",
+      "Bash(python3 -c ':*)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(echo \"API Exit: $?\")",
+      "Bash(echo \"WEB Exit: $?\")",
+      "Bash(echo \"API: $?\")",
+      "Bash(echo \"WEB: $?\")",
+      "Bash(wait)",
+      "Bash(grep -E \"^--$|sucursalId|modo:|referenciaTipo\")"
     ]
-  }
+  },
+  "disableAllHooks": true
 }

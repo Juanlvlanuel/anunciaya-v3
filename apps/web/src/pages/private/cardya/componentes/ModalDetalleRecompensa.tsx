@@ -34,7 +34,7 @@ export default function ModalDetalleRecompensa({ abierto, onCerrar, recompensa, 
   const progresoN1 = comprasRequeridas > 0 ? Math.min(comprasActuales / comprasRequeridas, 1) : 0;
   const desbloqueadaN1 = recompensa.desbloqueada || false;
 
-  const colorHandle = 'rgba(255,255,255,0.45)';
+  const colorHandle = 'rgba(255,255,255,0.4)';
 
   const handleCanjear = () => {
     onCerrar();

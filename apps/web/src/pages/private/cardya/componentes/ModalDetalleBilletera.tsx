@@ -113,7 +113,7 @@ export default function ModalDetalleBilletera({
       paddingContenido="none"
       sinScrollInterno
       alturaMaxima="xl"
-      colorHandle="rgba(255,255,255,0.45)"
+      colorHandle="rgba(255,255,255,0.4)"
       headerOscuro
       className="max-w-xs lg:max-w-md 2xl:max-w-lg"
     >

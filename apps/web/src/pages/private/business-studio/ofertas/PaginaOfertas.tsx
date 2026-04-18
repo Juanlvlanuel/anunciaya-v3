@@ -262,17 +262,17 @@ function formatearFecha(fecha: string): string {
 function getBadgeEstado(estado: EstadoOferta, cupones = false): { label: string; clases: string } {
     if (cupones) {
         switch (estado) {
-            case 'activa': return { label: 'Activo', clases: 'bg-green-100 text-green-700' };
-            case 'agotada': return { label: 'Usado', clases: 'bg-blue-100 text-blue-700' };
-            case 'vencida': return { label: 'Vencido', clases: 'bg-slate-200 text-slate-600' };
+            case 'activa': return { label: 'Activo', clases: 'bg-emerald-100 text-emerald-700' };
+            case 'agotada': return { label: 'Usado', clases: 'bg-sky-100 text-sky-700' };
+            case 'vencida': return { label: 'Vencido', clases: 'bg-amber-100 text-amber-700' };
             case 'inactiva': return { label: 'Revocado', clases: 'bg-red-100 text-red-700' };
             default: return { label: estado, clases: 'bg-slate-200 text-slate-600' };
         }
     }
     switch (estado) {
-        case 'activa': return { label: 'Activa', clases: 'bg-green-100 text-green-700' };
-        case 'proxima': return { label: 'Próxima', clases: 'bg-amber-100 text-amber-700' };
-        case 'vencida': return { label: 'Vencida', clases: 'bg-slate-200 text-slate-600' };
+        case 'activa': return { label: 'Activa', clases: 'bg-emerald-100 text-emerald-700' };
+        case 'proxima': return { label: 'Próxima', clases: 'bg-blue-100 text-blue-700' };
+        case 'vencida': return { label: 'Vencida', clases: 'bg-amber-100 text-amber-700' };
         case 'agotada': return { label: 'Agotada', clases: 'bg-red-100 text-red-700' };
         case 'inactiva': return { label: 'Inactiva', clases: 'bg-slate-200 text-slate-600' };
     }
@@ -857,7 +857,7 @@ export function PaginaOfertas() {
                                 }}
                             >
                                 <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
                                 >
                                     {esCupones
@@ -881,7 +881,7 @@ export function PaginaOfertas() {
                                 }}
                             >
                                 <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                                     style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}
                                 >
                                     <TrendingUp className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
@@ -895,23 +895,23 @@ export function PaginaOfertas() {
                             {/* Inactivas/Revocados — Usados (cupones) / Próximas (ofertas) */}
                             {esCupones ? (
                                 <>
-                                    {/* Usados */}
+                                    {/* Usados — sky (completado positivamente, distinto de activo en emerald) */}
                                     <div
                                         className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                         style={{
-                                            background: 'linear-gradient(135deg, #eff6ff, #fff)',
-                                            border: '2px solid #93c5fd',
+                                            background: 'linear-gradient(135deg, #f0f9ff, #fff)',
+                                            border: '2px solid #7dd3fc',
                                             boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
                                         }}
                                     >
                                         <div
-                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
-                                            style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
+                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
+                                            style={{ background: 'linear-gradient(135deg, #bae6fd, #7dd3fc)', boxShadow: '0 3px 8px rgba(2,132,199,0.25)' }}
                                         >
-                                            <CheckCircle2 className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
+                                            <CheckCircle2 className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-sky-700" />
                                         </div>
                                         <div className="text-left">
-                                            <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-blue-700">{estadisticas.agotadas}</div>
+                                            <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-sky-700">{estadisticas.agotadas}</div>
                                             <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">Usados</div>
                                         </div>
                                     </div>
@@ -926,7 +926,7 @@ export function PaginaOfertas() {
                                         }}
                                     >
                                         <div
-                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                                             style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
                                         >
                                             <PauseCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
@@ -949,7 +949,7 @@ export function PaginaOfertas() {
                                         }}
                                     >
                                         <div
-                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                                             style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
                                         >
                                             <PauseCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
@@ -970,7 +970,7 @@ export function PaginaOfertas() {
                                         }}
                                     >
                                         <div
-                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                                             style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(217,119,6,0.25)' }}
                                         >
                                             <Calendar className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
@@ -983,23 +983,23 @@ export function PaginaOfertas() {
                                 </>
                             )}
 
-                            {/* Vencidas/Vencidos */}
+                            {/* Vencidas/Vencidos — amber (advertencia, llegó a su fin) */}
                             <div
                                 className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                                 style={{
-                                    background: 'linear-gradient(135deg, #f8fafc, #fff)',
-                                    border: '2px solid #cbd5e1',
+                                    background: 'linear-gradient(135deg, #fffbeb, #fff)',
+                                    border: '2px solid #fcd34d',
                                     boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
                                 }}
                             >
                                 <div
-                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
-                                    style={{ background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)', boxShadow: '0 3px 8px rgba(100,116,139,0.25)' }}
+                                    className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(180,83,9,0.25)' }}
                                 >
-                                    <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-600" />
+                                    <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-slate-600">{estadisticas.vencidas}</div>
+                                    <div className="text-[16px] lg:text-sm 2xl:text-base font-extrabold leading-tight text-amber-700">{estadisticas.vencidas}</div>
                                     <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mt-0.5">{esCupones ? 'Vencidos' : 'Vencidas'}</div>
                                 </div>
                             </div>

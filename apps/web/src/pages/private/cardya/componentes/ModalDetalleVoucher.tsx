@@ -25,25 +25,25 @@ const ESTADO_CONFIG: Record<
     label: 'Pendiente',
     badgeClases: 'bg-amber-100 text-amber-700',
     gradiente: 'linear-gradient(135deg, #92400e, #b45309)',
-    colorHandle: 'rgba(255,255,255,0.45)',
+    colorHandle: 'rgba(255,255,255,0.4)',
   },
   usado: {
     label: 'Usado',
     badgeClases: 'bg-green-100 text-green-700',
     gradiente: 'linear-gradient(135deg, #064e3b, #065f46)',
-    colorHandle: 'rgba(255,255,255,0.45)',
+    colorHandle: 'rgba(255,255,255,0.4)',
   },
   cancelado: {
     label: 'Cancelado',
     badgeClases: 'bg-red-100 text-red-700',
     gradiente: 'linear-gradient(135deg, #881337, #9f1239)',
-    colorHandle: 'rgba(255,255,255,0.45)',
+    colorHandle: 'rgba(255,255,255,0.4)',
   },
   expirado: {
     label: 'Expirado',
     badgeClases: 'bg-slate-200 text-slate-600',
     gradiente: 'linear-gradient(135deg, #374151, #4b5563)',
-    colorHandle: 'rgba(255,255,255,0.45)',
+    colorHandle: 'rgba(255,255,255,0.4)',
   },
 };
 

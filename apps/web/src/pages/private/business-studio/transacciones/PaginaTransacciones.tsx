@@ -72,6 +72,7 @@ import ModalDetalleCanjeBS from './ModalDetalleCanjeBS';
 import type { TransaccionPuntos, PeriodoEstadisticas } from '../../../../types/puntos';
 import type { VoucherCanje } from '../../../../types/transacciones';
 import { notificar } from '../../../../utils/notificaciones';
+import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 
 // =============================================================================
 // CSS — Animación del icono del header
@@ -148,12 +149,6 @@ const formatearFechaCorta = (fechaISO: string | null) => {
   return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-/** Iniciales del nombre para avatar fallback */
-const obtenerIniciales = (nombre: string) => {
-  const partes = nombre.trim().split(' ');
-  if (partes.length >= 2) return `${partes[0][0]}${partes[1][0]}`.toUpperCase();
-  return nombre.substring(0, 2).toUpperCase();
-};
 
 /** Formatea teléfono: +526441234567 → +52 644 1234567 */
 const formatearTelefono = (tel: string): string => {
@@ -197,11 +192,14 @@ const colorExpiracion = (fechaISO: string | null): string => {
 
 /** Badge de estado para vouchers de canje */
 const BadgeEstadoCanje = ({ estado }: { estado: VoucherCanje['estado'] }) => {
-  const config = {
+  const configs = {
     pendiente: { texto: 'Pendiente', icono: Hourglass, bg: 'bg-amber-100', color: 'text-amber-700' },
-    usado: { texto: 'Usado', icono: CheckCircle, bg: 'bg-green-100', color: 'text-green-700' },
-    expirado: { texto: 'Vencido', icono: AlertCircle, bg: 'bg-red-100', color: 'text-red-700' },
-  }[estado];
+    usado: { texto: 'Usado', icono: CheckCircle, bg: 'bg-sky-100', color: 'text-sky-700' },
+    expirado: { texto: 'Vencido', icono: AlertCircle, bg: 'bg-amber-100', color: 'text-amber-700' },
+    cancelado: { texto: 'Cancelado', icono: XCircle, bg: 'bg-red-100', color: 'text-red-700' },
+  } as const;
+  // Fallback defensivo — si llega un estado desconocido no rompe la UI
+  const config = configs[estado] ?? { texto: estado, icono: AlertCircle, bg: 'bg-slate-100', color: 'text-slate-700' };
   const Icono = config.icono;
   return (
     <span className={`inline-flex items-center gap-0.5 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold ${config.bg} ${config.color}`}>
@@ -957,7 +955,7 @@ export default function PaginaTransacciones() {
                     }}
                   >
                     <div
-                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}
                     >
                       <DollarSign className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
@@ -980,7 +978,7 @@ export default function PaginaTransacciones() {
                     }}
                   >
                     <div
-                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}
                     >
                       <Hash className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
@@ -1003,7 +1001,7 @@ export default function PaginaTransacciones() {
                     }}
                   >
                     <div
-                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(202,138,4,0.25)' }}
                     >
                       <BarChart3 className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
@@ -1026,7 +1024,7 @@ export default function PaginaTransacciones() {
                     }}
                   >
                     <div
-                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
                     >
                       <XCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
@@ -1049,7 +1047,7 @@ export default function PaginaTransacciones() {
                     className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                     style={{ background: 'linear-gradient(135deg, #eff6ff, #fff)', border: '2px solid #93c5fd', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
                   >
-                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}>
+                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 3px 8px rgba(37,99,235,0.25)' }}>
                       <Ticket className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-blue-700" />
                     </div>
                     <div className="text-left">
@@ -1063,7 +1061,7 @@ export default function PaginaTransacciones() {
                     className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                     style={{ background: 'linear-gradient(135deg, #f0fdf4, #fff)', border: '2px solid #86efac', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
                   >
-                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}>
+                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}>
                       <Gift className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
                     </div>
                     <div className="text-left">
@@ -1077,7 +1075,7 @@ export default function PaginaTransacciones() {
                     className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                     style={{ background: 'linear-gradient(135deg, #fffbeb, #fff)', border: '2px solid #fcd34d', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
                   >
-                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(217,119,6,0.25)' }}>
+                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(217,119,6,0.25)' }}>
                       <DollarSign className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
                     </div>
                     <div className="text-left">
@@ -1091,7 +1089,7 @@ export default function PaginaTransacciones() {
                     className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 rounded-xl px-2 lg:px-2 2xl:px-3 py-0 lg:py-1.5 2xl:py-2 shrink-0 h-13 2xl:h-16 min-w-[calc(30%-10px)] lg:min-w-[110px] 2xl:min-w-[140px]"
                     style={{ background: 'linear-gradient(135deg, #fef2f2, #fff)', border: '2px solid #fca5a5', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}
                   >
-                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}>
+                    <div className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}>
                       <Receipt className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
                     </div>
                     <div className="text-left">
@@ -1115,7 +1113,7 @@ export default function PaginaTransacciones() {
                     }}
                   >
                     <div
-                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 3px 8px rgba(202,138,4,0.25)' }}
                     >
                       <Hourglass className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />
@@ -1138,7 +1136,7 @@ export default function PaginaTransacciones() {
                     }}
                   >
                     <div
-                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: 'linear-gradient(135deg, #bbf7d0, #86efac)', boxShadow: '0 3px 8px rgba(22,163,74,0.25)' }}
                     >
                       <CheckCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-green-700" />
@@ -1161,7 +1159,7 @@ export default function PaginaTransacciones() {
                     }}
                   >
                     <div
-                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.25)' }}
                     >
                       <AlertCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-red-700" />
@@ -1184,7 +1182,7 @@ export default function PaginaTransacciones() {
                     }}
                   >
                     <div
-                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+                      className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: 'linear-gradient(135deg, #f5d0fe, #e879f9)', boxShadow: '0 3px 8px rgba(168,85,247,0.25)' }}
                     >
                       <Gift className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-purple-700" />
@@ -1289,7 +1287,7 @@ export default function PaginaTransacciones() {
                         onClick={() => setEstadoFiltro(e.id)}
                         className={`px-3 2xl:px-4 h-10 2xl:h-11 flex items-center rounded-lg text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${estadoFiltro === e.id
                             ? 'text-white border-slate-700 shadow-sm'
-                            : 'bg-slate-200 text-slate-600 border-slate-300 hover:bg-slate-300'
+                            : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                           }`}
                         style={estadoFiltro === e.id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                       >
@@ -1500,7 +1498,7 @@ export default function PaginaTransacciones() {
                       onClick={() => setEstadoFiltroCanjes(e.id)}
                       className={`px-3 2xl:px-4 h-10 2xl:h-11 flex items-center rounded-lg lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${estadoFiltroCanjes === e.id
                           ? 'text-white border-slate-700 shadow-sm'
-                          : 'bg-slate-200 text-slate-600 border-slate-300 hover:bg-slate-300'
+                          : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                         }`}
                       style={estadoFiltroCanjes === e.id ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                     >
@@ -1718,12 +1716,12 @@ export default function PaginaTransacciones() {
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                         <div
                           onClick={(e) => { if (tx.clienteAvatarUrl) { e.stopPropagation(); setAvatarUrl(tx.clienteAvatarUrl); } }}
-                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0 overflow-hidden ${tx.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${tx.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
                         >
                           {tx.clienteAvatarUrl ? (
                             <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">
+                            <span className="text-xs font-bold text-indigo-700">
                               {obtenerIniciales(tx.clienteNombre)}
                             </span>
                           )}
@@ -1846,15 +1844,13 @@ export default function PaginaTransacciones() {
                     >
                       {/* Cliente */}
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
-                        {tx.clienteAvatarUrl ? (
-                          <img src={tx.clienteAvatarUrl} alt="" className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">
-                              {tx.clienteNombre?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
+                        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                          {tx.clienteAvatarUrl ? (
+                            <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(tx.clienteNombre)}</span>
+                          )}
+                        </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-800 truncate 2xl:text-[15px]">{tx.clienteNombre}</p>
                         </div>
@@ -1863,7 +1859,7 @@ export default function PaginaTransacciones() {
                       {/* Cupón título */}
                       <div className="flex items-center gap-2 min-w-0">
                         {tx.cuponImagen && (
-                          <img src={tx.cuponImagen} alt="" className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-md object-cover shrink-0" />
+                          <img src={tx.cuponImagen} alt="" className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg object-cover shrink-0" />
                         )}
                         <span className="font-bold text-slate-600 truncate">{tx.cuponTitulo || 'Cupón'}</span>
                       </div>
@@ -1966,12 +1962,12 @@ export default function PaginaTransacciones() {
                     <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                       <div
                         onClick={(e) => { if (canje.clienteAvatarUrl) { e.stopPropagation(); setAvatarUrl(canje.clienteAvatarUrl); } }}
-                        className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+                        className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
                       >
                         {canje.clienteAvatarUrl ? (
                           <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-blue-700">
+                          <span className="text-xs font-bold text-indigo-700">
                             {obtenerIniciales(canje.clienteNombre)}
                           </span>
                         )}
@@ -1989,7 +1985,7 @@ export default function PaginaTransacciones() {
                         <img
                           src={canje.recompensaImagenUrl}
                           alt=""
-                          className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-md object-cover shrink-0"
+                          className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg object-cover shrink-0"
                         />
                       )}
                       <span className="font-bold text-slate-600 truncate leading-tight">
@@ -2125,15 +2121,13 @@ export default function PaginaTransacciones() {
                     style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                   >
                     {/* Avatar */}
-                    {tx.clienteAvatarUrl ? (
-                      <img src={tx.clienteAvatarUrl} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                        <span className="text-sm font-bold text-blue-700">
-                          {tx.clienteNombre?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
+                    <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                      {tx.clienteAvatarUrl ? (
+                        <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-base font-bold text-indigo-700">{obtenerIniciales(tx.clienteNombre)}</span>
+                      )}
+                    </div>
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-base font-bold text-slate-800 truncate">{tx.clienteNombre}</p>

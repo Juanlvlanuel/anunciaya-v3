@@ -92,7 +92,7 @@ export function KpiCard({ icono: Icono, label, valor, color, onClick, disabled, 
   const contenido = (
     <>
       <div
-        className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+        className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0"
         style={{ background: paleta.iconBg, boxShadow: paleta.iconShadow }}
       >
         <Icono className={`w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${paleta.texto}`} />

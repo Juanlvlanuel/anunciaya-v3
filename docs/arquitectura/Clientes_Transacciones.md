@@ -1,9 +1,9 @@
 # 📊 Documentación Completa: Módulos Clientes y Transacciones
 ## Business Studio - AnunciaYA v3.0
 
-**Versión:** 3.1
+**Versión:** 3.2
 **Fase:** 5.8
-**Fecha:** Abril 2026
+**Fecha:** 17 Abril 2026 (última actualización — filtro de cancelados en historial + paleta unificada de badges)
 **Chats de referencia:** Chat#6.73, Chat#6.62, Chat#6.63, Chat#6.74, Chat#6.75, Chat#6.76
 
 ---
@@ -288,7 +288,7 @@ El toggle cambia: KPIs, filtros disponibles, tabla/lista, y modal de detalle.
 | Cliente | Avatar + Nombre + Teléfono | ❌ | Click abre modal |
 | Recompensa | Thumbnail + Nombre | ❌ | Imagen del catálogo si existe |
 | Puntos | -550 | ✅ | Con signo negativo, color ámbar |
-| Estado | Badge | ❌ | Pendiente (ámbar+Hourglass), Usado (verde+CheckCircle), Vencido (rojo+AlertCircle) |
+| Estado | Badge | ❌ | Pendiente (ámbar+Hourglass), Usado (sky+CheckCircle), Vencido (amber+AlertCircle). Paleta unificada con Promociones (ver `docs/arquitectura/Promociones.md` §7.2) |
 | Expira | Fecha/días | ✅ | Siempre muestra expiración. Urgencia: rojo ≤3 días, amber ≤7 días |
 | Canjeado | Fecha de uso | ❌ | ✓ verde con fecha si fue usado, "—" si no |
 
@@ -301,6 +301,24 @@ El toggle cambia: KPIs, filtros disponibles, tabla/lista, y modal de detalle.
 | **Estado** | Toggle pills | Todos / Pendientes / Usados / Vencidos |
 
 **No incluye:** Filtro por operador ni exportar Excel (solo aplican a Ventas).
+
+### 3.5.5 Política de visibilidad — vouchers cancelados
+
+> **Agregado:** 17 Abril 2026
+
+Los vouchers con `estado = 'cancelado'` **no aparecen en el historial** de Tab Canjes. El backend (`obtenerCanjesVouchers` en `transacciones.service.ts`) filtra con una condición base `estado != 'cancelado'`.
+
+**Rationale:**
+- Los cancelados son "arrepentimientos" del cliente antes del canje — se generan cuando el cliente desde CardYA cancela un voucher que aún no había usado
+- No representan acción pendiente, canje real ni vencimiento → no aportan valor operativo
+- Mantenerlos desincronizaba el conteo con los KPIs (que solo suman pendientes/usados/vencidos): tabla decía "15 vouchers" pero KPIs sumaban 7
+
+**Qué se conserva:**
+- El tipo TypeScript `VoucherCanje['estado']` sigue incluyendo `'cancelado'`
+- El componente `BadgeEstadoCanje` lo renderiza (rojo + XCircle) con fallback defensivo
+- Esto permite que futuros contextos (modal de detalle del cliente, auditoría, reportes avanzados) puedan mostrar vouchers cancelados sin que la UI reviente
+
+**Dónde se cancela:** `cancelarVoucher` en `cardya.service.ts` (línea 859 aprox) — el cliente desde CardYA, antes de canjear en ScanYA. Ver `docs/arquitectura/CardYA.md` sección "Fix defensivo: cancelarVoucher".
 
 ### 3.5.5 ModalDetalleCanjeBS
 
@@ -411,8 +429,52 @@ Este dato se carga en background al hacer login/hidratar desde `obtenerSucursale
 | Cliente | Avatar + Nombre + Tel (últimos 4) | ❌ | Click abre modal |
 | Nivel | Badge con color | ❌ | 🟤🟤🟡 |
 | Puntos | Disponibles | ✅ | Formato 5,200 |
-| Visitas | Total transacciones | ✅ | Entero |
+| Visitas | Total de presencias físicas del cliente | ✅ | Ver §4.6 "Cálculo de Visitas" |
 | Últ. Actividad | Fecha relativa | ✅ | "Hoy", "Hace 3 días" |
+
+### 4.6 Cálculo de "Visitas" (unificado tabla + modal + export)
+
+> **Agregado:** 17 Abril 2026
+
+El conteo de visitas del cliente debe reflejar cuántas veces el cliente estuvo físicamente en el negocio. Aplica el mismo criterio en los 3 puntos donde se muestra: tabla principal (`listarClientes`), modal detalle (`obtenerDetalleCliente`) y export Excel (`obtenerClientesParaExportar`).
+
+**Fórmula:**
+
+```
+totalVisitas =
+  COUNT(puntos_transacciones WHERE estado='confirmado' AND sucursal_id = X?)
+  +
+  COUNT(vouchers_canje WHERE estado='usado' AND sucursal_id = X?)
+```
+
+**Qué se cuenta:**
+
+| Interacción | ¿Entra en `puntos_transacciones`? | ¿Cuenta como visita? |
+|---|---|---|
+| Venta con puntos confirmada | ✅ `estado='confirmado'` | ✅ Sí |
+| Venta + cupón aplicado | ✅ `estado='confirmado'` con `oferta_uso_id` | ✅ Sí |
+| Cupón gratis (sin compra) | ✅ `estado='confirmado'` con `monto=0` | ✅ Sí |
+| **Canje puro de voucher** (cliente solo reclama recompensa) | ❌ NO genera tx | ✅ Sí — contado desde `vouchers_canje` |
+| Venta **revocada** por dueño/gerente | ✅ pero `estado='revocado'` | ❌ NO cuenta (operación anulada) |
+| Venta **pendiente** de confirmación del cliente | ✅ pero `estado='pendiente'` | ❌ NO cuenta aún (solo al confirmarse) |
+| Voucher **cancelado** por cliente antes de canjear | En `vouchers_canje` con `estado='cancelado'` | ❌ NO cuenta (nunca se realizó) |
+
+**Filtro de sucursal:**
+- Si la request trae `sucursalId` (interceptor Axios en modo comercial): ambos contadores filtran por esa sucursal
+- Si no trae `sucursalId`: agregación global del negocio
+- **Tabla, modal y export** aplican el mismo filtro → consistencia visual garantizada
+
+**Rationale del diseño:**
+- Un **canje puro de voucher** es una visita genuina: el cliente fue al negocio a reclamar su recompensa. Antes quedaba fuera porque `validarVoucher` solo actualiza `vouchers_canje`, no inserta en `puntos_transacciones`.
+- Las **transacciones revocadas** no cuentan porque la operación fue anulada (fraude, error de captura). Si las contáramos, infláríamos la frecuencia del cliente con eventos que no ocurrieron en la realidad.
+- Las **pendientes** no cuentan hasta que el cliente confirme — es el estado previo a la visita "completa" desde la perspectiva de negocio.
+- El **modal detalle** acepta ahora `sucursalId` como parámetro opcional. Antes era global del negocio y generaba inconsistencia con la tabla (gerente veía 3 visitas en tabla y 7 en modal). Ahora ambos coinciden.
+
+**Archivos afectados:**
+- `apps/api/src/services/clientes.service.ts` → 3 queries (`listarClientes`, `obtenerDetalleCliente`, `obtenerClientesParaExportar`)
+- `apps/api/src/controllers/clientes.controller.ts` → `obtenerDetalleClienteController` lee `req.query.sucursalId` y lo pasa al service
+
+---
 
 ### 4.4 Funcionalidades
 

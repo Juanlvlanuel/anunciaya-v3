@@ -582,14 +582,20 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
             >
               {negocio.negocioNombre}
             </h3>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[13px] font-bold text-white"
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              {/*
+                Si el negocio tiene más de 1 sucursal → muestra "Matriz" o nombre de sucursal
+                Si solo tiene 1 sucursal (única Matriz) → muestra la categoría
+              */}
+              <span className="text-[13px] font-bold text-white truncate min-w-0"
                 style={{ WebkitTextStroke: '1.2px rgba(0,0,0,1)', paintOrder: 'stroke fill', textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000' }}
               >
-                {categoriaNombre}
+                {negocio.totalSucursales > 1
+                  ? (negocio.esPrincipal ? 'Matriz' : (negocio.sucursalNombre || categoriaNombre))
+                  : categoriaNombre}
               </span>
               {tieneResenas && (
-                <span className="flex items-center gap-0.5">
+                <span className="flex items-center gap-0.5 shrink-0">
                   <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                   <span className="text-[13px] font-extrabold text-white"
                     style={{ WebkitTextStroke: '1.2px rgba(0,0,0,1)', paintOrder: 'stroke fill', textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000' }}

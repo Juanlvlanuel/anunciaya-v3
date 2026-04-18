@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 12 Abril 2026
-**Versión:** 2.1 (BS Reportes completado — 11/14 módulos)
+**Última actualización:** 16 Abril 2026
+**Versión:** 2.2 (BS Sucursales completado — 12/14 módulos)
 
 ---
 
@@ -55,7 +55,7 @@ Business Studio es el **centro de administración completo** para negocios regis
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 11 de 14 módulos completados (79%). Migración React Query: 11/11 BS completo.
+**Progreso actual:** 12 de 14 módulos completados (86%). Migración React Query: 12/12 BS completo.
 
 ---
 
@@ -213,12 +213,12 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
 | 12 | Reportes | `/business-studio/reportes` | FileBarChart | ✅ Completo |
-| 13 | Sucursales | `/business-studio/sucursales` | Building2 | ⏳ Pendiente |
+| 13 | Sucursales | `/business-studio/sucursales` | Building2 | ✅ Completo |
 | 14 | Mi Perfil | `/business-studio/perfil` | User | ✅ 100% |
 
 ---
 
-## ✅ Módulos Completados (10/14)
+## ✅ Módulos Completados (12/14)
 
 ### 1. Dashboard ✅
 
@@ -534,12 +534,24 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### Sucursales ⏳
+### Sucursales ✅
 
-**Tiempo estimado:** ~2 días
+**Ruta:** `/business-studio/sucursales`
+**Completado:** 16 Abril 2026 (Sprint 12)
 
-**Funcionalidad esperada:**
-- Gestión multi-sucursal completa
+**Funcionalidad:**
+- KPIs (Total, Activas, Inactivas)
+- CRUD completo con filtros + vista dual móvil/desktop
+- Clonación automática desde Matriz: horarios, métodos de pago, catálogo completo (artículos independientes), imágenes R2 (foto perfil, portada, galería)
+- Modal crear con vista de progreso animado (5 pasos sincronizados con el request)
+- Gestión de gerentes: dueño crea cuenta directamente (sin auto-registro), revoca, reenvía credenciales
+- Contraseña provisional + `requiereCambioContrasena` para primer login
+- Blindajes anti-fraude: dueño no puede auto-asignarse, correo único, 1 gerente por sucursal, gerente no puede cambiar correo/sucursalAsignada ni crear negocio propio
+- Hard delete con limpieza exhaustiva de R2 (sucursal, galería, artículos huérfanos, ofertas, empleados, dinámicas + premios, bolsa trabajo, tickets ScanYA, evidencia transacciones) en paralelo
+- CASCADE de PostgreSQL en tablas relacionadas
+- ChatYA NO se elimina (pertenece a conversaciones de usuarios)
+
+**Documento dedicado:** `docs/arquitectura/Sucursales.md`
 
 ---
 
@@ -1049,7 +1061,7 @@ export async function actualizarInfoGeneral() { ... }
 
 **Última verificación:** 12 Abril 2026
 
-**Módulos completados:** 11/14 ✅
+**Módulos completados:** 12/14 ✅
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
@@ -1061,13 +1073,14 @@ export async function actualizarInfoGeneral() { ... }
 - Alertas (03/04/2026)
 - Empleados (05/04/2026)
 - Reportes (12/04/2026)
+- Sucursales (16/04/2026)
 
-**Módulos pendientes:** 3/14
-- Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
+**Módulos pendientes:** 2/14
+- Rifas (bloqueado por Dinámicas), Vacantes (bloqueado por Empleos)
 
-**Progreso:** 11/14 módulos = 79%
+**Progreso:** 12/14 módulos = 86%
 
-**Migración React Query:** 11/11 módulos BS completados (Abril 2026)
+**Migración React Query:** 12/12 módulos BS completados (Abril 2026)
 - Todos los datos del servidor en `hooks/queries/`
 - Stores Zustand simplificados a solo estado UI
 - 4 stores eliminados (Artículos, Ofertas, Reseñas, Empleados)

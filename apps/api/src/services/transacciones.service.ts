@@ -308,6 +308,11 @@ export async function obtenerHistorialCanjes(
       eq(vouchersCanje.negocioId, negocioId),
       gte(vouchersCanje.createdAt, fechaInicio.toISOString()),
       lte(vouchersCanje.createdAt, fechaFin.toISOString()),
+      // Excluir vouchers cancelados del historial — son "arrepentimientos" del
+      // cliente que no representan acción pendiente, canje real ni vencimiento.
+      // Mantenerlos genera ruido visual y desincroniza los KPIs (que solo
+      // cuentan pendientes/usados/vencidos).
+      sql`${vouchersCanje.estado} != 'cancelado'`,
     ];
 
     // Filtro por estado

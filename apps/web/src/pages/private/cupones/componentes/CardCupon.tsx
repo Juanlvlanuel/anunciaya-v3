@@ -20,11 +20,11 @@ import type { CuponCliente } from '../../../../services/misCuponesService';
 function getBadgeEstado(estado: string): { label: string; clases: string; icono: React.ComponentType<{ className?: string }> } {
     switch (estado) {
         case 'activo':
-            return { label: 'Activo', clases: 'bg-emerald-600 text-white', icono: CheckCircle };
+            return { label: 'Activo', clases: 'bg-emerald-100 text-emerald-700', icono: CheckCircle };
         case 'usado':
-            return { label: 'Usado', clases: 'bg-slate-200 text-slate-700', icono: CheckCircle };
+            return { label: 'Usado', clases: 'bg-sky-100 text-sky-700', icono: CheckCircle };
         case 'expirado':
-            return { label: 'Expirado', clases: 'bg-amber-100 text-amber-700', icono: Clock };
+            return { label: 'Vencido', clases: 'bg-amber-100 text-amber-700', icono: Clock };
         case 'revocado':
             return { label: 'Revocado', clases: 'bg-red-100 text-red-700', icono: XCircle };
         default:

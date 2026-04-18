@@ -209,7 +209,7 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
       className="group flex gap-2 lg:gap-1.5 2xl:gap-2 p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-slate-200 transition-all cursor-pointer"
     >
       {/* Imagen o Placeholder */}
-      <div className={`${vistaMobil ? 'w-14 h-14' : 'w-12 h-12'} lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-md overflow-hidden shrink-0`}>
+      <div className={`${vistaMobil ? 'w-14 h-14' : 'w-12 h-12'} lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg overflow-hidden shrink-0`}>
         {campana.imagen ? (
           <img
             src={campana.imagen}

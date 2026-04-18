@@ -82,7 +82,7 @@ export interface VoucherCanje {
   recompensaImagenUrl: string | null;
   // Puntos y estado
   puntosUsados: number;
-  estado: 'pendiente' | 'usado' | 'expirado';
+  estado: 'pendiente' | 'usado' | 'expirado' | 'cancelado';
   // Fechas
   expiraAt: string | null;
   createdAt: string | null;

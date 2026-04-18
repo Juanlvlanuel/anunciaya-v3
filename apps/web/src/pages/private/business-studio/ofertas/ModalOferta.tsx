@@ -66,13 +66,13 @@ type TabActivo = 'oferta' | 'exclusiva' | 'clientes';
 // =============================================================================
 
 const GRADIENTES_TIPO: Record<TipoOferta, { bg: string; shadow: string; handle: string }> = {
-    porcentaje:   { bg: 'linear-gradient(135deg, #b91c1c, #dc2626)', shadow: 'rgba(185,28,28,0.4)', handle: '#b91c1c' },
-    monto_fijo:   { bg: 'linear-gradient(135deg, #15803d, #16a34a)', shadow: 'rgba(21,128,61,0.4)',  handle: '#15803d' },
-    '2x1':        { bg: 'linear-gradient(135deg, #b45309, #d97706)', shadow: 'rgba(180,83,9,0.4)',   handle: '#b45309' },
-    '3x2':        { bg: 'linear-gradient(135deg, #b45309, #d97706)', shadow: 'rgba(180,83,9,0.4)',   handle: '#b45309' },
-    envio_gratis: { bg: 'linear-gradient(135deg, #1e40af, #2563eb)', shadow: 'rgba(30,64,175,0.4)',  handle: '#1e40af' },
-    regalo:       { bg: 'linear-gradient(135deg, #6d28d9, #7c3aed)', shadow: 'rgba(109,40,217,0.4)', handle: '#6d28d9' },
-    otro:         { bg: 'linear-gradient(135deg, #334155, #475569)', shadow: 'rgba(51,65,85,0.4)',   handle: '#334155' },
+    porcentaje:   { bg: 'linear-gradient(135deg, #b91c1c, #dc2626)', shadow: 'rgba(185,28,28,0.4)', handle: 'rgba(255,255,255,0.4)' },
+    monto_fijo:   { bg: 'linear-gradient(135deg, #15803d, #16a34a)', shadow: 'rgba(21,128,61,0.4)',  handle: 'rgba(255,255,255,0.4)' },
+    '2x1':        { bg: 'linear-gradient(135deg, #b45309, #d97706)', shadow: 'rgba(180,83,9,0.4)',   handle: 'rgba(255,255,255,0.4)' },
+    '3x2':        { bg: 'linear-gradient(135deg, #b45309, #d97706)', shadow: 'rgba(180,83,9,0.4)',   handle: 'rgba(255,255,255,0.4)' },
+    envio_gratis: { bg: 'linear-gradient(135deg, #1e40af, #2563eb)', shadow: 'rgba(30,64,175,0.4)',  handle: 'rgba(255,255,255,0.4)' },
+    regalo:       { bg: 'linear-gradient(135deg, #6d28d9, #7c3aed)', shadow: 'rgba(109,40,217,0.4)', handle: 'rgba(255,255,255,0.4)' },
+    otro:         { bg: 'linear-gradient(135deg, #334155, #475569)', shadow: 'rgba(51,65,85,0.4)',   handle: 'rgba(255,255,255,0.4)' },
 };
 
 const ICONOS_TIPO: Record<TipoOferta, React.ComponentType<{ className?: string }>> = {

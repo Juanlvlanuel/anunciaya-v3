@@ -332,20 +332,20 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **ChatYA** ✅ 100% — Sprint 7 completado (20 Mar 2026). 41 API tests + 10 E2E tests
 - **Promociones** ✅ 100% — Ofertas + Cupones unificados (22 Mar 2026). 35 API tests + 7 E2E tests
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
-- **Business Studio** (79%) — 11/14 módulos completados
-- **Migración React Query** ✅ completa — BS (11/11): Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil, Reportes. Públicas (4/4): Negocios, CardYA, Mis Cupones, Mis Guardados. Pendientes: ChatYA, ScanYA, Onboarding (evaluar caso por caso)
+- **Business Studio** (86%) — 12/14 módulos completados
+- **Migración React Query** ✅ completa — BS (12/12): Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil, Reportes, Sucursales. Públicas (4/4): Negocios, CardYA, Mis Cupones, Mis Guardados. Pendientes: ChatYA, ScanYA, Onboarding (evaluar caso por caso)
 
-### BS Módulos Completados (11/14)
+### BS Módulos Completados (12/14)
 
-Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Empleados ✅, Reportes ✅
+Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Empleados ✅, Reportes ✅, Sucursales ✅
 
-### BS Módulos Pendientes (3/14)
+### BS Módulos Pendientes (2/14)
 
-Sucursales, Rifas (bloqueado), Vacantes (bloqueado)
+Rifas (bloqueado por Dinámicas), Vacantes (bloqueado por Empleos)
 
 ### Siguiente Sprint
 
-BS Sucursales
+Secciones Públicas (Ofertas, MarketPlace, Dinámicas, Empleos) o Panel Admin
 
 ---
 

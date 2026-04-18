@@ -46,7 +46,8 @@ import type {
     BuscarPersonasResponse,
     BuscarNegociosResponse,
 } from '../types/chatya.types.js';
-import { generarPresignedUrl } from './r2.service.js';
+import { generarPresignedUrl, eliminarArchivo, esUrlR2 } from './r2.service.js';
+import { env } from '../config/env.js';
 
 
 // =============================================================================
@@ -64,6 +65,65 @@ function determinarPosicion(
     if (conv.participante1Id === usuarioId) return 'p1';
     if (conv.participante2Id === usuarioId) return 'p2';
     return null;
+}
+
+/**
+ * Extrae las URLs R2 embebidas en el contenido de un mensaje — sin importar el formato.
+ *
+ * El contenido de un mensaje puede tomar 3 formas según cómo lo generó el cliente:
+ *  1. URL directa (ej. `https://pub-xxx.r2.dev/chat/audio/...`)
+ *  2. JSON con metadatos para imagen: `{"url": "...", "ancho": 1599, "alto": 1200, "peso": ..., "miniatura": "data:..."}`
+ *  3. JSON de cupón: `{"ofertaId": "...", "imagen": "...", ...}`
+ *
+ * En vez de parsear cada forma, usamos un regex que captura cualquier URL que
+ * matchee el dominio R2 configurado. Robusto frente a cambios futuros en la
+ * estructura JSON.
+ *
+ * Nota: usa el mismo patrón que el reconcile SQL (`text-scan-urls`) para
+ * mantener consistencia.
+ */
+const _regexR2 = new RegExp(
+    `${env.R2_PUBLIC_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[^\\s"'}\`<>]+`,
+    'g'
+);
+
+function extraerUrlsR2DeMensajeChat(contenido: string | null, _tipo: string): string[] {
+    if (!contenido) return [];
+    const matches = contenido.match(_regexR2);
+    return matches ? [...new Set(matches)] : []; // deduplica por si la misma URL aparece 2 veces
+}
+
+/**
+ * Borra una URL R2 de un adjunto de chat si ningún OTRO mensaje la referencia.
+ *
+ * Se usa al eliminar un mensaje para limpiar su archivo adjunto evitando que
+ * quede huérfano en el bucket. El reference-count protege contra el caso (raro
+ * pero posible) de que la misma URL aparezca en otro mensaje — ej. respuestas
+ * citadas o reenvíos donde el cliente podría duplicar la URL.
+ */
+async function limpiarUrlR2DeMensajeHuerfana(
+    url: string,
+    excluirMensajeId: string
+): Promise<void> {
+    try {
+        if (!esUrlR2(url)) return;
+
+        const [{ total }] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(chatMensajes)
+            .where(and(
+                sql`${chatMensajes.contenido} LIKE ${`%${url}%`}`,
+                sql`${chatMensajes.id} != ${excluirMensajeId}`,
+            ));
+
+        if (total === 0) {
+            await eliminarArchivo(url);
+        } else {
+            console.log(`ℹ️ Archivo chat conservado (usado por ${total} otro(s) mensaje(s)): ${url}`);
+        }
+    } catch (error) {
+        console.error('Error limpiando archivo R2 de chat:', error);
+    }
 }
 
 /**
@@ -774,6 +834,28 @@ export async function eliminarConversacion(
                 ? convParaLimpieza.miVisibleDesde
                 : convParaLimpieza.otroVisibleDesde;
 
+            // Recolectar URLs R2 adjuntas ANTES del delete para limpiarlas después.
+            // Sin esto, los archivos de imagen/audio/documento/cupón quedaban
+            // huérfanos en el bucket al borrarse el mensaje.
+            const mensajesABorrar = await db
+                .select({
+                    id: chatMensajes.id,
+                    contenido: chatMensajes.contenido,
+                    tipo: chatMensajes.tipo,
+                })
+                .from(chatMensajes)
+                .where(and(
+                    eq(chatMensajes.conversacionId, conversacionId),
+                    sql`${chatMensajes.createdAt} < ${corte}`,
+                ));
+
+            const urlsR2ABorrar: Array<{ url: string; mensajeId: string }> = [];
+            for (const m of mensajesABorrar) {
+                for (const url of extraerUrlsR2DeMensajeChat(m.contenido, m.tipo)) {
+                    urlsR2ABorrar.push({ url, mensajeId: m.id });
+                }
+            }
+
             await db
                 .delete(chatMensajes)
                 .where(
@@ -782,6 +864,14 @@ export async function eliminarConversacion(
                         sql`${chatMensajes.createdAt} < ${corte}`
                     )
                 );
+
+            // Limpiar archivos R2 con reference-count (por si la misma URL está
+            // en un mensaje de otra conversación — raro pero posible por reenvíos).
+            for (const { url, mensajeId } of urlsR2ABorrar) {
+                limpiarUrlR2DeMensajeHuerfana(url, mensajeId).catch(err =>
+                    console.error('No se pudo limpiar adjunto de mensaje borrado:', url, err)
+                );
+            }
         }
 
         // Verificar si AMBOS la eliminaron → hard delete
@@ -795,11 +885,36 @@ export async function eliminarConversacion(
             .limit(1);
 
         if (convActualizada?.eliminadaPorP1 && convActualizada?.eliminadaPorP2) {
-            // TODO Sprint 6: Limpiar archivos R2 asociados antes del hard delete
-            // Los mensajes se eliminan por CASCADE
+            // Recolectar URLs R2 de TODOS los mensajes antes del hard delete —
+            // tras el DELETE CASCADE ya no podremos recuperarlas.
+            const mensajesConversacion = await db
+                .select({
+                    id: chatMensajes.id,
+                    contenido: chatMensajes.contenido,
+                    tipo: chatMensajes.tipo,
+                })
+                .from(chatMensajes)
+                .where(eq(chatMensajes.conversacionId, conversacionId));
+
+            const urlsR2HardDelete: Array<{ url: string; mensajeId: string }> = [];
+            for (const m of mensajesConversacion) {
+                for (const url of extraerUrlsR2DeMensajeChat(m.contenido, m.tipo)) {
+                    urlsR2HardDelete.push({ url, mensajeId: m.id });
+                }
+            }
+
+            // Los mensajes se eliminan por CASCADE al borrar la conversación
             await db
                 .delete(chatConversaciones)
                 .where(eq(chatConversaciones.id, conversacionId));
+
+            // Limpiar archivos R2 — el reference-count verifica contra mensajes
+            // de OTRAS conversaciones por si la misma URL se comparte.
+            for (const { url, mensajeId } of urlsR2HardDelete) {
+                limpiarUrlR2DeMensajeHuerfana(url, mensajeId).catch(err =>
+                    console.error('No se pudo limpiar adjunto en hard delete de conversación:', url, err)
+                );
+            }
 
             return { success: true, message: 'Conversación eliminada permanentemente' };
         }
@@ -1289,6 +1404,11 @@ export async function eliminarMensaje(
             return { success: false, message: 'El mensaje ya fue eliminado', code: 400 };
         }
 
+        // Capturar URLs R2 adjuntas ANTES del update — después el `contenido`
+        // se sobrescribe y se pierde la referencia. Sin esto los archivos de
+        // imagen/audio/documento/cupón quedaban colgados como huérfanos en R2.
+        const urlsR2Adjuntas = extraerUrlsR2DeMensajeChat(msg.contenido, msg.tipo);
+
         // Soft delete
         await db
             .update(chatMensajes)
@@ -1298,6 +1418,15 @@ export async function eliminarMensaje(
                 contenido: 'Se eliminó este mensaje', // Reemplazar contenido
             })
             .where(eq(chatMensajes.id, mensajeId));
+
+        // Limpiar archivos R2 asociados al mensaje eliminado (fire-and-forget).
+        // El helper verifica con reference-count antes de borrar — si otro mensaje
+        // la referencia, conserva el archivo.
+        for (const url of urlsR2Adjuntas) {
+            limpiarUrlR2DeMensajeHuerfana(url, mensajeId).catch(err =>
+                console.error('No se pudo limpiar adjunto de mensaje:', url, err)
+            );
+        }
 
         // Limpiar de fijados si estaba fijado
         await db

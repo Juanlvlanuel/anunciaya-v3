@@ -70,6 +70,13 @@ const esquemaEnv = z.object({
   R2_ENDPOINT: z.string().url('R2_ENDPOINT debe ser una URL válida'),
   R2_BUCKET_NAME: z.string().min(1, 'R2_BUCKET_NAME es requerido'),
   R2_PUBLIC_URL: z.string().url('R2_PUBLIC_URL debe ser una URL válida'),
+
+  // -------- Admin (protección temporal hasta que haya panel de admins) --------
+  // Secreto compartido que el cliente (Postman, cURL, futuro panel admin) debe
+  // enviar en el header `x-admin-secret` para acceder a endpoints de mantenimiento.
+  // En producción DEBE ser un string largo y aleatorio. Cuando se cree el Panel
+  // Admin con roles reales, este middleware se reemplaza por auth de admin.
+  ADMIN_SECRET: z.string().min(16, 'ADMIN_SECRET debe tener mínimo 16 caracteres').optional(),
 });
 
 // ====================================

@@ -591,12 +591,17 @@ export function tienePermiso(permiso: keyof NonNullable<UsuarioScanYA['permisos'
 // LISTENER SOCKET.IO — Cierre de sesión remoto
 // =============================================================================
 
-escucharEvento<{ motivo: string; timestamp: string }>('scanya:sesion-revocada', () => {
+escucharEvento<{ empleadoId?: string; motivo: string; timestamp: string }>('scanya:sesion-revocada', (data) => {
   const state = useScanYAStore.getState();
   // Solo actuar si hay sesión ScanYA activa Y estamos en contexto ScanYA
-  if (state.usuario && window.location.pathname.startsWith('/scanya')) {
-    state.logout('revocada_admin');
-  }
+  if (!state.usuario || !window.location.pathname.startsWith('/scanya')) return;
+
+  // El evento se emite al room del dueño — todos los ScanYA del negocio lo reciben
+  // (empleados y dueño). Por eso el payload incluye `empleadoId`: solo el empleado
+  // afectado debe cerrar sesión. Si no coincide con el empleado logueado, ignorar.
+  if (data.empleadoId && state.usuario.empleadoId !== data.empleadoId) return;
+
+  state.logout('revocada_admin');
 });
 
 // =============================================================================

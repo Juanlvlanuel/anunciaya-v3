@@ -7,12 +7,15 @@
  * Ubicación: apps/web/src/pages/private/business-studio/empleados/ModalEmpleado.tsx
  */
 
-import { useState } from 'react';
-import { UserCog, Save } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { UserCog, Save, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useCrearEmpleado, useActualizarEmpleado } from '../../../../hooks/queries/useEmpleados';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { notificar } from '../../../../utils/notificaciones';
+import * as empleadosService from '../../../../services/empleadosService';
+import { InputCorreoValidado } from '../../../../components/ui/InputCorreoValidado';
+import { InputTelefono, normalizarTelefono } from '../../../../components/ui/InputTelefono';
 import type { EmpleadoDetalle } from '../../../../types/empleados';
 import { LABELS_PERMISOS } from '../../../../types/empleados';
 
@@ -44,15 +47,71 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 	});
 	const [guardando, setGuardando] = useState(false);
 
+	// Validación en vivo de disponibilidad del nick
+	// (nick es globalmente único — se valida contra todos los negocios)
+	const [estadoNick, setEstadoNick] = useState<
+		| { estado: 'idle' }
+		| { estado: 'verificando' }
+		| { estado: 'disponible' }
+		| { estado: 'ocupado'; sugerencias: string[] }
+	>({ estado: 'idle' });
+	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => {
+		// Si no hay nick o es el mismo que el del empleado existente → idle (sin error)
+		const nickTrim = nick.trim();
+		if (!nickTrim || (esEditar && nickTrim === empleado?.nick)) {
+			setEstadoNick({ estado: 'idle' });
+			return;
+		}
+
+		setEstadoNick({ estado: 'verificando' });
+
+		if (debounceRef.current) clearTimeout(debounceRef.current);
+		debounceRef.current = setTimeout(async () => {
+			try {
+				const res = await empleadosService.verificarNick(nickTrim, empleado?.id);
+				if (!res.success || !res.data) return;
+				if (res.data.disponible) {
+					setEstadoNick({ estado: 'disponible' });
+				} else {
+					setEstadoNick({ estado: 'ocupado', sugerencias: res.data.sugerencias });
+				}
+			} catch {
+				setEstadoNick({ estado: 'idle' });
+			}
+		}, 400);
+
+		return () => {
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+		};
+	}, [nick, esEditar, empleado?.nick, empleado?.id]);
+
+	const nickOcupado = estadoNick.estado === 'ocupado';
+
 	const handleGuardar = async () => {
 		if (!nombre.trim() || !nick.trim() || (!esEditar && !pin.trim())) {
 			notificar.error('Nombre, nick y PIN son obligatorios');
+			return;
+		}
+		if (nickOcupado) {
+			notificar.error('El nick ya está en uso, elige otro');
 			return;
 		}
 		if (pin && !/^\d{4}$/.test(pin)) {
 			notificar.error('El PIN debe ser exactamente 4 dígitos');
 			return;
 		}
+
+		// Validar teléfono — si tiene valor, debe contener un número completo de 10 dígitos
+		// (solo lada +52 sin número es equivalente a vacío)
+		const numeroTelefono = normalizarTelefono(telefono).numero;
+		if (telefono && telefono.trim() !== '' && numeroTelefono.length > 0 && numeroTelefono.length !== 10) {
+			notificar.error('El teléfono debe tener 10 dígitos');
+			return;
+		}
+		// Si el valor es solo la lada sin número, enviar como vacío
+		const telefonoFinal = numeroTelefono.length === 10 ? telefono.trim() : '';
 
 		setGuardando(true);
 		try {
@@ -65,7 +124,7 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 						...(pin ? { pinAcceso: pin } : {}),
 						sucursalId,
 						especialidad: especialidad.trim() || null,
-						telefono: telefono.trim() || null,
+						telefono: telefonoFinal || null,
 						correo: correo.trim() || null,
 						notasInternas: notasInternas.trim() || null,
 						...permisos,
@@ -79,7 +138,7 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 					pinAcceso: pin,
 					sucursalId,
 					especialidad: especialidad.trim() || undefined,
-					telefono: telefono.trim() || undefined,
+					telefono: telefonoFinal || undefined,
 					correo: correo.trim() || undefined,
 					notasInternas: notasInternas.trim() || undefined,
 					...permisos,
@@ -148,14 +207,62 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 					<div className="flex gap-3">
 						<div className="flex-1">
 							<label className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 block">Nick *</label>
-							<input
-								value={nick}
-								onChange={e => setNick(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())}
-								className="w-full h-10 lg:h-9 2xl:h-10 px-3 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 border-2 border-slate-300 rounded-lg bg-white"
-								placeholder="juanperez"
-								maxLength={30}
-								data-testid="input-nick-empleado"
-							/>
+							<div className="relative">
+								<input
+									value={nick}
+									onChange={e => setNick(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())}
+									className={`w-full h-10 lg:h-9 2xl:h-10 px-3 pr-9 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 border-2 rounded-lg bg-white ${
+										estadoNick.estado === 'ocupado' ? 'border-red-500' :
+										estadoNick.estado === 'disponible' ? 'border-emerald-500' :
+										'border-slate-300'
+									}`}
+									placeholder="juanperez"
+									maxLength={30}
+									data-testid="input-nick-empleado"
+								/>
+								{/* Icono de estado — la X es clickeable (convención UX: limpia el input) */}
+								{estadoNick.estado === 'ocupado' ? (
+									<button
+										type="button"
+										onClick={() => setNick('')}
+										className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer hover:opacity-70"
+										title="Limpiar"
+										data-testid="nick-limpiar"
+									>
+										<XCircle className="w-4 h-4 text-red-600" />
+									</button>
+								) : (
+									<div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+										{estadoNick.estado === 'verificando' && <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />}
+										{estadoNick.estado === 'disponible' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+									</div>
+								)}
+							</div>
+							{/* Mensaje bajo el input */}
+							{estadoNick.estado === 'ocupado' && (
+								<div className="mt-1" data-testid="nick-ocupado">
+									<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-600">Ese nick ya está en uso</p>
+									{estadoNick.sugerencias.length > 0 && (
+										<div className="mt-1 flex items-center gap-1.5 flex-wrap">
+											<span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Sugerencias:</span>
+											{estadoNick.sugerencias.map((sug) => (
+												<button
+													key={sug}
+													type="button"
+													onClick={() => setNick(sug)}
+													className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-700 bg-blue-100 hover:bg-blue-200 px-2 py-0.5 rounded-md border-2 border-blue-300 cursor-pointer"
+													data-testid={`sugerencia-${sug}`}
+												>
+													{sug}
+												</button>
+											))}
+										</div>
+									)}
+								</div>
+							)}
+							{estadoNick.estado === 'disponible' && (
+								<p className="mt-1 text-sm lg:text-[11px] 2xl:text-sm font-medium text-emerald-700">Nick disponible</p>
+							)}
 						</div>
 						<div className="w-28">
 							<label className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 block">PIN {!esEditar && '*'}</label>
@@ -182,28 +289,26 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 								placeholder="Cajero, Mesero..."
 							/>
 						</div>
-						<div className="flex-1">
+						<div className="flex-1 min-w-0">
 							<label className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 block">Teléfono</label>
-							<input
+							<InputTelefono
 								value={telefono}
-								onChange={e => setTelefono(e.target.value)}
-								className="w-full h-10 lg:h-9 2xl:h-10 px-3 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 border-2 border-slate-300 rounded-lg bg-white"
-								placeholder="6381234567"
+								onChange={setTelefono}
+								prefijo="empleado-tel"
+								testIdNumero="input-telefono-empleado"
 							/>
 						</div>
 					</div>
 
-					{/* Correo */}
-					<div>
-						<label className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 block">Correo</label>
-						<input
-							value={correo}
-							onChange={e => setCorreo(e.target.value)}
-							className="w-full h-10 lg:h-9 2xl:h-10 px-3 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 border-2 border-slate-300 rounded-lg bg-white"
-							placeholder="empleado@email.com"
-							type="email"
-						/>
-					</div>
+					{/* Correo — usa InputCorreoValidado en modo 'contacto' (formato + typo, sin hit a BD) */}
+					<InputCorreoValidado
+						value={correo}
+						onChange={setCorreo}
+						modo="contacto"
+						label="Correo"
+						placeholder="empleado@email.com"
+						testIdPrefix="correo-empleado"
+					/>
 
 					{/* Notas */}
 					<div>
@@ -249,8 +354,8 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 				<div className="shrink-0 px-4 lg:px-3 2xl:px-4 py-3 border-t border-slate-300">
 					<button
 						onClick={handleGuardar}
-						disabled={guardando}
-						className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm lg:text-xs 2xl:text-sm text-white shadow-lg active:scale-[0.98] cursor-pointer disabled:opacity-50"
+						disabled={guardando || nickOcupado || estadoNick.estado === 'verificando'}
+						className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm lg:text-xs 2xl:text-sm text-white shadow-lg active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 						style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
 						data-testid="btn-guardar-empleado"
 					>

@@ -148,6 +148,13 @@ const MODULOS_BS = [
   { nombre: 'Mi Perfil', ruta: '/business-studio/perfil' },
 ];
 
+// Rutas bloqueadas para el gerente — se omiten al navegar con las flechas del header
+// (Puntos: solo lectura, Sucursales: acceso restringido)
+const RUTAS_OCULTAS_GERENTE = [
+  '/business-studio/puntos',
+  '/business-studio/sucursales',
+];
+
 const NAV_ITEM_MARKET = { id: 'market', label: 'Market', path: '/marketplace', icon: ShoppingCart };
 
 // =============================================================================
@@ -308,11 +315,22 @@ export const Navbar = () => {
   // NAVEGACIÓN ENTRE MÓDULOS DEL BUSINESS STUDIO
   // ─────────────────────────────────────────────────────────────────────────────
 
+  // Lista de módulos según el rol y la sucursal activa — para gerentes (o dueño
+  // viendo una sucursal no principal) se omiten los módulos que son exclusivos
+  // de la Matriz (Puntos en modo lectura y Sucursales bloqueada).
+  // Misma lógica que MobileHeader para mantener consistencia.
+  const esGerente = !!usuario?.sucursalAsignada;
+  const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
+  const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
+  const modulosNavegables = vistaComoGerente
+    ? MODULOS_BS.filter((m) => !RUTAS_OCULTAS_GERENTE.includes(m.ruta))
+    : MODULOS_BS;
+
   const obtenerIndiceModuloActual = () => {
-    const indiceExacto = MODULOS_BS.findIndex(modulo => location.pathname === modulo.ruta);
+    const indiceExacto = modulosNavegables.findIndex(modulo => location.pathname === modulo.ruta);
     if (indiceExacto !== -1) return indiceExacto;
 
-    return MODULOS_BS.findIndex(modulo =>
+    return modulosNavegables.findIndex(modulo =>
       modulo.ruta !== '/business-studio' && location.pathname.startsWith(modulo.ruta)
     );
   };
@@ -338,20 +356,20 @@ export const Navbar = () => {
   const navegarModuloAnterior = () => {
     const indiceActual = obtenerIndiceModuloActual();
     if (indiceActual > 0) {
-      navigate(MODULOS_BS[indiceActual - 1].ruta);
+      navigate(modulosNavegables[indiceActual - 1].ruta);
     }
   };
 
   const navegarModuloSiguiente = () => {
     const indiceActual = obtenerIndiceModuloActual();
-    if (indiceActual >= 0 && indiceActual < MODULOS_BS.length - 1) {
-      navigate(MODULOS_BS[indiceActual + 1].ruta);
+    if (indiceActual >= 0 && indiceActual < modulosNavegables.length - 1) {
+      navigate(modulosNavegables[indiceActual + 1].ruta);
     }
   };
 
   const indiceModuloActual = obtenerIndiceModuloActual();
   const hayModuloAnterior = indiceModuloActual > 0;
-  const hayModuloSiguiente = indiceModuloActual >= 0 && indiceModuloActual < MODULOS_BS.length - 1;
+  const hayModuloSiguiente = indiceModuloActual >= 0 && indiceModuloActual < modulosNavegables.length - 1;
 
   // GPS Store
   const ciudad = useGpsStore((state) => state.ciudad);
@@ -974,7 +992,7 @@ export const Navbar = () => {
                         <p className="lg:text-[10px] 2xl:text-sm text-sm text-gray-600 px-2 truncate w-full">
                           {esComercial
                             ? (usuario?.sucursalAsignada
-                              ? `Suc. ${usuario.nombreSucursalAsignada}`
+                              ? usuario.nombreSucursalAsignada
                               : usuario.correoNegocio)
                             : usuario?.correo}
                         </p>

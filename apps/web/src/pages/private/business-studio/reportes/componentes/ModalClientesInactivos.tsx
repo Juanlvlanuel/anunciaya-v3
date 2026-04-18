@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { ModalAdaptativo } from '../../../../../components/ui/ModalAdaptativo';
 import { Spinner } from '../../../../../components/ui/Spinner';
 import { useClientesInactivos } from '../../../../../hooks/queries/useReportes';
+import { obtenerIniciales } from '../../../../../utils/obtenerIniciales';
 
 interface Props {
   abierto: boolean;
@@ -107,11 +108,11 @@ export function ModalClientesInactivos({ abierto, onCerrar, tipo }: Props) {
                     <div className="flex items-center gap-3 p-3 lg:p-2.5 2xl:p-3">
                       {/* Avatar circular con ring coloreado */}
                       <div
-                        className="w-12 h-12 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 shadow-sm"
+                        className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden"
                         style={{ boxShadow: `0 0 0 2px white, 0 0 0 4px ${colorAcento}33` }}
                       >
-                        <span className="text-base lg:text-sm 2xl:text-base font-extrabold text-indigo-700">
-                          {c.nombre.charAt(0)}{c.apellidos.charAt(0)}
+                        <span className="text-base font-bold text-indigo-700">
+                          {obtenerIniciales(`${c.nombre} ${c.apellidos}`)}
                         </span>
                       </div>
 

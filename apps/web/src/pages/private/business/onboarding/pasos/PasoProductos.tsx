@@ -36,6 +36,7 @@ interface Articulo {
     tipo: 'producto' | 'servicio';
     nombre: string;
     descripcion: string;
+    categoria?: string;
     precioBase: number;
     imagenPrincipal: string;
     disponible: boolean;
@@ -186,6 +187,7 @@ export function PasoProductos() {
                         ...a,
                         nombre: (datos as CrearArticuloInput).nombre || a.nombre,
                         descripcion: (datos as CrearArticuloInput).descripcion || a.descripcion,
+                        categoria: (datos as CrearArticuloInput).categoria || a.categoria,
                         precioBase: (datos as CrearArticuloInput).precioBase ?? a.precioBase,
                         imagenPrincipal: (datos as CrearArticuloInput).imagenPrincipal ?? a.imagenPrincipal,
                         tipo: (datos as CrearArticuloInput).tipo || a.tipo,
@@ -203,6 +205,7 @@ export function PasoProductos() {
                 tipo: crear.tipo,
                 nombre: crear.nombre,
                 descripcion: crear.descripcion || '',
+                categoria: crear.categoria || '',
                 precioBase: crear.precioBase,
                 imagenPrincipal: crear.imagenPrincipal || '',
                 disponible: crear.disponible ?? true,
@@ -509,7 +512,7 @@ export function PasoProductos() {
                         tipo: articuloEditar.tipo,
                         nombre: articuloEditar.nombre,
                         descripcion: articuloEditar.descripcion,
-                        categoria: '',
+                        categoria: articuloEditar.categoria || '',
                         precioBase: String(articuloEditar.precioBase),
                         precioDesde: false,
                         imagenPrincipal: articuloEditar.imagenPrincipal,
@@ -521,6 +524,8 @@ export function PasoProductos() {
                         createdAt: '',
                         updatedAt: '',
                     } as ArticuloCatalogo : null}
+                    categoriasExistentes={[...new Set(articulos.map(a => a.categoria).filter(Boolean) as string[])]}
+                    permitirCambioTipo
                     onGuardar={handleGuardarArticulo}
                     onCerrar={() => { setModalAbierto(false); setArticuloEditar(null); }}
                 />

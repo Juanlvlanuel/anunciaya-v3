@@ -156,6 +156,7 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
       abierto={true}
       onCerrar={onCerrar}
       ancho="md"
+      headerOscuro
       mostrarHeader={false}
       paddingContenido="none"
       sinScrollInterno={true}

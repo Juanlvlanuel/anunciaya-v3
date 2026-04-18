@@ -129,6 +129,58 @@ Componente reutilizable en `ReporteUI.tsx`. Tamanos identicos al Dashboard BS:
 
 ---
 
+## Aislamiento por sucursal
+
+Cada reporte aplica filtros por sucursal según el rol del usuario que consulta. El helper `obtenerSucursalId(req)` del controller resuelve la sucursal efectiva con esta prioridad:
+
+1. `req.query.sucursalId` — si el dueño seleccionó una sucursal específica en el navbar
+2. `req.usuario.sucursalAsignada` — fallback para gerentes, que quedan forzados a su sucursal
+
+El middleware `validarAccesoSucursal` bloquea cualquier intento de un gerente de pedir datos de una sucursal distinta a la suya.
+
+### Filtros aplicados por reporte
+
+**Reporte Ventas** — todas las queries usan `condicionesBaseTransacciones`, que incluye `eq(puntosTransacciones.sucursalId, sucursalId)` cuando está presente.
+
+**Reporte Clientes** — filtra por sucursal usando la última transacción del cliente en esa sucursal. Como `puntos_billetera` almacena actividad a nivel negocio (no sucursal), los KPIs "Clientes en riesgo" y "Perdidos" se calculan con un subquery sobre `puntos_transacciones`:
+
+```sql
+SELECT COUNT(*)::int as cantidad FROM (
+  SELECT cliente_id, MAX(created_at) as ultima
+  FROM puntos_transacciones
+  WHERE negocio_id = X AND estado = 'confirmado' AND sucursal_id = Y
+  GROUP BY cliente_id
+) WHERE ultima < hace15 AND ultima >= hace30
+```
+
+Cuando no hay `sucursalId` (dueño consultando todo el negocio), usa directamente el cache de `puntos_billetera.ultima_actividad` (más rápido).
+
+El helper `obtenerClientesInactivos` (utilizado por el modal KPI → detalle) recibe `sucursalId` como parámetro y aplica la misma lógica.
+
+**Reporte Empleados** — acepta parámetro `incluirDueno: boolean` (default `true`). El controller pasa `!esGerente` para que los gerentes solo vean empleados reales de su sucursal, sin el pseudo-empleado del dueño. Aplica tanto al endpoint JSON como al export XLSX.
+
+Firma:
+```typescript
+obtenerReporteEmpleados(
+  negocioId: string,
+  sucursalId?: string,
+  periodo: PeriodoEstadisticas,
+  fechaInicioCustom?: string,
+  fechaFinCustom?: string,
+  incluirDueno: boolean = true
+)
+```
+
+**Reporte Promociones** — filtra según el tipo de dato:
+
+- **Ofertas y métricas de engagement**: `(sucursal_id = X OR sucursal_id IS NULL)`. Incluye ofertas globales del negocio (si existieran) además de las de la sucursal específica
+- **Canjes de cupones** (`oferta_usos.sucursal_id`): filtra por donde ocurrió el canje, no por donde se emitió la oferta. Esto es relevante porque los cupones pueden canjearse en cualquier sucursal del negocio (ver `docs/arquitectura/Promociones.md` → "Alcance de canje por sucursal")
+- **Canjes de recompensas** (`vouchers_canje.sucursal_id`): idem, filtra por sucursal donde se generó el voucher
+
+**Reporte Reseñas** — aplica `eq(resenas.sucursalId, sucursalId)` cuando está presente. Las queries raw (sin responder, tiempo de respuesta, respuestas por persona) reutilizan la misma condición.
+
+---
+
 ## Exportacion XLSX
 
 Endpoint `GET /business/reportes/exportar?tab=X&fechaInicio=Y&fechaFin=Z`. Genera archivo Excel con ExcelJS. Una funcion generadora por tab (`generarExcelVentas`, `generarExcelClientes`, etc.) con headers estilizados y formatos numericos.

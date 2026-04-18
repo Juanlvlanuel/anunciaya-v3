@@ -52,6 +52,8 @@ const RUTAS_SIN_SUCURSAL = [
   '/articulos/publico/',
   '/guardados/',   // Guardados personales del usuario
   '/duplicar',     // Duplicar artículos usa sucursalesIds en el body, no en query params
+  '/notificaciones', // El service de notificaciones calcula su propio sucursalId según ubicación
+                     // (BS usa sucursalActiva, fuera de BS usa sucursalPrincipalId)
 ];
 
 /**

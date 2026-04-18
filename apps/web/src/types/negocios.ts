@@ -51,6 +51,7 @@ export interface NegocioResumen {
   // Datos de la sucursal
   sucursalId: string;
   sucursalNombre: string;
+  esPrincipal: boolean;
   direccion: string;
   ciudad: string;
   telefono: string;
@@ -78,6 +79,9 @@ export interface NegocioResumen {
   liked: boolean;
   followed: boolean;
   estaAbierto: boolean | null;
+
+  // Conteo de sucursales activas del negocio
+  totalSucursales: number;
 }
 
 /**

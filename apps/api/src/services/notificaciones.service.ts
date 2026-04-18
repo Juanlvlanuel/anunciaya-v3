@@ -83,6 +83,68 @@ export async function crearNotificacion(
 }
 
 // =============================================================================
+// ELIMINAR NOTIFICACIONES POR REFERENCIA + EMITIR SOCKET
+// =============================================================================
+
+/**
+ * Borra notificaciones que matchean el filtro y emite `notificacion:eliminada`
+ * a cada usuario afectado para que el frontend las quite del panel sin recargar.
+ *
+ * Uso típico: al cerrar el ciclo de una entidad (voucher entregado, cupón
+ * revocado, etc.), las notificaciones pendientes pierden sentido y se limpian
+ * en BD — este helper asegura que el panel también se actualice en vivo.
+ *
+ * @param filtro Condiciones para seleccionar las notificaciones a borrar.
+ *               Ej: `{ tipo: 'voucher_pendiente', referenciaId: voucherId }`
+ */
+export async function eliminarNotificacionesPorReferencia(filtro: {
+    tipo?: string;
+    referenciaId: string;
+    referenciaTipo?: string;
+}): Promise<void> {
+    try {
+        const condiciones = [eq(notificaciones.referenciaId, filtro.referenciaId)];
+        if (filtro.tipo) {
+            condiciones.push(eq(notificaciones.tipo, filtro.tipo));
+        }
+        if (filtro.referenciaTipo) {
+            condiciones.push(eq(notificaciones.referenciaTipo, filtro.referenciaTipo));
+        }
+
+        // Primero seleccionar las notificaciones que se van a borrar para saber
+        // a qué usuarios avisarles por socket (y con qué IDs).
+        const aEliminar = await db
+            .select({
+                id: notificaciones.id,
+                usuarioId: notificaciones.usuarioId,
+            })
+            .from(notificaciones)
+            .where(and(...condiciones));
+
+        if (aEliminar.length === 0) return;
+
+        // Borrar
+        await db.delete(notificaciones).where(and(...condiciones));
+
+        // Agrupar IDs por usuarioId — un usuario puede tener varias notifs del
+        // mismo voucher (raro, pero posible en casos de fan-out con duplicados)
+        const porUsuario = new Map<string, string[]>();
+        for (const n of aEliminar) {
+            const lista = porUsuario.get(n.usuarioId) ?? [];
+            lista.push(n.id);
+            porUsuario.set(n.usuarioId, lista);
+        }
+
+        // Emitir a cada usuario afectado
+        for (const [usuarioId, ids] of porUsuario.entries()) {
+            emitirAUsuario(usuarioId, 'notificacion:eliminada', { ids });
+        }
+    } catch (error) {
+        console.error('Error en eliminarNotificacionesPorReferencia:', error);
+    }
+}
+
+// =============================================================================
 // OBTENER NOTIFICACIONES DEL USUARIO
 // =============================================================================
 
@@ -93,29 +155,39 @@ export async function obtenerNotificaciones(
     usuarioId: string,
     modo: ModoNotificacion,
     limit = 20,
-    offset = 0
+    offset = 0,
+    sucursalId?: string | null
 ): Promise<RespuestaServicio<{ notificaciones: NotificacionResponse[]; totalNoLeidas: number }>> {
     try {
+        // Filtro por sucursal activa en modo comercial:
+        // - Si hay sucursalId: incluir notificaciones de esa sucursal + las generales (sucursal_id IS NULL)
+        // - Sin sucursalId: no filtrar (modo personal o dueño sin contexto de sucursal)
+        // Las notificaciones con sucursal_id IS NULL representan eventos a nivel negocio
+        // (ej: suscripción renovada) y se muestran en cualquier sucursal activa.
+        const filtroSucursal = modo === 'comercial' && sucursalId
+            ? sql`AND (${notificaciones.sucursalId} = ${sucursalId} OR ${notificaciones.sucursalId} IS NULL)`
+            : sql``;
+
         const resultados = await db
             .select()
             .from(notificaciones)
-            .where(and(
+            .where(sql`${and(
                 eq(notificaciones.usuarioId, usuarioId),
                 eq(notificaciones.modo, modo)
-            ))
+            )} ${filtroSucursal}`)
             .orderBy(desc(notificaciones.createdAt))
             .limit(limit)
             .offset(offset);
 
-        // Contar no leídas
+        // Contar no leídas con el mismo filtro
         const [conteo] = await db
             .select({ total: sql<number>`count(*)::int` })
             .from(notificaciones)
-            .where(and(
+            .where(sql`${and(
                 eq(notificaciones.usuarioId, usuarioId),
                 eq(notificaciones.modo, modo),
                 eq(notificaciones.leida, false)
-            ));
+            )} ${filtroSucursal}`);
 
         const notificacionesFormateadas: NotificacionResponse[] = resultados.map((n) => ({
             id: n.id,
@@ -215,20 +287,33 @@ export async function eliminarNotificacion(
 
 export async function marcarTodasComoLeidas(
     usuarioId: string,
-    modo: ModoNotificacion
+    modo: ModoNotificacion,
+    sucursalId?: string
 ): Promise<RespuestaServicio> {
     try {
+        // En modo comercial, respeta el contexto de sucursal activa — el usuario
+        // solo debe marcar como leídas las notificaciones visibles en ese contexto
+        // (las de la sucursal activa + las de negocio con sucursal_id IS NULL).
+        // Sin este filtro, desde Matriz se marcaban también las de Sucursal Norte.
+        const condiciones = [
+            eq(notificaciones.usuarioId, usuarioId),
+            eq(notificaciones.modo, modo),
+            eq(notificaciones.leida, false),
+        ];
+
+        if (sucursalId && modo === 'comercial') {
+            condiciones.push(
+                sql`(${notificaciones.sucursalId} = ${sucursalId} OR ${notificaciones.sucursalId} IS NULL)`
+            );
+        }
+
         await db
             .update(notificaciones)
             .set({
                 leida: true,
                 leidaAt: new Date().toISOString(),
             })
-            .where(and(
-                eq(notificaciones.usuarioId, usuarioId),
-                eq(notificaciones.modo, modo),
-                eq(notificaciones.leida, false)
-            ));
+            .where(and(...condiciones));
 
         return { success: true, message: 'Todas las notificaciones marcadas como leídas' };
     } catch (error) {
@@ -243,17 +328,22 @@ export async function marcarTodasComoLeidas(
 
 export async function contarNoLeidas(
     usuarioId: string,
-    modo: ModoNotificacion
+    modo: ModoNotificacion,
+    sucursalId?: string | null
 ): Promise<RespuestaServicio<number>> {
     try {
+        const filtroSucursal = modo === 'comercial' && sucursalId
+            ? sql`AND (${notificaciones.sucursalId} = ${sucursalId} OR ${notificaciones.sucursalId} IS NULL)`
+            : sql``;
+
         const [conteo] = await db
             .select({ total: sql<number>`count(*)::int` })
             .from(notificaciones)
-            .where(and(
+            .where(sql`${and(
                 eq(notificaciones.usuarioId, usuarioId),
                 eq(notificaciones.modo, modo),
                 eq(notificaciones.leida, false)
-            ));
+            )} ${filtroSucursal}`);
 
         return {
             success: true,

@@ -370,7 +370,7 @@ export function ModalBottom({
           onTouchStart={handleTouchStart}
         >
           <div
-            className={`w-12 lg:w-10 2xl:w-12 h-1.5 lg:h-1 2xl:h-1.5 rounded-full transition-colors ${colorHandle ? '' : headerOscuro ? 'bg-white/40 hover:bg-white/55' : 'bg-slate-300 hover:bg-slate-400'}`}
+            className={`w-12 lg:w-10 2xl:w-12 h-1.5 lg:h-1 2xl:h-1.5 rounded-full ${colorHandle ? '' : headerOscuro ? 'bg-white/40 hover:bg-white/55' : 'bg-slate-300 hover:bg-slate-400'}`}
             style={colorHandle ? { backgroundColor: colorHandle } : undefined}
           />
         </div>

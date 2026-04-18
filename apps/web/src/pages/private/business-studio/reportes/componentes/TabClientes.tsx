@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, TrendingUp, Crown, ShoppingBag, AlertTriangle, UserX } from 'lucide-react';
 import { useReporteClientes } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';
+import { obtenerIniciales } from '../../../../../utils/obtenerIniciales';
 import { CarouselKPI } from '../../../../../components/ui/CarouselKPI';
 import { PanelTitulo, TablaHeader, formatearMonto, formatearSemana, KpiCard } from './ReporteUI';
 import { ModalClientesInactivos } from './ModalClientesInactivos';
@@ -120,13 +121,13 @@ export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabCliente
                 className={`w-full text-left flex items-center gap-2.5 px-3 py-2 lg:cursor-pointer hover:bg-slate-200 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}
                 data-testid={`top-gasto-${c.clienteId}`}
               >
-                {c.avatarUrl ? (
-                  <img src={c.avatarUrl} alt="" className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                    <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-indigo-700">{c.nombre.charAt(0)}</span>
-                  </div>
-                )}
+                <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                  {c.avatarUrl ? (
+                    <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(c.nombre)}</span>
+                  )}
+                </div>
                 <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate flex-1">{c.nombre} {c.apellidos ?? ''}</span>
                 <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-emerald-600 shrink-0">{formatearMonto(c.valor)}</span>
               </button>
@@ -149,13 +150,13 @@ export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabCliente
                 className={`w-full text-left flex items-center gap-2.5 px-3 py-2 lg:cursor-pointer hover:bg-slate-200 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}
                 data-testid={`top-frecuencia-${c.clienteId}`}
               >
-                {c.avatarUrl ? (
-                  <img src={c.avatarUrl} alt="" className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                    <span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-bold text-indigo-700">{c.nombre.charAt(0)}</span>
-                  </div>
-                )}
+                <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                  {c.avatarUrl ? (
+                    <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(c.nombre)}</span>
+                  )}
+                </div>
                 <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate flex-1">{c.nombre} {c.apellidos ?? ''}</span>
                 <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-emerald-600 shrink-0">{c.valor} {c.valor === 1 ? 'vez' : 'veces'}</span>
               </button>

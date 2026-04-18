@@ -42,7 +42,7 @@ interface ModalUbicacionProps {
 const GRADIENTE = {
     bg: 'linear-gradient(135deg, #1e40af, #2563eb)',
     shadow: 'rgba(37,99,235,0.4)',
-    handle: '#1e40af',
+    handle: 'rgba(255,255,255,0.4)',
 };
 
 // =============================================================================

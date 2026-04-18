@@ -349,10 +349,9 @@ export async function crearResena(
         if (negocioDueno) {
             const estrellas = datos.rating ? '⭐'.repeat(datos.rating) : '';
 
-            crearNotificacion({
-                usuarioId: negocioDueno.usuarioId,
-                modo: 'comercial',
-                tipo: 'nueva_resena',
+            const payloadResenaComercial = {
+                modo: 'comercial' as const,
+                tipo: 'nueva_resena' as const,
                 titulo: `Nueva reseña ${estrellas}`,
                 mensaje: datos.texto
                     ? `"${datos.texto.slice(0, 80)}${datos.texto.length > 80 ? '...' : ''}"`
@@ -360,11 +359,31 @@ export async function crearResena(
                 negocioId: sucursal.negocioId,
                 sucursalId: datos.sucursalId,
                 referenciaId: row.id as string,
-                referenciaTipo: 'resena',
+                referenciaTipo: 'resena' as const,
                 icono: '⭐',
                 actorImagenUrl: autor?.avatarUrl ?? undefined,
                 actorNombre: autor?.nombre ?? undefined,
+            };
+
+            // Dueño del negocio (siempre recibe la notificación)
+            crearNotificacion({
+                ...payloadResenaComercial,
+                usuarioId: negocioDueno.usuarioId,
             }).catch((err) => console.error('Error notificación reseña dueño:', err));
+
+            // Gerente de la sucursal donde se dejó la reseña (si existe y es distinto del dueño)
+            const [gerenteResena] = await db
+                .select({ id: usuarios.id })
+                .from(usuarios)
+                .where(eq(usuarios.sucursalAsignada, datos.sucursalId))
+                .limit(1);
+
+            if (gerenteResena && gerenteResena.id !== negocioDueno.usuarioId) {
+                crearNotificacion({
+                    ...payloadResenaComercial,
+                    usuarioId: gerenteResena.id,
+                }).catch((err) => console.error('Error notificación reseña gerente:', err));
+            }
         }
 
         return {

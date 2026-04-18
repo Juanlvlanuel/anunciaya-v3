@@ -69,6 +69,7 @@ export function ModalPausar({ abierto, onCerrar }: ModalPausarProps) {
       onCerrar={guardando ? () => {} : onCerrar}
       cerrarAlClickFuera={!guardando}
       cerrarConEscape={!guardando}
+      headerOscuro
       mostrarHeader={false}
       ancho="sm"
       paddingContenido="none"

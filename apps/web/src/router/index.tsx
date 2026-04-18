@@ -93,7 +93,7 @@ const BSPaginaRifas = () => <PlaceholderPage nombre="🎁 Rifas" />;
 import BSPaginaEmpleados from '../pages/private/business-studio/empleados/PaginaEmpleados';
 const BSPaginaVacantes = () => <PlaceholderPage nombre="💼 Vacantes" />;
 import BSPaginaReportes from '../pages/private/business-studio/reportes/PaginaReportes';
-const BSPaginaSucursales = () => <PlaceholderPage nombre="🏢 Sucursales" />;
+import BSPaginaSucursales from '../pages/private/business-studio/sucursales/PaginaSucursales';
 
 // Página 404
 const NoEncontrada = () => (

@@ -539,6 +539,22 @@ export const guardarBorradorSucursal = async (
                 .where(eq(negocioSucursales.id, sucursal.id));
         }
 
+        // Sincronizar ciudad en tabla usuarios
+        if (data.ciudad) {
+            const [negocio] = await db
+                .select({ usuarioId: negocios.usuarioId })
+                .from(negocios)
+                .where(eq(negocios.id, negocioId))
+                .limit(1);
+
+            if (negocio) {
+                await db
+                    .update(usuarios)
+                    .set({ ciudad: data.ciudad })
+                    .where(eq(usuarios.id, negocio.usuarioId));
+            }
+        }
+
         return { success: true, message: 'Borrador de ubicación guardado' };
     } catch (error) {
         console.error('Error al guardar borrador sucursal:', error);

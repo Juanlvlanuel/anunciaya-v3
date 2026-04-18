@@ -22,6 +22,7 @@ import {
   marcarLeida as marcarLeidaAPI,
   marcarTodasLeidas as marcarTodasLeidasAPI,
   eliminarNotificacion as eliminarNotificacionAPI,
+  obtenerSucursalIdParaFiltro,
 } from '../services/notificacionesService';
 import type {
   Notificacion,
@@ -63,6 +64,7 @@ interface NotificacionesState {
   marcarLeidaPorId: (id: string) => void;
   marcarTodasLeidas: () => void;
   eliminarPorId: (id: string) => void;
+  eliminarVariasPorIds: (ids: string[]) => void;
 
   // Acciones - Modo
   cambiarModo: (modo: ModoNotificacion) => void;
@@ -170,6 +172,19 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
     // Solo agregar si coincide con el modo activo
     if (notificacion.modo !== modoActual) return;
 
+    // En modo comercial, filtrar por la sucursal del contexto actual:
+    // - Si el dueño está en BS con Sucursal Norte activa, no debe ver notificaciones de Matriz
+    // - Si está fuera de BS, solo notificaciones de Matriz
+    // - Las notificaciones con sucursal_id IS NULL (generales del negocio) siempre pasan
+    if (modoActual === 'comercial') {
+      const sucursalIdContexto = obtenerSucursalIdParaFiltro();
+      const sucursalIdNotif = notificacion.sucursalId;
+      // sucursalId IS NULL del backend → notificación general del negocio, pasa siempre
+      if (sucursalIdNotif && sucursalIdContexto && sucursalIdNotif !== sucursalIdContexto) {
+        return;
+      }
+    }
+
     set((state) => ({
       notificaciones: [notificacion, ...state.notificaciones],
       totalNoLeidas: state.totalNoLeidas + 1,
@@ -247,6 +262,26 @@ export const useNotificacionesStore = create<NotificacionesState>((set, get) => 
   },
 
   // ---------------------------------------------------------------------------
+  // ACCIÓN: Eliminar varias notificaciones en lote (desde socket del backend)
+  // ---------------------------------------------------------------------------
+  // Se usa cuando el backend cierra un ciclo (voucher entregado, expirado,
+  // cancelado) y emite `notificacion:eliminada` con los IDs afectados. Permite
+  // actualizar el panel sin recargar y sin fetch.
+  eliminarVariasPorIds: (ids: string[]) => {
+    if (ids.length === 0) return;
+    const idsSet = new Set(ids);
+    set((state) => {
+      const noLeidasEliminadas = state.notificaciones.filter(
+        (n) => idsSet.has(n.id) && !n.leida
+      ).length;
+      return {
+        notificaciones: state.notificaciones.filter((n) => !idsSet.has(n.id)),
+        totalNoLeidas: Math.max(0, state.totalNoLeidas - noLeidasEliminadas),
+      };
+    });
+  },
+
+  // ---------------------------------------------------------------------------
   // ACCIÓN: Cambiar modo (recarga notificaciones)
   // ---------------------------------------------------------------------------
   cambiarModo: (modo: ModoNotificacion) => {
@@ -274,6 +309,14 @@ export function registrarListenerNotificaciones(): void {
 
   escucharEvento('notificacion:recargar', () => {
     useNotificacionesStore.getState().cargarNotificaciones('personal');
+  });
+
+  // Backend emite este evento cuando borra notificaciones (voucher entregado,
+  // voucher expirado, voucher cancelado). El panel las filtra localmente sin
+  // necesidad de recargar.
+  escucharEvento<{ ids: string[] }>('notificacion:eliminada', (payload) => {
+    if (!payload?.ids?.length) return;
+    useNotificacionesStore.getState().eliminarVariasPorIds(payload.ids);
   });
 }
 

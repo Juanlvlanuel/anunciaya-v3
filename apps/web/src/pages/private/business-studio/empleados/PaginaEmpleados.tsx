@@ -29,6 +29,8 @@ import {
 	Eye,
 	Trash2,
 	X,
+	MapPin,
+	Shield,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import {
@@ -42,6 +44,8 @@ import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { notificar } from '../../../../utils/notificaciones';
+import Tooltip from '../../../../components/ui/Tooltip';
+import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import { ModalEmpleado } from './ModalEmpleado';
 import { ModalDetalleEmpleado } from './ModalDetalleEmpleado';
 import type { EmpleadoResumen } from '../../../../types/empleados';
@@ -225,7 +229,7 @@ export default function PaginaEmpleados() {
 
 						{/* Inactivos */}
 						<div
-							className="flex items-center gap-2 2xl:gap-2.5 px-3 2xl:px-4 h-13 2xl:h-16 rounded-xl border-2 shrink-0 lg:flex-none hidden lg:flex"
+							className="flex items-center gap-2 2xl:gap-2.5 px-3 2xl:px-4 h-13 2xl:h-16 rounded-xl border-2 flex-1 lg:flex-none lg:shrink-0"
 							style={{ background: 'linear-gradient(135deg, #fef2f2, #fff)', borderColor: '#fca5a5' }}
 							data-testid="kpi-inactivos"
 						>
@@ -262,8 +266,9 @@ export default function PaginaEmpleados() {
 								key={chip.label}
 								onClick={() => setFiltroActivo(chip.valor)}
 								className={`px-3 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${
-									filtroActivo === chip.valor ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+									filtroActivo === chip.valor ? 'text-white border-slate-700 shadow-sm' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
 								}`}
+								style={filtroActivo === chip.valor ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
 								data-testid={`chip-${chip.label.toLowerCase()}`}
 							>
 								{chip.label}
@@ -278,7 +283,7 @@ export default function PaginaEmpleados() {
 							value={busquedaLocal}
 							onChange={e => setBusquedaLocal(e.target.value)}
 							placeholder="Buscar empleados..."
-							className="pl-10 h-10 lg:h-10 2xl:h-11"
+							className="pl-10 h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
 							data-testid="input-busqueda-empleados"
 						/>
 						{busquedaLocal && (
@@ -288,19 +293,16 @@ export default function PaginaEmpleados() {
 						)}
 					</div>
 
-					{/* Botón crear (solo dueño) */}
-					{!esGerente && (
-						<button
-							onClick={() => setModalCrearAbierto(true)}
-							className="flex items-center justify-center gap-1.5 px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-bold text-white cursor-pointer shrink-0"
-							style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
-							data-testid="btn-crear-empleado"
-						>
-							<Plus className="w-4 h-4" />
-							<span className="hidden lg:inline">Nuevo empleado</span>
-							<span className="lg:hidden">Nuevo</span>
-						</button>
-					)}
+					{/* Botón crear — disponible para dueños y gerentes (gerente solo puede crear en su sucursal) */}
+					<button
+						onClick={() => setModalCrearAbierto(true)}
+						className="flex items-center justify-center gap-1.5 px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-bold text-white cursor-pointer shrink-0"
+						style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+						data-testid="btn-crear-empleado"
+					>
+						<Plus className="w-4 h-4" />
+						Nuevo empleado
+					</button>
 				</div>
 			</div>
 
@@ -427,7 +429,7 @@ function CardEmpleadoMovil({ empleado, onClick }: {
 
 	return (
 		<div
-			className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 cursor-pointer
+			className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 cursor-pointer text-left overflow-hidden
 				${!empleado.activo ? 'opacity-50' : ''}
 				hover:border-slate-400 hover:shadow-sm`}
 			onClick={onClick}
@@ -435,35 +437,43 @@ function CardEmpleadoMovil({ empleado, onClick }: {
 			data-testid={`card-empleado-${empleado.id}`}
 		>
 			{/* Avatar */}
-			<div className="w-14 h-14 rounded-xl bg-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+			<div className="w-20 h-20 rounded-full bg-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
 				{empleado.fotoUrl ? (
 					<img src={empleado.fotoUrl} alt={empleado.nombre} className="w-full h-full object-cover" />
 				) : (
-					<span className="text-lg font-bold text-slate-500">
-						{empleado.nombre.charAt(0).toUpperCase()}
+					<span className="text-lg font-bold text-slate-600">
+						{obtenerIniciales(empleado.nombre)}
 					</span>
 				)}
 			</div>
 
 			{/* Info */}
-			<div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+			<div className="flex-1 min-w-0 flex flex-col justify-between h-20">
 				<div>
-					<p className="text-base font-bold text-slate-800 truncate">{empleado.nombre}</p>
-					<div className="flex items-center gap-1.5 mt-0.5">
-						{empleado.nick && (
-							<span className="text-sm font-medium text-slate-500">@{empleado.nick}</span>
-						)}
-						{empleado.especialidad && (
-							<span className="text-sm font-medium text-slate-400">· {empleado.especialidad}</span>
+					<div className="flex items-center gap-1.5">
+						<p className="text-base font-bold text-slate-800 truncate">{empleado.nombre}</p>
+						{!empleado.activo && (
+							<span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-sm font-bold bg-red-100 text-red-700 shrink-0">Inactivo</span>
 						)}
 					</div>
+					{(empleado.nick || empleado.especialidad) && (
+						<p className="text-sm font-medium text-slate-600 truncate mt-0.5">
+							{empleado.nick && `@${empleado.nick}`}
+							{empleado.nick && empleado.especialidad && ' · '}
+							{empleado.especialidad}
+						</p>
+					)}
 				</div>
-				<div className="flex items-center justify-between">
-					<span className="text-sm font-medium text-slate-500">{empleado.sucursalNombre ?? 'Sin sucursal'}</span>
-					{!empleado.activo ? (
-						<span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600">Inactivo</span>
-					) : (
-						<span className="text-xs font-semibold text-slate-400">{permisosActivos}/5 permisos</span>
+				<div className="flex items-center gap-1.5 flex-wrap">
+					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold bg-slate-200 text-slate-700">
+						<MapPin className="w-3 h-3" />
+						{empleado.sucursalNombre ?? 'Sin sucursal'}
+					</span>
+					{empleado.activo && (
+						<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold bg-indigo-100 text-indigo-700">
+							<Shield className="w-3 h-3" />
+							{permisosActivos}/5
+						</span>
 					)}
 				</div>
 			</div>
@@ -494,11 +504,11 @@ function FilaEmpleadoDesktop({ empleado, indice, onClick, onEditar, onEliminar }
 		>
 			{/* Empleado */}
 			<div className="flex items-center gap-2.5 min-w-0">
-				<div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+				<div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
 					{empleado.fotoUrl ? (
 						<img src={empleado.fotoUrl} alt="" className="w-full h-full object-cover" />
 					) : (
-						<span className="text-xs font-bold text-slate-500">{empleado.nombre.charAt(0)}</span>
+						<span className="text-xs font-bold text-slate-600">{obtenerIniciales(empleado.nombre)}</span>
 					)}
 				</div>
 				<div className="min-w-0">
@@ -517,7 +527,7 @@ function FilaEmpleadoDesktop({ empleado, indice, onClick, onEditar, onEliminar }
 
 			{/* Permisos */}
 			<div className="flex items-center justify-center gap-1">
-				<span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] 2xl:text-xs font-bold bg-slate-200 text-slate-600">
+				<span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-slate-200 text-slate-600">
 					{permisosActivos}/5
 				</span>
 			</div>
@@ -525,11 +535,11 @@ function FilaEmpleadoDesktop({ empleado, indice, onClick, onEditar, onEliminar }
 			{/* Estado */}
 			<div className="flex items-center justify-center">
 				{empleado.activo ? (
-					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] 2xl:text-xs font-bold bg-emerald-100 text-emerald-700">
+					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-emerald-100 text-emerald-700">
 						Activo
 					</span>
 				) : (
-					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] 2xl:text-xs font-bold bg-red-100 text-red-600">
+					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-red-100 text-red-600">
 						Inactivo
 					</span>
 				)}
@@ -537,13 +547,15 @@ function FilaEmpleadoDesktop({ empleado, indice, onClick, onEditar, onEliminar }
 
 			{/* Eliminar */}
 			<div className="flex items-center justify-center">
-				<button
-					onClick={onEliminar}
-					className="p-1.5 rounded-lg hover:bg-red-100 text-red-400 hover:text-red-600 cursor-pointer"
-					data-testid={`btn-eliminar-${empleado.id}`}
-				>
-					<Trash2 className="w-4 h-4" />
-				</button>
+				<Tooltip text="Eliminar">
+					<button
+						onClick={onEliminar}
+						className="p-1.5 rounded-lg hover:bg-red-100 text-red-600 cursor-pointer"
+						data-testid={`btn-eliminar-${empleado.id}`}
+					>
+						<Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+					</button>
+				</Tooltip>
 			</div>
 		</div>
 	);

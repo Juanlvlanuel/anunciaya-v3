@@ -170,6 +170,7 @@ interface ModalMapaProps {
         negocioNombre: string;
         sucursalNombre: string;
         totalSucursales: number;
+        esPrincipal: boolean;
         logoUrl: string | null;
         whatsapp: string | null;
         direccion: string;
@@ -387,7 +388,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                                 </h3>
                                                 {negocio.totalSucursales > 1 && (
                                                     <p className="text-sm font-medium text-white/70 truncate mt-0.5">
-                                                        Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
+                                                        {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
                                                     </p>
                                                 )}
                                             </div>
@@ -431,7 +432,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                         {/* Dirección */}
                                         <div className="flex items-center gap-2 pt-1 pb-1 border-t border-slate-300">
                                             <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
-                                            <p className="text-[14px] font-bold text-slate-500 leading-snug line-clamp-2 pt-0.5">
+                                            <p className="text-sm font-extrabold text-slate-800 leading-snug line-clamp-2 pt-0.5">
                                                 {negocio.direccion}
                                             </p>
                                         </div>
@@ -1096,7 +1097,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             </p>
                             {negocio.totalSucursales > 1 && (
                                 <p className="text-sm font-bold text-blue-600 mb-1 truncate">
-                                    Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
+                                    {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
                                 </p>
                             )}
 
@@ -1138,13 +1139,13 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     {/* Sucursal */}
                                     {negocio.totalSucursales > 1 && (
                                         <p className="lg:text-base 2xl:text-lg font-semibold text-blue-600 mt-1">
-                                            Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
+                                            {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
                                         </p>
                                     )}
 
                                     {/* Descripción */}
                                     {negocio.negocioDescripcion && (
-                                        <p className="text-slate-600 lg:text-base 2xl:text-lg mt-1">{negocio.negocioDescripcion}</p>
+                                        <p className="text-slate-600 font-medium lg:text-base 2xl:text-lg mt-1">{negocio.negocioDescripcion}</p>
                                     )}
                                 </div>
 
@@ -1308,7 +1309,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         {/* DESKTOP: Solo ubicación (horario va en sidebar) */}
                         <div className="hidden lg:flex items-center gap-2 lg:ml-4 2xl:ml-0 lg:mb-4 2xl:mb-0">
                             <MapPin className="lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-slate-400 shrink-0" />
-                            <p className="text-slate-700 lg:text-sm 2xl:text-lg">
+                            <p className="text-slate-800 lg:text-sm 2xl:text-lg font-semibold">
                                 {negocio.direccion}, {negocio.ciudad}
                             </p>
                         </div>
@@ -1517,7 +1518,14 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                                         <span className="text-white font-bold text-sm">{negocio.negocioNombre.charAt(0)}</span>
                                                                     </div>
                                                                 )}
-                                                                <h3 className="text-sm font-bold text-white leading-tight truncate">{negocio.negocioNombre}</h3>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <h3 className="text-sm font-bold text-white leading-tight truncate">{negocio.negocioNombre}</h3>
+                                                                    {negocio.totalSucursales > 1 && (
+                                                                        <p className="text-[11px] font-medium text-white/70 truncate mt-0.5">
+                                                                            {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
 
@@ -1918,7 +1926,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                         <h3 className="text-[17px] font-bold text-white leading-tight truncate">{negocio.negocioNombre}</h3>
                                                         {negocio.totalSucursales > 1 && (
                                                             <p className="text-sm font-medium text-white/70 truncate mt-0.5">
-                                                                Sucursal - {negocio.sucursalNombre.replace(`${negocio.negocioNombre} - `, '')}
+                                                                {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
                                                             </p>
                                                         )}
                                                     </div>
@@ -1991,6 +1999,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             negocioNombre: negocio.negocioNombre,
                             sucursalNombre: negocio.sucursalNombre,
                             totalSucursales: negocio.totalSucursales,
+                            esPrincipal: negocio.esPrincipal,
                             logoUrl: negocio.logoUrl,
                             whatsapp: negocio.whatsapp,
                             direccion: negocio.direccion,

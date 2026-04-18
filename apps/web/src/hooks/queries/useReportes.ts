@@ -18,6 +18,10 @@ import type {
   ReportePromociones,
   ReporteResenas,
   ClienteInactivo,
+  TipoDetallePromocion,
+  DetalleOferta,
+  DetalleCupon,
+  DetalleRecompensa,
 } from '../../services/reportesService';
 
 // ─── Guard estándar ────────────────────────────────────────────────────────
@@ -90,6 +94,18 @@ export function useClientesInactivos(tipo: 'riesgo' | 'inactivos', habilitar: bo
     queryKey: ['reportes', 'clientes-inactivos', sucursalId, tipo],
     queryFn: () =>
       reportesService.getClientesInactivos(tipo).then((r) => (r.data ?? []) as ClienteInactivo[]),
+    enabled: habilitado && habilitar,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useDetallePromocion(tipo: TipoDetallePromocion, habilitar: boolean) {
+  const { sucursalId, habilitado } = useGuardComercial();
+
+  return useQuery({
+    queryKey: ['reportes', 'detalle-promocion', sucursalId, tipo],
+    queryFn: () =>
+      reportesService.getDetallePromocion(tipo).then((r) => (r.data ?? []) as (DetalleOferta[] | DetalleCupon[] | DetalleRecompensa[])),
     enabled: habilitado && habilitar,
     staleTime: 2 * 60 * 1000,
   });

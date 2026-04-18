@@ -20,6 +20,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { VoucherPendiente, VoucherCompleto } from '@/types/scanya';
+import { obtenerIniciales } from '../../utils/obtenerIniciales';
 
 // =============================================================================
 // TIPOS
@@ -44,10 +45,6 @@ const esCompleto = (v: VoucherData): v is VoucherCompleto => 'usuarioNombre' in 
 const getNombre = (v: VoucherData): string => esCompleto(v) ? v.usuarioNombre : v.clienteNombre;
 const getAvatar = (v: VoucherData): string | null => esCompleto(v) ? (v.usuarioAvatarUrl || null) : (v.clienteAvatarUrl || null);
 
-const obtenerIniciales = (nombre: string): string => {
-  const p = nombre.trim().split(/\s+/);
-  return p.length >= 2 ? `${p[0][0]}${p[p.length - 1][0]}`.toUpperCase() : nombre.slice(0, 2).toUpperCase();
-};
 
 const formatearExpiracion = (fechaStr: string): { texto: string; color: string } => {
   const fecha = new Date(fechaStr);

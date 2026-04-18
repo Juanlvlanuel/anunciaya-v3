@@ -296,7 +296,7 @@ function KPI({ tipo, valor }: { tipo: keyof typeof KPI_CONFIG; valor: string }) 
       }}
     >
       <div
-        className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-md lg:rounded-lg flex items-center justify-center shrink-0"
+        className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center shrink-0"
         style={{ background: iconBg, boxShadow: iconShadow }}
       >
         <Icono className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" style={{ color }} />

@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 12 Abril 2026
+> **Última actualización:** 16 Abril 2026
 > **Progreso global:** 98% completado
-> **Fase actual:** BS Reportes ✅ — próximo: BS Sucursales
+> **Fase actual:** BS Sucursales ✅ — próximo: Secciones Públicas o Rifas/Vacantes (bloqueados)
 
 ---
 
@@ -19,7 +19,7 @@
 | **Sistema Lealtad + CardYA** (5.6-5.7) | ✅ 100% | - |
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
-| **Business Studio** (5.4) | ⏳ 79% (11/14 módulos) | Sucursales, Rifas, Vacantes |
+| **Business Studio** (5.4) | ⏳ 86% (12/14 módulos) | Rifas, Vacantes (bloqueados) |
 | **Secciones Públicas** (6.x) | ⏳ 0% | Ofertas, MarketPlace, Dinámicas, Empleos |
 | **Panel Admin** (6.7) | ⏳ 0% | ~2 semanas. Vendedores, métricas, gestión negocios/usuarios, Stripe, reportes |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
@@ -34,7 +34,7 @@
 - ⏳ BS 80% (12/14) — no alcanzado, pasa a Q2
 
 **Q2 (Abril-Junio) — Meta:**
-- [ ] Business Studio 100% (14/14 módulos) — faltan: Sucursales, Rifas, Vacantes
+- [ ] Business Studio 100% (14/14 módulos) — faltan: Rifas, Vacantes (bloqueados)
 - [ ] Secciones públicas: Ofertas, MarketPlace, Dinámicas, Empleos
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto
@@ -59,6 +59,8 @@
 | Sprint 10 | BS Empleados: CRUD, 5 permisos, revocación sesiones, testing | 5 Abr 2026 |
 | Sprint 10.5 | Audit React Query BS: ~30 invalidaciones cross-módulo + limpieza ScanYA legacy | 11 Abr 2026 |
 | Sprint 11 | BS Reportes: 5 tabs, KPIs, funnels, cards, filtro fechas, XLSX | 12 Abr 2026 |
+| Sprint 12 | BS Sucursales: CRUD multi-sucursal + gerentes + clonación auto + hard delete | 16 Abr 2026 |
+| Sprint 12 ref | BS Sucursales refinamiento: validación correo 3 niveles, promoción cuentas existentes, emails rediseñados, blindajes Matriz, aislamiento por sucursal en Reportes, cupones cross-sucursal | 16 Abr 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -79,18 +81,23 @@
 
 - [x] ~~Barra progreso N+1 en CardYA usuario~~ (Sprint 8, 1 Abr 2026)
 - [ ] Tests E2E para CardYA/ScanYA (data-testid listos, falta crear specs)
+- [ ] **ScanYA Multi-Sucursal para dueños** — el dueño con múltiples sucursales queda fijo a la Matriz. Backend ya soporta (`POST /login-dueno` acepta `sucursalId` opcional, flag `puedeElegirSucursal` en token). Falta UI: selector de sucursal al login + chip clickeable en header + acción `cambiarSucursal` en store + endpoint `POST /api/scanya/cambiar-sucursal`. Detalle en `docs/reportes/scanya-multi-sucursal-prompt-sprint.md`.
+- [ ] **Perfil Personal del usuario** (`/perfil`) — ruta existe pero sin contenido. Debe permitir al usuario editar su nombre, apellidos, foto de avatar, contraseña. Consideraciones:
+  - Para **gerentes** (con `sucursalAsignada != null`): bloquear cambio de correo (es la identidad vinculada al negocio). Permitir editar nombre, avatar, contraseña.
+  - Para **dueños** (con `negocioId != null, sucursalAsignada = null`): mismas reglas que gerentes, no cambio de correo mientras tengan negocio activo.
+  - Para **usuarios personales** (sin negocio): todo editable incluido correo (con flujo de verificación).
 
 ---
 
-## ⏭️ Sprint siguiente: BS Alertas
+## ⏭️ Sprint siguiente: Secciones Públicas (Ofertas, MarketPlace, Dinámicas, Empleos)
 
 ---
 
 ## 📅 Backlog Priorizado
 
-### Business Studio - Módulos Pendientes (4/14)
+### Business Studio - Módulos Pendientes (2/14)
 
-**Completados (10/14):**
+**Completados (12/14):**
 - ✅ Dashboard
 - ✅ Mi Perfil
 - ✅ Catálogo
@@ -101,24 +108,19 @@
 - ✅ Opiniones (7 Mar 2026)
 - ✅ Alertas (16 tipos, motor detección, configuración, 3 Abr 2026)
 - ✅ Empleados (CRUD, 5 permisos, revocación sesiones, 5 Abr 2026)
+- ✅ Reportes (5 tabs, KPIs, funnels, XLSX, 12 Abr 2026)
+- ✅ Sucursales (CRUD multi-sucursal + gerentes + clonación auto, 16 Abr 2026)
 
-**Pendientes (4/14):**
-
-**🟢 Disponibles ahora:**
-
-| # | Módulo | Tiempo Estimado | Depende de | Descripción |
-|---|--------|-----------------|------------|-------------|
-| 1 | **Reportes** | ~3 días | ScanYA ✅ | Ventas, productos top, horarios pico, export |
-| 2 | **Sucursales** | ~2 días | - | Gestión multi-sucursal completa |
+**Pendientes (2/14):**
 
 **🔴 Bloqueados (esperan otras secciones):**
 
 | # | Módulo | Tiempo Estimado | Depende de | Descripción |
 |---|--------|-----------------|------------|-------------|
-| 3 | **Rifas** | ~2 días | Dinámicas (pendiente) | Gestión rifas del negocio |
-| 4 | **Vacantes** | ~2 días | Empleos (pendiente) | Publicar/gestionar ofertas de empleo |
+| 1 | **Rifas** | ~2 días | Dinámicas (pendiente) | Gestión rifas del negocio |
+| 2 | **Vacantes** | ~2 días | Empleos (pendiente) | Publicar/gestionar ofertas de empleo |
 
-**Total estimado:** ~11 días (distribuidos en múltiples sprints)
+**Total estimado:** ~4 días (distribuidos después de secciones públicas)
 
 ---
 
@@ -274,8 +276,8 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 
 ## 📅 Próxima Revisión
 
-**Fecha:** Al completar BS Alertas
-**Alcance:** Definir siguiente módulo BS (Empleados o Reportes) y evaluar inicio de secciones públicas
+**Fecha:** Al completar Secciones Públicas (6.0-6.3)
+**Alcance:** Desbloqueo de Rifas/Vacantes en BS y arranque de Panel Admin
 
 ---
 

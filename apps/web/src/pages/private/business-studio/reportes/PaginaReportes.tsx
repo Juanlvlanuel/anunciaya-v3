@@ -180,7 +180,7 @@ export default function PaginaReportes() {
                     key={r.id}
                     onClick={() => setRangoRapido(r.id)}
                     data-testid={`rango-${r.id}`}
-                    className={`px-3 lg:px-2.5 2xl:px-3 h-full flex items-center rounded-md text-sm lg:text-xs 2xl:text-sm font-semibold whitespace-nowrap shrink-0 lg:cursor-pointer ${
+                    className={`px-3 lg:px-2.5 2xl:px-3 h-full flex items-center rounded-lg text-sm lg:text-xs 2xl:text-sm font-semibold whitespace-nowrap shrink-0 lg:cursor-pointer ${
                       r.id === 'todo' ? 'hidden lg:flex' : 'flex'
                     } ${
                       rangoActivo === r.id

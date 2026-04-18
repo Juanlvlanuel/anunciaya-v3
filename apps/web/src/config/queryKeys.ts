@@ -163,4 +163,17 @@ export const queryKeys = {
       ['cupones', 'lista', usuarioId] as const,
   },
 
+  // ─── Business Studio — Sucursales ────────────────────────────────────────
+  sucursales: {
+    all: () => ['sucursales'] as const,
+    kpis: (negocioId: string) =>
+      ['sucursales', 'kpis', negocioId] as const,
+    lista: (negocioId: string, filtros?: Record<string, unknown>) =>
+      ['sucursales', 'lista', negocioId, filtros] as const,
+    detalle: (sucursalId: string) =>
+      ['sucursales', 'detalle', sucursalId] as const,
+    gerente: (sucursalId: string) =>
+      ['sucursales', 'gerente', sucursalId] as const,
+  },
+
 } as const;

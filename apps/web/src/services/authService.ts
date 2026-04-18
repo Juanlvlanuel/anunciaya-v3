@@ -55,6 +55,7 @@ export interface RespuestaLogin {
   accessToken: string;
   refreshToken: string;
   requiere2FA?: boolean;
+  requiereCambioContrasena?: boolean;
   tokenTemporal?: string;
 }
 
@@ -284,6 +285,18 @@ export async function cambiarContrasena(datos: CambiarContrasenaInput): Promise<
 }
 
 /**
+ * 12b. Cambiar contraseña provisional (gerentes nuevos)
+ * POST /auth/cambiar-contrasena-provisional
+ */
+export async function cambiarContrasenaProvisional(datos: {
+  tokenTemporal: string;
+  nuevaContrasena: string;
+}): Promise<RespuestaAPI> {
+  const response = await api.post<RespuestaAPI>('/auth/cambiar-contrasena-provisional', datos);
+  return response.data;
+}
+
+/**
  * Datos de Google para usuario nuevo
  */
 export interface DatosGoogleNuevo {
@@ -360,6 +373,39 @@ export async function desactivar2FA(codigo: string): Promise<RespuestaAPI> {
 }
 
 // =============================================================================
+// VERIFICAR DISPONIBILIDAD DE CORREO
+// =============================================================================
+
+export interface UsuarioExistenteResumen {
+  nombre: string;
+  apellidos: string;
+  tieneNegocio: boolean; // true si ya es dueño de un negocio o gerente de una sucursal
+}
+
+export interface RespuestaVerificarCorreo {
+  disponible: boolean;
+  existente?: UsuarioExistenteResumen;
+}
+
+/**
+ * Verifica si un correo ya está registrado en la BD.
+ * Usado para feedback en tiempo real al crear cuentas (ej: crear gerente).
+ * Requiere autenticación (rate limited: 30/min prod).
+ *
+ * - Si NO existe → { disponible: true }
+ * - Si existe → { disponible: false, existente: { nombre, apellidos, tieneNegocio } }
+ */
+export async function verificarDisponibilidadCorreo(
+  correo: string,
+): Promise<RespuestaAPI<RespuestaVerificarCorreo>> {
+  const response = await api.get<RespuestaAPI<RespuestaVerificarCorreo>>(
+    '/auth/verificar-disponibilidad-correo',
+    { params: { correo } },
+  );
+  return response.data;
+}
+
+// =============================================================================
 // EXPORT POR DEFECTO (objeto con todas las funciones)
 // =============================================================================
 
@@ -379,6 +425,7 @@ const authService = {
   olvideContrasena,
   restablecerContrasena,
   cambiarContrasena,
+  cambiarContrasenaProvisional,
 
   // Google
   loginConGoogle,
@@ -388,6 +435,9 @@ const authService = {
   activar2FA,
   verificar2FA,
   desactivar2FA,
+
+  // Verificación correo
+  verificarDisponibilidadCorreo,
 };
 
 export default authService;

@@ -25,7 +25,7 @@ import { useUiStore } from '../../../../stores/useUiStore';
 // =============================================================================
 
 function getGradienteTipo(): { bg: string; shadow: string; handle: string } {
-    return { bg: 'linear-gradient(135deg, #334155, #475569)', shadow: 'rgba(51,65,85,0.4)', handle: '#334155' };
+    return { bg: 'linear-gradient(135deg, #334155, #475569)', shadow: 'rgba(51,65,85,0.4)', handle: 'rgba(255,255,255,0.4)' };
 }
 
 function formatearBadgeDescuento(tipo: string, valor: string | null): string {

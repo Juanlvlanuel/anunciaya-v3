@@ -124,6 +124,22 @@ export function MainLayout() {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Recargar notificaciones al entrar/salir de Business Studio
+  // (el filtro por sucursal cambia: fuera de BS usa Matriz, dentro usa sucursal activa)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!usuario || usuario.modoActivo !== 'comercial') return;
+    (async () => {
+      try {
+        const { cargarNotificaciones } = (await import('../../stores/useNotificacionesStore')).default.getState();
+        cargarNotificaciones('comercial');
+      } catch (err) {
+        console.error('[MainLayout] Error recargando notificaciones al cambiar de sección:', err);
+      }
+    })();
+  }, [esBusinessStudio, usuario?.modoActivo]);
+
+  // ---------------------------------------------------------------------------
   // Teclado virtual móvil: blur al cerrar + forzar mostrar BottomNav
   // Con resizes-visual: layout viewport no cambia, visual viewport sí
   // CSS :has(input:focus) oculta el BottomNav. Este efecto solo detecta el

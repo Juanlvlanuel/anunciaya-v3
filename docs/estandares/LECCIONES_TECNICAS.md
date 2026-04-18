@@ -7,6 +7,24 @@
 
 ## General
 
+### Axios y Manejo de Errores
+
+- **Interceptor resolviendo 4xx/5xx como si fueran 2xx** — El interceptor de `api.ts` envuelve todas las respuestas en `{ success, data, error, message }` y **resuelve** la promesa aunque el backend responda 400/409/500. Consecuencia: `mutationFn` de React Query recibe el error como valor de éxito y dispara `onSuccess` con el toast verde. **Regla obligatoria en mutations:** verificar `if (!res.success) throw new Error(res.error ?? res.message ?? 'Error')`. Descubierto en `useEmpleados.ts` (abril 2026) con nick duplicado: toast decía "Empleado creado" aunque la BD rechazara.
+- **Interceptor duplicando `sucursalId`** — El interceptor agrega `sucursalId` automáticamente en `config.params` para todas las rutas. Si el service ya lo manda en la URL (ej: `/notificaciones?sucursalId=X`), termina duplicado en query string. Agregar la ruta a `RUTAS_SIN_SUCURSAL` en `api.ts` cuando el service arma el param manualmente (necesario para notificaciones porque la sucursal depende del contexto — BS vs fuera de BS — no de la sucursal activa del modo comercial).
+
+### SQL y Base de Datos
+
+- **Orden del `CASE` importa cuando las condiciones no son mutuamente excluyentes** — Un `CASE` devuelve el primer `WHEN` que matchea. Si una oferta puede ser a la vez `agotada` (límite alcanzado) y `vencida` (fecha_fin pasó), el orden define qué estado ve el usuario. **Regla:** evaluar primero la causa-raíz del cierre. En `obtenerOfertas`: agotada > vencida (si se agotó, eso cerró la oferta; el vencimiento fue posterior e irrelevante). En `obtenerMisCupones`: revocado > usado > vencido > activo (la acción del usuario prevalece sobre el paso del tiempo).
+- **`GREATEST(col - x, 0)` para deltas de puntos/contadores** — Restas directas (`puntos_canjeados_total - puntos_usados`) pueden violar check constraints `>= 0` cuando hay inconsistencia legacy entre el total almacenado y las operaciones históricas. **Regla defensiva:** envolver toda resta de contadores con constraint `>= 0` en `GREATEST(..., 0)`. Descubierto en `cancelarVoucher` (abril 2026) — billeteras legacy con `puntos_canjeados_total` menor a la suma real de vouchers canjeados.
+- **Estado en BD vs estado en UI** — Cuando el estado almacenado captura solo la última acción del usuario (`activo`/`usado`/`revocado`) pero el estado real depende también del tiempo (vencimiento) o de contadores globales (agotamiento), **calcular el estado en el query** con `CASE` en lugar de devolver el campo crudo. Evita depender de un job batch que actualice estados cada X minutos.
+
+### Gestión de archivos (R2 / Cloudinary)
+
+- **Reference count antes de borrar una imagen** — Si una URL de imagen puede ser compartida entre varias filas (típico con Cloudinary cuando el clonado no puede duplicar el archivo y cae al fallback), borrarla desde una fila rompe las otras. **Regla:** antes de `eliminarArchivo(url)` o `eliminarImagen(url)`, contar cuántas otras filas la usan (revisando todos los campos relevantes: `imagen_principal`, `imagenes_adicionales`, etc). Solo borrar si el count es 0. Aplica a `actualizarArticulo` (reemplazo), `eliminarArticulo`, `eliminarSucursal`, `actualizarOferta`, `eliminarOferta`, `eliminarImagenGaleria`, `actualizarRecompensa`, `eliminarRecompensa`, `actualizarLogoNegocio`, `actualizarPortadaSucursal`, `actualizarFotoPerfilSucursal` y cualquier otro flujo nuevo que limpie R2. Existe helper compartido `eliminarImagenSiHuerfana` exportado desde `negocioManagement.service.ts` que cubre 6 tablas (sucursales, artículos, negocios, galería, ofertas, recompensas).
+- **Soft-delete de mensajes que sobrescribe `contenido` pierde referencia al archivo R2** — Descubierto en `eliminarMensaje` (chatya): el soft-delete pone `contenido = 'Se eliminó este mensaje'` para ocultar el mensaje al otro usuario, pero si el contenido era una URL (tipo imagen/audio/documento) o JSON con URL (tipo cupón), esa referencia se perdía de BD y el archivo quedaba huérfano. **Regla:** para cualquier soft-delete que sobrescriba un campo con URLs, capturar las URLs ANTES del UPDATE y limpiarlas de storage después.
+- **No asumir que un campo tiene un formato fijo — usar regex para extraer URLs** — El campo `chat_mensajes.contenido` puede contener: URL directa, JSON con metadatos de imagen (`{"url": "...", "ancho": ..., "miniatura": "data:..."}`), o JSON de cupón (`{"imagen": "...", "ofertaId": ...}`). Asumir un formato concreto y parsearlo con `JSON.parse` o `esUrlR2()` directo genera bugs sutiles cuando el formato cambia. **Regla:** cuando extraigas URLs de un campo con formato variable, usa regex que matchee el dominio R2 y deduplica resultados. Mismo patrón en SQL (`text-scan-urls` con cast `::text`) y en JS (regex compilado con RegExp).
+- **`duplicarArchivo` es solo para R2** — `duplicarImagenInteligente` detecta si la URL es R2 o Cloudinary. Cloudinary no se puede duplicar con el SDK del proyecto → el fallback es `nuevaUrl = urlOriginal`. Consecuencia: al clonar sucursales con catálogo Cloudinary, las URLs quedan compartidas. No es bug en sí, pero obliga al reference count al borrar (ver punto anterior).
+
 ### Validación y Tipos
 
 - **Zod runtime vs TypeScript compile-time** — Son independientes. Campos faltantes en schema Zod se eliminan silenciosamente sin error de TypeScript.
@@ -40,6 +58,10 @@
 - **Expresiones JS en `sql` template** — Drizzle no evalúa expresiones dentro de `${a + b}` o `${a - b}` en template literals. Pre-calcular en variable JS antes de interpolar: `const limite = min + 1; sql\`LIMIT ${limite}\``. Descubierto en `alertas-motor.service.ts` (LIMIT y resta de días).
 - **Filtro sucursal + registros globales** — Cuando hay registros que pueden no tener `sucursal_id` (ej: alertas a nivel negocio), siempre usar `AND (sucursal_id = X OR sucursal_id IS NULL)` en vez de `AND sucursal_id = X`. Sin el `OR IS NULL` se pierden registros globales.
 - **drizzle-kit no es Drizzle ORM** — El ORM en runtime solo necesita `schema.ts` y `relations.ts`. Los archivos de migracion (`0000_xxx.sql`), journal (`_journal.json`) y snapshots (`meta/`) son artefactos de `drizzle-kit`, una CLI separada para generar migraciones automaticas. Este proyecto no usa drizzle-kit — las migraciones se manejan manualmente con SQL en PGAdmin (dev) y Supabase (prod). Los artefactos fueron eliminados en Abril 2026 junto con la dependencia `drizzle-kit` de devDependencies.
+
+- **Defaults del schema se aplican silenciosamente si no pasas el campo al insert** — Un campo con `.default('America/Mexico_City').notNull()` no da error al no incluirlo en `db.insert().values({...})` — se aplica el default sin warning. Descubierto en `crearSucursal`: cuando Matriz estaba en `America/Hermosillo` y la sucursal nueva no heredaba `zonaHoraria`, el registro quedaba con el default incorrecto y la query de `esta_abierto` calculaba la hora en la zona equivocada. Las consecuencias son invisibles en logs y se manifiestan como bugs funcionales (sucursal marcada "Cerrado" cuando estaba abierta). Regla: al insertar en una tabla con muchos campos opcionales con defaults, revisar si el default es seguro para ese flujo específico o si debes pasarlo explícito.
+
+- **Columnas de BD vs campos del schema Drizzle** — Lo que existe en PostgreSQL no tiene por qué estar en `schema.ts`. La tabla `negocio_sucursales` tiene (o tuvo) columnas `latitud`/`longitud` numeric pero el schema Drizzle define solo `ubicacion` (PostGIS POINT serializado como text). Drizzle solo inserta los campos que conoce, así que intentar pasar `{ latitud: 31.3, longitud: -113.5 }` falla con "Object literal may only specify known properties". Las coordenadas se extraen en lectura con `ST_Y(ubicacion::geometry)` y `ST_X(ubicacion::geometry)`. Regla: si necesitas un campo que no aparece en el schema, no asumas que no existe en la BD — puede estar en BD pero fuera del modelo Drizzle.
 
 ### Stores y Caché
 
@@ -130,3 +152,25 @@
 ### Codigo legacy encontrado
 
 - **`alertaMontoAlto` y `alertaTransaccionesHora` en `scanya_configuracion`** — Dos columnas legacy que existian en BD, schema, tipos, validadores y service, pero nunca fueron usados por el motor de alertas real (`alertas-motor.service.ts` lee de `alertas_configuracion`, no de `scanya_configuracion`). Fueron reemplazados por el sistema centralizado de Alertas BS con umbrales dinamicos (multiplicador del promedio vs valores fijos). Eliminados en Abril 2026. Los campos utiles de la misma tabla (`fotoTicket`, `requiereNumeroOrden`) se conservaron — tienen logica activa en ScanYA pero no tienen UI de configuracion aun.
+
+---
+
+## Sucursales
+
+### Protección de historial al eliminar
+
+- **Eliminar sucursal con CASCADE destruye trazabilidad** — Los FK de `empleados.sucursal_id` y `puntos_transacciones.sucursal_id` tienen `onDelete: cascade`. Si se permite el borrado físico de una sucursal con historial, se pierden empleados y ventas registradas. Solución aplicada en `eliminarSucursal`: cuenta `puntos_transacciones` de la sucursal; si `> 0` lanza `TIENE_HISTORIAL` (→ `409`) y el frontend ofrece desactivar como alternativa. El borrado físico solo procede en sucursales sin uso (creadas por error). Las transacciones son registros financieros inmutables — no pueden desaparecer por accidente.
+
+- **Orden importa al revocar empleados ScanYA en eliminación** — El CASCADE de `empleados.sucursal_id` borra los registros de empleados cuando se elimina la sucursal. Si intentas revocar sesiones ScanYA después del DELETE, ya no existen los empleadoId/usuarioId para emitir el socket ni escribir en Redis. Regla: listar los empleados + revocar Redis + emitir socket **antes** del `DELETE negocio_sucursales`. Descubierto durante la implementación del helper `revocarEmpleadosDeSucursal`.
+
+### Acceso del dueño/gerente a sucursales desactivadas
+
+- **Un mismo endpoint sirve al feed público y al panel del dueño — filtros distintos** — `GET /sucursal/:id` (→ `obtenerPerfilSucursal`) lo consumen `PaginaPerfilNegocio` (público) y `usePerfilSucursal` de Business Studio (dueño/gerente editando Mi Perfil). El filtro `s.activa = true` correcto para el público rompía el panel del dueño: al desactivar su propia sucursal, Mi Perfil respondía 404 y no podía editarla. Solución: query con `WHERE activa = true OR (userId es dueño/gerente)`. Los anónimos siguen sin verla, el dueño puede seguir editando. Regla: antes de añadir un filtro en un service compartido, verificar quién lo consume.
+
+### Invalidación cruzada con el feed público
+
+- **Mutaciones de BS deben invalidar `queryKeys.negocios.all()`** — El feed público (`PaginaNegocios`, `PaginaPerfilNegocio`) se alimenta de queries bajo el scope `negocios` mientras BS usa `sucursales` y `perfil`. Invalidar solo los scopes de BS deja al feed mostrando datos viejos (sucursales desactivadas siguen apareciendo hasta que el usuario recarga). `useInvalidarSucursales` invalida los 3 scopes: `sucursales.all`, `perfil.sucursales(negocioId)` y `negocios.all`. Regla: cuando una mutación afecta datos visibles al público, listar explícitamente todos los scopes de query keys que leen esos datos.
+
+### Navegación con flechas del header BS
+
+- **`Navbar.tsx` (PC) y `MobileHeader.tsx` (móvil) duplican la lista `MODULOS_BS`** — Ambos componentes mantienen su propia copia del array de módulos para las flechas `<` `>`. Al agregar la lógica de filtrado para gerentes, es fácil olvidar uno de los dos. `MobileHeader` ya tenía el filtro `vistaComoGerente` pero `Navbar` no — resultado: en PC el gerente podía navegar a "Puntos" y "Sucursales" donde encuentra pantalla de acceso restringido. Al modificar esta lista o sus filtros, tocar ambos archivos. Considerar extraer a un hook compartido `useModulosBS()` cuando haya una tercera instancia.

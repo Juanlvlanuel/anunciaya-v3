@@ -38,3 +38,16 @@ export const limitadorOgPreview = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Límite para verificación de disponibilidad de correo: 500 dev, 30 prod por minuto
+// Usado en flujos de creación de cuenta (ej: crear gerente desde BS Sucursales)
+export const limitadorVerificacionCorreo = rateLimit({
+  windowMs: 60 * 1000,
+  max: isDev ? 500 : 30,
+  message: {
+    success: false,
+    message: 'Demasiadas verificaciones, espera un momento',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

@@ -10,8 +10,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
-import { MapPin, Navigation, Loader2, X, Search } from 'lucide-react';
+import { MapPin, Navigation, Loader2, X, Search, Maximize2 } from 'lucide-react';
 import { ModalUbicacion } from '../../../../../components/layout/ModalUbicacion';
 import L from 'leaflet';
 import { useGpsStore } from '@/stores/useGpsStore';
@@ -133,6 +134,7 @@ export default function TabUbicacion({
   const [detectandoUbicacion, setDetectandoUbicacion] = useState(false);
   const [modalCiudadAbierto, setModalCiudadAbierto] = useState(false);
   const [forzarCentrado, setForzarCentrado] = useState(0);
+  const [mapaFullscreen, setMapaFullscreen] = useState(false);
 
   const latitudActual = datosUbicacion.latitud ?? 31.3122;
   const longitudActual = datosUbicacion.longitud ?? -113.5465;
@@ -449,6 +451,17 @@ export default function TabUbicacion({
             <DetectarClicMapa onClic={handleMoverMarcador} />
             <CentrarMapa lat={latitudActual} lng={longitudActual} forzar={forzarCentrado} />
           </MapContainer>
+
+          {/* Botón expandir — flotante sobre el mapa (esquina superior derecha, debajo del zoom de Leaflet) */}
+          <button
+            type="button"
+            onClick={() => setMapaFullscreen(true)}
+            className="absolute top-2 right-2 z-[1000] w-9 h-9 rounded-lg bg-white/95 hover:bg-white border-2 border-slate-300 shadow-md flex items-center justify-center cursor-pointer transition-colors"
+            title="Ver mapa completo"
+            data-testid="btn-expandir-mapa-ubicacion"
+          >
+            <Maximize2 className="w-4 h-4 text-slate-700" />
+          </button>
         </div>
 
       </div>
@@ -461,6 +474,70 @@ export default function TabUbicacion({
         onClose={() => setModalCiudadAbierto(false)}
         onSeleccionar={handleSeleccionarCiudadModal}
       />
+    )}
+
+    {/* ============================================================ */}
+    {/* POPUP FULLSCREEN DEL MAPA — portal a body para estar por encima de todo */}
+    {/* ============================================================ */}
+    {mapaFullscreen && createPortal(
+      <div
+        className="fixed inset-0 z-[99999] bg-slate-900/80 flex items-center justify-center p-4 lg:p-8"
+        onClick={() => setMapaFullscreen(false)}
+        data-testid="mapa-fullscreen-overlay-ubicacion"
+      >
+        <div
+          className="relative w-full h-full max-w-6xl max-h-[95vh] rounded-2xl overflow-hidden shadow-2xl bg-white flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header del popup */}
+          <div
+            className="shrink-0 px-4 py-3 flex items-center gap-3"
+            style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+          >
+            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+              <MapPin className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-bold text-white">Ajustar ubicación</h3>
+              <p className="text-xs text-white/70 font-medium truncate">
+                Arrastra el marcador o toca el mapa para ajustar la ubicación
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMapaFullscreen(false)}
+              className="shrink-0 w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors"
+              title="Cerrar"
+              data-testid="btn-cerrar-mapa-fullscreen-ubicacion"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+
+          {/* Mapa a pantalla completa */}
+          <div className="flex-1 min-h-0 relative">
+            <MapContainer
+              center={[latitudActual, longitudActual]}
+              zoom={16}
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom={true}
+              zoomControl={true}
+            >
+              <TileLayer
+                attribution='&copy; OpenStreetMap'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MarcadorArrastrable
+                posicion={[latitudActual, longitudActual]}
+                onMover={handleMoverMarcador}
+              />
+              <DetectarClicMapa onClic={handleMoverMarcador} />
+              <CentrarMapa lat={latitudActual} lng={longitudActual} forzar={forzarCentrado} />
+            </MapContainer>
+          </div>
+        </div>
+      </div>,
+      document.body
     )}
     </>
   );
