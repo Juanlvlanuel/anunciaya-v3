@@ -27,6 +27,7 @@ import { MenuContextualChat } from './MenuContextualChat';
 import { MenuContextualMensaje } from './MenuContextualMensaje';
 import { BarraBusquedaChat } from './BarraBusquedaChat';
 import { PanelInfoContacto, cachéNegocio, cachéCliente, invalidarCachéArchivos } from './PanelInfoContacto';
+import { determinarMiLado } from './utils/lado';
 import { ModalReenviar } from './ModalReenviar';
 import { VisorImagenesChat } from './VisorImagenesChat';
 import { TexturaDoodle } from './TexturaDoodle';
@@ -136,6 +137,7 @@ interface AreaMensajesProps {
   esMobile: boolean;
   esMisNotas: boolean;
   miId: string;
+  miSucursalId: string | null;
   mensajeResaltadoId: string | null;
   menuMensajeId: string | null;
   onStartReached: () => void;
@@ -158,10 +160,20 @@ const AreaMensajes = memo(function AreaMensajes({
   conversacionId, datos,
   scrollRef, mostrarScrollAbajoRef, scrollBtnRef,
   cargandoMensajesAntiguos,
-  esMobile, esMisNotas, miId, mensajeResaltadoId, menuMensajeId,
+  esMobile, esMisNotas, miId, miSucursalId, mensajeResaltadoId, menuMensajeId,
   onStartReached, onMenuContextual, onReaccionar,
   fechaStickyRef, atBottomRef, hayMasMensajes, onImagenClick, onReenviar, onCitaClick, onResponder, miAvatarUrl, otroAvatarUrl, misIniciales, otroIniciales,
 }: AreaMensajesProps) {
+
+  /**
+   * Determina si un mensaje es mío. En chat inter-sucursal del mismo negocio,
+   * ambos lados comparten `emisorId` (dueño) y solo difieren por sucursal.
+   */
+  const mensajeEsMio = (m: { emisorId: string | null; emisorSucursalId: string | null }) => {
+    if (m.emisorId !== miId) return false;
+    if (miSucursalId && m.emisorSucursalId) return m.emisorSucursalId === miSucursalId;
+    return true;
+  };
 
   // Ref para el sentinel de paginación (IntersectionObserver)
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -237,7 +249,7 @@ const AreaMensajes = memo(function AreaMensajes({
       for (let i = datos.length - 1; i >= 0; i--) {
         const item = datos[i];
         if (item.tipo === 'mensaje') {
-          ultimoMensajeMio = item.mensaje.emisorId === miId;
+          ultimoMensajeMio = mensajeEsMio(item.mensaje);
           break;
         }
       }
@@ -388,8 +400,8 @@ const AreaMensajes = memo(function AreaMensajes({
         const itemKey = item.tipo === 'separador' ? `sep-${item.fecha}` : item.mensaje.id;
         const itemId = item.tipo === 'mensaje' ? `msg-${item.mensaje.id}` : undefined;
         const prevItem = idx > 0 ? datos[idx - 1] : null;
-        const esMio = item.tipo === 'mensaje' && item.mensaje.emisorId === miId;
-        const prevEsMio = prevItem?.tipo === 'mensaje' && prevItem.mensaje.emisorId === miId;
+        const esMio = item.tipo === 'mensaje' && mensajeEsMio(item.mensaje);
+        const prevEsMio = prevItem?.tipo === 'mensaje' && mensajeEsMio(prevItem.mensaje);
         const cambioEmisor = item.tipo === 'mensaje' && prevItem?.tipo === 'mensaje' && esMio !== prevEsMio;
         return (
         <div
@@ -412,9 +424,10 @@ const AreaMensajes = memo(function AreaMensajes({
             <BurbujaMensaje
               key={item.mensaje.id}
               mensaje={item.mensaje}
-              esMio={item.mensaje.emisorId === miId}
+              esMio={esMio}
               esMisNotas={esMisNotas}
               miId={miId}
+              miSucursalId={miSucursalId}
               resaltado={item.mensaje.id === mensajeResaltadoId}
               onMenuContextual={onMenuContextual}
               onReaccionar={onReaccionar}
@@ -452,7 +465,7 @@ function VentanaChatInner() {
   const escribiendoActiva = useChatYAStore((s) => s.conversacionActivaId ? s.escribiendo[s.conversacionActivaId] : undefined);
   const estadoOtroRaw = useChatYAStore((s) => {
     const conv = s.conversaciones.find((c) => c.id === s.conversacionActivaId) ?? s.conversacionesArchivadas.find((c) => c.id === s.conversacionActivaId);
-    const otroId = conv?.otroParticipante?.id;
+    const otroId = conv?.otroParticipante?.id ?? s.chatTemporal?.otroParticipante?.id;
     return otroId ? s.estadosUsuarios[otroId] : null;
   });
   const misNotasId = useChatYAStore((s) => s.misNotasId);
@@ -480,6 +493,17 @@ function VentanaChatInner() {
   const usuario = useAuthStore((s) => s.usuario);
   const usuarioScanYA = useScanYAStore((s) => s.usuario);
   const { miId, modo: modoActivo, sucursalId: miSucursalId } = useChatYASession();
+
+  /**
+   * Determina si un mensaje es mío. En chat inter-sucursal del mismo negocio,
+   * ambos lados tienen el mismo `emisorId` (dueño) y solo difieren por sucursal.
+   * Desempata con `emisorSucursalId` cuando tengo sucursal activa.
+   */
+  const mensajeEsMio = useCallback((m: { emisorId: string | null; emisorSucursalId: string | null }) => {
+    if (m.emisorId !== miId) return false;
+    if (miSucursalId && m.emisorSucursalId) return m.emisorSucursalId === miSucursalId;
+    return true;
+  }, [miId, miSucursalId]);
 
   // Avatar e iniciales del usuario actual (AnunciaYA o ScanYA)
   const miAvatarUrlDeriv = usuario?.avatarUrl || usuarioScanYA?.logoNegocio || null;
@@ -545,6 +569,10 @@ function VentanaChatInner() {
   const nombre = esMisNotas
     ? 'Mis Notas'
     : otro?.negocioNombre || (otro ? `${otro.nombre} ${otro.apellidos || ''}`.trim() : 'Chat');
+  // Sufijo con nombre de sucursal — solo se muestra si el backend lo devolvió
+  // (negocio con más de una sucursal y NO la matriz). Render como texto más
+  // chico y gris junto al nombre principal.
+  const sucursalSufijo = !esMisNotas ? otro?.sucursalNombre ?? null : null;
   const avatarUrl = esMisNotas ? null : (otro?.negocioLogo || otro?.avatarUrl || null);
   const iniciales = esMisNotas
     ? ''
@@ -556,8 +584,9 @@ function VentanaChatInner() {
   const esBloqueado = !esMisNotas && !esTemporal && bloqueados.some((b) => b.bloqueadoId === otro?.id);
 
   // Derivar sucursalId del otro participante
+  // Usa tupla (miId, miSucursalId) para soportar chats inter-sucursal del mismo negocio.
   const otroSucursalId = conversacion
-    ? (conversacion.participante1Id === miId ? conversacion.participante2SucursalId : conversacion.participante1SucursalId)
+    ? determinarMiLado(conversacion, miId, miSucursalId).otroSucursalId
     : chatTemporal?.datosCreacion?.participante2SucursalId || null;
 
   // Verificar si el otro participante ya es contacto
@@ -709,24 +738,44 @@ function VentanaChatInner() {
   }, [visorAbierto, visorImagenMsgId, visorArchivos]);
 
   // ---------------------------------------------------------------------------
-  // Invalidar caché de archivos compartidos al recibir/enviar imagen, documento o enlace
+  // Invalidar caché de archivos compartidos cuando la lista de archivos relevantes
+  // de la conversación cambia. Cubre 3 casos:
+  //  1. Nuevo mensaje de imagen/documento/audio/enlace llega o se envía.
+  //  2. Optimistic (`temp_*` con `url:"uploading"`) se reemplaza por el real → ID cambia.
+  //  3. Mensaje relevante se elimina (queda con `eliminado: true` → sale del filtro).
+  // Observamos la lista de IDs no-eliminados relevantes en vez del último mensaje,
+  // porque la eliminación no cambia `mensajes[0].id`.
   // ---------------------------------------------------------------------------
-  const prevMensajesCountRef = useRef(mensajes.length);
+  const archivosRelevantesIds = useMemo(() => {
+    return mensajes
+      .filter((m) => {
+        if (m.eliminado) return false;
+        if (m.id.startsWith('temp_') && m.contenido.includes('"url":"uploading"')) return false;
+        return (
+          m.tipo === 'imagen' ||
+          m.tipo === 'documento' ||
+          (m.tipo === 'texto' && /https?:\/\//.test(m.contenido))
+        );
+      })
+      .map((m) => m.id)
+      .join(',');
+  }, [mensajes]);
+  const convArchivosKeyRef = useRef<string | null>(null);
+  const prevArchivosIdsRef = useRef<string>('');
   const [archivosKey, setArchivosKey] = useState(0);
   useEffect(() => {
-    if (mensajes.length > prevMensajesCountRef.current && conversacionActivaId) {
-      const ultimo = mensajes[0]; // más reciente (orden desc)
-      if (ultimo) {
-        const tipoRelevante = ultimo.tipo === 'imagen' || ultimo.tipo === 'documento';
-        const textoConUrl = ultimo.tipo === 'texto' && /https?:\/\//.test(ultimo.contenido);
-        if (tipoRelevante || textoConUrl) {
-          invalidarCachéArchivos(conversacionActivaId);
-          setArchivosKey((n) => n + 1);
-        }
-      }
+    if (!conversacionActivaId) return;
+    // Primera pasada para esta conv: establecer baseline sin invalidar.
+    if (convArchivosKeyRef.current !== conversacionActivaId) {
+      convArchivosKeyRef.current = conversacionActivaId;
+      prevArchivosIdsRef.current = archivosRelevantesIds;
+      return;
     }
-    prevMensajesCountRef.current = mensajes.length;
-  }, [mensajes.length, conversacionActivaId]);
+    if (prevArchivosIdsRef.current === archivosRelevantesIds) return;
+    prevArchivosIdsRef.current = archivosRelevantesIds;
+    invalidarCachéArchivos(conversacionActivaId);
+    setArchivosKey((n) => n + 1);
+  }, [archivosRelevantesIds, conversacionActivaId]);
 
   // ---------------------------------------------------------------------------
   // Estado local: drag & drop de imagen en toda la ventana
@@ -1105,43 +1154,73 @@ function VentanaChatInner() {
   // ---------------------------------------------------------------------------
   const handleReaccionar = useCallback(async (mensajeId: string, emoji: string) => {
     // ── Actualización optimista ──
+    // Cada reactor es tupla (id, sucursalId). En inter-sucursal el mismo usuarioId
+    // puede aparecer varias veces, una por sucursal. Se compara con la mía para
+    // toggle y para saber si "yo ya reaccioné".
     const prevMensajes = useChatYAStore.getState().mensajes;
+    type Reactor = { id: string; sucursalId: string | null };
+    const miReactor: Reactor = { id: miId, sucursalId: miSucursalId ?? null };
+    const coincide = (u: string | Reactor) => {
+      const uid = typeof u === 'string' ? u : u.id;
+      const usuc = typeof u === 'string' ? null : (u.sucursalId ?? null);
+      return uid === miReactor.id && usuc === miReactor.sucursalId;
+    };
     useChatYAStore.setState((prev) => ({
       mensajes: prev.mensajes.map((m) => {
         if (m.id !== mensajeId) return m;
-        const reacciones = [...(m.reacciones || [])].map((r) => ({ ...r, usuarios: [...(r.usuarios as string[])] }));
+        const reacciones = [...(m.reacciones || [])].map((r) => ({ ...r, usuarios: [...(r.usuarios as (string | Reactor)[])] }));
         const existente = reacciones.find((r) => r.emoji === emoji);
-        const yaReaccione = (existente?.usuarios as string[] | undefined)?.includes(miId);
+        const yaReaccione = (existente?.usuarios as (string | Reactor)[] | undefined)?.some(coincide) ?? false;
 
         if (yaReaccione && existente) {
           // Mismo emoji → toggle off (quitar)
           existente.cantidad -= 1;
-          existente.usuarios = (existente.usuarios as string[]).filter((id) => id !== miId);
+          existente.usuarios = (existente.usuarios as (string | Reactor)[]).filter((u) => !coincide(u)) as typeof existente.usuarios;
           if (existente.cantidad <= 0) {
             const idx = reacciones.indexOf(existente);
             reacciones.splice(idx, 1);
           }
         } else {
-          // Emoji diferente o ninguno → quitar reacción previa si existe
+          // Emoji diferente o ninguno → quitar reacción previa si existe (misma tupla)
           for (const r of reacciones) {
-            const idx = (r.usuarios as string[]).indexOf(miId);
-            if (idx !== -1) {
-              r.cantidad -= 1;
-              (r.usuarios as string[]).splice(idx, 1);
-            }
+            const usuariosArr = r.usuarios as (string | Reactor)[];
+            const antes = usuariosArr.length;
+            r.usuarios = usuariosArr.filter((u) => !coincide(u)) as typeof r.usuarios;
+            r.cantidad -= antes - (r.usuarios as (string | Reactor)[]).length;
           }
           // Limpiar emojis que quedaron en 0
           const limpias = reacciones.filter((r) => r.cantidad > 0);
 
-          // Agregar nueva reacción
+          // Agregar nueva reacción (idempotente: si mi reactor ya está en el
+          // emoji destino tras la limpieza anterior, no sumamos de nuevo).
           const existenteNuevo = limpias.find((r) => r.emoji === emoji);
           if (existenteNuevo) {
-            existenteNuevo.cantidad += 1;
-            (existenteNuevo.usuarios as string[]).push(miId);
+            const yaEstoy = (existenteNuevo.usuarios as (string | Reactor)[]).some(coincide);
+            if (!yaEstoy) {
+              existenteNuevo.cantidad += 1;
+              (existenteNuevo.usuarios as (string | Reactor)[]).push(miReactor);
+            }
           } else {
-            limpias.push({ emoji, cantidad: 1, usuarios: [miId] });
+            limpias.push({ emoji, cantidad: 1, usuarios: [miReactor] });
           }
-          return { ...m, reacciones: limpias };
+          // Normalización: cada tupla (id, sucursalId) aparece UNA sola vez y
+          // `cantidad` iguala el número real de tuplas únicas. Previene
+          // duplicados visuales si algo agrega el mismo reactor más de una vez.
+          const normalizadas = limpias
+            .map((r) => {
+              const seen = new Set<string>();
+              const unicos = (r.usuarios as (string | Reactor)[]).filter((u) => {
+                const uid = typeof u === 'string' ? u : u.id;
+                const usuc = typeof u === 'string' ? null : (u.sucursalId ?? null);
+                const key = `${uid}|${usuc ?? ''}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+              return { ...r, usuarios: unicos as typeof r.usuarios, cantidad: unicos.length };
+            })
+            .filter((r) => r.cantidad > 0);
+          return { ...m, reacciones: normalizadas };
         }
         return { ...m, reacciones };
       }),
@@ -1177,7 +1256,7 @@ function VentanaChatInner() {
             /* Acciones de mensaje en el header (móvil long press) */
             <AccionesHeaderMobile
               mensaje={menuMensaje!.mensaje}
-              esMio={menuMensaje!.mensaje.emisorId === miId}
+              esMio={mensajeEsMio(menuMensaje!.mensaje)}
               esMisNotas={esMisNotas}
               conversacionActivaId={conversacionActivaId}
               mensajesFijados={mensajesFijados}
@@ -1236,21 +1315,33 @@ function VentanaChatInner() {
                 onClick={() => !esMisNotas && togglePanel()}
                 className={`flex-1 min-w-0 text-left ${!esMisNotas ? 'cursor-pointer' : ''}`}
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-baseline gap-1.5 min-w-0">
                   <p className="text-base font-bold text-white lg:text-gray-800 truncate leading-tight">{nombreMostrar}</p>
                 </div>
-                {esMisNotas ? (
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-white/50 lg:text-slate-600 font-medium">Notas personales</p>
-                ) : esBloqueado ? (
-                  <p className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-semibold flex items-center gap-1">
-                    <ShieldBan className="w-3 h-3" />
-                    Bloqueado
-                  </p>
-                ) : estaEscribiendo ? (
-                  <p className="text-[13px] text-blue-500 font-semibold">Escribiendo...</p>
-                ) : (
-                  <p className="text-[13px] font-medium flex items-center gap-1 truncate">
-                    {estadoOtro?.estado === 'conectado' ? (
+                {(() => {
+                  const mostrarSucursal = !!sucursalSufijo && !contactoExistente?.alias?.trim() && !esMisNotas && !esBloqueado;
+                  const prefijoSucursal = mostrarSucursal ? (
+                    <>
+                      <span className="text-white/50 lg:text-gray-500 font-medium">{sucursalSufijo}</span>
+                      <span className="text-white/30 lg:text-gray-400">·</span>
+                    </>
+                  ) : null;
+                  return esMisNotas ? (
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-white/50 lg:text-slate-600 font-medium">Notas personales</p>
+                  ) : esBloqueado ? (
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-semibold flex items-center gap-1">
+                      <ShieldBan className="w-3 h-3" />
+                      Bloqueado
+                    </p>
+                  ) : estaEscribiendo ? (
+                    <p className="text-[13px] font-medium flex items-center gap-1 truncate">
+                      {prefijoSucursal}
+                      <span className="text-blue-500 font-semibold">Escribiendo...</span>
+                    </p>
+                  ) : (
+                    <p className="text-[13px] font-medium flex items-center gap-1 truncate">
+                      {prefijoSucursal}
+                      {estadoOtro?.estado === 'conectado' ? (
                       <>
                         <span className="w-1.5 h-1.5 bg-green-600 rounded-full shrink-0" />
                         <span className="text-green-600 font-semibold">En línea</span>
@@ -1280,20 +1371,21 @@ function VentanaChatInner() {
                     ) : (
                       <span className="text-white/30 lg:text-slate-600">...</span>
                     )}
-                    {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && conversacion.participante1Id !== miId && (
-                      <>
-                        <span className="text-white/30 lg:text-gray-300">·</span>
-                        <span className="text-white/40 lg:text-slate-600 truncate">
-                          {conversacion.contextoTipo === 'negocio' && modoActivo === 'comercial' && 'Desde: Tu perfil'}
-                          {conversacion.contextoTipo === 'oferta' && `Desde oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
-                          {conversacion.contextoTipo === 'marketplace' && `Desde publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
-                          {conversacion.contextoTipo === 'empleo' && `Desde vacante: ${conversacion.contextoNombre || 'Empleos'}`}
-                          {conversacion.contextoTipo === 'dinamica' && `Desde dinámica: ${conversacion.contextoNombre || 'Dinámicas'}`}
-                        </span>
-                      </>
-                    )}
-                  </p>
-                )}
+                      {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && conversacion.participante1Id !== miId && (
+                        <>
+                          <span className="text-white/30 lg:text-gray-300">·</span>
+                          <span className="text-white/40 lg:text-slate-600 truncate">
+                            {conversacion.contextoTipo === 'negocio' && modoActivo === 'comercial' && 'Desde: Tu perfil'}
+                            {conversacion.contextoTipo === 'oferta' && `Desde oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
+                            {conversacion.contextoTipo === 'marketplace' && `Desde publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
+                            {conversacion.contextoTipo === 'empleo' && `Desde vacante: ${conversacion.contextoNombre || 'Empleos'}`}
+                            {conversacion.contextoTipo === 'dinamica' && `Desde dinámica: ${conversacion.contextoNombre || 'Dinámicas'}`}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                  );
+                })()}
               </button>
             </>
           )}
@@ -1563,6 +1655,7 @@ function VentanaChatInner() {
               esMobile={esMobile}
               esMisNotas={esMisNotas}
               miId={miId}
+              miSucursalId={miSucursalId}
               mensajeResaltadoId={mensajeResaltadoId}
               menuMensajeId={esMobile ? menuMensaje?.mensaje.id ?? null : null}
               onStartReached={handleStartReached}
@@ -1635,7 +1728,7 @@ function VentanaChatInner() {
         {menuMensaje && !esMobile && (
           <MenuContextualMensaje
             mensaje={menuMensaje.mensaje}
-            esMio={menuMensaje.mensaje.emisorId === miId}
+            esMio={mensajeEsMio(menuMensaje.mensaje)}
             esMisNotas={esMisNotas}
             posicion={menuMensaje.posicion}
             onCerrar={handleCerrarMenuMensaje}

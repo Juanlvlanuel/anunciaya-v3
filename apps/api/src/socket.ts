@@ -45,7 +45,15 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
     // 1. Intentar como token AnunciaYA (descartar si es ScanYA)
     const resultadoAY = verificarAccessToken(token);
     if (resultadoAY.valido && resultadoAY.payload && !(resultadoAY.payload as any)._tipo) {
-      socket.data.usuarioId = resultadoAY.payload.usuarioId;
+      const payload = resultadoAY.payload;
+      // Gerente en modo comercial → room del dueño (opera "como el negocio").
+      // Mismo swap que hace `verificarTokenChatYA` para los endpoints HTTP.
+      const esGerenteComercial =
+        payload.modoActivo === 'comercial' &&
+        payload.sucursalAsignada &&
+        payload.negocioUsuarioId &&
+        payload.negocioUsuarioId !== payload.usuarioId;
+      socket.data.usuarioId = esGerenteComercial ? payload.negocioUsuarioId : payload.usuarioId;
       next();
       return;
     }
@@ -81,18 +89,20 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
     // -----------------------------------------------------------------
     // ChatYA: Indicador "Escribiendo..."
     // -----------------------------------------------------------------
-    socket.on('chatya:escribiendo', (data: { conversacionId: string; destinatarioId: string }) => {
+    socket.on('chatya:escribiendo', (data: { conversacionId: string; destinatarioId: string; emisorSucursalId?: string | null }) => {
       if (data.destinatarioId) {
         io!.to(`usuario:${data.destinatarioId}`).emit('chatya:escribiendo', {
           conversacionId: data.conversacionId,
+          emisorSucursalId: data.emisorSucursalId ?? null,
         });
       }
     });
 
-    socket.on('chatya:dejar-escribir', (data: { conversacionId: string; destinatarioId: string }) => {
+    socket.on('chatya:dejar-escribir', (data: { conversacionId: string; destinatarioId: string; emisorSucursalId?: string | null }) => {
       if (data.destinatarioId) {
         io!.to(`usuario:${data.destinatarioId}`).emit('chatya:dejar-escribir', {
           conversacionId: data.conversacionId,
+          emisorSucursalId: data.emisorSucursalId ?? null,
         });
       }
     });

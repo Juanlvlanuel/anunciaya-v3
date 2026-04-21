@@ -23,7 +23,7 @@ import { verificarAccessTokenScanYA } from '../utils/jwtScanYA.js';
 declare global {
   namespace Express {
     interface Request {
-      usuario?: TokenDecodificado;
+      usuario?: TokenDecodificado & { empleadoId?: string | null };
       negocioId?: string;
     }
   }
@@ -169,7 +169,24 @@ export async function verificarTokenChatYA(req: Request, res: Response, next: Ne
   // 1. Intentar como token AnunciaYA (descartar si es token ScanYA)
   const resultadoAY = verificarAccessToken(token);
   if (resultadoAY.valido && resultadoAY.payload && !(resultadoAY.payload as any)._tipo) {
-    req.usuario = resultadoAY.payload;
+    const payload = resultadoAY.payload;
+    // Gerente en modo comercial: sustituir usuarioId por el del dueño del negocio
+    // para que opere "como el negocio" desde su sucursal (mismo modelo que ScanYA).
+    // El emisor original (gerente) se preserva en `empleadoId` para trazabilidad.
+    if (
+      payload.modoActivo === 'comercial' &&
+      payload.sucursalAsignada &&
+      payload.negocioUsuarioId &&
+      payload.negocioUsuarioId !== payload.usuarioId
+    ) {
+      req.usuario = {
+        ...payload,
+        empleadoId: payload.usuarioId,
+        usuarioId: payload.negocioUsuarioId,
+      };
+    } else {
+      req.usuario = payload;
+    }
     next();
     return;
   }

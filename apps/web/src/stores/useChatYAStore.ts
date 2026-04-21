@@ -104,6 +104,13 @@ interface ChatYAState {
 
   // ─── Conversaciones ────────────────────────────────────────────────────
   conversaciones: Conversacion[];
+  /** Modo para el cual está cargada la lista actual (siempre coherente con `conversaciones`). */
+  conversacionesModo: ModoChatYA | null;
+  /**
+   * Cache por modo para transición instantánea al cambiar personal ↔ comercial.
+   * Evita ventana de "vacío" o "stale" al hacer toggle.
+   */
+  conversacionesPorModo: { personal: Conversacion[] | null; comercial: Conversacion[] | null };
   totalConversaciones: number;
   cargandoConversaciones: boolean;
 
@@ -231,6 +238,12 @@ interface ChatYAState {
 
   // ─── Carga inicial y reset ────────────────────────────────────────────
   inicializar: (modo?: ModoChatYA) => Promise<void>;
+  /**
+   * Cambia el modo mostrando instantáneamente las conversaciones cacheadas de
+   * ese modo (si existen) y refresca en segundo plano. Elimina el parpadeo al
+   * hacer toggle personal ↔ comercial.
+   */
+  swapearModoDesdeCache: (modo: ModoChatYA) => void;
   inicializarScanYA: () => Promise<void>;
   limpiar: () => void;
 }
@@ -258,6 +271,14 @@ const ESTADO_INICIAL = {
   visorAbierto: false,
   panelInfoAbierto: false,
   conversaciones: [] as Conversacion[],
+  /**
+   * Modo para el cual está cargada la lista actual (`conversaciones`).
+   * Se actualiza atómicamente junto con `conversaciones` en `swapearModoDesdeCache`
+   * y `cargarConversaciones`, por lo que siempre es coherente con los datos.
+   * Clave de `conversacionesPorModo` al poblar el cache por modo.
+   */
+  conversacionesModo: null as ModoChatYA | null,
+  conversacionesPorModo: { personal: null as Conversacion[] | null, comercial: null as Conversacion[] | null },
   totalConversaciones: 0,
   cargandoConversaciones: false,
   mensajes: [] as Mensaje[],
@@ -486,12 +507,19 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       const respuesta = await chatyaService.getConversaciones(modo, 20, offset);
       if (respuesta.success && respuesta.data) {
         const data = respuesta.data as ListaPaginada<Conversacion>;
-        set({
-          conversaciones: offset === 0
-            ? data.items
-            : [...conversaciones, ...data.items],
+        const nuevasConversaciones = offset === 0
+          ? data.items
+          : [...conversaciones, ...data.items];
+        set((prev) => ({
+          conversaciones: nuevasConversaciones,
           totalConversaciones: data.total,
-        });
+          conversacionesModo: modo,
+          // Poblar el cache del modo recién cargado para swaps instantáneos.
+          conversacionesPorModo: {
+            ...prev.conversacionesPorModo,
+            [modo]: nuevasConversaciones,
+          },
+        }));
       }
     } catch (error) {
       console.error('Error cargando conversaciones:', error);
@@ -814,6 +842,17 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
    * 5. Si falla → marcar como fallido
    */
   enviarMensaje: async (datos: EnviarMensajeInput, _idExistente?: string) => {
+    // Si el chat es temporal, materializarlo como conversación real ANTES de enviar.
+    // Esto cubre todos los tipos de mensaje (texto, imagen, audio, documento, ubicación).
+    {
+      const { conversacionActivaId: idActual, chatTemporal } = get();
+      if (idActual?.startsWith('temp_') && chatTemporal) {
+        const conv = await get().crearConversacion(chatTemporal.datosCreacion);
+        if (!conv) return null;
+        get().transicionarAConversacionReal(conv.id);
+      }
+    }
+
     const { conversacionActivaId, mensajes, conversaciones } = get();
     if (!conversacionActivaId) return null;
 
@@ -883,12 +922,19 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     try {
       const respuesta = await chatyaService.enviarMensaje(conversacionActivaId, datos);
       if (respuesta.success && respuesta.data) {
-        // Reemplazar mensaje temporal con el real del backend
-        set((state) => ({
-          mensajes: state.mensajes.map((m) =>
-            m.id === idTemporal ? respuesta.data! : m
-          ),
-        }));
+        const real = respuesta.data;
+        set((state) => {
+          // Si el evento socket `chatya:mensaje-nuevo` ya insertó el mensaje real
+          // (carrera común en chats inter-sucursal y multi-dispositivo), eliminar
+          // el optimistic en vez de reemplazarlo — evita duplicados visuales.
+          const yaEstaReal = state.mensajes.some((m) => m.id === real.id);
+          if (yaEstaReal) {
+            return { mensajes: state.mensajes.filter((m) => m.id !== idTemporal) };
+          }
+          return {
+            mensajes: state.mensajes.map((m) => (m.id === idTemporal ? real : m)),
+          };
+        });
         return respuesta.data;
       } else {
         // Marcar como fallido (se queda visible con ⚠) en vez de eliminar
@@ -1530,6 +1576,32 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   },
 
   /** Carga inicial: mis notas primero (para filtrar), luego conversaciones + badge */
+  swapearModoDesdeCache: (modo: ModoChatYA) => {
+    const cached = get().conversacionesPorModo[modo];
+    if (cached) {
+      // Swap atómico: conversaciones + modo se actualizan en una sola pasada.
+      // La vista NO pasa por "vacío" — salta del modo anterior al nuevo con datos.
+      set({
+        conversaciones: cached,
+        conversacionesModo: modo,
+        conversacionActivaId: null, // cerrar conv abierta (es del modo anterior)
+        mensajes: [],
+        mensajesFijados: [],
+      });
+    } else {
+      // Sin cache para el nuevo modo → mostrar lista vacía + flag de carga.
+      // El refetch post-cambiarModo rellenará y conversacionesModo se sincronizará.
+      set({
+        conversaciones: [],
+        conversacionesModo: modo,
+        conversacionActivaId: null,
+        mensajes: [],
+        mensajesFijados: [],
+        cargandoConversaciones: true,
+      });
+    }
+  },
+
   inicializar: async (modo: ModoChatYA = 'personal') => {
     await get().cargarMisNotas();
     await Promise.all([
@@ -1619,19 +1691,48 @@ function reproducirSonidoNotificacion(): void {
  */
 const badgeTimersPendientes = new Map<string, ReturnType<typeof setTimeout>>();
 
+/**
+ * Ids de mensajes ya procesados por el listener `chatya:mensaje-nuevo`.
+ * El backend emite el mismo mensaje a 2 rooms (otroId + emisorId) y en
+ * inter-sucursal ambos van al mismo `usuario:${id}` → el cliente recibe el
+ * evento dos veces. Este set es un safety net cuando el mensaje no está en
+ * `state.mensajes` ni en `cacheMensajes` (conv no cargada). Sliding window.
+ */
+const idsMensajesVistos = new Set<string>();
+
 /** chatya:mensaje-nuevo — Mensaje nuevo de otro participante */
 escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, mensaje }) => {
   const state = useChatYAStore.getState();
 
-  // Ignorar mensajes propios SOLO si ya existen localmente (actualización optimista del mismo dispositivo)
   const miId = obtenerMiIdChatYA();
+  const miSucursalId = obtenerSucursalChatYA();
+
+  // Dedup por ID real. El backend emite el mismo evento a otroId y a emisorId
+  // (en inter-sucursal van al mismo room `usuario:${id}` → 2 eventos al mismo
+  // cliente). Cualquier evento duplicado se descarta aquí — revisamos tanto en
+  // la conversación activa como en el caché de inactivas, y contra un registro
+  // global de IDs recientemente vistos (para convs que no cargamos en caché).
+  if (state.mensajes.some((m) => m.id === mensaje.id)) return;
+  if (state.cacheMensajes[conversacionId]?.some((m) => m.id === mensaje.id)) return;
+  if (idsMensajesVistos.has(mensaje.id)) return;
+  idsMensajesVistos.add(mensaje.id);
+  // Mantener el set acotado (sliding window) para no crecer indefinidamente.
+  if (idsMensajesVistos.size > 500) {
+    const primero = idsMensajesVistos.values().next().value;
+    if (primero) idsMensajesVistos.delete(primero);
+  }
+
+  // Para mensajes propios (mismo usuarioId + misma sucursal activa): dedup contra
+  // el mensaje optimista insertado al enviar. Para "otro yo" en otra sucursal
+  // (inter-sucursal), dejar pasar para procesar como recibido.
   if (mensaje.emisorId === miId) {
-    // Verificar si ya existe por ID real O si hay un mensaje temporal pendiente del mismo contenido
-    const yaExiste = state.mensajes.some((m) =>
-      m.id === mensaje.id ||
-      (m.id.startsWith('temp_') && m.conversacionId === conversacionId && m.contenido === mensaje.contenido)
-    );
-    if (yaExiste) return;
+    const esEcoPropio = !mensaje.emisorSucursalId || mensaje.emisorSucursalId === miSucursalId;
+    if (esEcoPropio) {
+      const yaExisteTemp = state.mensajes.some((m) =>
+        m.id.startsWith('temp_') && m.conversacionId === conversacionId && m.contenido === mensaje.contenido
+      );
+      if (yaExisteTemp) return;
+    }
   }
 
   // Verificar si la conversación pertenece a la sucursal activa (modo comercial)
@@ -1646,10 +1747,18 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
 
   // Si estamos viendo esta conversación Y la pestaña es visible, agregar y marcar leído
   const pestanaVisible = typeof document !== 'undefined' && document.visibilityState === 'visible';
-  const esMensajePropio = mensaje.emisorId === miId;
+  // En chat inter-sucursal, un mensaje de "otro yo" (mismo usuarioId, distinta sucursal)
+  // NO es propio desde la perspectiva de esta sesión — debe sonar, marcar no-leído, etc.
+  const esMensajePropio =
+    mensaje.emisorId === miId &&
+    (!mensaje.emisorSucursalId || mensaje.emisorSucursalId === miSucursalId);
 
   // ── Sonido de notificación ──
-  if (!esMensajePropio) {
+  // Solo si NO es propio Y la conversación está en mi lista filtrada.
+  // En inter-sucursal, un mismo usuarioId comparte socket room entre sesiones,
+  // así que el dueño podría recibir el mensaje-nuevo del gerente a un tercero
+  // y dispararía sonido por algo que no le corresponde.
+  if (!esMensajePropio && esConversacionConocida) {
     const esActiva = state.conversacionActivaId === conversacionId && pestanaVisible;
     const convSilenciada = [...state.conversaciones, ...state.conversacionesArchivadas]
       .find((c) => c.id === conversacionId)?.silenciada;
@@ -1658,16 +1767,33 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
     }
   }
 
+  // Helper: agregar mensaje con dedup final (evita cualquier camino de duplicación,
+  // incluyendo race conditions entre el optimistic insert y los 2 emits del backend).
+  const agregarMensajeConDedup = (prev: { mensajes: typeof state.mensajes }) => {
+    const yaEstaReal = prev.mensajes.some((m) => m.id === mensaje.id);
+    if (yaEstaReal) return { mensajes: prev.mensajes };
+    const yaEstaTemp = prev.mensajes.some(
+      (m) => m.id.startsWith('temp_') && m.conversacionId === conversacionId && m.contenido === mensaje.contenido
+    );
+    if (yaEstaTemp) {
+      // Reemplazar optimistic con real (similar al happy path de enviarMensaje)
+      return {
+        mensajes: prev.mensajes.map((m) =>
+          m.id.startsWith('temp_') && m.conversacionId === conversacionId && m.contenido === mensaje.contenido
+            ? mensaje
+            : m
+        ),
+      };
+    }
+    return { mensajes: [mensaje, ...prev.mensajes] };
+  };
+
   if (state.conversacionActivaId === conversacionId && pestanaVisible) {
-    useChatYAStore.setState((prev) => ({
-      mensajes: [mensaje, ...prev.mensajes],
-    }));
+    useChatYAStore.setState(agregarMensajeConDedup);
     if (!esMensajePropio && !conversacionId.startsWith('temp_')) chatyaService.marcarComoLeido(conversacionId).catch(() => { });
   } else if (state.conversacionActivaId === conversacionId && !pestanaVisible) {
     // Conversación abierta pero pestaña no visible
-    useChatYAStore.setState((prev) => ({
-      mensajes: [mensaje, ...prev.mensajes],
-    }));
+    useChatYAStore.setState(agregarMensajeConDedup);
     if (!esMensajePropio) {
       // Agendar consulta de badge con timer cancelable.
       // Si otro dispositivo (ScanYA) marca como leído → chatya:leido cancela este timer.
@@ -1707,8 +1833,12 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
 
   // Actualizar preview o agregar conversación nueva
   if (esConversacionConocida) {
-    // Conversación existente: actualizar preview
+    // Conversación existente: actualizar preview e incrementar noLeidos si corresponde.
+    // El `debeIncrementar` cubre: mensaje recibido + conv no activa (o pestaña no visible).
+    const activaYVisible = state.conversacionActivaId === conversacionId && pestanaVisible;
+    const debeIncrementar = !esMensajePropio && !activaYVisible;
     useChatYAStore.setState((prev) => ({
+      totalNoLeidos: debeIncrementar ? prev.totalNoLeidos + 1 : prev.totalNoLeidos,
       conversaciones: prev.conversaciones.map((c) =>
         c.id === conversacionId
           ? {
@@ -1722,9 +1852,11 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
             ultimoMensajeTipo: mensaje.tipo,
             ultimoMensajeEstado: mensaje.estado,
             ultimoMensajeEmisorId: mensaje.emisorId,
-            noLeidos: prev.conversacionActivaId === conversacionId
+            noLeidos: activaYVisible
               ? 0
-              : c.noLeidos,
+              : debeIncrementar
+                ? c.noLeidos + 1
+                : c.noLeidos,
           }
           : c
       ),
@@ -1741,12 +1873,17 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
             ultimoMensajeTipo: mensaje.tipo,
             ultimoMensajeEstado: mensaje.estado,
             ultimoMensajeEmisorId: mensaje.emisorId,
-            noLeidos: prev.conversacionActivaId === conversacionId
+            noLeidos: activaYVisible
               ? 0
-              : c.noLeidos,
+              : debeIncrementar
+                ? c.noLeidos + 1
+                : c.noLeidos,
           }
           : c
       ),
+      noLeidosArchivados: debeIncrementar && prev.conversacionesArchivadas.some((c) => c.id === conversacionId)
+        ? prev.noLeidosArchivados + 1
+        : prev.noLeidosArchivados,
     }));
   } else if (!esModoComercial) {
     // Conversación NUEVA en modo personal: obtener del backend y agregar
@@ -1789,7 +1926,11 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
   }
 
   // ── Confirmar entrega al emisor (palomitas dobles grises) ──
-  if (!esMensajePropio) {
+  // Solo si soy participante real de esta conversación. En inter-sucursal el
+  // mismo usuarioId puede estar en varias sucursales compartiendo socket room,
+  // así que verificamos que la conversación exista en MI lista filtrada
+  // (ya refleja "es de mi sucursal activa"). Evita falsos "entregados".
+  if (!esMensajePropio && esConversacionConocida) {
     emitirEvento('chatya:entregado', {
       conversacionId,
       emisorId: mensaje.emisorId,
@@ -1799,7 +1940,7 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
 });
 
 /** chatya:mensaje-editado — Mensaje editado en tiempo real */
-escucharEvento<EventoMensajeEditado>('chatya:mensaje-editado', ({ conversacionId, mensaje }) => {
+escucharEvento<EventoMensajeEditado>('chatya:mensaje-editado', ({ conversacionId, mensaje, nuevoPreview }) => {
   const state = useChatYAStore.getState();
 
   if (state.conversacionActivaId === conversacionId) {
@@ -1821,6 +1962,18 @@ escucharEvento<EventoMensajeEditado>('chatya:mensaje-editado', ({ conversacionId
         },
       }));
     }
+  }
+
+  // Si el mensaje editado era el último, actualizar preview en la lista.
+  if (nuevoPreview) {
+    useChatYAStore.setState((prev) => ({
+      conversaciones: prev.conversaciones.map((c) =>
+        c.id === conversacionId ? { ...c, ultimoMensajeTexto: nuevoPreview.ultimoMensajeTexto } : c
+      ),
+      conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
+        c.id === conversacionId ? { ...c, ultimoMensajeTexto: nuevoPreview.ultimoMensajeTexto } : c
+      ),
+    }));
   }
 });
 
@@ -1880,21 +2033,32 @@ escucharEvento<EventoMensajeEliminado>('chatya:mensaje-eliminado', ({ conversaci
 });
 
 /** chatya:leido — Palomitas azules (el otro leyó los mensajes) */
-escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoPor, leidoAt }) => {
+escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoPor, leidoPorSucursalId, leidoAt }) => {
 
   const state = useChatYAStore.getState();
 
-  // Identificar si fui YO quien leyó (en otro dispositivo/tab como ScanYA)
+  // Identificar si fui YO quien leyó (en otro dispositivo/tab como ScanYA).
+  // En chats inter-sucursal, el `usuarioId` es el mismo en ambos lados (dueño),
+  // así que desempatamos con `sucursalId`.
   const miId = obtenerMiIdChatYA();
-  const yoLeí = leidoPor === miId;
+  const miSucursalId = obtenerSucursalChatYA();
+  const yoLeí =
+    leidoPor === miId &&
+    (!leidoPorSucursalId || leidoPorSucursalId === miSucursalId);
 
-  // Solo marcar como leídos los mensajes que NO fueron enviados por quien leyó.
-  // Ejemplo: si leidoPor = Ian, solo mis mensajes se marcan como leídos (Ian los leyó).
-  // Si leidoPor = yo, solo los mensajes de Ian se marcan (yo los leí) — sync multi-dispositivo.
+  // Un mensaje fue leído por el OTRO lado si su emisor no coincide con la tupla
+  // (leidoPor, leidoPorSucursalId). Así cubrimos el caso inter-sucursal donde
+  // `emisorId === leidoPor` pero las sucursales difieren.
+  const mensajeEsLeido = (m: { emisorId: string | null; emisorSucursalId: string | null }) => {
+    if (m.emisorId !== leidoPor) return true;
+    if (leidoPorSucursalId && m.emisorSucursalId !== leidoPorSucursalId) return true;
+    return false;
+  };
+
   if (state.conversacionActivaId === conversacionId) {
     useChatYAStore.setState((prev) => ({
       mensajes: prev.mensajes.map((m) =>
-        m.emisorId !== leidoPor && m.estado !== 'leido'
+        mensajeEsLeido(m) && m.estado !== 'leido'
           ? { ...m, estado: 'leido' as const, leidoAt }
           : m
       ),
@@ -1909,7 +2073,7 @@ escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoPor, leidoAt
         cacheMensajes: {
           ...prev.cacheMensajes,
           [conversacionId]: cached.map((m) =>
-            m.emisorId !== leidoPor && m.estado !== 'leido'
+            mensajeEsLeido(m) && m.estado !== 'leido'
               ? { ...m, estado: 'leido' as const, leidoAt }
               : m
           ),
@@ -1947,24 +2111,55 @@ escucharEvento<EventoLeido>('chatya:leido', ({ conversacionId, leidoPor, leidoAt
     });
   }
 
-  // Actualizar estado del último mensaje en la lista de conversaciones
-  // Solo si el último mensaje fue enviado por alguien distinto a quien leyó
-  useChatYAStore.setState((prev) => ({
-    conversaciones: prev.conversaciones.map((c) =>
-      c.id === conversacionId && c.ultimoMensajeEmisorId !== leidoPor
-        ? { ...c, ultimoMensajeEstado: 'leido' as const }
-        : c
-    ),
-    conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
-      c.id === conversacionId && c.ultimoMensajeEmisorId !== leidoPor
-        ? { ...c, ultimoMensajeEstado: 'leido' as const }
-        : c
-    ),
-  }));
+  // Actualizar el preview del último mensaje SOLO si realmente hubo un mensaje
+  // que no era del lector (es decir: el lector leyó mensajes del otro lado).
+  // Si el lector abre un chat donde él mismo envió el último mensaje, el backend
+  // igual emite este evento pero no debemos pintar 'leido' — nadie lo ha visto.
+  //
+  // Usamos la tupla (leidoPor, leidoPorSucursalId) para decidir: si el último
+  // mensaje (según el state local) pertenece al lector, no actualizar.
+  const convLocal =
+    useChatYAStore.getState().conversaciones.find((c) => c.id === conversacionId) ??
+    useChatYAStore.getState().conversacionesArchivadas.find((c) => c.id === conversacionId);
+  if (convLocal) {
+    const ultimoEmisorId = convLocal.ultimoMensajeEmisorId;
+    // Si no sabemos el emisor del último mensaje, no arriesgar.
+    if (ultimoEmisorId && ultimoEmisorId !== leidoPor) {
+      // Último mensaje fue de otro usuario (no del lector) → marcar leido.
+      useChatYAStore.setState((prev) => ({
+        conversaciones: prev.conversaciones.map((c) =>
+          c.id === conversacionId ? { ...c, ultimoMensajeEstado: 'leido' as const } : c
+        ),
+        conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
+          c.id === conversacionId ? { ...c, ultimoMensajeEstado: 'leido' as const } : c
+        ),
+      }));
+    } else if (ultimoEmisorId === leidoPor && leidoPorSucursalId) {
+      // Mismo usuarioId: inter-sucursal posible. Desempatar con el emisor del
+      // último mensaje en el state si la conv está activa.
+      const state2 = useChatYAStore.getState();
+      if (state2.conversacionActivaId === conversacionId) {
+        const ultimoMsgLocal = state2.mensajes[0];
+        if (ultimoMsgLocal && ultimoMsgLocal.emisorSucursalId && ultimoMsgLocal.emisorSucursalId !== leidoPorSucursalId) {
+          useChatYAStore.setState((prev) => ({
+            conversaciones: prev.conversaciones.map((c) =>
+              c.id === conversacionId ? { ...c, ultimoMensajeEstado: 'leido' as const } : c
+            ),
+            conversacionesArchivadas: prev.conversacionesArchivadas.map((c) =>
+              c.id === conversacionId ? { ...c, ultimoMensajeEstado: 'leido' as const } : c
+            ),
+          }));
+        }
+      }
+    }
+  }
 });
 
 /** chatya:escribiendo — Indicador "escribiendo..." (soporta múltiples conversaciones) */
-escucharEvento<EventoEscribiendo>('chatya:escribiendo', ({ conversacionId }) => {
+escucharEvento<EventoEscribiendo>('chatya:escribiendo', ({ conversacionId, emisorSucursalId }) => {
+  // En chat inter-sucursal el evento propio rebota a mi sesión (mismo usuarioId, mismo room).
+  // Si el emisor es mi propia sucursal activa, es eco — ignorar.
+  if (emisorSucursalId && emisorSucursalId === obtenerSucursalChatYA()) return;
   const timestamp = Date.now();
   useChatYAStore.setState((prev) => ({
     escribiendo: { ...prev.escribiendo, [conversacionId]: { conversacionId, timestamp } },
@@ -1984,7 +2179,8 @@ escucharEvento<EventoEscribiendo>('chatya:escribiendo', ({ conversacionId }) => 
 });
 
 /** chatya:dejar-escribir — Dejar de mostrar "escribiendo..." */
-escucharEvento<EventoEscribiendo>('chatya:dejar-escribir', ({ conversacionId }) => {
+escucharEvento<EventoEscribiendo>('chatya:dejar-escribir', ({ conversacionId, emisorSucursalId }) => {
+  if (emisorSucursalId && emisorSucursalId === obtenerSucursalChatYA()) return;
   useChatYAStore.setState((prev) => {
     if (!prev.escribiendo[conversacionId]) return prev;
     const nuevo = { ...prev.escribiendo };
@@ -1996,6 +2192,14 @@ escucharEvento<EventoEscribiendo>('chatya:dejar-escribir', ({ conversacionId }) 
 /** chatya:entregado — Palomitas dobles grises (mensaje entregado al receptor) */
 escucharEvento<EventoEntregado>('chatya:entregado', ({ conversacionId, mensajeIds }) => {
   const state = useChatYAStore.getState();
+
+  // Guard inter-sucursal: el dueño y el gerente comparten socket room cuando el
+  // gerente opera como el negocio. Si el evento es para una conv que no está
+  // en MI lista filtrada por sucursal, no me corresponde — ignorar.
+  const esConocida =
+    state.conversaciones.some((c) => c.id === conversacionId) ||
+    state.conversacionesArchivadas.some((c) => c.id === conversacionId);
+  if (!esConocida) return;
 
   if (state.conversacionActivaId === conversacionId) {
     useChatYAStore.setState((prev) => ({
@@ -2037,44 +2241,88 @@ escucharEvento<EventoEstadoUsuario & { ultimaConexion?: string | null }>('chatya
 });
 
 /** chatya:reaccion — Reacción agregada/removida en tiempo real */
-escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, emoji, usuarioId, accion }) => {
+escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, emoji, usuarioId, usuarioSucursalId, accion }) => {
+  // Nota: NO dedupamos aquí por clave semántica (msgId|userId|sucursal|emoji|accion)
+  // porque esa clave se repite legítimamente (agregar → quitar → agregar otra vez
+  // es el mismo `agregada` con la misma clave). La correctness contra eventos
+  // duplicados está garantizada por `normalizarReacciones` (idempotente por tupla).
+
   const state = useChatYAStore.getState();
 
-  // Actualizar reacciones del mensaje si la conversación está abierta
+  // Helpers para reactor-as-tuple (id, sucursalId). Cada sucursal es una entidad
+  // independiente de reacción, así que el "mismo" usuarioId puede aparecer varias
+  // veces, una por sucursal. Soportamos el shape legacy string[] con fallback.
+  const obtenerReactorId = (u: string | { id: string; sucursalId?: string | null }) =>
+    typeof u === 'string' ? u : u.id;
+  const obtenerReactorSucursal = (u: string | { id: string; sucursalId?: string | null }): string | null =>
+    typeof u === 'string' ? null : (u.sucursalId ?? null);
+  const coincideReactor = (
+    u: string | { id: string; sucursalId?: string | null },
+    id: string,
+    sucId: string | null | undefined,
+  ) => obtenerReactorId(u) === id && obtenerReactorSucursal(u) === (sucId ?? null);
+
+  /**
+   * Normaliza una lista de reactores: cada tupla (id, sucursalId) aparece UNA
+   * sola vez y `cantidad` iguala el número real de tuplas únicas. Es la garantía
+   * final contra cualquier camino que añada duplicados (optimistic + socket,
+   * listeners duplicados por HMR, race conditions, etc.).
+   */
+  const normalizarReacciones = <T extends { emoji: string; cantidad: number; usuarios: (string | { id: string; sucursalId?: string | null })[] }>(
+    reacciones: T[],
+  ): T[] => reacciones
+    .map((r) => {
+      const seen = new Set<string>();
+      const unicos = r.usuarios.filter((u) => {
+        const key = `${obtenerReactorId(u)}|${obtenerReactorSucursal(u) ?? ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return { ...r, usuarios: unicos as typeof r.usuarios, cantidad: unicos.length };
+    })
+    .filter((r) => r.cantidad > 0);
+
+  // Actualizar reacciones del mensaje si la conversación está abierta.
+  // IMPORTANTE: todas las actualizaciones son INMUTABLES (crean nuevos objetos).
+  // Mutaciones directas (`r.cantidad += 1`, `r.usuarios.push(...)`) causaron bugs
+  // de doble conteo cuando el listener se disparaba más de una vez, porque el
+  // mismo r objeto era reutilizado entre renders.
   if (state.conversacionActivaId === conversacionId) {
     useChatYAStore.setState((prev) => ({
       mensajes: prev.mensajes.map((m) => {
         if (m.id !== mensajeId) return m;
 
-        const reacciones = [...(m.reacciones || [])];
+        const reacciones = m.reacciones ?? [];
+        type ReactorTupla = string | { id: string; sucursalId?: string | null };
 
         if (accion === 'agregada') {
           const existente = reacciones.find((r) => r.emoji === emoji);
-          if (existente) {
-            // Idempotente: solo agregar si el usuario no está ya en la lista
-            if (!(existente.usuarios as string[]).includes(usuarioId)) {
-              existente.cantidad += 1;
-              (existente.usuarios as string[]).push(usuarioId);
-            }
-          } else {
-            reacciones.push({ emoji, cantidad: 1, usuarios: [usuarioId] });
-          }
-        } else {
-          const existente = reacciones.find((r) => r.emoji === emoji);
-          if (existente) {
-            // Idempotente: solo remover si el usuario todavía está en la lista
-            if ((existente.usuarios as string[]).includes(usuarioId)) {
-              existente.cantidad -= 1;
-              existente.usuarios = (existente.usuarios as string[]).filter((id) => id !== usuarioId);
-            }
-            if (existente.cantidad <= 0) {
-              const idx = reacciones.indexOf(existente);
-              reacciones.splice(idx, 1);
-            }
-          }
+          const nuevoReactor = { id: usuarioId, sucursalId: usuarioSucursalId ?? null };
+          const nuevasReacciones = existente
+            ? reacciones.map((r) =>
+                r === existente
+                  ? { ...r, cantidad: r.cantidad + 1, usuarios: [...r.usuarios, nuevoReactor] as typeof r.usuarios }
+                  : r,
+              )
+            : [...reacciones, { emoji, cantidad: 1, usuarios: [nuevoReactor] }];
+          // Normalización final: elimina duplicados por tupla — cualquier ruta
+          // que añadió al mismo reactor dos veces (optimistic + listener race,
+          // listeners duplicados, etc.) queda corregida aquí.
+          return { ...m, reacciones: normalizarReacciones(nuevasReacciones) };
         }
 
-        return { ...m, reacciones };
+        // accion === 'eliminada'
+        const existente = reacciones.find((r) => r.emoji === emoji);
+        if (!existente) return m;
+        const usuariosArr = existente.usuarios as ReactorTupla[];
+        const usuariosSinReactor = usuariosArr.filter((u) => !coincideReactor(u, usuarioId, usuarioSucursalId));
+        const nuevasReacciones = reacciones.map((r) =>
+          r === existente
+            ? { ...r, cantidad: usuariosSinReactor.length, usuarios: usuariosSinReactor as typeof r.usuarios }
+            : r,
+        );
+        return { ...m, reacciones: normalizarReacciones(nuevasReacciones) };
       }),
     }));
   }
@@ -2088,7 +2336,10 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
       ? `"${msgReaccionado.contenido.slice(0, 30)}${msgReaccionado.contenido.length > 30 ? '...' : ''}"`
       : '';
 
-    const esMiReaccion = usuarioId === miId;
+    // Desempate por sucursal para inter-sucursal (mismo usuarioId, distinta sucursal).
+    const miSucursalIdReac = obtenerSucursalChatYA();
+    const esMiReaccion = usuarioId === miId &&
+      (!usuarioSucursalId || usuarioSucursalId === miSucursalIdReac);
     const textoPreview = esMiReaccion
       ? `Reaccionaste con ${emoji} a ${previewMsg}`.trim()
       : `Reaccionó con ${emoji} a ${previewMsg}`.trim();
@@ -2122,8 +2373,10 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
     // Si aún quedan reacciones, actualizar preview con la reacción restante
     if (reaccionRestante) {
       const miId = obtenerMiIdChatYA();
-      const usuarioIds = reaccionRestante.usuarios as (string | { id: string })[];
-      const esMia = usuarioIds.some((u) => (typeof u === 'string' ? u : u.id) === miId);
+      const miSucForRest = obtenerSucursalChatYA();
+      const usuariosArr = reaccionRestante.usuarios as (string | { id: string; sucursalId?: string | null })[];
+      // "Es mía" si existe un reactor con mi tupla (id + sucursalId).
+      const esMia = usuariosArr.some((u) => coincideReactor(u, miId, miSucForRest));
       const previewMsg = msgActualizado?.contenido
         ? `"${msgActualizado.contenido.slice(0, 30)}${msgActualizado.contenido.length > 30 ? '...' : ''}"`
         : '';
@@ -2174,7 +2427,12 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
 });
 
 /** chatya:mensaje-fijado — Mensaje fijado en tiempo real */
-escucharEvento<EventoMensajeFijado>('chatya:mensaje-fijado', ({ conversacionId, mensajeId, fijadoPor: _fijadoPor }) => {
+escucharEvento<EventoMensajeFijado>('chatya:mensaje-fijado', ({ conversacionId, mensajeId, fijadoPor: _fijadoPor, fijadoPorSucursalId }) => {
+  // Fijado es per-lado. En inter-sucursal el room `usuario:${id}` es compartido
+  // entre sesiones del mismo usuarioId; si el evento viene de otra sucursal, no
+  // me corresponde.
+  if (fijadoPorSucursalId !== undefined && fijadoPorSucursalId !== obtenerSucursalChatYA()) return;
+
   const state = useChatYAStore.getState();
 
   // Recargar solo si estamos en esa conversación Y el mensaje no está ya en la lista (optimista)
@@ -2187,7 +2445,9 @@ escucharEvento<EventoMensajeFijado>('chatya:mensaje-fijado', ({ conversacionId, 
 });
 
 /** chatya:mensaje-desfijado — Mensaje desfijado en tiempo real */
-escucharEvento<EventoMensajeDesfijado>('chatya:mensaje-desfijado', ({ conversacionId, mensajeId }) => {
+escucharEvento<EventoMensajeDesfijado>('chatya:mensaje-desfijado', ({ conversacionId, mensajeId, fijadoPorSucursalId }) => {
+  if (fijadoPorSucursalId !== undefined && fijadoPorSucursalId !== obtenerSucursalChatYA()) return;
+
   const state = useChatYAStore.getState();
 
   if (state.conversacionActivaId === conversacionId) {

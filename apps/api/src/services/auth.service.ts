@@ -28,6 +28,22 @@ import {
   enviarCodigoRecuperacion,
 } from '../utils/email.js';
 import { generarTokens, type PayloadToken, verificarRefreshToken } from '../utils/jwt.js';
+
+/**
+ * Para gerentes (sucursalAsignada !== null), resuelve el `usuarioId` del dueño del
+ * negocio al que están asignados. ChatYA usa este valor como identidad comercial
+ * del gerente para que opere "como el negocio" desde su sucursal (igual que ScanYA).
+ * Devuelve null para dueños o usuarios sin negocio.
+ */
+async function resolverNegocioUsuarioId(negocioId: string | null, sucursalAsignada: string | null): Promise<string | null> {
+  if (!sucursalAsignada || !negocioId) return null;
+  const [neg] = await db
+    .select({ usuarioId: negocios.usuarioId })
+    .from(negocios)
+    .where(eq(negocios.id, negocioId))
+    .limit(1);
+  return neg?.usuarioId ?? null;
+}
 import type {
   RegistroInput,
   VerificarEmailInput,
@@ -108,6 +124,12 @@ interface UsuarioPublico {
   negocioId: string | null;
   sucursalActiva: string | null;
   sucursalAsignada: string | null;
+  /**
+   * Para gerentes: UUID del DUEÑO del negocio al que están asignados.
+   * ChatYA en modo comercial usa este valor como identidad del gerente
+   * (opera "como el negocio" desde su sucursal).
+   */
+  negocioUsuarioId: string | null;
   onboardingCompletado: boolean;
   // Datos del negocio (modo comercial)
   nombreNegocio: string | null;
@@ -153,7 +175,8 @@ function usuarioAPublico(
   onboardingCompletado?: boolean,
   datosNegocio?: DatosNegocio,
   sucursalActivaCalculada?: string | null,
-  datosNegocioGerente?: DatosNegocio
+  datosNegocioGerente?: DatosNegocio,
+  negocioUsuarioId?: string | null
 ): UsuarioPublico {
   return {
     id: usuario.id,
@@ -178,6 +201,7 @@ function usuarioAPublico(
     negocioId: usuario.negocioId ?? null,
     sucursalActiva: sucursalActivaCalculada ?? null,
     sucursalAsignada: usuario.sucursalAsignada ?? null,
+    negocioUsuarioId: negocioUsuarioId ?? null,
     onboardingCompletado: onboardingCompletado ?? false,
     // Datos del negocio
     nombreNegocio: datosNegocio?.nombre ?? null,
@@ -785,7 +809,7 @@ export async function loginUsuario(
         success: true,
         message: 'Debes cambiar tu contraseña provisional',
         data: {
-          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, usuario.sucursalAsignada, datosNegocioGerente),
+          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, usuario.sucursalAsignada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
           accessToken: '',
           refreshToken: '',
           requiereCambioContrasena: true,
@@ -819,7 +843,7 @@ export async function loginUsuario(
         success: true,
         message: 'Requiere verificación de dos factores',
         data: {
-          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
+          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
           accessToken: '',
           refreshToken: '',
           requiere2FA: true,
@@ -837,6 +861,7 @@ export async function loginUsuario(
       membresia: usuario.membresia,
       modoActivo: usuario.modoActivo || 'personal',
       sucursalAsignada: usuario.sucursalAsignada || null,
+      negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
     };
 
     const tokens = generarTokens(payload);
@@ -870,7 +895,7 @@ export async function loginUsuario(
       success: true,
       message: 'Inicio de sesión exitoso',
       data: {
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
+        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -968,6 +993,7 @@ export async function refrescarToken(
       membresia: usuario.membresia,
       modoActivo: usuario.modoActivo || 'personal',
       sucursalAsignada: usuario.sucursalAsignada || null,
+      negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
     };
 
     const nuevosTokens = generarTokens(payload);
@@ -1076,7 +1102,7 @@ export async function obtenerUsuarioActual(
     return {
       success: true,
       message: 'Usuario obtenido',
-      data: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
+      data: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
       code: 200,
     };
 
@@ -1699,7 +1725,7 @@ export async function loginConGoogle(
         message: 'Requiere verificación de dos factores',
         data: {
           usuarioNuevo: false,
-          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
+          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
           accessToken: '',
           refreshToken: '',
           requiere2FA: true,
@@ -1719,6 +1745,7 @@ export async function loginConGoogle(
       membresia: usuario.membresia,
       modoActivo: usuario.modoActivo || 'personal',
       sucursalAsignada: usuario.sucursalAsignada || null,
+      negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
     };
 
     const tokens = generarTokens(payloadToken);
@@ -1731,7 +1758,7 @@ export async function loginConGoogle(
       message: 'Inicio de sesión exitoso con Google',
       data: {
         usuarioNuevo: false,
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
+        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -2230,6 +2257,7 @@ export async function verificar2fa(
       membresia: usuario.membresia,
       modoActivo: usuario.modoActivo || 'personal',
       sucursalAsignada: usuario.sucursalAsignada || null,
+      negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
     };
 
     const tokens = generarTokens(payloadToken);
@@ -2254,7 +2282,7 @@ export async function verificar2fa(
       success: true,
       message: 'Verificación exitosa',
       data: {
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente),
+        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -2413,6 +2441,7 @@ export async function cambiarModo(
   modoActivo: string;
   tieneModoComercial: boolean;
   negocioId: string | null;
+  negocioUsuarioId: string | null;
   sucursalActiva: string | null;
   nombreNegocio: string | null;
   correoNegocio: string | null;
@@ -2458,6 +2487,7 @@ export async function cambiarModo(
         membresia: usuario.membresia,
         modoActivo: usuario.modoActivo,
         sucursalAsignada: usuario.sucursalAsignada || null,
+        negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
       };
 
       const tokens = generarTokens(payloadToken);
@@ -2484,6 +2514,7 @@ export async function cambiarModo(
           modoActivo: usuario.modoActivo,
           tieneModoComercial: usuario.tieneModoComercial ?? false,
           negocioId: usuario.negocioId ?? null,
+          negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
           sucursalActiva: sucursalActivaCalculada,
           nombreNegocio: datosNegocio?.nombre ?? null,
           correoNegocio: datosNegocio?.correo ?? null,
@@ -2524,6 +2555,7 @@ export async function cambiarModo(
       membresia: usuarioActualizado.membresia,
       modoActivo: usuarioActualizado.modoActivo,
       sucursalAsignada: usuarioActualizado.sucursalAsignada || null,
+      negocioUsuarioId: await resolverNegocioUsuarioId(usuarioActualizado.negocioId, usuarioActualizado.sucursalAsignada),
     };
 
     const tokens = generarTokens(payloadToken);
@@ -2554,6 +2586,7 @@ export async function cambiarModo(
         modoActivo: usuarioActualizado.modoActivo,
         tieneModoComercial: usuarioActualizado.tieneModoComercial ?? false,
         negocioId: usuarioActualizado.negocioId ?? null,
+        negocioUsuarioId: await resolverNegocioUsuarioId(usuarioActualizado.negocioId, usuarioActualizado.sucursalAsignada),
         sucursalActiva: sucursalActivaCalculada,
         nombreNegocio: datosNegocio?.nombre ?? null,
         correoNegocio: datosNegocio?.correo ?? null,

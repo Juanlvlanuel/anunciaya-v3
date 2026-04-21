@@ -60,8 +60,13 @@ function obtenerModo(req: Request): ModoChatYA {
 }
 
 function obtenerSucursalId(req: Request): string | null {
-  // Gerente: sucursalAsignada fija desde el token
-  // Dueño: sucursalId enviada por el interceptor Axios como query param
+  // Sucursal solo aplica en modo comercial. En modo personal devolvemos null
+  // aunque el gerente tenga `sucursalAsignada` fija — sus acciones personales
+  // (reacciones, mensajes, posición en conv) no deben quedar atadas a la sucursal.
+  const modo = (req.usuario?.modoActivo as ModoChatYA | undefined) || 'personal';
+  if (modo !== 'comercial') return null;
+  // Gerente comercial: sucursalAsignada fija desde el token.
+  // Dueño comercial: sucursalId enviada por el interceptor Axios como query param.
   return req.usuario!.sucursalAsignada || (req.query.sucursalId as string) || null;
 }
 
@@ -110,7 +115,7 @@ export async function obtenerConversacionController(req: Request, res: Response)
     const usuarioId = obtenerUsuarioId(req);
     const conversacionId = req.params.id;
 
-    const resultado = await obtenerConversacion(conversacionId, usuarioId);
+    const resultado = await obtenerConversacion(conversacionId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -155,7 +160,16 @@ export async function crearConversacionController(req: Request, res: Response) {
       });
     }
 
-    if (participante2Id === usuarioId) {
+    // Excepción: chat inter-sucursal del mismo negocio (dueño operando en modo
+    // comercial puede chatear con otra sucursal suya — son entidades independientes).
+    const esAutoChatInterSucursal =
+      modo === 'comercial' &&
+      participante2Modo === 'comercial' &&
+      !!sucursalId &&
+      !!participante2SucursalId &&
+      sucursalId !== participante2SucursalId;
+
+    if (participante2Id === usuarioId && !esAutoChatInterSucursal) {
       return res.status(400).json({
         success: false,
         message: 'No puedes chatear contigo mismo',
@@ -198,7 +212,7 @@ export async function fijarConversacionController(req: Request, res: Response) {
     const usuarioId = obtenerUsuarioId(req);
     const conversacionId = req.params.id;
 
-    const resultado = await toggleFijarConversacion(conversacionId, usuarioId);
+    const resultado = await toggleFijarConversacion(conversacionId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -226,7 +240,7 @@ export async function archivarConversacionController(req: Request, res: Response
     const usuarioId = obtenerUsuarioId(req);
     const conversacionId = req.params.id;
 
-    const resultado = await toggleArchivarConversacion(conversacionId, usuarioId);
+    const resultado = await toggleArchivarConversacion(conversacionId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -254,7 +268,7 @@ export async function silenciarConversacionController(req: Request, res: Respons
     const usuarioId = obtenerUsuarioId(req);
     const conversacionId = req.params.id;
 
-    const resultado = await toggleSilenciarConversacion(conversacionId, usuarioId);
+    const resultado = await toggleSilenciarConversacion(conversacionId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -282,7 +296,7 @@ export async function eliminarConversacionController(req: Request, res: Response
     const usuarioId = obtenerUsuarioId(req);
     const conversacionId = req.params.id;
 
-    const resultado = await eliminarConversacion(conversacionId, usuarioId);
+    const resultado = await eliminarConversacion(conversacionId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -311,7 +325,12 @@ export async function eliminarConversacionController(req: Request, res: Response
  */
 export async function misNotasController(req: Request, res: Response) {
   try {
-    let usuarioId = obtenerUsuarioId(req);
+    // Mis Notas es PRIVADO de cada usuario real, NUNCA del negocio. Si el
+    // middleware sustituyó `usuarioId` por `negocioUsuarioId` (gerente en modo
+    // comercial operando como el dueño), preservamos el id original del gerente
+    // en `empleadoId` y lo usamos aquí. Así cada entidad (dueño, gerente)
+    // mantiene sus propias notas independientes del modo activo.
+    let usuarioId = req.usuario?.empleadoId || obtenerUsuarioId(req);
 
     // Si usuarioId está vacío (token ScanYA viejo sin negocioUsuarioId), obtener de BD
     if (!usuarioId && (req as any).scanyaUsuario?.negocioId) {
@@ -361,7 +380,7 @@ export async function listarMensajesController(req: Request, res: Response) {
     const limit = Math.min(parseInt(req.query.limit as string) || 30, 50);
     const offset = parseInt(req.query.offset as string) || 0;
 
-    const resultado = await listarMensajes(conversacionId, usuarioId, { limit, offset });
+    const resultado = await listarMensajes(conversacionId, usuarioId, { limit, offset }, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -581,7 +600,7 @@ export async function marcarLeidosController(req: Request, res: Response) {
     const usuarioId = obtenerUsuarioId(req);
     const conversacionId = req.params.id;
 
-    const resultado = await marcarMensajesLeidos(conversacionId, usuarioId);
+    const resultado = await marcarMensajesLeidos(conversacionId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({
@@ -783,7 +802,7 @@ export async function toggleReaccionController(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: 'emoji es requerido' });
     }
 
-    const resultado = await toggleReaccion(mensajeId, usuarioId, emoji);
+    const resultado = await toggleReaccion(mensajeId, usuarioId, emoji, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
@@ -835,7 +854,7 @@ export async function fijarMensajeController(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: 'mensajeId es requerido' });
     }
 
-    const resultado = await fijarMensaje(conversacionId, mensajeId, usuarioId);
+    const resultado = await fijarMensaje(conversacionId, mensajeId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
@@ -857,7 +876,7 @@ export async function desfijarMensajeController(req: Request, res: Response) {
     const conversacionId = req.params.convId;
     const mensajeId = req.params.msgId;
 
-    const resultado = await desfijarMensaje(conversacionId, mensajeId, usuarioId);
+    const resultado = await desfijarMensaje(conversacionId, mensajeId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
@@ -878,7 +897,7 @@ export async function listarFijadosController(req: Request, res: Response) {
     const usuarioId = obtenerUsuarioId(req);
     const conversacionId = req.params.id;
 
-    const resultado = await listarMensajesFijados(conversacionId, usuarioId);
+    const resultado = await listarMensajesFijados(conversacionId, usuarioId, obtenerSucursalId(req));
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
@@ -912,7 +931,8 @@ export async function buscarMensajesController(req: Request, res: Response) {
 
     const resultado = await buscarMensajes(
       { conversacionId, texto, limit, offset },
-      usuarioId
+      usuarioId,
+      obtenerSucursalId(req)
     );
 
     if (!resultado.success) {
@@ -1010,7 +1030,12 @@ export async function buscarNegociosController(req: Request, res: Response) {
       });
     }
 
-    const resultado = await buscarNegocios(q, ciudad, lat, lng, limit);
+    // En modo comercial: excluir la sucursal activa (no tiene sentido chatear contigo mismo).
+    // Las demás sucursales del mismo negocio SÍ aparecen (son entidades independientes).
+    const modo = obtenerModo(req);
+    const sucursalExcluidaId = modo === 'comercial' ? obtenerSucursalId(req) : null;
+
+    const resultado = await buscarNegocios(q, ciudad, lat, lng, limit, sucursalExcluidaId);
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
@@ -1164,7 +1189,8 @@ export async function listarArchivosCompartidosController(req: Request, res: Res
     id,
     usuarioId,
     categoria as 'imagenes' | 'documentos' | 'enlaces',
-    { limit, offset }
+    { limit, offset },
+    obtenerSucursalId(req)
   );
 
   res.status(resultado.code || (resultado.success ? 200 : 500)).json(resultado);
@@ -1178,7 +1204,7 @@ export async function contarArchivosCompartidosController(req: Request, res: Res
   const usuarioId = obtenerUsuarioId(req);
   const { id } = req.params;
 
-  const resultado = await contarArchivosCompartidos(id, usuarioId);
+  const resultado = await contarArchivosCompartidos(id, usuarioId, obtenerSucursalId(req));
 
   res.status(resultado.code || (resultado.success ? 200 : 500)).json(resultado);
 }

@@ -27,7 +27,8 @@
 13. [Progreso por Sprint](#13-sprints)
 14. [Pendientes y Deuda Técnica](#14-pendientes)
 15. [Funcionalidades Excluidas](#15-excluidas)
-16. [Lecciones Aprendidas](#16-lecciones)
+16. [Chats inter-sucursal y gerentes comerciales](#16-inter-sucursal)
+17. [Lecciones Aprendidas](#17-lecciones)
 
 ---
 
@@ -1652,7 +1653,185 @@ _Ninguna — todos los sprints completados (7/7)._
 
 ---
 
-## 16. Lecciones Aprendidas {#16-lecciones}
+## 16. Chats inter-sucursal y gerentes comerciales {#16-inter-sucursal}
+
+### 16.1 Contexto
+
+El modelo original asumía que las dos partes de una conversación eran **usuarios distintos** (`participante1_id !== participante2_id`). Esto rompía en dos escenarios que el producto necesita soportar:
+
+1. **Dueño multi-sucursal** chatea entre sus propias sucursales (mismo `usuario_id` en ambos lados, solo difieren por `sucursal_id`).
+2. **Gerente** asignado a una sucursal (`sucursal_asignada !== null`) opera ChatYA desde AnunciaYA regular en modo comercial y chatea "como la sucursal" con el dueño u otras sucursales del mismo negocio.
+
+Los escenarios tradicionales (dos usuarios distintos, sucursal ↔ cliente externo, negocios de dueños distintos) siguen funcionando sin cambios — las extensiones son aditivas.
+
+**Matriz de escenarios:**
+
+| Escenario | ¿Comparten `usuarioId`? | Requiere extensiones |
+|---|---|---|
+| Dueño ↔ usuario externo | No | Nada (flujo original) |
+| Gerente ↔ usuario externo, modo personal | No | Nada (flujo original) |
+| Dueño ↔ otra sucursal suya | Sí (mismo dueño) | Sí |
+| Gerente (AnunciaYA comercial) ↔ dueño del mismo negocio | Sí (substitución) | Sí |
+| Gerente A ↔ Gerente B del mismo negocio | Sí (ambos substituidos) | Sí |
+
+### 16.2 Cambios de base de datos
+
+**CHECK `chat_conv_no_auto_chat`** (tabla `chat_conversaciones`) — ampliado para permitir `participante1_id === participante2_id` si:
+- `contexto_tipo = 'notas'` (Mis Notas, preexistente), o
+- ambos `participante1_sucursal_id` y `participante2_sucursal_id` están asignados y son distintos.
+
+Migración: `docs/migraciones/chat_conv_check_intersucursal.sql`.
+
+**Columna `chat_reacciones.sucursal_id`** — cada sucursal es un reactor independiente. UNIQUE pasa a `(mensaje_id, usuario_id, sucursal_id, emoji) NULLS NOT DISTINCT` (requiere Postgres 15+).
+
+Migración: `docs/migraciones/chat_reacciones_sucursal.sql`.
+
+### 16.3 Backend — desempate por tupla
+
+**Helper** `determinarPosicionConSucursal(conv, usuarioId, sucursalId)` en `chatya.service.ts`. Decide p1 o p2 usando la tupla; cae al comportamiento legacy (solo `usuarioId`) si la tupla no matchea (compatible con chats personales).
+
+Reemplaza a `determinarPosicion` en 14+ funciones: `listarConversaciones`, `obtenerConversacion`, `crearObtenerConversacion`, `toggleCampoConversacion`, `eliminarConversacion`, `listarMensajes`, `enviarMensaje`, `editarMensaje`, `eliminarMensaje`, `marcarMensajesLeidos`, `toggleReaccion`, `fijarMensaje`, `desfijarMensaje`, `listarMensajesFijados`, `buscarMensajes`, `listarArchivosCompartidos`, `contarArchivosCompartidos`.
+
+Todas aceptan un parámetro opcional `sucursalId: string | null = null`. Los controllers lo propagan con `obtenerSucursalId(req)` (lee `req.usuario.sucursalAsignada` o `req.query.sucursalId`).
+
+**Payloads de socket** incluyen la sucursal del actor para desempate en el cliente:
+- `chatya:mensaje-nuevo` → `mensaje.emisorSucursalId`.
+- `chatya:leido` → `leidoPorSucursalId`.
+- `chatya:escribiendo` / `dejar-escribir` → `emisorSucursalId`.
+- `chatya:reaccion` → `usuarioSucursalId`.
+- `chatya:mensaje-fijado` → `fijadoPorSucursalId`.
+
+### 16.4 Frontend — desempate por tupla
+
+**Helper** `determinarMiLado(conversacion, miId, miSucursalId)` en `apps/web/src/components/chatya/utils/lado.ts`. Devuelve `{ soyP1, otroId, otroModo, otroSucursalId }`. Usado en `VentanaChat`, `ConversacionItem`, `PanelInfoContacto`.
+
+**Identidad de sesión** en `useChatYASession` / `obtenerMiIdChatYA()`:
+- AnunciaYA + gerente + comercial → `miId = authUsuario.negocioUsuarioId` (identidad del dueño).
+- AnunciaYA otros casos → `miId = authUsuario.id`.
+- ScanYA → `miId = scanYAUsuario.negocioUsuarioId`.
+
+**Helper** `mensajeEsMio(m)` en render de burbujas — compara `emisorId` + `emisorSucursalId` contra la tupla de la sesión actual. Usado para alineación izquierda/derecha, auto-scroll, cita "Tú" y reacciones propias.
+
+**Listeners** comparan por tupla: `chatya:mensaje-nuevo` (dedup + `esMensajePropio`), `chatya:leido` (`yoLeí`), `chatya:escribiendo` (ignora eco propio), `chatya:reaccion` (agrupa reactors por tupla), `chatya:entregado` (guard `esConversacionConocida`).
+
+### 16.5 Gerentes desde AnunciaYA regular operando en modo comercial
+
+Un gerente opera "como el negocio" desde su sucursal — mismo modelo que ScanYA.
+
+**JWT `PayloadToken`** incluye `negocioUsuarioId` para gerentes: UUID del dueño del negocio. Se popula en `auth.service.ts` en login, refresh, verificar-email, validar-2FA y ambas ramas de `cambiarModo`, vía `resolverNegocioUsuarioId(negocioId, sucursalAsignada)`.
+
+**Middleware HTTP `verificarTokenChatYA`** sustituye `req.usuario.usuarioId = negocioUsuarioId` cuando `modoActivo === 'comercial' && sucursalAsignada && negocioUsuarioId`. El `usuarioId` original queda en `req.usuario.empleadoId` a nivel request (no se persiste porque `chat_mensajes.empleado_id` es FK a la tabla `empleados` de ScanYA).
+
+**Middleware Socket.io** hace el mismo swap para que el gerente se una al room `usuario:${dueñoId}`.
+
+**Cliente socket** (`socketService.ts`) emite `unirse` con `negocioUsuarioId` cuando aplica.
+
+**Frontend `useAuthStore.Usuario`** incluye `negocioUsuarioId`; `cambiarModo` consume el valor del response.
+
+**Consecuencia UX:** el gerente aparece ante el otro lado como "Imprenta FindUS - Sucursal X", no como "Gerente Juan". Si quiere chatear como persona debe cambiar a modo personal.
+
+**Trazabilidad:** no hay columna dedicada para saber qué gerente específico envió un mensaje desde AnunciaYA regular (todos se ven como el dueño). Si se requiere auditoría, agregar `chat_mensajes.emisor_usuario_original_id` (FK a `usuarios.id`) en el futuro.
+
+### 16.6 Reacciones independientes por sucursal
+
+Cada sucursal es un reactor independiente. El mismo `usuario_id` puede aparecer varias veces en `chat_reacciones` de un mismo mensaje, una por sucursal.
+
+- **Service `toggleReaccion`** busca reacción previa / inserta / borra filtrando por `usuarioId` + `sucursalId` (con `isNull` cuando es null). Emite `usuarioSucursalId` en el payload.
+- **Tipo `MensajeResponse.reacciones.usuarios`** pasa de `string[]` a `{ id, sucursalId }[]`.
+- **Frontend `BurbujaMensaje`** recibe `miSucursalId`; `miReaccionActual` compara por tupla.
+- **Frontend `VentanaChat.handleReaccionar`** optimistic agrupa por tupla.
+- **Listener `chatya:reaccion`** agrega/quita reactors por tupla; mantiene compatibilidad con el shape legacy `string[]`.
+
+### 16.7 Edición de mensajes: preview en lista
+
+Bug pre-existente (no causado por inter-sucursal) — al editar el último mensaje, el preview del sidebar no se actualizaba.
+
+**Fix**: `editarMensaje` service detecta si el mensaje editado es el último no-eliminado de la conversación. Si sí:
+- Actualiza `chat_conversaciones.ultimo_mensaje_texto` en BD.
+- Incluye `nuevoPreview: { ultimoMensajeTexto }` en el payload del socket.
+- Listener `chatya:mensaje-editado` aplica `nuevoPreview` si viene presente.
+
+### 16.8 Mis Notas es privado por `usuario` real
+
+Cada entidad física (dueño, gerente) tiene sus propias Mis Notas, independientes del modo activo. El gerente en modo comercial **no** ve las notas del dueño, y viceversa.
+
+**Cómo:** `misNotasController` en [chatya.controller.ts:321](apps/api/src/controllers/chatya.controller.ts:321) usa `req.usuario?.empleadoId || obtenerUsuarioId(req)`. El middleware `verificarTokenChatYA` sustituye `usuarioId → negocioUsuarioId` para gerentes comerciales, pero preserva el id original en `empleadoId`. El controller de Mis Notas **siempre prefiere `empleadoId`**, así que la identidad privada del gerente nunca queda enmascarada detrás del negocio.
+
+**Regla arquitectónica:** Mis Notas y cualquier entidad personal futura (preferencias privadas, borradores personales, etc.) deben usar la identidad real del usuario, no la sustituida. La tabla `chat_conversaciones` sigue con `participante1_id = participante2_id = usuarioId_real` y `contexto_tipo = 'notas'` — el CHECK constraint lo permite por el caso Notas original.
+
+### 16.9 `sucursalId = null` en modo personal (incluso para gerentes)
+
+Los gerentes tienen `sucursal_asignada` fija (atributo permanente del usuario). Si el backend usara ese valor como `sucursalId` también en modo personal, las acciones personales del gerente quedarían atadas a su sucursal — incorrecto, porque personal = identidad privada.
+
+**Cómo:** el helper `obtenerSucursalId(req)` en [chatya.controller.ts:62](apps/api/src/controllers/chatya.controller.ts:62) devuelve `null` cuando `modoActivo !== 'comercial'`, **ignorando** `sucursalAsignada`. Solo en modo comercial retorna la sucursal activa (del gerente o del dueño).
+
+**Impacto práctico:** reacciones, mensajes, fijados, posición en conversación, archivos compartidos — todo en modo personal se persiste con `sucursalId = null`, haciendo match con la tupla que envía el frontend desde `obtenerSucursalChatYA()` (también null en personal). Sin esto, una reacción del gerente en personal se guardaba con su sucursal y el frontend la veía como reactor duplicado (tupla `{G, null}` de optimistic vs `{G, suc}` del evento → contador inflado).
+
+### 16.10 Cambio de modo: reconexión del socket + cache por modo
+
+Cambiar personal ↔ comercial cambia la identidad efectiva (especialmente para gerentes: dueño ↔ gerente). Sin manejo cuidadoso, el usuario ve brevemente las conversaciones del modo anterior ("fantasma") o no recibe eventos de tiempo real.
+
+**Reconexión del socket** — en `useAuthStore.cambiarModo` después del set atómico del nuevo token:
+```ts
+desconectarSocket();
+conectarSocket();
+```
+La nueva conexión se autentica con el token nuevo, el middleware del socket aplica la sustitución correcta, y el cliente emite `unirse` con el `userId` correcto. Sin esto, el gerente que pasa de comercial a personal queda en `usuario:${dueño}` y no recibe sus eventos personales.
+
+**Cache por modo** — el store ChatYA mantiene `conversacionesPorModo: { personal, comercial }`. Cada vez que `cargarConversaciones(modo)` completa, puebla el cache de ese modo. Acción `swapearModoDesdeCache(nuevoModo)` corre ANTES del optimistic set: si hay cache del nuevo modo, swap atómico (sin ventana vacía). Si no, lista vacía + `cargandoConversaciones=true` hasta que el refetch responda.
+
+**Flujo completo de `cambiarModo`:**
+1. `swapearModoDesdeCache(nuevoModo)` — swap instantáneo con cache si existe.
+2. Set optimista `modoActivo`.
+3. Recargar notificaciones.
+4. Backend `PATCH /auth/modo` → nuevo token + usuario + `negocioUsuarioId`.
+5. Set atómico: tokens + usuario.
+6. `desconectarSocket() + conectarSocket()`.
+7. `Promise.all([cargarMisNotas, cargarConversaciones, cargarNoLeidos, cargarNoLeidosArchivados])` (en paralelo, reemplazan atómicamente).
+
+### 16.11 Reacciones idempotentes por tupla (3 capas de defensa)
+
+Las reacciones son especialmente propensas a duplicación visual por el cruce de optimistic + socket + sucursal null vs non-null + listeners potencialmente duplicados.
+
+**Capa 1 — listener `chatya:reaccion`**: aplica `normalizarReacciones` después de cualquier add/remove. La función deduplica `usuarios` por tupla `(id, sucursalId)` y fija `cantidad = usuarios_únicos.length`. Las actualizaciones son inmutables (crean nuevos objetos).
+
+**Capa 2 — optimistic en `VentanaChat.handleReaccionar`**: mismo tipo de normalización antes del commit. Si el click bubbles más de una vez o si algo mete el reactor dos veces, queda normalizado.
+
+**Capa 3 — render en `BurbujaMensaje`**: el pill cuenta tuplas únicas en vivo (`new Set()` sobre `r.usuarios`) en vez de confiar en `r.cantidad`. Si el state tiene inconsistencia, el UI nunca la muestra.
+
+**Regla clave:** NO deduplicar eventos de reacción por clave semántica (`msgId|userId|sucursal|emoji|accion`). Esa clave se repite legítimamente en `add → remove → add again`. La idempotencia debe estar en el **estado** (tupla única), no en el **evento**.
+
+### 16.12 Archivos y helpers clave
+
+**Backend:**
+- `apps/api/src/db/schemas/schema.ts` — CHECK `chat_conv_no_auto_chat` + `chat_reacciones.sucursal_id`.
+- `apps/api/src/services/chatya.service.ts` — `determinarPosicionConSucursal` + funciones actualizadas + payloads con sucursal.
+- `apps/api/src/services/auth.service.ts` — `resolverNegocioUsuarioId` + 7 payload tokens enriquecidos.
+- `apps/api/src/middleware/auth.ts` — swap `usuarioId → negocioUsuarioId` para gerente comercial.
+- `apps/api/src/socket.ts` — mismo swap en middleware de socket.
+- `apps/api/src/utils/jwt.ts` — `PayloadToken.negocioUsuarioId`.
+- `apps/api/src/types/chatya.types.ts` — `respuestaA.emisorSucursalId` + `reacciones.usuarios` como tupla.
+
+**Frontend:**
+- `apps/web/src/components/chatya/utils/lado.ts` — `determinarMiLado`.
+- `apps/web/src/components/chatya/VentanaChat.tsx` — `mensajeEsMio`, render con tupla, optimistic de reacciones.
+- `apps/web/src/components/chatya/BurbujaMensaje.tsx` — `miSucursalId`, `miReaccionActual`, cita "Tú" por tupla.
+- `apps/web/src/components/chatya/ConversacionItem.tsx`, `PanelInfoContacto.tsx` — usan `determinarMiLado`.
+- `apps/web/src/stores/useChatYAStore.ts` — listeners con guards, `agregarMensajeConDedup`, reemplazo temp→real idempotente.
+- `apps/web/src/hooks/useChatYASession.ts` — swap gerente→dueño.
+- `apps/web/src/services/socketService.ts` — `unirse` con `negocioUsuarioId`.
+- `apps/web/src/stores/useAuthStore.ts` — `Usuario.negocioUsuarioId`.
+- `apps/web/src/types/chatya.ts` — `ReaccionAgrupada.usuarios` tupla, `EventoReaccion.usuarioSucursalId`, `EventoLeido.leidoPorSucursalId`, `EventoMensajeEditado.nuevoPreview`, `Mensaje.respuestaA.emisorSucursalId`.
+
+**Migraciones SQL:**
+- `docs/migraciones/chat_conv_check_intersucursal.sql`.
+- `docs/migraciones/chat_reacciones_sucursal.sql`.
+
+> Los patrones y lecciones de estos cambios están consolidados en §17 (Lecciones Aprendidas), subcategoría "Inter-sucursal & identidad multi-sesión" (ítems 76–83).
+
+---
+
+## 17. Lecciones Aprendidas {#17-lecciones}
 
 ### Rendimiento
 
@@ -1782,8 +1961,28 @@ _Ninguna — todos los sprints completados (7/7)._
 
 75. **Endpoints que dependen de datos opcionales no deben retornar 404 por la parte opcional** — `GET /api/clientes/:id` retornaba 404 cuando el usuario no tenía billetera (`puntos_billetera` sin registro). Esto causaba que el panel de información del cliente fallara para usuarios legítimos sin historial de compras. La regla: el endpoint debe fallar solo si la entidad principal (el usuario) no existe. Los datos secundarios opcionales (billetera, nivel, puntos) se retornan como `null`/`0` con operadores `??`.
 
+### Inter-sucursal & identidad multi-sesión
+
+76. **La identidad de un lado en ChatYA es la tupla `(usuarioId, sucursalId)`, no solo `usuarioId`** — La arquitectura asumía que dos participantes distintos = dos `usuarioId` distintos. Al habilitar chats inter-sucursal (dueño↔su propia sucursal) y gerentes que operan "como el negocio" desde AnunciaYA regular, esa asunción se rompe: ambos lados pueden tener el mismo `usuarioId`. Todo código que comparaba identidad con `emisorId === miId`, `leidoPor === miId`, `participante1Id === usuarioId`, `respuestaA.emisorId === mensaje.emisorId`, etc., falla en esos casos. Fix uniforme: agregar `sucursalId` a la comparación. Helpers: `determinarPosicionConSucursal` (backend), `determinarMiLado` y `mensajeEsMio` (frontend). Regla: cualquier comparación de "soy yo / este es mío / el otro lado" debe usar la tupla; `emisorId` solo es suficiente como fallback cuando la sucursal no está disponible (chats personales legacy).
+
+77. **Rooms de Socket.io compartidos → filtrar defensivamente en el cliente** — Los rooms siguen siendo `usuario:${id}`. En inter-sucursal varias sesiones con el mismo `usuarioId` efectivo (dueño en múltiples pestañas, dueño + gerente substituido) comparten room y reciben los mismos eventos. Sin guards, una sesión ajena procesa eventos que no le corresponden: reproduce sonido de notificación, emite `chatya:entregado` "confirmando" entrega de un mensaje a un tercero, marca como leído, actualiza preview de una conversación que no está en su lista. Regla: antes de disparar cualquier side effect en un listener (sonido, emit hacia el backend, update de state de otras conversaciones), validar `esConversacionConocida` o la tupla de sucursal. Los payloads deben incluir `sucursalId` del actor (`emisorSucursalId`, `leidoPorSucursalId`, `usuarioSucursalId`, `fijadoPorSucursalId`) para que el cliente pueda hacer ese filtrado.
+
+78. **Race condition optimistic + socket + HTTP → el `set` debe ser idempotente** — El backend emite `chatya:mensaje-nuevo` a dos rooms (`otroId` y `emisorId`). En inter-sucursal ambos son el mismo room → el mismo cliente recibe el evento dos veces. Si el socket gana la carrera a la respuesta HTTP, el listener inserta el mensaje real; cuando llega la respuesta, el código que reemplaza `temp_*` → real lo inserta de nuevo → duplicado. Solución: helper `agregarMensajeConDedup` en el listener que verifica por id y por `temp_+contenido` antes de insertar; y en el happy path del `enviarMensaje` del store, si el real ya existe, eliminar el temp en vez de reemplazarlo. Regla: cualquier flujo con optimistic + evento socket + respuesta HTTP compitiendo debe terminar en un `set` idempotente — el estado final no debe depender del orden de llegada.
+
+79. **Checklist pre-merge para código que toque ChatYA** — (1) ¿Comparo identidad solo por `emisorId === miId`? → usar tupla `(usuarioId, sucursalId)`. (2) ¿Emito un evento a `usuario:${id}` sin filtrar en el cliente? → agregar guard `esConversacionConocida` o equivalente por tupla. (3) ¿Hay optimistic + socket + HTTP corriendo en paralelo? → el `set` final debe ser idempotente. (4) ¿Agrego una columna nueva con URL R2? → registrarla en `IMAGE_REGISTRY` (sección de Mantenimiento R2). (5) ¿Emito un evento de socket que describe una acción del usuario (leer, reaccionar, editar, fijar, etc.)? → incluir `sucursalId` del actor en el payload.
+
+80. **Identidad privada vs comercial — reglas claras** — Toda acción atada a la **entidad negocio** opera con tupla `(negocioUsuarioId, sucursalId)` (reacciones, mensajes, fijados, conversaciones comerciales). Toda acción **personal** opera con la identidad real del usuario (`usuarioId` sin sustituir, `sucursalId = null`). Ejemplos concretos: (a) `misNotasController` usa `req.usuario.empleadoId || usuarioId` para que cada gerente tenga sus notas privadas aunque en comercial opere como el dueño. (b) `obtenerSucursalId` devuelve `null` en modo personal aunque el gerente tenga `sucursalAsignada` fija — sin esto, la reacción en personal del gerente se guarda con su sucursal y el frontend la ve como reactor distinto del optimistic (con sucursal null), inflando el contador visual.
+
+81. **Al cambiar la identidad efectiva, reconecta el socket** — El socket se valida contra el token en el `handshake` (middleware `io.use`). Si el token cambia (ej. `cambiarModo` cambia la identidad efectiva del gerente de dueño a sí mismo), el socket sigue unido al room del token anterior. Síntoma: `chatya:escribiendo`, `chatya:estado-usuario`, `chatya:leido` no llegan al destinatario. Fix: tras actualizar el token, llamar `desconectarSocket() + conectarSocket()`. La nueva conexión re-autentica, el middleware aplica la sustitución correcta, y el `unirse` entra al room correcto.
+
+82. **Cambios de modo con cache por modo, no con `limpiar()` + refetch** — Si al cambiar modo haces `limpiar()` (vaciar state) y luego `cargarConversaciones()`, el UI pasa por `lista → vacía → lista` — el "vacío intermedio" se ve como flicker. Peor: si dejas la lista anterior mientras fetcheas, el usuario ve brevemente las conversaciones de la identidad anterior ("fantasma"). Solución: cachear conversaciones por modo (`conversacionesPorModo: { personal, comercial }`) y hacer swap atómico con el cache del destino ANTES del optimistic set. El refetch corre en background para sincronizar. Si el modo destino no tiene cache aún (primera vez), mostrar skeleton/loading — ese sí es UX honesta.
+
+83. **Dedup por tupla en el estado, no por clave semántica en el evento** — Es tentador deduplicar eventos de socket por clave `msgId|userId|sucursal|emoji|accion`. **Error**: la misma clave se repite legítimamente en flujos como `reaccionar → quitar → reaccionar otra vez` (ambos adds tienen idéntica clave). El dedup bloquea el segundo add y el otro lado nunca lo ve. Enfoque correcto: el evento siempre se procesa; la idempotencia vive en el **estado final** — una normalización inmutable que asegura que cada tupla `(id, sucursalId)` aparece a lo sumo una vez. Si algo agrega un duplicado (optimistic + listener, listener duplicado, race), la normalización lo deja en uno. Corolario: refuerza en 3 capas (listener, optimistic, render) para defensa en profundidad. (6) ¿Cambio un claim del JWT (ej. `modoActivo`) de forma optimista en el frontend? → hacerlo DESPUÉS del backend response, no antes — ver lección 80.
+
+80. **Optimistic UI que cambia un claim del token antes del backend renueva el JWT → requests con identidad stale** — `useAuthStore.cambiarModo` hacía `set({ usuario: { ...modoActivo: nuevo } })` ANTES de llamar al backend, con la intención de que el toggle respondiera instantáneo. Consecuencia oculta: los `useEffect` reactivos de ChatYA ([`ListaConversaciones.tsx:107-118`](../../apps/web/src/components/chatya/ListaConversaciones.tsx), [`ChatOverlay.tsx:255-274`](../../apps/web/src/components/layout/ChatOverlay.tsx)) observan `modoActivo` y disparan `cargarConversaciones(nuevoModo, ...)` inmediatamente al detectar el cambio. El interceptor de axios ([`api.ts:151-157`](../../apps/web/src/services/api.ts)) adjunta el `accessToken` actual del store — que AÚN tiene `modoActivo: anterior` en su payload firmado, porque el backend todavía no ha emitido el token nuevo. El middleware `verificarTokenChatYA` ([`auth.ts:176-186`](../../apps/api/src/middleware/auth.ts)) decide la sustitución de identidad (gerente→dueño) leyendo `payload.modoActivo` del token, NO el `?modo=` del query. Resultado para un gerente cambiando comercial→personal: token viejo dice comercial → middleware sustituye `usuarioId = negocioUsuarioId` (dueño) → service filtra `participante1Id = dueño AND modo = personal` → devuelve los chats personales del DUEÑO. Síntoma consistente (no parpadeo): el gerente ve chats de otra persona. **Fix aplicado:** eliminar el optimistic de `modoActivo`; llamar al backend PRIMERO y solo al recibir los nuevos tokens hacer `set({ usuario, accessToken, refreshToken })` atómicamente — los useEffects se disparan después, ya con el token correcto. El swap visual de ChatYA (cache-based, sin requests) puede seguir siendo inmediato porque no depende de `modoActivo` del auth. **Regla general:** si un cambio de estado optimista (a) dispara re-renders que se traducen en requests al backend, y (b) la autoridad sobre ese estado reside en un claim del JWT, entonces el optimista debe posponerse hasta que el token se renueve. **Alternativas peores consideradas y descartadas:** modificar el middleware para priorizar `req.query.modo` sobre `payload.modoActivo` (afecta todas las rutas de ChatYA y cambia la semántica del middleware); renovar el token antes del optimista (agrega un round-trip extra sin ganar latencia real).
+
 ---
 
 **Estado actual:** Sprints 1-7 COMPLETADOS. Módulo ChatYA cerrado (20 Mar 2026). 41 API tests + 10 E2E tests.
 **Backend:** 34 endpoints + 13 eventos Socket.io + 1 evento consulta estado + cron job activo.
-**Última actualización:** 11 Marzo 2026
+**Última actualización:** 20 Abril 2026 — §16 ampliado con Mis Notas privado por usuario real (16.8), `sucursalId=null` en modo personal (16.9), cambio de modo con reconexión de socket + cache por modo para evitar flicker (16.10) y normalización de reacciones en 3 capas (16.11). Lecciones 80-83 documentan los patrones: identidad personal vs comercial, reconexión del socket al cambiar token, swap de cache por modo, y dedup por tupla en el estado (no por clave semántica del evento).

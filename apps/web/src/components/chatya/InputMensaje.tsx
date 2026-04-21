@@ -23,7 +23,7 @@ import { useImagenChat } from '../../hooks/useImagenChat';
 import { useDocumentoChat, ACCEPT_DOCUMENTOS, formatearTamano, esDocumentoPermitido } from '../../hooks/useDocumentoChat';
 import { useAudioChat } from '../../hooks/useAudioChat';
 import * as chatyaService from '../../services/chatyaService';
-import { obtenerMiIdChatYA } from '../../hooks/useChatYASession';
+import { obtenerMiIdChatYA, obtenerSucursalChatYA } from '../../hooks/useChatYASession';
 import type { Mensaje } from '../../types/chatya';
 
 // =============================================================================
@@ -349,10 +349,12 @@ export function InputMensaje({
   const manejarEscribiendo = useCallback(() => {
     if (!conversacionActivaId || !destinatarioId) return;
 
+    const emisorSucursalId = obtenerSucursalChatYA();
+
     // Emitir "escribiendo" solo si no lo habíamos emitido
     if (!estaEscribiendoRef.current) {
       estaEscribiendoRef.current = true;
-      emitirEvento('chatya:escribiendo', { conversacionId: conversacionActivaId, destinatarioId });
+      emitirEvento('chatya:escribiendo', { conversacionId: conversacionActivaId, destinatarioId, emisorSucursalId });
     }
 
     // Resetear el timer
@@ -363,7 +365,7 @@ export function InputMensaje({
     // Después de X ms sin teclear, emitir "dejar-escribir"
     escribiendoTimerRef.current = setTimeout(() => {
       if (conversacionActivaId) {
-        emitirEvento('chatya:dejar-escribir', { conversacionId: conversacionActivaId, destinatarioId });
+        emitirEvento('chatya:dejar-escribir', { conversacionId: conversacionActivaId, destinatarioId, emisorSucursalId });
       }
       estaEscribiendoRef.current = false;
     }, ESCRIBIENDO_DELAY_MS);
@@ -399,7 +401,7 @@ export function InputMensaje({
       clearTimeout(escribiendoTimerRef.current);
     }
     if (conversacionActivaId && estaEscribiendoRef.current) {
-      emitirEvento('chatya:dejar-escribir', { conversacionId: conversacionActivaId, destinatarioId });
+      emitirEvento('chatya:dejar-escribir', { conversacionId: conversacionActivaId, destinatarioId, emisorSucursalId: obtenerSucursalChatYA() });
       estaEscribiendoRef.current = false;
     }
 

@@ -99,7 +99,13 @@
       "Bash(echo \"API: $?\")",
       "Bash(echo \"WEB: $?\")",
       "Bash(wait)",
-      "Bash(grep -E \"^--$|sucursalId|modo:|referenciaTipo\")"
+      "Bash(grep -E \"^--$|sucursalId|modo:|referenciaTipo\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(find /e/AnunciaYA/anunciaya/apps/web/src/components/chatya -name \"*.tsx\" -exec grep -l \"mensajeEsMio\\\\|emisorSucursalId\" {} \\\\;)",
+      "Bash(head -n 1928 docs/arquitectura/ChatYA.md)",
+      "Bash(mv /tmp/chatya_truncated.md docs/arquitectura/ChatYA.md)"
     ]
   },
   "disableAllHooks": true

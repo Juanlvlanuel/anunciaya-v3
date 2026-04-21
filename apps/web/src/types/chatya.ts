@@ -153,6 +153,7 @@ export interface Mensaje {
     contenido: string;
     tipo: TipoMensaje;
     emisorId: string | null;
+    emisorSucursalId: string | null;
   } | null;
   /** Reacciones agrupadas por emoji */
   reacciones?: ReaccionAgrupada[];
@@ -340,7 +341,13 @@ export interface UsuarioBloqueado {
 export interface ReaccionAgrupada {
   emoji: string;
   cantidad: number;
-  usuarios: string[] | { id: string; nombre: string }[];
+  /**
+   * Cada reactor es una tupla (id, sucursalId). En inter-sucursal el mismo
+   * usuarioId puede aparecer varias veces, una por sucursal. Los items pueden ser:
+   * - string legacy (solo id, sucursal=null implícita).
+   * - objeto con id + sucursalId (shape nuevo).
+   */
+  usuarios: (string | { id: string; sucursalId?: string | null; nombre?: string })[];
 }
 
 /**
@@ -386,6 +393,8 @@ export interface EventoMensajeNuevo {
 export interface EventoMensajeEditado {
   conversacionId: string;
   mensaje: Mensaje;
+  /** Si el mensaje editado era el último de la conversación, el nuevo texto del preview */
+  nuevoPreview?: { ultimoMensajeTexto: string };
 }
 
 /** chatya:mensaje-eliminado */
@@ -406,6 +415,7 @@ export interface EventoMensajeEliminado {
 export interface EventoLeido {
   conversacionId: string;
   leidoPor: string;
+  leidoPorSucursalId?: string | null;
   leidoAt: string;
 }
 
@@ -413,6 +423,7 @@ export interface EventoLeido {
 export interface EventoEscribiendo {
   conversacionId: string;
   destinatarioId: string;
+  emisorSucursalId?: string | null;
 }
 
 /** chatya:entregado */
@@ -434,6 +445,7 @@ export interface EventoReaccion {
   mensajeId: string;
   emoji: string;
   usuarioId: string;
+  usuarioSucursalId?: string | null;
   accion: 'agregada' | 'removida';
 }
 
@@ -442,12 +454,14 @@ export interface EventoMensajeFijado {
   conversacionId: string;
   mensajeId: string;
   fijadoPor: string;
+  fijadoPorSucursalId?: string | null;
 }
 
 /** chatya:mensaje-desfijado */
 export interface EventoMensajeDesfijado {
   conversacionId: string;
   mensajeId: string;
+  fijadoPorSucursalId?: string | null;
 }
 
 // =============================================================================

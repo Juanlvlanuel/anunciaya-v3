@@ -41,9 +41,15 @@ export function useChatYASession(): SesionChatYA {
   const scanYAUsuario = useScanYAStore((s) => s.usuario);
 
   if (authUsuario) {
+    // Gerente en modo comercial: opera "como el negocio" desde su sucursal.
+    // Su identidad en ChatYA es el usuarioId del DUEÑO (igual que ScanYA).
+    const esGerenteComercial =
+      authUsuario.modoActivo === 'comercial' &&
+      !!authUsuario.sucursalAsignada &&
+      !!authUsuario.negocioUsuarioId;
     return {
       autenticado: true,
-      miId: authUsuario.id,
+      miId: esGerenteComercial ? authUsuario.negocioUsuarioId! : authUsuario.id,
       modo: (authUsuario.modoActivo as 'personal' | 'comercial') || 'personal',
       sucursalId: authUsuario.sucursalActiva || null,
       origen: 'anunciaya',
@@ -82,7 +88,17 @@ export function useChatYASession(): SesionChatYA {
  */
 export function obtenerMiIdChatYA(): string {
   const authUsuario = useAuthStore.getState().usuario;
-  if (authUsuario) return authUsuario.id;
+  if (authUsuario) {
+    // Gerente en modo comercial → identidad del dueño (opera "como el negocio")
+    if (
+      authUsuario.modoActivo === 'comercial' &&
+      authUsuario.sucursalAsignada &&
+      authUsuario.negocioUsuarioId
+    ) {
+      return authUsuario.negocioUsuarioId;
+    }
+    return authUsuario.id;
+  }
 
   const scanYAUsuario = useScanYAStore.getState().usuario;
   if (scanYAUsuario) return scanYAUsuario.negocioUsuarioId;

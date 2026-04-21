@@ -150,7 +150,21 @@ export function conectarSocket(): void {
     // Intentar con usuario AnunciaYA primero, luego ScanYA
     const usuarioAY = JSON.parse(localStorage.getItem('ay_usuario') || 'null');
     const usuarioSY = JSON.parse(localStorage.getItem('sy_usuario') || 'null');
-    const userId = usuarioAY?.id || usuarioSY?.negocioUsuarioId;
+
+    // Gerente en modo comercial desde AnunciaYA → usa identidad del dueño en ChatYA,
+    // así que el socket debe unirse al room del DUEÑO para recibir eventos dirigidos
+    // a su sucursal (igual que ScanYA).
+    let userId: string | undefined;
+    if (usuarioAY) {
+      const esGerenteComercial =
+        usuarioAY.modoActivo === 'comercial' &&
+        usuarioAY.sucursalAsignada &&
+        usuarioAY.negocioUsuarioId;
+      userId = esGerenteComercial ? usuarioAY.negocioUsuarioId : usuarioAY.id;
+    } else if (usuarioSY) {
+      userId = usuarioSY.negocioUsuarioId;
+    }
+
     if (userId) {
       socket?.emit('unirse', userId);
     }

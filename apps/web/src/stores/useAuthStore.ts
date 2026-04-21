@@ -66,6 +66,12 @@ export interface Usuario {
   negocioId: string | null;
   sucursalActiva: string | null;
   sucursalAsignada: string | null;
+  /**
+   * Para gerentes en modo comercial: usuarioId del DUEÑO del negocio al que
+   * están asignados. ChatYA usa este valor como identidad comercial del gerente
+   * para que opere "como el negocio" desde su sucursal (igual que ScanYA).
+   */
+  negocioUsuarioId?: string | null;
   onboardingCompletado?: boolean;
   // Datos del negocio (modo comercial)
   nombreNegocio: string | null;
@@ -373,68 +379,112 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw new Error('No tienes acceso al modo comercial');
     }
 
-    // Guardar modo anterior para rollback
     const modoAnterior = usuario.modoActivo;
 
-    // Actualización OPTIMISTA (instantánea)
-    set({
-      usuario: { ...usuario, modoActivo: nuevoModo },
-    });
-
-    // Recargar notificaciones del nuevo modo
-    const { cambiarModo: cambiarModoNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
-    cambiarModoNotificaciones(nuevoModo);
+    // Swap visual inmediato en ChatYA (cache-based, SIN requests a la API).
+    // Cambia lo que ve el usuario en la lista de chats al modo nuevo usando
+    // la cache existente por modo. NO actualizamos `usuario.modoActivo` aquí:
+    // el token aún es el anterior, y si disparamos fetches con el modo nuevo
+    // como query, el middleware `verificarTokenChatYA` decidirá la sustitución
+    // de identidad (gerente→dueño) basándose en el `modoActivo` del token —
+    // devolviendo los chats personales del dueño en lugar de los del gerente.
+    // Esperamos al backend para tener tokens + modoActivo coherentes.
+    try {
+      const { useChatYAStore } = await import('./useChatYAStore');
+      useChatYAStore.getState().swapearModoDesdeCache(nuevoModo);
+    } catch {
+      // ignore
+    }
 
     try {
-      // Llamar al backend
+      // Llamar al backend con el token actual (válido para el modo anterior).
+      // El backend actualiza `modo_activo` en BD y firma nuevos tokens.
       const response = await api.patch('/auth/modo', { modo: nuevoModo });
 
-      if (response.data.success) {
-        // El backend ahora devuelve sucursalActiva calculada correctamente:
-        // - Modo comercial + gerente → sucursalAsignada
-        // - Modo comercial + dueño → sucursalPrincipal
-        // - Modo personal → null
-        const {
-          accessToken: nuevoToken,
-          refreshToken: nuevoRefresh,
-          modoActivo,
-          tieneModoComercial,
-          negocioId,
-          sucursalActiva,  // ← NUEVO: el backend ya lo calcula
-        } = response.data.data;
-
-        // Actualizar usuario con datos del servidor
-        const usuarioActualizado: Usuario = {
-          ...usuario,
-          modoActivo,
-          tieneModoComercial,
-          negocioId,
-          sucursalActiva: sucursalActiva ?? null,  // ← NUEVO: usar valor del backend
-        };
-
-        // Guardar en localStorage
-        guardarEnStorage(STORAGE_KEYS.accessToken, nuevoToken);
-        guardarEnStorage(STORAGE_KEYS.refreshToken, nuevoRefresh);
-        guardarEnStorage(STORAGE_KEYS.usuario, JSON.stringify(usuarioActualizado));
-
-        // Actualizar estado
-        set({
-          usuario: usuarioActualizado,
-          accessToken: nuevoToken,
-          refreshToken: nuevoRefresh,
-        });
-      } else {
-        // Revertir si el backend falla
-        set({
-          usuario: { ...usuario, modoActivo: modoAnterior },
-        });
+      if (!response.data.success) {
+        // Revertir swap visual al modo anterior
+        try {
+          const { useChatYAStore } = await import('./useChatYAStore');
+          useChatYAStore.getState().swapearModoDesdeCache(modoAnterior);
+        } catch { /* ignore */ }
         throw new Error(response.data.message || 'Error al cambiar modo');
       }
-    } catch (error) {
-      // Revertir en caso de error
+
+      // El backend devuelve tokens nuevos firmados con el modo nuevo +
+      // sucursalActiva calculada (gerente→sucursalAsignada, dueño→principal,
+      // personal→null).
+      const {
+        accessToken: nuevoToken,
+        refreshToken: nuevoRefresh,
+        modoActivo,
+        tieneModoComercial,
+        negocioId,
+        negocioUsuarioId,
+        sucursalActiva,
+      } = response.data.data;
+
+      const usuarioActualizado: Usuario = {
+        ...usuario,
+        modoActivo,
+        tieneModoComercial,
+        negocioId,
+        negocioUsuarioId: negocioUsuarioId ?? null,
+        sucursalActiva: sucursalActiva ?? null,
+      };
+
+      // Persistir
+      guardarEnStorage(STORAGE_KEYS.accessToken, nuevoToken);
+      guardarEnStorage(STORAGE_KEYS.refreshToken, nuevoRefresh);
+      guardarEnStorage(STORAGE_KEYS.usuario, JSON.stringify(usuarioActualizado));
+
+      // Set ATÓMICO: tokens + usuario (con modoActivo nuevo) cambian juntos.
+      // Recién ahora los useEffects reactivos (ChatOverlay, ListaConversaciones)
+      // ven el modoActivo nuevo y disparan fetches, pero ya con el token nuevo.
       set({
-        usuario: { ...usuario, modoActivo: modoAnterior },
+        usuario: usuarioActualizado,
+        accessToken: nuevoToken,
+        refreshToken: nuevoRefresh,
       });
+
+      // Reconectar el socket con el token nuevo. Sin esto, la conexión
+      // sigue validada contra el token anterior y unida al room de la
+      // identidad antigua (ej: gerente que pasó de comercial a personal
+      // queda en usuario:${dueño} cuando debería estar en usuario:${gerente}).
+      // Síntomas: "Escribiendo..." y "En línea" no llegan entre ambos lados.
+      desconectarSocket();
+      conectarSocket();
+
+      // Recargar notificaciones del nuevo modo
+      const { cambiarModo: cambiarModoNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
+      cambiarModoNotificaciones(nuevoModo);
+
+      // Recargar ChatYA con la identidad efectiva correcta (token nuevo).
+      // Las cargas reemplazan la lista atómicamente (sin ventana vacía).
+      try {
+        const { useChatYAStore } = await import('./useChatYAStore');
+        const chatStore = useChatYAStore.getState();
+        if (chatStore.conversacionActivaId) {
+          chatStore.volverALista();
+        }
+        // misNotasId depende de la identidad (cada usuario tiene su propio
+        // Mis Notas). Al cambiar de comercial↔personal, la identidad efectiva
+        // cambia (especialmente para gerentes: dueño↔gerente). Sin este reset,
+        // seguiría apuntando al Mis Notas del modo anterior.
+        await Promise.all([
+          chatStore.cargarMisNotas(),
+          chatStore.cargarConversaciones(nuevoModo, 0, true),
+          chatStore.cargarNoLeidos(nuevoModo),
+          chatStore.cargarNoLeidosArchivados(nuevoModo),
+        ]);
+      } catch (err) {
+        console.error('Error recargando ChatYA al cambiar modo:', err);
+      }
+    } catch (error) {
+      // Revertir swap visual de ChatYA en caso de error de red/backend
+      try {
+        const { useChatYAStore } = await import('./useChatYAStore');
+        useChatYAStore.getState().swapearModoDesdeCache(modoAnterior);
+      } catch { /* ignore */ }
       throw error;
     }
   },

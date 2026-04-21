@@ -23,6 +23,10 @@ export interface PayloadToken {
   membresia: number;
   modoActivo: string; // 'personal' | 'comercial'
   sucursalAsignada?: string | null; // UUID de sucursal (null = dueño, string = gerente)
+  // Para gerentes: UUID del DUEÑO del negocio al que están asignados.
+  // ChatYA usa este valor como identidad comercial del gerente cuando está en
+  // modo comercial, para que opere "como el negocio" (igual que ScanYA).
+  negocioUsuarioId?: string | null;
 }
 
 /**

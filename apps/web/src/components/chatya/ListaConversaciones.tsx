@@ -54,7 +54,12 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   // ---------------------------------------------------------------------------
   // Stores
   // ---------------------------------------------------------------------------
+  // `conversaciones` y el modo que representa (`conversacionesModo` en el store)
+  // se actualizan atómicamente en `swapearModoDesdeCache` y `cargarConversaciones`,
+  // así que la lista siempre es coherente con el modo mostrado — no hace falta
+  // un invariante cross-store que compare contra `authUsuario.modoActivo`.
   const conversaciones = useChatYAStore((s) => s.conversaciones);
+  const cargandoConversaciones = useChatYAStore((s) => s.cargandoConversaciones);
   const conversacionActivaId = useChatYAStore((s) => s.conversacionActivaId);
   const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
@@ -687,10 +692,10 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
                           <img
                             src={neg.fotoPerfil}
                             alt={neg.negocioNombre}
-                            className="w-10 h-10 rounded-lg object-cover shrink-0"
+                            className="w-10 h-10 rounded-full object-cover shrink-0"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                             <Store className="w-5 h-5 text-white/40" />
                           </div>
                         )}
@@ -885,7 +890,12 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
               )}
             </button>
           </div>
-          {conversacionesFiltradas.length === 0 ? (
+          {cargandoConversaciones && conversacionesFiltradas.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 gap-3">
+              <Loader2 className="w-8 h-8 text-white/40 animate-spin" />
+              <p className="text-[13px] text-white/45">Cargando chats...</p>
+            </div>
+          ) : conversacionesFiltradas.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center px-6">
               <div className="w-14 h-14 bg-white/10 rounded-xl flex items-center justify-center mb-3">
                 <MessageSquarePlus className="w-7 h-7 text-white/40" />

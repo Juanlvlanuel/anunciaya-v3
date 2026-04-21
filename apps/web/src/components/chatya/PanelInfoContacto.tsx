@@ -25,6 +25,7 @@ import { obtenerPerfilSucursal } from '../../services/negociosService';
 import { getDetalleCliente } from '../../services/clientesService';
 import { getConteoArchivosCompartidos, getArchivosCompartidos } from '../../services/chatyaService';
 import type { Conversacion, ConteoArchivosCompartidos, ArchivoCompartido, ContenidoImagen } from '../../types/chatya';
+import { determinarMiLado } from './utils/lado';
 import type { NegocioCompleto } from '../../types/negocios';
 import type { ClienteDetalle } from '../../types/clientes';
 import { notificar } from '../../utils/notificaciones';
@@ -160,7 +161,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   // ---------------------------------------------------------------------------
   // Stores
   // ---------------------------------------------------------------------------
-  const { miId, modo: modoActivo, origen } = useChatYASession();
+  const { miId, modo: modoActivo, origen, sucursalId: miSucursalId } = useChatYASession();
   const { esMobile } = useBreakpoint();
 
   const { data: configPuntos } = usePuntosConfiguracion();
@@ -186,11 +187,8 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const tipoVista: 'usuario' | 'negocio' | 'cliente' =
     esNegocio ? 'negocio' : esModoComercial ? 'cliente' : 'usuario';
 
-  // sucursalId del participante que NO soy yo (el negocio)
-  const sucursalIdNegocio =
-    conversacion.participante1Id === miId
-      ? conversacion.participante2SucursalId
-      : conversacion.participante1SucursalId;
+  // sucursalId del participante que NO soy yo (tupla miId+miSucursalId para chats inter-sucursal)
+  const sucursalIdNegocio = determinarMiLado(conversacion, miId, miSucursalId).otroSucursalId;
 
   const nombre = otro?.negocioNombre || `${otro?.nombre || ''} ${otro?.apellidos || ''}`.trim();
   const avatarUrl = otro?.negocioLogo || otro?.avatarUrl || null;
@@ -474,7 +472,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               )}
               {tipoVista === 'negocio' && otro?.sucursalNombre && (
                 <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium">
-                  Suc. {otro.sucursalNombre.includes(' - ')
+                  {otro.sucursalNombre.includes(' - ')
                     ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
                     : otro.sucursalNombre}
                 </p>
@@ -493,7 +491,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               )}
               {tipoVista === 'negocio' && otro?.sucursalNombre && (
                 <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium">
-                  Suc. {otro.sucursalNombre.includes(' - ')
+                  {otro.sucursalNombre.includes(' - ')
                     ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
                     : otro.sucursalNombre}
                 </p>

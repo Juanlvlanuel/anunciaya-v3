@@ -20,7 +20,7 @@ import {
     chatContactos,
     ofertas,
 } from '../db/schemas/schema.js';
-import { eq, and, or, desc, sql, ne, count } from 'drizzle-orm';
+import { eq, and, or, desc, sql, ne, count, isNull } from 'drizzle-orm';
 import { emitirAUsuario } from '../socket.js';
 import type {
     ModoChatYA,
@@ -62,6 +62,30 @@ function determinarPosicion(
     conv: { participante1Id: string; participante2Id: string },
     usuarioId: string
 ): 'p1' | 'p2' | null {
+    if (conv.participante1Id === usuarioId) return 'p1';
+    if (conv.participante2Id === usuarioId) return 'p2';
+    return null;
+}
+
+/**
+ * Variante de `determinarPosicion` que desempata usando `sucursalId` cuando
+ * el mismo usuario está en ambos lados (chat inter-sucursal del mismo negocio).
+ * Cae al comportamiento legacy si no hay match por sucursal.
+ */
+function determinarPosicionConSucursal(
+    conv: {
+        participante1Id: string;
+        participante2Id: string;
+        participante1SucursalId: string | null;
+        participante2SucursalId: string | null;
+    },
+    usuarioId: string,
+    sucursalId: string | null
+): 'p1' | 'p2' | null {
+    const p1Match = conv.participante1Id === usuarioId && conv.participante1SucursalId === sucursalId;
+    const p2Match = conv.participante2Id === usuarioId && conv.participante2SucursalId === sucursalId;
+    if (p1Match) return 'p1';
+    if (p2Match) return 'p2';
     if (conv.participante1Id === usuarioId) return 'p1';
     if (conv.participante2Id === usuarioId) return 'p2';
     return null;
@@ -231,6 +255,7 @@ async function obtenerDatosParticipante(
                 .select({
                     nombre: negocioSucursales.nombre,
                     fotoPerfil: negocioSucursales.fotoPerfil,
+                    esPrincipal: negocioSucursales.esPrincipal,
                 })
                 .from(negocioSucursales)
                 .where(eq(negocioSucursales.id, sucursalId))
@@ -239,14 +264,18 @@ async function obtenerDatosParticipante(
             if (sucursal) {
                 datos.negocioLogo = sucursal.fotoPerfil ?? undefined;
 
-                // Solo mostrar nombre de sucursal si el negocio tiene más de una
-                const [{ total }] = await db
-                    .select({ total: count() })
-                    .from(negocioSucursales)
-                    .where(eq(negocioSucursales.negocioId, usuario.negocioId!));
+                // Solo mostrar nombre de sucursal si (1) el negocio tiene más de una
+                // Y (2) esta sucursal NO es la Matriz. La matriz se identifica con
+                // solo el nombre del negocio.
+                if (!sucursal.esPrincipal) {
+                    const [{ total }] = await db
+                        .select({ total: count() })
+                        .from(negocioSucursales)
+                        .where(eq(negocioSucursales.negocioId, usuario.negocioId!));
 
-                if (total > 1) {
-                    datos.sucursalNombre = sucursal.nombre;
+                    if (total > 1) {
+                        datos.sucursalNombre = sucursal.nombre;
+                    }
                 }
             }
         }
@@ -349,7 +378,7 @@ export async function listarConversaciones(
         // Mapear conversaciones con datos del otro participante
         const items: ConversacionResponse[] = await Promise.all(
             conversaciones.map(async (conv) => {
-                const pos = determinarPosicion(conv, usuarioId)!;
+                const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId)!;
                 const esP1 = pos === 'p1';
 
                 const otroId = esP1 ? conv.participante2Id : conv.participante1Id;
@@ -416,7 +445,8 @@ export async function listarConversaciones(
 
 export async function obtenerConversacion(
     conversacionId: string,
-    usuarioId: string
+    usuarioId: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<ConversacionResponse>> {
     try {
         const [conv] = await db
@@ -429,7 +459,7 @@ export async function obtenerConversacion(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso a esta conversación', code: 403 };
         }
@@ -536,7 +566,7 @@ export async function crearObtenerConversacion(
 
         if (existente) {
             // Si el usuario la había eliminado, "restaurarla"
-            const pos = determinarPosicion(existente, usuarioId)!;
+            const pos = determinarPosicionConSucursal(existente, usuarioId, input.participante1SucursalId ?? null)!;
 
             if (pos === 'p1' && existente.eliminadaPorP1) {
                 await db
@@ -550,7 +580,7 @@ export async function crearObtenerConversacion(
                     .where(eq(chatConversaciones.id, existente.id));
             }
 
-            return obtenerConversacion(existente.id, usuarioId);
+            return obtenerConversacion(existente.id, usuarioId, input.participante1SucursalId ?? null);
         }
 
         // Crear nueva conversación
@@ -568,7 +598,7 @@ export async function crearObtenerConversacion(
             })
             .returning();
 
-        return obtenerConversacion(nueva.id, usuarioId);
+        return obtenerConversacion(nueva.id, usuarioId, input.participante1SucursalId ?? null);
     } catch (error) {
         console.error('Error en crearObtenerConversacion:', error);
         return { success: false, message: 'Error al crear conversación', code: 500 };
@@ -703,7 +733,8 @@ function mapearMisNotas(
 async function toggleCampoConversacion(
     conversacionId: string,
     usuarioId: string,
-    campo: 'fijar' | 'archivar' | 'silenciar'
+    campo: 'fijar' | 'archivar' | 'silenciar',
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<{ valor: boolean }>> {
     try {
         const [conv] = await db
@@ -716,7 +747,7 @@ async function toggleCampoConversacion(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
@@ -764,16 +795,16 @@ async function toggleCampoConversacion(
     }
 }
 
-export async function toggleFijarConversacion(conversacionId: string, usuarioId: string) {
-    return toggleCampoConversacion(conversacionId, usuarioId, 'fijar');
+export async function toggleFijarConversacion(conversacionId: string, usuarioId: string, sucursalId: string | null = null) {
+    return toggleCampoConversacion(conversacionId, usuarioId, 'fijar', sucursalId);
 }
 
-export async function toggleArchivarConversacion(conversacionId: string, usuarioId: string) {
-    return toggleCampoConversacion(conversacionId, usuarioId, 'archivar');
+export async function toggleArchivarConversacion(conversacionId: string, usuarioId: string, sucursalId: string | null = null) {
+    return toggleCampoConversacion(conversacionId, usuarioId, 'archivar', sucursalId);
 }
 
-export async function toggleSilenciarConversacion(conversacionId: string, usuarioId: string) {
-    return toggleCampoConversacion(conversacionId, usuarioId, 'silenciar');
+export async function toggleSilenciarConversacion(conversacionId: string, usuarioId: string, sucursalId: string | null = null) {
+    return toggleCampoConversacion(conversacionId, usuarioId, 'silenciar', sucursalId);
 }
 
 // =============================================================================
@@ -782,7 +813,8 @@ export async function toggleSilenciarConversacion(conversacionId: string, usuari
 
 export async function eliminarConversacion(
     conversacionId: string,
-    usuarioId: string
+    usuarioId: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio> {
     try {
         const [conv] = await db
@@ -795,7 +827,7 @@ export async function eliminarConversacion(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
@@ -933,7 +965,8 @@ export async function eliminarConversacion(
 export async function listarMensajes(
     conversacionId: string,
     usuarioId: string,
-    paginacion: PaginacionInput
+    paginacion: PaginacionInput,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<ListaPaginada<MensajeResponse>>> {
     try {
         // Verificar acceso
@@ -947,7 +980,7 @@ export async function listarMensajes(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
@@ -1018,6 +1051,7 @@ export async function listarMensajes(
                     contenido: chatMensajes.contenido,
                     tipo: chatMensajes.tipo,
                     emisorId: chatMensajes.emisorId,
+                    emisorSucursalId: chatMensajes.emisorSucursalId,
                 })
                 .from(chatMensajes)
                 .where(sql`${chatMensajes.id} IN ${idsRespuesta}`);
@@ -1034,6 +1068,7 @@ export async function listarMensajes(
                         contenido: orig.contenido,
                         tipo: orig.tipo as TipoMensaje,
                         emisorId: orig.emisorId,
+                        emisorSucursalId: orig.emisorSucursalId,
                     };
                 }
             }
@@ -1048,12 +1083,15 @@ export async function listarMensajes(
                     mensajeId: chatReacciones.mensajeId,
                     emoji: chatReacciones.emoji,
                     usuarioId: chatReacciones.usuarioId,
+                    sucursalId: chatReacciones.sucursalId,
                 })
                 .from(chatReacciones)
                 .where(sql`${chatReacciones.mensajeId} IN ${idsMsg}`);
 
-            // Agrupar: { mensajeId -> { emoji -> [usuarioIds] } }
-            const mapaReacciones = new Map<string, Map<string, string[]>>();
+            // Agrupar: { mensajeId -> { emoji -> [{ id, sucursalId }] } }
+            // Cada reactor es una tupla (usuarioId, sucursalId). En inter-sucursal
+            // el mismo usuarioId aparece varias veces, una por sucursal.
+            const mapaReacciones = new Map<string, Map<string, Array<{ id: string; sucursalId: string | null }>>>();
             for (const r of reaccionesRaw) {
                 if (!mapaReacciones.has(r.mensajeId)) {
                     mapaReacciones.set(r.mensajeId, new Map());
@@ -1062,7 +1100,7 @@ export async function listarMensajes(
                 if (!emojiMap.has(r.emoji)) {
                     emojiMap.set(r.emoji, []);
                 }
-                emojiMap.get(r.emoji)!.push(r.usuarioId);
+                emojiMap.get(r.emoji)!.push({ id: r.usuarioId, sucursalId: r.sucursalId });
             }
 
             for (const item of items) {
@@ -1112,7 +1150,7 @@ export async function enviarMensaje(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, input.emisorId);
+        const pos = determinarPosicionConSucursal(conv, input.emisorId, input.emisorSucursalId ?? null);
         if (!pos) {
             return { success: false, message: 'No tienes acceso a esta conversación', code: 403 };
         }
@@ -1211,6 +1249,7 @@ export async function enviarMensaje(
                     contenido: chatMensajes.contenido,
                     tipo: chatMensajes.tipo,
                     emisorId: chatMensajes.emisorId,
+                    emisorSucursalId: chatMensajes.emisorSucursalId,
                 })
                 .from(chatMensajes)
                 .where(eq(chatMensajes.id, mensaje.respuestaAId))
@@ -1222,6 +1261,7 @@ export async function enviarMensaje(
                     contenido: msgOriginal.contenido,
                     tipo: msgOriginal.tipo as TipoMensaje,
                     emisorId: msgOriginal.emisorId,
+                    emisorSucursalId: msgOriginal.emisorSucursalId,
                 };
             }
         }
@@ -1327,6 +1367,7 @@ export async function editarMensaje(
                     contenido: chatMensajes.contenido,
                     tipo: chatMensajes.tipo,
                     emisorId: chatMensajes.emisorId,
+                    emisorSucursalId: chatMensajes.emisorSucursalId,
                 })
                 .from(chatMensajes)
                 .where(eq(chatMensajes.id, actualizado.respuestaAId))
@@ -1338,6 +1379,7 @@ export async function editarMensaje(
                     contenido: msgOriginal.contenido,
                     tipo: msgOriginal.tipo as TipoMensaje,
                     emisorId: msgOriginal.emisorId,
+                    emisorSucursalId: msgOriginal.emisorSucursalId,
                 };
             }
         }
@@ -1350,19 +1392,46 @@ export async function editarMensaje(
             .limit(1);
 
         if (conv) {
-            const otroId = conv.participante1Id === input.emisorId
-                ? conv.participante2Id
-                : conv.participante1Id;
+            // Si el mensaje editado es el ÚLTIMO de la conversación, actualizar también
+            // el preview denormalizado para que la lista de chats refleje el cambio.
+            const [ultimoMsg] = await db
+                .select({ id: chatMensajes.id })
+                .from(chatMensajes)
+                .where(
+                    and(
+                        eq(chatMensajes.conversacionId, actualizado.conversacionId),
+                        eq(chatMensajes.eliminado, false),
+                    )
+                )
+                .orderBy(desc(chatMensajes.createdAt))
+                .limit(1);
+            const esUltimo = ultimoMsg?.id === actualizado.id;
+            let nuevoPreview: { ultimoMensajeTexto: string } | undefined;
+            if (esUltimo && actualizado.tipo === 'texto') {
+                const textoPreview = actualizado.contenido.substring(0, 100);
+                await db
+                    .update(chatConversaciones)
+                    .set({ ultimoMensajeTexto: textoPreview })
+                    .where(eq(chatConversaciones.id, actualizado.conversacionId));
+                nuevoPreview = { ultimoMensajeTexto: textoPreview };
+            }
+
+            // `mensajeResponse` ya incluye `emisorSucursalId`, así el frontend
+            // puede desempatar por tupla en casos inter-sucursal.
+            const pos = determinarPosicionConSucursal(conv, input.emisorId, actualizado.emisorSucursalId);
+            const otroId = pos === 'p1' ? conv.participante2Id : conv.participante1Id;
 
             emitirAUsuario(otroId, 'chatya:mensaje-editado', {
                 conversacionId: actualizado.conversacionId,
                 mensaje: mensajeResponse,
+                nuevoPreview,
             });
 
             // Sincronizar otros dispositivos del emisor
             emitirAUsuario(input.emisorId, 'chatya:mensaje-editado', {
                 conversacionId: actualizado.conversacionId,
                 mensaje: mensajeResponse,
+                nuevoPreview,
             });
         }
 
@@ -1507,9 +1576,9 @@ export async function eliminarMensaje(
             .limit(1);
 
         if (conv) {
-            const otroId = conv.participante1Id === usuarioId
-                ? conv.participante2Id
-                : conv.participante1Id;
+            // Desempate por sucursal para chats inter-sucursal del mismo negocio.
+            const pos = determinarPosicionConSucursal(conv, usuarioId, msg.emisorSucursalId);
+            const otroId = pos === 'p1' ? conv.participante2Id : conv.participante1Id;
 
             const payload = {
                 conversacionId: msg.conversacionId,
@@ -1615,7 +1684,8 @@ export async function reenviarMensaje(
 
 export async function marcarMensajesLeidos(
     conversacionId: string,
-    usuarioId: string
+    usuarioId: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio> {
     try {
         const [conv] = await db
@@ -1628,7 +1698,7 @@ export async function marcarMensajesLeidos(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
@@ -1681,6 +1751,7 @@ export async function marcarMensajesLeidos(
         emitirAUsuario(otroId, 'chatya:leido', {
             conversacionId,
             leidoPor: usuarioId,
+            leidoPorSucursalId: sucursalId,
             leidoAt: ahora,
         });
 
@@ -1688,6 +1759,7 @@ export async function marcarMensajesLeidos(
         emitirAUsuario(usuarioId, 'chatya:leido', {
             conversacionId,
             leidoPor: usuarioId,
+            leidoPorSucursalId: sucursalId,
             leidoAt: ahora,
         });
 
@@ -2060,7 +2132,8 @@ export async function desbloquearUsuario(
 export async function toggleReaccion(
     mensajeId: string,
     usuarioId: string,
-    emoji: string
+    emoji: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<{ accion: 'agregada' | 'eliminada' }>> {
     try {
         // Verificar que el mensaje existe
@@ -2085,12 +2158,18 @@ export async function toggleReaccion(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
 
-        // Verificar si ya existe la misma reacción (mismo emoji)
+        // Identidad del reactor: tupla (usuarioId, sucursalId). Para modo personal
+        // (sin sucursal), sucursal_id es NULL y se compara con isNull.
+        const matchSucursal = sucursalId
+            ? eq(chatReacciones.sucursalId, sucursalId)
+            : isNull(chatReacciones.sucursalId);
+
+        // Verificar si ya existe la misma reacción (mismo emoji) DESDE ESTA SUCURSAL
         const [existente] = await db
             .select({ id: chatReacciones.id })
             .from(chatReacciones)
@@ -2098,6 +2177,7 @@ export async function toggleReaccion(
                 and(
                     eq(chatReacciones.mensajeId, mensajeId),
                     eq(chatReacciones.usuarioId, usuarioId),
+                    matchSucursal,
                     eq(chatReacciones.emoji, emoji)
                 )
             )
@@ -2110,14 +2190,15 @@ export async function toggleReaccion(
             await db.delete(chatReacciones).where(eq(chatReacciones.id, existente.id));
             accion = 'eliminada';
         } else {
-            // Emoji diferente o ninguno → eliminar reacción previa si existe, luego agregar nueva
+            // Emoji diferente o ninguno → eliminar reacción previa (de ESTA sucursal)
             const [reaccionPrevia] = await db
                 .select({ id: chatReacciones.id, emoji: chatReacciones.emoji })
                 .from(chatReacciones)
                 .where(
                     and(
                         eq(chatReacciones.mensajeId, mensajeId),
-                        eq(chatReacciones.usuarioId, usuarioId)
+                        eq(chatReacciones.usuarioId, usuarioId),
+                        matchSucursal
                     )
                 )
                 .limit(1);
@@ -2126,25 +2207,25 @@ export async function toggleReaccion(
                 // Eliminar reacción previa y emitir evento de eliminación
                 await db.delete(chatReacciones).where(eq(chatReacciones.id, reaccionPrevia.id));
 
-                const otroIdPrev = conv.participante1Id === usuarioId
-                    ? conv.participante2Id
-                    : conv.participante1Id;
+                const otroIdPrev = pos === 'p1' ? conv.participante2Id : conv.participante1Id;
 
                 const payloadPrev = {
                     conversacionId: msg.conversacionId,
                     mensajeId,
                     emoji: reaccionPrevia.emoji,
                     usuarioId,
+                    usuarioSucursalId: sucursalId,
                     accion: 'eliminada' as const,
                 };
                 emitirAUsuario(otroIdPrev, 'chatya:reaccion', payloadPrev);
                 emitirAUsuario(usuarioId, 'chatya:reaccion', payloadPrev);
             }
 
-            // Agregar nueva reacción
+            // Agregar nueva reacción (desde esta sucursal)
             await db.insert(chatReacciones).values({
                 mensajeId,
                 usuarioId,
+                sucursalId,
                 emoji,
             });
             accion = 'agregada';
@@ -2166,15 +2247,15 @@ export async function toggleReaccion(
         }
 
         // Emitir por Socket.io a ambos participantes
-        const otroId = conv.participante1Id === usuarioId
-            ? conv.participante2Id
-            : conv.participante1Id;
+        // Desempate por sucursal (inter-sucursal del mismo negocio).
+        const otroId = pos === 'p1' ? conv.participante2Id : conv.participante1Id;
 
         const payload = {
             conversacionId: msg.conversacionId,
             mensajeId,
             emoji,
             usuarioId,
+            usuarioSucursalId: sucursalId,
             accion,
         };
 
@@ -2201,6 +2282,7 @@ export async function obtenerReacciones(
             .select({
                 emoji: chatReacciones.emoji,
                 usuarioId: chatReacciones.usuarioId,
+                sucursalId: chatReacciones.sucursalId,
                 nombre: usuarios.nombre,
             })
             .from(chatReacciones)
@@ -2208,12 +2290,12 @@ export async function obtenerReacciones(
             .where(eq(chatReacciones.mensajeId, mensajeId));
 
         // Agrupar por emoji
-        const agrupadas = new Map<string, { id: string; nombre: string }[]>();
+        const agrupadas = new Map<string, { id: string; nombre: string; sucursalId: string | null }[]>();
         for (const r of reacciones) {
             if (!agrupadas.has(r.emoji)) {
                 agrupadas.set(r.emoji, []);
             }
-            agrupadas.get(r.emoji)!.push({ id: r.usuarioId, nombre: r.nombre });
+            agrupadas.get(r.emoji)!.push({ id: r.usuarioId, nombre: r.nombre, sucursalId: r.sucursalId });
         }
 
         const items: ReaccionResponse[] = [];
@@ -2239,7 +2321,8 @@ export async function obtenerReacciones(
 export async function fijarMensaje(
     conversacionId: string,
     mensajeId: string,
-    usuarioId: string
+    usuarioId: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<{ id: string }>> {
     try {
         // Verificar acceso
@@ -2253,7 +2336,7 @@ export async function fijarMensaje(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
@@ -2275,14 +2358,21 @@ export async function fijarMensaje(
             return { success: false, message: 'Mensaje no encontrado en esta conversación', code: 404 };
         }
 
-        // Verificar si ya está fijado
+        // Fijado es per-lado: cada usuario (y cada sucursal en inter-sucursal)
+        // mantiene su propia lista. Desempate contra la tupla del actor.
+        const matchSucursal = sucursalId
+            ? eq(chatMensajesFijados.sucursalId, sucursalId)
+            : isNull(chatMensajesFijados.sucursalId);
+
         const [existente] = await db
             .select({ id: chatMensajesFijados.id })
             .from(chatMensajesFijados)
             .where(
                 and(
                     eq(chatMensajesFijados.conversacionId, conversacionId),
-                    eq(chatMensajesFijados.mensajeId, mensajeId)
+                    eq(chatMensajesFijados.mensajeId, mensajeId),
+                    eq(chatMensajesFijados.fijadoPor, usuarioId),
+                    matchSucursal
                 )
             )
             .limit(1);
@@ -2297,16 +2387,13 @@ export async function fijarMensaje(
                 conversacionId,
                 mensajeId,
                 fijadoPor: usuarioId,
+                sucursalId,
             })
             .returning({ id: chatMensajesFijados.id });
 
-        // Notificar al otro participante
-        const otroId = conv.participante1Id === usuarioId
-            ? conv.participante2Id
-            : conv.participante1Id;
-
-        const payload = { conversacionId, mensajeId, fijadoPor: usuarioId };
-        emitirAUsuario(otroId, 'chatya:mensaje-fijado', payload);
+        // Fijado es privado de este lado — solo emitir a mi propio room
+        // para sync multi-dispositivo de la misma tupla (no al otro lado).
+        const payload = { conversacionId, mensajeId, fijadoPor: usuarioId, fijadoPorSucursalId: sucursalId };
         emitirAUsuario(usuarioId, 'chatya:mensaje-fijado', payload);
 
         return { success: true, message: 'Mensaje fijado', data: { id: nuevo.id } };
@@ -2323,7 +2410,8 @@ export async function fijarMensaje(
 export async function desfijarMensaje(
     conversacionId: string,
     mensajeId: string,
-    usuarioId: string
+    usuarioId: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio> {
     try {
         // Verificar acceso
@@ -2337,27 +2425,29 @@ export async function desfijarMensaje(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
+
+        // Desfijado es per-lado — borrar solo el fijado de ESTA tupla (usuarioId + sucursalId).
+        const matchSucursal = sucursalId
+            ? eq(chatMensajesFijados.sucursalId, sucursalId)
+            : isNull(chatMensajesFijados.sucursalId);
 
         await db
             .delete(chatMensajesFijados)
             .where(
                 and(
                     eq(chatMensajesFijados.conversacionId, conversacionId),
-                    eq(chatMensajesFijados.mensajeId, mensajeId)
+                    eq(chatMensajesFijados.mensajeId, mensajeId),
+                    eq(chatMensajesFijados.fijadoPor, usuarioId),
+                    matchSucursal
                 )
             );
 
-        // Notificar
-        const otroId = conv.participante1Id === usuarioId
-            ? conv.participante2Id
-            : conv.participante1Id;
-
-        const payload = { conversacionId, mensajeId };
-        emitirAUsuario(otroId, 'chatya:mensaje-desfijado', payload);
+        // Fijado es privado — emit solo al propio room para sync multi-dispositivo.
+        const payload = { conversacionId, mensajeId, fijadoPorSucursalId: sucursalId };
         emitirAUsuario(usuarioId, 'chatya:mensaje-desfijado', payload);
 
         return { success: true, message: 'Mensaje desfijado' };
@@ -2373,7 +2463,8 @@ export async function desfijarMensaje(
 
 export async function listarMensajesFijados(
     conversacionId: string,
-    usuarioId: string
+    usuarioId: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<MensajeFijadoResponse[]>> {
     try {
         // Verificar acceso
@@ -2387,10 +2478,15 @@ export async function listarMensajesFijados(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
+
+        // Fijado es per-lado: solo mostrar los fijados por ESTE usuario + sucursal.
+        const matchSucursal = sucursalId
+            ? eq(chatMensajesFijados.sucursalId, sucursalId)
+            : isNull(chatMensajesFijados.sucursalId);
 
         const fijados = await db
             .select({
@@ -2405,7 +2501,13 @@ export async function listarMensajesFijados(
             })
             .from(chatMensajesFijados)
             .innerJoin(chatMensajes, eq(chatMensajesFijados.mensajeId, chatMensajes.id))
-            .where(eq(chatMensajesFijados.conversacionId, conversacionId))
+            .where(
+                and(
+                    eq(chatMensajesFijados.conversacionId, conversacionId),
+                    eq(chatMensajesFijados.fijadoPor, usuarioId),
+                    matchSucursal
+                )
+            )
             .orderBy(desc(chatMensajesFijados.createdAt));
 
         const items: MensajeFijadoResponse[] = fijados.map((f) => ({
@@ -2435,7 +2537,8 @@ export async function listarMensajesFijados(
 
 export async function buscarMensajes(
     input: BusquedaMensajesInput,
-    usuarioId: string
+    usuarioId: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<ListaPaginada<MensajeResponse>>> {
     try {
         // Verificar acceso
@@ -2449,7 +2552,7 @@ export async function buscarMensajes(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }
@@ -2657,7 +2760,8 @@ export async function buscarNegocios(
     ciudad: string,
     latitud: number | null,
     longitud: number | null,
-    limit: number = 10
+    limit: number = 10,
+    sucursalExcluidaId: string | null = null
 ): Promise<RespuestaServicio<BuscarNegociosResponse[]>> {
     try {
         const termino = `%${texto.trim()}%`;
@@ -2713,6 +2817,7 @@ export async function buscarNegocios(
               AND s.activa = true
               AND s.ubicacion IS NOT NULL
               AND s.ciudad ILIKE ${ciudad}
+              ${sucursalExcluidaId ? sql`AND s.id != ${sucursalExcluidaId}` : sql``}
               AND (
                   n.nombre ILIKE ${termino}
                   OR n.descripcion ILIKE ${termino}
@@ -3060,7 +3165,8 @@ export async function listarArchivosCompartidos(
     conversacionId: string,
     usuarioId: string,
     categoria: 'imagenes' | 'documentos' | 'enlaces',
-    paginacion: PaginacionInput
+    paginacion: PaginacionInput,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<ListaPaginada<{
     id: string;
     contenido: string;
@@ -3079,7 +3185,7 @@ export async function listarArchivosCompartidos(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso a esta conversación', code: 403 };
         }
@@ -3162,7 +3268,8 @@ export async function listarArchivosCompartidos(
  */
 export async function contarArchivosCompartidos(
     conversacionId: string,
-    usuarioId: string
+    usuarioId: string,
+    sucursalId: string | null = null
 ): Promise<RespuestaServicio<{ imagenes: number; documentos: number; enlaces: number; total: number }>> {
     try {
         const [conv] = await db
@@ -3175,7 +3282,7 @@ export async function contarArchivosCompartidos(
             return { success: false, message: 'Conversación no encontrada', code: 404 };
         }
 
-        const pos = determinarPosicion(conv, usuarioId);
+        const pos = determinarPosicionConSucursal(conv, usuarioId, sucursalId);
         if (!pos) {
             return { success: false, message: 'No tienes acceso', code: 403 };
         }

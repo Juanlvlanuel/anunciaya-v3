@@ -14,6 +14,7 @@ import type { Conversacion } from '../../types/chatya';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
 import { TextoConEmojis } from './TextoConEmojis';
+import { determinarMiLado } from './utils/lado';
 
 // =============================================================================
 // TIPOS
@@ -99,7 +100,7 @@ export const ConversacionItem = memo(function ConversacionItem({ conversacion, a
   const escribiendo = useChatYAStore((s) => s.escribiendo);
   const borrador = borradores[conversacion.id] || null;
   const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otro?.id);
-  const { miId, modo: modoActivo } = useChatYASession();
+  const { miId, modo: modoActivo, sucursalId: miSucursalId } = useChatYASession();
 
   // ¿El último mensaje es mío? → mostrar palomitas
   const ultimoEsMio = !!miId && conversacion.ultimoMensajeEmisorId === miId;
@@ -160,10 +161,13 @@ export const ConversacionItem = memo(function ConversacionItem({ conversacion, a
 
   // Nombre a mostrar: negocio si aplica, sino nombre personal
   const nombre = otro?.negocioNombre || (otro ? `${otro.nombre} ${otro.apellidos || ''}`.trim() : 'Chat');
+  // Sufijo con nombre de sucursal — solo si backend lo devolvió (negocio con
+  // más de una sucursal y NO la Matriz).
+  const sucursalSufijo = otro?.sucursalNombre ?? null;
 
-  // sucursalId del otro participante
+  // sucursalId del otro participante (tupla miId+miSucursalId para chats inter-sucursal)
   const otroSucursalId = miId
-    ? (conversacion.participante1Id === miId ? conversacion.participante2SucursalId : conversacion.participante1SucursalId)
+    ? determinarMiLado(conversacion, miId, miSucursalId).otroSucursalId
     : null;
 
   // Alias del contacto tiene prioridad sobre el nombre real
@@ -244,7 +248,12 @@ export const ConversacionItem = memo(function ConversacionItem({ conversacion, a
             {tiempo}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-1 mt-0.5 h-5">
+        {sucursalSufijo && !contactoExistente?.alias?.trim() && (
+          <p className="text-[12px] text-white/50 font-medium truncate leading-tight mt-0">
+            {sucursalSufijo}
+          </p>
+        )}
+        <div className={`flex items-center justify-between gap-1 h-5 ${sucursalSufijo && !contactoExistente?.alias?.trim() ? 'mt-1' : 'mt-0.5'}`}>
           <p className={`text-[13.5px] truncate ${otroEstaEscribiendo ? 'text-blue-400 font-semibold' : tieneNoLeidos ? 'text-white/80 font-medium' : 'text-white/50'}`}>
             {otroEstaEscribiendo ? (
               'Escribiendo...'

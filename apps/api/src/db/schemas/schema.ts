@@ -2046,7 +2046,7 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	check("chat_conv_modo_p1_check", sql`(participante1_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("chat_conv_modo_p2_check", sql`(participante2_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'dinamica'::character varying, 'empleo'::character varying, 'directo'::character varying, 'notas'::character varying])::text[])`),
-	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id OR contexto_tipo = 'notas'`),
+	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id OR contexto_tipo = 'notas' OR (participante1_sucursal_id IS NOT NULL AND participante2_sucursal_id IS NOT NULL AND participante1_sucursal_id <> participante2_sucursal_id)`),
 ]);
 
 export const chatMensajes = pgTable("chat_mensajes", {
@@ -2114,6 +2114,7 @@ export const chatReacciones = pgTable("chat_reacciones", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	mensajeId: uuid("mensaje_id").notNull(),
 	usuarioId: uuid("usuario_id").notNull(),
+	sucursalId: uuid("sucursal_id"),
 	emoji: varchar({ length: 10 }).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
@@ -2128,7 +2129,12 @@ export const chatReacciones = pgTable("chat_reacciones", {
 		foreignColumns: [usuarios.id],
 		name: "fk_chat_reacciones_usuario"
 	}).onDelete("cascade"),
-	unique("chat_reacciones_unique").on(table.mensajeId, table.usuarioId, table.emoji),
+	foreignKey({
+		columns: [table.sucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_chat_reacciones_sucursal"
+	}).onDelete("set null"),
+	unique("chat_reacciones_unique").on(table.mensajeId, table.usuarioId, table.sucursalId, table.emoji).nullsNotDistinct(),
 ]);
 
 export const chatMensajesFijados = pgTable("chat_mensajes_fijados", {
@@ -2136,6 +2142,7 @@ export const chatMensajesFijados = pgTable("chat_mensajes_fijados", {
 	conversacionId: uuid("conversacion_id").notNull(),
 	mensajeId: uuid("mensaje_id").notNull(),
 	fijadoPor: uuid("fijado_por").notNull(),
+	sucursalId: uuid("sucursal_id"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_chat_msg_fijados_conv").using("btree", table.conversacionId.asc().nullsLast()),
@@ -2154,7 +2161,12 @@ export const chatMensajesFijados = pgTable("chat_mensajes_fijados", {
 		foreignColumns: [usuarios.id],
 		name: "fk_chat_msg_fijados_usuario"
 	}).onDelete("cascade"),
-	unique("chat_msg_fijados_unique").on(table.conversacionId, table.mensajeId),
+	foreignKey({
+		columns: [table.sucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_chat_msg_fijados_sucursal"
+	}).onDelete("set null"),
+	unique("chat_msg_fijados_unique").on(table.conversacionId, table.mensajeId, table.fijadoPor, table.sucursalId).nullsNotDistinct(),
 ]);
 
 export const chatContactos = pgTable("chat_contactos", {

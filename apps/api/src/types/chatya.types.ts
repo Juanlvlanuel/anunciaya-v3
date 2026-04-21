@@ -138,12 +138,13 @@ export interface MensajeResponse {
     contenido: string;
     tipo: TipoMensaje;
     emisorId: string | null;
+    emisorSucursalId: string | null;
   } | null;
-  // Reacciones del mensaje
+  // Reacciones del mensaje (cada reactor es tupla id + sucursalId).
   reacciones?: {
     emoji: string;
     cantidad: number;
-    usuarios: string[];
+    usuarios: { id: string; sucursalId: string | null }[];
   }[];
 }
 
@@ -227,7 +228,7 @@ export interface ReaccionInput {
 export interface ReaccionResponse {
   emoji: string;
   cantidad: number;
-  usuarios: { id: string; nombre: string }[];
+  usuarios: { id: string; nombre: string; sucursalId: string | null }[];
 }
 
 // --- MENSAJES FIJADOS ---

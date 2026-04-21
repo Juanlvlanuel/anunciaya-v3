@@ -164,6 +164,8 @@ interface BurbujaMensajeProps {
   menuActivoId?: string | null;
   /** ID del usuario actual (para resaltar mis reacciones) */
   miId?: string;
+  /** Sucursal activa (desempata mis reacciones en chats inter-sucursal) */
+  miSucursalId?: string | null;
   /** Callback al hacer click en imagen para abrir visor fullscreen */
   onImagenClick?: (mensajeId: string) => void;
   /** Callback al hacer click en botón reenviar (imagen/documento) */
@@ -800,7 +802,7 @@ function AudioBurbuja({
 // COMPONENTE
 // =============================================================================
 
-export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId, miId, onImagenClick, onReenviar, onCitaClick, onResponder, avatarEmisor, inicialesEmisor }: BurbujaMensajeProps) {
+export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esMisNotas = false, resaltado = false, onMenuContextual, onReaccionar, menuActivoId, miId, miSucursalId = null, onImagenClick, onReenviar, onCitaClick, onResponder, avatarEmisor, inicialesEmisor }: BurbujaMensajeProps) {
   const hora = formatearHora(mensaje.createdAt);
   const esFallido = mensaje.estado === 'fallido';
 
@@ -814,10 +816,17 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
     return extraerPrimeraUrl(mensaje.contenido);
   }, [mensaje.contenido, mensaje.tipo, mensaje.eliminado, esSoloEmojis]);
 
-  /** Emoji con el que ya reaccioné a este mensaje (si existe) */
-  const miReaccionActual = mensaje.reacciones?.find((r) =>
-    (r.usuarios as string[])?.includes(miId || '')
-  )?.emoji;
+  /** Emoji con el que ya reaccioné a este mensaje (si existe).
+   *  En inter-sucursal cada sucursal es un reactor independiente, así que
+   *  comparamos la tupla completa (miId, miSucursalId). */
+  const miReaccionActual = mensaje.reacciones?.find((r) => {
+    const usrs = r.usuarios as (string | { id: string; sucursalId?: string | null })[];
+    return usrs.some((u) => {
+      const uid = typeof u === 'string' ? u : u.id;
+      const usuc = typeof u === 'string' ? null : (u.sucursalId ?? null);
+      return uid === (miId || '') && usuc === (miSucursalId ?? null);
+    });
+  })?.emoji;
 
   /** Picker de emojis abierto (hover en desktop) */
   const [emojiPickerAbierto, setEmojiPickerAbierto] = useState(false);
@@ -1278,7 +1287,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                 {/* Texto */}
                 <div className="flex-1 min-w-0 px-2.5 py-1.5">
                   <p className={`text-[13px] font-bold ${esMio ? 'text-white/95' : 'text-blue-500'}`}>
-                    {mensaje.respuestaA.emisorId === mensaje.emisorId ? 'Tú' : 'Mensaje'}
+                    {mensaje.respuestaA.emisorId === mensaje.emisorId && mensaje.respuestaA.emisorSucursalId === mensaje.emisorSucursalId ? 'Tú' : 'Mensaje'}
                   </p>
                   <p className={`text-[13px] truncate mt-0.5 ${esMio ? 'text-white/75' : 'text-white/60'}`}>
                     {mensaje.respuestaA.tipo === 'imagen' ? (() => {
@@ -1498,23 +1507,34 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
           </div>
         )}
 
-        {/* Pills de reacciones visibles */}
+        {/* Pills de reacciones visibles.
+            Normalización defensiva: contamos reactores únicos por tupla
+            `(id, sucursalId)` en vez de confiar en `r.cantidad` que puede
+            quedar desactualizado si algo agrega duplicados al state. */}
         {mensaje.reacciones && mensaje.reacciones.length > 0 && (
           <div className={`flex flex-wrap gap-1 -mt-1 relative z-10 ${esMio ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
             {mensaje.reacciones.map((r) => {
+              const seen = new Set<string>();
+              for (const u of r.usuarios as (string | { id: string; sucursalId?: string | null })[]) {
+                const uid = typeof u === 'string' ? u : u.id;
+                const usuc = typeof u === 'string' ? '' : (u.sucursalId ?? '');
+                seen.add(`${uid}|${usuc}`);
+              }
+              const cantidadReal = seen.size;
+              if (cantidadReal === 0) return null;
               return (
                 <button
                   key={r.emoji}
                   onClick={() => onReaccionar?.(mensaje.id, r.emoji)}
-                  className={`inline-flex items-center justify-center rounded-full cursor-pointer hover:scale-110 shadow-sm border ${r.cantidad > 1 ? 'gap-0.5 px-1.5 h-7' : 'w-7 h-7'} ${esMio
+                  className={`inline-flex items-center justify-center rounded-full cursor-pointer hover:scale-110 shadow-sm border ${cantidadReal > 1 ? 'gap-0.5 px-1.5 h-7' : 'w-7 h-7'} ${esMio
                     ? 'bg-blue-100 border-blue-300'
                     : 'bg-[linear-gradient(135deg,#0f2a6b,#0a1d4e)] border-blue-900/50'
                   }`}
                 >
                   <EmojiNoto emoji={r.emoji} tamaño={18} />
-                  {r.cantidad > 1 && (
+                  {cantidadReal > 1 && (
                     <span className="text-[11px] font-bold text-gray-500">
-                      {r.cantidad}
+                      {cantidadReal}
                     </span>
                   )}
                 </button>
