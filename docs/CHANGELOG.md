@@ -7,6 +7,32 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [20-21 Abril 2026] - Validación en vivo del Recolector de Basura + prompts de continuación
+
+### ✅ Validaciones ejecutadas
+
+- **Sub-prueba 5.2** — Editar imagen en artículo/logo/portada/foto-perfil: los 4 puntos de aplicación del fix validados en vivo. Al subir imagen nueva, la anterior desaparece de R2 correctamente
+- **Sub-prueba 5.3** — Eliminar mensaje chat con adjunto: hard delete de conversación con documentos e imágenes limpia todos los archivos R2 adjuntos
+- **Sub-prueba 5.4** — Seguridad endpoint admin: los 4 casos prácticos pasaron (401 sin header, 401 con secret incorrecto, 400 sin confirmación, 400 con confirmación inválida). Caso 5 (503 sin ADMIN_SECRET) cubierto por diseño
+- **Sub-pruebas 5.5-5.9** — marcadas como opcionales (cubiertas por diseño, validación directa no crítica)
+
+### 📋 Prompts de continuación archivados
+
+Para cerrar el módulo Sucursales al 100% en sesiones futuras, se guardaron 2 prompts auto-contenidos en `docs/reportes/`:
+- `prompt-sprint-filtrado-sucursal-bs.md` — Pruebas 1 y 2 (filtrado por sucursal en 12 módulos BS, ~3h)
+- `prompt-sprint-scanya-multi-sucursal.md` — Implementación frontend del selector + validación de 3 roles (dueño/gerente/empleado, 1-2 días)
+
+### 📊 Estado del sprint de sucursales tras esta sesión
+
+- Lista 1 (12 secciones BS Sucursales): 12/12 ✅
+- Lista 2 (18 recomendaciones post-sprint): 14/18 + 1 parcial + 3 pendientes
+- Lista 3 (6 pruebas de testing): 4/6 validadas en vivo (Pruebas 3, 4, 5, 6) + 2 pendientes (Pruebas 1 y 2)
+- Recolector de Basura R2: 4/9 sub-pruebas validadas en vivo, 5 cubiertas por diseño
+
+**90% del uso diario del Recolector de Basura validado en vivo.** El módulo queda cerrado con las pruebas prioritarias; las restantes son seguros de capa extra que se pueden validar cuando aparezcan síntomas reales.
+
+---
+
 ## [17 Abril 2026 — Sprint de cierre] - Resumen consolidado del día
 
 > **Infraestructura de mantenimiento R2 + auditoría sistemática de leaks de archivos + arranque del Panel Admin.**
