@@ -2781,6 +2781,7 @@ export async function buscarNegocios(
                 n.usuario_id,
                 s.id AS sucursal_id,
                 s.nombre AS sucursal_nombre,
+                s.es_principal AS sucursal_es_principal,
                 s.foto_perfil,
                 COALESCE(s.calificacion_promedio, 0)::float AS calificacion_promedio,
 
@@ -2834,7 +2835,7 @@ export async function buscarNegocios(
               )
 
             -- Evitar duplicados por múltiples categorías/subcategorías
-            GROUP BY n.id, n.nombre, n.usuario_id, s.id, s.nombre, s.foto_perfil, s.calificacion_promedio, s.ubicacion
+            GROUP BY n.id, n.nombre, n.usuario_id, s.id, s.nombre, s.es_principal, s.foto_perfil, s.calificacion_promedio, s.ubicacion
 
             ORDER BY
                 ${latitud && longitud
@@ -2851,22 +2852,35 @@ export async function buscarNegocios(
             usuario_id: string;
             sucursal_id: string;
             sucursal_nombre: string;
+            sucursal_es_principal: boolean;
             foto_perfil: string | null;
             calificacion_promedio: number;
             total_sucursales: number;
             categoria: string | null;
             distancia_km: number | null;
-        }>).map((row) => ({
-            negocioNombre: row.negocio_nombre,
-            sucursalNombre: row.total_sucursales > 1 ? row.sucursal_nombre : null,
-            fotoPerfil: row.foto_perfil,
-            calificacionPromedio: Number(row.calificacion_promedio) || 0,
-            categoria: row.categoria,
-            distanciaKm: row.distancia_km ? Math.round(row.distancia_km * 10) / 10 : null,
-            usuarioId: row.usuario_id,
-            sucursalId: row.sucursal_id,
-            negocioId: row.negocio_id,
-        }));
+        }>).map((row) => {
+            // Etiqueta de sucursal:
+            //  - Negocio con 1 sola sucursal → null (no mostrar segunda línea).
+            //  - Sucursal Matriz de un negocio con varias → "Matriz" (en BD
+            //    suele tener el mismo nombre que el negocio, lo que se vería
+            //    duplicado).
+            //  - Sucursal secundaria → su nombre real.
+            let etiquetaSucursal: string | null = null;
+            if (row.total_sucursales > 1) {
+                etiquetaSucursal = row.sucursal_es_principal ? 'Matriz' : row.sucursal_nombre;
+            }
+            return {
+                negocioNombre: row.negocio_nombre,
+                sucursalNombre: etiquetaSucursal,
+                fotoPerfil: row.foto_perfil,
+                calificacionPromedio: Number(row.calificacion_promedio) || 0,
+                categoria: row.categoria,
+                distanciaKm: row.distancia_km ? Math.round(row.distancia_km * 10) / 10 : null,
+                usuarioId: row.usuario_id,
+                sucursalId: row.sucursal_id,
+                negocioId: row.negocio_id,
+            };
+        });
 
         return { success: true, message: `${items.length} negocios encontrados`, data: items };
     } catch (error) {
