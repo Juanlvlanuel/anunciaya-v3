@@ -89,7 +89,7 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
     if (solo === 'kpis') return null;
     return (
       <div className="text-center py-16 text-slate-600 font-medium" data-testid="reporte-empleados-vacio">
-        No hay empleados activos en este negocio
+        No hay operadores activos en este negocio
       </div>
     );
   }
@@ -116,7 +116,7 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
         <div className="flex lg:justify-end gap-2 lg:gap-1.5 2xl:gap-2 pb-1 lg:pb-0" data-testid="reporte-empleados-kpis">
           <KpiCard
             icono={Users}
-            label="Empleados"
+            label="Operadores"
             valor={totalEmpleados}
             color="blue"
             testId="reporte-metrica-total-empleados"
@@ -151,7 +151,7 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
   return (
     <>
     <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-empleados">
-        <PanelTitulo icono={UserCog} titulo="Desempeño por empleado" />
+        <PanelTitulo icono={UserCog} titulo="Desempeño por operador" />
 
         {/* Desktop — tabla */}
         <div className="hidden lg:block">
@@ -162,7 +162,7 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
               onClick={() => toggleOrden('nombre')}
               className="bg-slate-300 text-slate-700 font-bold text-sm lg:text-[11px] 2xl:text-sm h-9 flex items-center px-3 lg:cursor-pointer hover:bg-slate-400"
             >
-              Empleado <span className="ml-1"><IconoOrden campo="nombre" /></span>
+              Operador <span className="ml-1"><IconoOrden campo="nombre" /></span>
             </button>
             <button
               type="button"

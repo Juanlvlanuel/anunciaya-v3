@@ -50,7 +50,7 @@ if (!document.querySelector('[data-reportes-style]')) {
 const TABS_CONFIG: { id: TabReporte; etiqueta: string; icono: typeof DollarSign }[] = [
   { id: 'ventas', etiqueta: 'Ventas', icono: DollarSign },
   { id: 'clientes', etiqueta: 'Clientes', icono: Users },
-  { id: 'empleados', etiqueta: 'Empleados', icono: UserCog },
+  { id: 'empleados', etiqueta: 'Operador', icono: UserCog },
   { id: 'promociones', etiqueta: 'Promociones', icono: Tag },
   { id: 'resenas', etiqueta: 'Reseñas', icono: Star },
 ];

@@ -102,19 +102,37 @@ export function getZonaHorariaPorEstado(estado: string | null | undefined): Zona
 }
 
 /**
+ * Whitelist de zonas horarias válidas para México.
+ * Cualquier valor leído de BD que no esté aquí se descarta y se usa el fallback.
+ * Necesario porque las zonas se interpolan como literales SQL (ver
+ * `obtenerZonaHorariaSQL`) y debemos garantizar que no contengan SQL injection.
+ */
+const ZONAS_HORARIAS_VALIDAS: ReadonlySet<ZonaHorariaMx> = new Set<ZonaHorariaMx>([
+	'America/Mexico_City',
+	'America/Hermosillo',
+	'America/Tijuana',
+	'America/Cancun',
+	'America/Mazatlan',
+]);
+
+/**
  * Obtiene la zona horaria de una sucursal desde la BD.
  *
  * - Si `sucursalId` está dado, devuelve la zona de esa sucursal.
  * - Si no, devuelve la zona de la Matriz del negocio.
- * - Si la consulta falla o no hay registro, devuelve 'America/Mexico_City'.
+ * - Si la consulta falla, no hay registro, o la zona en BD no está en el
+ *   whitelist, devuelve 'America/Mexico_City'.
  *
  * Usado por queries SQL con `AT TIME ZONE` para que los buckets de hora/día
  * reflejen la hora local de la sucursal donde realmente se hizo la venta.
+ *
+ * El valor retornado siempre es seguro para interpolar como literal SQL
+ * (validado contra whitelist).
  */
 export async function obtenerZonaHorariaSucursal(
 	negocioId: string,
 	sucursalId?: string | null
-): Promise<string> {
+): Promise<ZonaHorariaMx> {
 	try {
 		const sucursalIdParam = sucursalId ?? null;
 		const resultado = await db.execute(sql`
@@ -129,9 +147,31 @@ export async function obtenerZonaHorariaSucursal(
 		`);
 
 		const row = resultado.rows[0] as { zona_horaria: string } | undefined;
-		return row?.zona_horaria ?? 'America/Mexico_City';
+		const zona = row?.zona_horaria;
+		if (zona && ZONAS_HORARIAS_VALIDAS.has(zona as ZonaHorariaMx)) {
+			return zona as ZonaHorariaMx;
+		}
+		return 'America/Mexico_City';
 	} catch (error) {
 		console.error('Error obteniendo zona horaria de sucursal:', error);
 		return 'America/Mexico_City';
 	}
+}
+
+/**
+ * Devuelve la zona horaria como SQL fragment con la zona ya entre comillas
+ * simples, lista para interpolar dentro de `AT TIME ZONE`.
+ *
+ * Necesario porque PostgreSQL trata cada parámetro posicional ($1, $2, ...)
+ * como una expresión independiente: si una query usa `AT TIME ZONE ${zona}`
+ * en SELECT y de nuevo en GROUP BY/ORDER BY, los parámetros toman índices
+ * distintos ($1 y $7) y el planner no puede demostrar que las expresiones
+ * son iguales → "must appear in GROUP BY clause".
+ *
+ * El valor de entrada está validado por el whitelist en
+ * `obtenerZonaHorariaSucursal`, por lo que es seguro inlinearlo como
+ * literal SQL.
+ */
+export function zonaHorariaSQL(zona: ZonaHorariaMx) {
+	return sql.raw(`'${zona}'`);
 }
