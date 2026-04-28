@@ -49,6 +49,7 @@ export function PaginaLoginScanYA() {
   const loginExitoso = useScanYAStore((state) => state.loginExitoso);
   const emailRecordado = useScanYAStore((state) => state.emailRecordado);
   const setEmailRecordado = useScanYAStore((state) => state.setEmailRecordado);
+  const setAvisoTurnoAutoCerrado = useScanYAStore((state) => state.setAvisoTurnoAutoCerrado);
 
   // ---------------------------------------------------------------------------
   // Estado
@@ -187,7 +188,7 @@ export function PaginaLoginScanYA() {
 
 
         // El backend devuelve todo mezclado en data, no { usuario, tokens }
-        const { accessToken, refreshToken, ...usuarioData } = response.data;
+        const { accessToken, refreshToken, avisoTurnoAutoCerrado, ...usuarioData } = response.data;
 
         if (!accessToken || !refreshToken) {
           console.error('❌ Faltan tokens:', {
@@ -209,6 +210,11 @@ export function PaginaLoginScanYA() {
         // Login exitoso en el store
         await loginExitoso(usuarioData as UsuarioScanYA, accessToken, refreshToken);
 
+        // Si el último turno fue auto-cerrado, lo guardamos en el store para
+        // que `ModalAvisoTurnoAutoCerrado` lo muestre dentro de /scanya.
+        if (avisoTurnoAutoCerrado) {
+          setAvisoTurnoAutoCerrado(avisoTurnoAutoCerrado);
+        }
 
         // Redirigir al dashboard
         navigate('/scanya');
@@ -229,7 +235,7 @@ export function PaginaLoginScanYA() {
         setCargando(false);
       }
     },
-    [email, password, recordar, formularioDuenoValido, cargando, loginExitoso, setEmailRecordado, navigate]
+    [email, password, recordar, formularioDuenoValido, cargando, loginExitoso, setEmailRecordado, setAvisoTurnoAutoCerrado, navigate]
   );
 
   // ---------------------------------------------------------------------------
@@ -266,7 +272,7 @@ export function PaginaLoginScanYA() {
         }
 
         // El backend devuelve todo mezclado en data
-        const { accessToken, refreshToken, ...usuarioData } = response.data;
+        const { accessToken, refreshToken, avisoTurnoAutoCerrado, ...usuarioData } = response.data;
 
         if (!accessToken || !refreshToken) {
           notificar.error('Tokens faltantes del servidor');
@@ -278,6 +284,12 @@ export function PaginaLoginScanYA() {
         await loginExitoso(usuarioData as UsuarioScanYA, accessToken, refreshToken);
 
         notificar.exito(`Bienvenido ${usuarioData.nombreUsuario}`);
+
+        // Si el último turno fue auto-cerrado, lo guardamos en el store para
+        // que `ModalAvisoTurnoAutoCerrado` lo muestre dentro de /scanya.
+        if (avisoTurnoAutoCerrado) {
+          setAvisoTurnoAutoCerrado(avisoTurnoAutoCerrado);
+        }
 
         // Redirigir al dashboard
         navigate('/scanya');
@@ -298,7 +310,7 @@ export function PaginaLoginScanYA() {
         setCargando(false);
       }
     },
-    [nick, nickValido, cargando, loginExitoso, navigate]
+    [nick, nickValido, cargando, loginExitoso, setAvisoTurnoAutoCerrado, navigate]
   );
 
   // ---------------------------------------------------------------------------

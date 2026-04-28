@@ -25,4 +25,5 @@ export { default as TarjetaRecordatorio } from './TarjetaRecordatorio';
 export { default as ModalRecordatorios } from './ModalRecordatorios';
 export { BotonInstalarScanYA } from './BotonInstalarScanYA';
 export { ModalResenas } from './ModalResenas';
+export { ModalAvisoTurnoAutoCerrado } from './ModalAvisoTurnoAutoCerrado';
 

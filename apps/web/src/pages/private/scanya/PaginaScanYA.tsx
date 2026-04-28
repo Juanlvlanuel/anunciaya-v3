@@ -35,6 +35,7 @@ import {
   ModalCanjearVoucher,
   ModalRecordatorios,
   ModalResenas,
+  ModalAvisoTurnoAutoCerrado,
 } from '@/components/scanya';
 import type { RecordatorioScanYA } from '@/types/scanya';
 import type { TurnoScanYA, RespuestaTurnoActual } from '@/types/scanya';
@@ -857,6 +858,8 @@ export default function PaginaScanYA() {
       </div>
       {/* ChatOverlay — montado aquí porque ScanYA no usa MainLayout */}
       <ChatOverlay />
+      {/* Modal de aviso de turno auto-cerrado (se muestra si el último turno fue auto-cerrado) */}
+      <ModalAvisoTurnoAutoCerrado />
     </div>
   );
 }

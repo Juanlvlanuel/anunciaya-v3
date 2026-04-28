@@ -184,12 +184,26 @@ export interface ActualizarConfigScanYAInput {
 // =============================================================================
 
 /**
+ * Aviso de turno auto-cerrado en sesión anterior (si aplica).
+ * Llega en la respuesta de login cuando el último turno del operador fue
+ * cerrado automáticamente en las últimas 24h y no ha abierto otro después.
+ */
+export interface AvisoTurnoAutoCerrado {
+  turnoId: string;
+  horaFin: string;
+  notas: string;
+  sucursalNombre: string;
+  sucursalEsPrincipal: boolean;
+}
+
+/**
  * Respuesta de login exitoso (dueÃ±o o empleado)
  * NOTA: El backend devuelve todo mezclado en data (usuario + tokens)
  */
 export interface RespuestaLoginScanYA extends UsuarioScanYA {
   accessToken: string;
   refreshToken: string;
+  avisoTurnoAutoCerrado: AvisoTurnoAutoCerrado | null;
 }
 
 /**

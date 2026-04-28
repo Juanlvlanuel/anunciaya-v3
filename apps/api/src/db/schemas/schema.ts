@@ -1588,6 +1588,7 @@ export const scanyaTurnos = pgTable("scanya_turnos", {
 	transacciones: integer().default(0),
 	cerradoPor: uuid("cerrado_por"),
 	notasCierre: text("notas_cierre"),
+	avisoVistoAt: timestamp("aviso_visto_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	// ÍNDICE ACTUALIZADO - ahora usa COALESCE para empleado o usuario

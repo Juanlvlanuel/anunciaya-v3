@@ -1,8 +1,57 @@
 # 📱 ScanYA - Sistema de Punto de Venta
 
 **Última actualización:** 28 Abril 2026  
-**Versión:** 1.5 (Multi-sucursal frontend: dueño con selector, coherencia A en modales, exclusión mutua chat/modal)  
+**Versión:** 1.6 (Auto-cierre de turnos colgados con límite inteligente por horario de sucursal)  
 **Estado:** ✅ 100% Operativo (16/16 fases) + Multi-sucursal completo (frontend cerrado)
+
+---
+
+## ⏰ Auto-cierre de turnos (v1.6)
+
+Para evitar turnos colgados que distorsionan stats y bloquean el siguiente login, un cron cada **30 minutos** revisa los turnos con `hora_fin IS NULL` y cierra los que rebasaron el límite operativo.
+
+### Algoritmo del límite (sin config por sucursal)
+
+| Caso | Límite |
+|------|--------|
+| Sucursal con horario operativo ese día | duración del horario + 2h gracia |
+| Sucursal cerrada ese día (`abierto = false`) o sin horario | 24h |
+| 24/7 (apertura == cierre) | 24h |
+| **Cap absoluto** | **30h** |
+
+Ejemplo: sucursal abre 09–18 (9h), límite = **11h**. Si abre 06–02 cruzando medianoche, duración = 20h, límite = **22h**. Si abre 24/7, límite = **24h**.
+
+### Cierre
+
+- `hora_fin = NOW()`
+- `cerrado_por = NULL` (distingue de cierre manual; manual siempre tiene UUID).
+- `notas_cierre = "Cerrado automáticamente — turno excedió Xh sin cierre manual."`
+
+### Aviso al operador
+
+NO se envía notificación AY al cerrar. Razón: los empleados no tienen cuenta propia en AnunciaYA — `empleados.usuario_id` apunta al dueño que los creó (es un FK estructural, no de identidad). Notificar a ese usuario_id le saturaría las notificaciones al dueño con cierres de empleados ajenos.
+
+En su lugar, el aviso aparece **al volver a abrir ScanYA**:
+
+1. El endpoint de login (`loginDueno` / `loginEmpleado`) llama a `obtenerAvisoTurnoAutoCerrado(operador)`, que busca el último turno del operador con:
+   - `cerrado_por IS NULL` (manual siempre tiene UUID)
+   - `notas_cierre LIKE 'Cerrado automáticamente%'`
+   - `hora_fin >= NOW() - INTERVAL '24 hours'`
+   - **Sin** turno posterior abierto por el mismo operador (si ya inició otro, no avisar).
+2. Si hay match, lo retorna en la respuesta del login en el campo `avisoTurnoAutoCerrado`.
+3. El frontend (`PaginaLoginScanYA.tsx`) muestra `notificar.advertencia(...)`: *"Tu turno anterior en {sucursal} se cerró automáticamente. Puedes iniciar uno nuevo cuando quieras."*
+
+Funciona uniformemente para empleados (filtro por `empleado_id`) y dueños/gerentes (filtro por `usuario_id`).
+
+### Filtro de seguridad
+
+Turnos con menos de **3h de antigüedad** ni siquiera entran al cálculo (evita procesar turnos legítimos en sucursales que abren <1h).
+
+### Archivos
+
+- Lógica: `apps/api/src/services/scanya-cierre-auto.service.ts`
+- Cron: `apps/api/src/cron/scanya.cron.ts`
+- Registro: `apps/api/src/index.ts` (`inicializarCronScanYA()`)
 
 ---
 

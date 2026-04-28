@@ -20,6 +20,7 @@ import type {
   UsuarioScanYA,
   TurnoScanYA,
   RazonLogoutScanYA,
+  AvisoTurnoAutoCerrado,
 } from '../types/scanya';
 import { crearRecordatorio, cambiarSucursal as apiCambiarSucursal } from '../services/scanyaService';
 import { escucharEvento } from '../services/socketService';
@@ -85,6 +86,14 @@ interface ScanYAState {
   cargando: boolean;
   hidratado: boolean;
   emailRecordado: string | null;
+
+  // Aviso de turno auto-cerrado pendiente de mostrar al usuario.
+  // Se setea en el login si el último turno fue auto-cerrado en las
+  // últimas 24h. Lo lee `ModalAvisoTurnoAutoCerrado` y lo limpia al
+  // cerrar el modal. NO se persiste — solo dura mientras la sesión
+  // siga viva en memoria.
+  avisoTurnoAutoCerrado: AvisoTurnoAutoCerrado | null;
+  setAvisoTurnoAutoCerrado: (aviso: AvisoTurnoAutoCerrado | null) => void;
 
   // Estado - Recordatorios Offline
   recordatoriosOffline: RecordatorioOffline[];
@@ -182,6 +191,9 @@ export const useScanYAStore = create<ScanYAState>()(
       cargando: true,
       hidratado: false,
       emailRecordado: null,
+      avisoTurnoAutoCerrado: null,
+
+      setAvisoTurnoAutoCerrado: (aviso) => set({ avisoTurnoAutoCerrado: aviso }),
 
       // -----------------------------------------------------------------------
       // Estado inicial - Recordatorios

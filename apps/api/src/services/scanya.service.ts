@@ -50,6 +50,10 @@ import {
 } from './negocios.service.js';
 import { verificarExpiraciones, expirarVouchersVencidos } from './puntos.service.js';
 import { crearNotificacion, eliminarNotificacionesPorReferencia } from './notificaciones.service.js';
+import {
+    obtenerAvisoTurnoAutoCerrado,
+    type AvisoTurnoAutoCerrado,
+} from './scanya-cierre-auto.service.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -80,6 +84,12 @@ interface DatosLoginScanYA {
     puedeConfigurarNegocio: boolean;
     accessToken: string;
     refreshToken: string;
+    /**
+     * Si el último turno del operador fue auto-cerrado en las últimas 24h
+     * y no ha abierto otro turno después, viene aquí para que el frontend
+     * muestre un toast informativo. Null si no hay aviso pendiente.
+     */
+    avisoTurnoAutoCerrado: AvisoTurnoAutoCerrado | null;
 }
 
 // =============================================================================
@@ -486,6 +496,14 @@ export async function loginDueno(
         const tokens = generarTokensScanYA(payload);
 
         // -------------------------------------------------------------------------
+        // Paso 8.5: Aviso si su último turno fue auto-cerrado recientemente
+        // -------------------------------------------------------------------------
+        const avisoTurnoAutoCerrado = await obtenerAvisoTurnoAutoCerrado({
+            tipo: 'usuario',
+            usuarioId: usuario.id,
+        });
+
+        // -------------------------------------------------------------------------
         // Paso 9: Retornar respuesta exitosa
         // -------------------------------------------------------------------------
         return {
@@ -508,6 +526,7 @@ export async function loginDueno(
                 puedeConfigurarNegocio,
                 accessToken: tokens.accessToken,
                 refreshToken: tokens.refreshToken,
+                avisoTurnoAutoCerrado,
             },
             code: 200,
         };
@@ -723,6 +742,14 @@ export async function loginEmpleado(
         const tokens = generarTokensScanYA(payload);
 
         // -------------------------------------------------------------------------
+        // Paso 8.5: Aviso si su último turno fue auto-cerrado recientemente
+        // -------------------------------------------------------------------------
+        const avisoTurnoAutoCerrado = await obtenerAvisoTurnoAutoCerrado({
+            tipo: 'empleado',
+            empleadoId: empleado.id,
+        });
+
+        // -------------------------------------------------------------------------
         // Paso 9: Retornar respuesta exitosa
         // -------------------------------------------------------------------------
         return {
@@ -746,6 +773,7 @@ export async function loginEmpleado(
                 puedeConfigurarNegocio: false,
                 accessToken: tokens.accessToken,
                 refreshToken: tokens.refreshToken,
+                avisoTurnoAutoCerrado,
             },
             code: 200,
         };
