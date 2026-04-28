@@ -227,7 +227,8 @@ Ejemplos: `chat-input`, `chat-enviar`, `conversacion-${id}`, `mensaje-${id}`, `m
 
 ## Sistema de Diseño — Tokens
 
-- `docs/estandares/TOKENS_GLOBALES.md` — 12 reglas globales obligatorias (texto, tonos, pesos, iconos, bordes, sombras, colores, z-index, transiciones)
+- `docs/estandares/TOKENS_GLOBALES.md` — 13 reglas globales obligatorias (texto, tonos, pesos, iconos, bordes, sombras, colores, z-index, transiciones, **estética profesional vs caricaturesca**)
+  - ⚠️ **Regla 13 — Estética Profesional vs Caricaturesca:** AnunciaYA es herramienta B2B (Linear, Stripe, Notion). NO generar diseños tipo videojuego: nada de iconos en círculos pastel, emojis como datos (🥉🥈🥇), saltos tipográficos exagerados, bordes ≥2px, colores pastel saturados. Usar listas densas inline, iconos 14–16px sin círculo, jerarquía por peso (no tamaño), color neutro + 1 acento. Variantes móvil/desktop explícitas cuando el contenedor padre tenga fondos distintos por breakpoint (ej: glass translúcido sobre azul oscuro en móvil, card blanca sobre slate-100 en desktop).
 - `docs/estandares/TOKENS_COMPONENTES.md` — 22 patrones de componentes (toggles, dropdowns, modales, tablas, cards, chips, drawers, carousels, listas, rounded, swipe)
 - `docs/estandares/Guia_Responsive_Laptop_AnunciaYA.md` — tablas completas del patrón `base lg:laptop 2xl:desktop`
 
