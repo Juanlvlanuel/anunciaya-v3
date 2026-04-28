@@ -436,8 +436,11 @@ export function ChatOverlay() {
           overlayHandlerRef.current = null;
         }
         // Solo hacer history.back() si seguimos en la misma ruta donde se abrió
-        // Si ya navegamos a otra página, no revertir la navegación
-        if (location.pathname === overlayPathnameRef.current) {
+        // Y el state actual aún es del overlay (no de un modal de ScanYA que lo
+        // reemplazó por la exclusión mutua). Evita que el back del chat dispare
+        // el popstate del modal recién abierto y lo cierre por accidente.
+        const stateActual = history.state as { scanyaModal?: boolean } | null;
+        if (location.pathname === overlayPathnameRef.current && !stateActual?.scanyaModal) {
           history.back();
         }
       }

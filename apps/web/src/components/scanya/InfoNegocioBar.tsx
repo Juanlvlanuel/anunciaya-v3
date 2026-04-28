@@ -35,12 +35,12 @@ export default function InfoNegocioBar() {
             {usuario.nombreNegocio}
           </h2>
 
-          {/* Separador + Sucursal (si existe) */}
+          {/* Separador + Sucursal (si existe) — "Matriz" si es la principal */}
           {usuario.nombreSucursal && (
             <>
               <span className="text-[#3B82F6] font-bold text-xl">•</span>
               <p className="text-[#94A3B8] text-lg truncate">
-                {usuario.nombreSucursal}
+                {usuario.esSucursalPrincipal ? 'Matriz' : usuario.nombreSucursal}
               </p>
             </>
           )}

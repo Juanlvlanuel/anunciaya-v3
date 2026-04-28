@@ -1,8 +1,8 @@
 # 📱 ScanYA - Sistema de Punto de Venta
 
-**Última actualización:** 17 Abril 2026  
-**Versión:** 1.4 (Bloqueo login sucursal desactivada + limpieza notificaciones al canjear voucher)  
-**Estado:** ✅ 100% Operativo (16/16 fases)
+**Última actualización:** 28 Abril 2026  
+**Versión:** 1.5 (Multi-sucursal frontend: dueño con selector, coherencia A en modales, exclusión mutua chat/modal)  
+**Estado:** ✅ 100% Operativo (16/16 fases) + Multi-sucursal completo (frontend cerrado)
 
 ---
 
@@ -426,6 +426,111 @@ WHERE tipo = 'voucher_pendiente'
 **Motivo:** el evento que motivaba la notificación (voucher pendiente de entrega) dejó de existir. Mantenerla en el panel es ruido.
 
 **Después del canje**, `validarVoucher` emite una nueva notificación `voucher_cobrado` al dueño y al gerente de la sucursal donde ocurrió el canje — esto sí queda como registro histórico.
+
+---
+
+## 🌐 Multi-sucursal frontend (v1.5)
+
+> **Agregado:** 28 Abril 2026 — Sprint dedicado de ScanYA Multi-Sucursal
+
+### Modelo conceptual
+
+ScanYA es **operativo del día a día**, no analítico. Bajo este principio:
+
+> **El dueño es un operador eventual.** Puede operar plenamente desde cualquier sucursal activa, pero solo en una a la vez. Cambiar de sucursal = cambio total de contexto (cierra turno A, abre turno B). No hay vista cross-sucursal en ScanYA — para eso → Business Studio.
+
+### Comportamiento por rol
+
+| Rol | Login default | Cambio de sucursal | Selector visible |
+|---|---|---|---|
+| **Dueño** | Si tiene turno colgado en otra sucursal → entra ahí. Si no → Matriz | Sí, vía `POST /cambiar-sucursal` (cierra turno actual, re-emite tokens) | ✅ Chip clickeable en header (desktop) + botón circular (móvil), solo si `puedeElegirSucursal && totalSucursales > 1` |
+| **Gerente** | Su sucursal asignada | ❌ No puede (token con `puedeElegirSucursal=false`). Backend → 403 si fuerza | ❌ Texto estático |
+| **Empleado** | Su sucursal asignada | ❌ No puede | ❌ |
+
+### Coherencia A — sucursal del token = única fuente de verdad
+
+Todos los modales operativos filtran automáticamente por `payload.sucursalId` del token. **No hay filtro interno de sucursal** en ningún modal de ScanYA. El header del dashboard es la única palanca de contexto.
+
+| Modal | Datos que filtra | Detalle |
+|---|---|---|
+| **Vouchers** | Pendientes (cross-sucursal con `sucursal_id NULL`) + Usados/Vencidos de la sucursal activa | Tab "Cancelados" eliminado (acción del cliente, no aporta al comerciante) |
+| **Historial de Transacciones** | Solo de la sucursal activa | Subtítulo dinámico ("Matriz" / nombre real). Empleados filtran via `turno_id → empleado_id` |
+| **Reseñas** | Solo de la sucursal activa | Backend `getResenasNegocio` usa `req.scanyaUsuario.sucursalId` |
+| **Recordatorios (Offline)** | Solo de la sucursal activa | El dueño antes veía todos del negocio; ahora respeta sucursal |
+| **Contadores del header** (badges Reseñas/Vouchers/Recordatorios) | Solo de la sucursal activa | Cambian al cambiar sucursal |
+
+### Patrón keepPreviousData manual
+
+ScanYA NO usa React Query (decisión: migración pendiente para sprint futuro). Para evitar parpadeo al cambiar sucursal/filtros, se emula `keepPreviousData` con `useState`:
+
+- **Carga inicial** (yaCargo=false): muestra loader.
+- **Recargas posteriores** (cambio de tab/filtro/sucursal): NO limpia la lista, NO muestra loader. Cuando llega la respuesta, reemplaza atómicamente.
+- Cada `cargarVouchers/Historial/Resenas` recibe parámetro explícito `mantenerDatos` o usa la guarda `if (!yaCargo) setCargando(true)`.
+
+### Exclusión mutua chat/modal
+
+ChatYA ocupa todo el ancho y taparía cualquier modal abierto. Por eso **ChatYA y modales de ScanYA no coexisten**:
+
+- Si un modal está abierto y se abre ChatYA → modal se cierra.
+- Si ChatYA está abierto y se dispara la apertura de un modal (ej. botón "Chatear con cliente" desde detalle de transacción) → ChatYA se cierra.
+- Implementado con dos `useEffect` en `PaginaScanYA` reaccionando a `chatYAAbierto` y `modalActivo`.
+- Fix preventivo en `ChatOverlay`: el cleanup no hace `history.back()` si el state actual es de un `scanyaModal` (evita race con popstate del modal nuevo).
+
+### Race condition de history corregida
+
+Problema: cambiar de un modal a otro causaba que el segundo no abriera. El `history.back()` del cleanup del primero disparaba el `popstate` del segundo, cerrándolo.
+
+Solución aplicada a 6 modales (Vouchers, Historial, Reseñas, Recordatorios, RegistrarVenta, CanjearVoucher):
+
+```ts
+// Cada modal genera un mid único al abrir
+const mid = `vouchers-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+history.pushState({ scanyaModal: true, mid }, '');
+
+// Cleanup: el back se difiere con setTimeout 0
+return () => {
+  if (!cerradoPorBack && pendientes > 0) {
+    setTimeout(() => {
+      const midActual = (history.state as { mid?: string } | null)?.mid;
+      if (midActual === mid) history.go(-pendientes);
+    }, 0);
+  }
+};
+```
+
+Si otro modal hizo `pushState` en el mismo tick, el `mid` cambió y NO hacemos back → no race.
+
+### Modal selector — `ModalCambiarSucursalScanYA`
+
+Archivo: [apps/web/src/components/scanya/ModalCambiarSucursalScanYA.tsx](apps/web/src/components/scanya/ModalCambiarSucursalScanYA.tsx)
+
+- Bottom-sheet móvil (<1024px) + dropdown desktop centrado top-20
+- Renderizado vía `createPortal(document.body)` para escapar del stacking context del header sticky `z-50`. Aparece encima de cualquier overlay (incluido ChatYA).
+- Lista filtra solo `activa=true`, ordena Matriz primero (⭐). Se carga al montar el componente, no al abrir → sin parpadeo en aperturas subsiguientes.
+- Confirmación inline si turno con datos (`Cerrarás el turno actual y abrirás uno nuevo en X. ¿Continuar?`). Bypass si turno vacío.
+- Tras éxito: abre turno nuevo automáticamente, toast verde, dispara `onCambioExitoso` para que el dashboard recargue contadores silenciosamente.
+
+### `loginDueno` retoma turno colgado
+
+Si el dueño cerró sesión sin cerrar turno y vuelve a entrar, `loginDueno` busca un `scanya_turnos` con `hora_fin = NULL` para su `usuario_id`. Si lo encuentra y la sucursal sigue activa, entra a esa sucursal en lugar de Matriz por default. Si la sucursal del turno está desactivada, fallback a Matriz (con guard adicional si Matriz también está desactivada → 403).
+
+### Avatar dueño/gerente solo lectura
+
+El componente `AvatarEmpleadoScanYA` ahora también renderiza para dueño/gerente, pero en modo solo lectura (sin botón cámara, sin upload). Para cambiar la foto van a Business Studio → Mi Perfil → Imágenes.
+
+### Filtro de operadores con contexto
+
+Endpoint `GET /api/scanya/operadores-lista` recibe `?contexto=transacciones|vouchers|ambos`. Solo retorna operadores que han hecho operaciones reales:
+
+- `transacciones`: con al menos 1 venta en `puntos_transacciones`
+- `vouchers`: con al menos 1 canje (`vouchers_canje.estado='usado'`) en la sucursal del token
+- `ambos` (default): cualquiera de las dos
+
+Modal Vouchers usa `vouchers`, Modal Historial usa `transacciones`. El dropdown solo aparece en tabs donde `usado_por_*` existe (Usados); oculto en Pendientes/Vencidos.
+
+### Stats ScanYA en BS Empleados (Fase 4)
+
+`obtenerEstadisticasTurnos` ([empleados.service.ts](apps/api/src/services/empleados.service.ts)) cuenta directamente desde `puntos_transacciones` (`estado='confirmado'`), no desde los contadores `scanya_turnos.transacciones` que pueden estar desincronizados con la realidad por deuda técnica. Garantiza que los números cuadran con BS Transacciones.
 
 ---
 

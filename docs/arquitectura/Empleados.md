@@ -1,8 +1,8 @@
 # Empleados — Arquitectura
 
-> **Última actualización:** 17 Abril 2026
-> **Estado:** ✅ Completo (incluye upload avatar desde ScanYA, CRUD por dueños y gerentes, validación live de nick + correo + teléfono)
-> **Sprint:** 10 (inicial) / 12 (permisos gerente) / post-12 (validación live de inputs)
+> **Última actualización:** 28 Abril 2026
+> **Estado:** ✅ Completo (incluye upload avatar desde ScanYA, CRUD por dueños y gerentes, validación live de nick + correo + teléfono, **stats ScanYA validadas contra `puntos_transacciones`**)
+> **Sprint:** 10 (inicial) / 12 (permisos gerente) / post-12 (validación live de inputs) / sprint ScanYA Multi-Sucursal abr-2026 (Fase 4 — fix de stats)
 
 ---
 
@@ -207,7 +207,7 @@ WHERE e.id = $empleadoId AND ns.negocio_id = $negocioId
 - Header slate oscuro con avatar + nombre + nick + badge estado
 - Info: iconos Phone/Mail/Briefcase sin cards
 - Permisos: tabla cebra (`bg-slate-50`/`bg-slate-200`) con CheckCircle2/XCircle
-- Estadísticas ScanYA: iconos centrados con separadores verticales degradados (3px)
+- Estadísticas ScanYA: iconos centrados con separadores verticales degradados (3px). Las stats (Turnos / Transacciones / Puntos otorgados) se calculan **directamente desde `puntos_transacciones`** con `estado='confirmado'` (no desde los contadores de `scanya_turnos`, que pueden estar desincronizados por deuda técnica). Validado en sprint ScanYA Multi-Sucursal (Fase 4, abr 2026): los números cuadran con BS Transacciones cuando se filtra por el operador.
 - Botones: Editar (grande) + LogOut con Tooltip + Power con Tooltip + Trash con Tooltip
 
 ### Modal crear/editar

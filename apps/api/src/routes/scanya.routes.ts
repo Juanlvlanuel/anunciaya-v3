@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import {
   loginDuenoController,
+  cambiarSucursalController,
   loginEmpleadoController,
   refreshScanYAController,
   yoScanYAController,
@@ -63,6 +64,9 @@ router.get('/yo', verificarTokenScanYA, yoScanYAController);
 
 // POST /api/scanya/logout - Cerrar sesión
 router.post('/logout', verificarTokenScanYA, logoutScanYAController);
+
+// POST /api/scanya/cambiar-sucursal - Cambiar sucursal activa del dueño durante sesión
+router.post('/cambiar-sucursal', verificarTokenScanYA, cambiarSucursalController);
 
 // =============================================================================
 // RUTAS DE TURNOS (Fase 4) ✅ IMPLEMENTADO

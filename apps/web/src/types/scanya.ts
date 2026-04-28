@@ -61,6 +61,7 @@ export interface UsuarioScanYA {
   // Sucursal
   sucursalId: string;
   nombreSucursal: string;
+  esSucursalPrincipal?: boolean;
 
   // Usuario
   nombreUsuario: string;
@@ -338,6 +339,7 @@ export interface TransaccionScanYA {
   registradoPorTipo: 'empleado' | 'dueno' | 'gerente';
   // Sucursal
   sucursalNombre: string;
+  sucursalEsPrincipal?: boolean;
   // Negocio
   negocioNombre: string;
   // Extras
@@ -387,6 +389,7 @@ export interface VoucherCompleto {
   usadoAt: string | null;
   usadoPorEmpleadoNombre: string | null;
   sucursalNombre: string;
+  sucursalEsPrincipal?: boolean;
 }
 
 /**

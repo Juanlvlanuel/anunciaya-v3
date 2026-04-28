@@ -277,7 +277,9 @@ export function ModalCanjearVoucher({
       return;
     }
 
-    history.pushState({ modal: 'canjear-voucher' }, '');
+    let cerradoPorBack = false;
+    const mid = `canjear-voucher-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    history.pushState({ scanyaModal: true, mid }, '');
     nivelCanjearRef.current = 1;
 
     const handlePopState = () => {
@@ -288,6 +290,7 @@ export function ModalCanjearVoucher({
         setCodigo(['', '', '', '', '', '']);
         detenerCamara();
       } else {
+        cerradoPorBack = true;
         nivelCanjearRef.current = 0;
         onCloseRef.current();
       }
@@ -297,7 +300,15 @@ export function ModalCanjearVoucher({
       window.removeEventListener('popstate', handlePopState);
       const niveles = nivelCanjearRef.current;
       nivelCanjearRef.current = 0;
-      if (niveles > 0) history.go(-niveles);
+      if (!cerradoPorBack && niveles > 0) {
+        // Diferir el back: si otro modal abre y hace pushState en este mismo
+        // tick, history.state.mid cambia y NO hacemos back (evita el race con
+        // el popstate que cerraría el modal nuevo).
+        setTimeout(() => {
+          const midActual = (history.state as { mid?: string } | null)?.mid;
+          if (midActual === mid) history.go(-niveles);
+        }, 0);
+      }
     };
   }, [abierto]);
 

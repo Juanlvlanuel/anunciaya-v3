@@ -70,6 +70,30 @@ export async function loginEmpleado(datos: LoginEmpleadoInput): Promise<Respuest
 }
 
 /**
+ * Cambiar sucursal activa del dueño durante sesión ScanYA
+ * POST /api/scanya/cambiar-sucursal
+ *
+ * Cierra el turno actual (si existe) y re-emite tokens con la nueva sucursalId.
+ * Solo accesible para dueños.
+ */
+export async function cambiarSucursal(sucursalId: string): Promise<RespuestaAPI<{
+  accessToken: string;
+  refreshToken: string;
+  sucursalId: string;
+  sucursalNombre: string;
+  esPrincipal: boolean;
+}>> {
+  const response = await api.post<RespuestaAPI<{
+    accessToken: string;
+    refreshToken: string;
+    sucursalId: string;
+    sucursalNombre: string;
+    esPrincipal: boolean;
+  }>>(`${BASE}/cambiar-sucursal`, { sucursalId });
+  return response.data;
+}
+
+/**
  * Renovar tokens
  * POST /api/scanya/refresh
  */
@@ -396,31 +420,54 @@ export async function obtenerContadores(): Promise<RespuestaAPI<{
 }
 
 /**
- * Obtener lista de sucursales para dropdown de filtros
+ * Obtener lista de sucursales para dropdown de filtros y selector de cambio
  * GET /api/scanya/sucursales-lista
+ *
+ * Retorna todas las sucursales del negocio (incluyendo inactivas) ordenadas con Matriz primero.
+ * Cada consumidor decide qué filtrar:
+ * - Filtros de histórico (Vouchers/Reseñas/Historial): muestran todas
+ * - Selector de cambio de sucursal: filtra `activa=true`
  */
 export async function obtenerSucursalesLista(): Promise<RespuestaAPI<Array<{
   id: string;
   nombre: string;
+  esPrincipal: boolean;
+  activa: boolean;
 }>>> {
   const response = await api.get<RespuestaAPI<Array<{
     id: string;
     nombre: string;
+    esPrincipal: boolean;
+    activa: boolean;
   }>>>(`${BASE}/sucursales-lista`);
   return response.data;
 }
 
 /**
- * Obtener lista de operadores (empleados + gerentes + dueño) para dropdown de filtros
+ * Obtener lista de operadores (empleados + gerentes + dueño) para dropdown de filtros.
  * GET /api/scanya/operadores-lista
+ *
+ * @param sucursalId Reservado para futuros filtros explícitos. Hoy el backend
+ *                   ignora este param y filtra por la sucursal del token.
+ * @param contexto Tipo de operación a considerar:
+ *                 - 'transacciones': operadores con ventas registradas
+ *                 - 'vouchers': operadores que han canjeado vouchers
+ *                 - 'ambos' (default): cualquiera de las dos
  */
-export async function obtenerOperadoresLista(sucursalId?: string): Promise<RespuestaAPI<Array<{
+export async function obtenerOperadoresLista(
+  sucursalId?: string,
+  contexto?: 'transacciones' | 'vouchers' | 'ambos'
+): Promise<RespuestaAPI<Array<{
   id: string;
   nombre: string;
   tipo: 'empleado' | 'gerente' | 'dueno';
   sucursalId: string | null;
   sucursalNombre: string | null;
 }>>> {
+  const params: Record<string, string> = {};
+  if (sucursalId) params.sucursalId = sucursalId;
+  if (contexto && contexto !== 'ambos') params.contexto = contexto;
+
   const response = await api.get<RespuestaAPI<Array<{
     id: string;
     nombre: string;
@@ -428,7 +475,7 @@ export async function obtenerOperadoresLista(sucursalId?: string): Promise<Respu
     sucursalId: string | null;
     sucursalNombre: string | null;
   }>>>(`${BASE}/operadores-lista`, {
-    params: sucursalId ? { sucursalId } : undefined,
+    params: Object.keys(params).length > 0 ? params : undefined,
   });
   return response.data;
 }
@@ -558,6 +605,7 @@ const scanyaService = {
   // Autenticación
   loginDueno,
   loginEmpleado,
+  cambiarSucursal,
   refresh,
   obtenerYo,
   logout,

@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 17 Abril 2026
+> **Última actualización:** 28 Abril 2026
 > **Progreso global:** 98% completado
-> **Fase actual:** BS Sucursales ✅ + Panel Admin (infra backend) ✅ — próximo: Secciones Públicas o Rifas/Vacantes (bloqueados)
+> **Fase actual:** ScanYA Multi-Sucursal ✅ — próximo: Secciones Públicas o Rifas/Vacantes (bloqueados)
 
 ---
 
@@ -62,6 +62,7 @@
 | Sprint 11 | BS Reportes: 5 tabs, KPIs, funnels, cards, filtro fechas, XLSX | 12 Abr 2026 |
 | Sprint 12 | BS Sucursales: CRUD multi-sucursal + gerentes + clonación auto + hard delete | 16 Abr 2026 |
 | Sprint 12 ref | BS Sucursales refinamiento: validación correo 3 niveles, promoción cuentas existentes, emails rediseñados, blindajes Matriz, aislamiento por sucursal en Reportes, cupones cross-sucursal | 16 Abr 2026 |
+| Sprint 13 | ScanYA Multi-Sucursal: selector cambio sucursal (dueño), Coherencia A (token = fuente verdad), aislamiento datos por sucursal, label Matriz cross-app, fix race-condition modales, exclusión mutua chat/modales, fix stats Empleados desde `puntos_transacciones` | 28 Abr 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -82,7 +83,7 @@
 
 - [x] ~~Barra progreso N+1 en CardYA usuario~~ (Sprint 8, 1 Abr 2026)
 - [ ] Tests E2E para CardYA/ScanYA (data-testid listos, falta crear specs)
-- [ ] **ScanYA Multi-Sucursal para dueños** — el dueño con múltiples sucursales queda fijo a la Matriz. Backend ya soporta (`POST /login-dueno` acepta `sucursalId` opcional, flag `puedeElegirSucursal` en token). Falta UI: selector de sucursal al login + chip clickeable en header + acción `cambiarSucursal` en store + endpoint `POST /api/scanya/cambiar-sucursal`. Detalle en `docs/reportes/scanya-multi-sucursal-prompt-sprint.md`.
+- [x] ~~**ScanYA Multi-Sucursal para dueños**~~ (Sprint 13, 28 Abr 2026) — selector de cambio de sucursal en header (modal bottom-sheet móvil + dropdown desktop), endpoint `POST /api/scanya/cambiar-sucursal`, Coherencia A (token = fuente única de verdad para `sucursalId`), aislamiento de datos por sucursal en todos los modales, label "Matriz" cross-app vía flag `esSucursalPrincipal`. Detalle en `docs/reportes/prompt-sprint-scanya-multi-sucursal.md`.
 - [ ] **Perfil Personal del usuario** (`/perfil`) — ruta existe pero sin contenido. Debe permitir al usuario editar su nombre, apellidos, foto de avatar, contraseña. Consideraciones:
   - Para **gerentes** (con `sucursalAsignada != null`): bloquear cambio de correo (es la identidad vinculada al negocio). Permitir editar nombre, avatar, contraseña.
   - Para **dueños** (con `negocioId != null, sucursalAsignada = null`): mismas reglas que gerentes, no cambio de correo mientras tengan negocio activo.

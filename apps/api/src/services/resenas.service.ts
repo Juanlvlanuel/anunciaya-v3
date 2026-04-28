@@ -36,6 +36,7 @@ interface ResenaConAutor {
         fecha: string;
         negocioNombre: string;
         negocioLogo: string | null;
+        sucursalNombre: string | null;
     } | null;
 }
 
@@ -66,7 +67,14 @@ export async function obtenerResenasSucursal(
                 r.created_at,
                 json_build_object(
                     'id',        COALESCE(u.id::text, ''),
-                    'nombre',    COALESCE(u.nombre, 'Usuario anónimo'),
+                    -- Nombre + primer apellido (si existe) para UI más descriptiva
+                    'nombre',    COALESCE(
+                                    NULLIF(TRIM(
+                                        COALESCE(u.nombre, '') || ' ' ||
+                                        COALESCE(SPLIT_PART(u.apellidos, ' ', 1), '')
+                                    ), ''),
+                                    'Usuario anónimo'
+                                 ),
                     'avatarUrl', u.avatar_url
                 ) as autor,
                 CASE
@@ -75,7 +83,20 @@ export async function obtenerResenasSucursal(
                             'texto',  resp.texto,
                             'fecha',  resp.created_at,
                             'negocioNombre', n.nombre,
-                            'negocioLogo',   n.logo_url
+                            'negocioLogo',   n.logo_url,
+                            -- sucursalNombre desambigua cuando hay varias sucursales:
+                            --  - principal + negocio con varias → 'Matriz'
+                            --  - principal + única → NULL (no mostrar)
+                            --  - otra sucursal → su nombre
+                            'sucursalNombre',
+                                CASE
+                                    WHEN ns.es_principal = true AND (
+                                        SELECT COUNT(*)::int FROM negocio_sucursales ns2
+                                        WHERE ns2.negocio_id = ns.negocio_id
+                                    ) > 1 THEN 'Matriz'
+                                    WHEN ns.es_principal = true THEN NULL
+                                    ELSE ns.nombre
+                                END
                         )
                     ELSE NULL
                 END AS respuesta_negocio
@@ -107,6 +128,7 @@ export async function obtenerResenasSucursal(
                 fecha: string;
                 negocioNombre: string;
                 negocioLogo: string | null;
+                sucursalNombre: string | null;
             } | null,
         }));
 
@@ -463,10 +485,27 @@ export async function obtenerResenasNegocio(
                 r.texto,
                 r.created_at,
                 r.sucursal_id::text AS sucursal_id,
-                ns.nombre         AS sucursal_nombre,
+                -- Principal + negocio con varias → 'Matriz'
+                -- Principal + única sucursal → NULL (no mostrar, sería redundante)
+                -- Otra sucursal → nombre real
+                CASE
+                    WHEN ns.es_principal = true AND (
+                        SELECT COUNT(*)::int FROM negocio_sucursales ns2
+                        WHERE ns2.negocio_id = ns.negocio_id
+                    ) > 1 THEN 'Matriz'
+                    WHEN ns.es_principal = true THEN NULL
+                    ELSE ns.nombre
+                END AS sucursal_nombre,
                 json_build_object(
                     'id',        COALESCE(u.id::text, ''),
-                    'nombre',    COALESCE(u.nombre, 'Usuario anónimo'),
+                    -- Nombre + primer apellido (si existe) para UI más descriptiva
+                    'nombre',    COALESCE(
+                                    NULLIF(TRIM(
+                                        COALESCE(u.nombre, '') || ' ' ||
+                                        COALESCE(SPLIT_PART(u.apellidos, ' ', 1), '')
+                                    ), ''),
+                                    'Usuario anónimo'
+                                 ),
                     'avatarUrl', u.avatar_url
                 ) AS autor,
                 CASE

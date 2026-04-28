@@ -169,6 +169,10 @@ export async function crearNegocioPrueba(): Promise<void> {
 
 /**
  * Crea una alerta de prueba y retorna su ID.
+ *
+ * El estado `leida`/`resuelta` ahora vive en la tabla `alerta_lecturas` (por usuario).
+ * Cuando se pasa `leida: true` o `resuelta: true`, inserta la fila correspondiente
+ * para el dueño del negocio de prueba (USUARIO_1_ID).
  */
 export async function crearAlertaPrueba(overrides?: {
   tipo?: string;
@@ -193,7 +197,23 @@ export async function crearAlertaPrueba(overrides?: {
     RETURNING id
   `);
 
-  return (resultado as unknown as { rows: { id: string }[] }).rows[0].id;
+  const alertaId = (resultado as unknown as { rows: { id: string }[] }).rows[0].id;
+
+  // Si se marcó leída/resuelta, registrar la lectura para el dueño de prueba
+  if (overrides?.leida || overrides?.resuelta) {
+    await db.execute(sql`
+      INSERT INTO alerta_lecturas (alerta_id, usuario_id, leida_at, resuelta_at)
+      VALUES (
+        ${alertaId},
+        ${USUARIO_1_ID},
+        ${overrides?.leida || overrides?.resuelta ? sql`NOW()` : sql`NULL`},
+        ${overrides?.resuelta ? sql`NOW()` : sql`NULL`}
+      )
+      ON CONFLICT (alerta_id, usuario_id) DO NOTHING
+    `);
+  }
+
+  return alertaId;
 }
 
 /**

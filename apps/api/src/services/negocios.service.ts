@@ -535,9 +535,10 @@ export async function obtenerPerfilSucursal(
                     WHERE ng.sucursal_id = s.id
                 ) as galeria,
                 
-                -- Métricas de interacción (follows, shares, clicks, messages)
+                -- Métricas de interacción (views, follows, shares, clicks, messages)
                 (
                     SELECT json_build_object(
+                        'totalViews', COALESCE(m.total_views, 0),
                         'totalFollows', COALESCE(m.total_follows, 0),
                         'totalShares', COALESCE(m.total_shares, 0),
                         'totalClicks', COALESCE(m.total_clicks, 0),
@@ -925,9 +926,18 @@ export async function listarEmpleadosNegocio(
  * @param sucursalId - UUID de sucursal (opcional, para filtrar)
  * @returns Lista con id, nombre, tipo, sucursalId
  */
+/**
+ * Contexto del filtro de operadores:
+ * - 'transacciones': solo operadores con ventas registradas (puntos_transacciones)
+ * - 'vouchers': solo operadores que canjearon vouchers (vouchers_canje)
+ * - 'ambos' (default): cualquiera de las dos operaciones
+ */
+export type ContextoOperadores = 'transacciones' | 'vouchers' | 'ambos';
+
 export async function listarOperadoresNegocio(
     negocioId: string,
-    sucursalId?: string
+    sucursalId?: string,
+    contexto: ContextoOperadores = 'ambos'
 ) {
     try {
         const operadores: Array<{
@@ -938,12 +948,64 @@ export async function listarOperadoresNegocio(
             sucursalNombre: string | null;
         }> = [];
 
+        // Filtro de actividad: solo aparecen operadores con operaciones reales
+        // registradas. El `contexto` decide si buscamos en `puntos_transacciones`,
+        // `vouchers_canje`, o ambas. Abrir turno sin registrar nada NO los incluye.
+        //
+        // En vouchers solo contamos canjes confirmados (estado='usado'). Los
+        // pendientes/cancelados/expirados sin canje real no aplican porque
+        // `usado_por_*` está NULL en esos casos.
+        const filtroSucursalTransacciones = sucursalId
+            ? sql`AND pt.sucursal_id = ${sucursalId}`
+            : sql``;
+        const filtroSucursalVouchers = sucursalId
+            ? sql`AND vc.sucursal_id = ${sucursalId}`
+            : sql``;
+
+        // Helpers que arman la condición EXISTS según el contexto.
+        // Se reutilizan al construir las condiciones de cada rol.
+        const buildExistsEmpleado = (empleadoIdRef: ReturnType<typeof sql>) => {
+            const existsTransacciones = sql`EXISTS (
+                SELECT 1 FROM puntos_transacciones pt
+                WHERE pt.empleado_id = ${empleadoIdRef}
+                ${filtroSucursalTransacciones}
+            )`;
+            const existsVouchers = sql`EXISTS (
+                SELECT 1 FROM vouchers_canje vc
+                WHERE vc.usado_por_empleado_id = ${empleadoIdRef}
+                AND vc.estado = 'usado'
+                ${filtroSucursalVouchers}
+            )`;
+            if (contexto === 'transacciones') return existsTransacciones;
+            if (contexto === 'vouchers') return existsVouchers;
+            return sql`(${existsTransacciones} OR ${existsVouchers})`;
+        };
+
+        const buildExistsUsuario = (usuarioIdRef: ReturnType<typeof sql>) => {
+            const existsTransacciones = sql`EXISTS (
+                SELECT 1 FROM puntos_transacciones pt
+                INNER JOIN scanya_turnos t ON pt.turno_id = t.id
+                WHERE t.usuario_id = ${usuarioIdRef}
+                ${filtroSucursalTransacciones}
+            )`;
+            const existsVouchers = sql`EXISTS (
+                SELECT 1 FROM vouchers_canje vc
+                WHERE vc.usado_por_usuario_id = ${usuarioIdRef}
+                AND vc.estado = 'usado'
+                ${filtroSucursalVouchers}
+            )`;
+            if (contexto === 'transacciones') return existsTransacciones;
+            if (contexto === 'vouchers') return existsVouchers;
+            return sql`(${existsTransacciones} OR ${existsVouchers})`;
+        };
+
         // -----------------------------------------------------------------
-        // 1. Obtener EMPLEADOS
+        // 1. Obtener EMPLEADOS con operaciones reales (según contexto)
         // -----------------------------------------------------------------
         const condicionesEmpleados = [
             eq(negocioSucursales.negocioId, negocioId),
             eq(empleados.activo, true),
+            buildExistsEmpleado(sql`${empleados.id}`),
         ];
 
         if (sucursalId) {
@@ -976,11 +1038,12 @@ export async function listarOperadoresNegocio(
         }
 
         // -----------------------------------------------------------------
-        // 2. Obtener GERENTES (usuarios con sucursal_asignada del negocio)
+        // 2. Obtener GERENTES con operaciones reales (según contexto)
         // -----------------------------------------------------------------
         const condicionesGerentes = [
             eq(negocioSucursales.negocioId, negocioId),
             isNotNull(usuarios.sucursalAsignada),
+            buildExistsUsuario(sql`${usuarios.id}`),
         ];
 
         if (sucursalId) {
@@ -1015,7 +1078,7 @@ export async function listarOperadoresNegocio(
         }
 
         // -----------------------------------------------------------------
-        // 3. Obtener DUEÑO (siempre, puede vender en cualquier sucursal)
+        // 3. Obtener DUEÑO con operaciones reales (según contexto)
         // -----------------------------------------------------------------
         const [dueno] = await db
             .select({
@@ -1025,7 +1088,10 @@ export async function listarOperadoresNegocio(
             })
             .from(usuarios)
             .innerJoin(negocios, eq(negocios.usuarioId, usuarios.id))
-            .where(eq(negocios.id, negocioId))
+            .where(and(
+                eq(negocios.id, negocioId),
+                buildExistsUsuario(sql`${usuarios.id}`)
+            ))
             .limit(1);
 
         if (dueno) {

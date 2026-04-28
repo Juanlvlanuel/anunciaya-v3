@@ -60,6 +60,8 @@ export default function PaginaScanYA() {
   const totalNoLeidos = useChatYAStore((s) => s.totalNoLeidos);
   const inicializarScanYA = useChatYAStore((s) => s.inicializarScanYA);
   const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
+  const chatYAAbierto = useUiStore((s) => s.chatYAAbierto);
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
 
   // Cambiar título de la página
@@ -146,6 +148,22 @@ export default function PaginaScanYA() {
     // Si está online, cargarDatos() se encarga de mostrar solo los del servidor
   }, [contadorRecordatorios, online]);
 
+  // Exclusión mutua: ChatYA y modales no coexisten en pantalla.
+  // El chat ocupa todo el ancho y taparía cualquier modal abierto, así que
+  // al abrir uno cerramos el otro. Evita además efectos secundarios al cerrar
+  // el chat con X (que disparaba history.back y cerraba el modal de atrás).
+  useEffect(() => {
+    if (modalActivo !== 'ninguno' && chatYAAbierto) {
+      cerrarChatYA();
+    }
+  }, [modalActivo]);
+
+  useEffect(() => {
+    if (chatYAAbierto && modalActivo !== 'ninguno') {
+      setModalActivo('ninguno');
+    }
+  }, [chatYAAbierto]);
+
   useEffect(() => {
     // Solo bloquear scroll en pantallas grandes (lg: 1024px+)
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
@@ -200,10 +218,14 @@ export default function PaginaScanYA() {
   }, [inicializarScanYA]);
 
   /**
-   * Carga el turno actual y los contadores
+   * Carga el turno actual y los contadores.
+   * @param silencioso Si true, no muestra el skeleton de loading. Para refrescos
+   *                   tras un cambio de sucursal — los datos viejos siguen visibles
+   *                   y se reemplazan en un solo render cuando llegan los nuevos
+   *                   (patrón keepPreviousData). Sin parpadeo.
    */
-  const cargarDatos = async () => {
-    setCargandoDatos(true);
+  const cargarDatos = async (silencioso = false) => {
+    if (!silencioso) setCargandoDatos(true);
 
     try {
       // Cargar turno y contadores en paralelo
@@ -218,8 +240,11 @@ export default function PaginaScanYA() {
         if (data.turno) {
           setTurno(data.turno);
           setTurnoActivo(data.turno);
+        } else if (!silencioso) {
+          setTurno(null);
+          setTurnoActivo(null);
         }
-      } else {
+      } else if (!silencioso) {
         setTurno(null);
         setTurnoActivo(null);
       }
@@ -247,7 +272,7 @@ export default function PaginaScanYA() {
         notificar.error('Error al cargar datos del dashboard');
       }
     } finally {
-      setCargandoDatos(false);
+      if (!silencioso) setCargandoDatos(false);
     }
   };
 
@@ -588,7 +613,7 @@ export default function PaginaScanYA() {
 
       {/* Todo el contenido con z-index para estar encima del fondo */}
       <div className={`relative z-10 h-full flex flex-col transition-all duration-300 ${(['venta', 'historial', 'vouchers', 'canjear', 'recordatorios', 'resenas'].includes(modalActivo)) ? 'lg:mr-[350px] 2xl:mr-[450px]' : ''}`}>        {/* Header */}
-        <HeaderScanYA />
+        <HeaderScanYA onCambioSucursal={() => cargarDatos(true)} />
 
         {/* Barra Info Negocio (solo móvil, sin contenedor) */}
         <InfoNegocioBar />

@@ -31,6 +31,17 @@ export const loginDuenoSchema = z.object({
 });
 
 /**
+ * Cambiar Sucursal - Solo dueño durante sesión activa
+ *
+ * Cierra el turno actual (si lo hay) y re-emite tokens con la nueva sucursalId.
+ */
+export const cambiarSucursalSchema = z.object({
+  sucursalId: z
+    .string()
+    .uuid('ID de sucursal inválido'),
+});
+
+/**
  * Login Empleado - Nick + PIN
  */
 export const loginEmpleadoSchema = z.object({
@@ -294,6 +305,7 @@ export const actualizarConfigScanYASchema = z.object({
 // =============================================================================
 
 export type LoginDuenoInput = z.infer<typeof loginDuenoSchema>;
+export type CambiarSucursalInput = z.infer<typeof cambiarSucursalSchema>;
 export type LoginEmpleadoInput = z.infer<typeof loginEmpleadoSchema>;
 export type CerrarTurnoInput = z.infer<typeof cerrarTurnoSchema>;
 export type IdentificarClienteInput = z.infer<typeof identificarClienteSchema>;

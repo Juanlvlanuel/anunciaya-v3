@@ -21,7 +21,7 @@ import type {
   TurnoScanYA,
   RazonLogoutScanYA,
 } from '../types/scanya';
-import { crearRecordatorio } from '../services/scanyaService';
+import { crearRecordatorio, cambiarSucursal as apiCambiarSucursal } from '../services/scanyaService';
 import { escucharEvento } from '../services/socketService';
 import { notificar } from '../utils/notificaciones';
 
@@ -99,6 +99,7 @@ interface ScanYAState {
   setUsuario: (usuario: UsuarioScanYA) => void;
   setEmailRecordado: (email: string | null) => void;
   loginExitoso: (usuario: UsuarioScanYA, accessToken: string, refreshToken: string) => Promise<void>;
+  cambiarSucursal: (sucursalId: string) => Promise<{ exito: boolean; mensaje?: string; sucursalNombre?: string; esPrincipal?: boolean }>;
   logout: (razon?: RazonLogoutScanYA) => void;
   hidratarAuth: () => Promise<void>;
 
@@ -247,6 +248,63 @@ export const useScanYAStore = create<ScanYAState>()(
           hidratado: true,
           cargando: false,
         });
+      },
+
+      // -----------------------------------------------------------------------
+      // ACCIÓN: Cambiar sucursal (solo dueño)
+      // -----------------------------------------------------------------------
+      // Cierra el turno actual en backend, re-emite tokens con la nueva sucursalId
+      // y actualiza el usuario local. El turno nuevo lo abre el caller cuando lo necesite.
+      cambiarSucursal: async (sucursalId: string) => {
+        const usuarioActual = get().usuario;
+
+        if (!usuarioActual || usuarioActual.tipo !== 'dueno') {
+          return { exito: false, mensaje: 'Solo el dueño puede cambiar de sucursal' };
+        }
+
+        try {
+          const respuesta = await apiCambiarSucursal(sucursalId);
+
+          if (!respuesta.success || !respuesta.data) {
+            return { exito: false, mensaje: respuesta.message || 'No se pudo cambiar de sucursal' };
+          }
+
+          const { accessToken, refreshToken, sucursalId: nuevaSucursalId, sucursalNombre, esPrincipal } = respuesta.data;
+
+          // Construir usuario actualizado
+          const usuarioActualizado: UsuarioScanYA = {
+            ...usuarioActual,
+            sucursalId: nuevaSucursalId,
+            nombreSucursal: sucursalNombre,
+            esSucursalPrincipal: esPrincipal,
+          };
+
+          // Persistir en localStorage
+          guardarEnStorage(STORAGE_KEYS.accessToken, accessToken);
+          guardarEnStorage(STORAGE_KEYS.refreshToken, refreshToken);
+          guardarEnStorage(STORAGE_KEYS.usuario, JSON.stringify(usuarioActualizado));
+
+          // Actualizar estado — NO reseteamos turnoActivo aquí.
+          // Lo mantenemos visible (datos viejos) hasta que el caller llame
+          // setTurnoActivo(nuevo) tras abrirTurno(). Evita el flash de "sin turno"
+          // durante la transición. Si abrirTurno falla, el caller debe limpiar.
+          set({
+            usuario: usuarioActualizado,
+            accessToken,
+            refreshToken,
+          });
+
+          return { exito: true, sucursalNombre, esPrincipal };
+        } catch (error: unknown) {
+          let mensaje = 'Error al cambiar de sucursal';
+          if (error && typeof error === 'object' && 'response' in error) {
+            const axiosError = error as { response?: { data?: { message?: string } } };
+            if (axiosError.response?.data?.message) {
+              mensaje = axiosError.response.data.message;
+            }
+          }
+          return { exito: false, mensaje };
+        }
       },
 
       // -----------------------------------------------------------------------

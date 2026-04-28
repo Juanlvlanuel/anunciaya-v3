@@ -60,11 +60,6 @@ interface ModalHistorialProps {
   cambiosHistorial?: number;
 }
 
-interface SucursalLista {
-  id: string;
-  nombre: string;
-}
-
 interface OperadorLista {
   id: string;
   nombre: string;
@@ -270,13 +265,12 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   // Estado - Filtros
   // ---------------------------------------------------------------------------
   const [periodo, setPeriodo] = useState<PeriodoHistorial>('mes');
-  const [filtroSucursalId, setFiltroSucursalId] = useState<string | undefined>(undefined);
   const [filtroEmpleadoId, setFiltroEmpleadoId] = useState<string | undefined>(undefined);
 
   // ---------------------------------------------------------------------------
   // Estado - Listas para dropdowns
+  // (Coherencia A: la sucursal viene del header/token, no hay filtro interno)
   // ---------------------------------------------------------------------------
-  const [sucursales, setSucursales] = useState<SucursalLista[]>([]);
   const [operadores, setOperadores] = useState<OperadorLista[]>([]);
   const [cargandoListas, setCargandoListas] = useState(false);
 
@@ -292,7 +286,6 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   const [error, setError] = useState<string | null>(null);
   const [yaCargo, setYaCargo] = useState(false);
   const prevPeriodo = useRef(periodo);
-  const prevFiltroSucursal = useRef(filtroSucursalId);
   const prevFiltroEmpleado = useRef(filtroEmpleadoId);
 
   // ---------------------------------------------------------------------------
@@ -304,7 +297,6 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   // ---------------------------------------------------------------------------
   // Permisos de filtros según rol
   // ---------------------------------------------------------------------------
-  const puedeVerFiltroSucursal = tipoUsuario === 'dueno';
   const puedeVerFiltroOperador = (tipoUsuario === 'dueno' || tipoUsuario === 'gerente') && operadores.length > 0;
 
   // ---------------------------------------------------------------------------
@@ -324,42 +316,23 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   };
 
   const getSubtitulo = (): string => {
-    // Si hay filtro de sucursal, mostrar el nombre
-    if (filtroSucursalId) {
-      const sucursal = sucursales.find(s => s.id === filtroSucursalId);
-      return sucursal?.nombre || 'Sucursal seleccionada';
-    }
-
-    switch (tipoUsuario) {
-      case 'dueno':
-        return 'Todas las sucursales';
-      case 'gerente':
-        return usuario?.nombreSucursal || 'Tu sucursal';
-      case 'empleado':
-        return 'Mis ventas registradas';
-      default:
-        return '';
-    }
+    // Coherencia A: el subtítulo refleja la sucursal activa del token
+    if (tipoUsuario === 'empleado') return 'Mis ventas registradas';
+    return usuario?.esSucursalPrincipal ? 'Matriz' : (usuario?.nombreSucursal || 'Tu sucursal');
   };
 
   // ---------------------------------------------------------------------------
   // Cargar listas para dropdowns
+  // Coherencia A: la sucursal viene del token. Solo cargamos operadores
+  // (el backend ya filtra por sucursal del token).
   // ---------------------------------------------------------------------------
   const cargarListas = useCallback(async () => {
     if (tipoUsuario === 'empleado') return;
 
     setCargandoListas(true);
     try {
-      // Cargar sucursales (solo si es dueño)
-      if (tipoUsuario === 'dueno') {
-        const resSucursales = await scanyaService.obtenerSucursalesLista();
-        if (resSucursales.success && resSucursales.data) {
-          setSucursales(resSucursales.data);
-        }
-      }
-
-      // Cargar empleados (dueño y gerente)
-      const resOperadores = await scanyaService.obtenerOperadoresLista(filtroSucursalId);
+      // Solo operadores con ventas registradas en la sucursal activa
+      const resOperadores = await scanyaService.obtenerOperadoresLista(undefined, 'transacciones');
       if (resOperadores.success && resOperadores.data) {
         setOperadores(resOperadores.data);
       }
@@ -368,15 +341,24 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     } finally {
       setCargandoListas(false);
     }
-  }, [tipoUsuario, filtroSucursalId]);
+  }, [tipoUsuario]);
 
   // ---------------------------------------------------------------------------
   // Cargar historial
+  //
+  // Patrón keepPreviousData: cuando el caller sabe que ya hay datos previos
+  // (cambio de filtro, período o sucursal con modal abierto), pasa
+  // `mantenerDatos=true` para evitar el loader. La lista vieja queda visible
+  // hasta que llega la respuesta nueva, reemplazo en un solo render.
   // ---------------------------------------------------------------------------
-  const cargarHistorial = useCallback(async (nuevaPagina: number = 1, append: boolean = false) => {
-    if (nuevaPagina === 1) {
+  const cargarHistorial = useCallback(async (
+    nuevaPagina: number = 1,
+    append: boolean = false,
+    mantenerDatos: boolean = false
+  ) => {
+    if (nuevaPagina === 1 && !mantenerDatos) {
       setCargando(true);
-    } else {
+    } else if (append) {
       setCargandoMas(true);
     }
     setError(null);
@@ -386,7 +368,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
         periodo,
         nuevaPagina,
         LIMITE_POR_PAGINA,
-        filtroSucursalId,
+        undefined, // Coherencia A: filtro sucursal viene del token
         filtroEmpleadoId
       );
 
@@ -409,7 +391,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
       setCargando(false);
       setCargandoMas(false);
     }
-  }, [periodo, filtroSucursalId, filtroEmpleadoId]);
+  }, [periodo, filtroEmpleadoId]);
 
   // ---------------------------------------------------------------------------
   // Efectos
@@ -428,61 +410,73 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     }
   }, [abierto, yaCargo]);
 
-  // Recargar empleados cuando cambia la sucursal (solo para dueño)
+  // Reset al cerrar: filtros y UI vuelven a base. Mantenemos `transacciones` y
+  // `yaCargo` para que al reabrir la lista siga visible (keepPreviousData)
+  // mientras llega la respuesta nueva si los filtros cambiaron. Sin loader.
   useEffect(() => {
-    if (abierto && tipoUsuario === 'dueno' && filtroSucursalId !== prevFiltroSucursal.current) {
-      // Limpiar filtro de empleado al cambiar sucursal
+    if (!abierto) {
+      setPeriodo('mes');
       setFiltroEmpleadoId(undefined);
-      // Recargar lista de empleados de esa sucursal
-      scanyaService.obtenerOperadoresLista(filtroSucursalId).then(res => {
-        if (res.success && res.data) {
-          setOperadores(res.data);
-        }
-      });
-    }
-  }, [filtroSucursalId, abierto, tipoUsuario]);
-
-  // Recargar cuando cambia el periodo
-  useEffect(() => {
-    if (abierto && periodo !== prevPeriodo.current) {
       setPagina(1);
-      cargarHistorial(1, false);
     }
-    prevPeriodo.current = periodo;
+  }, [abierto]);
+
+  // Recargar cuando cambia el periodo. El `prev.current` se actualiza solo
+  // cuando el modal está abierto, así si el periodo cambia mientras está cerrado
+  // (por el reset), la próxima apertura detecta la diferencia y dispara recarga
+  // sin loader (keepPreviousData).
+  useEffect(() => {
+    if (abierto) {
+      if (periodo !== prevPeriodo.current) {
+        setPagina(1);
+        cargarHistorial(1, false, true);
+      }
+      prevPeriodo.current = periodo;
+    }
   }, [periodo, abierto]);
 
-  // Recargar cuando cambian los filtros de sucursal o empleado
+  // Recargar cuando cambia el filtro de empleado (mantener datos visibles)
   useEffect(() => {
     if (abierto && yaCargo) {
-      const cambioSucursal = filtroSucursalId !== prevFiltroSucursal.current;
-      const cambioEmpleado = filtroEmpleadoId !== prevFiltroEmpleado.current;
-
-      if (cambioSucursal || cambioEmpleado) {
-        prevFiltroSucursal.current = filtroSucursalId;
+      if (filtroEmpleadoId !== prevFiltroEmpleado.current) {
         prevFiltroEmpleado.current = filtroEmpleadoId;
         setPagina(1);
-        setTransacciones([]);
-        cargarHistorial(1, false);
+        cargarHistorial(1, false, true);
       }
     }
-  }, [filtroSucursalId, filtroEmpleadoId, abierto, yaCargo, cargarHistorial]);
+  }, [filtroEmpleadoId, abierto, yaCargo, cargarHistorial]);
 
-  // Recargar cuando hay nuevas ventas registradas
+  // Recargar cuando hay nuevas ventas registradas (mantener datos visibles)
   useEffect(() => {
     if (cambiosHistorial && cambiosHistorial > 0 && yaCargo) {
       setPagina(1);
-      cargarHistorial(1, false);
+      cargarHistorial(1, false, true);
     }
   }, [cambiosHistorial]);
+
+  // Recargar al cambiar la sucursal activa con el modal abierto
+  // (Coherencia A: keep previous data — sin parpadeo)
+  useEffect(() => {
+    if (abierto && yaCargo) {
+      // Sincronizar el ref para evitar que el useEffect de filtroEmpleadoId
+      // dispare una segunda carga al setear undefined.
+      prevFiltroEmpleado.current = undefined;
+      setFiltroEmpleadoId(undefined);
+      setPagina(1);
+      cargarHistorial(1, false, true);
+      cargarListas();
+    }
+  }, [usuario?.sucursalId]);
 
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
   const handleCambiarPeriodo = (nuevoPeriodo: PeriodoHistorial) => {
     if (nuevoPeriodo !== periodo) {
+      // No limpiamos `transacciones` aquí — keepPreviousData mantiene la lista
+      // visible mientras llega el resultado del nuevo período. Sin parpadeo.
       setPeriodo(nuevoPeriodo);
       setPagina(1);
-      setTransacciones([]);
     }
   };
 
@@ -523,7 +517,9 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
       return;
     }
 
-    history.pushState({ modal: 'historial' }, '');
+    let cerradoPorBack = false;
+    const mid = `historial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    history.pushState({ scanyaModal: true, mid }, '');
     nivelRef.current = 1;
     pushCountRef.current = 1;
 
@@ -533,6 +529,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
         nivelRef.current = 1;
         setTransaccionDetalle(null);
       } else {
+        cerradoPorBack = true;
         nivelRef.current = 0;
         onCloseRef.current();
       }
@@ -544,7 +541,15 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
       const pendientes = pushCountRef.current;
       pushCountRef.current = 0;
       nivelRef.current = 0;
-      if (pendientes > 0) history.go(-pendientes);
+      if (!cerradoPorBack && pendientes > 0) {
+        // Diferir el back: si otro modal abre y hace pushState en este mismo
+        // tick, history.state.mid cambia y NO hacemos back (evita el race con
+        // el popstate que cerraría el modal nuevo).
+        setTimeout(() => {
+          const midActual = (history.state as { mid?: string } | null)?.mid;
+          if (midActual === mid) history.go(-pendientes);
+        }, 0);
+      }
     };
   }, [abierto]);
 
@@ -876,11 +881,11 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
                 </div>
               </div>
 
-              {/* Sucursal */}
+              {/* Sucursal — "Matriz" cuando es la principal, sino el nombre real */}
               <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
                 <MapPin className="w-4 h-4" style={{ color: '#64748B' }} />
                 <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>
-                  {t.registradoPorTipo === 'dueno' ? t.negocioNombre : t.sucursalNombre}
+                  {t.sucursalEsPrincipal ? 'Matriz' : t.sucursalNombre}
                 </span>
               </div>
 
@@ -1026,32 +1031,19 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
         </div>
 
         {/* ============================================================== */}
-        {/* FILTROS ADICIONALES (Sucursal / Empleado) */}
+        {/* FILTROS ADICIONALES (Operador) */}
+        {/* Coherencia A: el filtro de sucursal lo dicta el header del dashboard */}
         {/* ============================================================== */}
-        {(puedeVerFiltroSucursal || puedeVerFiltroOperador) && (
+        {puedeVerFiltroOperador && (
           <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10">
             <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
-              {/* Dropdown Sucursal - Solo dueño */}
-              {puedeVerFiltroSucursal && (
-                <CustomDropdown
-                  options={sucursales.map(s => ({ id: s.id, label: s.nombre }))}
-                  value={filtroSucursalId}
-                  onChange={setFiltroSucursalId}
-                  placeholder="Todas las sucursales"
-                  disabled={cargandoListas}
-                />
-              )}
-
-              {/* Dropdown Operador - Dueño y gerente (si hay operadores) */}
-              {puedeVerFiltroOperador && (
-                <CustomDropdown
-                  options={operadores.map(op => ({ id: op.id, label: op.nombre }))}
-                  value={filtroEmpleadoId}
-                  onChange={setFiltroEmpleadoId}
-                  placeholder="Todos"
-                  disabled={cargandoListas}
-                />
-              )}
+              <CustomDropdown
+                options={operadores.map(op => ({ id: op.id, label: op.nombre }))}
+                value={filtroEmpleadoId}
+                onChange={setFiltroEmpleadoId}
+                placeholder="Todos"
+                disabled={cargandoListas}
+              />
             </div>
           </div>
         )}

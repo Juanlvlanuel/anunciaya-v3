@@ -312,7 +312,8 @@ export function ModalRecordatorios({
     useEffect(() => {
         if (!abierto) return;
         let cerradoPorBack = false;
-        history.pushState({ modal: 'recordatorios' }, '');
+        const mid = `recordatorios-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        history.pushState({ scanyaModal: true, mid }, '');
         const handlePopState = () => {
             cerradoPorBack = true;
             onCloseRef.current();
@@ -320,7 +321,15 @@ export function ModalRecordatorios({
         window.addEventListener('popstate', handlePopState);
         return () => {
             window.removeEventListener('popstate', handlePopState);
-            if (!cerradoPorBack) history.back();
+            if (!cerradoPorBack) {
+                // Diferir el back: si otro modal abre y hace pushState en este
+                // mismo tick, history.state.mid cambia y NO hacemos back (evita
+                // el race con el popstate que cerraría el modal nuevo).
+                setTimeout(() => {
+                    const midActual = (history.state as { mid?: string } | null)?.mid;
+                    if (midActual === mid) history.back();
+                }, 0);
+            }
         };
     }, [abierto]);
 

@@ -75,11 +75,6 @@ interface TabConfig {
     borderColor: string;
 }
 
-interface SucursalLista {
-    id: string;
-    nombre: string;
-}
-
 interface OperadorLista {
     id: string;
     nombre: string;
@@ -111,20 +106,15 @@ const TABS: TabConfig[] = [
     },
     {
         id: 'expirado',
-        label: 'Expirados',
+        label: 'Vencidos',
         icono: XCircle,
         color: '#EF4444',
         bgColor: 'rgba(239, 68, 68, 0.15)',
         borderColor: 'rgba(239, 68, 68, 0.3)',
     },
-    {
-        id: 'cancelado',
-        label: 'Cancelados',
-        icono: Ban,
-        color: '#64748B',
-        bgColor: 'rgba(100, 116, 139, 0.15)',
-        borderColor: 'rgba(100, 116, 139, 0.3)',
-    },
+    // Tab "Cancelados" eliminado: la cancelación es acción del cliente desde
+    // CardYA, no aporta info operativa al comerciante. Para histórico personal
+    // del cliente: ver en CardYA o en BS si se requiere consulta puntual.
 ];
 
 // =============================================================================
@@ -331,10 +321,8 @@ export function ModalVouchers({
     const [clienteBuscado, setClienteBuscado] = useState<ClienteConVouchers | null>(null);
     const [errorBusqueda, setErrorBusqueda] = useState<string | null>(null);
 
-    // Filtros
-    const [filtroSucursalId, setFiltroSucursalId] = useState<string | undefined>(undefined);
+    // Filtros (Coherencia A: la sucursal viene del header/token, no hay filtro interno)
     const [filtroOperadorId, setFiltroOperadorId] = useState<string | undefined>(undefined);
-    const [sucursales, setSucursales] = useState<SucursalLista[]>([]);
     const [operadores, setOperadores] = useState<OperadorLista[]>([]);
     const [cargandoListas, setCargandoListas] = useState(false);
 
@@ -355,33 +343,27 @@ export function ModalVouchers({
     const [voucherDetalle, setVoucherDetalle] = useState<VoucherCompleto | null>(null);
 
     // Refs para detectar cambios
-    const prevFiltroSucursal = useRef(filtroSucursalId);
     const prevFiltroOperador = useRef(filtroOperadorId);
 
     // ---------------------------------------------------------------------------
     // Permisos de filtros según rol
     // ---------------------------------------------------------------------------
-    const puedeVerFiltroSucursal = tipoUsuario === 'dueno';
     const puedeVerFiltroOperador = (tipoUsuario === 'dueno' || tipoUsuario === 'gerente') && operadores.length > 0;
 
     // ---------------------------------------------------------------------------
     // Cargar listas para filtros
+    // Coherencia A: la sucursal viene del token. Solo cargamos operadores de la
+    // sucursal activa (ya filtrada en el backend por el token).
     // ---------------------------------------------------------------------------
     const cargarListas = useCallback(async () => {
         if (tipoUsuario === 'empleado') return;
 
         setCargandoListas(true);
         try {
-            // Cargar sucursales (solo si es dueño)
-            if (tipoUsuario === 'dueno') {
-                const resSucursales = await scanyaService.obtenerSucursalesLista();
-                if (resSucursales.success && resSucursales.data) {
-                    setSucursales(resSucursales.data);
-                }
-            }
-
-            // Cargar operadores (dueño y gerente)
-            const resOperadores = await scanyaService.obtenerOperadoresLista(filtroSucursalId);
+            // Cargar operadores (dueño y gerente). El backend ya filtra por
+            // sucursal del token, no es necesario pasar filtro de sucursal aquí.
+            // Solo operadores que han canjeado vouchers en la sucursal activa
+            const resOperadores = await scanyaService.obtenerOperadoresLista(undefined, 'vouchers');
             if (resOperadores.success && resOperadores.data) {
                 setOperadores(resOperadores.data);
             }
@@ -390,7 +372,7 @@ export function ModalVouchers({
         } finally {
             setCargandoListas(false);
         }
-    }, [tipoUsuario, filtroSucursalId]);
+    }, [tipoUsuario]);
 
     // ---------------------------------------------------------------------------
     // Reset al abrir/cerrar
@@ -412,33 +394,24 @@ export function ModalVouchers({
         }
     }, [abierto]);
 
-    // Recargar operadores cuando cambia la sucursal (solo para dueño)
-    useEffect(() => {
-        if (abierto && tipoUsuario === 'dueno' && filtroSucursalId !== prevFiltroSucursal.current) {
-            // Limpiar filtro de operador al cambiar sucursal
-            setFiltroOperadorId(undefined);
-            // Recargar lista de operadores de esa sucursal
-            scanyaService.obtenerOperadoresLista(filtroSucursalId).then(res => {
-                if (res.success && res.data) {
-                    setOperadores(res.data);
-                }
-            });
-        }
-        prevFiltroSucursal.current = filtroSucursalId;
-    }, [filtroSucursalId, abierto, tipoUsuario]);
-
-    // Recargar cuando cambian los filtros
+    // Recargar cuando cambia el filtro de operador o cuando reabrimos el modal
+    // tras un reset (los filtros volvieron a base mientras estaba cerrado).
+    //
+    // El `prev.current = filtroOperadorId` se actualiza SOLO cuando el modal
+    // está abierto. Así, si el filtro cambia mientras está cerrado (por el reset),
+    // la próxima apertura detecta la diferencia y dispara la recarga sin loader.
     useEffect(() => {
         if (abierto && yaCargo && !clienteBuscado) {
-            if (filtroSucursalId !== prevFiltroSucursal.current || filtroOperadorId !== prevFiltroOperador.current) {
+            if (filtroOperadorId !== prevFiltroOperador.current) {
                 setPaginaActual(1);
-                setVouchers([]);
+                // No limpiamos `vouchers` aquí — keepPreviousData mantiene la
+                // lista vieja visible mientras llegan los nuevos datos. El
+                // reemplazo es en un solo render, sin parpadeo.
                 cargarVouchers(tabActiva, 1);
             }
+            prevFiltroOperador.current = filtroOperadorId;
         }
-        prevFiltroSucursal.current = filtroSucursalId;
-        prevFiltroOperador.current = filtroOperadorId;
-    }, [filtroSucursalId, filtroOperadorId, abierto, yaCargo, clienteBuscado]);
+    }, [filtroOperadorId, abierto, yaCargo, clienteBuscado]);
 
     // Recargar cuando hay cambios (ventas registradas, vouchers canjeados)
     useEffect(() => {
@@ -448,23 +421,63 @@ export function ModalVouchers({
         }
     }, [cambiosVouchers]);
 
+    // Reset al cerrar: filtros y UI vuelven a base (Pendientes, sin operador,
+    // sin búsqueda). Mantenemos `vouchers`, `yaCargo` y demás cache para que al
+    // reabrir la lista vieja siga visible (keepPreviousData) mientras llega la
+    // respuesta nueva si los filtros cambiaron. Sin loader intermedio.
+    useEffect(() => {
+        if (!abierto) {
+            setTabActiva('pendiente');
+            setFiltroOperadorId(undefined);
+            setBuscadorAbierto(false);
+            setLada('+52');
+            setTelefono('');
+            setClienteBuscado(null);
+            setErrorBusqueda(null);
+            setPaginaActual(1);
+        }
+    }, [abierto]);
+
+    // Recargar al cambiar la sucursal activa con el modal abierto
+    // (Coherencia A: el header es la fuente de verdad del contexto)
+    //
+    // Nota: NO limpiamos `vouchers` antes — los datos viejos siguen visibles
+    // mientras llegan los nuevos. Cuando la respuesta resuelva, `cargarVouchers`
+    // los reemplaza en un solo render. Patrón equivalente al `keepPreviousData`
+    // de React Query: evita parpadeo y transición tipo skeleton.
+    useEffect(() => {
+        if (abierto && yaCargo && !clienteBuscado) {
+            setFiltroOperadorId(undefined);
+            setPaginaActual(1);
+            cargarVouchers(tabActiva, 1);
+            cargarListas();
+        }
+    }, [usuario?.sucursalId]);
+
     // ---------------------------------------------------------------------------
     // Cargar vouchers (gestión general)
     // ---------------------------------------------------------------------------
     const cargarVouchers = async (estado: EstadoVoucher, pagina: number = 1) => {
         if (!usuario) return;
 
-        // Solo mostrar loading si no hay datos previos (evita parpadeo al reabrir)
-        if (vouchers.length === 0) setCargando(true);
+        // Loader solo en la PRIMERA carga de la sesión (yaCargo=false). En
+        // cualquier recarga posterior (cambio de tab/filtro/sucursal) usamos
+        // keepPreviousData: la lista vieja queda visible hasta que llegue la
+        // respuesta nueva. Sin flasheo ni siquiera cuando el nuevo tab está vacío.
+        if (!yaCargo) setCargando(true);
         setError(null);
 
         try {
+            // El filtro de operador solo aplica al tab "Usados" (los vouchers
+            // pendientes/vencidos tienen `usado_por = NULL`). Si lo enviamos en
+            // otros tabs, el backend regresaría siempre vacío.
+            const empleadoIdEnviado = estado === 'usado' ? filtroOperadorId : undefined;
+
             const respuesta = await scanyaService.obtenerVouchers({
                 estado,
                 pagina,
                 limite: 10,
-                sucursalId: filtroSucursalId,
-                empleadoId: filtroOperadorId,
+                empleadoId: empleadoIdEnviado,
             });
 
             if (respuesta.success && respuesta.data) {
@@ -603,7 +616,9 @@ export function ModalVouchers({
             return;
         }
 
-        history.pushState({ modal: 'vouchers' }, '');
+        let cerradoPorBack = false;
+        const mid = `vouchers-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        history.pushState({ scanyaModal: true, mid }, '');
         nivelRef.current = 1;
         pushCountRef.current = 1;
 
@@ -614,6 +629,7 @@ export function ModalVouchers({
                 nivelRef.current = 1;
                 setVoucherDetalle(null);
             } else {
+                cerradoPorBack = true;
                 nivelRef.current = 0;
                 onCloseRef.current();
             }
@@ -625,7 +641,15 @@ export function ModalVouchers({
             const pendientes = pushCountRef.current;
             pushCountRef.current = 0;
             nivelRef.current = 0;
-            if (pendientes > 0) history.go(-pendientes);
+            if (!cerradoPorBack && pendientes > 0) {
+                // Diferir el back: si otro modal abre y hace pushState en este
+                // mismo tick, history.state.mid cambia y NO hacemos back (evita
+                // el race con el popstate que cerraría el modal nuevo).
+                setTimeout(() => {
+                    const midActual = (history.state as { mid?: string } | null)?.mid;
+                    if (midActual === mid) history.go(-pendientes);
+                }, 0);
+            }
         };
     }, [abierto]);
 
@@ -780,7 +804,7 @@ export function ModalVouchers({
                                 <div className="flex items-center gap-1.5">
                                     <Calendar className="w-4 h-4" style={{ color: '#64748B' }} />
                                     <span className={LABEL} style={{ color: '#94A3B8' }}>
-                                        {v.estado === 'vencido' ? 'Expiró' : 'Expira'}
+                                        {v.estado === 'vencido' ? 'Venció' : 'Vence'}
                                     </span>
                                 </div>
                                 <span className={VALUE} style={{ color: '#F1F5F9' }}>
@@ -817,7 +841,9 @@ export function ModalVouchers({
                                 {/* Sucursal */}
                                 <div className="flex items-center gap-2">
                                     <MapPin className="w-4 h-4" style={{ color: '#64748B' }} />
-                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>{v.sucursalNombre}</span>
+                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>
+                                        {v.sucursalEsPrincipal ? 'Matriz' : v.sucursalNombre}
+                                    </span>
                                 </div>
                             </div>
                         )}
@@ -1055,32 +1081,21 @@ export function ModalVouchers({
                 </div>
 
                 {/* ============================================================== */}
-                {/* FILTROS ADICIONALES (Sucursal / Operador) */}
+                {/* FILTROS ADICIONALES (Operador) — solo en tab "Usados".         */}
+                {/* En Pendientes/Vencidos no tiene sentido: esos vouchers tienen  */}
+                {/* `usado_por = NULL` (nunca canjeados), el filtro siempre daría  */}
+                {/* vacío. La sucursal activa la dicta el header del dashboard.    */}
                 {/* ============================================================== */}
-                {!clienteBuscado && (puedeVerFiltroSucursal || puedeVerFiltroOperador) && (
+                {!clienteBuscado && puedeVerFiltroOperador && tabActiva === 'usado' && (
                     <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10">
                         <div className="flex gap-2 lg:gap-1.5 2xl:gap-2">
-                            {/* Dropdown Sucursal - Solo dueño */}
-                            {puedeVerFiltroSucursal && (
-                                <CustomDropdown
-                                    options={sucursales.map(s => ({ id: s.id, label: s.nombre }))}
-                                    value={filtroSucursalId}
-                                    onChange={setFiltroSucursalId}
-                                    placeholder="Todas las sucursales"
-                                    disabled={cargandoListas}
-                                />
-                            )}
-
-                            {/* Dropdown Operador - Dueño y gerente (si hay operadores) */}
-                            {puedeVerFiltroOperador && (
-                                <CustomDropdown
-                                    options={operadores.map(op => ({ id: op.id, label: op.nombre }))}
-                                    value={filtroOperadorId}
-                                    onChange={setFiltroOperadorId}
-                                    placeholder="Todos"
-                                    disabled={cargandoListas}
-                                />
-                            )}
+                            <CustomDropdown
+                                options={operadores.map(op => ({ id: op.id, label: op.nombre }))}
+                                value={filtroOperadorId}
+                                onChange={setFiltroOperadorId}
+                                placeholder="Todos"
+                                disabled={cargandoListas}
+                            />
                         </div>
                     </div>
                 )}
@@ -1157,7 +1172,11 @@ export function ModalVouchers({
                             <p className="text-[#64748B] text-sm lg:text-xs 2xl:text-sm mt-1">
                                 {clienteBuscado
                                     ? 'Este cliente no tiene vouchers'
-                                    : `No hay vouchers ${tabActiva === 'pendiente' ? 'pendientes' : tabActiva + 's'}`}
+                                    : tabActiva === 'pendiente'
+                                        ? 'No hay vouchers pendientes'
+                                        : tabActiva === 'usado'
+                                            ? 'No hay vouchers usados'
+                                            : 'No hay vouchers vencidos'}
                             </p>
                         </div>
                     ) : (

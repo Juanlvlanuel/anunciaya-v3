@@ -72,6 +72,7 @@ interface DatosLoginScanYA {
     nombreNegocio: string;
     logoNegocio: string | null;
     nombreSucursal: string | null;
+    esSucursalPrincipal: boolean;
     nombreUsuario: string;
     fotoUrl?: string | null;
     permisos: PermisosScanYA;
@@ -203,7 +204,7 @@ export async function loginDueno(
         let negocioId: string;
         let sucursalId: string;
         let negocio: { id: string; nombre: string; logoUrl: string | null; onboardingCompletado: boolean; usuarioId: string };
-        let sucursal: { id: string; nombre: string };
+        let sucursal: { id: string; nombre: string; esPrincipal: boolean };
         const rol: 'dueno' | 'gerente' = esDueno ? 'dueno' : 'gerente';
 
         if (esDueno) {
@@ -254,7 +255,12 @@ export async function loginDueno(
             if (datos.sucursalId) {
                 // Verificar que la sucursal pertenezca al negocio
                 const [sucursalEncontrada] = await db
-                    .select({ id: negocioSucursales.id, nombre: negocioSucursales.nombre, activa: negocioSucursales.activa })
+                    .select({
+                        id: negocioSucursales.id,
+                        nombre: negocioSucursales.nombre,
+                        activa: negocioSucursales.activa,
+                        esPrincipal: negocioSucursales.esPrincipal,
+                    })
                     .from(negocioSucursales)
                     .where(
                         and(
@@ -278,30 +284,83 @@ export async function loginDueno(
                         code: 403,
                     };
                 }
-                sucursal = sucursalEncontrada;
+                sucursal = {
+                    id: sucursalEncontrada.id,
+                    nombre: sucursalEncontrada.nombre,
+                    esPrincipal: sucursalEncontrada.esPrincipal,
+                };
                 sucursalId = sucursal.id;
             } else {
-                // Usar sucursal principal
-                const [sucursalPrincipal] = await db
-                    .select({ id: negocioSucursales.id, nombre: negocioSucursales.nombre })
-                    .from(negocioSucursales)
+                // Sin sucursalId explícito: si hay un turno activo del dueño, retomarlo en esa sucursal
+                // (siempre que la sucursal siga activa). Si no hay turno o su sucursal está desactivada,
+                // caer a la sucursal principal (Matriz).
+                const [turnoActivo] = await db
+                    .select({
+                        sucursalId: scanyaTurnos.sucursalId,
+                        sucursalNombre: negocioSucursales.nombre,
+                        sucursalActiva: negocioSucursales.activa,
+                        sucursalEsPrincipal: negocioSucursales.esPrincipal,
+                    })
+                    .from(scanyaTurnos)
+                    .innerJoin(
+                        negocioSucursales,
+                        eq(negocioSucursales.id, scanyaTurnos.sucursalId)
+                    )
                     .where(
                         and(
-                            eq(negocioSucursales.negocioId, negocioId),
-                            eq(negocioSucursales.esPrincipal, true)
+                            eq(scanyaTurnos.usuarioId, usuario.id),
+                            eq(scanyaTurnos.negocioId, negocioId),
+                            isNull(scanyaTurnos.horaFin)
                         )
                     )
+                    .orderBy(desc(scanyaTurnos.horaInicio))
                     .limit(1);
 
-                if (!sucursalPrincipal) {
-                    return {
-                        success: false,
-                        message: 'El negocio no tiene una sucursal configurada',
-                        code: 400,
+                if (turnoActivo && turnoActivo.sucursalActiva) {
+                    sucursal = {
+                        id: turnoActivo.sucursalId,
+                        nombre: turnoActivo.sucursalNombre,
+                        esPrincipal: turnoActivo.sucursalEsPrincipal,
                     };
+                    sucursalId = sucursal.id;
+                } else {
+                    // Usar sucursal principal (Matriz)
+                    const [sucursalPrincipal] = await db
+                        .select({
+                            id: negocioSucursales.id,
+                            nombre: negocioSucursales.nombre,
+                            activa: negocioSucursales.activa,
+                        })
+                        .from(negocioSucursales)
+                        .where(
+                            and(
+                                eq(negocioSucursales.negocioId, negocioId),
+                                eq(negocioSucursales.esPrincipal, true)
+                            )
+                        )
+                        .limit(1);
+
+                    if (!sucursalPrincipal) {
+                        return {
+                            success: false,
+                            message: 'El negocio no tiene una sucursal configurada',
+                            code: 400,
+                        };
+                    }
+                    if (!sucursalPrincipal.activa) {
+                        return {
+                            success: false,
+                            message: 'La sucursal Matriz está desactivada. Reactívala desde Business Studio antes de operar en ScanYA.',
+                            code: 403,
+                        };
+                    }
+                    sucursal = {
+                        id: sucursalPrincipal.id,
+                        nombre: sucursalPrincipal.nombre,
+                        esPrincipal: true, // por definición — la encontramos por esPrincipal=true
+                    };
+                    sucursalId = sucursal.id;
                 }
-                sucursal = sucursalPrincipal;
-                sucursalId = sucursal.id;
             }
 
         } else {
@@ -322,6 +381,7 @@ export async function loginDueno(
                     nombre: negocioSucursales.nombre,
                     negocioId: negocioSucursales.negocioId,
                     activa: negocioSucursales.activa,
+                    esPrincipal: negocioSucursales.esPrincipal,
                 })
                 .from(negocioSucursales)
                 .where(eq(negocioSucursales.id, usuario.sucursalAsignada!))
@@ -346,7 +406,11 @@ export async function loginDueno(
                 };
             }
 
-            sucursal = { id: sucursalAsignada.id, nombre: sucursalAsignada.nombre };
+            sucursal = {
+                id: sucursalAsignada.id,
+                nombre: sucursalAsignada.nombre,
+                esPrincipal: sucursalAsignada.esPrincipal,
+            };
             sucursalId = sucursal.id;
 
             // Obtener datos del negocio desde la sucursal
@@ -436,6 +500,7 @@ export async function loginDueno(
                 nombreNegocio: negocio.nombre,
                 logoNegocio: negocio.logoUrl ?? null,
                 nombreSucursal: totalSucursales > 1 ? sucursal.nombre : null,
+                esSucursalPrincipal: sucursal.esPrincipal,
                 nombreUsuario: `${usuario.nombre} ${usuario.apellidos}`.trim(),
                 fotoUrl: usuario.avatarUrl ?? null,
                 permisos,
@@ -556,6 +621,7 @@ export async function loginEmpleado(
                 nombre: negocioSucursales.nombre,
                 negocioId: negocioSucursales.negocioId,
                 activa: negocioSucursales.activa,
+                esPrincipal: negocioSucursales.esPrincipal,
             })
             .from(negocioSucursales)
             .where(eq(negocioSucursales.id, empleado.sucursalId))
@@ -672,6 +738,7 @@ export async function loginEmpleado(
                 nombreNegocio: negocio.nombre,
                 logoNegocio: negocio.logoUrl ?? null,
                 nombreSucursal: totalSucursales > 1 ? sucursal.nombre : null,
+                esSucursalPrincipal: sucursal.esPrincipal,
                 nombreUsuario: empleado.nombre,
                 fotoUrl: empleado.fotoUrl ?? null,
                 permisos,
@@ -688,6 +755,153 @@ export async function loginEmpleado(
         return {
             success: false,
             message: 'Error interno al iniciar sesión',
+            code: 500,
+        };
+    }
+}
+
+// =============================================================================
+// FUNCIÓN 2.5: CAMBIAR SUCURSAL (solo dueño)
+// =============================================================================
+
+/**
+ * Cambia la sucursal activa del dueño durante una sesión ScanYA.
+ *
+ * Flujo:
+ * 1. Validar que el usuario del token es dueño (gerente/empleado → 403)
+ * 2. Validar que la sucursal pertenece al negocio y está activa
+ * 3. Cerrar el turno activo del usuario en la sucursal actual (si existe)
+ * 4. Re-emitir tokens JWT con el nuevo sucursalId
+ *
+ * El frontend dispara `abrirTurno()` después con el nuevo token, igual que en login.
+ */
+export async function cambiarSucursalDueno(
+    payload: PayloadTokenScanYA,
+    sucursalId: string
+): Promise<RespuestaServicio<{
+    accessToken: string;
+    refreshToken: string;
+    sucursalId: string;
+    sucursalNombre: string;
+    esPrincipal: boolean;
+}>> {
+    try {
+        // ---------------------------------------------------------------------
+        // Paso 1: Validar rol — solo dueño puede cambiar de sucursal
+        // ---------------------------------------------------------------------
+        if (payload.tipo !== 'dueno') {
+            return {
+                success: false,
+                message: 'Solo el dueño puede cambiar de sucursal',
+                code: 403,
+            };
+        }
+
+        if (!payload.usuarioId) {
+            return {
+                success: false,
+                message: 'Token incompleto',
+                code: 401,
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // Paso 2: Validar sucursal destino
+        // ---------------------------------------------------------------------
+        const [sucursalDestino] = await db
+            .select({
+                id: negocioSucursales.id,
+                nombre: negocioSucursales.nombre,
+                activa: negocioSucursales.activa,
+                esPrincipal: negocioSucursales.esPrincipal,
+            })
+            .from(negocioSucursales)
+            .where(
+                and(
+                    eq(negocioSucursales.id, sucursalId),
+                    eq(negocioSucursales.negocioId, payload.negocioId)
+                )
+            )
+            .limit(1);
+
+        if (!sucursalDestino) {
+            return {
+                success: false,
+                message: 'Sucursal no encontrada o no pertenece al negocio',
+                code: 404,
+            };
+        }
+
+        if (!sucursalDestino.activa) {
+            return {
+                success: false,
+                message: 'Esta sucursal está desactivada. Reactívala antes de operar en ScanYA.',
+                code: 403,
+            };
+        }
+
+        // Si elige la misma sucursal, no hacer nada — solo re-emitir tokens
+        const esMismaSucursal = sucursalId === payload.sucursalId;
+
+        // ---------------------------------------------------------------------
+        // Paso 3: Cerrar turno activo del dueño en la sucursal actual (si existe)
+        // ---------------------------------------------------------------------
+        if (!esMismaSucursal) {
+            await db
+                .update(scanyaTurnos)
+                .set({ horaFin: new Date().toISOString() })
+                .where(
+                    and(
+                        eq(scanyaTurnos.usuarioId, payload.usuarioId),
+                        eq(scanyaTurnos.sucursalId, payload.sucursalId),
+                        isNull(scanyaTurnos.horaFin)
+                    )
+                );
+        }
+
+        // ---------------------------------------------------------------------
+        // Paso 4: Re-emitir tokens con nueva sucursal
+        //
+        // Reconstruir el payload explícitamente — esparcir `payload` traería
+        // `iat`, `exp` y `_tipo` (que jwt.sign agrega) y rompería el firmado
+        // ("payload already has an exp property").
+        // ---------------------------------------------------------------------
+        const nuevoPayload: PayloadTokenScanYA = {
+            tipo: payload.tipo,
+            negocioId: payload.negocioId,
+            sucursalId: sucursalDestino.id,
+            nombreNegocio: payload.nombreNegocio,
+            usuarioId: payload.usuarioId,
+            correo: payload.correo,
+            nombreUsuario: payload.nombreUsuario,
+            negocioUsuarioId: payload.negocioUsuarioId,
+            empleadoId: payload.empleadoId,
+            nick: payload.nick,
+            nombreEmpleado: payload.nombreEmpleado,
+            permisos: payload.permisos,
+            puedeElegirSucursal: payload.puedeElegirSucursal,
+            puedeConfigurarNegocio: payload.puedeConfigurarNegocio,
+        };
+
+        const tokens = generarTokensScanYA(nuevoPayload);
+
+        return {
+            success: true,
+            message: 'Sucursal cambiada exitosamente',
+            data: {
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken,
+                sucursalId: sucursalDestino.id,
+                sucursalNombre: sucursalDestino.nombre,
+                esPrincipal: sucursalDestino.esPrincipal,
+            },
+            code: 200,
+        };
+    } catch (error) {
+        console.error('Error en cambiarSucursalDueno:', error);
+        return {
+            success: false,
+            message: 'Error interno al cambiar sucursal',
             code: 500,
         };
     }
@@ -2218,6 +2432,7 @@ export async function otorgarPuntos(
                 titulo: '¡Recompensa desbloqueada!',
                 mensaje: `${recompensaSello.nombre} — completaste ${tarjetaSellosInfo.comprasAcumuladas} compras\n${negocioInfo?.nombre ?? 'un negocio'}`,
                 negocioId: payload.negocioId,
+                sucursalId: payload.sucursalId,
                 referenciaId: recompensaSello.id,
                 referenciaTipo: 'recompensa',
                 icono: '🎉',
@@ -2333,6 +2548,7 @@ export async function obtenerHistorial(
         registradoPorTipo: 'empleado' | 'dueno' | 'gerente';
         // Sucursal
         sucursalNombre: string;
+        sucursalEsPrincipal: boolean;
         // Extras
         concepto: string | null;
         fotoTicketUrl: string | null;
@@ -2384,33 +2600,26 @@ export async function obtenerHistorial(
             gte(puntosTransacciones.createdAt, fechaInicio.toISOString()),
         ];
 
-        // Filtrar según tipo de usuario
+        // Filtrar según tipo de usuario.
+        //
+        // Coherencia A (sprint multi-sucursal): la sucursal activa del token es la
+        // única fuente de verdad. El parámetro `filtroSucursalId` se ignora — el
+        // header del dashboard ScanYA controla el contexto. Para vista cross-sucursal
+        // usar Business Studio (Reportes / Transacciones).
         if (payload.tipo === 'empleado' && payload.empleadoId) {
-            // Empleado: solo sus transacciones (via turno)
+            // Empleado: solo sus transacciones (via turno → empleado_id).
+            // Esto implícitamente filtra por su sucursal asignada.
             condicionesBase.push(
                 sql`${puntosTransacciones.turnoId} IN (
-                    SELECT id FROM scanya_turnos 
+                    SELECT id FROM scanya_turnos
                     WHERE empleado_id = ${payload.empleadoId}::uuid
                 )`
             );
-        } else if (payload.tipo === 'gerente') {
-            // Gerente: TODAS las transacciones de su sucursal
+        } else {
+            // Dueño y gerente: solo transacciones de la sucursal del token
             condicionesBase.push(
                 eq(puntosTransacciones.sucursalId, payload.sucursalId)
             );
-        }
-        // Dueño: ve todo el negocio (no se agrega filtro adicional)
-
-        // -------------------------------------------------------------------------
-        // Paso 2.5: Filtros opcionales (desde dropdowns)
-        // -------------------------------------------------------------------------
-        // Filtro por sucursal (solo si el usuario tiene permiso)
-        if (filtroSucursalId) {
-            if (payload.tipo === 'dueno') {
-                // Dueño puede filtrar por cualquier sucursal de su negocio
-                condicionesBase.push(eq(puntosTransacciones.sucursalId, filtroSucursalId));
-            }
-            // Gerente y empleado ya están filtrados por su sucursal
         }
 
         // Filtro por operador (empleado/gerente/dueño)
@@ -2504,6 +2713,7 @@ export async function obtenerHistorial(
                 clienteAvatarUrl: usuarios.avatarUrl,
                 // Sucursal
                 sucursalNombre: negocioSucursales.nombre,
+                sucursalEsPrincipal: negocioSucursales.esPrincipal,
                 // Negocio
                 negocioNombre: negocios.nombre,
                 // Empleado (si existe)
@@ -2652,6 +2862,7 @@ export async function obtenerHistorial(
                 registradoPorTipo,
                 // Sucursal
                 sucursalNombre: t.sucursalNombre,
+                sucursalEsPrincipal: t.sucursalEsPrincipal ?? false,
                 // Negocio
                 negocioNombre: t.negocioNombre,
                 // Extras
@@ -3120,13 +3331,22 @@ export async function obtenerVouchersPendientes(
 
 /**
  * Obtiene vouchers del negocio con filtros avanzados.
+ *
+ * Coherencia A (sprint multi-sucursal abr-2026): la sucursal activa del token
+ * es la única fuente de verdad. Para los 3 roles se filtra por
+ * `sucursalId = payload.sucursalId OR sucursalId IS NULL` (los NULL son
+ * pendientes cross-sucursal canjeables que aparecen en cualquier sucursal activa).
+ *
  * Permisos por rol:
- * - Dueño: Ve todos los vouchers de todas las sucursales
- * - Gerente: Ve todos los vouchers de su sucursal asignada
- * - Empleado: Solo ve vouchers pendientes de su sucursal asignada
- * 
+ * - Dueño: vouchers de la sucursal activa (cambia con el header)
+ * - Gerente: vouchers de su sucursal asignada
+ * - Empleado: solo pendientes de su sucursal asignada
+ *
+ * El filtro `filtros.sucursalId` se ignora — el header del dashboard ScanYA
+ * controla el contexto. Para vista cross-sucursal usar Business Studio.
+ *
  * @param payload - Datos del usuario autenticado
- * @param filtros - Filtros opcionales (estado, sucursalId, paginación)
+ * @param filtros - estado, paginación, empleadoId. (sucursalId se ignora)
  * @returns Lista de vouchers con paginación
  */
 export async function obtenerVouchers(
@@ -3148,6 +3368,7 @@ export async function obtenerVouchers(
         usadoAt: string | null;
         usadoPorEmpleadoNombre: string | null;
         sucursalNombre: string;
+        sucursalEsPrincipal: boolean;
     }>;
     total: number;
     pagina: number;
@@ -3160,42 +3381,28 @@ export async function obtenerVouchers(
         await expirarVouchersVencidos(payload.negocioId);
         // -------------------------------------------------------------------------
         // Paso 1: Construir condiciones base según rol
+        //
+        // Coherencia A (sprint multi-sucursal): la sucursal activa del token es la
+        // única fuente de verdad. NO se acepta filtro externo de sucursal — el header
+        // de ScanYA ya cumple esa función. Para vista cross-sucursal → Business Studio.
+        //
+        // Pendientes (sucursal_id = NULL) son cross-sucursal canjeables por naturaleza
+        // y se muestran en cualquier sucursal activa.
         // -------------------------------------------------------------------------
         const condiciones = [eq(vouchersCanje.negocioId, payload.negocioId)];
 
-        if (payload.tipo === 'empleado') {
-            // Empleado: Solo su sucursal, solo pendientes
-            condiciones.push(
-                or(
-                    eq(vouchersCanje.sucursalId, payload.sucursalId),
-                    isNull(vouchersCanje.sucursalId)
-                )!,
-                eq(vouchersCanje.estado, 'pendiente')
-            );
-        } else if (payload.tipo === 'gerente') {
-            // Gerente: Solo su sucursal, todos los estados
-            condiciones.push(
-                or(
-                    eq(vouchersCanje.sucursalId, payload.sucursalId),
-                    isNull(vouchersCanje.sucursalId)
-                )!
-            );
-        }
-        // Dueño: Ve todas las sucursales, todos los estados
+        // Filtro por sucursal del token (aplica a los 3 roles).
+        // Incluye NULL para mostrar pendientes cross-sucursal.
+        condiciones.push(
+            or(
+                eq(vouchersCanje.sucursalId, payload.sucursalId),
+                isNull(vouchersCanje.sucursalId)
+            )!
+        );
 
-        // -------------------------------------------------------------------------
-        // Paso 2: Filtro opcional por sucursal (solo para dueño/gerente)
-        // -------------------------------------------------------------------------
-        if (filtros.sucursalId && payload.tipo !== 'empleado') {
-            // Reemplazar la condición de sucursal si viene en filtros
-            const indexSucursal = condiciones.findIndex(
-                c => c.toString().includes('sucursal_id')
-            );
-            if (indexSucursal !== -1) {
-                condiciones[indexSucursal] = eq(vouchersCanje.sucursalId, filtros.sucursalId);
-            } else {
-                condiciones.push(eq(vouchersCanje.sucursalId, filtros.sucursalId));
-            }
+        // Empleado: solo pendientes
+        if (payload.tipo === 'empleado') {
+            condiciones.push(eq(vouchersCanje.estado, 'pendiente'));
         }
 
         // -------------------------------------------------------------------------
@@ -3251,6 +3458,7 @@ export async function obtenerVouchers(
                 usadoPorEmpleadoId: vouchersCanje.usadoPorEmpleadoId,
                 usadoPorUsuarioId: vouchersCanje.usadoPorUsuarioId,
                 sucursalNombre: negocioSucursales.nombre,
+                sucursalEsPrincipal: negocioSucursales.esPrincipal,
             })
             .from(vouchersCanje)
             .innerJoin(usuarios, eq(vouchersCanje.usuarioId, usuarios.id))
@@ -3303,7 +3511,7 @@ export async function obtenerVouchers(
                     usadoAt: v.usadoAt,
                     usadoPorEmpleadoNombre,
                     sucursalNombre: v.sucursalNombre || 'Sin asignar',
-
+                    sucursalEsPrincipal: v.sucursalEsPrincipal ?? false,
                 };
             })
         );
@@ -3631,14 +3839,19 @@ export async function obtenerRecordatorios(
 
         // -------------------------------------------------------------------------
         // Paso 1: Construir condiciones según el rol
+        //
+        // Coherencia A (sprint multi-sucursal): la sucursal activa del token es la
+        // única fuente de verdad. El dueño ve solo los recordatorios de la sucursal
+        // activa (cambia con el header del dashboard ScanYA). Para vista cross-
+        // sucursal usar Business Studio.
         // -------------------------------------------------------------------------
         const condiciones = [
             eq(scanyaRecordatorios.estado, 'pendiente'),
         ];
 
         if (payload.tipo === 'dueno') {
-            // Dueño ve todos los del negocio
-            condiciones.push(eq(scanyaRecordatorios.negocioId, payload.negocioId));
+            // Dueño: solo recordatorios de la sucursal activa
+            condiciones.push(eq(scanyaRecordatorios.sucursalId, payload.sucursalId));
         } else if (payload.tipo === 'gerente') {
             // Gerente: solo su sucursal Y solo recordatorios de empleados O turnos que él abrió
             condiciones.push(eq(scanyaRecordatorios.sucursalId, payload.sucursalId));
@@ -4130,13 +4343,17 @@ export async function obtenerContadores(
     try {
         // -------------------------------------------------------------------------
         // 1. Contar recordatorios pendientes
+        //
+        // Coherencia A (sprint multi-sucursal): la sucursal activa del token es
+        // la única fuente de verdad. El dueño ve solo los de la sucursal activa
+        // (cambia con el header). Para vista cross-sucursal → Business Studio.
         // -------------------------------------------------------------------------
         let condicionRecordatorios;
 
         if (payload.tipo === 'dueno') {
-            // Dueño ve todos los del negocio
+            // Dueño: solo de la sucursal activa
             condicionRecordatorios = and(
-                eq(scanyaRecordatorios.negocioId, payload.negocioId),
+                eq(scanyaRecordatorios.sucursalId, payload.sucursalId),
                 eq(scanyaRecordatorios.estado, 'pendiente')
             );
         } else if (payload.tipo === 'gerente') {
@@ -4186,17 +4403,14 @@ export async function obtenerContadores(
 
         // -------------------------------------------------------------------------
         // 2. Contar reseñas pendientes de respuesta
+        //
+        // Coherencia A: todos los roles filtran por la sucursal del token. Al
+        // cambiar de sucursal con el chip del header el badge se actualiza solo.
         // -------------------------------------------------------------------------
         let resenasPendientes = 0;
         try {
             const { contarResenasPendientes } = await import('./resenas.service.js');
-
-            // Gerente/Empleado: solo su sucursal | Dueño: todas
-            const sucursalFiltro = (payload.tipo === 'gerente' || payload.tipo === 'empleado')
-                ? payload.sucursalId
-                : undefined;
-
-            resenasPendientes = await contarResenasPendientes(payload.negocioId, sucursalFiltro);
+            resenasPendientes = await contarResenasPendientes(payload.negocioId, payload.sucursalId);
         } catch (err) {
             console.error('Error contando reseñas pendientes:', err);
         }
@@ -4241,7 +4455,7 @@ export async function obtenerContadores(
  */
 export async function obtenerSucursalesLista(
     payload: PayloadTokenScanYA
-): Promise<RespuestaServicio<Array<{ id: string; nombre: string }>>> {
+): Promise<RespuestaServicio<Array<{ id: string; nombre: string; esPrincipal: boolean; activa: boolean }>>> {
     try {
         // Obtener todas las sucursales del negocio
         const resultado = await obtenerSucursalesNegocio(payload.negocioId);
@@ -4257,12 +4471,20 @@ export async function obtenerSucursalesLista(
         let sucursales = resultado.data.map((s) => ({
             id: s.id,
             nombre: s.nombre,
+            esPrincipal: s.esPrincipal,
+            activa: s.activa,
         }));
 
         // Empleado/Gerente: filtrar solo su sucursal
         if (payload.tipo === 'empleado' || payload.tipo === 'gerente') {
             sucursales = sucursales.filter((s) => s.id === payload.sucursalId);
         }
+
+        // Ordenar Matriz primero, luego alfabético
+        sucursales.sort((a, b) => {
+            if (a.esPrincipal !== b.esPrincipal) return a.esPrincipal ? -1 : 1;
+            return a.nombre.localeCompare(b.nombre);
+        });
 
         return {
             success: true,
@@ -4292,7 +4514,8 @@ export async function obtenerSucursalesLista(
  */
 export async function obtenerOperadoresLista(
     payload: PayloadTokenScanYA,
-    sucursalId?: string
+    sucursalId?: string,
+    contexto: 'transacciones' | 'vouchers' | 'ambos' = 'ambos'
 ): Promise<RespuestaServicio<Array<{
     id: string;
     nombre: string;
@@ -4311,18 +4534,13 @@ export async function obtenerOperadoresLista(
             };
         }
 
-        // Determinar sucursal a filtrar
-        let filtroSucursal: string | undefined;
+        // Coherencia A (sprint multi-sucursal): todos los roles filtran por la
+        // sucursal activa del token. Se ignora el query param `sucursalId` —
+        // el header del dashboard ScanYA controla el contexto. Para vista
+        // cross-sucursal usar Business Studio.
+        const filtroSucursal = payload.sucursalId;
 
-        if (payload.tipo === 'gerente') {
-            // Gerente: forzar su sucursal
-            filtroSucursal = payload.sucursalId;
-        } else if (sucursalId) {
-            // Dueño: usar sucursal del query param si viene
-            filtroSucursal = sucursalId;
-        }
-
-        const resultado = await listarOperadoresNegocio(payload.negocioId, filtroSucursal);
+        const resultado = await listarOperadoresNegocio(payload.negocioId, filtroSucursal, contexto);
 
         if (!resultado.success || !resultado.data) {
             return {

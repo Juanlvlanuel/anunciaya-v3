@@ -1,11 +1,14 @@
 /**
  * AvatarEmpleadoScanYA.tsx
  * ========================
- * Avatar del empleado en ScanYA con funcionalidad de upload.
- * Click en el avatar abre selector de imagen.
- * Solo visible para usuarios tipo 'empleado'.
+ * Avatar del usuario en ScanYA.
  *
- * Flujo: Seleccionar imagen -> Preview local -> Comprimir (500x500) -> Upload R2 -> Guardar en BD
+ * Comportamiento por rol:
+ * - Empleado: editable. Click abre selector de imagen + upload (no tiene BS).
+ * - Dueño/Gerente: solo lectura. Muestra avatar configurado en BS → Mi Perfil.
+ *   Para cambiar la foto deben hacerlo desde Business Studio.
+ *
+ * Flujo upload (solo empleado): Seleccionar imagen -> Preview local -> Comprimir (500x500) -> Upload R2 -> Guardar en BD
  *
  * Ubicacion: apps/web/src/components/scanya/AvatarEmpleadoScanYA.tsx
  */
@@ -65,16 +68,16 @@ export default function AvatarEmpleadoScanYA() {
     return () => window.removeEventListener('resize', verificarDesktop);
   }, [verificarDesktop]);
 
-  if (!usuario || usuario.tipo !== 'empleado') return null;
+  if (!usuario) return null;
 
+  const puedeEditar = usuario.tipo === 'empleado';
   const enProceso = isUploading || guardando;
   const fotoActual = imageUrl || usuario.fotoUrl;
   const inicial = usuario.nombreUsuario?.charAt(0)?.toUpperCase() || '?';
 
   const handleClick = () => {
-    if (!enProceso) {
-      inputRef.current?.click();
-    }
+    if (!puedeEditar || enProceso) return;
+    inputRef.current?.click();
   };
 
   const handleSeleccion = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,6 +88,30 @@ export default function AvatarEmpleadoScanYA() {
     // Reset input para permitir re-seleccionar el mismo archivo
     e.target.value = '';
   };
+
+  // Dueño/Gerente: avatar solo lectura (sin click, sin cámara, sin overlay).
+  // Para cambiar la foto van a Business Studio → Mi Perfil → Imágenes.
+  if (!puedeEditar) {
+    return (
+      <div
+        data-testid="avatar-usuario-solo-lectura"
+        className="relative w-10 h-10 rounded-full shrink-0 overflow-hidden"
+        style={{
+          background: fotoActual ? 'transparent' : 'linear-gradient(135deg, #3B82F6, #2563EB)',
+          boxShadow: '0 0 10px rgba(59, 130, 246, 0.3)',
+        }}
+        aria-label="Foto de perfil"
+      >
+        {fotoActual ? (
+          <img src={fotoActual} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-white font-bold text-lg flex items-center justify-center w-full h-full">
+            {inicial}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   const botonAvatar = (
     <button

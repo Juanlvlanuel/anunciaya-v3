@@ -175,17 +175,13 @@ export async function getResenasNegocio(req: Request, res: Response): Promise<vo
             return;
         }
 
-        const { negocioId, sucursalId: sucursalToken, tipo } = req.scanyaUsuario;
+        const { negocioId, sucursalId: sucursalToken } = req.scanyaUsuario;
 
-        // Determinar sucursal a filtrar según rol
-        let sucursalFiltro: string | undefined;
-        if (tipo === 'gerente' || tipo === 'empleado') {
-            // Gerente y empleado solo ven su sucursal
-            sucursalFiltro = sucursalToken;
-        } else if (req.query.sucursalId) {
-            // Dueño puede filtrar por sucursal opcional
-            sucursalFiltro = req.query.sucursalId as string;
-        }
+        // Coherencia A (sprint multi-sucursal): la sucursal activa del token
+        // es la única fuente de verdad para los 3 roles. Se ignora el query
+        // param `sucursalId` — el header del dashboard ScanYA controla el
+        // contexto. Para vista cross-sucursal usar Business Studio.
+        const sucursalFiltro = sucursalToken;
 
         const soloPendientes = req.query.pendientes === 'true';
 

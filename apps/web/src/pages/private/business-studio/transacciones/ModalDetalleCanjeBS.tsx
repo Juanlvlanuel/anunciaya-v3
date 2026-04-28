@@ -27,6 +27,7 @@ import {
   Hourglass,
   CheckCircle,
   AlertCircle,
+  XCircle,
   Calendar,
   UserCheck,
 } from 'lucide-react';
@@ -40,25 +41,26 @@ import type { VoucherCanje } from '../../../../types/transacciones';
 // HELPERS
 // =============================================================================
 
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
 const formatearFechaCompleta = (fechaISO: string) => {
   const fecha = new Date(fechaISO);
-  return fecha.toLocaleDateString('es-MX', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const dia = DIAS_SEMANA[fecha.getDay()];
+  const diaN = String(fecha.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[fecha.getMonth()];
+  const anio = fecha.getFullYear();
+  const hora = String(fecha.getHours()).padStart(2, '0');
+  const min = String(fecha.getMinutes()).padStart(2, '0');
+  return `${dia}, ${diaN} de ${mes} de ${anio}, ${hora}:${min}`;
 };
 
 const formatearFechaCorta = (fechaISO: string) => {
   const fecha = new Date(fechaISO);
-  return fecha.toLocaleDateString('es-MX', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[fecha.getMonth()];
+  const anio = fecha.getFullYear();
+  return `${dia} ${mes} ${anio}`;
 };
 
 const formatearTelefono = (tel: string): string => {
@@ -92,12 +94,14 @@ const GRADIENTES_ESTADO = {
   pendiente: { bg: 'linear-gradient(135deg, #1e40af, #2563eb)', shadow: 'rgba(37,99,235,0.4)' },
   usado: { bg: 'linear-gradient(135deg, #064e3b, #065f46)', shadow: 'rgba(5,150,105,0.4)' },
   expirado: { bg: 'linear-gradient(135deg, #7f1d1d, #991b1b)', shadow: 'rgba(220,38,38,0.4)' },
+  cancelado: { bg: 'linear-gradient(135deg, #475569, #64748b)', shadow: 'rgba(100,116,139,0.4)' },
 };
 
 const ICONOS_ESTADO = {
   pendiente: <Hourglass className="w-5 h-5 text-blue-200" />,
   usado: <CheckCircle className="w-5 h-5 text-emerald-300" />,
   expirado: <AlertCircle className="w-5 h-5 text-red-300" />,
+  cancelado: <XCircle className="w-5 h-5 text-slate-300" />,
 };
 
 const ETIQUETAS_ESTADO = {
@@ -152,6 +156,7 @@ export default function ModalDetalleCanjeBS({
   canje: VoucherCanje | null;
 }) {
   const totalSucursales = useAuthStore((s) => s.totalSucursales);
+  const nombreNegocio = useAuthStore((s) => s.usuario?.nombreNegocio ?? null);
   const tieneSucursales = totalSucursales > 1;
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
   const abrirChatYA = useUiStore((s) => s.abrirChatYA);
@@ -202,7 +207,7 @@ export default function ModalDetalleCanjeBS({
       mostrarHeader={false}
       paddingContenido="none"
       sinScrollInterno
-      className={`lg:max-w-sm 2xl:max-w-md max-lg:[background:linear-gradient(180deg,${canje.estado === 'pendiente' ? '#1e40af' : canje.estado === 'usado' ? '#064e3b' : '#7f1d1d'}_2.5rem,rgb(248,250,252)_2.5rem)]`}
+      className={`lg:max-w-sm 2xl:max-w-md max-lg:[background:linear-gradient(180deg,${canje.estado === 'pendiente' ? '#1e40af' : canje.estado === 'usado' ? '#064e3b' : canje.estado === 'cancelado' ? '#475569' : '#7f1d1d'}_2.5rem,rgb(248,250,252)_2.5rem)]`}
     >
       <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
       {/* ── Header dark con estado ── */}
@@ -315,7 +320,7 @@ export default function ModalDetalleCanjeBS({
           <div className="flex items-start gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
             <div className={`flex-1 min-w-0 ${tieneSucursales && canje.sucursalNombre ? 'grid grid-cols-2 gap-x-3' : ''}`}>
               {canje.usadoPorNombre && (
-                <div className="flex items-start gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
                     <UserCheck className="w-4 h-4 text-blue-600" />
                   </div>
@@ -325,17 +330,29 @@ export default function ModalDetalleCanjeBS({
                   </div>
                 </div>
               )}
-              {tieneSucursales && canje.sucursalNombre && (
-                <div className="flex items-start gap-2 min-w-0">
-                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4 text-purple-600" />
+              {tieneSucursales && canje.sucursalNombre && (() => {
+                // Se considera "Matriz" si el nombre de la sucursal coincide
+                // con el del negocio — al crear sucursales la principal queda
+                // con el mismo nombre. VoucherCanje no expone sucursalId, por
+                // eso el check es por nombre y no por comparación de IDs.
+                const esMatriz =
+                  !!nombreNegocio &&
+                  canje.sucursalNombre.trim().toLowerCase() ===
+                    nombreNegocio.trim().toLowerCase();
+                return (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                      <MapPin className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium truncate">{nombreNegocio ?? 'Sucursal'}</p>
+                      <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">
+                        {esMatriz ? 'Matriz' : canje.sucursalNombre}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Sucursal</p>
-                    <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">{canje.sucursalNombre}</p>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         )}

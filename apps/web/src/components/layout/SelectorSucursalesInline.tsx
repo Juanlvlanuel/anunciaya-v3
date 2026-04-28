@@ -111,9 +111,13 @@ export default function SelectorSucursalesInline() {
   // CASO 1: GERENTE (sin flechas, muestra nombre fijo)
   // =========================================================================
   if (esGerente) {
-    // Buscar el nombre de la sucursal asignada
+    // Buscar la sucursal asignada. Si es la principal del negocio mostramos
+    // "Matriz" en lugar del nombre real (que suele ser igual al del negocio
+    // y produciría texto redundante tipo "Imprenta FindUS / Imprenta FindUS").
     const sucursalAsignada = sucursales.find(s => s.id === usuario?.sucursalAsignada);
-    const nombreSucursal = sucursalAsignada?.nombre || 'Sucursal Fija';
+    const nombreSucursal = sucursalAsignada?.esPrincipal
+      ? 'Matriz'
+      : (sucursalAsignada?.nombre || 'Sucursal Fija');
 
     return (
       <div className="flex flex-col">

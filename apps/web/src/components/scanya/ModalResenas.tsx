@@ -25,8 +25,6 @@ import {
   RefreshCw,
   Send,
   MessageSquare,
-  ChevronDown,
-  Check,
   Pencil,
 } from 'lucide-react';
 import { useScanYAStore } from '@/stores/useScanYAStore';
@@ -48,102 +46,7 @@ interface ModalResenasProps {
 // COMPONENTE: DROPDOWN FILTRO SUCURSAL (reutilizable)
 // =============================================================================
 
-interface DropdownOption {
-  id: string;
-  label: string;
-}
-
-interface DropdownProps {
-  options: DropdownOption[];
-  value: string | undefined;
-  onChange: (value: string | undefined) => void;
-  placeholder: string;
-  disabled?: boolean;
-}
-
-function DropdownFiltro({ options, value, onChange, placeholder, disabled }: DropdownProps) {
-  const [abierto, setAbierto] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setAbierto(false);
-      }
-    };
-    if (abierto) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [abierto]);
-
-  const selectedOption = options.find(opt => opt.id === value);
-
-  return (
-    <div ref={dropdownRef} className="relative flex-1">
-      <button
-        type="button"
-        onClick={() => !disabled && setAbierto(!abierto)}
-        disabled={disabled}
-        className="
-          w-full flex items-center justify-between
-          py-2 px-3 rounded-lg lg:rounded-md 2xl:rounded-lg
-          text-sm lg:text-xs 2xl:text-sm
-          cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 transition-all
-        "
-        style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: abierto ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
-          color: value ? '#3B82F6' : '#94A3B8',
-        }}
-      >
-        <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-        <ChevronDown className={`w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-[#94A3B8] shrink-0 ml-2 transition-transform ${abierto ? 'rotate-180' : ''}`} />
-      </button>
-
-      {abierto && (
-        <div
-          className="absolute z-50 w-full mt-1 rounded-lg lg:rounded-md 2xl:rounded-lg overflow-hidden shadow-xl"
-          style={{
-            background: 'linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            maxHeight: '200px',
-            overflowY: 'auto',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => { onChange(undefined); setAbierto(false); }}
-            className="w-full flex items-center justify-between px-3 py-2.5 text-sm lg:text-xs 2xl:text-sm text-left cursor-pointer transition-colors"
-            style={{
-              background: !value ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-              color: !value ? '#3B82F6' : '#94A3B8',
-            }}
-          >
-            <span>{placeholder}</span>
-            {!value && <Check className="w-4 h-4 text-[#3B82F6]" />}
-          </button>
-          <div className="h-px bg-white/10" />
-          {options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => { onChange(option.id); setAbierto(false); }}
-              className="w-full flex items-center justify-between px-3 py-2.5 text-sm lg:text-xs 2xl:text-sm text-left cursor-pointer transition-colors"
-              style={{
-                background: value === option.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                color: value === option.id ? '#3B82F6' : '#94A3B8',
-              }}
-              onMouseEnter={(e) => { if (value !== option.id) { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.color = '#FFFFFF'; } }}
-              onMouseLeave={(e) => { if (value !== option.id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94A3B8'; } }}
-            >
-              <span className="truncate">{option.label}</span>
-              {value === option.id && <Check className="w-4 h-4 text-[#3B82F6] shrink-0" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// (DropdownFiltro eliminado: Coherencia A — el filtro de sucursal lo dicta el header del dashboard)
 
 // =============================================================================
 // COMPONENTE: TARJETA DE RESEÑA
@@ -373,15 +276,9 @@ export function ModalResenas({ abierto, onClose, onResenaRespondida }: ModalRese
 
   // ---------------------------------------------------------------------------
   // Estado - Filtros
+  // (Coherencia A: la sucursal viene del header/token, no hay filtro interno)
   // ---------------------------------------------------------------------------
   const [filtro, setFiltro] = useState<'todas' | 'pendientes'>('todas');
-  const [filtroSucursalId, setFiltroSucursalId] = useState<string | undefined>(undefined);
-
-  // ---------------------------------------------------------------------------
-  // Estado - Listas para dropdown
-  // ---------------------------------------------------------------------------
-  const [sucursales, setSucursales] = useState<Array<{ id: string; nombre: string }>>([]);
-  const [cargandoListas, setCargandoListas] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Estado - Reseñas
@@ -392,38 +289,21 @@ export function ModalResenas({ abierto, onClose, onResenaRespondida }: ModalRese
   const [yaCargo, setYaCargo] = useState(false);
   const [contadores, setContadores] = useState({ total: 0, pendientes: 0 });
   const prevFiltro = useRef(filtro);
-  const prevSucursal = useRef(filtroSucursalId);
-
-  // ---------------------------------------------------------------------------
-  // Permisos
-  // ---------------------------------------------------------------------------
-  const puedeVerFiltroSucursal = tipoUsuario === 'dueno';
-
-  // ---------------------------------------------------------------------------
-  // Cargar listas (sucursales)
-  // ---------------------------------------------------------------------------
-  const cargarListas = useCallback(async () => {
-    if (tipoUsuario !== 'dueno') return;
-    setCargandoListas(true);
-    try {
-      const res = await scanyaService.obtenerSucursalesLista();
-      if (res.success && res.data) setSucursales(res.data);
-    } catch (err) {
-      console.error('Error cargando sucursales:', err);
-    } finally {
-      setCargandoListas(false);
-    }
-  }, [tipoUsuario]);
 
   // ---------------------------------------------------------------------------
   // Cargar reseñas
+  //
+  // Patrón keepPreviousData: cuando hay datos cargados (cambio de filtro o de
+  // sucursal con modal abierto), pasamos `mantenerDatos=true` para evitar el
+  // loader. La lista vieja queda visible hasta que llega la nueva.
   // ---------------------------------------------------------------------------
-  const cargarResenas = useCallback(async () => {
-    setCargando(true);
+  const cargarResenas = useCallback(async (mantenerDatos: boolean = false) => {
+    if (!mantenerDatos) setCargando(true);
     setError(null);
     try {
-      // Siempre cargar TODAS para tener contadores reales
-      const respTodas = await scanyaService.obtenerResenasNegocio(filtroSucursalId, false);
+      // Siempre cargar TODAS para tener contadores reales.
+      // Sin sucursalId: el backend filtra por la sucursal del token.
+      const respTodas = await scanyaService.obtenerResenasNegocio(undefined, false);
 
       if (respTodas.success && respTodas.data) {
         const todas = respTodas.data;
@@ -443,31 +323,49 @@ export function ModalResenas({ abierto, onClose, onResenaRespondida }: ModalRese
       console.error('Error cargando reseñas:', err);
       setError('Error de conexión. Intenta de nuevo.');
     } finally {
-      setCargando(false);
+      if (!mantenerDatos) setCargando(false);
     }
-  }, [filtro, filtroSucursalId]);
+  }, [filtro]);
 
   // ---------------------------------------------------------------------------
   // Efectos
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (abierto && !yaCargo) {
-      cargarListas();
       cargarResenas();
       setYaCargo(true);
     }
   }, [abierto, yaCargo]);
 
-  // Recargar cuando cambian filtros
+  // Reset al cerrar: filtros y UI vuelven a base. Mantenemos `resenas` y
+  // `yaCargo` para que al reabrir la lista siga visible (keepPreviousData)
+  // mientras llega la respuesta nueva si el filtro cambió. Sin loader.
+  useEffect(() => {
+    if (!abierto) {
+      setFiltro('todas');
+    }
+  }, [abierto]);
+
+  // Recargar cuando cambia el filtro tabs (mantener datos visibles)
+  useEffect(() => {
+    // El `prev.current` se actualiza solo cuando el modal está abierto. Si el
+    // filtro cambia mientras está cerrado (por el reset), la próxima apertura
+    // detecta la diferencia y dispara recarga sin loader (keepPreviousData).
+    if (abierto && yaCargo) {
+      if (filtro !== prevFiltro.current) {
+        cargarResenas(true);
+      }
+      prevFiltro.current = filtro;
+    }
+  }, [filtro, abierto, yaCargo]);
+
+  // Recargar al cambiar la sucursal activa con el modal abierto
+  // (Coherencia A: keepPreviousData — sin parpadeo)
   useEffect(() => {
     if (abierto && yaCargo) {
-      if (filtro !== prevFiltro.current || filtroSucursalId !== prevSucursal.current) {
-        cargarResenas();
-      }
+      cargarResenas(true);
     }
-    prevFiltro.current = filtro;
-    prevSucursal.current = filtroSucursalId;
-  }, [filtro, filtroSucursalId, abierto, yaCargo]);
+  }, [usuario?.sucursalId]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -516,7 +414,8 @@ export function ModalResenas({ abierto, onClose, onResenaRespondida }: ModalRese
   useEffect(() => {
     if (!abierto) return;
     let cerradoPorBack = false;
-    history.pushState({ modal: 'resenas' }, '');
+    const mid = `resenas-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    history.pushState({ scanyaModal: true, mid }, '');
     const handlePopState = () => {
       cerradoPorBack = true;
       onCloseRef.current();
@@ -524,7 +423,15 @@ export function ModalResenas({ abierto, onClose, onResenaRespondida }: ModalRese
     window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('popstate', handlePopState);
-      if (!cerradoPorBack) history.back();
+      if (!cerradoPorBack) {
+        // Diferir el back: si en este mismo tick otro modal abre y hace
+        // pushState, history.state.mid cambia y NO hacemos back (evita el race
+        // donde el popstate de nuestro back cerraría el modal nuevo).
+        setTimeout(() => {
+          const midActual = (history.state as { mid?: string } | null)?.mid;
+          if (midActual === mid) history.back();
+        }, 0);
+      }
     };
   }, [abierto]);
 
@@ -619,19 +526,7 @@ export function ModalResenas({ abierto, onClose, onResenaRespondida }: ModalRese
         </div>
 
         {/* ============================================================== */}
-        {/* FILTRO SUCURSAL (solo dueño) */}
-        {/* ============================================================== */}
-        {puedeVerFiltroSucursal && sucursales.length > 1 && (
-          <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10">
-            <DropdownFiltro
-              options={sucursales.map(s => ({ id: s.id, label: s.nombre }))}
-              value={filtroSucursalId}
-              onChange={setFiltroSucursalId}
-              placeholder="Todas las sucursales"
-              disabled={cargandoListas}
-            />
-          </div>
-        )}
+        {/* Coherencia A: el filtro de sucursal lo dicta el header del dashboard */}
 
         {/* ============================================================== */}
         {/* CONTENIDO CON SCROLL */}

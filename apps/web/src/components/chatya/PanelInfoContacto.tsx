@@ -30,6 +30,7 @@ import type { NegocioCompleto } from '../../types/negocios';
 import type { ClienteDetalle } from '../../types/clientes';
 import { notificar } from '../../utils/notificaciones';
 import { useBreakpoint, BreakpointOverride } from '../../hooks/useBreakpoint';
+import { PortalTargetProvider } from '../../hooks/usePortalTarget';
 import { GaleriaArchivosCompartidos, invalidarCachéGaleria } from './GaleriaArchivosCompartidos';
 import Tooltip from '../ui/Tooltip';
 import { ModalHorarios } from '../negocios/ModalHorarios';
@@ -235,6 +236,10 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const [cargando, setCargando] = useState(false);
   const [galeriaAbierta, setGaleriaAbierta] = useState(false);
   const [vistaPerfilAbierta, setVistaPerfilAbierta] = useState(false);
+
+  // Portal target para contener los modales del perfil al panel de ChatYA.
+  // Sin esto, los modales escaparían al viewport del PC y romperían la metáfora del panel lateral.
+  const [targetPerfilChatYA, setTargetPerfilChatYA] = useState<HTMLElement | null>(null);
   const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false);
   const vistaPerfilHistoryRef = useRef(false);
   const popStatePerfilRef = useRef<(() => void) | null>(null);
@@ -683,19 +688,25 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        if (otro?.id) {
-                          window.dispatchEvent(
-                            new CustomEvent('chatya:ver-cliente', { detail: { clienteId: otro.id } })
-                          );
-                        }
-                      }}
-                      className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer shadow-lg shadow-slate-700/30 active:scale-[0.98] bg-[#1e293b]"
-                    >
-                      <span>Ver detalle del cliente</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                    {/* "Ver detalle del cliente" oculto en ScanYA: ahí los 3 roles
+                        operan el chat con la info básica del panel (puntos, nivel,
+                        última compra, archivos). El detalle completo es trabajo de
+                        gestión y vive en Business Studio → Clientes. */}
+                    {!window.location.pathname.startsWith('/scanya') && (
+                      <button
+                        onClick={() => {
+                          if (otro?.id) {
+                            window.dispatchEvent(
+                              new CustomEvent('chatya:ver-cliente', { detail: { clienteId: otro.id } })
+                            );
+                          }
+                        }}
+                        className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer shadow-lg shadow-slate-700/30 active:scale-[0.98] bg-[#1e293b]"
+                      >
+                        <span>Ver detalle del cliente</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    )}
                   </>
                 )}
               </>
@@ -829,7 +840,11 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
 
       {/* ─── Bloque B: Vista Perfil — siempre en DOM (precargado en background), show/hide con CSS ─── */}
       {tipoVista === 'negocio' && sucursalIdNegocio && (
-        <div className={`perfil-contenedor flex-1 flex flex-col ${vistaPerfilAbierta ? '' : 'hidden'}`} style={{ minHeight: 0 }}>
+        // @container: container query root del panel lateral de ChatYA (~400px) → PaginaPerfilNegocio
+        // y sus secciones se renderizan con layout mobile al ser el ancho estrecho.
+        // relative + ref: portal target para que los modales descendientes se contengan al panel.
+        <div ref={setTargetPerfilChatYA} className={`@container perfil-contenedor flex-1 flex flex-col relative ${vistaPerfilAbierta ? '' : 'hidden'}`} style={{ minHeight: 0 }}>
+          <PortalTargetProvider target={targetPerfilChatYA}>
           {/* Header con flecha atrás — siempre estilo mobile azul */}
           <div className="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-white/10 bg-[#0B358F]">
             <button
@@ -843,7 +858,9 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               {nombreMostrar}
             </span>
           </div>
-          {/* Componente directo — sin iframe, misma instancia React */}
+          {/* Render directo — misma instancia React (comparte caché React Query). El wrapper
+              padre tiene @container para que los container queries de PaginaPerfilNegocio
+              respondan al ancho del panel lateral (~400px) y renderice layout mobile. */}
           <div className="perfil-embebido flex-1 overflow-y-auto bg-white" style={{ WebkitOverflowScrolling: 'touch' }}>
             <Suspense fallback={
               <div className="flex-1 flex items-center justify-center py-20">
@@ -855,6 +872,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               </BreakpointOverride>
             </Suspense>
           </div>
+          </PortalTargetProvider>
         </div>
       )}
     </div>

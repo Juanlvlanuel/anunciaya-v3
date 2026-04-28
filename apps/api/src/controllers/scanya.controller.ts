@@ -9,6 +9,7 @@
 import type { Request, Response } from 'express';
 import {
   loginDuenoSchema,
+  cambiarSucursalSchema,
   loginEmpleadoSchema,
   cerrarTurnoSchema,
   identificarClienteSchema,
@@ -24,6 +25,7 @@ import {
 } from '../validations/scanya.schema.js';
 import {
   loginDueno,
+  cambiarSucursalDueno,
   loginEmpleado,
   refrescarTokenScanYA,
   obtenerUsuarioScanYA,
@@ -91,6 +93,53 @@ export async function loginDuenoController(req: Request, res: Response): Promise
   // ---------------------------------------------------------------------------
   // Paso 3: Responder
   // ---------------------------------------------------------------------------
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
+    message: resultado.message,
+    data: resultado.data,
+  });
+}
+
+// =============================================================================
+// CONTROLLER 1.5: CAMBIAR SUCURSAL (solo dueño)
+// =============================================================================
+
+/**
+ * POST /api/scanya/cambiar-sucursal
+ *
+ * Cambia la sucursal activa del dueño durante una sesión ScanYA.
+ * Cierra el turno actual (si existe) y re-emite tokens con la nueva sucursalId.
+ *
+ * Body esperado:
+ * {
+ *   "sucursalId": "uuid"
+ * }
+ *
+ * Solo accesible para usuarios con tipo='dueno'. Gerentes y empleados → 403.
+ */
+export async function cambiarSucursalController(req: Request, res: Response): Promise<void> {
+  if (!req.scanyaUsuario) {
+    res.status(401).json({
+      success: false,
+      message: 'No autenticado',
+    });
+    return;
+  }
+
+  // Validar body con Zod
+  const validacion = cambiarSucursalSchema.safeParse(req.body);
+
+  if (!validacion.success) {
+    res.status(400).json({
+      success: false,
+      message: 'Datos inválidos',
+      errors: formatearErroresZod(validacion.error),
+    });
+    return;
+  }
+
+  const resultado = await cambiarSucursalDueno(req.scanyaUsuario, validacion.data.sucursalId);
+
   res.status(resultado.code ?? 200).json({
     success: resultado.success,
     message: resultado.message,
@@ -1215,8 +1264,13 @@ export async function operadoresListaController(req: Request, res: Response): Pr
   }
 
   const sucursalId = req.query.sucursalId as string | undefined;
+  const contextoRaw = req.query.contexto as string | undefined;
+  const contexto: 'transacciones' | 'vouchers' | 'ambos' =
+    contextoRaw === 'transacciones' || contextoRaw === 'vouchers'
+      ? contextoRaw
+      : 'ambos';
 
-  const resultado = await obtenerOperadoresLista(req.scanyaUsuario, sucursalId);
+  const resultado = await obtenerOperadoresLista(req.scanyaUsuario, sucursalId, contexto);
 
   res.status(resultado.code ?? 200).json({
     success: resultado.success,

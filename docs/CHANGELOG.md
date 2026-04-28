@@ -7,6 +7,364 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [27-28 Abril 2026] - Sprint ScanYA Multi-Sucursal cerrado ✅
+
+Cierre del **sprint dedicado de ScanYA Multi-Sucursal** (las 4 fases completas). El backend ya estaba listo; este sprint completó el frontend, validó los 3 roles (dueño/gerente/empleado), aplicó coherencia de filtros por sucursal en todos los modales, y arregló bugs de timing y consistencia descubiertos durante las pruebas.
+
+### 🎯 Fase 1 — UI selector de sucursal (frontend)
+
+- **Backend nuevo**: `POST /api/scanya/cambiar-sucursal` ([scanya.routes.ts:67](apps/api/src/routes/scanya.routes.ts:67)) → cierra turno actual, re-emite tokens, deja al frontend abrir el turno nuevo. Schema Zod `cambiarSucursalSchema` agregado.
+- **`loginDueno` retoma turno colgado**: si el dueño tenía un turno abierto en otra sucursal, el login entra a esa sucursal en lugar de Matriz por default. Si la sucursal está desactivada, fallback a Matriz con guard.
+- **Tipo `UsuarioScanYA.esSucursalPrincipal`** agregado al store + propagado en `loginDueno`, `loginEmpleado` y `cambiarSucursalDueno`. Permite mostrar "Matriz" en UI sin depender del nombre real de la sucursal en BD (que suele coincidir con el del negocio).
+- **`obtenerSucursalesLista`** ahora retorna `esPrincipal` y `activa`, ordena Matriz primero. Compatibilidad con consumidores existentes (filtros de Vouchers/Historial/Reseñas).
+- **Componente `ModalCambiarSucursalScanYA`** ([apps/web/src/components/scanya/ModalCambiarSucursalScanYA.tsx](apps/web/src/components/scanya/ModalCambiarSucursalScanYA.tsx)) — bottom-sheet móvil + dropdown desktop, ⭐ Matriz, sucursal activa marcada con check verde, confirmación inline si hay turno con datos, bypass si turno vacío. Renderizado vía `createPortal(document.body)` para escapar del stacking context del header sticky y aparecer encima de cualquier overlay (incluido ChatYA).
+- **`HeaderScanYA`**: chip clickeable en desktop (centro del header con `ChevronDown`) y botón circular (40x40) en móvil junto al avatar y logout. Solo visible si `usuario.puedeElegirSucursal && totalSucursales > 1`.
+- **`PaginaScanYA.cargarDatos(silencioso?)`**: refresh fluido al cambiar sucursal sin parpadeo (keepPreviousData manual).
+- **Avatar de empleado** ([AvatarEmpleadoScanYA.tsx](apps/web/src/components/scanya/AvatarEmpleadoScanYA.tsx)) ahora también se muestra para dueño/gerente, en modo solo lectura (sin botón cámara). Para cambiar la foto van a BS → Mi Perfil → Imágenes.
+
+### 🎯 Fase 2 — 3 roles validados
+
+- **Dueño**: ve chip clickeable, puede cambiar sucursal, retoma turno colgado al re-loguear, opera en cualquier sucursal activa.
+- **Gerente**: NO ve chip clickeable. Header desktop muestra `Imprenta FindUS · Matriz` como texto estático. Si intenta forzar `/cambiar-sucursal` desde DevTools → 403 "Solo el dueño puede cambiar de sucursal".
+- **Empleado**: NO ve chip. Login con nick+PIN va directo a su sucursal asignada. Sigue pudiendo cambiar su avatar desde el header.
+
+### 🎯 Fase 3 — Coherencia A: filtro por sucursal activa en todos los modales
+
+Decisión arquitectural: **el header del dashboard ScanYA es la única fuente de verdad del contexto de sucursal**. Todos los modales filtran automáticamente por `payload.sucursalId` del token. Para vista cross-sucursal el dueño usa Business Studio.
+
+- **Vouchers** ([scanya.service.ts:obtenerVouchers](apps/api/src/services/scanya.service.ts)): filtra por sucursal del token (incluye NULL para pendientes cross-sucursal canjeables). Se agregó `sucursalEsPrincipal` al payload para mostrar "Matriz" en el detalle. Frontend: dropdown de sucursal eliminado.
+- **Historial de Transacciones** ([scanya.service.ts:obtenerHistorial](apps/api/src/services/scanya.service.ts)): filtra por sucursal del token para los 3 roles. Subtítulo del header dinámico ("Matriz" / nombre real). Dropdown de sucursal eliminado del frontend.
+- **Reseñas** ([resenas.controller.ts:getResenasNegocio](apps/api/src/controllers/resenas.controller.ts)): controller filtra por `req.scanyaUsuario.sucursalId` para los 3 roles. Frontend: eliminado el dropdown de sucursal y la función completa `DropdownFiltro` interna (~80 líneas).
+- **Recordatorios (Offline)** ([scanya.service.ts:obtenerRecordatorios](apps/api/src/services/scanya.service.ts)): el dueño ahora también filtra por sucursal del token (antes veía todos los del negocio).
+- **Contadores del header** ([scanya.service.ts:obtenerContadores](apps/api/src/services/scanya.service.ts)): badges de Reseñas y Recordatorios cambian con la sucursal activa.
+
+### 🎯 Fase 4 — Stats ScanYA en BS Empleados
+
+- **Bug encontrado**: las stats del modal de detalle leían contadores de `scanya_turnos` (transacciones, puntos_otorgados) que pueden estar desincronizados con la realidad por deuda técnica histórica.
+- **Fix**: [empleados.service.ts:obtenerEstadisticasTurnos](apps/api/src/services/empleados.service.ts) ahora cuenta directamente desde `puntos_transacciones` con `estado='confirmado'` (misma fuente que BS Transacciones). Los números cuadran.
+- **Validado** con cuenta de empleado Carlos López (Matriz): 1 venta registrada → modal de detalle muestra 1 transacción / 124 puntos (en lugar de 11/4142 inflados).
+
+### 🐛 Bugs adicionales arreglados durante el sprint
+
+- **Race condition entre modales**: cambiar de un modal a otro causaba que el segundo no abriera. Causado por el `history.back()` síncrono del cleanup de un modal, que disparaba el `popstate` listener del modal nuevo. **Fix**: `setTimeout 0` con check de `mid` único — si otro modal ya hizo `pushState`, no hacemos back. Aplicado a Vouchers, Historial, Reseñas, Recordatorios, RegistrarVenta, CanjearVoucher.
+- **Banner "Continuando turno" duplicado y disparado en cambios activos**: eliminado completamente. La duración del turno y el chip del header dan suficiente contexto.
+- **Modal cambiar sucursal quedaba detrás del chat** por stacking context del header sticky. **Fix**: `createPortal(document.body)`.
+- **Exclusión mutua chat/modal**: ChatYA y modales de ScanYA ya no coexisten en pantalla (el chat ocupaba todo el ancho, tapaba modales). Al abrir uno se cierra el otro automáticamente. Fix preventivo en `ChatOverlay` para no hacer `history.back()` si el state actual es de un modal de ScanYA.
+- **"Ver detalle del cliente" oculto en ScanYA** ([PanelInfoContacto.tsx](apps/web/src/components/chatya/PanelInfoContacto.tsx)) — para los 3 roles. Ese flujo es de gestión y vive en BS → Clientes.
+- **Filtro de operadores muestra solo quienes han operado realmente** ([negocios.service.ts:listarOperadoresNegocio](apps/api/src/services/negocios.service.ts)): nuevo parámetro `contexto: 'transacciones' | 'vouchers' | 'ambos'`. Vouchers requiere `estado='usado'` Y `sucursal_id` estricto (sin OR NULL).
+- **Filtro de operador oculto en tabs Pendientes/Vencidos del modal Vouchers**: solo aparece en Usados (los pendientes/vencidos tienen `usado_por = NULL`).
+- **Tab "Cancelados" eliminado del modal Vouchers**: la cancelación es acción del cliente desde CardYA, no aporta info operativa al comerciante. Tab "Expirados" → "Vencidos" (también en mensajes vacíos y detalle: "Vence" / "Venció").
+- **Header de gerente en BS** ([SelectorSucursalesInline.tsx](apps/web/src/components/layout/SelectorSucursalesInline.tsx)): mostraba "Imprenta FindUS / Imprenta FindUS" duplicado cuando la sucursal asignada era la principal. Ahora muestra "Imprenta FindUS / Matriz".
+- **Reset de filtros al cerrar modales** (Vouchers, Historial, Reseñas): filtros y UI vuelven a base. Cache de datos se mantiene (yaCargo, lista, página) → al reabrir si hay filtros distintos, recarga sin loader (keepPreviousData estricto).
+- **`pn.tsx` — TS error preexistente** en `ModalDetalleCanjeBS.tsx:197` corregido (estado 'cancelado' faltante en `GRADIENTES_ESTADO` e `ICONOS_ESTADO`).
+
+### 📋 Tareas separadas flageadas (no de este sprint)
+
+- **Auto-cierre de turnos por inactividad** — turnos colgados de 19+ días en BD. Sprint dedicado.
+- **Rediseño PanelInfoContacto vista comercial** — KPIs en lugar de cards, scroll interno en archivos.
+- **Bug zona horaria en Reportes BS — Horarios pico** — agrupa con offset incorrecto.
+
+### 🏁 Estado del sprint
+
+Las 4 fases completadas. Frontend de ScanYA ya soporta multi-sucursal completo con UX coherente. Documento `docs/reportes/prompt-sprint-scanya-multi-sucursal.md` marcado como cerrado.
+
+---
+
+## [25 Abril 2026 — tarde] - Sprint multi-sucursal: módulos 10 + 12 cerrados → Prueba 1 ✅ completa
+
+Cierre del **módulo 10 (Mi Perfil)** y **módulo 12 (Sucursales)** del sprint multi-sucursal. Con esto la **Prueba 1 (vista dueño, 12 módulos BS) queda completa**.
+
+### 🎯 Cerrado del sprint multi-sucursal (módulo 10 — Mi Perfil)
+
+- **Módulo 10 — Mi Perfil** ✅. Diseño arquitectural validado: la página adapta sus tabs según la sucursal activa.
+  - **En Matriz** se ven 6 tabs (Negocio, Contacto, Ubicación, Horarios, Imágenes, Operación) con campos globales del negocio + datos de la Matriz.
+  - **En sucursales secundarias** se ven 5 tabs (Sucursal, Ubicación, Horarios, Imágenes, Operación) — el tab "Negocio" desaparece y "Contacto" se fusiona en "Sucursal".
+  - **Globales** (solo en Matriz): Nombre del negocio, Descripción, Categoría, Subcategorías, CardYA, Sitio Web, Logo.
+  - **Por-sucursal**: Nombre de la sucursal, Teléfono, WhatsApp, Correo, Redes Sociales, Dirección, Mapa, Horarios, Foto de Perfil, Portada, Galería, Métodos de Pago, Opciones de Entrega.
+  - Edición probada: cambio en sucursal secundaria no contamina Matriz.
+
+### 🎯 Cerrado del sprint multi-sucursal (módulo 12 — Sucursales)
+
+- **Módulo 12 — Sucursales** ✅. Exclusivo de Matriz, protegido por `MatrizGuard` (ver módulo 8). La gestión de sucursales fue el insumo del sprint completo (recomendaciones 1-18 ya documentadas).
+
+### 🎨 Refactor UI: botones del tab Imágenes (Mi Perfil)
+
+Los botones "Cambiar" (azul) y "Eliminar" (rojo) del tab Imágenes no combinaban con el resto de los módulos del BS, que usan paleta slate/dark gradient (TC-7).
+
+**Archivo:** [apps/web/src/pages/private/business-studio/perfil/components/TabImagenes.tsx:574-595](apps/web/src/pages/private/business-studio/perfil/components/TabImagenes.tsx:574)
+
+| Botón | Antes | Después |
+|---|---|---|
+| Cambiar / Subir | `bg-blue-100 text-blue-600 border-blue-300` | Dark gradient `linear-gradient(135deg, #1e293b, #334155)` con `text-white shadow-sm` (TC-7 acción primaria) |
+| Eliminar | `bg-red-50 text-red-600 border-red-200` | `bg-white text-slate-700 border-slate-300` con tinte rojo solo en hover (TC-7 botón secundario destructivo) |
+| Texto "Subiendo..." | `text-blue-600` | `text-slate-600` (coherencia) |
+
+**Criterio**: aplicar el patrón estandarizado de TC-7 — primario en dark gradient (igual que `+Nueva Oferta`, `+Nuevo Artículo`), secundario en blanco con borde slate. La indicación destructiva (rojo) aparece solo al hover, evitando saturación visual del card.
+
+### ✅ Prueba 1 — Filtrado vista dueño completada
+
+12/12 módulos BS validados con auditoría multi-sucursal.
+
+### ✅ Prueba 2 — Vista gerente confirmada
+
+Validada en sesiones previas del sprint con gerentes María y Jazmín (con `sucursalAsignada`). Puntos confirmados:
+- Selector de sucursal oculto en navbar
+- Menú lateral filtra "Sucursales" y "Puntos y Recompensas"
+- `MatrizGuard` redirige acceso por URL directa a esos módulos
+- Data filtrada automáticamente a la sucursal asignada del gerente
+- Mi Perfil muestra solo los 5 tabs por-sucursal (sin tab "Negocio")
+
+### 🏁 Sprint multi-sucursal cerrado al 100%
+
+Las 2 pruebas terminadas. El filtrado multi-sucursal en Business Studio funciona correctamente en los 12 módulos validados (vista dueño + vista gerente).
+
+---
+
+## [25 Abril 2026] - Sprint multi-sucursal: módulo 11 Reportes + fix query mejorOferta
+
+Cierre del módulo **Reportes** del sprint multi-sucursal.
+
+### 🎯 Cerrado
+
+- **Módulo 11 — Reportes** ✅. Reportes NO es exclusivo de Matriz (a diferencia de Puntos/Sucursales). Filtra correctamente por sucursal en los 5 sub-tabs (Ventas, Clientes, Empleados, Promociones, Reseñas). Validado con números reales: Matriz $17,883/45 trans/Juan Manuel top vs Norte $950/4 trans/Ian Manuel top.
+
+### 🐛 Bug encontrado y mitigado: query `mejorOferta` en Reportes
+
+**Síntoma**: en Norte, el bloque "Oferta más popular" del tab Promociones de Reportes mostraba placeholder oscuro sin imagen, aunque la oferta "ganadora" sí tenía foto en Matriz.
+
+**Causa raíz** (compuesta):
+1. **Bug histórico en `duplicarOfertaASucursales`** (`apps/api/src/services/ofertas.service.ts:1094`) — antes del fix, el INSERT de la copia NO incluía el campo `imagen`, dejando ofertas duplicadas con `imagen=NULL` permanentemente en BD. Hoy el código está corregido (línea 1094 con comentario `← AGREGAR ESTA LÍNEA`), pero las ofertas duplicadas durante el período del bug quedaron huérfanas.
+2. **Query del reporte no filtraba ofertas con 0 clicks** — `ORDER BY metricasEntidad.totalClicks DESC NULLS LAST LIMIT 1` no es determinístico cuando todas las ofertas tienen 0 clicks. Retornaba arbitrariamente cualquier oferta con registro en `metricasEntidad`, y si esa específica era una de las huérfanas legacy → response con `imagen: null`, `descripcion: null`.
+
+**Fix aplicado** en [reportes.service.ts:836](apps/api/src/services/reportes.service.ts:836):
+
+```ts
+.where(and(
+  eq(ofertas.negocioId, negocioId),
+  sql`${ofertas.visibilidad} = 'publico'`,
+  sql`${metricasEntidad.totalClicks} > 0`,  // ← NUEVO
+  ...
+))
+```
+
+Ahora cuando ninguna oferta tiene clicks reales, `mejorOferta = null` → el componente muestra el `emptyText`: "Sin clicks en ofertas" (coherente con `metricaLabel: 'clicks'`).
+
+**Validación del flujo actual**: el usuario duplicó una oferta CON foto desde Matriz → Sucursal Norte usando el botón ⎘ duplicar. La copia en Norte conservó la foto correctamente. **El bug está corregido y solo persisten las ofertas huérfanas legacy** (vigencia 10-30 Abr en Norte sin foto). El fix del query las neutraliza para el reporte.
+
+### 📝 Notas
+
+- `mejorCupon` y `mejorRecompensa` no tocados — sus métricas (canjes) sí son legítimas cuando hay valores reales. Cupones nunca tienen foto en el modelo (esperado). Pizza Mediana sin foto = data faltante (subir foto en Puntos resuelve).
+
+---
+
+## [24 Abril 2026 — tarde] - Sprint multi-sucursal: módulos 8-9 + MatrizGuard
+
+Cierre de los módulos **Puntos y Recompensas** (8) y **Empleados** (9) del sprint multi-sucursal.
+
+### 🎯 Cerrado del sprint multi-sucursal (módulo 9 — Empleados)
+
+- **Módulo 9 — Empleados** ✅. Alcance: filtrado multi-sucursal en BS (no incluye validación numérica de stats ScanYA — queda para sprint separado de ScanYA). Validados: scoping correcto de la lista por sucursal (cada empleado solo aparece en su sucursal asignada, sin mezcla cross-sucursal), buscador filtra por nombre y username, tabs Activos/Inactivos con estados vacíos contextuales, creación se asigna automáticamente a la sucursal activa, modal de detalle muestra permisos + bloque Estadísticas ScanYA, eliminar funciona y actualiza KPIs, reset del buscador al cambiar de sucursal aplicado.
+- **Hallazgo intencional**: el modal de edición no expone selector de sucursal — un empleado pertenece a UNA sucursal y no es portátil. Para reasignarlo, borrar+recrear (coherente con el modelo: `empleados.sucursal_id` no nulable y vínculo histórico a `puntos_transacciones`).
+
+---
+
+## [24 Abril 2026 — media tarde] - Sprint multi-sucursal: módulo 8 + MatrizGuard
+
+Cierre del módulo **Puntos y Recompensas** del sprint multi-sucursal. Aprovechando el flujo distinto de los módulos exclusivos de Matriz (que solo aparecen en el menú cuando la sucursal activa es Matriz), se detectó y cerró un hueco arquitectural en la protección por URL directa.
+
+### 🎯 Cerrado del sprint multi-sucursal
+
+- **Módulo 8 — Puntos y Recompensas** ✅. Validados: el menú filtra correctamente Puntos/Sucursales en sucursales secundarias (`MenuBusinessStudio` ya tenía el filtro), guardar config base persiste al refresh, crear recompensa nueva actualiza KPIs (3→4 activas), datos sobreviven al cambio de sucursal Matriz↔Norte→Matriz.
+
+### 🛡️ Nuevo guard arquitectural: `MatrizGuard`
+
+**Hueco detectado:** las rutas `/business-studio/puntos` y `/business-studio/sucursales` solo tenían `ModoGuard requiereModo="comercial"`. Si un dueño en sucursal secundaria escribía la URL directa, la página se cargaba en "modo solo lectura" engañoso (los datos mostrados eran globales del negocio, no de la sucursal). El menú ya las ocultaba pero la URL no estaba protegida.
+
+**Solución:** nuevo guard `MatrizGuard.tsx` (~50 líneas) que verifica `esSucursalPrincipal` y, si es `false`, redirige a `/business-studio` con notificación info "Este módulo solo está disponible desde la Matriz". Compone con `ModoGuard` por anidación, sin mezclar responsabilidades:
+
+```tsx
+<ModoGuard requiereModo="comercial">
+  <MatrizGuard>
+    <PaginaPuntos />
+  </MatrizGuard>
+</ModoGuard>
+```
+
+**Archivos:**
+- `apps/web/src/router/guards/MatrizGuard.tsx` — guard nuevo
+- `apps/web/src/router/guards/index.ts` — export
+- `apps/web/src/router/index.tsx` — aplicado a `/business-studio/puntos` y `/business-studio/sucursales`
+
+**Decisión:** Reportes (también marcado como exclusivo de Matriz en notas previas) NO se envuelve aún. Se evaluará al llegar al módulo 11 — podría tener KPIs consolidados con valor en sucursales secundarias.
+
+---
+
+## [24 Abril 2026] - Sprint multi-sucursal: módulos 6-7 + refactor preview de BS + fix transversal de filtros
+
+Cierre de los módulos **Catálogo** y **Promociones** del sprint multi-sucursal, más una serie de mejoras arquitecturales y de UX colaterales que emergieron durante la auditoría.
+
+### 🎯 Cerrado del sprint multi-sucursal
+
+- **Módulo 6 — Catálogo** ✅. Validados: scoping de KPIs/listas, dropdown de categorías scoped, edición cross-sucursal sin contaminación, duplicación Norte→Matriz. Vista pública post-edición no validada en vivo (comportamiento estándar de React Query con `refetchOnWindowFocus`).
+- **Módulo 7 — Promociones** ✅. Validados: scoping de Cupones y Ofertas, métricas (vistas/shares/clicks) por sucursal, edición cross-sucursal, crear/eliminar/duplicar entre sucursales. Bugs corregidos: dropdowns hardcoded mostraban opciones inexistentes, toggle Ofertas↔Cupones arrastraba filtro de Tipo causando tabla vacía.
+
+### 🏗️ Refactor del preview de negocio en Business Studio
+
+El preview que el dueño ve en BS (panel lateral con tabs Card / Perfil) tenía un bug visual de raíz: los componentes se diseñaron con `lg:`/`2xl:` (viewport queries de Tailwind), pero al renderizarse en un panel estrecho (~540px) dentro de un viewport desktop (1920px), las clases se disparaban por viewport y rompían el layout (cards apretadas en grid de 4 columnas en 540px).
+
+**Solución arquitectural — migración a container queries (Tailwind v4):**
+- Reemplazo de `lg:` → `@5xl:`, `2xl:` → `@[96rem]:`, `sm:` → `@[40rem]:` en 4 componentes (`PaginaPerfilNegocio`, `CardNegocio`, `SeccionCatalogo`, `SeccionOfertas`).
+- `@container` declarado a nivel layout (`LayoutPublico`, `MainLayout`, `PanelPreviewNegocio` ambas tabs, `PanelInfoContacto` para ChatYA).
+- Componentes ahora son agnósticos al contexto: responden al ancho del wrapper, no del viewport.
+- Trampa documentada: NO sobrescribir `--container-*` con `@theme` — esas variables también controlan `max-w-sm/md/lg/xl/2xl` y romperían modales de todo el sistema.
+
+**Modales contenidos al preview (`PortalTargetContext`):**
+- Hook `usePortalTarget` + `PortalTargetProvider` para que los modales descendientes porteen al elemento del preview en lugar de `document.body`.
+- Adaptación de bases comunes (`Modal.tsx`, `ModalBottom.tsx`, `ModalImagenes.tsx`): `position: absolute` en modo contenido, `fixed` en modo normal. Bloqueo de scroll del body solo cuando es fullscreen.
+- Todos los modales del perfil (`ModalCatalogo`, `ModalOfertaDetalle`, `ModalDetalleItem`, `ModalHorarios`, `ModalResenas`, etc.) heredan el comportamiento automáticamente al consumir alguna base.
+
+**Carruseles drag-to-scroll:**
+- Hook `useDragScroll` reutilizable (~40 líneas): mousedown+drag escrollea el contenedor horizontalmente, threshold de 3px para no matar clicks, cancela el siguiente click si hubo drag real, sobrescribe `document.body.style.cursor='grabbing'` durante el arrastre, previene `dragstart` HTML5 nativo de `<img>` (evita el "ghost fantasma" y cursor 🚫).
+- Aplicado en `SeccionCatalogo`, `SeccionOfertas`, galería inline de `PaginaPerfilNegocio`.
+- Cursor `grab`/`grabbing` forzado en descendientes con `[&_*]:cursor-grab` para que no se pierda el affordance sobre cards con `cursor-pointer`.
+- Fade oscuro (`bg-gradient-to-l from-black/90 via-black/50`) en el borde de la dirección de scroll para indicar visualmente que hay más contenido.
+
+**Ajustes específicos del modal de Reseñas:**
+- Altura unificada con otros modales (80vh en lugar de 92vh).
+- En modo contenido (preview/ChatYA): `h-[90%]! max-h-[90%]!` para que el `flex-1` interno (lista de reseñas) tenga espacio sin desbordar el panel.
+- Paleta de la burbuja de respuesta del negocio: blue-* → slate + accent amber (consistencia con header dorado del modal).
+
+**Polish UI del preview:**
+- Header del preview compactado a 1 fila: tabs pill `rounded-full` con backdrop-blur, indicador "En vivo" con texto `text-sm` y glow verde sutil. Eliminado título "Vista Previa" + icono Eye (contexto evidente).
+- Gradiente del header: azul → **dark gradient negro→slate-900** consistente con el border-l-4 del panel.
+- Border izquierdo del panel: `border-blue-500` → `border-black`.
+- Botón "Ver mi Negocio" del navbar: gradiente verde saturado → **glassmorphism** (`bg-white/10 border border-white/25 backdrop-blur-md`), texto "Ver mi Negocio" → "Vista previa", forma `rounded-lg` → `rounded-full`.
+- Card del preview: `max-w-[300px]` + `mr-14` obsoleto → `max-w-[400px]` (proporción de celular real, sin margen del scale-[1.2] eliminado).
+
+### 🔧 Fix transversal — reset de filtros con jerarquía sucursal>toggle>filtros
+
+Bug cross-cutting detectado durante la auditoría: al cambiar de sucursal con el selector del navbar, los filtros locales (`useState` o stores Zustand) se mantenían con valores potencialmente inválidos en la nueva sucursal. Mismo problema al cambiar entre toggles del mismo módulo (Productos↔Servicios, Ofertas↔Cupones, Ventas↔Cupones↔Canjes-Vouchers).
+
+**Jerarquía adoptada:** `sucursal activa > toggle activo > filtros`. Cuando algo arriba cambia, todo lo de abajo se resetea.
+
+**Aplicado en 10 módulos:** Catálogo, Transacciones, Promociones, Clientes, Opiniones, Alertas, Dashboard, Puntos, Empleados, Reportes. Mi Perfil/Sucursales/ChatYA no aplican (sin filtros locales). Rifas/Vacantes aún no implementados.
+
+**Trampas detectadas y resueltas:**
+- Inputs con patrón debounce tienen 2 `useState` (visible + aplicado al filtro). Resetear solo uno deja el otro con texto obsoleto. Resuelto en Transacciones (`textoBusqueda`/`textoBusquedaCanjes`), Empleados (`busquedaLocal`), Alertas (`busquedaLocal`).
+- Dropdowns con listas hardcoded (todos los tipos del enum) muestran opciones inexistentes → tabla vacía al filtrar. Resuelto en `PaginaOfertas.tsx` con `tiposDisponibles` y `estadosDisponibles` (`useMemo([ofertas, filtros.visibilidad])`).
+- Selectores que dependen de atributos UX (`title`, `aria-label`) se rompen si esos atributos cambian. Caso real: `closest('button[title="Notificaciones"]')` se rompió al quitar el `title` por limpieza UX → cambio a `data-notificaciones-boton` (atributo estable).
+
+### 📚 Documentación
+
+- `docs/estandares/LECCIONES_TECNICAS.md` — 5 entradas nuevas en sección "Layout y CSS":
+  1. Container queries vs viewport queries.
+  2. Carruseles con drag-to-scroll (patrón obligatorio app).
+  3. Modales contenidos al preview vs fullscreen del viewport.
+  4. Reset de filtros con jerarquía sucursal>toggle>filtros.
+  5. Selectores con `data-*` attributes vs atributos UX.
+- `docs/estandares/TOKENS_COMPONENTES.md` — 2 secciones nuevas:
+  - TC-21: Carrusel con Drag-to-Scroll.
+  - TC-22: Modales contenidos en preview (PortalTargetContext).
+- `docs/reportes/sprint-sucursales-pruebas-abril-2026.md` — Catálogo y Promociones marcados ✅, sección dedicada al fix transversal.
+
+### 🐛 Bugs adicionales corregidos
+
+| Área | Bug | Fix |
+|---|---|---|
+| Navbar Notificaciones | Click en botón estando panel abierto se peleaba con click-outside (cerraba+abría simultáneo) | Selector del click-outside cambiado de `title="Notificaciones"` a `data-notificaciones-boton` |
+| Tooltips redundantes | Botón "Vista previa" y campana de notificaciones tenían tooltips obvios | Removidos — icono + label son self-explanatory |
+| Modal Reseñas | Lista de reseñas no se veía en preview (`flex-1` colapsaba sin altura forzada) | `h-[90%]! max-h-[90%]!` cuando `esContenido` |
+| ModalOfertas en desktop | Cards verticales en grid 1-col cuando antes eran grid 2-cols | `useMemo` para tipos/estados disponibles + condicional en grid via `esMobile` (no container queries — el modal es fixed-width) |
+
+---
+
+## [22 Abril 2026 — parte 2] - Alertas: ajuste semántico del modelo de estados
+
+### 🧩 Problema con el primer refactor
+
+Tras mover `leida` y `resuelta` a la tabla `alerta_lecturas` (estado por usuario), probando el flujo multi-usuario se detectó que `resuelta` NO debe ser por usuario: cuando alguien resuelve un problema del negocio (ej. un gerente atiende una alerta de seguridad), el dueño y los demás usuarios deben saberlo. De lo contrario cada persona tendría que resolver el mismo problema por su cuenta. Además, `eliminar` desde la UI debería ser una preferencia personal (no un borrado físico que afecta a todos).
+
+### ✅ Modelo de estados híbrido
+
+| Estado | Modelo | Ubicación |
+|--------|--------|-----------|
+| **Leída** | Por usuario | `alerta_lecturas.leida_at` |
+| **Resuelta** | Global | `alertas_seguridad.resuelta` + `resuelta_at` + `resuelta_por_usuario_id` |
+| **Ocultada** | Por usuario | `alerta_lecturas.ocultada_at` |
+| **Borrado físico** | Global, solo admin/cron | `DELETE FROM alertas_seguridad` |
+
+### 📋 Cambios
+
+**BD** (migración `2026-04-22b-alertas-resuelta-global-ocultamiento-por-usuario.sql`):
+- `alerta_lecturas`: `resuelta_at` eliminada, `ocultada_at` agregada
+- `alertas_seguridad`: columna `resuelta_por_usuario_id` agregada con FK a `usuarios`
+
+**Backend:**
+- `marcarAlertaResuelta` ahora hace UPDATE global a `alertas_seguridad` + registra quién resolvió + marca leída para el que resolvió
+- `ocultarAlerta` (reemplaza el antiguo `eliminarAlerta` desde UI) → upsert `ocultada_at` por usuario
+- `ocultarAlertasResueltas` (reemplaza `eliminarAlertasResueltas`) → bulk hide de las resueltas globales
+- `eliminarAlertaFisicamente` reservada para jobs admin
+- Todas las queries excluyen ocultadas del usuario actual
+- `obtenerAlertaDetalle` retorna `resueltaPor: { id, nombre }` cuando aplica
+
+**Frontend:**
+- Tipo `AlertaCompleta` incluye `resueltaPor: { id, nombre } | null`
+- Modal de detalle muestra badge verde *"✓ Resuelta por {Nombre} · {Fecha}"* cuando está resuelta
+- Botón "Ocultar resueltas" reintroducido (antes "Eliminar resueltas") con nueva semántica
+- `eliminarAlerta` individual ahora oculta del feed del usuario; toast: "Alerta oculta de tu feed"
+- `alertasService.eliminarAlertasResueltas` retorna `{ ocultadas: number }` (antes `{ eliminadas }`)
+
+**Documentación:**
+- `docs/arquitectura/Alertas.md` reestructurado con tabla de semántica por acción, patrones SQL y tabla de endpoints actualizada
+- Este CHANGELOG describe el antes/después
+
+### 🎯 Flujo multi-usuario verificado
+
+- Gerente marca alerta como resuelta → dueño la ve resuelta con el nombre del gerente
+- Dueño marca alerta leída → gerente la sigue viendo no leída (estado personal)
+- Cada usuario puede ocultar de SU feed sin afectar a los demás
+- Ninguna acción desde la UI borra físicamente una alerta: eso queda para admin/cron
+
+---
+
+## [22 Abril 2026] - Alertas: estado "leída/resuelta" por usuario (refactor arquitectural)
+
+### 🐛 Bug descubierto
+
+Durante la auditoría de filtrado multi-sucursal en Alertas, se detectó que `marcarTodasLeidas` y `eliminarResueltas` afectaban a **todas las sucursales del negocio**. Primer fix parcial: agregar filtro `(sucursal_id = ? OR sucursal_id IS NULL)` — pero eso reveló un problema más profundo: el estado `leida`/`resuelta` estaba guardado como columnas booleanas en `alertas_seguridad`, lo que hacía que la acción de un usuario (ej. un gerente) afectara a todos los demás (dueño y otros gerentes). Las alertas son avisos del negocio que cada persona con acceso debe ver hasta que *ella misma* las atienda.
+
+### ✅ Fix arquitectural
+
+Nueva tabla `alerta_lecturas(alerta_id, usuario_id, leida_at, resuelta_at)` con PK compuesta y `ON DELETE CASCADE`. El estado "leída" / "resuelta" ahora es por usuario.
+
+**Backend:**
+- Migración `docs/migraciones/2026-04-22-alerta-lecturas-por-usuario.sql` — crea tabla + índices parciales + backfill al dueño
+- `alertas.service.ts` reescrito: todas las funciones de lectura usan `LEFT JOIN alerta_lecturas AND usuario_id = ${actual}`; las de escritura usan `INSERT ... ON CONFLICT DO UPDATE`
+- `dashboard.service.ts` — `obtenerAlertasRecientes` y `marcarAlertaLeida` también usan el nuevo modelo
+- Controllers extraen `usuarioId` de `req.usuario.usuarioId` y lo pasan al service
+- Las columnas `leida`, `leida_at`, `resuelta`, `resuelta_at` de `alertas_seguridad` quedan obsoletas (backwards-compat, se retirarán en migración futura)
+
+**Frontend:**
+- Botón "Eliminar resueltas" removido de `PaginaAlertas.tsx` — semántica confusa en modelo por-usuario; el filtro "Resueltas" ya permite mostrar/ocultar
+- El badge de no leídas, KPIs y feed ahora reflejan el estado del usuario autenticado
+
+**Tests:**
+- `__tests__/helpers.ts` — `crearAlertaPrueba` ahora inserta fila en `alerta_lecturas` para el dueño del negocio de prueba cuando se pasa `leida: true` o `resuelta: true`
+
+### 📚 Documentación
+
+- `docs/arquitectura/Alertas.md` — sección nueva "Estado por usuario (22 Abril 2026)" con patrón de lectura/escritura, firmas de funciones, impacto en UI y migración
+- `docs/estandares/LECCIONES_TECNICAS.md` — nueva lección: **Estado por-entidad vs estado por-usuario** (cuándo aplicar tabla de lecturas separada)
+
+### 🎯 Verificación manual pendiente
+
+Las pruebas a validar en vivo tras este refactor:
+- Dueño marca alerta como leída → gerente la sigue viendo como no leída
+- "Marcar todas como leídas" en Matriz → solo afecta al usuario actual (no a gerentes ni al dueño)
+- Cambiar de sucursal → el estado por-usuario no se ve afectado incorrectamente cross-sucursal
+
+---
+
 ## [20-21 Abril 2026] - Validación en vivo del Recolector de Basura + prompts de continuación
 
 ### ✅ Validaciones ejecutadas

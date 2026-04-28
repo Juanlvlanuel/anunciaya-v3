@@ -215,14 +215,27 @@ export async function obtenerDetalle(
 // ============================================================================
 
 async function obtenerEstadisticasTurnos(empleadoId: string): Promise<EstadisticasTurnos> {
+	// Contamos transacciones y puntos directamente desde `puntos_transacciones`
+	// (estado=confirmado), no desde los contadores de `scanya_turnos` que pueden
+	// estar desincronizados con la realidad por deuda técnica histórica
+	// (incrementos sin INSERT correspondiente, transacciones revocadas/eliminadas).
+	// Así los números cuadran con BS Transacciones.
 	const resultado = await db.execute(sql`
 		SELECT
-			COUNT(*)::int AS total_turnos,
-			COALESCE(SUM(transacciones), 0)::int AS transacciones_registradas,
-			COALESCE(SUM(puntos_otorgados), 0)::int AS puntos_otorgados,
-			MAX(hora_inicio) AS ultimo_turno
-		FROM scanya_turnos
-		WHERE empleado_id = ${empleadoId}
+			(SELECT COUNT(*)::int FROM scanya_turnos WHERE empleado_id = ${empleadoId}) AS total_turnos,
+			(SELECT MAX(hora_inicio) FROM scanya_turnos WHERE empleado_id = ${empleadoId}) AS ultimo_turno,
+			(
+				SELECT COUNT(*)::int
+				FROM puntos_transacciones pt
+				INNER JOIN scanya_turnos t ON pt.turno_id = t.id
+				WHERE t.empleado_id = ${empleadoId} AND pt.estado = 'confirmado'
+			) AS transacciones_registradas,
+			(
+				SELECT COALESCE(SUM(pt.puntos_otorgados), 0)::int
+				FROM puntos_transacciones pt
+				INNER JOIN scanya_turnos t ON pt.turno_id = t.id
+				WHERE t.empleado_id = ${empleadoId} AND pt.estado = 'confirmado'
+			) AS puntos_otorgados
 	`);
 
 	const row = (resultado as { rows: Record<string, unknown>[] }).rows[0];

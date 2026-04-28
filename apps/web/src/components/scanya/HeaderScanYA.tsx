@@ -13,12 +13,13 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Store } from 'lucide-react';
+import { LogOut, Store, ChevronDown } from 'lucide-react';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { obtenerSucursalesNegocio } from '@/services/negociosService';
 import IndicadorOffline from './IndicadorOffline';
 import AvatarEmpleadoScanYA from './AvatarEmpleadoScanYA';
+import ModalCambiarSucursalScanYA from './ModalCambiarSucursalScanYA';
 
 // =============================================================================
 // INTERFACES
@@ -26,13 +27,15 @@ import AvatarEmpleadoScanYA from './AvatarEmpleadoScanYA';
 
 interface HeaderScanYAProps {
   className?: string;
+  /** Callback opcional invocado tras un cambio de sucursal exitoso (para que el dashboard recargue datos) */
+  onCambioSucursal?: () => void;
 }
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
+export default function HeaderScanYA({ className = '', onCambioSucursal }: HeaderScanYAProps) {
   const navigate = useNavigate();
   const { usuario, logout } = useScanYAStore();
   const online = useOnlineStatus();
@@ -42,7 +45,13 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
   const [esSucursalPrincipal, setEsSucursalPrincipal] = useState<boolean>(false);
   const [nombreSucursalReal, setNombreSucursalReal] = useState<string>('');
 
+  // Estado del selector de sucursal (solo aplica a dueño con 2+ sucursales)
+  const [mostrarSelector, setMostrarSelector] = useState<boolean>(false);
+
   if (!usuario) return null;
+
+  const puedeCambiarSucursal =
+    usuario.tipo === 'dueno' && usuario.puedeElegirSucursal && totalSucursales > 1;
 
   // Cargar información de sucursales
   useEffect(() => {
@@ -126,7 +135,7 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
         "
       >
         {/* ===================================================================
-            MÓVIL: Solo Logo + Logout
+            MÓVIL: Logo + Logout (+ chip selector si dueño multi-sucursal)
         =================================================================== */}
         <div className="lg:hidden flex items-center justify-between">
           {/* Logo */}
@@ -148,9 +157,36 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
             />
           </button>
 
-          {/* Avatar + Indicador offline + Logout */}
+          {/* Botón sucursal + Avatar + Indicador offline + Logout */}
           <div className="flex items-center gap-3">
             {!online && <IndicadorOffline />}
+
+            {/* Botón circular para cambiar sucursal (solo dueño multi-sucursal) */}
+            {puedeCambiarSucursal && (
+              <button
+                type="button"
+                onClick={() => setMostrarSelector(true)}
+                className="
+                  flex items-center justify-center
+                  w-10 h-10
+                  rounded-full
+                  text-white
+                  transition-all duration-200
+                  cursor-pointer
+                  shrink-0
+                  hover:bg-white/15
+                "
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                }}
+                aria-label="Cambiar sucursal"
+                data-testid="btn-sucursal-movil"
+              >
+                <Store className="w-5 h-5 text-[#3B82F6]" strokeWidth={2} />
+              </button>
+            )}
+
             <AvatarEmpleadoScanYA />
           {/* Botón Logout */}
           <button
@@ -245,14 +281,27 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
                   return null;
                 }
 
-                // CASO 3: DUEÑO con 2+ sucursales
+                // CASO 3: DUEÑO con 2+ sucursales — chip clickeable
                 if (usuario.tipo === 'dueno' && totalSucursales > 1) {
                   return (
                     <>
                       <span className="text-[#3B82F6] font-bold text-xl">•</span>
-                      <p className="text-[#94A3B8] truncate text-base 2xl:text-lg">
-                        {esSucursalPrincipal ? 'Matriz' : nombreSucursalReal}
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setMostrarSelector(true)}
+                        className="
+                          flex items-center gap-1.5 px-2.5 py-1 rounded-lg
+                          text-[#94A3B8] truncate text-base 2xl:text-lg
+                          hover:bg-white/5 hover:text-white transition-colors cursor-pointer
+                        "
+                        aria-label="Cambiar de sucursal"
+                        data-testid="chip-sucursal-desktop"
+                      >
+                        <span className="truncate">
+                          {esSucursalPrincipal ? 'Matriz' : nombreSucursalReal}
+                        </span>
+                        <ChevronDown className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+                      </button>
                     </>
                   );
                 }
@@ -303,6 +352,15 @@ export default function HeaderScanYA({ className = '' }: HeaderScanYAProps) {
           </div>
         </div>
       </div>
+
+      {/* Modal selector de sucursal (solo dueño con 2+ sucursales) */}
+      {puedeCambiarSucursal && (
+        <ModalCambiarSucursalScanYA
+          abierto={mostrarSelector}
+          onCerrar={() => setMostrarSelector(false)}
+          onCambioExitoso={onCambioSucursal}
+        />
+      )}
     </header>
   );
 }
