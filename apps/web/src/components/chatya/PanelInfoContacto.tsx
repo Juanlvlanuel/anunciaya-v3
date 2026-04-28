@@ -545,28 +545,28 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               </div>
             ) : negocioEfectivo ? (
               <>
-                {/* Rating + Categoría en un solo renglón */}
-                <div className="flex items-center gap-2.5 bg-slate-200 shadow-sm rounded-xl px-3 py-2.5 border-2 border-slate-300">
+                {/* Rating + Categoría — adaptativa móvil/desktop */}
+                <div className="flex items-center gap-2.5 bg-white/10 lg:bg-white backdrop-blur-sm border border-white/15 lg:border-slate-300 rounded-lg px-3.5 py-3 lg:py-2.5 shadow-sm">
                   {parseFloat(negocioEfectivo.calificacionPromedio) > 0 ? (
                     <>
-                      <Star className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
-                      <span className="text-sm font-bold text-slate-800">
+                      <Star className="w-4 h-4 text-amber-400 lg:text-amber-500 fill-amber-400 lg:fill-amber-500 shrink-0" />
+                      <span className="text-[15px] lg:text-[11px] 2xl:text-sm font-bold text-white lg:text-slate-900">
                         {parseFloat(negocioEfectivo.calificacionPromedio).toFixed(1)}
                       </span>
-                      <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
+                      <span className="text-[15px] lg:text-[11px] 2xl:text-sm text-white/75 lg:text-slate-600 font-semibold lg:font-medium">
                         ({negocioEfectivo.totalCalificaciones})
                       </span>
                     </>
                   ) : (
                     <>
-                      <Star className="w-4 h-4 text-slate-600 shrink-0" />
-                      <span className="text-sm text-slate-600 font-medium">Sin reseñas aún</span>
+                      <Star className="w-4 h-4 text-white/50 lg:text-slate-400 shrink-0" />
+                      <span className="text-[15px] lg:text-[11px] 2xl:text-sm text-white/75 lg:text-slate-600 font-semibold lg:font-medium">Sin reseñas aún</span>
                     </>
                   )}
                   {negocioEfectivo.categorias?.length > 0 && (
-                    <div className="flex items-center gap-2 ml-auto">
-                      <Store className="w-4 h-4 text-slate-600 shrink-0" />
-                      <span className="text-sm text-slate-700 font-medium truncate">
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      <Store className="w-4 h-4 text-white/60 lg:text-slate-500 shrink-0" />
+                      <span className="text-[15px] lg:text-[11px] 2xl:text-sm text-white lg:text-slate-700 font-bold lg:font-semibold truncate">
                         {negocioEfectivo.categorias[0].categoria.nombre}
                       </span>
                     </div>
@@ -576,19 +576,19 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                 {/* Horario + estado — clickeable para abrir modal */}
                 <button
                   onClick={() => setModalHorariosAbierto(true)}
-                  className="flex items-center gap-2.5 bg-slate-200 shadow-sm rounded-xl px-3 py-2.5 w-full cursor-pointer hover:bg-slate-300 border-2 border-slate-300"
+                  className="flex items-center gap-2.5 bg-white/10 lg:bg-white backdrop-blur-sm border border-white/15 lg:border-slate-300 rounded-lg px-3.5 py-3 lg:py-2.5 w-full cursor-pointer hover:bg-white/15 lg:hover:bg-slate-50 shadow-sm transition-colors"
                 >
-                  <Clock className="w-4 h-4 text-slate-600 shrink-0" />
+                  <Clock className="w-4 h-4 text-white/60 lg:text-slate-500 shrink-0" />
                   <div className="flex flex-col flex-1 text-left">
-                    <span className={`text-base lg:text-sm font-semibold ${calcularAbierto(negocioEfectivo.horarios) ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <span className={`text-[15px] lg:text-[11px] 2xl:text-sm font-bold ${calcularAbierto(negocioEfectivo.horarios) ? 'text-emerald-400 lg:text-emerald-600' : 'text-red-400 lg:text-red-600'}`}>
                       {calcularAbierto(negocioEfectivo.horarios) ? 'Abierto ahora' : 'Cerrado'}
                     </span>
                     {(() => {
                       const h = horarioHoy(negocioEfectivo.horarios);
-                      return h ? <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">{h}</span> : null;
+                      return h ? <span className="text-[15px] lg:text-[11px] 2xl:text-sm text-white/75 lg:text-slate-600 font-semibold lg:font-medium">{h}</span> : null;
                     })()}
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-600 shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-white/50 lg:text-slate-400 shrink-0" />
                 </button>
 
                 {/* Modal de horarios */}
@@ -603,21 +603,20 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setVistaPerfilAbierta(true)}
-                    className="flex items-center gap-2 flex-1 bg-slate-200 shadow-sm rounded-xl px-3 py-2.5 cursor-pointer hover:bg-slate-300 border-2 border-slate-300"
+                    className="flex items-center justify-center gap-1.5 flex-1 bg-white/10 lg:bg-white backdrop-blur-sm border border-white/15 lg:border-slate-300 rounded-lg px-3 py-3 lg:py-2.5 cursor-pointer hover:bg-white/15 lg:hover:bg-slate-50 shadow-sm transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span className="text-sm font-semibold text-blue-600">Ver Perfil</span>
-                    <ArrowUpRight className="w-4.5 h-4.5 text-blue-600 shrink-0" />
+                    <ExternalLink className="w-4 h-4 text-white/70 lg:text-slate-600 shrink-0" />
+                    <span className="text-[15px] lg:text-[11px] 2xl:text-sm font-bold lg:font-semibold text-white lg:text-slate-800">Ver perfil</span>
                   </button>
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${negocioEfectivo.latitud},${negocioEfectivo.longitud}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 flex-1 bg-slate-200 shadow-sm rounded-xl px-3 py-2.5 cursor-pointer hover:bg-slate-300 border-2 border-slate-300"
+                    className="flex items-center justify-center gap-1.5 flex-1 bg-white/10 lg:bg-white backdrop-blur-sm border border-white/15 lg:border-slate-300 rounded-lg px-3 py-3 lg:py-2.5 cursor-pointer hover:bg-white/15 lg:hover:bg-slate-50 shadow-sm transition-colors"
                   >
-                    <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="text-sm font-semibold text-emerald-600">Ubicación</span>
-                    <ArrowUpRight className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
+                    <MapPin className="w-4 h-4 text-white/70 lg:text-slate-600 shrink-0" />
+                    <span className="text-[15px] lg:text-[11px] 2xl:text-sm font-bold lg:font-semibold text-white lg:text-slate-800">Ubicación</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-white/60 lg:text-slate-500 shrink-0" />
                   </a>
                 </div>
               </>
@@ -638,53 +637,38 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               <>
                 {clienteEfectivo.clienteDesde && (
                   <>
-                    {/* Encabezado sección */}
-                    {/* Card nivel + puntos — con header integrado */}
-                    <div className="bg-slate-200 rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
-                      {/* Título integrado */}
-                      <div
-                        className="flex items-center gap-2 px-4 py-2.5 border-b-2 border-slate-300 bg-[#1e293b]"
-                      >
-                        <Coins className="w-4 h-4 text-white shrink-0" />
-                        <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-white">{nivelesActivos ? 'Puntos y nivel' : 'Puntos'}</span>
-                      </div>
-                      {/* Fila nivel */}
+                    {/* Lista densa label/valor — adaptativa móvil/desktop.
+                        Móvil: glass oscuro sobre el gradiente azul.
+                        Desktop: card blanca sobre slate-100. */}
+                    <div className="border border-white/15 lg:border-slate-300 rounded-lg bg-white/10 lg:bg-white backdrop-blur-sm divide-y divide-white/10 lg:divide-slate-200 shadow-sm">
                       {nivelesActivos && (
-                      <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-slate-300">
-                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                          <Award className={`w-4 h-4 ${nivelColor(clienteEfectivo.nivelActual ?? '')}`} />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Nivel</span>
-                          <span className={`text-sm font-bold ${nivelColor(clienteEfectivo.nivelActual ?? '')}`}>
-                            {nivelEmoji(clienteEfectivo.nivelActual ?? '')} {(clienteEfectivo.nivelActual ?? '').charAt(0).toUpperCase() + (clienteEfectivo.nivelActual ?? '').slice(1)}
+                        <div className="flex items-center justify-between px-3.5 py-3 lg:py-2.5">
+                          <span className="flex items-center gap-2 text-[15px] lg:text-[11px] 2xl:text-sm text-white/75 lg:text-slate-600 font-semibold lg:font-medium">
+                            <Award className="w-4 h-4 text-white/60 lg:text-slate-500 shrink-0" />
+                            Nivel
+                          </span>
+                          <span className="text-[15px] lg:text-[11px] 2xl:text-sm font-bold text-white lg:text-slate-900">
+                            {(clienteEfectivo.nivelActual ?? '').charAt(0).toUpperCase() + (clienteEfectivo.nivelActual ?? '').slice(1) || '—'}
                           </span>
                         </div>
-                      </div>
                       )}
-                      {/* Fila puntos */}
-                      <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-slate-300">
-                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                          <Coins className="w-4 h-4 text-amber-600" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Puntos disponibles</span>
-                          <span className="text-sm font-bold text-slate-800">
-                            {clienteEfectivo.puntosDisponibles.toLocaleString('es-MX')} pts
-                          </span>
-                        </div>
+                      <div className="flex items-center justify-between px-3.5 py-3 lg:py-2.5">
+                        <span className="flex items-center gap-2 text-[15px] lg:text-[11px] 2xl:text-sm text-white/75 lg:text-slate-600 font-semibold lg:font-medium">
+                          <Coins className="w-4 h-4 text-white/60 lg:text-slate-500 shrink-0" />
+                          Puntos disponibles
+                        </span>
+                        <span className="text-[15px] lg:text-[11px] 2xl:text-sm font-bold text-white lg:text-slate-900">
+                          {clienteEfectivo.puntosDisponibles.toLocaleString('es-MX')}
+                        </span>
                       </div>
-                      {/* Fila última compra */}
-                      <div className="flex items-center gap-3 px-4 py-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                          <Calendar className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Última compra</span>
-                          <span className="text-sm font-semibold text-slate-700">
-                            {formatFecha(clienteEfectivo.ultimaActividad)}
-                          </span>
-                        </div>
+                      <div className="flex items-center justify-between px-3.5 py-3 lg:py-2.5">
+                        <span className="flex items-center gap-2 text-[15px] lg:text-[11px] 2xl:text-sm text-white/75 lg:text-slate-600 font-semibold lg:font-medium">
+                          <Calendar className="w-4 h-4 text-white/60 lg:text-slate-500 shrink-0" />
+                          Última compra
+                        </span>
+                        <span className="text-[15px] lg:text-[11px] 2xl:text-sm font-bold text-white lg:text-slate-900">
+                          {formatFecha(clienteEfectivo.ultimaActividad)}
+                        </span>
                       </div>
                     </div>
 
@@ -701,7 +685,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                             );
                           }
                         }}
-                        className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer shadow-lg shadow-slate-700/30 active:scale-[0.98] bg-[#1e293b]"
+                        className="flex items-center justify-between w-full px-4 py-3 lg:py-2.5 rounded-xl text-white text-[15px] lg:text-sm font-bold cursor-pointer active:scale-[0.98] bg-blue-500/20 border border-white/20 backdrop-blur-sm lg:bg-[#1e293b] lg:border-transparent lg:shadow-lg lg:shadow-slate-700/30"
                       >
                         <span>Ver detalle del cliente</span>
                         <ChevronRight className="w-4 h-4" />
@@ -743,10 +727,12 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               <ChevronRight className="w-4 h-4 text-white/30 lg:text-slate-600 shrink-0" />
             </button>
 
-            {/* Grid de imágenes recientes (3 cols x 2 filas) */}
+            {/* Grid de imágenes recientes (3 cols x 2 filas, máx 6).
+                Nunca hace overflow: slice(0, 6) + aspect-square garantizan
+                que el grid siempre cabe en su altura natural. */}
             {archivosRecientes && archivosRecientes.length > 0 && (
               <div className="grid grid-cols-3 gap-1.5 mt-2 px-3">
-                {archivosRecientes.map((archivo) => {
+                {archivosRecientes.slice(0, 6).map((archivo) => {
                   let imgUrl: string | null = null;
                   let lqip: string | null = null;
                   try {
@@ -780,7 +766,6 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                     </div>
                   );
                 })}
-
               </div>
             )}
           </div>
@@ -792,14 +777,14 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
 
       {/* ── Acciones comunes (solo si el chat ya existe en el servidor) ── */}
       {!esTemporal && (
-        <div className="px-4 py-3 lg:py-4 flex flex-row gap-2 shrink-0 lg:border-t-2 lg:border-slate-300">
+        <div className="px-4 py-3 lg:py-4 flex flex-row gap-2 shrink-0">
           <button
             onClick={handleSilenciar}
             className="flex flex-col items-center justify-center gap-1.5 flex-1 px-2 py-3 lg:py-4 cursor-pointer group"
           >
             {conversacion.silenciada
-              ? <Bell className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white/50 lg:text-slate-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
-              : <BellOff className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white/50 lg:text-slate-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
+              ? <Bell className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/50 lg:text-slate-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
+              : <BellOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/50 lg:text-slate-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
             }
             <span className="text-sm lg:text-[11px] 2xl:text-sm text-white/70 lg:text-slate-600 text-center leading-tight font-medium">
               {conversacion.silenciada ? 'Activar' : 'Silenciar'}
@@ -810,7 +795,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
             onClick={handleBloquear}
             className="flex flex-col items-center justify-center gap-1.5 flex-1 px-2 py-3 lg:py-4 cursor-pointer group"
           >
-            <ShieldBan className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-red-400 lg:text-red-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
+            <ShieldBan className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-400 lg:text-red-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
             <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-400 lg:text-red-600">Bloquear</span>
           </button>
 
@@ -818,7 +803,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
             onClick={handleEliminar}
             className="flex flex-col items-center justify-center gap-1.5 flex-1 px-2 py-3 lg:py-4 cursor-pointer group"
           >
-            <Trash2 className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-red-400 lg:text-red-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
+            <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-400 lg:text-red-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
             <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-400 lg:text-red-600">Eliminar</span>
           </button>
         </div>

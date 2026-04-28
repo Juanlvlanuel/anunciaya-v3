@@ -271,7 +271,7 @@ export function GaleriaArchivosCompartidos({
                 }
                 setTabActiva(tab.id);
               }}
-              className={`flex-1 py-2.5 text-sm font-semibold cursor-pointer relative ${
+              className={`flex-1 py-3 lg:py-2.5 text-[15px] lg:text-sm font-semibold cursor-pointer relative ${
                 activa
                   ? 'text-white lg:text-slate-900'
                   : 'text-white/40 lg:text-slate-600 hover:text-white/60 lg:hover:text-slate-800'
@@ -279,7 +279,7 @@ export function GaleriaArchivosCompartidos({
             >
               {tab.label}
               {count > 0 && (
-                <span className={`ml-1 text-[11px] ${activa ? 'text-white/60 lg:text-slate-600' : 'text-white/25 lg:text-slate-600'}`}>
+                <span className={`ml-1 text-[13px] lg:text-[11px] ${activa ? 'text-white/60 lg:text-slate-600' : 'text-white/25 lg:text-slate-600'}`}>
                   {count}
                 </span>
               )}
@@ -354,7 +354,7 @@ export function GaleriaArchivosCompartidos({
 
             {/* ═══ TAB: DOCUMENTOS → Lista ═══ */}
             {tabActiva === 'documentos' && (
-              <div className="flex flex-col">
+              <div className="flex flex-col divide-y divide-white/5 lg:divide-slate-200">
                 {grupo.items.map((archivo) => {
                   let doc: ContenidoDocumento | null = null;
                   try {
@@ -369,18 +369,18 @@ export function GaleriaArchivosCompartidos({
                       href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 lg:hover:bg-blue-100"
+                      className="flex items-center gap-3 px-4 py-3.5 lg:py-3 active:bg-white/10 hover:bg-white/10 lg:hover:bg-blue-100 transition-colors"
                     >
-                      <div className={`w-10 h-10 rounded-lg bg-white/10 lg:bg-slate-200 flex items-center justify-center shrink-0 ${colorExtension(doc.extension)}`}>
+                      <div className={`w-11 h-11 lg:w-10 lg:h-10 rounded-lg bg-white/10 lg:bg-slate-200 border border-white/10 lg:border-slate-300 flex items-center justify-center shrink-0 ${colorExtension(doc.extension)}`}>
                         <FileText className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] text-white/80 lg:text-slate-700 truncate">{doc.nombre || 'Documento'}</p>
-                        <p className="text-[12px] text-white/30 lg:text-slate-600 font-medium">
+                        <p className="text-[15px] lg:text-[13px] 2xl:text-sm font-semibold text-white lg:text-slate-800 truncate">{doc.nombre || 'Documento'}</p>
+                        <p className="text-[12px] lg:text-[11px] text-white/60 lg:text-slate-500 font-medium mt-0.5">
                           {doc.extension ? doc.extension.toUpperCase() : 'ARCHIVO'}{doc.tamano ? ` · ${formatearTamano(doc.tamano)}` : ''}
                         </p>
                       </div>
-                      <Download className="w-4 h-4 text-white/20 lg:text-slate-600 shrink-0" />
+                      <Download className="w-4 h-4 text-white/45 lg:text-slate-500 shrink-0" />
                     </a>
                   );
                 })}

@@ -17,7 +17,8 @@
 10. [Transiciones](#10-transiciones)
 11. [Escala de Z-index](#11-escala-de-z-index)
 12. [Formato de Fecha en Listas y Tablas](#12-formato-de-fecha-en-listas-y-tablas)
-13. [Reglas Pendientes de Validar](#13-reglas-pendientes-de-validar)
+13. [Estética Profesional vs Caricaturesca](#13-estética-profesional-vs-caricaturesca)
+14. [Reglas Pendientes de Validar](#14-reglas-pendientes-de-validar)
 
 ---
 
@@ -438,7 +439,56 @@ const formatearFechaCompleta = (fechaISO: string) => {
 
 ---
 
-## 13. Reglas Pendientes de Validar
+## 13. Estética Profesional vs Caricaturesca
+
+AnunciaYA es una herramienta de trabajo para comerciantes — Business Studio, ScanYA, Onboarding, Panel Admin y ChatYA del lado operador deben verse como **software B2B profesional** (Linear, Stripe Dashboard, Notion, Vercel). NO como app casual / videojuego / herramienta infantil.
+
+### Anti-patrones (evitar siempre)
+
+- **Iconos grandes en círculos con fondo pastel** (`w-8 h-8 rounded-full bg-amber-100` con icono dentro). Da efecto "panel de stats de juego".
+- **Cards anidados con headers oscuros gruesos** que solo repiten el título de la sección — suman peso visual sin información.
+- **Emojis como datos** en pantallas operativas (🥉🥈🥇 al lado de "Bronce/Plata/Oro", 🎉 en confirmaciones, etc.). Usar texto plano.
+- **Saltos tipográficos exagerados** (label `text-xs` + valor `text-2xl` en cards densos) — efecto videojuego.
+- **Bordes ≥2px y sombras visibles** en componentes anidados — todos compitiendo por atención.
+- **Colores pastel y gradientes coloridos saturados** en stats / métricas operativas.
+- **Múltiples acentos de color por componente** (un botón azul, otro verde, otro amarillo en la misma sección sin razón semántica).
+
+### Patrones correctos
+
+- **Listas densas inline** con filas tipo definition list: label izquierda, valor derecha, divider 1px entre filas. Sin headers oscuros redundantes.
+- **Iconos pequeños** 14–16px (`w-3.5 h-3.5` o `w-4 h-4`) **sin círculo de fondo**, color neutro (`text-slate-500/600`).
+- **Tipografía consistente con el contenedor padre** (no más chica, no más grande). Jerarquía por **peso** (`font-medium` → `font-semibold` → `font-bold`), no por tamaño.
+- **Borde 1px** `border border-slate-300`, sombra máxima `shadow-sm`.
+- **Color neutro (slate) + 1 acento de marca** (azul). Color semántico solo cuando aporta información (verde "abierto", rojo "cerrado", amarillo en estrellas de rating).
+- **Texto plano** para niveles, estados, etiquetas.
+
+### Variantes adaptativas (móvil/desktop)
+
+Cuando un componente vive en contenedores con fondos distintos según breakpoint (típico en ChatYA: panel móvil con gradiente azul oscuro, desktop con `bg-slate-100`), las cards y textos necesitan **variantes lg:** explícitas:
+
+| Aspecto | Móvil (sobre fondo oscuro) | Desktop (sobre fondo claro) |
+|---|---|---|
+| Fondo card | `bg-white/10 backdrop-blur-sm` | `bg-white` |
+| Borde | `border-white/15` | `border-slate-300` |
+| Divider | `divide-white/10` | `divide-slate-200` |
+| Label | `text-white/75 font-semibold` | `text-slate-600 font-medium` |
+| Valor | `text-white font-bold` | `text-slate-900 font-bold` |
+| Icono | `text-white/60` | `text-slate-500` |
+| Tamaño texto | `text-[15px]` (legibilidad táctil) | `text-[11px] 2xl:text-sm` |
+
+**Regla clave:** una card blanca sólida sobre un fondo móvil azul oscuro **rompe la armonía visual** — siempre usar look glass translúcido en móvil cuando el contenedor padre tenga fondo oscuro.
+
+### Excepción
+
+Vistas dirigidas al **consumidor final** (CardYA del cliente, secciones públicas de Negocios, landing) pueden ser más amigables/coloridas — pero aún ahí evitar el efecto "panel de juego". El criterio es: ¿estamos celebrando algo (logro, recompensa) o estamos mostrando datos operativos? Lo primero permite color y forma; lo segundo no.
+
+### Caso de referencia
+
+`apps/web/src/components/chatya/PanelInfoContacto.tsx` (28 abr 2026): rediseño que reemplazó cards con iconos en círculos pastel + emojis de medalla por lista densa label/valor. Variantes móvil/desktop para armonizar con el gradiente azul del panel móvil.
+
+---
+
+## 14. Reglas Pendientes de Validar
 
 - [x] Tamaño mínimo de texto ✅
 - [x] Escala de iconos (mínimos) ✅
