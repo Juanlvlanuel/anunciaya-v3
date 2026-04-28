@@ -15,6 +15,9 @@
  * Ubicación: apps/api/src/utils/zonaHoraria.ts
  */
 
+import { sql } from 'drizzle-orm';
+import { db } from '../db/index.js';
+
 export type ZonaHorariaMx =
 	| 'America/Mexico_City'
 	| 'America/Hermosillo'
@@ -96,4 +99,39 @@ export function getZonaHorariaPorEstado(estado: string | null | undefined): Zona
 	if (!estado) return 'America/Mexico_City';
 	const clave = normalizarEstado(estado);
 	return ESTADO_A_ZONA[clave] ?? 'America/Mexico_City';
+}
+
+/**
+ * Obtiene la zona horaria de una sucursal desde la BD.
+ *
+ * - Si `sucursalId` está dado, devuelve la zona de esa sucursal.
+ * - Si no, devuelve la zona de la Matriz del negocio.
+ * - Si la consulta falla o no hay registro, devuelve 'America/Mexico_City'.
+ *
+ * Usado por queries SQL con `AT TIME ZONE` para que los buckets de hora/día
+ * reflejen la hora local de la sucursal donde realmente se hizo la venta.
+ */
+export async function obtenerZonaHorariaSucursal(
+	negocioId: string,
+	sucursalId?: string | null
+): Promise<string> {
+	try {
+		const sucursalIdParam = sucursalId ?? null;
+		const resultado = await db.execute(sql`
+			SELECT zona_horaria
+			FROM negocio_sucursales
+			WHERE negocio_id = ${negocioId}
+			AND (
+				(${sucursalIdParam}::uuid IS NOT NULL AND id = ${sucursalIdParam}::uuid)
+				OR (${sucursalIdParam}::uuid IS NULL AND es_principal = true)
+			)
+			LIMIT 1
+		`);
+
+		const row = resultado.rows[0] as { zona_horaria: string } | undefined;
+		return row?.zona_horaria ?? 'America/Mexico_City';
+	} catch (error) {
+		console.error('Error obteniendo zona horaria de sucursal:', error);
+		return 'America/Mexico_City';
+	}
 }

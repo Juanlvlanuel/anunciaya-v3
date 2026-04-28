@@ -7,6 +7,27 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [28 Abril 2026] - Fix zona horaria por sucursal en Reportes BS 🐛
+
+**Bug:** Una venta hecha en Puerto Peñasco a las **09:05** (hora Sonora, UTC-7) aparecía en el bucket de las **10:00** del gráfico "Horarios pico" en Reportes BS. Verificado en transacción `67b4f9d4` (raw UTC `16:05` → bucket viejo `10` → bucket correcto `9`).
+
+**Causa raíz:** Las queries SQL en `reportes.service.ts` usaban `AT TIME ZONE 'America/Mexico_City'` **hardcoded**, ignorando la columna `zona_horaria` que cada sucursal ya tiene configurada en `negocio_sucursales`. México tiene 5 zonas horarias (Tijuana UTC-8, Hermosillo UTC-7 sin DST, Mazatlán UTC-7 con DST, Cancún UTC-5, CDMX UTC-6); asumir CDMX en todas falla con sucursales fuera del centro.
+
+**Fix:**
+- Nuevo helper `obtenerZonaHorariaSucursal(negocioId, sucursalId?)` en `apps/api/src/utils/zonaHoraria.ts` — devuelve la zona de la sucursal filtrada, o la de Matriz si no hay filtro.
+- Aplicado en `reportes.service.ts` reemplazando `'America/Mexico_City'` hardcoded en 3 funciones:
+  - `obtenerReporteVentas`: horarios pico + ventas por día de la semana.
+  - `obtenerReporteClientes`: tendencia de adquisición por semana.
+  - `obtenerReporteResenas`: tendencia de rating por semana.
+
+**Validación:** SQL ejecutado contra prod-staging muestra que la transacción reportada cae correctamente en bucket 9 con la zona de la sucursal (Hermosillo) y en bucket 10 con CDMX hardcoded — exactamente la diferencia que el usuario reportó.
+
+**Datos en BD:** Las sucursales de Sonora ya tienen `zona_horaria = 'America/Hermosillo'` desde antes — no se requirió migración.
+
+**Lección agregada a `LECCIONES_TECNICAS.md`:** nunca hardcodear zona horaria en agregaciones SQL — siempre derivar de la sucursal/negocio.
+
+---
+
 ## [27-28 Abril 2026] - Sprint ScanYA Multi-Sucursal cerrado ✅
 
 Cierre del **sprint dedicado de ScanYA Multi-Sucursal** (las 4 fases completas). El backend ya estaba listo; este sprint completó el frontend, validó los 3 roles (dueño/gerente/empleado), aplicó coherencia de filtros por sucursal en todos los modales, y arregló bugs de timing y consistencia descubiertos durante las pruebas.

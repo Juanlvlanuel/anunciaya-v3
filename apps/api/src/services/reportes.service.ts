@@ -28,6 +28,7 @@ import {
 } from '../db/schemas/schema.js';
 import type { RespuestaServicio, PeriodoEstadisticas } from '../types/puntos.types.js';
 import { calcularFechaInicio } from './transacciones.service.js';
+import { obtenerZonaHorariaSucursal } from '../utils/zonaHoraria.js';
 
 // =============================================================================
 // TIPOS
@@ -172,29 +173,34 @@ export async function obtenerReporteVentas(
       conds.push(sql`created_at <= ${finDelDia}`);
     }
 
+    // Zona horaria de la sucursal filtrada (o de Matriz si vista global).
+    // Necesario para que "Horarios pico" y "Ventas por día" reflejen la
+    // hora local de la sucursal, no CDMX hardcoded.
+    const zonaHoraria = await obtenerZonaHorariaSucursal(negocioId, sucursalId);
+
     // ── Horarios pico (agrupado por hora) ──────────────────────────────────
     const horariosPicoRaw = await db
       .select({
-        hora: sql<number>`EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Mexico_City')::int`,
+        hora: sql<number>`EXTRACT(HOUR FROM created_at AT TIME ZONE ${zonaHoraria})::int`,
         totalVentas: sql<number>`COALESCE(SUM(monto_compra), 0)::float`,
         cantidad: sql<number>`COUNT(*)::int`,
       })
       .from(puntosTransacciones)
       .where(and(...conds))
-      .groupBy(sql`EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Mexico_City')`)
-      .orderBy(sql`EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Mexico_City')`);
+      .groupBy(sql`EXTRACT(HOUR FROM created_at AT TIME ZONE ${zonaHoraria})`)
+      .orderBy(sql`EXTRACT(HOUR FROM created_at AT TIME ZONE ${zonaHoraria})`);
 
     // ── Ventas por día de la semana (ordenado Lunes → Domingo) ────────────
     const ventasPorDiaRaw = await db
       .select({
-        dia: sql<number>`EXTRACT(DOW FROM created_at AT TIME ZONE 'America/Mexico_City')::int`,
+        dia: sql<number>`EXTRACT(DOW FROM created_at AT TIME ZONE ${zonaHoraria})::int`,
         totalVentas: sql<number>`COALESCE(SUM(monto_compra), 0)::float`,
         cantidad: sql<number>`COUNT(*)::int`,
       })
       .from(puntosTransacciones)
       .where(and(...conds))
-      .groupBy(sql`EXTRACT(DOW FROM created_at AT TIME ZONE 'America/Mexico_City')`)
-      .orderBy(sql`CASE WHEN EXTRACT(DOW FROM created_at AT TIME ZONE 'America/Mexico_City') = 0 THEN 7 ELSE EXTRACT(DOW FROM created_at AT TIME ZONE 'America/Mexico_City') END`);
+      .groupBy(sql`EXTRACT(DOW FROM created_at AT TIME ZONE ${zonaHoraria})`)
+      .orderBy(sql`CASE WHEN EXTRACT(DOW FROM created_at AT TIME ZONE ${zonaHoraria}) = 0 THEN 7 ELSE EXTRACT(DOW FROM created_at AT TIME ZONE ${zonaHoraria}) END`);
 
     // Mapear a los 7 días de la semana (Lunes a Domingo), rellenando con 0 los que no tienen ventas
     const mapaVentas = new Map(ventasPorDiaRaw.map((r) => [r.dia, r]));
@@ -385,9 +391,10 @@ export async function obtenerReporteClientes(
     // Usa la primera transacción confirmada como "fecha de adquisición"
     // para garantizar consistencia con "Total de clientes"
     const condSucTendencia = sucursalId ? sql`AND sucursal_id = ${sucursalId}` : sql``;
+    const zonaHoraria = await obtenerZonaHorariaSucursal(negocioId, sucursalId);
     const tendenciaRaw = await db.execute(sql`
       SELECT
-        TO_CHAR(DATE_TRUNC('week', primera_compra AT TIME ZONE 'America/Mexico_City'), 'YYYY-MM-DD') as semana,
+        TO_CHAR(DATE_TRUNC('week', primera_compra AT TIME ZONE ${zonaHoraria}), 'YYYY-MM-DD') as semana,
         COUNT(*)::int as nuevos
       FROM (
         SELECT cliente_id, MIN(created_at) as primera_compra
@@ -399,8 +406,8 @@ export async function obtenerReporteClientes(
       ) primeras
       WHERE primera_compra >= ${fechaInicio.toISOString()}
         ${fechaFinCustom ? sql`AND primera_compra <= ${fechaFinCustom.length === 10 ? `${fechaFinCustom}T23:59:59` : fechaFinCustom}` : sql``}
-      GROUP BY DATE_TRUNC('week', primera_compra AT TIME ZONE 'America/Mexico_City')
-      ORDER BY DATE_TRUNC('week', primera_compra AT TIME ZONE 'America/Mexico_City')
+      GROUP BY DATE_TRUNC('week', primera_compra AT TIME ZONE ${zonaHoraria})
+      ORDER BY DATE_TRUNC('week', primera_compra AT TIME ZONE ${zonaHoraria})
     `);
     const tendencia = (tendenciaRaw as unknown as { rows: { semana: string; nuevos: number }[] }).rows;
 
@@ -1076,16 +1083,17 @@ export async function obtenerReporteResenas(
     }));
 
     // ── Tendencia de rating por semana ─────────────────────────────────────
+    const zonaHoraria = await obtenerZonaHorariaSucursal(negocioId, sucursalId);
     const tendencia = await db
       .select({
-        semana: sql<string>`TO_CHAR(DATE_TRUNC('week', created_at AT TIME ZONE 'America/Mexico_City'), 'YYYY-MM-DD')`,
+        semana: sql<string>`TO_CHAR(DATE_TRUNC('week', created_at AT TIME ZONE ${zonaHoraria}), 'YYYY-MM-DD')`,
         promedio: sql<number>`COALESCE(AVG(rating), 0)::float`,
         cantidad: sql<number>`COUNT(*)::int`,
       })
       .from(resenas)
       .where(and(...condsResenas, isNotNull(resenas.rating)))
-      .groupBy(sql`DATE_TRUNC('week', created_at AT TIME ZONE 'America/Mexico_City')`)
-      .orderBy(sql`DATE_TRUNC('week', created_at AT TIME ZONE 'America/Mexico_City')`);
+      .groupBy(sql`DATE_TRUNC('week', created_at AT TIME ZONE ${zonaHoraria})`)
+      .orderBy(sql`DATE_TRUNC('week', created_at AT TIME ZONE ${zonaHoraria})`);
 
     // ── Sin responder / Tasa de respuesta / Tiempo promedio ───────────────
     // IMPORTANTE: una reseña se considera "respondida" cuando existe una fila
