@@ -110,15 +110,17 @@ export function useTransaccionesCanjesKPIs(periodo: PeriodoEstadisticas) {
 // OPERADORES (para dropdown de filtro)
 // =============================================================================
 
-export function useTransaccionesOperadores() {
+export function useTransaccionesOperadores(
+  tipo: 'ventas' | 'cupones' | 'canjes' = 'ventas'
+) {
   const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
   const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
   const habilitado = !!sucursalId && modoActivo === 'comercial';
 
   return useQuery({
-    queryKey: queryKeys.transacciones.operadores(sucursalId),
+    queryKey: queryKeys.transacciones.operadores(sucursalId, tipo),
     queryFn: () =>
-      transaccionesService.getOperadores().then((r) => r.data ?? []),
+      transaccionesService.getOperadores(tipo).then((r) => r.data ?? []),
     enabled: habilitado,
     staleTime: 5 * 60 * 1000, // los operadores cambian poco
   });
@@ -336,11 +338,14 @@ export function useRevocarTransaccion() {
       // que el modal de detalle y la tabla muestren datos frescos.
       const clienteId = context?.clienteIdAfectado;
       if (clienteId) {
+        // Prefix matching: invalida todas las variantes por sucursal.
+        // queryKeys.clientes.detalle/historial ahora incluyen sucursalId,
+        // pero al revocar no sabemos qué sucursal tiene el caché activo.
         queryClientInstance.invalidateQueries({
-          queryKey: queryKeys.clientes.detalle(clienteId),
+          queryKey: ['clientes', 'detalle', clienteId],
         });
         queryClientInstance.invalidateQueries({
-          queryKey: queryKeys.clientes.historial(clienteId),
+          queryKey: ['clientes', 'historial', clienteId],
         });
       }
       // KPIs y lista del módulo pueden cambiar (inactivos, distribución por

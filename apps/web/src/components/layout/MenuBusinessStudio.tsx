@@ -33,7 +33,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { useAlertasKPIs } from '../../hooks/queries/useAlertas';
+import { useAlertasKPIs, useAlertasRealtimeSync } from '../../hooks/queries/useAlertas';
 import { useResenasKPIs } from '../../hooks/queries/useResenas';
 
 // =============================================================================
@@ -115,6 +115,10 @@ export function MenuBusinessStudio() {
   // Badge de alertas no leídas — React Query mantiene actualizado con staleTime 30s
   const kpisAlertasQuery = useAlertasKPIs();
   const alertasNoLeidas = kpisAlertasQuery.data?.noLeidas ?? 0;
+
+  // Sync real-time: al recibir `alerta:actualizada` por socket, invalida toda
+  // la caché de alertas (funciona para dueño y gerentes en modo comercial).
+  useAlertasRealtimeSync();
 
   const kpisResenasQuery = useResenasKPIs();
   const opinionesPendientes = kpisResenasQuery.data?.pendientes ?? 0;

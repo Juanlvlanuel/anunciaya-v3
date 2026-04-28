@@ -818,7 +818,12 @@ export async function obtenerReportePromociones(
         sql`${metricasEntidad.entityId} IN (SELECT id FROM ofertas WHERE negocio_id = ${negocioId} AND visibilidad = 'publico' ${condSucOfertaSub})`,
       ));
 
-    // Mejor oferta pública (por clicks — las ofertas no tienen "canje" directo)
+    // Mejor oferta pública (por clicks — las ofertas no tienen "canje" directo).
+    // Solo considerar ofertas con clicks reales: cuando todas tienen 0 clicks, el
+    // ORDER BY no es determinístico y podía retornar una oferta arbitraria
+    // (potencialmente sin imagen/descripción), produciendo un placeholder vacío
+    // en el reporte. Si no hay ninguna con clicks > 0, mejorOferta = null y el
+    // componente muestra "Sin clicks en ofertas".
     const mejorOfertaRaw = await db
       .select({
         titulo: ofertas.titulo,
@@ -836,6 +841,7 @@ export async function obtenerReportePromociones(
       .where(and(
         eq(ofertas.negocioId, negocioId),
         sql`${ofertas.visibilidad} = 'publico'`,
+        sql`${metricasEntidad.totalClicks} > 0`,
         sucursalId
           ? sql`(${ofertas.sucursalId} = ${sucursalId} OR ${ofertas.sucursalId} IS NULL)`
           : sql`TRUE`,

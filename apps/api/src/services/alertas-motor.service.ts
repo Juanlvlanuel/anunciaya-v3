@@ -14,6 +14,22 @@ import { crearAlerta, existeAlertaReciente, estaAlertaActiva, obtenerUmbrales } 
 import type { TipoAlerta, CrearAlertaInput } from '../types/alertas.types.js';
 
 // ============================================================================
+// HELPER: Obtener sucursales activas del negocio
+// ============================================================================
+
+/**
+ * Retorna los IDs de las sucursales activas de un negocio.
+ * Usado para iterar detecciones per-sucursal en los orquestadores diario/semanal.
+ */
+async function obtenerSucursalesActivas(negocioId: string): Promise<string[]> {
+	const resultado = await db.execute(sql`
+		SELECT id FROM negocio_sucursales
+		WHERE negocio_id = ${negocioId} AND activa = true
+	`);
+	return (resultado as unknown as { rows: { id: string }[] }).rows.map(r => r.id);
+}
+
+// ============================================================================
 // DETECCIÓN EN TIEMPO REAL (llamada desde ScanYA tras registrar transacción)
 // ============================================================================
 
@@ -280,17 +296,25 @@ async function detectarEmpleadoDestacado(negocioId: string, tx: DatosTransaccion
  * Ejecutar detecciones diarias para un negocio
  */
 export async function ejecutarDeteccionDiaria(negocioId: string): Promise<void> {
-	await Promise.allSettled([
-		// Operativas
+	// Globales: una sola ejecución por negocio
+	const globales = Promise.allSettled([
 		detectarVouchersEstancados(negocioId),
 		detectarAcumulacionVouchers(negocioId),
-		detectarOfertasPorExpirar(negocioId),
-		detectarCuponesPorExpirar(negocioId),
-		// Engagement
-		detectarCuponesSinCanjear(negocioId),
 		detectarPuntosPorExpirar(negocioId),
 		detectarRecompensaPopular(negocioId),
 	]);
+
+	// Per-sucursal: una ejecución por cada sucursal activa
+	const sucursales = await obtenerSucursalesActivas(negocioId);
+	const perSucursal = Promise.allSettled(
+		sucursales.flatMap((sucursalId) => [
+			detectarOfertasPorExpirar(negocioId, sucursalId),
+			detectarCuponesPorExpirar(negocioId, sucursalId),
+			detectarCuponesSinCanjear(negocioId, sucursalId),
+		])
+	);
+
+	await Promise.all([globales, perSucursal]);
 }
 
 async function detectarVouchersEstancados(negocioId: string): Promise<void> {
@@ -355,7 +379,7 @@ async function detectarAcumulacionVouchers(negocioId: string): Promise<void> {
 	}
 }
 
-async function detectarOfertasPorExpirar(negocioId: string): Promise<void> {
+async function detectarOfertasPorExpirar(negocioId: string, sucursalId: string): Promise<void> {
 	if (!await estaAlertaActiva(negocioId, 'oferta_por_expirar')) return;
 
 	const umbrales = await obtenerUmbrales(negocioId, 'oferta_por_expirar');
@@ -365,6 +389,7 @@ async function detectarOfertasPorExpirar(negocioId: string): Promise<void> {
 		SELECT id, titulo, fecha_fin
 		FROM ofertas
 		WHERE negocio_id = ${negocioId}
+			AND sucursal_id = ${sucursalId}::uuid
 			AND activo = true
 			AND fecha_fin BETWEEN NOW() AND NOW() + (${diasAnticipacion} || ' days')::interval
 	`);
@@ -373,10 +398,11 @@ async function detectarOfertasPorExpirar(negocioId: string): Promise<void> {
 
 	for (const oferta of ofertas) {
 		const contextoId = oferta.id as string;
-		if (await existeAlertaReciente(negocioId, 'oferta_por_expirar', contextoId)) continue;
+		if (await existeAlertaReciente(negocioId, 'oferta_por_expirar', contextoId, sucursalId)) continue;
 
 		await crearAlerta({
 			negocioId,
+			sucursalId,
 			tipo: 'oferta_por_expirar',
 			titulo: `Oferta "${oferta.titulo}" por expirar`,
 			descripcion: `La oferta "${oferta.titulo}" vence pronto. Considera renovarla o crear una nueva.`,
@@ -386,18 +412,21 @@ async function detectarOfertasPorExpirar(negocioId: string): Promise<void> {
 	}
 }
 
-async function detectarCuponesPorExpirar(negocioId: string): Promise<void> {
+async function detectarCuponesPorExpirar(negocioId: string, sucursalId: string): Promise<void> {
 	if (!await estaAlertaActiva(negocioId, 'cupones_por_expirar')) return;
-	if (await existeAlertaReciente(negocioId, 'cupones_por_expirar')) return;
+	if (await existeAlertaReciente(negocioId, 'cupones_por_expirar', undefined, sucursalId)) return;
 
 	const umbrales = await obtenerUmbrales(negocioId, 'cupones_por_expirar');
 	const diasAnticipacion = (umbrales as { diasAnticipacion?: number }).diasAnticipacion ?? 2;
 
+	// Per-sucursal: se agrupa por la oferta origen (que pertenece a una sucursal).
+	// El canje puede ser cross-sucursal, pero la alerta llega a la sucursal emisora.
 	const resultado = await db.execute(sql`
 		SELECT COUNT(*)::int AS total, o.titulo
 		FROM oferta_usuarios ou
 		JOIN ofertas o ON o.id = ou.oferta_id
 		WHERE o.negocio_id = ${negocioId}
+			AND o.sucursal_id = ${sucursalId}::uuid
 			AND ou.estado = 'activo'
 			AND o.fecha_fin BETWEEN NOW() AND NOW() + (${diasAnticipacion} || ' days')::interval
 		GROUP BY o.titulo
@@ -413,6 +442,7 @@ async function detectarCuponesPorExpirar(negocioId: string): Promise<void> {
 
 	await crearAlerta({
 		negocioId,
+		sucursalId,
 		tipo: 'cupones_por_expirar',
 		titulo: `${totalCupones} cupones por expirar`,
 		descripcion: `Hay ${totalCupones} cupones activos que expiran en ${diasAnticipacion} días en: ${nombresOfertas}`,
@@ -421,7 +451,7 @@ async function detectarCuponesPorExpirar(negocioId: string): Promise<void> {
 	});
 }
 
-async function detectarCuponesSinCanjear(negocioId: string): Promise<void> {
+async function detectarCuponesSinCanjear(negocioId: string, sucursalId: string): Promise<void> {
 	if (!await estaAlertaActiva(negocioId, 'cupones_sin_canjear')) return;
 
 	const umbrales = await obtenerUmbrales(negocioId, 'cupones_sin_canjear');
@@ -434,6 +464,7 @@ async function detectarCuponesSinCanjear(negocioId: string): Promise<void> {
 		FROM oferta_usuarios ou
 		JOIN ofertas o ON o.id = ou.oferta_id
 		WHERE o.negocio_id = ${negocioId}
+			AND o.sucursal_id = ${sucursalId}::uuid
 			AND o.activo = true
 			AND o.fecha_fin > NOW()
 		GROUP BY o.id, o.titulo
@@ -448,10 +479,11 @@ async function detectarCuponesSinCanjear(negocioId: string): Promise<void> {
 			: 0;
 
 		if (tasaUso < porcentajeMinimo) {
-			if (await existeAlertaReciente(negocioId, 'cupones_sin_canjear', oferta.id)) continue;
+			if (await existeAlertaReciente(negocioId, 'cupones_sin_canjear', oferta.id, sucursalId)) continue;
 
 			await crearAlerta({
 				negocioId,
+				sucursalId,
 				tipo: 'cupones_sin_canjear',
 				titulo: `Baja conversión en "${oferta.titulo}"`,
 				descripcion: `Solo ${tasaUso.toFixed(0)}% de cupones usados (${oferta.total_usados}/${oferta.total_asignados})`,
@@ -551,17 +583,27 @@ async function detectarRecompensaPopular(negocioId: string): Promise<void> {
  * Ejecutar detecciones semanales para un negocio
  */
 export async function ejecutarDeteccionSemanal(negocioId: string): Promise<void> {
-	await Promise.allSettled([
-		detectarCaidaVentas(negocioId),
+	// Globales: una sola ejecución por negocio
+	const globales = Promise.allSettled([
 		detectarClienteVipInactivo(negocioId),
-		detectarRachaResenasNegativas(negocioId),
-		detectarPicoActividad(negocioId),
 	]);
+
+	// Per-sucursal: una ejecución por cada sucursal activa
+	const sucursales = await obtenerSucursalesActivas(negocioId);
+	const perSucursal = Promise.allSettled(
+		sucursales.flatMap((sucursalId) => [
+			detectarCaidaVentas(negocioId, sucursalId),
+			detectarRachaResenasNegativas(negocioId, sucursalId),
+			detectarPicoActividad(negocioId, sucursalId),
+		])
+	);
+
+	await Promise.all([globales, perSucursal]);
 }
 
-async function detectarCaidaVentas(negocioId: string): Promise<void> {
+async function detectarCaidaVentas(negocioId: string, sucursalId: string): Promise<void> {
 	if (!await estaAlertaActiva(negocioId, 'caida_ventas')) return;
-	if (await existeAlertaReciente(negocioId, 'caida_ventas')) return;
+	if (await existeAlertaReciente(negocioId, 'caida_ventas', undefined, sucursalId)) return;
 
 	const umbrales = await obtenerUmbrales(negocioId, 'caida_ventas');
 	const porcentajeCaida = (umbrales as { porcentajeCaida?: number }).porcentajeCaida ?? 20;
@@ -571,7 +613,9 @@ async function detectarCaidaVentas(negocioId: string): Promise<void> {
 			COALESCE(SUM(monto_compra) FILTER (WHERE created_at > NOW() - INTERVAL '7 days'), 0)::numeric(10,2) AS ventas_semana,
 			COALESCE(SUM(monto_compra) FILTER (WHERE created_at BETWEEN NOW() - INTERVAL '35 days' AND NOW() - INTERVAL '7 days'), 0)::numeric(10,2) AS ventas_4_semanas
 		FROM puntos_transacciones
-		WHERE negocio_id = ${negocioId} AND estado = 'confirmado'
+		WHERE negocio_id = ${negocioId}
+			AND sucursal_id = ${sucursalId}::uuid
+			AND estado = 'confirmado'
 	`);
 
 	const row = (resultado as unknown as { rows: { ventas_semana: string; ventas_4_semanas: string }[] }).rows[0];
@@ -586,6 +630,7 @@ async function detectarCaidaVentas(negocioId: string): Promise<void> {
 	if (cambio < -porcentajeCaida) {
 		await crearAlerta({
 			negocioId,
+			sucursalId,
 			tipo: 'caida_ventas',
 			titulo: `Caída de ventas: ${Math.abs(cambio).toFixed(0)}%`,
 			descripcion: `Las ventas de esta semana ($${ventasSemana.toFixed(2)}) cayeron ${Math.abs(cambio).toFixed(0)}% vs el promedio semanal ($${promedioSemanal.toFixed(2)})`,
@@ -629,9 +674,9 @@ async function detectarClienteVipInactivo(negocioId: string): Promise<void> {
 	}
 }
 
-async function detectarRachaResenasNegativas(negocioId: string): Promise<void> {
+async function detectarRachaResenasNegativas(negocioId: string, sucursalId: string): Promise<void> {
 	if (!await estaAlertaActiva(negocioId, 'racha_resenas_negativas')) return;
-	if (await existeAlertaReciente(negocioId, 'racha_resenas_negativas')) return;
+	if (await existeAlertaReciente(negocioId, 'racha_resenas_negativas', undefined, sucursalId)) return;
 
 	const umbrales = await obtenerUmbrales(negocioId, 'racha_resenas_negativas');
 	const minimoResenas = (umbrales as { minimoResenas?: number }).minimoResenas ?? 2;
@@ -643,6 +688,7 @@ async function detectarRachaResenasNegativas(negocioId: string): Promise<void> {
 		JOIN usuarios u ON u.id = r.autor_id
 		WHERE r.destino_id = ${negocioId}
 			AND r.destino_tipo = 'negocio'
+			AND r.sucursal_id = ${sucursalId}::uuid
 			AND r.rating IS NOT NULL
 			AND r.rating <= ${maximoEstrellas}
 			AND r.created_at > NOW() - INTERVAL '7 days'
@@ -658,6 +704,7 @@ async function detectarRachaResenasNegativas(negocioId: string): Promise<void> {
 
 		await crearAlerta({
 			negocioId,
+			sucursalId,
 			tipo: 'racha_resenas_negativas',
 			titulo: `${total} ${total === 1 ? 'reseña negativa' : 'reseñas negativas'} esta semana`,
 			descripcion: `Se ${total === 1 ? 'recibió' : 'recibieron'} ${total} ${total === 1 ? 'reseña' : 'reseñas'} de ${maximoEstrellas} estrellas o menos en los últimos 7 días`,
@@ -668,9 +715,9 @@ async function detectarRachaResenasNegativas(negocioId: string): Promise<void> {
 	}
 }
 
-async function detectarPicoActividad(negocioId: string): Promise<void> {
+async function detectarPicoActividad(negocioId: string, sucursalId: string): Promise<void> {
 	if (!await estaAlertaActiva(negocioId, 'pico_actividad')) return;
-	if (await existeAlertaReciente(negocioId, 'pico_actividad')) return;
+	if (await existeAlertaReciente(negocioId, 'pico_actividad', undefined, sucursalId)) return;
 
 	const umbrales = await obtenerUmbrales(negocioId, 'pico_actividad');
 	const multiplicador = (umbrales as { multiplicador?: number }).multiplicador ?? 2;
@@ -680,7 +727,9 @@ async function detectarPicoActividad(negocioId: string): Promise<void> {
 			COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)::int AS hoy,
 			(COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days')::numeric / 30)::numeric(10,1) AS promedio_diario
 		FROM puntos_transacciones
-		WHERE negocio_id = ${negocioId} AND estado = 'confirmado'
+		WHERE negocio_id = ${negocioId}
+			AND sucursal_id = ${sucursalId}::uuid
+			AND estado = 'confirmado'
 	`);
 
 	const row = (resultado as unknown as { rows: { hoy: number; promedio_diario: string }[] }).rows[0];
@@ -690,6 +739,7 @@ async function detectarPicoActividad(negocioId: string): Promise<void> {
 	if (promedioDiario > 0 && hoy > promedioDiario * multiplicador) {
 		await crearAlerta({
 			negocioId,
+			sucursalId,
 			tipo: 'pico_actividad',
 			titulo: `Pico de actividad: ${hoy} transacciones hoy`,
 			descripcion: `Hoy se registraron ${hoy} transacciones, ${multiplicador}x más que el promedio diario (${promedioDiario})`,

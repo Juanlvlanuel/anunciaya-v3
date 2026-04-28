@@ -113,6 +113,7 @@ interface CampanaRow {
 interface InteraccionVentaRow {
     id: string;
     monto: string | number;
+    puntos: string | number;
     created_at: string;
     usuario_nombre: string;
     usuario_avatar: string | null;
@@ -145,6 +146,15 @@ interface InteraccionCompartidoRow {
     total_shares: number;
     updated_at: string;
     created_at: string; // Alias de updated_at en la query
+}
+
+interface InteraccionResenaRow {
+    id: string;
+    created_at: string;
+    usuario_nombre: string;
+    usuario_avatar: string | null;
+    rating: number | null;
+    texto: string | null;
 }
 
 interface AlertaRow {
@@ -476,13 +486,19 @@ export async function obtenerKPIs(
         `;
 
         // Query para métricas de engagement
+        // vistas: desde metricas_entidad.total_views (fuente única de verdad, la misma
+        //         que incrementa POST /metricas/view y lee el perfil público).
+        //         negocio_sucursales.total_visitas quedó como columna legacy sin
+        //         sincronización con el registro real de vistas.
         const metricasQuery = sql`
-            SELECT 
+            SELECT
                 COALESCE(s.calificacion_promedio, 0)::numeric as rating,
                 COALESCE(s.total_calificaciones, 0)::int as total_resenas,
-                COALESCE(s.total_visitas, 0)::int as vistas,
+                COALESCE(m.total_views, 0)::int as vistas,
                 COALESCE(s.total_likes, 0)::int as likes
             FROM negocio_sucursales s
+            LEFT JOIN metricas_entidad m
+                ON m.entity_type = 'sucursal' AND m.entity_id = s.id
             WHERE s.negocio_id = ${negocioId}
             AND (${sucursalIdParam}::uuid IS NULL OR s.id = ${sucursalIdParam}::uuid)
             AND (${sucursalIdParam}::uuid IS NOT NULL OR s.es_principal = true)
@@ -802,6 +818,7 @@ export async function obtenerInteracciones(
                 'venta' as tipo,
                 pt.id,
                 pt.monto_compra as monto,
+                pt.puntos_otorgados as puntos,
                 u.nombre as usuario_nombre,
                 u.avatar_url as usuario_avatar,
                 pt.created_at
@@ -904,7 +921,28 @@ export async function obtenerInteracciones(
             LIMIT 5
         `;
 
-        // 5. Compartidos recientes (de metricas, sin nombre)
+        // 5. Reseñas recientes de clientes hacia el negocio
+        const resenasQuery = sql`
+            SELECT
+                r.id::text as id,
+                u.nombre as usuario_nombre,
+                u.avatar_url as usuario_avatar,
+                r.rating,
+                r.texto,
+                r.created_at
+            FROM resenas r
+            JOIN usuarios u ON u.id = r.autor_id
+            WHERE r.destino_tipo = 'negocio'
+              AND r.destino_id = ${negocioId}
+              AND r.autor_tipo = 'cliente'
+              AND (${sucursalIdParam}::uuid IS NULL OR r.sucursal_id = ${sucursalIdParam}::uuid)
+              AND r.created_at >= ${fechaInicio}::timestamptz
+              AND r.created_at <= ${fechaFin}::timestamptz
+            ORDER BY r.created_at DESC
+            LIMIT 5
+        `;
+
+        // 6. Compartidos recientes (de metricas, sin nombre)
         // Solo mostramos si hubo incremento reciente
         const compartidosQuery = sql`
             SELECT 
@@ -924,29 +962,35 @@ export async function obtenerInteracciones(
             LIMIT 3
         `;
 
-        const [ventasResult, cuponesResult, likesResult, seguidoresResult, compartidosResult] = await Promise.all([
+        const [ventasResult, cuponesResult, likesResult, seguidoresResult, resenasResult, compartidosResult] = await Promise.all([
             db.execute(ventasQuery),
             db.execute(cuponesQuery),
             db.execute(likesQuery),
             db.execute(seguidoresQuery),
+            db.execute(resenasQuery),
             db.execute(compartidosQuery),
         ]);
 
         // Mapear resultados
         const interacciones = [
-            ...(ventasResult.rows as unknown as InteraccionVentaRow[]).map((r) => ({
-                tipo: 'venta',
-                id: r.id,
-                titulo: `${r.usuario_nombre}`,
-                descripcion: `Compra por $${Number(r.monto).toLocaleString()}`,
-                avatar: r.usuario_avatar,
-                createdAt: r.created_at,
-            })),
+            ...(ventasResult.rows as unknown as InteraccionVentaRow[]).map((r) => {
+                const puntos = Number(r.puntos) || 0;
+                return {
+                    tipo: 'venta',
+                    id: r.id,
+                    titulo: `${r.usuario_nombre}`,
+                    descripcion: `Compró $${Number(r.monto).toLocaleString('es-MX')}`,
+                    detalle: puntos > 0 ? `Ganó ${puntos.toLocaleString('es-MX')} puntos` : null,
+                    avatar: r.usuario_avatar,
+                    createdAt: r.created_at,
+                };
+            }),
             ...(cuponesResult.rows as unknown as InteraccionCuponRow[]).map((r) => ({
                 tipo: 'cupon_canjeado',
                 id: r.id,
                 titulo: `${r.usuario_nombre}`,
-                descripcion: `Canjeó "${r.descripcion}"`,
+                descripcion: 'Canjeó un cupón',
+                detalle: r.descripcion,
                 avatar: r.usuario_avatar,
                 createdAt: r.created_at,
             })),
@@ -966,6 +1010,21 @@ export async function obtenerInteracciones(
                 avatar: r.usuario_avatar,
                 createdAt: r.created_at,
             })),
+            ...(resenasResult.rows as unknown as InteraccionResenaRow[]).map((r) => {
+                const detalle = r.texto
+                    ? `"${r.texto.length > 60 ? `${r.texto.slice(0, 60)}...` : r.texto}"`
+                    : null;
+                return {
+                    tipo: 'resena',
+                    id: r.id,
+                    titulo: `${r.usuario_nombre}`,
+                    descripcion: 'Nueva reseña',
+                    detalle,
+                    avatar: r.usuario_avatar,
+                    createdAt: r.created_at,
+                    rating: r.rating ?? null,
+                };
+            }),
             ...(compartidosResult.rows as unknown as InteraccionCompartidoRow[]).map((r) => ({
                 tipo: 'compartido',
                 id: r.id,
@@ -994,22 +1053,29 @@ export async function obtenerInteracciones(
 
 export async function obtenerAlertasRecientes(
     negocioId: string,
+    usuarioId: string,
     limite: number = 5,
     sucursalId?: string
 ) {
     try {
         const sucursalIdParam = sucursalId ?? null;
+        // LEFT JOIN con alerta_lecturas para saber si este usuario la leyó.
+        // El estado es POR USUARIO — ver alertas.service.ts.
         const query = sql`
-            SELECT 
-                id, tipo, severidad, titulo,
-                descripcion, leida, created_at
-            FROM alertas_seguridad
-          WHERE negocio_id = ${negocioId}
-            AND (
-                sucursal_id IS NULL
-                OR sucursal_id = ${sucursalIdParam}::uuid
-            )
-            ORDER BY created_at DESC
+            SELECT
+                a.id, a.tipo, a.severidad, a.titulo,
+                a.descripcion,
+                (al.leida_at IS NOT NULL) AS leida,
+                a.created_at
+            FROM alertas_seguridad a
+            LEFT JOIN alerta_lecturas al
+                ON al.alerta_id = a.id AND al.usuario_id = ${usuarioId}
+            WHERE a.negocio_id = ${negocioId}
+                AND (
+                    a.sucursal_id IS NULL
+                    OR a.sucursal_id = ${sucursalIdParam}::uuid
+                )
+            ORDER BY a.created_at DESC
             LIMIT ${limite}
         `;
 
@@ -1035,24 +1101,27 @@ export async function obtenerAlertasRecientes(
 }
 
 // =============================================================================
-// MARCAR ALERTA COMO LEÍDA
+// MARCAR ALERTA COMO LEÍDA (por usuario)
 // =============================================================================
 
-export async function marcarAlertaLeida(alertaId: string, negocioId: string) {
+export async function marcarAlertaLeida(alertaId: string, negocioId: string, usuarioId: string) {
     try {
-        const query = sql`
-            UPDATE alertas_seguridad
-            SET leida = true, leida_at = NOW()
-            WHERE id = ${alertaId}
-              AND negocio_id = ${negocioId}
-            RETURNING id
+        // Verificar que la alerta pertenece al negocio
+        const existeQuery = sql`
+            SELECT 1 FROM alertas_seguridad WHERE id = ${alertaId} AND negocio_id = ${negocioId}
         `;
-
-        const resultado = await db.execute(query);
-
-        if (resultado.rows.length === 0) {
+        const existe = await db.execute(existeQuery);
+        if (existe.rows.length === 0) {
             throw new Error('Alerta no encontrada');
         }
+
+        // Upsert en alerta_lecturas
+        await db.execute(sql`
+            INSERT INTO alerta_lecturas (alerta_id, usuario_id, leida_at)
+            VALUES (${alertaId}, ${usuarioId}, NOW())
+            ON CONFLICT (alerta_id, usuario_id)
+            DO UPDATE SET leida_at = COALESCE(alerta_lecturas.leida_at, EXCLUDED.leida_at)
+        `);
 
         return { success: true, message: 'Alerta marcada como leída' };
     } catch (error) {

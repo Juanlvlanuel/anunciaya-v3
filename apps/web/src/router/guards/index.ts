@@ -7,3 +7,4 @@
  */
 
 export { ModoGuard } from './ModoGuard';
+export { MatrizGuard } from './MatrizGuard';

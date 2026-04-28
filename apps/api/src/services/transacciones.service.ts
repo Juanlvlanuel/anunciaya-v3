@@ -91,6 +91,11 @@ export async function obtenerKPIsTransacciones(
       condiciones.push(eq(puntosTransacciones.sucursalId, sucursalId));
     }
 
+    // Excluir transacciones con cupón — éstas se cuentan en los KPIs del
+    // tab Cupones (obtenerKPIsCupones). Sin este filtro, los 4 KPIs de
+    // Ventas no coinciden con la tabla que sí filtra `oferta_uso_id IS NULL`.
+    condiciones.push(sql`${puntosTransacciones.ofertaUsoId} IS NULL`);
+
     // Query: Métricas de transacciones válidas (confirmadas)
     const [metricas] = await db
       .select({

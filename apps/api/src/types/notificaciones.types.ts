@@ -62,6 +62,7 @@ export interface NotificacionResponse {
   mensaje: string;
   negocioId: string | null;
   sucursalId: string | null;
+  sucursalNombre: string | null;
   referenciaId: string | null;
   referenciaTipo: ReferenciaTipo | null;
   icono: string | null;

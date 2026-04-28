@@ -23,6 +23,7 @@ export interface SucursalResumen {
 	whatsapp: string | null;
 	correo: string | null;
 	activa: boolean;
+	fotoPerfil: string | null;
 	createdAt: string;
 	gerente: GerenteResumen | null;
 }

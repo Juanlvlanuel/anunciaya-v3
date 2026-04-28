@@ -198,7 +198,7 @@ export function TabClientes({
                                     className="w-full flex items-center gap-2.5 lg:gap-1.5 2xl:gap-2.5 p-3 lg:p-2 2xl:p-3 text-left cursor-pointer border-b border-slate-300 last:border-b-0 hover:bg-slate-200"
                                 >
                                     {/* Avatar */}
-                                    <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                    <div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
                                         {cliente.avatarUrl ? (
                                             <img src={cliente.avatarUrl} alt={cliente.nombre} className="w-full h-full object-cover" />
                                         ) : (

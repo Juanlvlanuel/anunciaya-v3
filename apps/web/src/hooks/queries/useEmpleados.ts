@@ -334,6 +334,10 @@ export function useToggleEmpleadoActivo() {
 
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: queryKeys.empleados.kpis(sucursalId) });
+      // Invalidar la lista con filtros: re-fetch para que el empleado aparezca/desaparezca
+      // según el filtro activo (Activos/Inactivos/Todos). La actualización optimista solo
+      // cambia el campo `activo`, pero no mueve al empleado entre listas filtradas.
+      qc.invalidateQueries({ queryKey: ['empleados', 'lista', sucursalId] });
       // Invalidar el detalle para que el modal se sincronice con el servidor
       // (trae por ej. updatedAt actualizado, además del activo)
       qc.invalidateQueries({ queryKey: queryKeys.empleados.detalle(id) });

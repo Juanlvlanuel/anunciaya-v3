@@ -90,12 +90,14 @@ export interface Campana {
 }
 
 export interface Interaccion {
-  tipo: 'venta' | 'cupon_canjeado' | 'like' | 'nuevo_seguidor' | 'compartido';
+  tipo: 'venta' | 'cupon_canjeado' | 'like' | 'nuevo_seguidor' | 'resena' | 'compartido';
   id: string;
   titulo: string;
   descripcion: string;
   avatar: string | null;
   createdAt: string;
+  rating?: number | null;
+  detalle?: string | null;
 }
 
 export interface Alerta {

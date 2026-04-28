@@ -44,6 +44,7 @@ import {
   X,
 } from 'lucide-react';
 import { useClientesStore } from '../../../../stores/useClientesStore';
+import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useClientesKPIs, useClientesLista } from '../../../../hooks/queries/useClientes';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
@@ -117,6 +118,18 @@ const formatearFechaCorta = (fechaISO: string | null) => {
   if (diffDias < 7) return `Hace ${diffDias}d`;
   if (diffDias < 30) return `Hace ${Math.floor(diffDias / 7)}sem`;
   return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+};
+
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/** Formato "09 Abril 2026" */
+const formatearFechaLarga = (fechaISO: string | null) => {
+  if (!fechaISO) return '—';
+  const f = new Date(fechaISO);
+  const dia = String(f.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[f.getMonth()];
+  const anio = f.getFullYear();
+  return `${dia} ${mes} ${anio}`;
 };
 
 const obtenerColorNivel = (nivel: string) => {
@@ -209,18 +222,19 @@ function FilaMovil({
 
   return (
     <div
-      className="w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden"
-      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+      onClick={() => onVerDetalle(cliente.id)}
+      className="w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
     >
       {/* Avatar */}
       <div
-        onClick={() => cliente.avatarUrl && setVerAvatar(true)}
-        className={`w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${cliente.avatarUrl ? 'cursor-pointer' : ''}`}
+        onClick={(e) => { if (cliente.avatarUrl) { e.stopPropagation(); setVerAvatar(true); } }}
+        className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md ${cliente.avatarUrl ? 'cursor-pointer' : ''}`}
+        style={cliente.avatarUrl ? undefined : { background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
       >
         {cliente.avatarUrl ? (
           <img src={cliente.avatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="text-lg font-bold text-indigo-700">{obtenerIniciales(cliente.nombre)}</span>
+          <span className="text-lg font-bold text-white">{obtenerIniciales(cliente.nombre)}</span>
         )}
       </div>
       {cliente.avatarUrl && (
@@ -239,7 +253,7 @@ function FilaMovil({
               </span>
             )}
           </div>
-          <p className="text-sm font-medium text-slate-500">Última visita: {formatearFechaCorta(cliente.ultimaActividad)}</p>
+          <p className="text-sm font-medium text-slate-500">Última visita: {formatearFechaLarga(cliente.ultimaActividad)}</p>
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
@@ -247,15 +261,50 @@ function FilaMovil({
             <span>{cliente.totalVisitas} visitas</span>
           </div>
           <div className="flex items-center gap-4 shrink-0">
-            <button onClick={() => onChatear(cliente.id)} className="cursor-pointer">
+            <button
+              onClick={(e) => { e.stopPropagation(); onChatear(cliente.id); }}
+              className="cursor-pointer"
+            >
               <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
-            </button>
-            <button onClick={() => onVerDetalle(cliente.id)} className="cursor-pointer text-slate-700">
-              <Eye className="w-7 h-7" />
             </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// ESTADO VACÍO CONTEXTUAL
+// =============================================================================
+
+function EstadoVacioClientes({
+  busqueda,
+  nivelFiltro,
+}: {
+  busqueda?: string;
+  nivelFiltro?: NivelCardYA | null;
+}) {
+  let titulo: string;
+  let subtitulo: string;
+
+  if (busqueda) {
+    titulo = 'Sin resultados';
+    subtitulo = 'Prueba con otro término de búsqueda';
+  } else if (nivelFiltro) {
+    const nivel = NIVELES.find((n) => n.valor === nivelFiltro);
+    titulo = `Sin clientes ${nivel?.etiqueta ?? ''}`;
+    subtitulo = 'Prueba con otro nivel o quita el filtro';
+  } else {
+    titulo = 'Sin clientes';
+    subtitulo = 'Aún no tienes clientes registrados en tu negocio';
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-slate-600 text-center px-4">
+      <Inbox className="w-10 h-10 mb-2" />
+      <p className="text-sm font-semibold text-slate-700">{titulo}</p>
+      <p className="text-xs font-medium text-slate-500 mt-1">{subtitulo}</p>
     </div>
   );
 }
@@ -271,6 +320,13 @@ export default function PaginaClientes() {
 
   // ─── Store — solo UI ──────────────────────────────────────────────────────
   const { busqueda, setBusqueda, nivelFiltro, setNivelFiltro, limpiar } = useClientesStore();
+
+  // Reset filtros al cambiar de sucursal — un cliente filtrado por nombre o nivel
+  // puede no existir en la nueva sucursal (cada sucursal tiene su propia base de clientes).
+  const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
+  useEffect(() => {
+    limpiar();
+  }, [sucursalActiva, limpiar]);
 
   // ─── Queries — datos del servidor ─────────────────────────────────────────
   const kpisQuery = useClientesKPIs();
@@ -630,9 +686,9 @@ export default function PaginaClientes() {
                     <button
                       type="button"
                       onClick={() => handleBusquedaChange('')}
-                      className="text-slate-600 hover:text-slate-800 cursor-pointer"
+                      className="p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-[18px] h-[18px]" />
                     </button>
                   ) : undefined}
                 />
@@ -640,11 +696,8 @@ export default function PaginaClientes() {
               {/* Reporte: solo móvil — icon only */}
               <button
                 onClick={handleExportar}
-                className="lg:hidden shrink-0 flex items-center justify-center h-11 w-11 rounded-lg text-slate-600 border-2 border-slate-300 cursor-pointer"
-                style={{
-                  background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                }}
+                className="lg:hidden shrink-0 flex items-center justify-center h-11 w-11 rounded-lg text-white cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
               >
                 <Download className="w-5 h-5" />
               </button>
@@ -655,11 +708,8 @@ export default function PaginaClientes() {
               <Tooltip text="Descargar CSV con los filtros activos" position="bottom">
                 <button
                   onClick={handleExportar}
-                  className="flex items-center gap-1.5 h-10 2xl:h-11 px-2.5 2xl:px-3 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
-                  style={{
-                    background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                  }}
+                  className="flex items-center gap-1.5 h-10 2xl:h-11 px-4 rounded-lg text-sm 2xl:text-base font-bold text-white cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                 >
                   <Download className="w-3 h-3 2xl:w-4 2xl:h-4" />
                   Reporte
@@ -709,10 +759,7 @@ export default function PaginaClientes() {
             {/* Body scrolleable */}
             <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-455px)] overflow-y-auto bg-white">
               {clientesOrdenados.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                  <Inbox className="w-10 h-10 mb-2" />
-                  <p className="text-sm font-medium">No se encontraron clientes</p>
-                </div>
+                <EstadoVacioClientes busqueda={busqueda} nivelFiltro={nivelFiltro} />
               ) : (
                 clientesOrdenados.map((c, i) => {
                   const colorNivel = obtenerColorNivel(c.nivelActual);
@@ -728,12 +775,13 @@ export default function PaginaClientes() {
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                         <div
                           onClick={(e) => { if (c.avatarUrl) { e.stopPropagation(); setAvatarUrl(c.avatarUrl); } }}
-                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${c.avatarUrl ? 'cursor-pointer' : ''}`}
+                          className={`w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-sm ${c.avatarUrl ? 'cursor-pointer' : ''}`}
+                          style={c.avatarUrl ? undefined : { background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
                         >
                           {c.avatarUrl ? (
                             <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(c.nombre)}</span>
+                            <span className="text-xs font-bold text-white">{obtenerIniciales(c.nombre)}</span>
                           )}
                         </div>
                         <div className="min-w-0">
@@ -814,8 +862,8 @@ export default function PaginaClientes() {
                     key={col}
                     onClick={() => alternarOrden(col)}
                     className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
-                      ? 'bg-slate-400 text-slate-900 shadow-md'
-                      : 'text-white hover:bg-white/10'
+                      ? 'bg-slate-300 text-slate-900 shadow-md'
+                      : 'text-white lg:hover:bg-white/10'
                       }`}
                   >
                     {etiqueta}
@@ -827,17 +875,18 @@ export default function PaginaClientes() {
               })}
             </div>
 
-            {/* Cards */}
-            {clientesOrdenados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                <Inbox className="w-10 h-10 mb-2" />
-                <p className="text-sm font-medium">No se encontraron clientes</p>
-              </div>
-            ) : (
-              clientesOrdenados.map((c) => (
-                <FilaMovil key={c.id} cliente={c} onVerDetalle={handleVerDetalle} onChatear={handleChatear} nivelesActivos={nivelesActivos} />
-              ))
-            )}
+            {/* Lista */}
+            <div className="bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+              {clientesOrdenados.length === 0 ? (
+                <EstadoVacioClientes busqueda={busqueda} nivelFiltro={nivelFiltro} />
+              ) : (
+                <div className="divide-y-[1.5px] divide-slate-300">
+                  {clientesOrdenados.map((c) => (
+                    <FilaMovil key={c.id} cliente={c} onVerDetalle={handleVerDetalle} onChatear={handleChatear} nivelesActivos={nivelesActivos} />
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Sentinela infinite scroll */}
             <div ref={sentinelaRef} className="h-1" />

@@ -217,6 +217,8 @@ interface ContenidoCatalogoProps {
   totalServicios: number;
   /** ¿Mostrar tabs de Productos/Servicios? (false en móvil porque van en header) */
   mostrarTabs?: boolean;
+  /** Flag del hook useBreakpoint (respeta BreakpointOverride del preview/ChatYA) */
+  esMobile: boolean;
 }
 
 function ContenidoCatalogo({
@@ -232,6 +234,7 @@ function ContenidoCatalogo({
   totalProductos,
   totalServicios,
   mostrarTabs = true,
+  esMobile,
 }: ContenidoCatalogoProps) {
   const [dropdownCatAbierto, setDropdownCatAbierto] = useState(false);
   const dropdownCatRef = useRef<HTMLDivElement>(null);
@@ -448,7 +451,7 @@ function ContenidoCatalogo({
       {/* ============ GRID DE PRODUCTOS ============ */}
       <div className="flex-1 overflow-y-auto min-h-0 p-2 lg:p-1.5 2xl:p-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {itemsOrdenados.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2">
+          <div className={esMobile ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2'}>
             {itemsOrdenados.map((item) => (
               <CardCatalogoVertical
                 key={item.id}
@@ -633,6 +636,7 @@ export function ModalCatalogo({
             totalProductos={totalProductos}
             totalServicios={totalServicios}
             mostrarTabs={false}
+            esMobile={esMobile}
           />
         </ModalBottom>
 
@@ -694,6 +698,7 @@ export function ModalCatalogo({
           tieneAmbos={tieneAmbos}
           totalProductos={totalProductos}
           totalServicios={totalServicios}
+          esMobile={esMobile}
         />
         </div>
       </Modal>

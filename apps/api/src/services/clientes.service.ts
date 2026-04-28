@@ -664,7 +664,8 @@ export async function obtenerHistorialCliente(
     negocioId: string,
     clienteId: string,
     limit: number = 20,
-    offset: number = 0
+    offset: number = 0,
+    sucursalId?: string
 ): Promise<RespuestaServicio<TransaccionPuntos[]>> {
     try {
         const transacciones = await db
@@ -700,6 +701,13 @@ export async function obtenerHistorialCliente(
                 nota: puntosTransacciones.nota,
                 numeroOrden: puntosTransacciones.numeroOrden,
                 motivoRevocacion: puntosTransacciones.motivoRevocacion,
+                // Cupón — vía oferta_usos → ofertas
+                ofertaUsoId: puntosTransacciones.ofertaUsoId,
+                cuponTitulo: sql<string>`oferta_ref.titulo`,
+                cuponTipo: sql<string>`oferta_ref.tipo`,
+                cuponValor: sql<string>`oferta_ref.valor`,
+                cuponImagen: sql<string>`oferta_ref.imagen`,
+                cuponDescuento: sql<string>`ou_ref.descuento_aplicado`,
             })
             .from(puntosTransacciones)
             .innerJoin(usuarios, eq(puntosTransacciones.clienteId, usuarios.id))
@@ -711,10 +719,23 @@ export async function obtenerHistorialCliente(
                 sql`usuarios u2`,
                 sql`${scanyaTurnos.usuarioId} = u2.id`
             )
+            // JOIN para datos del cupón aplicado (si hay)
+            .leftJoin(
+                sql`oferta_usos ou_ref`,
+                sql`ou_ref.id = ${puntosTransacciones.ofertaUsoId}`
+            )
+            .leftJoin(
+                sql`ofertas oferta_ref`,
+                sql`oferta_ref.id = ou_ref.oferta_id`
+            )
             .where(
                 and(
                     eq(puntosTransacciones.negocioId, negocioId),
-                    eq(puntosTransacciones.clienteId, clienteId)
+                    eq(puntosTransacciones.clienteId, clienteId),
+                    // Filtrar por sucursal si viene — consistente con los
+                    // KPIs del modal (visitas, total gastado, vouchers) que
+                    // también son per-sucursal.
+                    sucursalId ? eq(puntosTransacciones.sucursalId, sucursalId) : undefined
                 )
             )
             .orderBy(desc(puntosTransacciones.createdAt))
@@ -746,11 +767,11 @@ export async function obtenerHistorialCliente(
             nota: t.nota || null,
             numeroOrden: t.numeroOrden || null,
             motivoRevocacion: t.motivoRevocacion || null,
-            cuponTitulo: null,
-            cuponTipo: null,
-            cuponValor: null,
-            cuponImagen: null,
-            cuponDescuento: null,
+            cuponTitulo: t.cuponTitulo || null,
+            cuponTipo: t.cuponTipo || null,
+            cuponValor: t.cuponValor || null,
+            cuponImagen: t.cuponImagen || null,
+            cuponDescuento: t.cuponDescuento != null ? Number(t.cuponDescuento) : null,
         }));
 
         return {

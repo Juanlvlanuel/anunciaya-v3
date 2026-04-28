@@ -350,8 +350,8 @@ export default function PaginaSucursales() {
 				data-testid="filtros-sucursales"
 			>
 				<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
-					{/* Chips estado */}
-					<div className="flex items-center gap-1.5">
+					{/* Chips estado (solo PC) */}
+					<div className="hidden lg:flex items-center gap-1.5">
 						{([
 							{ label: 'Todas', valor: undefined },
 							{ label: 'Activas', valor: true },
@@ -372,26 +372,26 @@ export default function PaginaSucursales() {
 					</div>
 
 					{/* Búsqueda */}
-					<div className="flex-1 relative">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+					<div className="flex-1">
 						<Input
 							value={busquedaLocal}
 							onChange={e => setBusquedaLocal(e.target.value)}
 							placeholder="Buscar sucursales..."
-							className="pl-10 h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
+							className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
+							icono={<Search className="w-4 h-4 text-slate-600" />}
+							elementoDerecha={busquedaLocal ? (
+								<button onClick={() => setBusquedaLocal('')} className="p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer">
+									<X className="w-[18px] h-[18px]" />
+								</button>
+							) : undefined}
 							data-testid="input-busqueda-sucursales"
 						/>
-						{busquedaLocal && (
-							<button onClick={() => setBusquedaLocal('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-600 hover:bg-slate-200 cursor-pointer">
-								<X className="w-3.5 h-3.5" />
-							</button>
-						)}
 					</div>
 
 					{/* Botón crear */}
 					<button
 						onClick={() => setModalCrearAbierto(true)}
-						className="flex items-center justify-center gap-1.5 px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-bold text-white cursor-pointer shrink-0"
+						className="flex items-center justify-center gap-1.5 px-4 2xl:px-5 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-bold text-white cursor-pointer shrink-0"
 						style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
 						data-testid="btn-crear-sucursal"
 					>
@@ -399,6 +399,33 @@ export default function PaginaSucursales() {
 						Nueva sucursal
 					</button>
 				</div>
+			</div>
+
+			{/* ══════════════════════════════════════════════════════════════
+			    SEGMENTED CONTROL — ESTADO (Todas / Activas / Inactivas)
+			    ══════════════════════════════════════════════════════════════ */}
+			<div className="lg:hidden flex items-center bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5 mt-3">
+				{([
+					{ label: 'Todas', valor: undefined },
+					{ label: 'Activas', valor: true },
+					{ label: 'Inactivas', valor: false },
+				] as const).map(chip => {
+					const activa = filtroActiva === chip.valor;
+					return (
+						<button
+							key={chip.label}
+							onClick={() => setFiltroActiva(chip.valor)}
+							className={`flex-1 flex items-center justify-center h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
+								? 'text-white shadow-md'
+								: 'text-slate-700'
+							}`}
+							style={activa ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+							data-testid={`chip-${chip.label.toLowerCase()}`}
+						>
+							{chip.label}
+						</button>
+					);
+				})}
 			</div>
 
 			{/* ══════════════════════════════════════════════════════════════
@@ -411,22 +438,38 @@ export default function PaginaSucursales() {
 			) : sucursales.length === 0 ? (
 				<div className="text-center py-16" data-testid="estado-vacio-sucursales">
 					<Building2 className="w-14 h-14 text-slate-300 mx-auto mb-3" />
-					<p className="text-slate-600 text-base font-semibold">Sin sucursales</p>
+					<p className="text-slate-600 text-base font-semibold">
+						{busqueda
+							? 'Sin resultados'
+							: filtroActiva === true
+								? 'Sin sucursales activas'
+								: filtroActiva === false
+									? 'Sin sucursales inactivas'
+									: 'Sin sucursales'}
+					</p>
 					<p className="text-slate-600 text-sm font-medium mt-1">
-						{busqueda ? 'No se encontraron resultados' : 'Agrega tu primera sucursal'}
+						{busqueda
+							? 'Prueba con otro término de búsqueda'
+							: filtroActiva === true
+								? 'Todas tus sucursales están inactivas'
+								: filtroActiva === false
+									? 'Todas tus sucursales están activas'
+									: 'Agrega tu primera sucursal'}
 					</p>
 				</div>
 			) : (
 				<>
 					{/* ── Móvil: Cards ── */}
-					<div className="lg:hidden space-y-2 mt-3">
-						{sucursales.map(suc => (
-							<CardSucursalMovil
-								key={suc.id}
-								sucursal={suc}
-								onClick={() => handleClickSucursal(suc)}
-							/>
-						))}
+					<div className="lg:hidden mt-3 bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+						<div className="divide-y-[1.5px] divide-slate-300">
+							{sucursales.map(suc => (
+								<CardSucursalMovil
+									key={suc.id}
+									sucursal={suc}
+									onClick={() => handleClickSucursal(suc)}
+								/>
+							))}
+						</div>
 					</div>
 
 					{/* ── Desktop: Tabla ── */}
@@ -448,12 +491,11 @@ export default function PaginaSucursales() {
 							</div>
 
 							{/* Body */}
-							<div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-420px)] overflow-y-auto bg-white">
-								{sucursales.map((suc, i) => (
+							<div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-420px)] overflow-y-auto bg-white divide-y-[1.5px] divide-slate-300">
+								{sucursales.map((suc) => (
 									<FilaSucursalDesktop
 										key={suc.id}
 										sucursal={suc}
-										indice={i}
 										onClick={() => handleClickSucursal(suc)}
 										onEditar={() => handleEditar(suc)}
 										onToggleActiva={(e) => handleToggleActiva(suc, e)}
@@ -496,23 +538,29 @@ function CardSucursalMovil({ sucursal, onClick }: {
 }) {
 	return (
 		<div
-			className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 cursor-pointer text-left overflow-hidden
-				${!sucursal.activa ? 'opacity-50' : ''}
-				hover:border-slate-400 hover:shadow-sm`}
+			className={`w-full flex items-center gap-3 px-3 py-3 text-left cursor-pointer hover:bg-slate-50 transition-colors ${!sucursal.activa ? 'opacity-50' : ''}`}
 			onClick={onClick}
-			style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
 			data-testid={`card-sucursal-${sucursal.id}`}
 		>
-			{/* Icono */}
-			<div className="w-16 h-16 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-				<Building2 className="w-7 h-7 text-blue-600" />
-			</div>
+			{/* Foto de perfil de la sucursal o ícono fallback */}
+			{sucursal.fotoPerfil ? (
+				<div className="w-14 h-14 rounded-full overflow-hidden shrink-0 shadow-md border-2 border-white bg-white">
+					<img src={sucursal.fotoPerfil} alt="" className="w-full h-full object-cover" />
+				</div>
+			) : (
+				<div
+					className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 shadow-md"
+					style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+				>
+					<Building2 className="w-7 h-7 text-white" />
+				</div>
+			)}
 
 			{/* Info */}
-			<div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+			<div className="flex-1 min-w-0 flex flex-col gap-2">
 				<div>
 					<div className="flex items-center gap-1.5">
-						<p className="text-base font-bold text-slate-800 truncate">
+						<p className="text-base font-bold text-slate-900 truncate">
 							{sucursal.esPrincipal ? 'Matriz' : sucursal.nombre}
 						</p>
 						{sucursal.esPrincipal && (
@@ -534,7 +582,7 @@ function CardSucursalMovil({ sucursal, onClick }: {
 						)}
 					</p>
 				</div>
-				<div className="flex items-center gap-1.5">
+				<div className="flex items-center gap-1.5 flex-wrap">
 					{sucursal.gerente ? (
 						<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold bg-indigo-100 text-indigo-700">
 							<User className="w-3 h-3" />
@@ -556,9 +604,8 @@ function CardSucursalMovil({ sucursal, onClick }: {
 	);
 }
 
-function FilaSucursalDesktop({ sucursal, indice, onClick, onEditar, onToggleActiva, onEliminar }: {
+function FilaSucursalDesktop({ sucursal, onClick, onEditar, onToggleActiva, onEliminar }: {
 	sucursal: SucursalResumen;
-	indice: number;
 	onClick: () => void;
 	onEditar: () => void;
 	onToggleActiva: (e: React.MouseEvent) => void;
@@ -566,22 +613,27 @@ function FilaSucursalDesktop({ sucursal, indice, onClick, onEditar, onToggleActi
 }) {
 	return (
 		<div
-			className={`grid grid-cols-[2fr_1fr_1.2fr_80px_100px] 2xl:grid-cols-[2fr_1fr_1.2fr_100px_120px] px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2.5 items-center cursor-pointer
-				border-b border-slate-300
-				${!sucursal.activa ? 'opacity-60' : ''}
-				${indice % 2 === 0 ? 'bg-white' : 'bg-slate-100'}
-				hover:bg-slate-200`}
+			className={`grid grid-cols-[2fr_1fr_1.2fr_80px_100px] 2xl:grid-cols-[2fr_1fr_1.2fr_100px_120px] px-4 lg:px-3 2xl:px-5 py-3 items-center cursor-pointer bg-white hover:bg-slate-50 transition-colors ${!sucursal.activa ? 'opacity-60' : ''}`}
 			onClick={onClick}
 			data-testid={`fila-sucursal-${sucursal.id}`}
 		>
 			{/* Nombre */}
 			<div className="flex items-center gap-2.5 min-w-0">
-				<div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-					<Building2 className="w-4 h-4 text-blue-600" />
-				</div>
+				{sucursal.fotoPerfil ? (
+					<div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full overflow-hidden shrink-0 shadow-md border-2 border-white bg-white">
+						<img src={sucursal.fotoPerfil} alt="" className="w-full h-full object-cover" />
+					</div>
+				) : (
+					<div
+						className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full flex items-center justify-center shrink-0 shadow-md"
+						style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+					>
+						<Building2 className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
+					</div>
+				)}
 				<div className="min-w-0">
 					<div className="flex items-center gap-1.5">
-						<p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-800 truncate">
+						<p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-900 truncate">
 							{sucursal.esPrincipal ? 'Matriz' : sucursal.nombre}
 						</p>
 						{sucursal.esPrincipal && (

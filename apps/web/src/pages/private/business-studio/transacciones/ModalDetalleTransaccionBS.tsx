@@ -47,16 +47,18 @@ import type { TransaccionPuntos } from '../../../../types/puntos';
 // HELPERS
 // =============================================================================
 
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
 const formatearFechaCompleta = (fechaISO: string) => {
   const fecha = new Date(fechaISO);
-  return fecha.toLocaleDateString('es-MX', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const dia = DIAS_SEMANA[fecha.getDay()];
+  const diaN = String(fecha.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[fecha.getMonth()];
+  const anio = fecha.getFullYear();
+  const hora = String(fecha.getHours()).padStart(2, '0');
+  const min = String(fecha.getMinutes()).padStart(2, '0');
+  return `${dia}, ${diaN} de ${mes} de ${anio}, ${hora}:${min}`;
 };
 
 const formatearMoneda = (valor: number) =>
@@ -142,6 +144,8 @@ export default function ModalDetalleTransaccionBS({
   }, [mostrarRevocar]);
   const { mutateAsync: revocarTransaccion } = useRevocarTransaccion();
   const totalSucursales = useAuthStore((s) => s.totalSucursales);
+  const nombreNegocio = useAuthStore((s) => s.usuario?.nombreNegocio ?? null);
+  const sucursalPrincipalId = useAuthStore((s) => s.sucursalPrincipalId);
   const { data: configPuntos } = usePuntosConfiguracion();
   const nivelesActivos = configPuntos?.nivelesActivos ?? true;
   const tieneSucursales = totalSucursales > 1;
@@ -231,12 +235,13 @@ export default function ModalDetalleTransaccionBS({
       abierto={abierto}
       onCerrar={handleCerrar}
       ancho="md"
+      alturaMaxima="xl"
       mostrarHeader={false}
       paddingContenido="none"
       sinScrollInterno
       className={`lg:max-w-sm 2xl:max-w-md max-lg:[background:linear-gradient(180deg,${estado === 'confirmado' ? '#064e3b' : estado === 'cancelado' ? '#7f1d1d' : '#78350f'}_2.5rem,rgb(248,250,252)_2.5rem)]`}
     >
-      <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
+      <div className="flex flex-col max-h-[92vh] lg:max-h-[85vh]">
       {/* ── Header dark con estado ── */}
       <div
         className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
@@ -403,7 +408,7 @@ export default function ModalDetalleTransaccionBS({
           <div className="flex items-start gap-3 py-2.5 lg:py-2 2xl:py-2.5 border-b border-slate-300">
             <div className={`flex-1 min-w-0 ${tieneSucursales && tx.sucursalNombre ? 'grid grid-cols-2 gap-x-3' : ''}`}>
               {tx.empleadoNombre && (
-                <div className="flex items-start gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
                     <User className="w-4 h-4 text-blue-600" />
                   </div>
@@ -413,17 +418,32 @@ export default function ModalDetalleTransaccionBS({
                   </div>
                 </div>
               )}
-              {tieneSucursales && tx.sucursalNombre && (
-                <div className="flex items-start gap-2 min-w-0">
-                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4 text-purple-600" />
+              {tieneSucursales && tx.sucursalNombre && (() => {
+                // Una sucursal se considera "Matriz" si:
+                //   1. Coincide con sucursalPrincipalId (fuente preferida), o
+                //   2. Su nombre coincide con el del negocio (fallback cuando
+                //      el store aún no cargó sucursalPrincipalId — al crear
+                //      sucursales la principal queda con el mismo nombre).
+                const esMatriz =
+                  (tx.sucursalId != null && sucursalPrincipalId != null &&
+                    tx.sucursalId === sucursalPrincipalId) ||
+                  (!!nombreNegocio &&
+                    tx.sucursalNombre.trim().toLowerCase() ===
+                      nombreNegocio.trim().toLowerCase());
+                return (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                      <MapPin className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium truncate">{nombreNegocio ?? 'Sucursal'}</p>
+                      <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">
+                        {esMatriz ? 'Matriz' : tx.sucursalNombre}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Sucursal</p>
-                    <p className="text-base lg:text-sm 2xl:text-base font-semibold text-slate-800 truncate">{tx.sucursalNombre}</p>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         )}

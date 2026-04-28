@@ -150,10 +150,14 @@ export interface AlertaCompleta {
 	descripcion: string;
 	data: Record<string, unknown> | null;
 	accionesSugeridas: string[] | null;
+	/** Leída por el usuario actual (estado por usuario). */
 	leida: boolean;
 	leidaAt: string | null;
+	/** Resuelta globalmente (el problema ya fue atendido, todos la ven así). */
 	resuelta: boolean;
 	resueltaAt: string | null;
+	/** Quién la resolvió — para mostrar "Resuelta por X el Y" en el detalle. */
+	resueltaPor: { id: string; nombre: string } | null;
 	createdAt: string;
 }
 

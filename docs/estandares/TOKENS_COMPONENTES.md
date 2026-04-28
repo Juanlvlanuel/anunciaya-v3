@@ -25,6 +25,8 @@
 18. [Swipe entre Páginas (Business Studio)](#18-swipe-entre-páginas-business-studio)
 19. [Tooltip](#19-tooltip)
 20. [Avatares](#20-avatares)
+21. [Carrusel con Drag-to-Scroll (estándar de la app)](#21-carrusel-con-drag-to-scroll-estándar-de-la-app)
+22. [Modales contenidos en preview (PortalTargetContext)](#22-modales-contenidos-en-preview-portaltargetcontext)
 
 ---
 
@@ -462,10 +464,43 @@ Patrón estándar para inputs de búsqueda en toda la app. Usa el patrón de alt
 |-----------|-------|
 | Altura | `h-11 lg:h-10 2xl:h-11` (ver TC-2) |
 | Texto | `text-base lg:text-sm 2xl:text-base font-medium text-slate-800` (ver R1 — texto de input) |
-| Ícono | `w-4 h-4 text-slate-600` fijo — sin variación responsive |
-| Padding derecho | `pr-8` — reservado para botón limpiar (X) |
+| Ícono lupa | `w-4 h-4 text-slate-600` fijo — sin variación responsive |
+| Rounded | `rounded-lg!` |
 
-Botón limpiar (X): `absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-600 hover:bg-slate-200` — fijo, sin variación responsive
+**Obligatorio:** usar las props `icono` y `elementoDerecha` del componente `<Input>` en lugar de posicionamiento absolute externo. Razón: el Input renderiza su propio fondo y cubre elementos `absolute` externos (la lupa se vería oculta). El componente ya maneja el padding interno correctamente.
+
+```tsx
+<Input
+  value={busqueda}
+  onChange={e => setBusqueda(e.target.value)}
+  placeholder="Buscar..."
+  className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
+  icono={<Search className="w-4 h-4 text-slate-600" />}
+  elementoDerecha={busqueda ? (
+    <button
+      onClick={() => setBusqueda('')}
+      className="p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
+    >
+      <X className="w-[18px] h-[18px]" />
+    </button>
+  ) : undefined}
+/>
+```
+
+### Botón limpiar (X) — regla unificada para toda la app
+
+| Propiedad | Valor |
+|-----------|-------|
+| Padding | `p-1` |
+| Rounded | `rounded-full` |
+| Color | `text-red-600` |
+| Hover | `hover:bg-red-100` |
+| Cursor | `cursor-pointer` |
+| Icono | `<X className="w-[18px] h-[18px]" />` (18px fijo — equivale a 4.5 en escala Tailwind) |
+
+> **Why:** el color rojo comunica acción destructiva (borrar contenido escrito) y lo diferencia visualmente de la lupa (gris). Tamaño 18px es el sweet spot entre visible y no invasivo.
+>
+> **How to apply:** aplicable a TODO input con capacidad de limpiar búsqueda/filtro en BS y módulos públicos. Si es un buscador de autocomplete (ciudad, producto, etc.), aplicar también.
 
 ---
 
@@ -1680,4 +1715,156 @@ Nunca `charAt(0)` sola. Nunca iconos (`<User>`, `<Users>`).
 
 - **Opiniones en página:** agregar `ring-2 ring-amber-200` al contenedor
 - **Modal header dark:** usar `bg-white/20` + `text-white` (fallback) o `border-2 border-white/30` (imagen)
+
+---
+
+## 21. Carrusel con Drag-to-Scroll (estándar de la app)
+
+Todo carrusel con scroll interno (horizontal o vertical) que puede renderizarse en contextos desktop con mouse debe implementar el patrón `useDragScroll` + cursor `grab` + fade oscuro en el borde de la dirección de scroll.
+
+**Propósito:** dar affordance clara de que el contenido se puede arrastrar (no solo visualizarse cortado). Estándar de la industria (Netflix, Spotify, Amazon, Mercado Libre).
+
+**Contextos donde es obligatorio:**
+- Carruseles embebidos en preview de BS (panel ~540px).
+- Carruseles en paneles laterales (ej: ChatYA info negocio, ~400px).
+- Carruseles que se muestren en desktop real cuando el contenido exceda el contenedor.
+- Cualquier lista con `overflow-*-auto` y items con `cursor-pointer` (el cursor pointer del card oculta el affordance de arrastre si no se fuerza `grab`).
+
+**Referencia completa:** ver `docs/estandares/LECCIONES_TECNICAS.md` → sección "Layout y CSS" → "Carruseles con drag-to-scroll".
+
+### Anatomía mínima (eje horizontal)
+
+```tsx
+import { useRef } from 'react';
+import { useDragScroll } from '@/hooks/useDragScroll';
+
+const refScroll = useRef<HTMLDivElement>(null);
+useDragScroll(refScroll);
+
+return (
+  <div className="relative">
+    {/* Fade oscuro borde derecho (rectangular, altura acotada al item) */}
+    <div className="pointer-events-none absolute top-0 bottom-2 right-0 w-12 bg-gradient-to-l from-black/90 via-black/50 to-transparent @5xl:hidden z-20" />
+
+    {/* Scroll container con cursor grab forzado en descendientes */}
+    <div
+      ref={refScroll}
+      className="flex gap-3 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-auto @5xl:cursor-auto @5xl:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+    >
+      {/* items del carrusel */}
+    </div>
+  </div>
+);
+```
+
+### Reglas obligatorias
+
+1. **`[&_*]:cursor-grab`** en el container — los cards hijos tienen `cursor-pointer`, sin esta clase el cursor "pointer" gana y se pierde el affordance. Usar `@5xl:[&_*]:cursor-auto` para restaurar en desktop grid.
+2. **`select-none`** — evita que al arrastrar se seleccione texto.
+3. **Fade rectangular sin `rounded-*`** — borde recto para coincidir con el corte de los cards. Acotar altura (`top-0 bottom-2` si scroll tiene `pb-2`) para no abarcar padding.
+4. **Z-index del fade suficiente para cubrir badges** — si el card tiene badges proyectándose fuera (tipo "HAPPY HOUR"), usar `z-50`. Default `z-20` para carruseles sin badges.
+5. **`@5xl:hidden` en el fade** — desaparece cuando el carrusel pasa a grid desktop (sin overflow).
+
+### Lo que el hook `useDragScroll` ya maneja
+
+- Threshold de 3px para distinguir click de drag (no mata clicks accidentales).
+- `document.body.style.cursor = 'grabbing'` durante drag (forzar feedback visual sobre descendientes).
+- Cancelar siguiente click si hubo drag real (evita abrir modal al soltar sobre un card).
+- `preventDefault` del `dragstart` HTML5 (anula el ghost nativo de `<img>`).
+- Cleanup en mouseleave/unmount.
+
+### Eje vertical
+
+El hook actual solo maneja eje horizontal (`scrollLeft` con `pageX`). Para scroll vertical, extender con parámetro `{ eje: 'x' | 'y' }` y usar `scrollTop`/`pageY`. Las reglas anteriores aplican igual.
+
+### Implementaciones actuales
+
+- `SeccionCatalogo.tsx` — grid de productos/servicios en perfil.
+- `SeccionOfertas.tsx` — carrusel de ofertas en perfil (fade con `z-50` por badge).
+- `PaginaPerfilNegocio.tsx` (galería inline) — imágenes del negocio.
+
+Cuando se agregue un nuevo carrusel al proyecto, reutilizar este patrón sin variantes.
 - **Avatar clickeable (detalle):** agregar `cursor-pointer` cuando hay foto, conectar con `ModalImagenes`
+
+---
+
+## 22. Modales contenidos en preview (PortalTargetContext)
+
+Todo modal de la app debe respetar el contexto `PortalTargetContext` para adaptarse a contextos embebidos (preview BS, ChatYA info negocio, dashboards admin) sin escapar al viewport del PC.
+
+**Propósito:** cuando un modal vive dentro de un wrapper estrecho (preview del negocio ~540px, panel de ChatYA ~400px), su `position: fixed inset-0` default lo haría cubrir todo el monitor del PC — rompiendo la metáfora "este wrapper simula un celular". El contexto permite que el modal se contenga al wrapper con `position: absolute inset-0` cuando así se configura.
+
+**Referencia completa:** ver `docs/estandares/LECCIONES_TECNICAS.md` → sección "Layout y CSS" → "Modales contenidos al preview vs fullscreen del viewport".
+
+### Anatomía mínima — modal que respeta el contexto
+
+```tsx
+import { createPortal } from 'react-dom';
+import { usePortalTarget } from '../../hooks/usePortalTarget';
+
+export function MiModal({ abierto, onCerrar, children }: Props) {
+  const portalTarget = usePortalTarget();
+  const esContenido = portalTarget !== document.body;
+  const claseBase = esContenido ? 'absolute' : 'fixed';
+
+  // Bloqueo de scroll del body SOLO cuando el modal es fullscreen.
+  // En modo contenido, no debe tocarse document.body.style (rompería scroll del padre).
+  useEffect(() => {
+    if (!abierto || esContenido) return;
+    // ... bloqueo de scroll del body ...
+  }, [abierto, esContenido]);
+
+  if (!abierto) return null;
+
+  return createPortal(
+    <div className={`${claseBase} inset-0 z-50 flex items-center justify-center`}>
+      {/* overlay + contenido del modal */}
+    </div>,
+    portalTarget
+  );
+}
+```
+
+### Anatomía mínima — wrapper que declara target (preview)
+
+```tsx
+import { PortalTargetProvider } from '../../hooks/usePortalTarget';
+
+const [target, setTarget] = useState<HTMLElement | null>(null);
+
+return (
+  // relative: el modal absolute se posiciona respecto a este padre
+  <div ref={setTarget} className="relative overflow-hidden ...">
+    <PortalTargetProvider target={target}>
+      <ComponenteQueAbreModales />
+    </PortalTargetProvider>
+  </div>
+);
+```
+
+### Reglas obligatorias
+
+1. **Todo modal base debe consumir `usePortalTarget`** — `Modal.tsx`, `ModalBottom.tsx`, `ModalImagenes.tsx` ya lo hacen. Cualquier modal nuevo que use `createPortal` manualmente también debe.
+2. **`position: absolute` en modo contenido, `fixed` en modo normal** — clase condicional según `esContenido`.
+3. **Bloqueo de scroll del body SOLO cuando `!esContenido`** — en modo contenido no tocar `document.body.style`.
+4. **Wrapper declarante debe tener `position: relative`** (o `absolute`/`fixed`/`sticky`) — el `absolute inset-0` del modal se posiciona contra el primer ancestro con position no-static.
+5. **Usar callback ref `ref={setTarget}`** (no `useRef`) — asegura que React re-renderice cuando el DOM se monta y el target pasa de `null` al elemento real.
+6. **Si no hay `PortalTargetProvider` ancestro**, el hook devuelve `document.body` — comportamiento original preservado. Todos los modales fuera de previews siguen funcionando igual.
+
+### Implementaciones actuales
+
+- **Modales base que ya respetan el contexto:**
+  - `components/ui/Modal.tsx`
+  - `components/ui/ModalBottom.tsx`
+  - `components/ui/ModalImagenes.tsx`
+
+- **Wrappers que declaran target:**
+  - `components/layout/PanelPreviewNegocio.tsx` — tab Card y tab Perfil (2 targets independientes)
+  - `components/chatya/PanelInfoContacto.tsx` — vista negocio
+
+- **Modales que heredan automáticamente** (consumen una base):
+  - `ModalCatalogo`, `ModalDetalleItem`, `ModalOfertaDetalle`, `ModalOfertas`, `ModalHorarios`, `ModalResenas`, `ModalAdaptativo` (via `Modal` o `ModalBottom`).
+
+### Cuándo agregar un nuevo target
+
+Cualquier nuevo contexto donde un componente con modales se embeba en un espacio menor al viewport: dashboard widgets, demos, previews adicionales, etc. Basta con envolver el wrapper con `PortalTargetProvider` y darle `relative overflow-hidden`.

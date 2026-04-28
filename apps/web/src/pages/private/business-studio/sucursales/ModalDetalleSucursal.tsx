@@ -27,6 +27,7 @@ import {
 	Pencil,
 } from 'lucide-react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
+import Tooltip from '../../../../components/ui/Tooltip';
 import { InputCorreoValidado, type ResultadoValidacionCorreo } from '../../../../components/ui/InputCorreoValidado';
 import {
 	useSucursalGerente,
@@ -170,123 +171,139 @@ export function ModalDetalleSucursal({ sucursal, onCerrar, onEditar }: Props) {
 				</div>
 
 				{/* Contenido scroll */}
-				<div className="flex-1 overflow-y-auto px-4 lg:px-3 2xl:px-4 py-3 space-y-4">
-					{/* Datos de la sucursal */}
-					<div className="space-y-2">
-						<h3 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 uppercase tracking-wider">Información</h3>
-
-						{sucursal.ciudad && (
-							<div className="flex items-center gap-2">
-								<MapPin className="w-4 h-4 text-slate-600 shrink-0" />
-								<span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">
-									{sucursal.direccion ? `${sucursal.direccion}, ` : ''}{sucursal.ciudad}{sucursal.estado ? `, ${sucursal.estado}` : ''}
-								</span>
+				<div className="flex-1 overflow-y-auto px-4 lg:px-3 2xl:px-4 py-4 space-y-4">
+					{/* ── Card hero: foto de perfil/icono + nombre + dirección ── */}
+					<div className="flex items-start gap-3">
+						{sucursal.fotoPerfil ? (
+							<div className="w-14 h-14 rounded-full overflow-hidden shrink-0 shadow-md border-2 border-white bg-white">
+								<img src={sucursal.fotoPerfil} alt="" className="w-full h-full object-cover" />
+							</div>
+						) : (
+							<div
+								className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 shadow-md"
+								style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+							>
+								<Building2 className="w-7 h-7 text-white" />
 							</div>
 						)}
-
-						{sucursal.telefono && (
-							<div className="flex items-center gap-2">
-								<Phone className="w-4 h-4 text-slate-600 shrink-0" />
-								<span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">{sucursal.telefono}</span>
+						<div className="flex-1 min-w-0">
+							<div className="flex items-center gap-1.5">
+								<p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-900 truncate">
+									{sucursal.nombre}
+								</p>
+								{sucursal.esPrincipal && (
+									<Star className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
+								)}
 							</div>
-						)}
-
-						{sucursal.correo && (
-							<div className="flex items-center gap-2">
-								<Mail className="w-4 h-4 text-slate-600 shrink-0" />
-								<span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">{sucursal.correo}</span>
-							</div>
-						)}
+							{(sucursal.direccion || sucursal.ciudad) && (
+								<div className="flex items-start gap-1.5 mt-1">
+									<MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+									<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 leading-snug">
+										{sucursal.direccion ? `${sucursal.direccion}, ` : ''}
+										{sucursal.ciudad}
+										{sucursal.estado ? `, ${sucursal.estado}` : ''}
+									</p>
+								</div>
+							)}
+						</div>
 					</div>
 
-					{/* ── Sección Gerente ── */}
-					<div className="border-t border-slate-200 pt-4">
-						<h3 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 uppercase tracking-wider mb-3">Gerente</h3>
+					{/* ── Chips de contacto ── */}
+					{(sucursal.telefono || sucursal.correo) && (
+						<div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+							{sucursal.telefono && (
+								<div className="flex items-center gap-2 px-3 h-10 bg-slate-200 rounded-lg border border-slate-300">
+									<Phone className="w-4 h-4 text-slate-600 shrink-0" />
+									<span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700 truncate">{sucursal.telefono}</span>
+								</div>
+							)}
+							{sucursal.correo && (
+								<div className="flex items-center gap-2 px-3 h-10 bg-slate-200 rounded-lg border border-slate-300">
+									<Mail className="w-4 h-4 text-slate-600 shrink-0" />
+									<span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700 truncate">{sucursal.correo}</span>
+								</div>
+							)}
+						</div>
+					)}
 
-						{gerenteQuery.isPending ? (
-							<div className="flex justify-center py-4"><Spinner /></div>
-						) : gerente ? (
-							/* ── Gerente asignado ── */
-							<div className="bg-indigo-50 rounded-xl p-3 border-2 border-indigo-200">
-								<div className="flex items-center gap-3">
-									<div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-										{gerente.avatarUrl ? (
-											<img src={gerente.avatarUrl} alt={gerente.nombre} className="w-full h-full rounded-full object-cover" />
-										) : (
-											<span className="text-sm font-bold text-indigo-700">
-												{obtenerIniciales(`${gerente.nombre} ${gerente.apellidos}`)}
-											</span>
-										)}
-									</div>
-									<div className="flex-1 min-w-0">
-										<p className="text-sm font-bold text-slate-800 truncate">{gerente.nombre} {gerente.apellidos}</p>
+					{/* ── Divider con etiqueta "Gerente" ── */}
+					<div className="flex items-center gap-3 pt-1">
+						<div className="flex-1 h-px bg-slate-300" />
+						<span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-600">Gerente</span>
+						<div className="flex-1 h-px bg-slate-300" />
+					</div>
+
+					{gerenteQuery.isPending ? (
+						<div className="flex justify-center py-4"><Spinner /></div>
+					) : gerente ? (
+						/* ── Gerente asignado ── */
+						<div>
+							<div className="flex items-center gap-3">
+								<div
+									className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md"
+									style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+								>
+									{gerente.avatarUrl ? (
+										<img src={gerente.avatarUrl} alt={gerente.nombre} className="w-full h-full object-cover" />
+									) : (
+										<span className="text-base font-bold text-white">
+											{obtenerIniciales(`${gerente.nombre} ${gerente.apellidos}`)}
+										</span>
+									)}
+								</div>
+								<div className="flex-1 min-w-0 flex items-center gap-2.5">
+									<div className="min-w-0">
+										<p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-900 truncate">{gerente.nombre} {gerente.apellidos}</p>
 										<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 truncate">{gerente.correo}</p>
 										{gerente.requiereCambioContrasena && (
-											<span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-sm font-bold bg-amber-100 text-amber-700 mt-1">
+											<span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] lg:text-[9px] 2xl:text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 mt-1">
 												Pendiente de activación
 											</span>
 										)}
 									</div>
-								</div>
-
-								<div className={`flex gap-2 mt-3 ${gerente.requiereCambioContrasena ? '' : 'justify-end'}`}>
-									{/* Reenviar credenciales solo si el gerente aún no activó su cuenta.
-									    Si ya la activó, su contraseña es definitiva y puede usar "Olvidé mi contraseña" del login. */}
-									{gerente.requiereCambioContrasena ? (
-										<>
-											<button
-												onClick={handleReenviar}
-												disabled={reenviarMutation.isPending}
-												className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold
-													text-indigo-700 bg-white border-2 border-indigo-300 hover:bg-indigo-100 cursor-pointer
-													disabled:opacity-50 disabled:cursor-not-allowed"
-												data-testid="btn-reenviar-credenciales"
-											>
-												{reenviarMutation.isPending ? <Spinner tamanio="sm" /> : <KeyRound className="w-3.5 h-3.5" />}
-												Reenviar credenciales
-											</button>
-											<button
-												onClick={handleRevocar}
-												disabled={revocarGerenteMutation.isPending}
-												className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold
-													text-red-700 bg-white border-2 border-red-300 hover:bg-red-100 cursor-pointer
-													disabled:opacity-50 disabled:cursor-not-allowed"
-												data-testid="btn-revocar-gerente"
-											>
-												{revocarGerenteMutation.isPending ? <Spinner tamanio="sm" /> : <UserMinus className="w-3.5 h-3.5" />}
-												Revocar gerente
-											</button>
-										</>
-									) : (
+									{/* Revocar — pegado al texto */}
+									<Tooltip text="Revocar gerente">
 										<button
 											onClick={handleRevocar}
 											disabled={revocarGerenteMutation.isPending}
-											className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold
-												text-red-600 hover:bg-red-100 cursor-pointer
-												disabled:opacity-50 disabled:cursor-not-allowed"
+											className="shrink-0 inline-flex items-center justify-center h-10 w-10 rounded-full bg-red-600 text-white shadow-md hover:bg-red-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 											data-testid="btn-revocar-gerente"
 										>
-											{revocarGerenteMutation.isPending ? <Spinner tamanio="sm" /> : <UserMinus className="w-3.5 h-3.5" />}
-											Revocar gerente
+											{revocarGerenteMutation.isPending ? <Spinner tamanio="sm" color="white" /> : <UserMinus className="w-4 h-4" />}
 										</button>
-									)}
+									</Tooltip>
 								</div>
 							</div>
-						) : mostrarFormGerente ? (
-							/* ── Formulario crear/asignar gerente ── */
-							<div className="bg-slate-200 rounded-xl p-3 space-y-2.5" data-testid="form-crear-gerente">
-								{/* Correo primero — al detectar cuenta existente auto-llena nombre/apellidos */}
-								<InputCorreoValidado
-									label="Correo *"
-									value={gerenteCorreo}
-									onChange={setGerenteCorreo}
-									correosExcluidos={correosExcluidos}
-									mensajeExclusion="No puedes asignarte como gerente de tu propia sucursal"
-									modo="gerente"
-									onValidezCambio={setValidacionCorreo}
-									placeholder="gerente@email.com"
-									testIdPrefix="input-gerente-correo"
-								/>
+
+							{/* Reenviar credenciales — solo si pendiente de activación */}
+							{gerente.requiereCambioContrasena && (
+								<button
+									onClick={handleReenviar}
+									disabled={reenviarMutation.isPending}
+									className="w-full inline-flex items-center justify-center gap-1.5 h-10 px-3 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold text-indigo-700 bg-indigo-50 border-2 border-indigo-200 hover:bg-indigo-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+									data-testid="btn-reenviar-credenciales"
+								>
+									{reenviarMutation.isPending ? <Spinner tamanio="sm" /> : <KeyRound className="w-4 h-4" />}
+									Reenviar credenciales
+								</button>
+							)}
+						</div>
+					) : mostrarFormGerente ? (
+						/* ── Formulario crear/asignar gerente ── */
+						<div className="space-y-3" data-testid="form-crear-gerente">
+							{/* Correo primero — al detectar cuenta existente auto-llena nombre/apellidos */}
+							<InputCorreoValidado
+								label="Correo *"
+								value={gerenteCorreo}
+								onChange={setGerenteCorreo}
+								correosExcluidos={correosExcluidos}
+								mensajeExclusion="No puedes asignarte como gerente de tu propia sucursal"
+								modo="gerente"
+								onValidezCambio={setValidacionCorreo}
+								placeholder="gerente@email.com"
+								testIdPrefix="input-gerente-correo"
+							/>
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
 								<div>
 									<label className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 block">Nombre *</label>
 									<input
@@ -309,52 +326,50 @@ export function ModalDetalleSucursal({ sucursal, onCerrar, onEditar }: Props) {
 										data-testid="input-gerente-apellidos"
 									/>
 								</div>
-								{/* Solo mostrar descripción cuando la validación del correo determinó el tipo y hay nombre */}
-								{validacionCorreo.valido && (esPromocion ? validacionCorreo.existente : gerenteNombre.trim()) && (
-									<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
-										{esPromocion && validacionCorreo.existente
-											? `${validacionCorreo.existente.nombre} recibirá una invitación por correo.`
-											: `${gerenteNombre.trim()} recibirá sus credenciales de acceso por correo.`}
-									</p>
-								)}
-								<div className="flex gap-2">
-									<button
-										onClick={() => setMostrarFormGerente(false)}
-										className="flex-1 px-3 py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-600 border-2 border-slate-300 hover:bg-slate-200 cursor-pointer"
-										data-testid="btn-cancelar-gerente"
-									>
-										Cancelar
-									</button>
-									<button
-										onClick={handleCrearGerente}
-										disabled={creandoGerente || !validacionCorreo.valido || (!esPromocion && (!gerenteNombre.trim() || !gerenteApellidos.trim()))}
-										className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold
-											text-white bg-linear-to-r from-slate-700 to-slate-800
-											hover:from-slate-800 hover:to-slate-900 cursor-pointer
-											disabled:opacity-50 disabled:cursor-not-allowed"
-										data-testid="btn-confirmar-gerente"
-									>
-										{creandoGerente && <Spinner tamanio="sm" color="white" />}
-										{esPromocion ? (
-											<><UserCheck className="w-3.5 h-3.5" /> Asignar gerente</>
-										) : (
-											<>Crear cuenta</>
-										)}
-									</button>
-								</div>
 							</div>
-						) : (
-							/* ── Sin gerente — botón asignar ── */
-							<button
-								onClick={() => setMostrarFormGerente(true)}
-								className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-300 text-slate-600 hover:border-slate-400 hover:bg-slate-200 cursor-pointer"
-								data-testid="btn-asignar-gerente"
-							>
-								<UserPlus className="w-5 h-5" />
-								<span className="text-sm font-bold">Asignar gerente</span>
-							</button>
-						)}
-					</div>
+							{/* Solo mostrar descripción cuando la validación del correo determinó el tipo y hay nombre */}
+							{validacionCorreo.valido && (esPromocion ? validacionCorreo.existente : gerenteNombre.trim()) && (
+								<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+									{esPromocion && validacionCorreo.existente
+										? `${validacionCorreo.existente.nombre} recibirá una invitación por correo.`
+										: `${gerenteNombre.trim()} recibirá sus credenciales de acceso por correo.`}
+								</p>
+							)}
+							<div className="flex gap-2 pt-1">
+								<button
+									onClick={() => setMostrarFormGerente(false)}
+									className="flex-1 h-10 px-3 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-600 border-2 border-slate-300 hover:bg-slate-100 cursor-pointer"
+									data-testid="btn-cancelar-gerente"
+								>
+									Cancelar
+								</button>
+								<button
+									onClick={handleCrearGerente}
+									disabled={creandoGerente || !validacionCorreo.valido || (!esPromocion && (!gerenteNombre.trim() || !gerenteApellidos.trim()))}
+									className="flex-1 inline-flex items-center justify-center gap-1.5 h-10 px-3 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-bold text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+									style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+									data-testid="btn-confirmar-gerente"
+								>
+									{creandoGerente && <Spinner tamanio="sm" color="white" />}
+									{esPromocion ? (
+										<><UserCheck className="w-4 h-4" /> Asignar gerente</>
+									) : (
+										<>Crear cuenta</>
+									)}
+								</button>
+							</div>
+						</div>
+					) : (
+						/* ── Sin gerente — botón asignar ── */
+						<button
+							onClick={() => setMostrarFormGerente(true)}
+							className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border-2 border-dashed border-slate-300 text-slate-600 hover:border-slate-400 hover:bg-slate-50 cursor-pointer transition-colors"
+							data-testid="btn-asignar-gerente"
+						>
+							<UserPlus className="w-5 h-5" />
+							<span className="text-sm font-bold">Asignar gerente</span>
+						</button>
+					)}
 				</div>
 
 				{/* Footer — se oculta durante el sub-flujo de asignar gerente para evitar clicks accidentales */}
@@ -380,7 +395,7 @@ export function ModalDetalleSucursal({ sucursal, onCerrar, onEditar }: Props) {
 						data-testid="btn-editar-perfil"
 					>
 						<Pencil className="w-4 h-4" />
-						Editar en Mi Perfil
+						Editar
 					</button>
 				</div>
 				)}

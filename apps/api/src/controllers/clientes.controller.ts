@@ -337,7 +337,13 @@ export async function obtenerHistorialClienteController(
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = parseInt(req.query.offset as string) || 0;
 
-    const resultado = await obtenerHistorialCliente(negocioId, clienteId, limit, offset);
+    // sucursalId viene del interceptor Axios (dueños) o del token (gerentes)
+    let sucursalId = obtenerSucursalId(req);
+    if (esGerente(req)) {
+      sucursalId = req.usuario?.sucursalAsignada || undefined;
+    }
+
+    const resultado = await obtenerHistorialCliente(negocioId, clienteId, limit, offset, sucursalId);
 
     res.status(resultado.code || 200).json(resultado);
   } catch (error) {

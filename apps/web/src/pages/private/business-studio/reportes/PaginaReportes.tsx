@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { BarChart3, Download, Loader2, DollarSign, Users, UserCog, Tag, Star } from 'lucide-react';
 import { DatePicker } from '../../../../components/ui/DatePicker';
 import { useReportesStore } from '../../../../stores/useReportesStore';
+import { useAuthStore } from '../../../../stores/useAuthStore';
 import type { RangoRapido } from '../../../../stores/useReportesStore';
 import { descargarExcel } from '../../../../services/reportesService';
 import type { TabReporte } from '../../../../services/reportesService';
@@ -73,6 +74,13 @@ export default function PaginaReportes() {
   useEffect(() => {
     return () => limpiar();
   }, [limpiar]);
+
+  // Reset al cambiar de sucursal (jerarquía sucursal > toggle > filtros).
+  // Resetea tabActivo, rangoActivo, fechas — todo a default.
+  const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
+  useEffect(() => {
+    limpiar();
+  }, [sucursalActiva, limpiar]);
 
   const handleExportar = async () => {
     setExportando(true);

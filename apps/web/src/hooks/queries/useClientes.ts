@@ -82,11 +82,12 @@ export function useClientesLista(filtros: FiltrosClientes) {
 // =============================================================================
 
 export function useClienteDetalle(clienteId: string | null) {
+  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
   return useQuery({
-    queryKey: queryKeys.clientes.detalle(clienteId ?? ''),
+    queryKey: queryKeys.clientes.detalle(clienteId ?? '', sucursalId),
     queryFn: () =>
       clientesService.getDetalleCliente(clienteId!).then((r) => r.data ?? null),
-    enabled: !!clienteId,
+    enabled: !!clienteId && !!sucursalId,
     // Sin keepPreviousData: mostrar al cliente anterior mientras carga el nuevo
     // sería confuso en un modal de detalle
   });
@@ -97,11 +98,12 @@ export function useClienteDetalle(clienteId: string | null) {
 // =============================================================================
 
 export function useClienteHistorial(clienteId: string | null) {
+  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
   return useQuery({
-    queryKey: queryKeys.clientes.historial(clienteId ?? ''),
+    queryKey: queryKeys.clientes.historial(clienteId ?? '', sucursalId),
     queryFn: () =>
       clientesService.getHistorialCliente(clienteId!, 5, 0).then((r) => r.data ?? []),
-    enabled: !!clienteId,
+    enabled: !!clienteId && !!sucursalId,
   });
 }
 

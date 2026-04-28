@@ -6,7 +6,6 @@
  * UBICACIÓN: apps/web/src/pages/private/business-studio/dashboard/componentes/index.ts
  */
 
-export { default as BannerAlertasUrgentes } from './BannerAlertasUrgentes';
 export { default as GraficaColapsable } from './GraficaColapsable';
 export { default as GraficaVentas } from './GraficaVentas';
 export { default as PanelAlertas } from './PanelAlertas';

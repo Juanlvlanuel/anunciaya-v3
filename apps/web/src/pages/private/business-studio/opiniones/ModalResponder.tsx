@@ -15,7 +15,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Send, Star } from 'lucide-react';
+import { MessageSquare, Send, Star, Quote } from 'lucide-react';
 import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { Spinner } from '../../../../components/ui/Spinner';
@@ -108,13 +108,14 @@ export function ModalResponder({
             abierto={abierto}
             onCerrar={onCerrar}
             ancho="md"
+            alturaMaxima="xl"
             headerOscuro
             mostrarHeader={false}
             paddingContenido="none"
             sinScrollInterno
             className="max-lg:[background:linear-gradient(180deg,#1e293b_2.5rem,rgb(248,250,252)_2.5rem)]"
         >
-            <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
+            <div className="flex flex-col h-[80vh] lg:h-[70vh]">
                 {/* ── Header dark ámbar ── */}
                 <div
                     className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl"
@@ -173,59 +174,58 @@ export function ModalResponder({
                     </div>
                 </div>
 
-                {/* ── Contenido scrolleable ── */}
-                <div className="flex-1 overflow-y-auto p-4 lg:p-3 2xl:p-4">
-                    <div className="space-y-3 lg:space-y-2.5 2xl:space-y-3">
-                        {/* ─── Reseña original (read-only) ─── */}
-                        {resena.texto && (
-                            <div className="bg-slate-100 rounded-lg lg:rounded-md 2xl:rounded-lg p-3 lg:p-2.5 2xl:p-3 border-2 border-slate-300">
-                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 italic leading-relaxed">
-                                    "{resena.texto}"
-                                </p>
-                            </div>
-                        )}
-
-                        {/* ─── Templates rápidos ─── */}
-                        <div>
-                            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold uppercase tracking-wide mb-1.5 lg:mb-1 2xl:mb-1.5">
-                                Respuestas rápidas:
+                {/* ── Contenido con textarea expandible ── */}
+                <div className="flex-1 flex flex-col p-4 lg:p-3 2xl:p-4 gap-3 lg:gap-2.5 2xl:gap-3 min-h-0">
+                    {/* ─── Reseña original (read-only) ─── */}
+                    {resena.texto && (
+                        <div className="relative bg-amber-50 border-l-4 border-amber-400 rounded-r-xl lg:rounded-r-lg 2xl:rounded-r-xl px-4 py-3 lg:px-3 lg:py-2.5 2xl:px-4 2xl:py-3 shrink-0 shadow-sm">
+                            <Quote className="absolute top-2 right-2.5 w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-300 fill-amber-300" strokeWidth={0} />
+                            <p className="text-base lg:text-sm 2xl:text-base font-medium text-slate-800 italic leading-relaxed pr-6">
+                                {resena.texto}
                             </p>
-                            <div className="flex gap-1.5 lg:gap-1 2xl:gap-1.5 flex-wrap">
-                                {TEMPLATES.map((t) => (
-                                    <button
-                                        key={t.label}
-                                        type="button"
-                                        onClick={() => setTexto(t.texto)}
-                                        disabled={respondiendo}
-                                        className="px-2.5 py-1 lg:px-2 lg:py-0.5 2xl:px-2.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-medium bg-slate-100 text-slate-700 border-2 border-slate-300 hover:bg-slate-200 transition-colors cursor-pointer disabled:opacity-50"
-                                    >
-                                        {t.label}
-                                    </button>
-                                ))}
-                            </div>
                         </div>
+                    )}
 
-                        {/* ─── Textarea ─── */}
-                        <div>
-                            <textarea
-                                id="respuesta-opinion"
-                                name="respuestaOpinion"
-                                value={texto}
-                                onChange={(e) => setTexto(e.target.value.slice(0, MAX_CARACTERES))}
-                                placeholder="Escribe tu respuesta..."
-                                rows={4}
-                                disabled={respondiendo}
-                                className="w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:opacity-50"
-                            />
-                            <div className="flex justify-end mt-1">
-                                <span className={`text-sm lg:text-[11px] 2xl:text-sm font-medium ${texto.length >= MAX_CARACTERES ? 'text-red-500 font-bold' : 'text-slate-600'}`}>
-                                    {texto.length}/{MAX_CARACTERES}
-                                </span>
-                            </div>
+                    {/* ─── Templates rápidos ─── */}
+                    <div className="shrink-0">
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold mb-1.5 lg:mb-1 2xl:mb-1.5">
+                            Respuestas rápidas:
+                        </p>
+                        <div className="flex gap-1.5 lg:gap-1 2xl:gap-1.5 flex-wrap">
+                            {TEMPLATES.map((t) => (
+                                <button
+                                    key={t.label}
+                                    type="button"
+                                    onClick={() => setTexto(t.texto)}
+                                    disabled={respondiendo}
+                                    className="px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 rounded-full text-sm lg:text-xs 2xl:text-sm font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                    {t.label}
+                                </button>
+                            ))}
                         </div>
+                    </div>
 
-                        {/* ─── Botones ─── */}
-                        <div className="flex gap-2 lg:gap-1.5 2xl:gap-2 pt-1">
+                    {/* ─── Textarea expandible ─── */}
+                    <div className="flex-1 flex flex-col min-h-0">
+                        <textarea
+                            id="respuesta-opinion"
+                            name="respuestaOpinion"
+                            value={texto}
+                            onChange={(e) => setTexto(e.target.value.slice(0, MAX_CARACTERES))}
+                            placeholder="Escribe tu respuesta..."
+                            disabled={respondiendo}
+                            className="flex-1 min-h-0 w-full px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 border-2 border-slate-300 rounded-lg lg:rounded-md 2xl:rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:opacity-50"
+                        />
+                        <div className="flex justify-end mt-1 shrink-0">
+                            <span className={`text-sm lg:text-[11px] 2xl:text-sm font-medium ${texto.length >= MAX_CARACTERES ? 'text-red-500 font-bold' : 'text-slate-600'}`}>
+                                {texto.length}/{MAX_CARACTERES}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* ─── Botones ─── */}
+                    <div className="flex gap-2 lg:gap-1.5 2xl:gap-2 shrink-0">
                             <button
                                 type="button"
                                 onClick={onCerrar}
@@ -242,14 +242,13 @@ export function ModalResponder({
                             >
                                 {respondiendo
                                     ? <Spinner tamanio="sm" color="white" />
-                                    : <Send className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5" />
+                                    : <Send className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                 }
-                                <span>{esEdicion ? 'Actualizar respuesta' : 'Enviar respuesta'}</span>
+                                <span>Responder</span>
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
         </ModalAdaptativo>
     );
 }

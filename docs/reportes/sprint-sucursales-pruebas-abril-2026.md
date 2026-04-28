@@ -228,12 +228,85 @@ Durante las pruebas se identificaron **13 flujos** que generaban archivos huérf
 
 Lo que queda para cerrar el 100%:
 
-### Nivel 1 — Filtrado (testing de alto impacto)
+### Nivel 1 — Filtrado (en progreso — actualizado 24 Abril)
 
-| # | Prueba | Lista | Prioridad | Tiempo |
-|---|--------|:-----:|:---------:|:------:|
-| 1 | Prueba 1 — Filtrado por sucursal vista dueño (12 módulos BS) | L3 #1, L2 #6 | Alta | ~2h |
-| 2 | Prueba 2 — Filtrado por sucursal vista gerente | L3 #2, L2 #6 | Alta | ~1h |
+Prueba 1 (vista dueño, 12 módulos BS) en curso. Progreso por módulo:
+
+| # | Módulo | Estado | Notas |
+|---|--------|:------:|-------|
+| 1 | Dashboard | ✅ | KPIs y feed filtran correctamente por sucursal activa |
+| 2 | Transacciones (Ventas + Canjes/Vouchers) | ✅ | |
+| 3 | Clientes | ✅ | |
+| 4 | Opiniones | ✅ | |
+| 5 | Alertas | ✅ | **Refactor arquitectural grande** (ver abajo) |
+| 6 | Catálogo | ✅ | Scoping de KPIs/listas, categorías del dropdown, edición cross-sucursal sin contaminación, duplicación Norte→Matriz. Vista pública post-edición: no validada en vivo — comportamiento estándar de React Query (`refetchOnWindowFocus` + invalidación de `['negocios','catalogo',negocioId]`). Colateral: refactor completo del preview de BS (container queries + modales contenidos + header dark + drag-to-scroll). |
+| 7 | Promociones | ✅ | Scoping de KPIs/listas en Cupones y Ofertas, métricas (vistas/shares/clicks) por sucursal, edición cross-sucursal sin contaminación, crear/eliminar/duplicar oferta entre sucursales. Bugs encontrados y corregidos: (a) dropdowns de Tipo y Estado mostraban opciones que no existían en la sucursal/toggle activo → `tiposDisponibles` y `estadosDisponibles` con `useMemo([ofertas, filtros.visibilidad])` filtran lista hardcoded; (b) cambiar de toggle Ofertas↔Cupones arrastraba el filtro de Tipo causando tabla vacía → handlers de toggle resetean también `tipo: 'todos'`. Real-time cross-usuario no implementado (criterio: solo Alertas justifica socket por urgencia accionable). |
+| 8 | Puntos y Recompensas | ✅ | Módulo exclusivo de Matriz. Validados: el menú filtra correctamente Puntos/Sucursales en sucursales secundarias, guardar config base persiste al refresh, crear recompensa nueva actualiza KPIs (3→4 activas), datos persisten al cambio Matriz↔Norte→Matriz. **Hueco arquitectural cerrado**: nuevo `MatrizGuard` (`apps/web/src/router/guards/MatrizGuard.tsx`) protege la URL directa — el menú ya ocultaba el ítem en sucursales secundarias, pero `/business-studio/puntos` y `/business-studio/sucursales` por URL cargaban en "modo solo lectura" engañoso. Ahora redirigen a `/business-studio` con notificación info. |
+| 9 | Empleados | ✅ | Alcance: filtrado multi-sucursal en BS (no incluye validación numérica de stats ScanYA, eso queda para sprint separado de ScanYA). Validados: scoping de la lista por sucursal (Matriz=2 Carlos/Jazmín, Norte=1 Ian — sin mezcla), buscador filtra por nombre y username, tabs Activos/Inactivos con estados vacíos contextuales (`Sin resultados` vs `Sin empleados inactivos / Todos tus empleados están activos`), creación se asigna automáticamente a la sucursal activa (creé "Test Empleado" en Norte → quedó solo en Norte, sin contaminar Matriz), modal de detalle muestra permisos + bloque Estadísticas ScanYA (estructura UI presente), eliminar funciona y los KPIs se actualizan, reset del buscador al cambiar de sucursal funciona correctamente. **Hallazgo intencional**: el modal de edición no expone selector de sucursal — un empleado pertenece a UNA sucursal y no es portátil; para reasignarlo hay que borrarlo y recrearlo. Esto es coherente con el modelo (`empleados.sucursal_id` no nulable y vínculo histórico a `puntos_transacciones`). |
+| 10 | Mi Perfil | ✅ | **Diseño arquitectural confirmado**: la página adapta sus tabs según la sucursal activa. En Matriz se ven 6 tabs (Negocio, Contacto, Ubicación, Horarios, Imágenes, Operación) con campos globales del negocio + datos de la Matriz. En sucursales secundarias se ven 5 tabs (Sucursal, Ubicación, Horarios, Imágenes, Operación) con solo campos por-sucursal — el tab "Negocio" desaparece y "Contacto" se fusiona en "Sucursal". Validado: nombre del negocio/descripción/categoría/CardYA/Sitio Web/Logo son globales (solo editables en Matriz); nombre de la sucursal/teléfono/WhatsApp/correo/redes sociales/dirección/mapa/horarios/foto de perfil/portada/galería/métodos de pago/opciones de entrega son por-sucursal. Edición probada: cambio "Sucursal Norte" → "Sucursal Norte v2" se persistió correctamente sin contaminar Matriz. **Refactor UI**: los botones "Cambiar" (azul) y "Eliminar" (rojo) del tab Imágenes se transformaron al estilo slate estándar — Cambiar/Subir ahora usa dark gradient TC-7 (acción primaria), Eliminar pasó a `bg-white border-slate-300` con tinte rojo solo en hover (secundario destructivo, según TC-7 §"Botones secundarios"). |
+| 11 | Reportes | ✅ | Reportes NO es exclusivo de Matriz (filtra correctamente por sucursal en los 5 sub-tabs Ventas/Clientes/Empleados/Promociones/Reseñas). Validado: Matriz $17,883/45 trans/Juan Manuel top, Norte $950/4 trans/Ian Manuel top, números diferentes y consistentes. **Bug histórico encontrado y mitigado**: la oferta "más popular" se mostraba sin foto en Norte porque el query `mejorOferta` retornaba arbitrariamente cualquier oferta cuando todas tenían 0 clicks (con `ORDER BY totalClicks DESC NULLS LAST LIMIT 1`), y algunas ofertas de Norte estaban con `imagen=NULL` por un bug histórico ya corregido en `duplicarOfertaASucursales` (que en su momento no incluía el campo `imagen` en el INSERT). Fix aplicado en `apps/api/src/services/reportes.service.ts:836` — agregado `metricasEntidad.totalClicks > 0` al WHERE: cuando ninguna oferta tiene clicks, retorna `null` y el componente muestra el `emptyText` "Sin clicks en ofertas" (coherente con la métrica anunciada). Validado: el flujo actual de duplicación cross-sucursal sí copia la imagen correctamente. Las ofertas huérfanas legacy en Norte (vigencia 10-30 Abr sin foto) no se limpian — el fix las neutraliza. |
+| 12 | Sucursales | ✅ | Módulo exclusivo de Matriz (junto con Puntos). El menú filtra correctamente y la URL directa está protegida por `MatrizGuard` (ver módulo 8). El módulo en sí está validado en este reporte como infraestructura del sprint (recomendaciones 1-18) — toda la gestión de sucursales fue el insumo para la Prueba 1 completa. |
+
+**Prueba 1 (vista dueño, 12 módulos BS): ✅ COMPLETADA — 25 Abril 2026**
+
+**Prueba 2 (vista gerente): ✅ COMPLETADA — validada en sesiones previas del sprint (gerentes María / Jazmín con sucursal asignada). Puntos confirmados: selector de sucursal oculto en navbar, menú lateral filtra "Sucursales" y "Puntos y Recompensas", `MatrizGuard` redirige acceso por URL directa, data filtrada automáticamente a la sucursal asignada del gerente, Mi Perfil muestra solo los 5 tabs por-sucursal (sin tab "Negocio").**
+
+## 🏁 SPRINT MULTI-SUCURSAL CERRADO — 25 Abril 2026
+
+Las 2 pruebas terminadas (vista dueño y vista gerente). El filtrado multi-sucursal en Business Studio funciona correctamente en los 12 módulos validados.
+
+### Alertas — refactor arquitectural (22 Abril)
+
+Durante la auditoría multi-sucursal de Alertas salieron 2 bugs en cadena y un tercero conceptual, resueltos todos:
+
+- **Bug 1 (scoping de sucursal):** `marcarTodasLeidas` y `eliminarAlertasResueltas` solo filtraban por `negocio_id` → afectaban TODAS las sucursales. Fix inicial: agregar `sucursalId` al service + `AND (sucursal_id = ? OR sucursal_id IS NULL)` al WHERE.
+- **Bug 2 (estado por usuario):** al probar el fix, se descubrió que el estado `leida` era columna booleana global → la acción de un gerente afectaba al dueño. Fix: migración `2026-04-22-alerta-lecturas-por-usuario.sql` — nueva tabla `alerta_lecturas(alerta_id, usuario_id, leida_at, resuelta_at)` con PK compuesta y CASCADE. Refactor del service para usar LEFT JOIN y upsert.
+- **Bug 3 (resolución compartida):** al probar, se detectó que `resuelta` NO debía ser por usuario — es un problema del negocio, una vez atendido todos deben saberlo. Segunda migración `2026-04-22b-alertas-resuelta-global-ocultamiento-por-usuario.sql` corrige el modelo híbrido:
+  - `leída` → por usuario (`alerta_lecturas.leida_at`)
+  - `resuelta` → **global** (`alertas_seguridad.resuelta` + `resuelta_por_usuario_id`)
+  - `ocultada` → por usuario (`alerta_lecturas.ocultada_at`, antes "Eliminar")
+  - Borrado físico → admin/cron únicamente
+- **Real-time (Socket.io):** al probar con 2 navegadores (dueño y gerente simultáneos), la acción de uno no se reflejaba en el otro hasta refresh. Implementación: `broadcastAlertaActualizada` en service emite al room del dueño; hook `useAlertasRealtimeSync` montado en `MenuBusinessStudio` invalida caché de React Query al recibir. Cubre dueño y gerentes en modo comercial (ambos en el mismo room).
+- **UI:** botón "Eliminar" cambió semántica (ahora oculta del feed del usuario); modal de detalle muestra "✓ Resuelta por {Nombre} · {Fecha}" cuando aplica.
+
+**Lección transversal** (agregada a LECCIONES_TECNICAS.md): decidir "por-entidad vs por-usuario" **acción por acción**, no por entidad. La misma entidad puede tener acciones globales y por-usuario simultáneamente.
+
+Documentación actualizada: `docs/arquitectura/Alertas.md`, `docs/CHANGELOG.md`, `docs/estandares/LECCIONES_TECNICAS.md`.
+
+### Fix transversal — reset de filtros con jerarquía sucursal>toggle>filtros (24 Abril)
+
+Durante la auditoría del módulo 7 (Promociones) emergió un bug cross-cutting que afectaba a casi todos los módulos del BS: al cambiar de sucursal con el selector del navbar, los filtros locales (`useState` o stores Zustand) se mantenían con valores que podían no aplicar a la nueva sucursal — operadores que no trabajaban ahí, categorías inexistentes, búsquedas con texto obsoleto, etc. Mismo problema al cambiar entre toggles del mismo módulo (Productos↔Servicios, Ofertas↔Cupones, etc.). Los datos se refetchaban correctamente porque los queryKeys incluyen `sucursalId`, pero el state del frontend quedaba congelado.
+
+**Jerarquía adoptada:** `sucursal activa > toggle activo > filtros`. Cuando algo de arriba cambia, todo lo de abajo se resetea.
+
+**Aplicado en 10 módulos** con `useEffect([sucursalActiva]) → setFiltros(VALORES_INICIALES)` o `limpiar()` del store si aplica:
+
+| Módulo | Estrategia |
+|---|---|
+| Catálogo | `setFiltros({...})` directo + handlers de toggle Productos/Servicios resetean búsqueda/categoría/disponible |
+| Transacciones | `limpiar()` del store + reset de inputs locales `textoBusqueda`/`textoBusquedaCanjes` + `clearTimeout` de debounce refs |
+| Promociones | `setFiltros({...})` resetea visibilidad, tipo, estado, búsqueda |
+| Clientes | `limpiar()` del store (autosync de input vía `useEffect([busqueda])`) |
+| Opiniones | `setFiltroEstado/setFiltroEstrellas/setBusqueda` directos |
+| Alertas | `limpiarFiltros()` del store + reset explícito de `busquedaLocal` (input con debounce) |
+| Dashboard | `setPeriodo('mes')` (único filtro) |
+| Puntos | `limpiar()` del store |
+| Empleados | Reset de los 3 estados: `busquedaLocal`, `busqueda`, `filtroActivo` |
+| Reportes | `limpiar()` del store |
+
+**Trampas detectadas y corregidas durante la migración:**
+1. Inputs con patrón debounce tienen 2 `useState`: el visible (`busquedaLocal`) y el aplicado al filtro (`busqueda`). Resetear solo uno deja el otro con el texto anterior. Hay que resetear ambos + `clearTimeout` de los timers pendientes.
+2. Dropdowns con listas hardcoded (todos los tipos del enum) muestran opciones que no existen en la sucursal actual → tabla vacía al filtrar. Solución: `useMemo([items, toggle])` para extraer opciones realmente presentes y filtrar la lista hardcoded. Aplicado en `PaginaOfertas.tsx`.
+3. Selectores que dependen de atributos UX (`title`, `aria-label`) se rompen si esos atributos cambian. Caso real: `closest('button[title="Notificaciones"]')` para el click-outside del panel se rompió al quitar el `title` por limpieza UX. Solución: usar `data-*` attributes (semántica estable). Documentado en LECCIONES_TECNICAS.md.
+
+**Documentación generada:**
+- `LECCIONES_TECNICAS.md` — 4 entradas nuevas: container queries vs viewport, drag-to-scroll, modales contenidos, reset de filtros transversal.
+- `TOKENS_COMPONENTES.md` — TC-21 (carrusel drag-to-scroll), TC-22 (modales contenidos).
+- Mi Perfil, Sucursales, Rifas, Vacantes: skip (sin filtros locales o no implementados).
+
+### Prompt de continuación
+
+Para retomar en un chat nuevo: `docs/reportes/prompt-sprint-multi-sucursal-bs-continuacion-abril-2026.md`
 
 ### Nivel 2 — Recolector de Basura R2 ✅ (validación priorizada completa)
 

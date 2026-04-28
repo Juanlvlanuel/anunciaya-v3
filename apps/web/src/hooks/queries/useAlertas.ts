@@ -11,11 +11,13 @@
  * Ubicación: apps/web/src/hooks/queries/useAlertas.ts
  */
 
+import { useEffect } from 'react';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import * as alertasService from '../../services/alertasService';
 import type { AlertaCompleta, AlertaKPIs, ConfiguracionAlerta, CategoriaAlerta, SeveridadAlerta, TipoAlerta } from '../../types/alertas';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { queryKeys } from '../../config/queryKeys';
+import { escucharEvento } from '../../services/socketService';
 
 const POR_PAGINA = 20;
 
@@ -92,6 +94,38 @@ export function useAlertasConfiguracion() {
 }
 
 // =============================================================================
+// SYNC REAL-TIME VÍA SOCKET.IO
+// =============================================================================
+
+/**
+ * Escucha el evento `alerta:actualizada` (emitido por el backend cuando alguien
+ * del negocio resuelve una alerta) e invalida toda la caché de alertas.
+ *
+ * Montar una sola vez a nivel de layout (MenuBusinessStudio) para que:
+ *   - El badge del menú se actualice en todos los usuarios conectados
+ *   - La lista/KPIs/dashboard se refresquen al instante
+ *   - Sin duplicar listeners al navegar entre rutas BS
+ */
+export function useAlertasRealtimeSync() {
+  const queryClientInstance = useQueryClient();
+  const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
+
+  useEffect(() => {
+    if (modoActivo !== 'comercial') return;
+    const unsubscribe = escucharEvento<{ alertaId: string; negocioId: string }>(
+      'alerta:actualizada',
+      () => {
+        // Invalida TODAS las queries de alertas (todas las sucursales, kpis, lista)
+        queryClientInstance.invalidateQueries({ queryKey: queryKeys.alertas.all() });
+        // Widget del Dashboard también
+        queryClientInstance.invalidateQueries({ queryKey: ['dashboard', 'alertas'] });
+      },
+    );
+    return unsubscribe;
+  }, [queryClientInstance, modoActivo]);
+}
+
+// =============================================================================
 // MUTACIÓN: Marcar leída (update optimista en lista y KPIs)
 // =============================================================================
 
@@ -164,22 +198,24 @@ export function useMarcarAlertaLeida() {
 // =============================================================================
 
 export function useMarcarAlertaResuelta() {
-  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
   const queryClientInstance = useQueryClient();
 
   return useMutation({
     mutationFn: (id: string) => alertasService.marcarResuelta(id),
 
     onMutate: async (id) => {
+      // `resuelta` es GLOBAL → el update optimista debe reflejarse en TODAS las sucursales
+      // del usuario (no solo la activa). Por eso el queryKey se limita a ['alertas', 'lista']
+      // sin sucursalId → matchea cualquier variante cacheada.
       const snapshotLista = queryClientInstance.getQueriesData<{
         pages: { alertas: AlertaCompleta[] }[];
-      }>({ queryKey: ['alertas', 'lista', sucursalId] });
+      }>({ queryKey: ['alertas', 'lista'] });
 
       queryClientInstance.setQueriesData<{
         pages: { alertas: AlertaCompleta[]; [key: string]: unknown }[];
         pageParams: unknown[];
       }>(
-        { queryKey: ['alertas', 'lista', sucursalId] },
+        { queryKey: ['alertas', 'lista'] },
         (old) => {
           if (!old) return old;
           return {
@@ -208,9 +244,11 @@ export function useMarcarAlertaResuelta() {
     },
 
     onSuccess: () => {
-      queryClientInstance.invalidateQueries({ queryKey: queryKeys.alertas.kpis(sucursalId) });
-      // Sincronizar widget de alertas del Dashboard
-      queryClientInstance.invalidateQueries({ queryKey: queryKeys.dashboard.alertas(sucursalId) });
+      // `resuelta` es global → invalidar TODO el módulo de alertas para refetch
+      // en cualquier sucursal al cambiar, con el nombre correcto de quien resolvió.
+      queryClientInstance.invalidateQueries({ queryKey: queryKeys.alertas.all() });
+      // Widget del Dashboard también se sincroniza
+      queryClientInstance.invalidateQueries({ queryKey: ['dashboard', 'alertas'] });
     },
   });
 }

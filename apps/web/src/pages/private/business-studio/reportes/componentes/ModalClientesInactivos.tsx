@@ -18,11 +18,16 @@ interface Props {
   tipo: 'riesgo' | 'inactivos';
 }
 
-function formatearFecha(fecha: string | null): string {
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/** Formato "09 Abril 2026" */
+function formatearFechaLarga(fecha: string | null): string {
   if (!fecha) return 'Nunca';
   const d = new Date(fecha);
-  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  return `${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}`;
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[d.getMonth()];
+  const anio = d.getFullYear();
+  return `${dia} ${mes} ${anio}`;
 }
 
 export function ModalClientesInactivos({ abierto, onCerrar, tipo }: Props) {
@@ -94,82 +99,77 @@ export function ModalClientesInactivos({ abierto, onCerrar, tipo }: Props) {
               </p>
             </div>
           ) : (
-            <div className="space-y-2 lg:space-y-1.5 2xl:space-y-2">
-              {data.map((c) => {
-                const colorAcento = '#3b82f6';
-                return (
-                  <button
-                    key={c.clienteId}
-                    type="button"
-                    onClick={() => handleAbrirCliente(c.nombre, c.apellidos)}
-                    className="group w-full text-left bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md hover:border-slate-400 lg:cursor-pointer overflow-hidden"
-                    data-testid={`cliente-inactivo-${c.clienteId}`}
+            <div className="bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden divide-y-[1.5px] divide-slate-300">
+              {data.map((c) => (
+                <button
+                  key={c.clienteId}
+                  type="button"
+                  onClick={() => handleAbrirCliente(c.nombre, c.apellidos)}
+                  className="group w-full text-left flex items-center gap-3 px-3 py-3 hover:bg-slate-50 transition-colors lg:cursor-pointer"
+                  data-testid={`cliente-inactivo-${c.clienteId}`}
+                >
+                  {/* Avatar circular gradient azul */}
+                  <div
+                    className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md"
+                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
                   >
-                    <div className="flex items-center gap-3 p-3 lg:p-2.5 2xl:p-3">
-                      {/* Avatar circular con ring coloreado */}
-                      <div
-                        className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden"
-                        style={{ boxShadow: `0 0 0 2px white, 0 0 0 4px ${colorAcento}33` }}
-                      >
-                        <span className="text-base font-bold text-indigo-700">
-                          {obtenerIniciales(`${c.nombre} ${c.apellidos}`)}
-                        </span>
-                      </div>
+                    <span className="text-base lg:text-sm 2xl:text-base font-bold text-white">
+                      {obtenerIniciales(`${c.nombre} ${c.apellidos}`)}
+                    </span>
+                  </div>
 
-                      {/* Info principal */}
-                      <div className="flex-1 min-w-0">
-                        {/* Nombre + badge días en la misma línea */}
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 truncate flex-1">
-                            {c.nombre} {c.apellidos}
-                          </p>
-                          <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-extrabold whitespace-nowrap border-2 ${
-                            tipo === 'riesgo'
-                              ? 'bg-amber-100 text-amber-700 border-amber-300'
-                              : 'bg-red-100 text-red-700 border-red-300'
-                          }`}>
-                            <Clock className="w-3.5 h-3.5" />
-                            {c.diasSinComprar} días
+                  {/* Info principal */}
+                  <div className="flex-1 min-w-0">
+                    {/* Nombre + badge días en la misma línea */}
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-900 truncate flex-1">
+                        {c.nombre} {c.apellidos}
+                      </p>
+                      <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-extrabold whitespace-nowrap border-2 ${
+                        tipo === 'riesgo'
+                          ? 'bg-amber-100 text-amber-700 border-amber-300'
+                          : 'bg-red-100 text-red-700 border-red-300'
+                      }`}>
+                        <Clock className="w-3.5 h-3.5" />
+                        {c.diasSinComprar} días
+                      </span>
+                    </div>
+
+                    {/* Última compra con icono */}
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+                      Última compra: <span className="font-semibold text-slate-700">{formatearFechaLarga(c.ultimaActividad)}</span>
+                    </p>
+
+                    {/* Contacto con chips */}
+                    {(c.telefono || c.correo) ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {c.telefono && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700">
+                            <Phone className="w-3.5 h-3.5 text-slate-600" />
+                            {c.telefono}
                           </span>
-                        </div>
-
-                        {/* Última compra con icono */}
-                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 shrink-0 text-slate-500" />
-                          Última compra: <span className="font-semibold text-slate-700">{formatearFecha(c.ultimaActividad)}</span>
-                        </p>
-
-                        {/* Contacto con chips */}
-                        {(c.telefono || c.correo) ? (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {c.telefono && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700">
-                                <Phone className="w-3.5 h-3.5 text-slate-600" />
-                                {c.telefono}
-                              </span>
-                            )}
-                            {c.correo && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700 min-w-0 max-w-full">
-                                <Mail className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                                <span className="truncate">{c.correo}</span>
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 italic">
-                            Sin información de contacto
+                        )}
+                        {c.correo && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700 min-w-0 max-w-full">
+                            <Mail className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                            <span className="truncate">{c.correo}</span>
                           </span>
                         )}
                       </div>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 italic">
+                        Sin información de contacto
+                      </span>
+                    )}
+                  </div>
 
-                      {/* Chevron indicando click */}
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center group-hover:bg-slate-300">
-                        <ChevronRight className="w-4 h-4 text-slate-700" />
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+                  {/* Chevron indicando click */}
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center group-hover:bg-slate-300">
+                    <ChevronRight className="w-4 h-4 text-slate-700" />
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>

@@ -24,6 +24,21 @@ import {
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import type { AlertaCompleta, CategoriaAlerta, SeveridadAlerta, TipoAlerta } from '../../../../types/alertas';
 
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+/** Formato "Miércoles, 09 de Abril de 2026, 15:30" */
+const formatearFechaCompleta = (fechaISO: string) => {
+	const fecha = new Date(fechaISO);
+	const dia = DIAS_SEMANA[fecha.getDay()];
+	const diaN = String(fecha.getDate()).padStart(2, '0');
+	const mes = MESES_LARGOS[fecha.getMonth()];
+	const anio = fecha.getFullYear();
+	const hora = String(fecha.getHours()).padStart(2, '0');
+	const min = String(fecha.getMinutes()).padStart(2, '0');
+	return `${dia}, ${diaN} de ${mes} de ${anio}, ${hora}:${min}`;
+};
+
 const ICONO_CATEGORIA: Record<CategoriaAlerta, typeof Shield> = {
 	seguridad: Shield,
 	operativa: Wrench,
@@ -265,11 +280,15 @@ export function ModalDetalleAlerta({ alerta, onCerrar, onMarcarResuelta, onElimi
 					<div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3">
 						<div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm text-slate-600 font-semibold">
 							<Clock className="w-4 h-4" />
-							{new Date(alerta.createdAt).toLocaleString('es-MX', {
-								day: 'numeric', month: 'long', year: 'numeric',
-								hour: '2-digit', minute: '2-digit',
-							})}
+							{formatearFechaCompleta(alerta.createdAt)}
 						</div>
+						{alerta.resuelta && alerta.resueltaPor && alerta.resueltaAt && (
+							<div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm text-emerald-700 font-semibold mt-1.5">
+								<span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-300">
+									✓ Resuelta por {alerta.resueltaPor.nombre} · {formatearFechaCompleta(alerta.resueltaAt)}
+								</span>
+							</div>
+						)}
 					</div>
 
 					{/* Botones de acción */}

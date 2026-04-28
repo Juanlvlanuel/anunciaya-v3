@@ -26,6 +26,7 @@
 import { ReactNode, useEffect, useCallback, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { usePortalTarget } from '../../hooks/usePortalTarget';
 
 // =============================================================================
 // TIPOS
@@ -110,6 +111,10 @@ export function ModalBottom({
   // Estado
   // ---------------------------------------------------------------------------
   const [cerrando, setCerrando] = useState(false);
+
+  // Portal target: document.body (default) o un contenedor del preview/ChatYA
+  const portalTarget = usePortalTarget();
+  const esContenido = portalTarget !== document.body;
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -279,31 +284,38 @@ export function ModalBottom({
   // Bloquear scroll y escuchar eventos
   useEffect(() => {
     if (abierto) {
-      // Guardar posición del scroll
-      scrollYRef.current = window.scrollY;
-
-      // Bloquear scroll
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollYRef.current}px`;
-      document.body.style.width = '100%';
-      document.body.style.overflow = 'hidden';
-
-      // Event listeners
+      // Event listeners (siempre se registran)
       document.addEventListener('keydown', handleEscape);
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.addEventListener('touchmove', handleTouchMove, { passive: false });
       document.addEventListener('touchend', handleTouchEnd);
 
-      return () => {
-        // Restaurar scroll
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        document.body.style.overflow = '';
-        window.scrollTo(0, scrollYRef.current);
+      // Solo bloqueamos scroll del body cuando el modal es fullscreen (portal a body).
+      // Si el modal está contenido en un preview, no debe bloquear el scroll del documento principal.
+      if (!esContenido) {
+        scrollYRef.current = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollYRef.current}px`;
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
 
-        // Remover listeners
+        return () => {
+          document.body.style.position = '';
+          document.body.style.top = '';
+          document.body.style.width = '';
+          document.body.style.overflow = '';
+          window.scrollTo(0, scrollYRef.current);
+
+          document.removeEventListener('keydown', handleEscape);
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+          document.removeEventListener('touchmove', handleTouchMove);
+          document.removeEventListener('touchend', handleTouchEnd);
+        };
+      }
+
+      return () => {
         document.removeEventListener('keydown', handleEscape);
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -311,7 +323,7 @@ export function ModalBottom({
         document.removeEventListener('touchend', handleTouchEnd);
       };
     }
-  }, [abierto, handleEscape, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
+  }, [abierto, handleEscape, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd, esContenido]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -324,9 +336,13 @@ export function ModalBottom({
   // Calcular opacidad del overlay basada en el drag
   const opacidadOverlay = Math.max(0.1 - (dragY / 400), 0.1);
 
+  // En modo contenido (preview/ChatYA), el modal se posiciona `absolute` relativo al
+  // contenedor del portal. En modo normal (fullscreen del viewport), usa `fixed`.
+  const claseBase = esContenido ? 'absolute' : 'fixed';
+
   return createPortal(
     <div
-      className={`fixed inset-0 ${zIndice} flex items-end justify-center`}
+      className={`${claseBase} inset-0 ${zIndice} flex items-end justify-center`}
       role="dialog"
       aria-modal="true"
     >
@@ -347,7 +363,7 @@ export function ModalBottom({
           relative w-full max-w-lg lg:max-w-md 2xl:max-w-lg
           ${fondo ? '' : 'bg-slate-50'} rounded-t-3xl lg:rounded-t-2xl 2xl:rounded-t-3xl
           shadow-2xl overflow-hidden
-          ${ALTURAS_MAXIMAS[alturaMaxima]}
+          ${esContenido ? 'max-h-full' : ALTURAS_MAXIMAS[alturaMaxima]}
           flex flex-col
           ${isDragging ? '' : 'transition-transform duration-300'}
           ${className}
@@ -434,7 +450,7 @@ export function ModalBottom({
         }
       `}</style>
     </div>,
-    document.body
+    portalTarget
   );
 }
 

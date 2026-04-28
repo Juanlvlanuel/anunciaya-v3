@@ -19,8 +19,9 @@
  * - Sin porcentajes ni tendencias
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useDashboardStore } from '../../../../stores/useDashboardStore';
+import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useDashboard, useDashboardRefresh } from '../../../../hooks/queries/useDashboard';
 import { useCrearOferta, useActualizarOferta } from '../../../../hooks/queries/useOfertas';
 import { useCrearArticulo } from '../../../../hooks/queries/useArticulos';
@@ -37,7 +38,6 @@ import GraficaVentas from './componentes/GraficaVentas';
 import PanelCampanas from './componentes/PanelCampanas';
 import PanelInteracciones from './componentes/PanelInteracciones';
 import PanelAlertas from './componentes/PanelAlertas';
-import BannerAlertasUrgentes from './componentes/BannerAlertasUrgentes';
 import GraficaColapsable from './componentes/GraficaColapsable';
 import { ModalOferta } from '../ofertas/ModalOferta';
 import { ModalArticulo } from '../catalogo/ModalArticulo';
@@ -144,6 +144,12 @@ export default function PaginaDashboard() {
   const animarStat = (id: string) => setAnimandoStat(id);
 
   const { periodo, setPeriodo } = useDashboardStore();
+
+  // Reset período al cambiar de sucursal (jerarquía sucursal > toggle > filtros).
+  const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
+  useEffect(() => {
+    setPeriodo('mes');
+  }, [sucursalActiva, setPeriodo]);
   const { kpis, ventas, campanas, interacciones, alertas, cargandoKpis } = useDashboard(periodo);
   const { refetchTodo } = useDashboardRefresh();
 
@@ -162,9 +168,6 @@ export default function PaginaDashboard() {
 
   // Estado del modal de artículos
   const [modalArticuloAbierto, setModalArticuloAbierto] = useState(false);
-
-  // Filtrar alertas urgentes (no leídas)
-  const alertasUrgentes = alertas?.alertas.filter(a => !a.leida) ?? [];
 
   // ===========================================================================
   // ORDENAR CAMPAÑAS POR FECHA DE VENCIMIENTO
@@ -364,11 +367,6 @@ export default function PaginaDashboard() {
         {/* LAYOUT MÓVIL                                                      */}
         {/* ================================================================= */}
         <div className="lg:hidden space-y-3">
-          {/* Banner Alertas Urgentes */}
-          {alertasUrgentes.length > 0 && (
-            <BannerAlertasUrgentes alertas={alertasUrgentes} />
-          )}
-
           {/* 4 Stats Secundarios — icono + valor en línea */}
           <div className="grid grid-cols-4">
             <Tooltip text="Seguidores" position="bottom" triggerOnClick autoHide={2000}>
@@ -456,7 +454,7 @@ export default function PaginaDashboard() {
           />
 
           {/* Interacciones */}
-          <PanelInteracciones interacciones={interacciones.slice(0, 4)} vistaMobil={true} />
+          <PanelInteracciones interacciones={interacciones} vistaMobil={true} />
 
           {/* Alertas */}
           {alertas && alertas.alertas.length > 0 && (

@@ -81,8 +81,8 @@ export const queryKeys = {
       ['transacciones', 'kpisCanjes', sucursalId, periodo] as const,
     canjes: (sucursalId: string, filtros?: Record<string, unknown>) =>
       ['transacciones', 'canjes', sucursalId, filtros] as const,
-    operadores: (sucursalId: string) =>
-      ['transacciones', 'operadores', sucursalId] as const,
+    operadores: (sucursalId: string, tipo: 'ventas' | 'cupones' | 'canjes' = 'ventas') =>
+      ['transacciones', 'operadores', sucursalId, tipo] as const,
   },
 
   // ─── Business Studio — Clientes ───────────────────────────────────────────
@@ -92,10 +92,15 @@ export const queryKeys = {
       ['clientes', 'kpis', sucursalId] as const,
     lista: (sucursalId: string, filtros?: Record<string, unknown>) =>
       ['clientes', 'lista', sucursalId, filtros] as const,
-    detalle: (clienteId: string) =>
-      ['clientes', 'detalle', clienteId] as const,
-    historial: (clienteId: string) =>
-      ['clientes', 'historial', clienteId] as const,
+    // sucursalId va en el key porque el backend filtra visitas/total por
+    // sucursal activa vía interceptor Axios. Sin esto, React Query sirve el
+    // caché de la sucursal anterior al reabrir el modal tras switchear.
+    // Para invalidar todas las sucursales de un cliente, usar el array
+    // literal ['clientes', 'detalle', clienteId] (prefix matching).
+    detalle: (clienteId: string, sucursalId: string) =>
+      ['clientes', 'detalle', clienteId, sucursalId] as const,
+    historial: (clienteId: string, sucursalId: string) =>
+      ['clientes', 'historial', clienteId, sucursalId] as const,
     selector: (sucursalId: string) =>
       ['clientes', 'selector', sucursalId] as const,
   },

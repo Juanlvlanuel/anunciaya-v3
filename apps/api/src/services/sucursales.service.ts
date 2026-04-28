@@ -171,6 +171,7 @@ export const obtenerSucursalesConGerente = async (
 				s.whatsapp,
 				s.correo,
 				s.activa,
+				s.foto_perfil AS "fotoPerfil",
 				s.created_at AS "createdAt",
 				u.id AS "gerenteId",
 				u.nombre AS "gerenteNombre",
@@ -193,6 +194,7 @@ export const obtenerSucursalesConGerente = async (
 			whatsapp: row.whatsapp as string | null,
 			correo: row.correo as string | null,
 			activa: row.activa as boolean,
+			fotoPerfil: row.fotoPerfil as string | null,
 			createdAt: row.createdAt as string,
 			gerente: row.gerenteId
 				? {

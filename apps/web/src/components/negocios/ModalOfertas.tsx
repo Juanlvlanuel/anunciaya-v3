@@ -57,9 +57,10 @@ const getId = (oferta: Oferta): string => {
 interface ContenidoOfertasProps {
     ofertas: Oferta[];
     onClickOferta: (oferta: Oferta) => void;
+    esMobile: boolean;
 }
 
-const ContenidoOfertas = ({ ofertas, onClickOferta }: ContenidoOfertasProps) => {
+const ContenidoOfertas = ({ ofertas, onClickOferta, esMobile }: ContenidoOfertasProps) => {
     if (ofertas.length === 0) {
         return (
             <div className="py-12 lg:py-8 2xl:py-12 text-center">
@@ -71,8 +72,11 @@ const ContenidoOfertas = ({ ofertas, onClickOferta }: ContenidoOfertasProps) => 
         );
     }
 
+    // Grid condicional por hook (respeta BreakpointOverride del preview):
+    //   - Mobile / preview embebido: 1 columna (cards horizontales dentro del OfertaCard).
+    //   - Desktop real: 2 columnas (cards verticales cómodas).
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-3 2xl:gap-4">
+        <div className={esMobile ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-3 2xl:gap-4'}>
             {ofertas.map((oferta) => (
                 <OfertaCard
                     key={getId(oferta)}
@@ -143,7 +147,7 @@ export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, negoc
                     </div>
                     {/* Contenido con scroll */}
                     <div className="flex-1 overflow-y-auto min-h-0 p-3">
-                        <ContenidoOfertas ofertas={ofertas} onClickOferta={handleClickOferta} />
+                        <ContenidoOfertas ofertas={ofertas} onClickOferta={handleClickOferta} esMobile={esMobile} />
                     </div>
                 </ModalBottom>
             )
@@ -177,7 +181,7 @@ export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, negoc
                         </div>
                         {/* Contenido con scroll */}
                         <div className="flex-1 overflow-y-auto min-h-0 p-3 2xl:p-4">
-                            <ContenidoOfertas ofertas={ofertas} onClickOferta={handleClickOferta} />
+                            <ContenidoOfertas ofertas={ofertas} onClickOferta={handleClickOferta} esMobile={esMobile} />
                         </div>
                     </Modal>
                 )}

@@ -35,6 +35,8 @@ interface TransaccionesUIState {
   setEstadoFiltroCanjes: (estadoFiltroCanjes: string) => void;
   setBusquedaCanjes: (busquedaCanjes: string) => void;
   limpiar: () => void;
+  /** Resetea SOLO los filtros (preserva tabActivo y periodo). Se invoca al cambiar de sucursal. */
+  resetFiltros: () => void;
 }
 
 // =============================================================================
@@ -81,6 +83,19 @@ export const useTransaccionesStore = create<TransaccionesUIState>((set, get) => 
   setBusquedaCanjes: (busquedaCanjes) => set({ busquedaCanjes }),
 
   limpiar: () => set(ESTADO_INICIAL),
+
+  // Reset de filtros al cambiar de sucursal: el operador/búsqueda/estado pueden no aplicar
+  // a la nueva sucursal. Preserva tabActivo (Ventas/Cupones/Canjes) y periodo (Hoy/Mes/etc.)
+  // porque son preferencias visuales del usuario que tienen sentido cross-sucursal.
+  resetFiltros: () => set({
+    busqueda: '',
+    operadorId: '',
+    operadorIdCupones: '',
+    operadorIdCanjes: '',
+    estadoFiltro: '',
+    estadoFiltroCanjes: '',
+    busquedaCanjes: '',
+  }),
 }));
 
 // =============================================================================

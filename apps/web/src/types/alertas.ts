@@ -45,10 +45,14 @@ export interface AlertaCompleta {
 	descripcion: string;
 	data: Record<string, unknown> | null;
 	accionesSugeridas: string[] | null;
+	/** Leída por el usuario actual (estado por usuario). */
 	leida: boolean;
 	leidaAt: string | null;
+	/** Resuelta globalmente (todos los usuarios del negocio la ven así). */
 	resuelta: boolean;
 	resueltaAt: string | null;
+	/** Quién resolvió la alerta globalmente — para mostrar "Resuelta por X" en el modal. */
+	resueltaPor: { id: string; nombre: string } | null;
 	createdAt: string;
 }
 

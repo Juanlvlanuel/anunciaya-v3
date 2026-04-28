@@ -16,7 +16,8 @@
 9. [Tipografía de Encabezado de Página y KPIs](#9-tipografía-de-encabezado-de-página-y-kpis)
 10. [Transiciones](#10-transiciones)
 11. [Escala de Z-index](#11-escala-de-z-index)
-12. [Reglas Pendientes de Validar](#12-reglas-pendientes-de-validar)
+12. [Formato de Fecha en Listas y Tablas](#12-formato-de-fecha-en-listas-y-tablas)
+13. [Reglas Pendientes de Validar](#13-reglas-pendientes-de-validar)
 
 ---
 
@@ -78,7 +79,12 @@ El brillo de pantalla hace que los tonos claros desaparezcan. Todo debe tener pr
 
 **Contenedores de icono:** el icono interior debe usar mínimo variante `-600` del mismo color para contrastar.
 
-**Avatares fallback (sin foto):** color fijo `bg-indigo-100 text-indigo-700`. Aplica a cualquier círculo con iniciales de usuario/cliente en toda la app.
+**Avatares fallback (sin foto):** gradient azul fijo + texto blanco + `shadow-md`. Aplica a cualquier círculo con iniciales de usuario/cliente en toda la app.
+
+- **Tailwind:** `bg-linear-to-br from-blue-500 via-blue-600 to-blue-700 text-white shadow-md`
+- **Style inline (cuando el gradient se tapa con imagen condicional):** `style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}` + `text-white shadow-md`
+- ❌ `bg-indigo-100 text-indigo-700` (patrón anterior) — reemplazado por gradient azul para mayor presencia visual
+- ❌ `bg-slate-200 text-slate-600` (placeholder neutro) — avatar siempre debe tener color
 
 **Texto:** mínimo `text-slate-600`. Nunca `text-slate-500` ni más claro.
 
@@ -131,6 +137,22 @@ Ejemplo: `w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7` con icono `w-4 h-4` fijo
 Fijo en las 3 resoluciones — sin variación responsive.
 
 **Regla general:** laptop puede reducir el cuadro exterior (no el icono interior), pero nunca por debajo del mínimo `w-6`/`w-4`.
+
+### Avatares circulares en listas / cards / paneles de Dashboard
+
+Estándar unificado para todo círculo que represente a un usuario, cliente, empleado, o ícono categórico prominente (Actividad Reciente, Alertas, Ofertas, items de lista móvil de Clientes / Transacciones / Empleados / Opiniones, etc.):
+
+| | Móvil (base) | Laptop (`lg:`) | Desktop (`2xl:`) |
+|---|---|---|---|
+| Cuadro exterior | `w-14 h-14` | `w-10 h-10` | `w-12 h-12` |
+| Icono/texto interior | `w-7 h-7` / `text-lg` | `w-5 h-5` / `text-sm` | `w-6 h-6` / `text-base` |
+| Badge esquina (si aplica) | `w-7 h-7` | `w-5 h-5` | `w-6 h-6` |
+
+**Patrón Tailwind:** `w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full shadow-md`
+
+**Referencia de diseño:** tamaño de la imagen de Ofertas en `PanelCampanas`. Toma este patrón como estándar para cualquier elemento visual prominente en listas/cards del BS.
+
+**Avatares miniatura** (badges pequeños junto a nombres inline, sin card dedicado) mantienen el patrón de "Items de lista" (`w-7 h-7`).
 
 ---
 
@@ -279,6 +301,25 @@ No poner `hover:*` en elementos que no son clickeables. El hover implica que alg
 
 Los botones que alternan entre estado activo/inactivo (selectores de periodo, chips de filtro, tabs) también deben ser instantáneos. El cambio de estado es una respuesta directa al click del usuario.
 
+### Hover en móvil — usar prefijo `lg:hover:`
+
+En dispositivos táctiles, el estado `:hover` queda pegado después del tap (hasta que el usuario toque otra parte de la pantalla). Esto genera un "velo" visual que no se despega y confunde al usuario.
+
+**Regla:** cuando un hover sirve solo para feedback de mouse en desktop, prefijarlo con `lg:hover:` para que no aplique en móvil.
+
+```tsx
+// ❌ Incorrecto — deja velo pegado tras tap en móvil
+<button className="text-white hover:bg-white/10">
+
+// ✅ Correcto — hover solo en laptop/desktop
+<button className="text-white lg:hover:bg-white/10">
+```
+
+Aplica especialmente a:
+- Chips de orden/filtro en headers móviles (segmented controls)
+- Botones sobre fondos oscuros con `hover:bg-white/*`
+- Items de lista compactos donde el tap ya dispara una acción
+
 ### Animaciones de entrada de elementos
 
 Para elementos que aparecen dinámicamente en el DOM (panels, menús, expanders):
@@ -336,7 +377,68 @@ Jerarquía de capas de la app. Cada nivel debe respetar su rango para evitar que
 
 ---
 
-## 12. Reglas Pendientes de Validar
+## 12. Formato de Fecha en Listas y Tablas
+
+### Fecha larga — formato estándar
+
+Para mostrar fechas en listas, tablas, detalles, y cualquier contexto donde no se requiera tiempo relativo ("hace X horas"), el formato estándar es:
+
+**Patrón:** `DD Mes AAAA` — día con 2 dígitos + mes con inicial mayúscula (palabra completa) + año completo.
+
+**Ejemplos:** `09 Abril 2026`, `23 Diciembre 2026`, `01 Enero 2027`.
+
+**Helper reutilizable:**
+
+```tsx
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+const formatearFechaLarga = (fechaISO: string | null) => {
+  if (!fechaISO) return '—';
+  const f = new Date(fechaISO);
+  const dia = String(f.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[f.getMonth()];
+  const anio = f.getFullYear();
+  return `${dia} ${mes} ${anio}`;
+};
+```
+
+**Variantes permitidas:**
+- `Hoy` / `Ayer` para fechas recientes (primeras 24-48h) si el contexto lo requiere
+- `Hace N días` solo para tiempos menores a 7 días en feeds/notificaciones
+
+**❌ Prohibidos:**
+- `toLocaleDateString('es-MX', { month: 'short' })` — genera "09 abr" con mes en minúscula, inconsistente con el resto
+- `toLocaleDateString('es-MX', { month: 'long' })` — genera "9 de abril de 2026" con minúscula
+- Formatos mixtos con comas internas o guiones entre día-mes
+
+### Fecha completa — con día de semana y hora
+
+Para modales de detalle donde se necesita contexto completo (fecha + hora de transacción):
+
+**Patrón:** `Día, DD de Mes de AAAA, HH:MM` — con mayúsculas en día y mes.
+
+**Ejemplo:** `Miércoles, 09 de Abril de 2026, 15:30`.
+
+**Helper reutilizable:**
+
+```tsx
+const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+const formatearFechaCompleta = (fechaISO: string) => {
+  const fecha = new Date(fechaISO);
+  const dia = DIAS_SEMANA[fecha.getDay()];
+  const diaN = String(fecha.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[fecha.getMonth()];
+  const anio = fecha.getFullYear();
+  const hora = String(fecha.getHours()).padStart(2, '0');
+  const min = String(fecha.getMinutes()).padStart(2, '0');
+  return `${dia}, ${diaN} de ${mes} de ${anio}, ${hora}:${min}`;
+};
+```
+
+---
+
+## 13. Reglas Pendientes de Validar
 
 - [x] Tamaño mínimo de texto ✅
 - [x] Escala de iconos (mínimos) ✅

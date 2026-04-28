@@ -571,7 +571,10 @@ export default function TabImagenes({
         {/* Botones */}
         <div className="flex flex-col gap-1.5 pt-1 shrink-0">
           <Tooltip text={imageUrl ? labelCambiar : labelSubir} position="bottom" className="2xl:hidden">
-            <label className={`h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-auto px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-blue-600 bg-blue-100 border-2 border-blue-300 rounded-lg hover:bg-blue-200 cursor-pointer whitespace-nowrap ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <label
+              className={`h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-auto px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-white rounded-lg cursor-pointer whitespace-nowrap shadow-sm hover:opacity-90 transition-opacity ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+            >
               <Camera className="w-3.5 h-3.5 shrink-0" />
               <span className="lg:hidden 2xl:inline">{imageUrl ? 'Cambiar' : 'Subir'}</span>
               <input type="file" accept=".png,.jpg,.jpeg,.webp" name="imagenPerfil"
@@ -582,14 +585,14 @@ export default function TabImagenes({
           {imageUrl && (
             <Tooltip text="Eliminar" position="bottom" className="2xl:hidden">
               <button type="button" onClick={onDelete} disabled={isUploading}
-                className="h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-auto px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-red-600 bg-red-50 border-2 border-red-200 rounded-lg hover:bg-red-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                className="h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-auto px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 bg-white border-2 border-slate-300 rounded-lg hover:text-red-600 hover:border-red-300 hover:bg-red-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 <Trash2 className="w-3.5 h-3.5" />
                 <span className="lg:hidden 2xl:inline">Eliminar</span>
               </button>
             </Tooltip>
           )}
           {isUploading && (
-            <span className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm text-blue-600 font-semibold">
+            <span className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm text-slate-600 font-semibold">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...
             </span>
           )}

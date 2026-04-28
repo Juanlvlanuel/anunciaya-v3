@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalTarget } from '../../hooks/usePortalTarget';
 
 interface ModalImagenesProps {
   /** Array de URLs de imágenes */
@@ -21,6 +22,10 @@ export const ModalImagenes = ({
   const [indiceActual, setIndiceActual] = useState(initialIndex);
   const scrollYRef = useRef(0);
   const [cerrando, setCerrando] = useState(false);
+
+  // Portal target: document.body (default) o un contenedor del preview/ChatYA
+  const portalTarget = usePortalTarget();
+  const esContenido = portalTarget !== document.body;
   const historyPushedRef = useRef(false);
   const popStateHandlerRef = useRef<(() => void) | null>(null);
   const modalIdRef = useRef(`_mi_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
@@ -96,9 +101,10 @@ export const ModalImagenes = ({
     };
   }, [isOpen, onClose]);
 
-  // Bloquear scroll del body
+  // Bloquear scroll del body solo cuando el modal es fullscreen (portal a body).
+  // En modo contenido (preview/ChatYA) no bloqueamos el scroll del documento principal.
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !esContenido) {
       const esScanYA = window.location.pathname.startsWith('/scanya');
       scrollYRef.current = window.scrollY;
       document.body.style.position = 'fixed';
@@ -119,7 +125,7 @@ export const ModalImagenes = ({
         window.scrollTo(0, scrollYRef.current);
       };
     }
-  }, [isOpen]);
+  }, [isOpen, esContenido]);
 
   const imagenAnterior = useCallback(() => {
     setIndiceActual((prev) => (prev - 1 + images.length) % images.length);
@@ -225,8 +231,12 @@ export const ModalImagenes = ({
 
   const hayMultiplesImagenes = images.length > 1;
 
+  // En modo contenido (preview/ChatYA), el modal se posiciona `absolute` relativo al
+  // contenedor del portal. En modo normal (fullscreen del viewport), usa `fixed`.
+  const claseBase = esContenido ? 'absolute' : 'fixed';
+
   return createPortal(
-    <div className="fixed inset-0 z-9999">
+    <div className={`${claseBase} inset-0 z-9999`}>
       {/* Overlay */}
       <div
         onClick={cerrarConAnimacion}
@@ -249,11 +259,14 @@ export const ModalImagenes = ({
             transition: enTransicion ? 'transform 150ms ease-out' : 'none',
           }}
         >
-          {/* Imagen principal */}
+          {/* Imagen principal.
+              En modo contenido (preview/ChatYA) usamos max-w/max-h-full respecto al wrapper del modal,
+              para que la imagen se ajuste al panel sin desbordar. En modo normal (fullscreen) mantenemos
+              los viewport-based vw/vh. */}
           <img
             src={images[indiceActual]}
             alt={`Imagen ${indiceActual + 1} de ${images.length}`}
-            className="max-w-[85vw] max-h-[55vh] lg:max-w-[50vw] lg:max-h-[45vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh] object-contain select-none"
+            className={`${esContenido ? 'max-w-full max-h-full' : 'max-w-[85vw] max-h-[55vh] lg:max-w-[50vw] lg:max-h-[45vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh]'} object-contain select-none`}
             draggable={false}
           />
 
@@ -301,6 +314,6 @@ export const ModalImagenes = ({
         @keyframes scaleOut { from { transform: scale(1); opacity: 1; } to { transform: scale(0.92); opacity: 0; } }
       `}</style>
     </div>,
-    document.body
+    portalTarget
   );
 };

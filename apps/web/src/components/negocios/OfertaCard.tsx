@@ -295,7 +295,7 @@ interface BadgeCircularProps {
 }
 
 const BadgeCircular = ({ texto, gradient, border, inModal = false }: BadgeCircularProps) => (
-    <div className={`absolute -right-2 -top-2 lg:-right-2 lg:-top-2 2xl:-right-3 2xl:-top-3 z-30 ${inModal ? 'animate-float-subtle' : 'animate-float'}`}>
+    <div className={`absolute -right-2 -top-2 @5xl:-right-2 @5xl:-top-2 @[96rem]:-right-3 @[96rem]:-top-3 z-30 ${inModal ? 'animate-float-subtle' : 'animate-float'}`}>
         <div className="relative">
             {/* Ripple effect - SOLO si NO está en modal */}
             {!inModal && (
@@ -303,11 +303,11 @@ const BadgeCircular = ({ texto, gradient, border, inModal = false }: BadgeCircul
             )}
 
             {/* Badge circular */}
-            <div className={`relative flex h-11 w-11 lg:h-12 lg:w-12 2xl:h-14 2xl:w-14 items-center justify-center rounded-full bg-linear-to-br ${gradient} shadow-xl`}>
+            <div className={`relative flex h-11 w-11 @5xl:h-12 @5xl:w-12 @[96rem]:h-14 @[96rem]:w-14 items-center justify-center rounded-full bg-linear-to-br ${gradient} shadow-xl`}>
                 {/* Borde de puntos interno */}
                 <div className={`absolute inset-0 rounded-full border-2 border-dashed ${border}`} />
 
-                <span className="relative z-10 text-sm lg:text-sm 2xl:text-base font-black text-white">
+                <span className="relative z-10 text-sm @5xl:text-sm @[96rem]:text-base font-black text-white">
                     {texto}
                 </span>
             </div>
@@ -328,7 +328,7 @@ interface BadgeRectangularProps {
 }
 
 const BadgeRectangular = ({ texto, gradient, border, icono, inModal = false }: BadgeRectangularProps) => (
-    <div className={`absolute -right-2 -top-2 lg:-right-1.5 lg:-top-1.5 2xl:-right-2 2xl:-top-2 z-30 ${inModal ? 'animate-float-subtle' : 'animate-float'}`}>
+    <div className={`absolute -right-2 -top-2 @5xl:-right-1.5 @5xl:-top-1.5 @[96rem]:-right-2 @[96rem]:-top-2 z-30 ${inModal ? 'animate-float-subtle' : 'animate-float'}`}>
         <div className="relative">
             {/* Ripple effect - SOLO si NO está en modal */}
             {!inModal && (
@@ -336,9 +336,9 @@ const BadgeRectangular = ({ texto, gradient, border, icono, inModal = false }: B
             )}
 
             {/* Badge rectangular */}
-            <div className={`relative flex items-center gap-1 lg:gap-1.5 2xl:gap-1.5 bg-linear-to-r ${gradient} px-2 py-1.5 lg:px-3 lg:py-1.5 2xl:px-3.5 2xl:py-2 rounded-lg shadow-xl border-2 ${border}`}>
+            <div className={`relative flex items-center gap-1 @5xl:gap-1.5 @[96rem]:gap-1.5 bg-linear-to-r ${gradient} px-2 py-1.5 @5xl:px-3 @5xl:py-1.5 @[96rem]:px-3.5 @[96rem]:py-2 rounded-lg shadow-xl border-2 ${border}`}>
                 {icono && <span className="relative z-10">{icono}</span>}
-                <span className="relative z-10 text-sm lg:text-sm 2xl:text-base font-black text-white whitespace-nowrap">
+                <span className="relative z-10 text-sm @5xl:text-sm @[96rem]:text-base font-black text-white whitespace-nowrap">
                     {texto}
                 </span>
             </div>
@@ -430,20 +430,20 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
     // Tamaños según size prop
     const sizes = {
         normal: {
-            card: 'w-full h-[340px] lg:h-[320px] 2xl:h-[360px]',
+            card: 'w-full h-[340px] @5xl:h-[320px] @[96rem]:h-[360px]',
             imagen: 'h-[60%]',
-            panel: 'h-[40%] py-3 px-3 lg:py-3 lg:px-3 2xl:py-4 2xl:px-4',
-            titulo: 'text-2xl lg:text-xl 2xl:text-3xl',
+            panel: 'h-[40%] py-3 px-3 @5xl:py-3 @5xl:px-3 @[96rem]:py-4 @[96rem]:px-4',
+            titulo: 'text-2xl @5xl:text-xl @[96rem]:text-3xl',
             descripcion: 'text-sm',
-            gradiente: 'w-2 lg:w-1.5 2xl:w-2',
+            gradiente: 'w-2 @5xl:w-1.5 @[96rem]:w-2',
         },
         compact: {
-            card: 'w-full h-[280px] lg:h-[250px] 2xl:h-[290px]',
+            card: 'w-full h-[280px] @5xl:h-[250px] @[96rem]:h-[290px]',
             imagen: 'h-[60%]',
-            panel: 'h-[40%] py-3 px-2.5 lg:py-2.5 lg:px-2 2xl:py-3 2xl:px-2.5',
-            titulo: 'text-base lg:text-sm 2xl:text-base',
+            panel: 'h-[40%] py-3 px-2.5 @5xl:py-2.5 @5xl:px-2 @[96rem]:py-3 @[96rem]:px-2.5',
+            titulo: 'text-base @5xl:text-sm @[96rem]:text-base',
             descripcion: 'text-sm',
-            gradiente: 'w-1.5 lg:w-1 2xl:w-1.5',
+            gradiente: 'w-1.5 @5xl:w-1 @[96rem]:w-1.5',
         },
         zoom: {
             card: 'w-[380px] h-[480px]',
@@ -489,7 +489,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
     const renderBadge = () => {
         // Icono para envío gratis
         const iconoEnvio = oferta.tipo === 'envio_gratis' ? (
-            <Truck className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-white" />
+            <Truck className="w-3 h-3 @5xl:w-3 @5xl:h-3 @[96rem]:w-4 @[96rem]:h-4 text-white" />
         ) : undefined;
 
         // Solo 2x1 y 3x2 usan badge circular
@@ -519,7 +519,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
     // LAYOUT MÓVIL: Horizontal
     if (esMobile) {
         return (
-            <div className={`${s.card} group cursor-pointer ${className}`} onClick={onClick}>
+            <div className={`@container ${s.card} group cursor-pointer ${className}`} onClick={onClick}>
                 <div className={`relative h-full flex flex-row overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                     {/* Badge */}
@@ -615,7 +615,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
                         />
                     ) : (
                         <div className="flex h-full w-full items-center justify-center bg-slate-200">
-                            <Tag className="h-10 w-10 lg:h-8 lg:w-8 2xl:h-10 2xl:w-10 text-slate-300" />
+                            <Tag className="h-10 w-10 @5xl:h-8 @5xl:w-8 @[96rem]:h-10 @[96rem]:w-10 text-slate-300" />
                         </div>
                     )}
                     <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
@@ -648,7 +648,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
                         {/* Título - Auto-fit dinámico */}
                         <div 
                             ref={containerRef}
-                            className={`w-full flex items-center justify-center overflow-hidden ${inModal ? 'h-12 lg:h-11 2xl:h-[52px]' : 'h-16 lg:h-[54px] 2xl:h-[72px]'}`}
+                            className={`w-full flex items-center justify-center overflow-hidden ${inModal ? 'h-12 @5xl:h-11 @[96rem]:h-[52px]' : 'h-16 @5xl:h-[54px] @[96rem]:h-[72px]'}`}
                         >
                             <h4 
                                 className="font-black text-white leading-tight text-center w-full tracking-tight drop-shadow-lg"

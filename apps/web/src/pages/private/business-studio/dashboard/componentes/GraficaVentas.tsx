@@ -164,7 +164,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
             </div>
             <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-white">Ventas del Periodo</h3>
           </div>
-          <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-400">Evolución diaria</span>
+          <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-300">Evolución diaria</span>
         </div>
 
         {/* Estadísticas en fila compacta */}
@@ -216,14 +216,14 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
                   dataKey="fecha"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 500 }}
+                  tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 600 }}
                   dy={5}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 500 }}
+                  tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 600 }}
                   tickFormatter={(value) => {
                     if (value >= 1000) {
                       return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
@@ -324,7 +324,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
                 dataKey="fecha"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#475569', fontSize: tickFontSize }}
+                tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 600 }}
                 dy={10}
                 interval="preserveStartEnd"
                 minTickGap={40}
@@ -332,7 +332,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#475569', fontSize: tickFontSize }}
+                tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 600 }}
                 tickFormatter={(value) => {
                   if (value >= 1000) {
                     return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;

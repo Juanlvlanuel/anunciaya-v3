@@ -71,7 +71,10 @@ export function LayoutPublico({
   // Render
   // -------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    // @container: establece este layout como el container para los container queries
+    // (@5xl:, @[96rem]:) que usan PaginaPerfilNegocio y sus componentes hijos.
+    // Así los refinamientos responden al ancho del viewport real, no al max-w del main.
+    <div className="@container min-h-screen bg-slate-50 flex flex-col">
       {/* ================================================================
           HEADER
           ================================================================ */}

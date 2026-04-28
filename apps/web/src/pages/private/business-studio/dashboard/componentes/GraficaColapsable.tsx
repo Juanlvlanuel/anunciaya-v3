@@ -74,7 +74,7 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
         <div className="flex-1 text-left min-w-0">
           <h3 className="text-base lg:text-sm 2xl:text-base font-bold text-white">Ventas del Periodo</h3>
           {estadisticas && (
-            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-400 truncate">
+            <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-300 truncate">
               ${estadisticas.promedioDiario >= 1000
                 ? `${(estadisticas.promedioDiario / 1000).toFixed(1)}k`
                 : estadisticas.promedioDiario.toLocaleString('es-MX')}/día
@@ -84,13 +84,13 @@ export default function GraficaColapsable({ datos }: GraficaColapsableProps) {
         </div>
 
         {/* "Ver gráfica" solo en laptop/desktop — en móvil solo el chevron */}
-        <span className="hidden lg:inline text-[11px] 2xl:text-sm font-medium text-slate-400">
+        <span className="hidden lg:inline text-[11px] 2xl:text-sm font-semibold text-slate-300">
           {expandida ? 'Ocultar' : 'Ver gráfica'}
         </span>
         {expandida ? (
-          <ChevronUp className="w-5 h-5 text-slate-400 shrink-0" />
+          <ChevronUp className="w-5 h-5 text-slate-300 shrink-0" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-slate-400 shrink-0" />
+          <ChevronDown className="w-5 h-5 text-slate-300 shrink-0" />
         )}
       </button>
 

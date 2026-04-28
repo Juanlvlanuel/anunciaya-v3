@@ -247,8 +247,11 @@ export function MainLayout() {
   // Render
   // ---------------------------------------------------------------------------
   return (
+    // @container: establece este layout como el container para los container queries
+    // (@5xl:, @[96rem]:) usados por PaginaPerfilNegocio, CardNegocio y otros componentes.
+    // El ancho efectivo del container = viewport completo del navegador.
     <div
-      className="min-h-screen"
+      className="@container min-h-screen"
       style={{
         background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)',
       }}
@@ -310,7 +313,7 @@ export function MainLayout() {
               {/* Panel Preview Negocio (solo en Business Studio cuando está abierto) */}
               {esBusinessStudio && previewNegocioAbierto && esDesktop && (
                 <aside
-                  className="fixed right-0 lg:w-[400px] 2xl:w-[480px] bg-white border-l-4 border-blue-500 shadow-2xl overflow-hidden z-30"
+                  className="fixed right-0 lg:w-[400px] 2xl:w-[480px] bg-white border-l-4 border-black shadow-2xl overflow-hidden z-30"
                   style={{
                     top: COLUMNS_TOP,
                     height: `calc(100vh - ${COLUMNS_TOP})`,

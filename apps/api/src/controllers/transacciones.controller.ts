@@ -595,7 +595,11 @@ export async function obtenerOperadoresController(
       sucursalId = req.usuario?.sucursalAsignada || undefined;
     }
 
-    const resultado = await obtenerOperadoresTransacciones(negocioId, sucursalId);
+    const tipoRaw = req.query.tipo;
+    const tipo: 'ventas' | 'cupones' | 'canjes' =
+      tipoRaw === 'cupones' || tipoRaw === 'canjes' ? tipoRaw : 'ventas';
+
+    const resultado = await obtenerOperadoresTransacciones(negocioId, sucursalId, tipo);
     res.status(resultado.code || 200).json(resultado);
   } catch (error) {
     console.error('Error en obtenerOperadoresController:', error);

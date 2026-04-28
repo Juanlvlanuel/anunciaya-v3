@@ -37,7 +37,6 @@ import {
   ArrowUpDown,
   Inbox,
   Clock,
-  Eye,
   Users,
   Check,
   X,
@@ -46,10 +45,10 @@ import {
   CheckCircle,
   AlertCircle,
   Calendar,
-  LayoutList,
   Ticket,
 } from 'lucide-react';
 import { useTransaccionesStore } from '../../../../stores/useTransaccionesStore';
+import { useAuthStore } from '../../../../stores/useAuthStore';
 import {
   useTransaccionesKPIs,
   useTransaccionesCuponesKPIs,
@@ -129,6 +128,18 @@ const formatearMonto = (monto: number) =>
     ? `$${monto.toLocaleString('es-MX')}`
     : `$${monto.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/** Formato "09 Abril 2026" */
+const formatearFechaLarga = (fechaISO: string | null) => {
+  if (!fechaISO) return '—';
+  const f = new Date(fechaISO);
+  const dia = String(f.getDate()).padStart(2, '0');
+  const mes = MESES_LARGOS[f.getMonth()];
+  const anio = f.getFullYear();
+  return `${dia} ${mes} ${anio}`;
+};
+
 /** Formatea fecha relativa: "Hace 2h", "Ayer 3:20 PM", "12 Feb" */
 const formatearFechaCorta = (fechaISO: string | null) => {
   if (!fechaISO) return '—';
@@ -177,7 +188,7 @@ const formatearExpiracion = (fechaISO: string | null) => {
   if (diffDias === 0) return 'Hoy';
   if (diffDias === 1) return 'Mañana';
   if (diffDias <= 7) return `${diffDias} días`;
-  return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatearFechaLarga(fechaISO);
 };
 
 /** Color del badge de expiración según urgencia */
@@ -278,19 +289,18 @@ function FilaMovil({
 
   return (
     <div
-      className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden ${esRevocada ? 'opacity-60' : ''
-        }`}
-      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+      onClick={() => onVerDetalle(transaccion)}
+      className={`w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-50 transition-colors cursor-pointer ${esRevocada ? 'opacity-60' : ''}`}
     >
       {/* Avatar */}
       <div
-        onClick={() => transaccion.clienteAvatarUrl && setVerAvatar(true)}
-        className={`w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${transaccion.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+        onClick={(e) => { if (transaccion.clienteAvatarUrl) { e.stopPropagation(); setVerAvatar(true); } }}
+        className={`w-14 h-14 rounded-full bg-linear-to-br from-blue-500 via-blue-600 to-blue-700 shadow-md flex items-center justify-center shrink-0 overflow-hidden ${transaccion.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
       >
         {transaccion.clienteAvatarUrl ? (
           <img src={transaccion.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="text-lg font-bold text-indigo-700">
+          <span className="text-lg font-bold text-white">
             {obtenerIniciales(transaccion.clienteNombre)}
           </span>
         )}
@@ -321,13 +331,13 @@ function FilaMovil({
         </div>
         {/* Fecha + Acciones */}
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium text-slate-500">{transaccion.createdAt ? new Date(transaccion.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</p>
+          <p className="text-sm font-medium text-slate-500">{formatearFechaLarga(transaccion.createdAt)}</p>
           <div className="flex items-center gap-4 shrink-0">
-            <button onClick={() => onChatear(transaccion.clienteId)} className="cursor-pointer">
+            <button
+              onClick={(e) => { e.stopPropagation(); onChatear(transaccion.clienteId); }}
+              className="cursor-pointer"
+            >
               <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
-            </button>
-            <button onClick={() => onVerDetalle(transaccion)} className="cursor-pointer text-slate-700">
-              <Eye className="w-7 h-7" />
             </button>
           </div>
         </div>
@@ -353,18 +363,18 @@ function FilaMovilCanje({
 
   return (
     <div
-      className="w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden"
-      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+      onClick={() => onVerDetalle(canje)}
+      className="w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
     >
       {/* Avatar */}
       <div
-        onClick={() => canje.clienteAvatarUrl && setVerAvatar(true)}
-        className={`w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+        onClick={(e) => { if (canje.clienteAvatarUrl) { e.stopPropagation(); setVerAvatar(true); } }}
+        className={`w-14 h-14 rounded-full bg-linear-to-br from-blue-500 via-blue-600 to-blue-700 shadow-md flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
       >
         {canje.clienteAvatarUrl ? (
           <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="text-lg font-bold text-indigo-700">
+          <span className="text-lg font-bold text-white">
             {obtenerIniciales(canje.clienteNombre)}
           </span>
         )}
@@ -399,19 +409,69 @@ function FilaMovilCanje({
                 {formatearExpiracion(canje.expiraAt)}
               </span>
             ) : canje.usadoAt ? (
-              new Date(canje.usadoAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+              formatearFechaLarga(canje.usadoAt)
             ) : '—'}
           </p>
           <div className="flex items-center gap-4 shrink-0">
-            <button onClick={() => onChatear(canje.clienteId)} className="cursor-pointer">
+            <button
+              onClick={(e) => { e.stopPropagation(); onChatear(canje.clienteId); }}
+              className="cursor-pointer"
+            >
               <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="w-9 h-10" />
-            </button>
-            <button onClick={() => onVerDetalle(canje)} className="cursor-pointer text-slate-700">
-              <Eye className="w-7 h-7" />
             </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// ESTADO VACÍO CONTEXTUAL
+// =============================================================================
+
+type TipoHistorial = 'ventas' | 'cupones' | 'vouchers';
+
+function EstadoVacioTransacciones({
+  tipo,
+  busqueda,
+  operadorId,
+  estadoFiltro,
+}: {
+  tipo: TipoHistorial;
+  busqueda?: string;
+  operadorId?: string;
+  estadoFiltro?: string;
+}) {
+  const label = tipo === 'ventas' ? 'ventas' : tipo === 'cupones' ? 'cupones canjeados' : 'vouchers';
+
+  let titulo: string;
+  let subtitulo: string;
+
+  if (busqueda) {
+    titulo = 'Sin resultados';
+    subtitulo = 'Prueba con otro término de búsqueda';
+  } else if (operadorId) {
+    titulo = `Sin ${label} de este empleado`;
+    subtitulo = 'Prueba con otro empleado o cambia el periodo';
+  } else if (estadoFiltro) {
+    titulo = `Sin ${label} con este estado`;
+    subtitulo = 'Prueba cambiando el filtro de estado o el periodo';
+  } else {
+    titulo = `Sin ${label} en este periodo`;
+    subtitulo =
+      tipo === 'ventas'
+        ? 'Aún no hay ventas registradas en el periodo seleccionado'
+        : tipo === 'cupones'
+          ? 'Ningún cliente ha canjeado cupones en este periodo'
+          : 'Ningún cliente ha canjeado vouchers en este periodo';
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-slate-600 text-center px-4">
+      <Inbox className="w-10 h-10 mb-2" />
+      <p className="text-sm font-semibold text-slate-700">{titulo}</p>
+      <p className="text-xs font-medium text-slate-500 mt-1">{subtitulo}</p>
     </div>
   );
 }
@@ -457,13 +517,16 @@ export default function PaginaTransacciones() {
     busquedaCanjes,
     setBusquedaCanjes,
     limpiar,
+    resetFiltros,
   } = useTransaccionesStore();
+
+  const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
 
   // Queries — datos del servidor
   const kpisQuery = useTransaccionesKPIs(periodo);
   const kpisCuponesQuery = useTransaccionesCuponesKPIs(periodo);
   const kpisCanjesQuery = useTransaccionesCanjesKPIs(periodo);
-  const operadoresQuery = useTransaccionesOperadores();
+  const operadoresQuery = useTransaccionesOperadores(tabActivo);
   const historialQuery = useTransaccionesHistorial({
     tipo: 'ventas',
     periodo,
@@ -551,7 +614,6 @@ export default function PaginaTransacciones() {
       }
       setSearchParams({}, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ——— Abrir transacción/canje desde URL (notificaciones) ———
@@ -618,6 +680,17 @@ export default function PaginaTransacciones() {
       setBusquedaCanjes(valor.trim());
     }, 400);
   }, [setBusquedaCanjes]);
+
+  // ——— Reset al cambiar de sucursal (jerarquía sucursal > toggle > filtros) ———
+  // Reseteamos el store (limpiar) Y los inputs locales con sus debounce timers.
+  // Sin esto, los inputs textoBusqueda/textoBusquedaCanjes se quedarían con el texto anterior.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceCanjesRef.current) clearTimeout(debounceCanjesRef.current);
+    setTextoBusqueda('');
+    setTextoBusquedaCanjes('');
+    limpiar();
+  }, [sucursalActiva, limpiar]);
 
   // ——— Precargar imágenes de canjes y cupones para evitar parpadeo al cambiar tabs ———
   useEffect(() => {
@@ -766,11 +839,36 @@ export default function PaginaTransacciones() {
     return copia;
   }, [historialCanjes, orden]);
 
+  const cuponesOrdenados = useMemo(() => {
+    if (!orden) return historialCupones;
+
+    const copia = [...historialCupones];
+    const mult = orden.direccion === 'asc' ? 1 : -1;
+
+    copia.sort((a, b) => {
+      switch (orden.columna) {
+        case 'monto':
+          return (a.montoCompra - b.montoCompra) * mult;
+        case 'fecha': {
+          const fa = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const fb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return (fa - fb) * mult;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return copia;
+  }, [historialCupones, orden]);
+
   // ——— Cambiar periodo ———
+  // Patrón estándar: los filtros son independientes. Cambiar el periodo NO limpia la
+  // búsqueda ni el operador — el query refetch con {periodo nuevo, busqueda actual}.
+  // Si la combinación no arroja resultados, el estado vacío contextual lo indica.
   const handlePeriodo = useCallback((nuevoperiodo: PeriodoEstadisticas) => {
     setPeriodo(nuevoperiodo);
     setOrden(null); // Reset orden al cambiar periodo
-    setTextoBusqueda(''); // Limpiar búsqueda al cambiar periodo
   }, [setPeriodo]);
 
   // ——— Exportar CSV ———
@@ -1398,11 +1496,8 @@ export default function PaginaTransacciones() {
                     <Tooltip text="Descargar CSV con los filtros activos" position="bottom">
                       <button
                         onClick={handleExportar}
-                        className="flex items-center gap-1.5 h-10 2xl:h-11 px-2.5 2xl:px-3 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
-                        style={{
-                          background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                        }}
+                        className="flex items-center gap-1.5 h-10 2xl:h-11 px-4 rounded-lg text-sm 2xl:text-base font-bold text-white cursor-pointer"
+                        style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                       >
                         <Download className="w-3 h-3 2xl:w-4 2xl:h-4" />
                         Reporte
@@ -1426,20 +1521,17 @@ export default function PaginaTransacciones() {
                     {textoBusqueda && (
                       <button
                         onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); setTextoBusqueda(''); setBusqueda(''); }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-600 hover:text-slate-800 hover:bg-slate-200 cursor-pointer"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-[18px] h-[18px]" />
                       </button>
                     )}
                   </div>
                   {/* Reporte: solo móvil — icon only */}
                   <button
                     onClick={handleExportar}
-                    className="lg:hidden shrink-0 flex items-center justify-center h-11 w-11 rounded-lg text-slate-600 border-2 border-slate-300 cursor-pointer"
-                    style={{
-                      background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                    }}
+                    className="lg:hidden shrink-0 flex items-center justify-center h-11 w-11 rounded-lg text-white cursor-pointer"
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                   >
                     <Download className="w-5 h-5" />
                   </button>
@@ -1455,7 +1547,7 @@ export default function PaginaTransacciones() {
               <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
 
                 {/* Dropdown Período */}
-                <div className="flex-1 lg:flex-none lg:w-40 lg:shrink-0 relative" ref={periodoDropdownRef}>
+                <div className="shrink-0 w-36 lg:w-40 relative" ref={periodoDropdownRef}>
                   <button
                     onClick={() => setPeriodoDropdownAbierto(!periodoDropdownAbierto)}
                     className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${periodo !== 'todo' ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
@@ -1539,59 +1631,9 @@ export default function PaginaTransacciones() {
                   </div>
                 )}
 
-                {/* Estado dropdown — solo móvil */}
-                <div className="lg:hidden flex-1 relative" ref={estadoCanjesDropdownRef}>
-                  {(() => {
-                    const ESTADOS_CANJE = [
-                      { id: '', etiqueta: 'Todos', Icono: LayoutList, color: 'text-slate-500' },
-                      { id: 'pendiente', etiqueta: 'Pendientes', Icono: Hourglass, color: 'text-amber-600' },
-                      { id: 'usado', etiqueta: 'Usados', Icono: CheckCircle, color: 'text-green-600' },
-                      { id: 'expirado', etiqueta: 'Vencidos', Icono: AlertCircle, color: 'text-red-500' },
-                    ];
-                    const seleccionado = ESTADOS_CANJE.find(e => e.id === estadoFiltroCanjes) ?? ESTADOS_CANJE[0];
-                    return (
-                      <>
-                        <button
-                          onClick={() => setEstadoCanjesDropdownAbierto(!estadoCanjesDropdownAbierto)}
-                          className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltroCanjes
-                              ? 'bg-blue-100 border-blue-300 text-blue-700'
-                              : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
-                            }`}
-                        >
-                          <seleccionado.Icono className={`w-4 h-4 shrink-0 ${estadoFiltroCanjes ? 'text-indigo-500' : seleccionado.color}`} />
-                          <span className="truncate flex-1">{seleccionado.etiqueta}</span>
-                          <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${estadoCanjesDropdownAbierto ? 'rotate-180' : ''}`} />
-                        </button>
-                        {estadoCanjesDropdownAbierto && (
-                          <div className="absolute top-full left-0 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
-                            {ESTADOS_CANJE.map((e) => {
-                              const activo = estadoFiltroCanjes === e.id;
-                              return (
-                                <button
-                                  key={e.id}
-                                  onClick={() => { setEstadoFiltroCanjes(e.id); setEstadoCanjesDropdownAbierto(false); }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-base lg:text-sm 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
-                                >
-                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                                    {activo ? <Check className="w-3 h-3 text-white" /> : <e.Icono className={`w-3 h-3 ${e.color}`} />}
-                                  </div>
-                                  <span>{e.etiqueta}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Fila 2: Operador (móvil) + Búsqueda */}
-              <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
-                {/* Operador — solo móvil */}
+                {/* Operador — solo móvil (reemplaza al estado) */}
                 {operadores.length > 0 && (
-                  <div className="flex-1 min-w-0 lg:hidden relative" ref={dropdownOperadorCanjesMovilRef}>
+                  <div className="lg:hidden flex-1 min-w-0 relative" ref={dropdownOperadorCanjesMovilRef}>
                     <button
                       onClick={() => setDropdownOperadorCanjesAbierto(!dropdownOperadorCanjesAbierto)}
                       className={`w-full flex items-center gap-1.5 h-11 pl-3 pr-2.5 rounded-lg border-2 text-base font-semibold cursor-pointer ${operadorIdActivo ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'}`}
@@ -1620,7 +1662,10 @@ export default function PaginaTransacciones() {
                     )}
                   </div>
                 )}
+              </div>
 
+              {/* Fila 2: Solo Búsqueda */}
+              <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
                 {/* Búsqueda */}
                 <div className="relative flex-1 min-w-0">
                 <Input
@@ -1635,9 +1680,9 @@ export default function PaginaTransacciones() {
                 {textoBusquedaCanjes && (
                   <button
                     onClick={() => { if (debounceCanjesRef.current) clearTimeout(debounceCanjesRef.current); setTextoBusquedaCanjes(''); setBusquedaCanjes(''); }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-600 hover:text-slate-800 hover:bg-slate-200 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-[18px] h-[18px]" />
                   </button>
                 )}
                 </div>
@@ -1695,13 +1740,15 @@ export default function PaginaTransacciones() {
 
             {/* Body scrolleable */}
             <div
-              className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-455px)] overflow-y-auto bg-white"
+              className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-500px)] overflow-y-auto bg-white"
             >
               {transaccionesOrdenadas.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                  <Inbox className="w-10 h-10 mb-2" />
-                  <p className="text-sm font-medium">No se encontraron transacciones</p>
-                </div>
+                <EstadoVacioTransacciones
+                  tipo="ventas"
+                  busqueda={busqueda}
+                  operadorId={operadorId}
+                  estadoFiltro={estadoFiltro}
+                />
               ) : (
                 transaccionesOrdenadas.map((tx, i) => {
                   const esRevocada = tx.estado === 'cancelado';
@@ -1716,12 +1763,12 @@ export default function PaginaTransacciones() {
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                         <div
                           onClick={(e) => { if (tx.clienteAvatarUrl) { e.stopPropagation(); setAvatarUrl(tx.clienteAvatarUrl); } }}
-                          className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${tx.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+                          className={`w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full bg-linear-to-br from-blue-500 via-blue-600 to-blue-700 flex items-center justify-center shrink-0 overflow-hidden ${tx.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
                         >
                           {tx.clienteAvatarUrl ? (
                             <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-xs font-bold text-indigo-700">
+                            <span className="text-xs font-bold text-white">
                               {obtenerIniciales(tx.clienteNombre)}
                             </span>
                           )}
@@ -1776,25 +1823,25 @@ export default function PaginaTransacciones() {
                       <div className="flex items-center justify-end text-slate-600 font-bold 2xl:text-[15px]">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
-                          {formatearFechaCorta(tx.createdAt)}
+                          {formatearFechaLarga(tx.createdAt)}
                         </span>
                       </div>
                     </button>
                   );
                 })
               )}
-
-              {/* Cargar más en desktop */}
-              {hayMas && (
-                <button
-                  onClick={() => historialQuery.fetchNextPage()}
-                  disabled={cargandoMas}
-                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-200 cursor-pointer disabled:opacity-50"
-                >
-                  {cargandoMas ? 'Cargando...' : 'Cargar más transacciones'}
-                </button>
-              )}
             </div>
+
+            {/* Cargar más en desktop — fuera del scroll */}
+            {hayMas && (
+              <button
+                onClick={() => historialQuery.fetchNextPage()}
+                disabled={cargandoMas}
+                className="w-full py-3 text-sm text-blue-600 font-semibold bg-white hover:bg-blue-200 cursor-pointer disabled:opacity-50 border-t border-slate-300"
+              >
+                {cargandoMas ? 'Cargando...' : 'Cargar más transacciones'}
+              </button>
+            )}
           </div>
         )}
 
@@ -1825,14 +1872,16 @@ export default function PaginaTransacciones() {
             </div>
 
             {/* Body */}
-            <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white">
+            <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-500px)] overflow-y-auto bg-white">
               {cargandoHistorialCupones ? (
                 <div className="flex items-center justify-center py-16"><Spinner /></div>
               ) : historialCupones.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                  <Inbox className="w-10 h-10 mb-2" />
-                  <p className="text-sm font-medium">No se encontraron cupones canjeados</p>
-                </div>
+                <EstadoVacioTransacciones
+                  tipo="cupones"
+                  busqueda={busqueda}
+                  operadorId={operadorIdCupones}
+                  estadoFiltro={estadoFiltro}
+                />
               ) : (
                 historialCupones.map((tx, i) => {
                   const esCuponGratis = tx.montoCompra === 0;
@@ -1844,11 +1893,11 @@ export default function PaginaTransacciones() {
                     >
                       {/* Cliente */}
                       <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
-                        <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full bg-linear-to-br from-blue-500 via-blue-600 to-blue-700 flex items-center justify-center shrink-0 overflow-hidden">
                           {tx.clienteAvatarUrl ? (
                             <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(tx.clienteNombre)}</span>
+                            <span className="text-xs font-bold text-white">{obtenerIniciales(tx.clienteNombre)}</span>
                           )}
                         </div>
                         <div className="min-w-0">
@@ -1859,7 +1908,7 @@ export default function PaginaTransacciones() {
                       {/* Cupón título */}
                       <div className="flex items-center gap-2 min-w-0">
                         {tx.cuponImagen && (
-                          <img src={tx.cuponImagen} alt="" className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg object-cover shrink-0" />
+                          <img src={tx.cuponImagen} alt="" className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg object-cover shrink-0" />
                         )}
                         <span className="font-bold text-slate-600 truncate">{tx.cuponTitulo || 'Cupón'}</span>
                       </div>
@@ -1889,25 +1938,25 @@ export default function PaginaTransacciones() {
                       <div className="flex items-center justify-end text-slate-600 font-bold 2xl:text-[15px]">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
-                          {formatearFechaCorta(tx.createdAt)}
+                          {formatearFechaLarga(tx.createdAt)}
                         </span>
                       </div>
                     </button>
                   );
                 })
               )}
-
-              {/* Cargar más */}
-              {hayMasCupones && (
-                <button
-                  onClick={() => historialCuponesQuery.fetchNextPage()}
-                  disabled={cargandoMasCupones}
-                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-100 cursor-pointer disabled:opacity-50"
-                >
-                  {cargandoMasCupones ? 'Cargando...' : 'Cargar más cupones'}
-                </button>
-              )}
             </div>
+
+            {/* Cargar más en desktop — fuera del scroll */}
+            {hayMasCupones && (
+              <button
+                onClick={() => historialCuponesQuery.fetchNextPage()}
+                disabled={cargandoMasCupones}
+                className="w-full py-3 text-sm text-blue-600 font-semibold bg-white hover:bg-blue-200 cursor-pointer disabled:opacity-50 border-t border-slate-300"
+              >
+                {cargandoMasCupones ? 'Cargando...' : 'Cargar más cupones'}
+              </button>
+            )}
           </div>
         )}
 
@@ -1939,17 +1988,19 @@ export default function PaginaTransacciones() {
 
             {/* Body scrolleable - Canjes */}
             <div
-              className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-390px)] overflow-y-auto bg-white"
+              className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-500px)]  overflow-y-auto bg-white"
             >
               {cargandoHistorialCanjes ? (
                 <div className="flex items-center justify-center py-16">
                   <Spinner />
                 </div>
               ) : canjesOrdenados.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                  <Inbox className="w-10 h-10 mb-2" />
-                  <p className="text-sm font-medium">No se encontraron vouchers</p>
-                </div>
+                <EstadoVacioTransacciones
+                  tipo="vouchers"
+                  busqueda={busquedaCanjes}
+                  operadorId={operadorIdCanjes}
+                  estadoFiltro={estadoFiltroCanjes}
+                />
               ) : (
                 canjesOrdenados.map((canje, i) => (
                   <button
@@ -1962,12 +2013,12 @@ export default function PaginaTransacciones() {
                     <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                       <div
                         onClick={(e) => { if (canje.clienteAvatarUrl) { e.stopPropagation(); setAvatarUrl(canje.clienteAvatarUrl); } }}
-                        className={`w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
+                        className={`w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full bg-linear-to-br from-blue-500 via-blue-600 to-blue-700 flex items-center justify-center shrink-0 overflow-hidden ${canje.clienteAvatarUrl ? 'cursor-pointer' : ''}`}
                       >
                         {canje.clienteAvatarUrl ? (
                           <img src={canje.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-xs font-bold text-indigo-700">
+                          <span className="text-xs font-bold text-white">
                             {obtenerIniciales(canje.clienteNombre)}
                           </span>
                         )}
@@ -1980,14 +2031,7 @@ export default function PaginaTransacciones() {
                     </div>
 
                     {/* Recompensa */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      {canje.recompensaImagenUrl && (
-                        <img
-                          src={canje.recompensaImagenUrl}
-                          alt=""
-                          className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg object-cover shrink-0"
-                        />
-                      )}
+                    <div className="flex items-center min-w-0">
                       <span className="font-bold text-slate-600 truncate leading-tight">
                         {canje.recompensaNombre}
                       </span>
@@ -2007,8 +2051,8 @@ export default function PaginaTransacciones() {
 
                     {/* Expira (siempre muestra expiración) */}
                     <div className="flex items-center">
-                      <span className={`flex items-center gap-1 font-bold 2xl:text-[15px] ${colorExpiracion(canje.expiraAt)}`}>
-                        <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
+                      <span className="flex items-center gap-1 font-bold 2xl:text-[15px] whitespace-nowrap text-slate-600">
+                        <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5 shrink-0" />
                         {formatearExpiracion(canje.expiraAt)}
                       </span>
                     </div>
@@ -2018,7 +2062,7 @@ export default function PaginaTransacciones() {
                       {canje.usadoAt ? (
                         <span className="flex items-center gap-1 font-bold 2xl:text-[15px] text-slate-600">
                           <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5" />
-                          {formatearFechaCorta(canje.usadoAt)}
+                          {formatearFechaLarga(canje.usadoAt)}
                         </span>
                       ) : (
                         <span className="text-slate-600 text-sm">—</span>
@@ -2027,18 +2071,18 @@ export default function PaginaTransacciones() {
                   </button>
                 ))
               )}
-
-              {/* Cargar más vouchers en desktop */}
-              {hayMasCanjes && (
-                <button
-                  onClick={() => historialCanjesQuery.fetchNextPage()}
-                  disabled={cargandoMasCanjes}
-                  className="w-full py-3 text-sm text-blue-600 font-semibold hover:bg-blue-200 cursor-pointer disabled:opacity-50"
-                >
-                  {cargandoMasCanjes ? 'Cargando...' : 'Cargar más vouchers'}
-                </button>
-              )}
             </div>
+
+            {/* Cargar más vouchers en desktop — fuera del scroll */}
+            {hayMasCanjes && (
+              <button
+                onClick={() => historialCanjesQuery.fetchNextPage()}
+                disabled={cargandoMasCanjes}
+                className="w-full py-3 text-sm text-blue-600 font-semibold bg-white hover:bg-blue-200 cursor-pointer disabled:opacity-50 border-t border-slate-300"
+              >
+                {cargandoMasCanjes ? 'Cargando...' : 'Cargar más vouchers'}
+              </button>
+            )}
           </div>
         )}
 
@@ -2061,8 +2105,8 @@ export default function PaginaTransacciones() {
                     key={col}
                     onClick={() => alternarOrden(col)}
                     className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
-                        ? 'bg-slate-400 text-slate-900 shadow-md'
-                        : 'text-white hover:bg-white/10'
+                        ? 'bg-slate-300 text-slate-900 shadow-md'
+                        : 'text-white lg:hover:bg-white/10'
                       }`}
                   >
                     {etiqueta}
@@ -2074,17 +2118,23 @@ export default function PaginaTransacciones() {
               })}
             </div>
 
-            {/* Cards */}
-            {transaccionesOrdenadas.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                <Inbox className="w-10 h-10 mb-2" />
-                <p className="text-sm font-medium">No se encontraron transacciones</p>
-              </div>
-            ) : (
-              transaccionesOrdenadas.map((tx) => (
-                <FilaMovil key={tx.id} transaccion={tx} onVerDetalle={handleVerDetalle} onChatear={handleChatear} />
-              ))
-            )}
+            {/* Lista */}
+            <div className="bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+              {transaccionesOrdenadas.length === 0 ? (
+                <EstadoVacioTransacciones
+                  tipo="ventas"
+                  busqueda={busqueda}
+                  operadorId={operadorId}
+                  estadoFiltro={estadoFiltro}
+                />
+              ) : (
+                <div className="divide-y-[1.5px] divide-slate-300">
+                  {transaccionesOrdenadas.map((tx) => (
+                    <FilaMovil key={tx.id} transaccion={tx} onVerDetalle={handleVerDetalle} onChatear={handleChatear} />
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Sentinela infinite scroll */}
             <div ref={sentinelaRef} className="h-1" />
@@ -2103,51 +2153,83 @@ export default function PaginaTransacciones() {
 
         {isMobile && tabActivo === 'cupones' && (
           <div className="space-y-2">
-            {cargandoHistorialCupones ? (
-              <div className="flex items-center justify-center py-16"><Spinner /></div>
-            ) : historialCupones.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                <Inbox className="w-10 h-10 mb-2" />
-                <p className="text-sm font-medium">No se encontraron cupones canjeados</p>
-              </div>
-            ) : (
-              historialCupones.map((tx) => {
-                const esCuponGratis = tx.montoCompra === 0;
+            {/* Chips de orden (móvil) */}
+            <div className="flex items-center bg-slate-800 rounded-xl border-2 border-slate-700 p-0.5 shadow-md">
+              {([
+                { col: 'monto' as ColumnaOrden, etiqueta: 'Monto' },
+                { col: 'fecha' as ColumnaOrden, etiqueta: 'Canjeado' },
+              ]).map(({ col, etiqueta }) => {
+                const activa = orden?.columna === col;
                 return (
                   <button
-                    key={tx.id}
-                    onClick={() => setTxSeleccionada(tx)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border-2 border-slate-300 text-left cursor-pointer"
-                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+                    key={col}
+                    onClick={() => alternarOrden(col)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
+                        ? 'bg-slate-300 text-slate-900 shadow-md'
+                        : 'text-white lg:hover:bg-white/10'
+                      }`}
                   >
-                    {/* Avatar */}
-                    <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
-                      {tx.clienteAvatarUrl ? (
-                        <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-base font-bold text-indigo-700">{obtenerIniciales(tx.clienteNombre)}</span>
-                      )}
-                    </div>
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-bold text-slate-800 truncate">{tx.clienteNombre}</p>
-                      <div className="flex items-center gap-1.5">
-                        <Ticket className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span className="text-sm font-medium text-slate-600 truncate">{tx.cuponTitulo || 'Cupón'}</span>
-                      </div>
-                    </div>
-                    {/* Derecha */}
-                    <div className="flex flex-col items-end shrink-0 gap-0.5">
-                      <span className={`text-base font-bold ${esCuponGratis ? 'text-blue-700' : 'text-slate-800'}`}>
-                        {esCuponGratis ? 'Gratis' : `$${tx.montoCompra.toFixed(2)}`}
-                      </span>
-                      <span className="text-sm font-medium text-slate-600">
-                        {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : ''}
-                      </span>
-                    </div>
+                    {etiqueta}
+                    {activa && orden?.direccion === 'desc' && <ChevronDown className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                    {activa && orden?.direccion === 'asc' && <ChevronUp className="w-4 h-4 text-slate-900" strokeWidth={2.5} />}
+                    {!activa && <ArrowUpDown className="w-4 h-4 text-white" strokeWidth={2.5} />}
                   </button>
                 );
-              })
+              })}
+            </div>
+
+            {cargandoHistorialCupones ? (
+              <div className="flex items-center justify-center py-16"><Spinner /></div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+                {cuponesOrdenados.length === 0 ? (
+                  <EstadoVacioTransacciones
+                    tipo="cupones"
+                    busqueda={busqueda}
+                    operadorId={operadorIdCupones}
+                    estadoFiltro={estadoFiltro}
+                  />
+                ) : (
+                  <div className="divide-y-[1.5px] divide-slate-300">
+                    {cuponesOrdenados.map((tx) => {
+                      const esCuponGratis = tx.montoCompra === 0;
+                      return (
+                        <button
+                          key={tx.id}
+                          onClick={() => setTxSeleccionada(tx)}
+                          className="w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+                        >
+                          {/* Avatar */}
+                          <div className="w-14 h-14 rounded-full bg-linear-to-br from-blue-500 via-blue-600 to-blue-700 shadow-md flex items-center justify-center shrink-0 overflow-hidden">
+                            {tx.clienteAvatarUrl ? (
+                              <img src={tx.clienteAvatarUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-lg font-bold text-white">{obtenerIniciales(tx.clienteNombre)}</span>
+                            )}
+                          </div>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base font-bold text-slate-800 truncate">{tx.clienteNombre}</p>
+                            <div className="flex items-center gap-1.5">
+                              <Ticket className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span className="text-sm font-medium text-slate-600 truncate">{tx.cuponTitulo || 'Cupón'}</span>
+                            </div>
+                          </div>
+                          {/* Derecha */}
+                          <div className="flex flex-col items-end shrink-0 gap-0.5">
+                            <span className={`text-base font-bold ${esCuponGratis ? 'text-blue-700' : 'text-slate-800'}`}>
+                              {esCuponGratis ? 'Gratis' : `$${tx.montoCompra.toFixed(2)}`}
+                            </span>
+                            <span className="text-sm font-medium text-slate-600">
+                              {formatearFechaLarga(tx.createdAt)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
             {/* Cargar más */}
             {hayMasCupones && (
@@ -2180,8 +2262,8 @@ export default function PaginaTransacciones() {
                     key={col}
                     onClick={() => alternarOrden(col)}
                     className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
-                        ? 'bg-slate-400 text-slate-900 shadow-md'
-                        : 'text-white hover:bg-white/10'
+                        ? 'bg-slate-300 text-slate-900 shadow-md'
+                        : 'text-white lg:hover:bg-white/10'
                       }`}
                   >
                     {etiqueta}
@@ -2198,15 +2280,23 @@ export default function PaginaTransacciones() {
               <div className="flex justify-center py-16">
                 <Spinner />
               </div>
-            ) : canjesOrdenados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                <Inbox className="w-10 h-10 mb-2" />
-                <p className="text-sm font-medium">No se encontraron vouchers</p>
-              </div>
             ) : (
-              canjesOrdenados.map((canje) => (
-                <FilaMovilCanje key={canje.id} canje={canje} onVerDetalle={handleVerDetalleCanje} onChatear={handleChatear} />
-              ))
+              <div className="bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+                {canjesOrdenados.length === 0 ? (
+                  <EstadoVacioTransacciones
+                    tipo="vouchers"
+                    busqueda={busquedaCanjes}
+                    operadorId={operadorIdCanjes}
+                    estadoFiltro={estadoFiltroCanjes}
+                  />
+                ) : (
+                  <div className="divide-y-[1.5px] divide-slate-300">
+                    {canjesOrdenados.map((canje) => (
+                      <FilaMovilCanje key={canje.id} canje={canje} onVerDetalle={handleVerDetalleCanje} onChatear={handleChatear} />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Sentinela infinite scroll canjes */}

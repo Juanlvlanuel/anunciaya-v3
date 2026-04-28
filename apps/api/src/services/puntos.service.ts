@@ -1576,40 +1576,105 @@ export async function verificarExpiraciones(
 // =============================================================================
 
 /**
- * Obtiene lista de operadores que han registrado ventas en el negocio.
- * Incluye empleados, gerentes y dueños.
- * Se obtiene desde los turnos de ScanYA.
+ * Obtiene lista de operadores que tienen movimientos del tipo indicado.
+ *
+ * - ventas:  operadores con transacciones sin cupón (oferta_uso_id IS NULL)
+ * - cupones: operadores con transacciones con cupón (oferta_uso_id IS NOT NULL)
+ * - canjes:  operadores que entregaron vouchers (estado = 'usado')
+ *
+ * Antes se usaba scanya_turnos como fuente, lo que incluía a cualquiera que
+ * hubiera abierto un turno, sin importar si había registrado ese tipo de
+ * movimiento. Ahora cada tab filtra sólo a quienes efectivamente tienen
+ * registros del tipo relevante.
  */
 export async function obtenerOperadoresTransacciones(
   negocioId: string,
-  sucursalId?: string
+  sucursalId?: string,
+  tipo: 'ventas' | 'cupones' | 'canjes' = 'ventas'
 ): Promise<RespuestaServicio<{ id: string; nombre: string; tipo: string }[]>> {
   try {
-    const condicionesTurno = [eq(scanyaTurnos.negocioId, negocioId)];
-    if (sucursalId) {
-      condicionesTurno.push(eq(scanyaTurnos.sucursalId, sucursalId));
+    // === TAB CANJES — vouchers entregados ===
+    if (tipo === 'canjes') {
+      const condiciones = [
+        eq(vouchersCanje.negocioId, negocioId),
+        eq(vouchersCanje.estado, 'usado'),
+      ];
+      if (sucursalId) {
+        condiciones.push(eq(vouchersCanje.sucursalId, sucursalId));
+      }
+
+      const operadoresEmpleado = await db
+        .selectDistinct({
+          id: empleados.id,
+          nombre: empleados.nombre,
+        })
+        .from(vouchersCanje)
+        .innerJoin(empleados, eq(vouchersCanje.usadoPorEmpleadoId, empleados.id))
+        .where(and(...condiciones));
+
+      const operadoresUsuario = await db
+        .selectDistinct({
+          id: usuarios.id,
+          nombre: sql<string>`CONCAT(${usuarios.nombre}, ' ', COALESCE(${usuarios.apellidos}, ''))`,
+          sucursalAsignada: usuarios.sucursalAsignada,
+        })
+        .from(vouchersCanje)
+        .innerJoin(usuarios, eq(vouchersCanje.usadoPorUsuarioId, usuarios.id))
+        .where(and(...condiciones));
+
+      const resultado = [
+        ...operadoresEmpleado.map(o => ({ id: o.id, nombre: o.nombre?.trim() || '', tipo: 'empleado' })),
+        ...operadoresUsuario.map(o => ({
+          id: o.id,
+          nombre: o.nombre?.trim() || '',
+          tipo: o.sucursalAsignada ? 'gerente' : 'dueño',
+        })),
+      ].sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+      return {
+        success: true,
+        message: 'Operadores obtenidos',
+        data: resultado,
+        code: 200,
+      };
     }
 
-    // Operadores tipo empleado
+    // === TABS VENTAS / CUPONES — puntos_transacciones ===
+    const condicionesTx = [
+      eq(puntosTransacciones.negocioId, negocioId),
+      eq(puntosTransacciones.estado, 'confirmado'),
+    ];
+    if (sucursalId) {
+      condicionesTx.push(eq(puntosTransacciones.sucursalId, sucursalId));
+    }
+    if (tipo === 'ventas') {
+      condicionesTx.push(sql`${puntosTransacciones.ofertaUsoId} IS NULL`);
+    } else {
+      condicionesTx.push(sql`${puntosTransacciones.ofertaUsoId} IS NOT NULL`);
+    }
+
+    // Empleados: transacciones con empleado_id asignado directamente
     const operadoresEmpleado = await db
       .selectDistinct({
         id: empleados.id,
         nombre: empleados.nombre,
       })
-      .from(scanyaTurnos)
-      .innerJoin(empleados, eq(scanyaTurnos.empleadoId, empleados.id))
-      .where(and(...condicionesTurno, sql`${scanyaTurnos.empleadoId} IS NOT NULL`));
+      .from(puntosTransacciones)
+      .innerJoin(empleados, eq(puntosTransacciones.empleadoId, empleados.id))
+      .where(and(...condicionesTx, sql`${puntosTransacciones.empleadoId} IS NOT NULL`));
 
-    // Operadores tipo usuario (dueños/gerentes)
+    // Usuarios (dueños/gerentes): cuando empleado_id es null, se resuelve
+    // vía el turno de ScanYA asociado a la transacción.
     const operadoresUsuario = await db
       .selectDistinct({
         id: usuarios.id,
         nombre: sql<string>`CONCAT(${usuarios.nombre}, ' ', COALESCE(${usuarios.apellidos}, ''))`,
         sucursalAsignada: usuarios.sucursalAsignada,
       })
-      .from(scanyaTurnos)
+      .from(puntosTransacciones)
+      .innerJoin(scanyaTurnos, eq(puntosTransacciones.turnoId, scanyaTurnos.id))
       .innerJoin(usuarios, eq(scanyaTurnos.usuarioId, usuarios.id))
-      .where(and(...condicionesTurno, sql`${scanyaTurnos.usuarioId} IS NOT NULL`));
+      .where(and(...condicionesTx, sql`${puntosTransacciones.empleadoId} IS NULL`));
 
     const resultado = [
       ...operadoresEmpleado.map(o => ({ id: o.id, nombre: o.nombre?.trim() || '', tipo: 'empleado' })),
@@ -1738,6 +1803,11 @@ export async function verificarRecompensasDesbloqueadas(
         .where(eq(negocios.id, negocioId))
         .limit(1);
 
+      // Las recompensas son globales del negocio, pero etiquetamos la
+      // notificación con la sucursal principal para que el cliente vea
+      // de qué sucursal proviene (patrón consistente con `nueva_recompensa`).
+      const sucursalPrincipalParaNotif = await obtenerSucursalPrincipal(negocioId);
+
       await crearNotificacion({
         usuarioId,
         modo: 'personal',
@@ -1745,6 +1815,7 @@ export async function verificarRecompensasDesbloqueadas(
         titulo: '¡Recompensa desbloqueada!',
         mensaje: `${recompensa.nombre} — completaste ${totalCompras} compras\n${negocioInfo?.nombre ?? 'un negocio'}`,
         negocioId,
+        sucursalId: sucursalPrincipalParaNotif ?? undefined,
         referenciaId: recompensa.id,
         referenciaTipo: 'recompensa',
         icono: '🎉',

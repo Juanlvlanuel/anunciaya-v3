@@ -523,7 +523,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
   // =========================================================================
   const renderCard = () => (
     <div
-      className="relative w-full h-60 2xl:h-[220px] rounded-2xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
+      className="relative w-full h-60 @[96rem]:h-[220px] rounded-2xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
       style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.06)' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -664,8 +664,6 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
       onMouseLeave={handleMouseLeave}
       onClick={onSelect}
       className={`shrink-0 cursor-pointer transition-all duration-200 ${
-        modoPreview ? 'scale-[1.2] origin-left' : ''
-      } ${
         seleccionado ? 'ring-2 ring-blue-400 scale-[1.02] rounded-2xl' : ''
       }`}
       style={seleccionado ? {

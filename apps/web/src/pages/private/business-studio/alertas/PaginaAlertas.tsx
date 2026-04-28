@@ -45,6 +45,7 @@ import {
 	Gauge,
 } from 'lucide-react';
 import { useAlertasStore } from '../../../../stores/useAlertasStore';
+import { useAuthStore } from '../../../../stores/useAuthStore';
 import {
 	useAlertasLista,
 	useAlertasKPIs,
@@ -82,21 +83,21 @@ const ESTILO_ICONO_HEADER = `
 // CONSTANTES Y HELPERS
 // =============================================================================
 
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/** Formato largo estándar: "Hoy" / "Ayer" / "09 Abril 2026" */
 function formatearFecha(fecha: string | null): string {
 	if (!fecha) return '—';
 	const ahora = new Date();
 	const f = new Date(fecha);
-	const diffMs = ahora.getTime() - f.getTime();
-	const diffMin = Math.floor(diffMs / 60000);
-	const diffHoras = Math.floor(diffMs / 3600000);
-	const diffDias = Math.floor(diffMs / 86400000);
+	const diffDias = Math.floor((ahora.getTime() - f.getTime()) / 86400000);
 
-	if (diffMin < 60) return `Hace ${diffMin}min`;
-	if (diffHoras < 24) return `Hace ${diffHoras}h`;
+	if (diffDias === 0) return 'Hoy';
 	if (diffDias === 1) return 'Ayer';
-	if (diffDias < 7) return `Hace ${diffDias}d`;
-	if (diffDias < 30) return `Hace ${Math.floor(diffDias / 7)}sem`;
-	return f.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+	const dia = String(f.getDate()).padStart(2, '0');
+	const mes = MESES_LARGOS[f.getMonth()];
+	const anio = f.getFullYear();
+	return `${dia} ${mes} ${anio}`;
 }
 
 const ICONO_CATEGORIA: Record<CategoriaAlerta, typeof Shield> = {
@@ -123,12 +124,65 @@ const CATEGORIAS: CategoriaAlerta[] = ['seguridad', 'operativa', 'rendimiento', 
 const SEVERIDADES: SeveridadAlerta[] = ['alta', 'media', 'baja'];
 
 // =============================================================================
+// ESTADO VACÍO CONTEXTUAL
+// =============================================================================
+
+function EstadoVacioAlertas({
+	busqueda,
+	categoria,
+	severidad,
+	leida,
+	resuelta,
+}: {
+	busqueda?: string;
+	categoria?: CategoriaAlerta;
+	severidad?: SeveridadAlerta;
+	leida?: boolean;
+	resuelta?: boolean;
+}) {
+	let titulo: string;
+	let subtitulo: string;
+
+	if (busqueda) {
+		titulo = 'Sin resultados';
+		subtitulo = 'Prueba con otro término de búsqueda';
+	} else if (categoria) {
+		titulo = `Sin alertas de ${LABEL_CATEGORIA[categoria]}`;
+		subtitulo = 'Prueba con otra categoría o quita el filtro';
+	} else if (severidad) {
+		titulo = `Sin alertas de severidad ${severidad}`;
+		subtitulo = 'Prueba con otra severidad o quita el filtro';
+	} else if (leida === false) {
+		titulo = 'Sin alertas sin leer';
+		subtitulo = 'Todas tus alertas están leídas';
+	} else if (resuelta === true) {
+		titulo = 'Sin alertas resueltas';
+		subtitulo = 'Aún no has marcado ninguna alerta como resuelta';
+	} else {
+		titulo = 'Sin alertas pendientes';
+		subtitulo = 'Todo en orden';
+	}
+
+	return (
+		<div className="text-center py-16" data-testid="estado-vacio-alertas">
+			<Inbox className="w-14 h-14 text-slate-300 mx-auto mb-3" />
+			<p className="text-slate-600 text-base font-semibold">{titulo}</p>
+			<p className="text-slate-600 text-sm font-medium mt-1">{subtitulo}</p>
+		</div>
+	);
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
 export default function PaginaAlertas() {
 	// ─── Store — solo UI ──────────────────────────────────────────────────────
 	const { filtros, setFiltro, limpiarFiltros, seleccionarAlerta, alertaSeleccionada, limpiar } = useAlertasStore();
+
+	// Detectar sucursal activa para reset al cambiar (el useEffect de reset vive después
+	// de la declaración de busquedaLocal porque la necesita en su closure).
+	const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
 
 	// ─── Queries — datos del servidor ─────────────────────────────────────────
 	const listaQuery = useAlertasLista(filtros);
@@ -137,7 +191,7 @@ export default function PaginaAlertas() {
 	const marcarResueltaMutation = useMarcarAlertaResuelta();
 	const marcarTodasLeidasMutation = useMarcarTodasLeidas();
 	const eliminarAlertaMutation = useEliminarAlerta();
-	const eliminarResuelatasMutation = useEliminarResueltas();
+	const ocultarResueltasMutation = useEliminarResueltas();
 
 	// ─── Aliases ──────────────────────────────────────────────────────────────
 	const alertas = listaQuery.data?.pages.flatMap((p) => p.alertas) ?? [];
@@ -158,13 +212,20 @@ export default function PaginaAlertas() {
 	const eliminarAlerta = async (id: string): Promise<void> => {
 		try { await eliminarAlertaMutation.mutateAsync(id); } catch { /* onError del hook */ }
 	};
-	const eliminarResueltas = () => eliminarResuelatasMutation.mutateAsync().then((r) => r.data?.eliminadas ?? 0);
+	const ocultarMisResueltas = () => ocultarResueltasMutation.mutateAsync().then((r) => r.data?.ocultadas ?? 0);
 
 	const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
 	const [modalConfigAbierto, setModalConfigAbierto] = useState(false);
 	const [busquedaLocal, setBusquedaLocal] = useState('');
 	const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
 	const sentinelaRef = useRef<HTMLDivElement | null>(null);
+
+	// Reset al cambiar de sucursal (jerarquía sucursal > toggle > filtros).
+	// Resetea el store + el input local de búsqueda. Sin esto el input se quedaría con el texto anterior.
+	useEffect(() => {
+		limpiarFiltros();
+		setBusquedaLocal('');
+	}, [sucursalActiva, limpiarFiltros]);
 
 	// Dropdowns de filtro
 	const [dropdownCatAbierto, setDropdownCatAbierto] = useState(false);
@@ -479,8 +540,9 @@ export default function PaginaAlertas() {
 						<button
 							onClick={() => setFiltro('leida', filtros.leida === false ? undefined : false)}
 							className={`px-3 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer flex items-center gap-1.5 ${
-								filtros.leida === false ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+								filtros.leida === false ? 'text-white border-slate-700 shadow-sm' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
 							}`}
+							style={filtros.leida === false ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
 							data-testid="chip-no-leidas"
 						>
 							<EyeOff className="w-3.5 h-3.5 shrink-0" />
@@ -489,8 +551,9 @@ export default function PaginaAlertas() {
 						<button
 							onClick={() => setFiltro('resuelta', filtros.resuelta === true ? undefined : true)}
 							className={`px-3 lg:px-3 2xl:px-4 h-10 lg:h-10 2xl:h-11 rounded-lg text-sm lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer flex items-center gap-1.5 ${
-								filtros.resuelta === true ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+								filtros.resuelta === true ? 'text-white border-slate-700 shadow-sm' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
 							}`}
+							style={filtros.resuelta === true ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
 							data-testid="chip-resueltas"
 						>
 							<CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -508,8 +571,8 @@ export default function PaginaAlertas() {
 								className="h-11 lg:h-10 2xl:h-11 rounded-lg! text-base lg:text-sm 2xl:text-base"
 								icono={<Search className="w-4 h-4 text-slate-600" />}
 								elementoDerecha={busquedaLocal ? (
-									<button onClick={() => setBusquedaLocal('')} className="p-0.5 rounded-full text-slate-600 hover:bg-slate-200 cursor-pointer">
-										<X className="w-3.5 h-3.5" />
+									<button onClick={() => setBusquedaLocal('')} className="p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer">
+										<X className="w-[18px] h-[18px]" />
 									</button>
 								) : undefined}
 								data-testid="input-busqueda-alertas"
@@ -517,11 +580,11 @@ export default function PaginaAlertas() {
 						</div>
 						<button
 							onClick={() => setModalConfigAbierto(true)}
-							className="h-11 lg:h-10 2xl:h-11 w-11 lg:w-10 2xl:w-11 shrink-0 rounded-lg flex items-center justify-center border-2 border-slate-300 cursor-pointer hover:border-slate-400"
-							style={{ background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)' }}
+							className="h-11 lg:h-10 2xl:h-11 w-11 lg:w-10 2xl:w-11 shrink-0 rounded-lg flex items-center justify-center cursor-pointer"
+							style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
 							data-testid="btn-configuracion-alertas"
 						>
-							<Settings className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600" />
+							<Settings className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
 						</button>
 					</div>
 				</div>
@@ -542,16 +605,16 @@ export default function PaginaAlertas() {
 							<button
 								onClick={async () => {
 									try {
-										const n = await eliminarResueltas();
-										notificar.exito(`${n} alertas resueltas eliminadas`);
+										const n = await ocultarMisResueltas();
+										notificar.exito(n === 1 ? '1 alerta oculta de tu feed' : `${n} alertas ocultas de tu feed`);
 									} catch {
-										// Error ya manejado por la mutación
+										// onError del hook
 									}
 								}}
 								className="text-sm lg:text-[11px] 2xl:text-sm text-red-500 font-semibold hover:text-red-700 cursor-pointer"
-								data-testid="btn-eliminar-resueltas"
+								data-testid="btn-ocultar-resueltas"
 							>
-								Eliminar resueltas
+								Ocultar resueltas
 							</button>
 						)}
 					</div>
@@ -569,22 +632,28 @@ export default function PaginaAlertas() {
 					<Spinner />
 				</div>
 			) : alertas.length === 0 ? (
-				<div className="text-center py-16" data-testid="estado-vacio-alertas">
-					<Inbox className="w-14 h-14 text-slate-300 mx-auto mb-3" />
-					<p className="text-slate-600 text-base font-semibold">Sin alertas pendientes</p>
-					<p className="text-slate-600 text-sm font-medium mt-1">Todo en orden</p>
-				</div>
+				<EstadoVacioAlertas
+					busqueda={filtros.busqueda}
+					categoria={filtros.categoria}
+					severidad={filtros.severidad}
+					leida={filtros.leida}
+					resuelta={filtros.resuelta}
+				/>
 			) : (
 				<>
-					{/* ── Móvil: Cards + scroll infinito ── */}
-					<div className="lg:hidden space-y-2">
-						{alertas.map(alerta => (
-							<CardAlertaMovil
-								key={alerta.id}
-								alerta={alerta}
-								onClick={() => handleClickAlerta(alerta)}
-							/>
-						))}
+					{/* ── Móvil: Lista + scroll infinito ── */}
+					<div className="lg:hidden">
+						<div className="bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+							<div className="divide-y-[1.5px] divide-slate-300">
+								{alertas.map(alerta => (
+									<CardAlertaMovil
+										key={alerta.id}
+										alerta={alerta}
+										onClick={() => handleClickAlerta(alerta)}
+									/>
+								))}
+							</div>
+						</div>
 						<div ref={sentinelaRef} className="h-1" />
 						{cargandoMas && (
 							<div className="flex justify-center py-3">
@@ -613,7 +682,7 @@ export default function PaginaAlertas() {
 							</div>
 
 							{/* Body scroll */}
-							<div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-420px)] overflow-y-auto bg-white">
+							<div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-450px)] overflow-y-auto bg-white">
 								{alertas.map((alerta, i) => (
 									<FilaAlertaDesktop
 										key={alerta.id}
@@ -630,7 +699,7 @@ export default function PaginaAlertas() {
 								<button
 									onClick={() => listaQuery.fetchNextPage()}
 									disabled={cargandoMas}
-									className="w-full py-2.5 text-[11px] 2xl:text-sm font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer border-t border-slate-200"
+									className="w-full py-3 text-sm text-blue-600 font-semibold bg-white hover:bg-blue-200 cursor-pointer disabled:opacity-50"
 									data-testid="btn-cargar-mas-alertas"
 								>
 									{cargandoMas ? 'Cargando...' : 'Cargar más alertas'}
@@ -681,11 +750,9 @@ function CardAlertaMovil({ alerta, onClick }: {
 
 	return (
 		<div
-			className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 cursor-pointer
-				${alerta.leida ? 'opacity-60' : ''} ${alerta.resuelta ? 'opacity-40' : ''}
-				hover:border-slate-400 hover:shadow-sm`}
+			className={`w-full flex items-center gap-3 px-3 py-3 cursor-pointer hover:bg-slate-50 transition-colors
+				${alerta.leida ? 'opacity-60' : ''} ${alerta.resuelta ? 'opacity-40' : ''}`}
 			onClick={onClick}
-			style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
 			data-testid={`card-alerta-${alerta.id}`}
 		>
 			{/* Icono categoría */}
@@ -755,8 +822,8 @@ function FilaAlertaDesktop({ alerta, indice, onClick, onEliminar }: {
 		>
 			{/* Alerta (tipo + título) */}
 			<div className="flex items-center gap-2.5 min-w-0">
-				<div className={`w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg ${colores.bg} flex items-center justify-center shrink-0`}>
-					<IconoCat className={`w-4 h-4 ${colores.text}`} />
+				<div className={`w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg ${colores.bg} flex items-center justify-center shrink-0`}>
+					<IconoCat className={`w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 ${colores.text}`} />
 				</div>
 				<div className="min-w-0">
 					<p className="font-semibold text-slate-800 truncate">{alerta.titulo}</p>

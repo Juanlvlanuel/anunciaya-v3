@@ -125,25 +125,39 @@ function FilaTransaccion({
   concepto,
   fecha,
   estado,
+  cuponTitulo,
 }: {
   monto: number;
   puntos: number;
   concepto: string | null;
   fecha: string;
   estado: 'confirmado' | 'pendiente' | 'cancelado';
+  cuponTitulo?: string | null;
 }) {
   const revocada = estado === 'cancelado';
+  const esCupon = !!cuponTitulo;
+  const iconBg = revocada ? 'bg-slate-200' : esCupon ? 'bg-blue-100' : 'bg-emerald-100';
+  const iconColor = revocada ? 'text-slate-400' : esCupon ? 'text-blue-600' : 'text-emerald-600';
+  const Icono = esCupon ? Ticket : ShoppingBag;
   return (
     <div className="flex items-center gap-2.5 py-2 lg:py-1.5 2xl:py-2 border-b border-slate-300 last:border-0">
-      <div className={`w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0 ${revocada ? 'bg-slate-200' : 'bg-emerald-100'}`}>
-        <ShoppingBag className={`w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${revocada ? 'text-slate-400' : 'text-emerald-600'}`} />
+      <div className={`w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+        <Icono className={`w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${iconColor}`} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className={`text-base lg:text-sm 2xl:text-base font-semibold ${revocada ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-            {formatearMoneda(monto)}
-          </span>
-          <span className={`text-base lg:text-sm 2xl:text-base font-bold ${revocada ? 'line-through text-slate-400' : 'text-emerald-600'}`}>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={`text-base lg:text-sm 2xl:text-base font-semibold shrink-0 ${revocada ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+              {formatearMoneda(monto)}
+            </span>
+            {esCupon && !revocada && (
+              <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm font-bold bg-blue-100 text-blue-600">
+                <Ticket className="w-4 h-4" />
+                cupón
+              </span>
+            )}
+          </div>
+          <span className={`text-base lg:text-sm 2xl:text-base font-bold shrink-0 ${revocada ? 'line-through text-slate-400' : 'text-emerald-600'}`}>
             +{puntos.toLocaleString()} pts
           </span>
         </div>
@@ -155,7 +169,7 @@ function FilaTransaccion({
               </span>
             )}
             <span className={`text-base lg:text-sm 2xl:text-base font-medium truncate ${revocada ? 'text-slate-400' : 'text-slate-600'}`}>
-              {concepto || 'Compra'}
+              {concepto || cuponTitulo || 'Compra'}
             </span>
           </div>
           <span className={`text-base lg:text-sm 2xl:text-base font-medium shrink-0 ${revocada ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -522,6 +536,7 @@ export default function ModalDetalleCliente({
                       concepto={tx.concepto}
                       fecha={tx.createdAt || ''}
                       estado={tx.estado}
+                      cuponTitulo={tx.cuponTitulo}
                     />
                   ))}
                 </div>

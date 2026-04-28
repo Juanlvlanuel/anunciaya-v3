@@ -318,6 +318,10 @@ function ContenidoItem({ notificacion, expandida }: { notificacion: Notificacion
     </p>
   );
 
+  // Subtítulo con el nombre de la sucursal (backend ya devuelve 'Matriz' para
+  // la principal cuando el negocio tiene varias, o null cuando es única).
+  const sucursalLabel = notificacion.sucursalNombre;
+
   const esComercialConUsuario =
     notificacion.modo === 'comercial' &&
     notificacion.actorNombre &&
@@ -344,12 +348,17 @@ function ContenidoItem({ notificacion, expandida }: { notificacion: Notificacion
 
     return (
       <>
-        <div className="flex items-center gap-1.5 mb-0.5">
+        <div className="flex items-center gap-1.5">
           <span className="text-base lg:text-sm 2xl:text-base text-blue-800 font-bold truncate">
             {notificacion.actorNombre}
           </span>
           {!notificacion.leida && <PuntoNoLeida />}
         </div>
+        {sucursalLabel && (
+          <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-700 truncate mb-0.5">
+            {sucursalLabel}
+          </p>
+        )}
         <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-0.5">
           {tituloMostrar}
         </p>
@@ -412,12 +421,17 @@ function ContenidoItem({ notificacion, expandida }: { notificacion: Notificacion
 
     return (
       <>
-        <div className="flex items-center gap-1.5 mb-0.5">
+        <div className="flex items-center gap-1.5">
           <span className="text-base lg:text-sm 2xl:text-base text-blue-800 font-bold truncate">
             {notificacion.actorNombre}
           </span>
           {!notificacion.leida && <PuntoNoLeida />}
         </div>
+        {sucursalLabel && (
+          <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-700 truncate mb-0.5">
+            {sucursalLabel}
+          </p>
+        )}
         <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-0.5">
           {tituloPersonal}
         </p>
@@ -435,12 +449,17 @@ function ContenidoItem({ notificacion, expandida }: { notificacion: Notificacion
   if (notificacion.actorNombre) {
     return (
       <>
-        <div className="flex items-center gap-1.5 mb-0.5">
+        <div className="flex items-center gap-1.5">
           <span className="text-base lg:text-sm 2xl:text-base text-blue-800 font-bold truncate">
             {notificacion.actorNombre}
           </span>
           {!notificacion.leida && <PuntoNoLeida />}
         </div>
+        {sucursalLabel && (
+          <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-700 truncate mb-0.5">
+            {sucursalLabel}
+          </p>
+        )}
         <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-0.5">
           {notificacion.titulo}
         </p>
@@ -620,7 +639,9 @@ function DropdownDesktop({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      const esBotonNotificaciones = target.closest('button[title="Notificaciones"]');
+      // Ignorar clicks en el botón de campana del navbar (lo identifica su data-attribute,
+      // no el title — el title se quitó del botón para limpiar UX).
+      const esBotonNotificaciones = target.closest('button[data-notificaciones-boton="true"]');
       if (esBotonNotificaciones) return;
       if (panelRef.current && !panelRef.current.contains(target)) {
         onClose();

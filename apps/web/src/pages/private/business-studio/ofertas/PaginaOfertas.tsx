@@ -312,25 +312,25 @@ function FilaMovilOferta({
 
     return (
         <div
-            className={`w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden ${!oferta.activo ? 'opacity-60' : ''}`}
-            style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+            onClick={() => onEditar(oferta)}
+            className={`w-full flex items-center gap-3 px-3 py-3 cursor-pointer hover:bg-slate-50 transition-colors ${!oferta.activo ? 'opacity-60' : ''}`}
         >
             {/* Imagen */}
             <div
-                className={`w-20 h-20 rounded-lg shrink-0 overflow-hidden ${oferta.imagen ? 'cursor-pointer' : ''}`}
-                onClick={() => { if (oferta.imagen && onImagenClick) onImagenClick(oferta.imagen); }}
+                className={`w-[76px] h-[76px] rounded-lg shrink-0 overflow-hidden ${oferta.imagen ? 'cursor-pointer' : ''}`}
+                onClick={(e) => { if (oferta.imagen && onImagenClick) { e.stopPropagation(); onImagenClick(oferta.imagen); } }}
             >
                 {oferta.imagen ? (
                     <img src={oferta.imagen} alt={oferta.titulo} className="w-full h-full object-cover" />
                 ) : (
                     <div className="w-full h-full bg-slate-200 flex items-center justify-center">
-                        <IconoTipo className="w-5 h-5 text-slate-600" />
+                        <IconoTipo className="w-10 h-10 text-slate-600" />
                     </div>
                 )}
             </div>
 
             {/* Info */}
-            <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+            <div className="flex-1 min-w-0 flex flex-col gap-2">
                 {/* Nombre + Badge estado + Valor */}
                 <div>
                     <div className="flex items-center justify-between gap-2">
@@ -342,19 +342,19 @@ function FilaMovilOferta({
                             </span>
                         </div>
                     </div>
-                    <span className="text-sm font-bold text-emerald-600">{valorFormateado}</span>
+                    <span className="text-lg font-extrabold text-emerald-600">{valorFormateado}</span>
                 </div>
 
                 {/* Stats + Acciones */}
                 <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-base font-semibold text-slate-600">
-                        <span className="flex items-center gap-1">
-                            <Eye className="w-5 h-5" />
+                    <div className="flex items-center gap-1.5 text-lg font-semibold text-slate-600">
+                        <span className="flex items-center gap-1.5">
+                            <Eye className="w-6 h-6" />
                             {oferta.totalVistas || 0}
                         </span>
                         <span className="w-px h-4 bg-slate-400" />
-                        <span className="flex items-center gap-1">
-                            <MousePointerClick className="w-5 h-5" />
+                        <span className="flex items-center gap-1.5">
+                            <MousePointerClick className="w-6 h-6" />
                             {oferta.totalClicks || 0}
                         </span>
                     </div>
@@ -362,14 +362,14 @@ function FilaMovilOferta({
                         {oferta.visibilidad === 'privado' && (
                             <>
                                 <button
-                                    onClick={() => onReenviar(oferta)}
+                                    onClick={(e) => { e.stopPropagation(); onReenviar(oferta); }}
                                     className="cursor-pointer text-blue-600"
                                 >
                                     <Send className="w-6 h-6" />
                                 </button>
                                 {oferta.activo && (
                                     <button
-                                        onClick={() => onRevocar(oferta)}
+                                        onClick={(e) => { e.stopPropagation(); onRevocar(oferta); }}
                                         className="cursor-pointer text-orange-600"
                                     >
                                         <Ban className="w-6 h-6" />
@@ -379,29 +379,60 @@ function FilaMovilOferta({
                         )}
                         {esDueno && oferta.visibilidad !== 'privado' && (
                             <button
-                                onClick={() => onDuplicar(oferta)}
+                                onClick={(e) => { e.stopPropagation(); onDuplicar(oferta); }}
                                 className="cursor-pointer text-emerald-600"
                             >
                                 <Copy className="w-6 h-6" />
                             </button>
                         )}
                         <button
-                            onClick={() => onEliminar(oferta.id, oferta.titulo)}
+                            onClick={(e) => { e.stopPropagation(); onEliminar(oferta.id, oferta.titulo); }}
                             className="cursor-pointer text-red-600"
                         >
                             <Trash2 className="w-6 h-6" />
-                        </button>
-                        <button
-                            onClick={() => onEditar(oferta)}
-                            className="cursor-pointer text-blue-600"
-                        >
-                            <Edit2 className="w-6 h-6" />
                         </button>
                     </div>
                 </div>
             </div>
         </div>
     );
+}
+
+// =============================================================================
+// ESTADO VACÍO CONTEXTUAL (helper)
+// =============================================================================
+
+function mensajeVacioOfertas({
+    esCupones,
+    busqueda,
+    textoTipoFiltro,
+    tipoFiltrado,
+    estadoFiltrado,
+    textoEstadoFiltro,
+}: {
+    esCupones: boolean;
+    busqueda?: string;
+    textoTipoFiltro: string;
+    tipoFiltrado: boolean;
+    estadoFiltrado: boolean;
+    textoEstadoFiltro: string;
+}): { titulo: string; subtitulo: string; mostrarCTA: boolean } {
+    const label = esCupones ? 'cupones' : 'ofertas';
+
+    if (busqueda) {
+        return { titulo: 'Sin resultados', subtitulo: 'Prueba con otro término de búsqueda', mostrarCTA: false };
+    }
+    if (tipoFiltrado) {
+        return { titulo: `Sin ${textoTipoFiltro}`, subtitulo: 'Prueba con otro tipo de promoción o quita el filtro', mostrarCTA: false };
+    }
+    if (estadoFiltrado) {
+        return { titulo: `Sin ${label} ${textoEstadoFiltro}`, subtitulo: 'Prueba cambiando el filtro de estado', mostrarCTA: false };
+    }
+    return {
+        titulo: `Aún no tienes ${label}`,
+        subtitulo: 'Crea tu primera promoción para atraer más clientes',
+        mostrarCTA: true,
+    };
 }
 
 // =============================================================================
@@ -463,6 +494,12 @@ export function PaginaOfertas() {
         return () => setFiltros((prev) => ({ ...prev, busqueda: '' }));
     }, []);
 
+    // Reset COMPLETO al cambiar de sucursal (jerarquía sucursal > toggle > filtros).
+    // Resetea búsqueda, toggle (Ofertas/Cupones), tipo, estado — todo a default.
+    useEffect(() => {
+        setFiltros({ busqueda: '', tipo: 'todos', estado: 'todos', visibilidad: 'publico' });
+    }, [usuario?.sucursalActiva]);
+
     // Determinar si es dueño o gerente
     const esDueno = !usuario?.sucursalAsignada;
     const esGerente = !!usuario?.sucursalAsignada;
@@ -513,6 +550,31 @@ export function PaginaOfertas() {
             return true;
         });
     }, [ofertas, filtros]);
+
+    // Tipos y estados únicos presentes en la sucursal activa Y en el tab actual (Ofertas vs Cupones).
+    // Solo consideran ofertas con la misma visibilidad que el tab activo, así el dropdown nunca
+    // muestra una opción que dejaría la tabla vacía. Se recalculan automáticamente al mutar
+    // ofertas o cambiar de tab gracias a las dependencias.
+    const tiposDisponibles = useMemo(() => {
+        const tipos = new Set<TipoOferta>();
+        ofertas.forEach((oferta) => {
+            const vis = oferta.visibilidad || 'publico';
+            if (vis !== filtros.visibilidad) return;
+            if (oferta.tipo) tipos.add(oferta.tipo as TipoOferta);
+        });
+        return tipos;
+    }, [ofertas, filtros.visibilidad]);
+
+    const estadosDisponibles = useMemo(() => {
+        const estados = new Set<EstadoOferta>();
+        ofertas.forEach((oferta) => {
+            const vis = oferta.visibilidad || 'publico';
+            if (vis !== filtros.visibilidad) return;
+            estados.add(calcularEstado(oferta));
+        });
+        return estados;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ofertas, filtros.visibilidad]);
 
     // ===========================================================================
     // ORDENAR OFERTAS
@@ -818,7 +880,7 @@ export function PaginaOfertas() {
                             <Tooltip text="Ofertas" position="bottom">
                                 <button
                                     data-testid="toggle-ofertas"
-                                    onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, estado: 'todos' as const }))}
+                                    onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
                                     className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${
                                         !esCupones ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'
                                     }`}
@@ -830,7 +892,7 @@ export function PaginaOfertas() {
                             <Tooltip text="Cupones" position="bottom">
                                 <button
                                     data-testid="toggle-cupones"
-                                    onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, estado: 'todos' as const }))}
+                                    onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
                                     className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${
                                         esCupones ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'
                                     }`}
@@ -1017,7 +1079,7 @@ export function PaginaOfertas() {
 
                 <div className="lg:hidden flex w-full bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
                     <button
-                        onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, estado: 'todos' as const }))}
+                        onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
                         className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
                             !esCupones ? 'text-white shadow-md' : 'text-slate-700'
                         }`}
@@ -1027,7 +1089,7 @@ export function PaginaOfertas() {
                         Ofertas
                     </button>
                     <button
-                        onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, estado: 'todos' as const }))}
+                        onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
                         className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
                             esCupones ? 'text-white shadow-md' : 'text-slate-700'
                         }`}
@@ -1082,7 +1144,9 @@ export function PaginaOfertas() {
                                             { value: 'proxima',  label: 'Próximas',  icono: Calendar },
                                             { value: 'vencida',  label: 'Vencidas',  icono: Clock },
                                             { value: 'agotada',  label: 'Agotadas',  icono: Tag },
-                                        ] as { value: EstadoOferta | 'todos'; label: string; icono: typeof Layers }[]).map(({ value, label, icono: Icono }) => (
+                                        ] as { value: EstadoOferta | 'todos'; label: string; icono: typeof Layers }[])
+                                          .filter(({ value }) => value === 'todos' || estadosDisponibles.has(value as EstadoOferta))
+                                          .map(({ value, label, icono: Icono }) => (
                                             <button
                                                 key={value}
                                                 onClick={() => { setFiltros(prev => ({ ...prev, estado: value as FiltrosLocales['estado'] })); setDropdownEstadoAbierto(false); }}
@@ -1134,7 +1198,7 @@ export function PaginaOfertas() {
                                             { value: '3x2' as TipoOferta, icon: Gift },
                                             { value: 'envio_gratis' as TipoOferta, icon: Truck },
                                             { value: 'otro' as TipoOferta, icon: Sparkles },
-                                        ]).map(({ value, icon: Icon }) => (
+                                        ]).filter(({ value }) => tiposDisponibles.has(value)).map(({ value, icon: Icon }) => (
                                             <button
                                                 key={value}
                                                 onClick={() => { setFiltros(prev => ({ ...prev, tipo: value })); setDropdownTipoAbierto(false); }}
@@ -1155,11 +1219,8 @@ export function PaginaOfertas() {
                             <button
                                 data-testid="btn-nueva-promocion"
                                 onClick={handleCrear}
-                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-2.5 rounded-lg text-base font-semibold text-slate-600 border-2 border-slate-300 cursor-pointer"
-                                style={{
-                                    background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                                }}
+                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-4 rounded-lg text-base font-bold text-white cursor-pointer"
+                                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                             >
                                 <Plus className="w-4 h-4" />
                                 {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'}
@@ -1182,9 +1243,9 @@ export function PaginaOfertas() {
                                         <button
                                             type="button"
                                             onClick={() => setFiltros((prev) => ({ ...prev, busqueda: '' }))}
-                                            className="text-slate-600 hover:text-slate-800 cursor-pointer"
+                                            className="p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
                                         >
-                                            <X className="w-4 h-4" />
+                                            <X className="w-[18px] h-[18px]" />
                                         </button>
                                     ) : undefined}
                                 />
@@ -1193,11 +1254,8 @@ export function PaginaOfertas() {
                             <button
                                 data-testid="btn-nueva-promocion-desktop"
                                 onClick={handleCrear}
-                                className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-4 2xl:px-5 rounded-lg text-sm 2xl:text-base font-bold text-slate-600 border-2 border-slate-300 cursor-pointer"
-                                style={{
-                                    background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
-                                }}
+                                className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-4 2xl:px-5 rounded-lg text-sm 2xl:text-base font-bold text-white cursor-pointer"
+                                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                             >
                                 <Plus className="w-4 h-4" />
                                 {esCupones ? 'Nuevo Cupón' : 'Nueva Oferta'}
@@ -1264,20 +1322,28 @@ export function PaginaOfertas() {
                         {/* Body scrolleable */}
                         <div className="max-h-[calc(100vh-390px)] lg:max-h-[calc(100vh-330px)] 2xl:max-h-[calc(100vh-395px)] overflow-y-auto bg-white">
                             {ofertasOrdenadas.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                                    <Inbox className="w-10 h-10 mb-2" />
-                                    <p className="text-sm font-medium">
-                                        {hayFiltrosActivos
-                                            ? `No se encontraron ${textoTipoFiltro}${filtros.estado !== 'todos' ? ` ${textoEstadoFiltro}` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
-                                            : esCupones ? 'Aún no tienes cupones' : 'Aún no tienes ofertas'
-                                        }
-                                    </p>
-                                    {!hayFiltrosActivos && (
-                                        <Boton variante="primario" iconoIzquierda={<Plus className="w-4 h-4" />} onClick={handleCrear} className="mt-3">
-                                            {esCupones ? 'Crear Primer Cupón' : 'Crear Primera Oferta'}
-                                        </Boton>
-                                    )}
-                                </div>
+                                (() => {
+                                    const mensaje = mensajeVacioOfertas({
+                                        esCupones,
+                                        busqueda: filtros.busqueda,
+                                        textoTipoFiltro,
+                                        tipoFiltrado: filtros.tipo !== 'todos',
+                                        estadoFiltrado: filtros.estado !== 'todos',
+                                        textoEstadoFiltro,
+                                    });
+                                    return (
+                                        <div className="flex flex-col items-center justify-center py-16 text-slate-600 text-center px-4">
+                                            <Inbox className="w-10 h-10 mb-2" />
+                                            <p className="text-sm font-semibold text-slate-700">{mensaje.titulo}</p>
+                                            <p className="text-xs font-medium text-slate-500 mt-1">{mensaje.subtitulo}</p>
+                                            {mensaje.mostrarCTA && (
+                                                <Boton variante="primario" iconoIzquierda={<Plus className="w-4 h-4" />} onClick={handleCrear} className="mt-3">
+                                                    {esCupones ? 'Crear Primer Cupón' : 'Crear Primera Oferta'}
+                                                </Boton>
+                                            )}
+                                        </div>
+                                    );
+                                })()
                             ) : (
                                 ofertasOrdenadas.map((oferta, i) => {
                                     const estado = calcularEstado(oferta);
@@ -1298,14 +1364,14 @@ export function PaginaOfertas() {
                                             {/* Oferta: Imagen + Título + Valor */}
                                             <div className="flex items-center gap-2.5 2xl:gap-3 min-w-0">
                                                 <div
-                                                    className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg shrink-0 overflow-hidden cursor-pointer hover:scale-110 transition-transform"
+                                                    className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg shrink-0 overflow-hidden cursor-pointer hover:scale-105 transition-transform"
                                                     onClick={(e) => { if (oferta.imagen) { e.stopPropagation(); abrirImagenUnica(oferta.imagen); } }}
                                                 >
                                                     {oferta.imagen ? (
                                                         <img src={oferta.imagen} alt="" className="w-full h-full object-cover" />
                                                     ) : (
                                                         <div className="w-full h-full bg-slate-200 flex items-center justify-center">
-                                                            <IconoTipo className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4.5 2xl:h-4.5 text-slate-600" />
+                                                            <IconoTipo className="w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600" />
                                                         </div>
                                                     )}
                                                 </div>
@@ -1462,8 +1528,8 @@ export function PaginaOfertas() {
                                         key={col}
                                         onClick={() => alternarOrden(col)}
                                         className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${activa
-                                            ? 'bg-slate-400 text-slate-900 shadow-md'
-                                            : 'text-white hover:bg-white/10'
+                                            ? 'bg-slate-300 text-slate-900 shadow-md'
+                                            : 'text-white lg:hover:bg-white/10'
                                         }`}
                                     >
                                         {etiqueta}
@@ -1475,41 +1541,50 @@ export function PaginaOfertas() {
                             })}
                         </div>
 
-                        {/* Cards */}
+                        {/* Lista */}
                         {ofertasMostradas.length === 0 ? (
-                            <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-8 text-center">
-                                <Tag className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                <p className="text-base font-bold text-slate-800 mb-1">
-                                    {hayFiltrosActivos ? 'Sin resultados' : esCupones ? 'Sin cupones' : 'Sin ofertas'}
-                                </p>
-                                <p className="text-sm text-slate-600 font-medium">
-                                    {hayFiltrosActivos
-                                        ? `No se encontraron ${textoTipoFiltro}${filtros.estado !== 'todos' ? ` ${textoEstadoFiltro}` : ''}${filtros.busqueda ? ` con "${filtros.busqueda}"` : ''}`
-                                        : 'Crea tu primera promoción para atraer más clientes'
-                                    }
-                                </p>
-                                {!hayFiltrosActivos && (
-                                    <Boton variante="primario" iconoIzquierda={<Plus className="w-5 h-5" />} onClick={handleCrear} className="mt-4">
-                                        {esCupones ? 'Crear Primer Cupón' : 'Crear Primera Oferta'}
-                                    </Boton>
-                                )}
-                            </div>
+                            (() => {
+                                const mensaje = mensajeVacioOfertas({
+                                    esCupones,
+                                    busqueda: filtros.busqueda,
+                                    textoTipoFiltro,
+                                    tipoFiltrado: filtros.tipo !== 'todos',
+                                    estadoFiltrado: filtros.estado !== 'todos',
+                                    textoEstadoFiltro,
+                                });
+                                return (
+                                    <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-8 text-center">
+                                        <Tag className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                                        <p className="text-base font-bold text-slate-800 mb-1">{mensaje.titulo}</p>
+                                        <p className="text-sm text-slate-600 font-medium">{mensaje.subtitulo}</p>
+                                        {mensaje.mostrarCTA && (
+                                            <Boton variante="primario" iconoIzquierda={<Plus className="w-5 h-5" />} onClick={handleCrear} className="mt-4">
+                                                {esCupones ? 'Crear Primer Cupón' : 'Crear Primera Oferta'}
+                                            </Boton>
+                                        )}
+                                    </div>
+                                );
+                            })()
                         ) : (
-                            ofertasMostradas.map((oferta) => (
-                                <FilaMovilOferta
-                                    key={oferta.id}
-                                    oferta={oferta}
-                                    estado={calcularEstado(oferta)}
-                                    onEditar={handleEditar}
-                                    onEliminar={handleEliminar}
-                                    onDuplicar={handleDuplicar}
-                                    onReenviar={handleReenviarCupon}
-                                    onRevocar={handleRevocarCupon}
-                                    onImagenClick={abrirImagenUnica}
-                                    esDueno={esDueno}
-                                    esCupones={esCupones}
-                                />
-                            ))
+                            <div className="bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+                                <div className="divide-y-[1.5px] divide-slate-300">
+                                    {ofertasMostradas.map((oferta) => (
+                                        <FilaMovilOferta
+                                            key={oferta.id}
+                                            oferta={oferta}
+                                            estado={calcularEstado(oferta)}
+                                            onEditar={handleEditar}
+                                            onEliminar={handleEliminar}
+                                            onDuplicar={handleDuplicar}
+                                            onReenviar={handleReenviarCupon}
+                                            onRevocar={handleRevocarCupon}
+                                            onImagenClick={abrirImagenUnica}
+                                            esDueno={esDueno}
+                                            esCupones={esCupones}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         )}
 
                         {/* Sentinel para Infinite Scroll */}

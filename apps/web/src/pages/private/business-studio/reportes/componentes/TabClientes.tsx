@@ -112,23 +112,26 @@ export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabCliente
         <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-top-gasto">
           <PanelTitulo icono={Crown} titulo="Tus 10 mejores clientes (por dinero)" />
           <TablaHeader columnas={['Cliente', 'Ha gastado']} />
-          <div className="max-h-72 overflow-y-auto">
-            {data.topPorGasto.length > 0 ? data.topPorGasto.map((c, i) => (
+          <div className="max-h-72 overflow-y-auto divide-y-[1.5px] divide-slate-300">
+            {data.topPorGasto.length > 0 ? data.topPorGasto.map((c) => (
               <button
                 key={c.clienteId}
                 type="button"
                 onClick={() => abrirClienteEnModulo(c.nombre, c.apellidos)}
-                className={`w-full text-left flex items-center gap-2.5 px-3 py-2 lg:cursor-pointer hover:bg-slate-200 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}
+                className="w-full text-left flex items-center gap-2.5 px-3 py-3 lg:cursor-pointer hover:bg-slate-50 transition-colors"
                 data-testid={`top-gasto-${c.clienteId}`}
               >
-                <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                <div
+                  className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md"
+                  style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+                >
                   {c.avatarUrl ? (
                     <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(c.nombre)}</span>
+                    <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-white">{obtenerIniciales(c.nombre)}</span>
                   )}
                 </div>
-                <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate flex-1">{c.nombre} {c.apellidos ?? ''}</span>
+                <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-900 truncate flex-1">{c.nombre} {c.apellidos ?? ''}</span>
                 <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-emerald-600 shrink-0">{formatearMonto(c.valor)}</span>
               </button>
             )) : (
@@ -141,23 +144,26 @@ export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabCliente
         <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-top-frecuencia">
           <PanelTitulo icono={Users} titulo="Tus 10 clientes más frecuentes" />
           <TablaHeader columnas={['Cliente', 'Veces que compró']} />
-          <div className="max-h-72 overflow-y-auto">
-            {data.topPorFrecuencia.length > 0 ? data.topPorFrecuencia.map((c, i) => (
+          <div className="max-h-72 overflow-y-auto divide-y-[1.5px] divide-slate-300">
+            {data.topPorFrecuencia.length > 0 ? data.topPorFrecuencia.map((c) => (
               <button
                 key={c.clienteId}
                 type="button"
                 onClick={() => abrirClienteEnModulo(c.nombre, c.apellidos)}
-                className={`w-full text-left flex items-center gap-2.5 px-3 py-2 lg:cursor-pointer hover:bg-slate-200 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`}
+                className="w-full text-left flex items-center gap-2.5 px-3 py-3 lg:cursor-pointer hover:bg-slate-50 transition-colors"
                 data-testid={`top-frecuencia-${c.clienteId}`}
               >
-                <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                <div
+                  className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md"
+                  style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+                >
                   {c.avatarUrl ? (
                     <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(c.nombre)}</span>
+                    <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-white">{obtenerIniciales(c.nombre)}</span>
                   )}
                 </div>
-                <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate flex-1">{c.nombre} {c.apellidos ?? ''}</span>
+                <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-900 truncate flex-1">{c.nombre} {c.apellidos ?? ''}</span>
                 <span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-emerald-600 shrink-0">{c.valor} {c.valor === 1 ? 'vez' : 'veces'}</span>
               </button>
             )) : (
@@ -170,11 +176,11 @@ export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabCliente
         <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tendencia-adquisicion">
           <PanelTitulo icono={TrendingUp} titulo="Clientes nuevos cada semana" />
           <TablaHeader columnas={['Semana', 'Clientes nuevos']} />
-          <div className="max-h-72 overflow-y-auto">
-            {data.tendenciaAdquisicion.length > 0 ? data.tendenciaAdquisicion.map((t, i) => (
-              <div key={t.semana} className={`grid gap-px ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`} style={{ gridTemplateColumns: '1fr 1fr' }}>
-                <div className="flex items-center px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800">{formatearSemana(t.semana)}</div>
-                <div className="flex items-center px-3 py-2 text-sm lg:text-xs 2xl:text-sm font-semibold text-emerald-600">{t.nuevos}</div>
+          <div className="max-h-72 overflow-y-auto divide-y-[1.5px] divide-slate-300">
+            {data.tendenciaAdquisicion.length > 0 ? data.tendenciaAdquisicion.map((t) => (
+              <div key={t.semana} className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <div className="flex items-center px-3 py-3 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-900">{formatearSemana(t.semana)}</div>
+                <div className="flex items-center px-3 py-3 text-sm lg:text-xs 2xl:text-sm font-semibold text-emerald-600">{t.nuevos}</div>
               </div>
             )) : (
               <p className="text-center py-6 text-slate-600 font-medium text-sm lg:text-[11px] 2xl:text-sm">Sin clientes nuevos en este período</p>

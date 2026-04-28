@@ -193,22 +193,29 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
               Alertas <span className="ml-1"><IconoOrden campo="alertas" /></span>
             </button>
           </div>
-          {empleadosOrdenados.map((e, i) => {
+          <div className="divide-y-[1.5px] divide-slate-300">
+          {empleadosOrdenados.map((e) => {
             const noClickeable = e.esDueno || e.inactivo;
-            const claseFila = `w-full text-left grid gap-px ${noClickeable ? '' : 'lg:cursor-pointer hover:bg-slate-200'} ${e.inactivo ? 'opacity-60' : ''} ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'}`;
+            const claseFila = `w-full text-left grid bg-white ${noClickeable ? '' : 'lg:cursor-pointer hover:bg-slate-50 transition-colors'} ${e.inactivo ? 'opacity-60' : ''}`;
             const contenidoFila = (
               <>
-                <div className="flex items-center gap-2 px-3 py-2 min-w-0">
-                  <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-3 min-w-0">
+                  <div
+                    className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md"
+                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+                  >
                     {e.fotoUrl ? (
                       <img src={e.fotoUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(e.nombre)}</span>
+                      <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-white">{obtenerIniciales(e.nombre)}</span>
                     )}
                   </div>
-                  <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate">{e.nombre}</span>
+                  <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-900 truncate">{e.nombre}</span>
                   {e.esDueno && (
-                    <span className="shrink-0 text-[10px] lg:text-[9px] 2xl:text-[10px] font-bold text-indigo-700 bg-indigo-100 border border-indigo-300 px-1.5 py-0.5 rounded-md">
+                    <span
+                      className="shrink-0 text-[10px] lg:text-[9px] 2xl:text-[10px] font-bold text-white border border-indigo-300 px-1.5 py-0.5 rounded-md"
+                      style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+                    >
                       Dueño
                     </span>
                   )}
@@ -259,33 +266,41 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
               </button>
             );
           })}
+          </div>
         </div>
 
     </div>
 
-      {/* Móvil — cards (fuera del box) */}
-      <div className="lg:hidden space-y-2 mt-3">
+      {/* Móvil — lista en contenedor con divide-y */}
+      <div className="lg:hidden mt-3 bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+        <div className="divide-y-[1.5px] divide-slate-300">
         {empleadosOrdenados.map((e) => {
           const noClickeable = e.esDueno || e.inactivo;
-          const claseCard = `w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden ${noClickeable ? '' : 'cursor-pointer hover:border-slate-400 hover:shadow-sm'} ${e.inactivo ? 'opacity-60' : ''}`;
+          const claseCard = `w-full flex items-center gap-3 px-3 py-3 text-left ${noClickeable ? '' : 'cursor-pointer hover:bg-slate-50 transition-colors'} ${e.inactivo ? 'opacity-60' : ''}`;
           const contenidoCard = (
             <>
               {/* Avatar */}
-              <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-md"
+                style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+              >
                 {e.fotoUrl ? (
                   <img src={e.fotoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-lg font-bold text-indigo-700">{obtenerIniciales(e.nombre)}</span>
+                  <span className="text-base font-bold text-white">{obtenerIniciales(e.nombre)}</span>
                 )}
               </div>
 
               {/* Info */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+              <div className="flex-1 min-w-0 flex flex-col gap-2">
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <p className="text-base font-bold text-slate-800 truncate">{e.nombre}</p>
+                    <p className="text-base font-bold text-slate-900 truncate">{e.nombre}</p>
                     {e.esDueno && (
-                      <span className="shrink-0 text-[10px] font-bold text-indigo-700 bg-indigo-100 border border-indigo-300 px-1.5 py-0.5 rounded-md">
+                      <span
+                        className="shrink-0 text-[10px] font-bold text-white border border-indigo-300 px-1.5 py-0.5 rounded-md"
+                        style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+                      >
                         Dueño
                       </span>
                     )}
@@ -321,7 +336,6 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
               <div
                 key={e.empleadoId}
                 className={claseCard}
-                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                 data-testid={`empleado-card-${e.empleadoId}`}
               >
                 {contenidoCard}
@@ -334,13 +348,13 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
               type="button"
               onClick={() => abrirEmpleadoEnModulo(e.nombre)}
               className={claseCard}
-              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
               data-testid={`empleado-card-${e.empleadoId}`}
             >
               {contenidoCard}
             </button>
           );
         })}
+        </div>
       </div>
     </>
   );

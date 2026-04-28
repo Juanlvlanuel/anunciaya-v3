@@ -21,6 +21,13 @@ interface RequestConNegocio extends Request {
 }
 
 /**
+ * Extrae `usuarioId` del token JWT (agregado por `verificarToken`).
+ */
+function obtenerUsuarioId(req: RequestConNegocio): string | null {
+	return req.usuario?.usuarioId ?? null;
+}
+
+/**
  * GET /api/business/alertas
  * Obtener alertas paginadas con filtros
  */
@@ -29,13 +36,16 @@ export async function obtenerAlertas(req: RequestConNegocio, res: Response, next
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
+
 		const filtrosParsed = filtrosAlertasSchema.safeParse(req.query);
 		if (!filtrosParsed.success) {
 			return res.status(400).json({ success: false, error: 'Filtros inválidos', detalles: filtrosParsed.error.flatten() });
 		}
 
 		const sucursalId = req.query.sucursalId as string | undefined;
-		const resultado = await alertasService.obtenerAlertasPaginadas(negocioId, sucursalId, filtrosParsed.data);
+		const resultado = await alertasService.obtenerAlertasPaginadas(negocioId, sucursalId, usuarioId, filtrosParsed.data);
 
 		return res.json({ success: true, data: resultado });
 	} catch (error) {
@@ -52,8 +62,11 @@ export async function obtenerKPIs(req: RequestConNegocio, res: Response, next: N
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
+
 		const sucursalId = req.query.sucursalId as string | undefined;
-		const kpis = await alertasService.obtenerAlertasKPIs(negocioId, sucursalId);
+		const kpis = await alertasService.obtenerAlertasKPIs(negocioId, sucursalId, usuarioId);
 
 		return res.json({ success: true, data: kpis });
 	} catch (error) {
@@ -70,8 +83,11 @@ export async function contarNoLeidas(req: RequestConNegocio, res: Response, next
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
+
 		const sucursalId = req.query.sucursalId as string | undefined;
-		const total = await alertasService.contarNoLeidas(negocioId, sucursalId);
+		const total = await alertasService.contarNoLeidas(negocioId, sucursalId, usuarioId);
 
 		return res.json({ success: true, data: { total } });
 	} catch (error) {
@@ -105,12 +121,15 @@ export async function obtenerAlerta(req: RequestConNegocio, res: Response, next:
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
+
 		const parsed = alertaIdSchema.safeParse(req.params);
 		if (!parsed.success) {
 			return res.status(400).json({ success: false, error: 'ID de alerta inválido' });
 		}
 
-		const alerta = await alertasService.obtenerAlertaDetalle(parsed.data.id, negocioId);
+		const alerta = await alertasService.obtenerAlertaDetalle(parsed.data.id, negocioId, usuarioId);
 		if (!alerta) {
 			return res.status(404).json({ success: false, error: 'Alerta no encontrada' });
 		}
@@ -123,19 +142,22 @@ export async function obtenerAlerta(req: RequestConNegocio, res: Response, next:
 
 /**
  * PUT /api/business/alertas/:id/leida
- * Marcar una alerta como leída
+ * Marcar una alerta como leída (para el usuario actual)
  */
 export async function marcarLeida(req: RequestConNegocio, res: Response, next: NextFunction) {
 	try {
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
+
 		const parsed = alertaIdSchema.safeParse(req.params);
 		if (!parsed.success) {
 			return res.status(400).json({ success: false, error: 'ID de alerta inválido' });
 		}
 
-		const marcada = await alertasService.marcarAlertaLeida(parsed.data.id, negocioId);
+		const marcada = await alertasService.marcarAlertaLeida(parsed.data.id, negocioId, usuarioId);
 		if (!marcada) {
 			return res.status(404).json({ success: false, error: 'Alerta no encontrada' });
 		}
@@ -148,19 +170,22 @@ export async function marcarLeida(req: RequestConNegocio, res: Response, next: N
 
 /**
  * PUT /api/business/alertas/:id/resuelta
- * Marcar una alerta como resuelta
+ * Marcar una alerta como resuelta (para el usuario actual)
  */
 export async function marcarResuelta(req: RequestConNegocio, res: Response, next: NextFunction) {
 	try {
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
+
 		const parsed = alertaIdSchema.safeParse(req.params);
 		if (!parsed.success) {
 			return res.status(400).json({ success: false, error: 'ID de alerta inválido' });
 		}
 
-		const marcada = await alertasService.marcarAlertaResuelta(parsed.data.id, negocioId);
+		const marcada = await alertasService.marcarAlertaResuelta(parsed.data.id, negocioId, usuarioId);
 		if (!marcada) {
 			return res.status(404).json({ success: false, error: 'Alerta no encontrada' });
 		}
@@ -173,19 +198,23 @@ export async function marcarResuelta(req: RequestConNegocio, res: Response, next
 
 /**
  * PUT /api/business/alertas/marcar-todas-leidas
- * Marcar todas las alertas como leídas
+ * Marcar todas las alertas como leídas (para el usuario actual)
  */
 export async function marcarTodasLeidasController(req: RequestConNegocio, res: Response, next: NextFunction) {
 	try {
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
+
 		const parsed = marcarTodasLeidasSchema.safeParse(req.body);
 		if (!parsed.success) {
 			return res.status(400).json({ success: false, error: 'Datos inválidos' });
 		}
 
-		const afectadas = await alertasService.marcarTodasLeidas(negocioId, parsed.data.categoria, parsed.data.severidad);
+		const sucursalId = req.query.sucursalId as string | undefined;
+		const afectadas = await alertasService.marcarTodasLeidas(negocioId, sucursalId, usuarioId, parsed.data.categoria, parsed.data.severidad);
 
 		return res.json({ success: true, data: { afectadas } });
 	} catch (error) {
@@ -227,24 +256,28 @@ export async function actualizarConfiguracionController(req: RequestConNegocio, 
 
 /**
  * DELETE /api/business/alertas/:id
- * Eliminar una alerta
+ * Oculta la alerta del feed del usuario actual (no la borra físicamente).
+ * La alerta sigue existiendo para los demás usuarios del negocio.
  */
 export async function eliminarAlertaController(req: RequestConNegocio, res: Response, next: NextFunction) {
 	try {
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
+
 		const parsed = alertaIdSchema.safeParse(req.params);
 		if (!parsed.success) {
 			return res.status(400).json({ success: false, error: 'ID de alerta inválido' });
 		}
 
-		const eliminada = await alertasService.eliminarAlerta(parsed.data.id, negocioId);
-		if (!eliminada) {
+		const ocultada = await alertasService.ocultarAlerta(parsed.data.id, negocioId, usuarioId);
+		if (!ocultada) {
 			return res.status(404).json({ success: false, error: 'Alerta no encontrada' });
 		}
 
-		return res.json({ success: true, message: 'Alerta eliminada' });
+		return res.json({ success: true, message: 'Alerta oculta de tu feed' });
 	} catch (error) {
 		next(error);
 	}
@@ -252,16 +285,21 @@ export async function eliminarAlertaController(req: RequestConNegocio, res: Resp
 
 /**
  * DELETE /api/business/alertas/resueltas
- * Eliminar todas las alertas resueltas
+ * Oculta del feed del usuario todas las alertas globalmente resueltas dentro
+ * del scope de sucursal. La alerta sigue existiendo para otros usuarios.
  */
 export async function eliminarResueltasController(req: RequestConNegocio, res: Response, next: NextFunction) {
 	try {
 		const negocioId = req.negocioId;
 		if (!negocioId) return res.status(400).json({ success: false, error: 'negocioId requerido' });
 
-		const eliminadas = await alertasService.eliminarAlertasResueltas(negocioId);
+		const usuarioId = obtenerUsuarioId(req);
+		if (!usuarioId) return res.status(401).json({ success: false, error: 'No autenticado' });
 
-		return res.json({ success: true, data: { eliminadas } });
+		const sucursalId = req.query.sucursalId as string | undefined;
+		const ocultadas = await alertasService.ocultarAlertasResueltas(negocioId, sucursalId, usuarioId);
+
+		return res.json({ success: true, data: { ocultadas } });
 	} catch (error) {
 		next(error);
 	}

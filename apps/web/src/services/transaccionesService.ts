@@ -72,11 +72,11 @@ export interface Operador {
 }
 
 /**
- * Obtiene lista de operadores que han registrado ventas.
- * GET /api/transacciones/operadores
+ * Obtiene lista de operadores que tienen movimientos del tipo indicado.
+ * GET /api/transacciones/operadores?tipo=ventas|cupones|canjes
  */
-export async function getOperadores() {
-  return get<Operador[]>('/transacciones/operadores');
+export async function getOperadores(tipo: 'ventas' | 'cupones' | 'canjes' = 'ventas') {
+  return get<Operador[]>(`/transacciones/operadores?tipo=${tipo}`);
 }
 
 // =============================================================================

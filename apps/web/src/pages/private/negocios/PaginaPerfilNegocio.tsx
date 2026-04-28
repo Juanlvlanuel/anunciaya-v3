@@ -58,6 +58,7 @@ import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../co
 import { ModalBottom } from '../../../components/ui/ModalBottom';
 import { Modal } from '../../../components/ui/Modal';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
+import { useDragScroll } from '../../../hooks/useDragScroll';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 // useNegociosCacheStore eliminado — React Query maneja caché
@@ -224,36 +225,36 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
 
     return createPortal(
         <div
-            className="fixed inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] flex items-center justify-center p-3 lg:p-4 2xl:p-6 z-9999"
+            className="fixed inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] flex items-center justify-center p-3 @5xl:p-4 @[96rem]:p-6 z-9999"
             onClick={onClose}
         >
             {/* Contenedor principal */}
             <div
-                className="relative w-full max-w-3xl lg:max-w-3xl 2xl:max-w-5xl bg-white rounded-xl lg:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                className="relative w-full max-w-3xl @5xl:max-w-3xl @[96rem]:max-w-5xl bg-white rounded-xl @5xl:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 style={{ height: '75vh' }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* HEADER OSCURO */}
                 <div style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
-                    <div className="flex items-center justify-between px-4 py-3 lg:px-5 lg:py-3 2xl:px-6 2xl:py-4">
+                    <div className="flex items-center justify-between px-4 py-3 @5xl:px-5 @5xl:py-3 @[96rem]:px-6 @[96rem]:py-4">
                         {/* Info del negocio */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                             {negocio.logoUrl ? (
                                 <img
                                     src={negocio.logoUrl}
                                     alt={negocio.negocioNombre}
-                                    className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 rounded-full object-cover border-2 border-white/20"
+                                    className="shrink-0 w-10 h-10 @5xl:w-11 @5xl:h-11 @[96rem]:w-12 @[96rem]:h-12 rounded-full object-cover border-2 border-white/20"
                                 />
                             ) : (
-                                <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-white/15 rounded-xl flex items-center justify-center border-2 border-white/20">
+                                <div className="shrink-0 w-10 h-10 @5xl:w-11 @5xl:h-11 @[96rem]:w-12 @[96rem]:h-12 bg-white/15 rounded-xl flex items-center justify-center border-2 border-white/20">
                                     <span className="text-lg font-bold text-white">{negocio.negocioNombre.charAt(0)}</span>
                                 </div>
                             )}
                             <div className="min-w-0 flex-1">
-                                <h3 className="text-base lg:text-lg 2xl:text-xl font-bold text-white truncate">
+                                <h3 className="text-base @5xl:text-lg @[96rem]:text-xl font-bold text-white truncate">
                                     {negocio.negocioNombre}
                                 </h3>
-                                <p className="text-sm lg:text-sm 2xl:text-base text-white/60 font-medium truncate">
+                                <p className="text-sm @5xl:text-sm @[96rem]:text-base text-white/60 font-medium truncate">
                                     {negocio.direccion}
                                 </p>
                             </div>
@@ -266,16 +267,16 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                     const url = `https://www.google.com/maps/dir/?api=1&destination=${negocio.latitud},${negocio.longitud}`;
                                     window.open(url, '_blank');
                                 }}
-                                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 2xl:px-5 2xl:py-2.5 bg-white text-slate-800 font-bold text-sm lg:text-sm 2xl:text-base rounded-xl shadow-md cursor-pointer active:scale-95"
+                                className="flex items-center gap-2 px-3 py-2 @5xl:px-4 @5xl:py-2 @[96rem]:px-5 @[96rem]:py-2.5 bg-white text-slate-800 font-bold text-sm @5xl:text-sm @[96rem]:text-base rounded-xl shadow-md cursor-pointer active:scale-95"
                             >
-                                <Navigation className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                                <span className="hidden sm:inline">Cómo llegar</span>
+                                <Navigation className="w-4 h-4 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
+                                <span className="hidden @[40rem]:inline">Cómo llegar</span>
                             </button>
                             <button
                                 onClick={onClose}
-                                className="w-9 h-9 lg:w-10 lg:h-10 2xl:w-11 2xl:h-11 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 cursor-pointer"
+                                className="w-9 h-9 @5xl:w-10 @5xl:h-10 @[96rem]:w-11 @[96rem]:h-11 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 cursor-pointer"
                             >
-                                <X className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
+                                <X className="w-5 h-5 @5xl:w-5 @5xl:h-5 @[96rem]:w-6 @[96rem]:h-6 text-white" />
                             </button>
                         </div>
                     </div>
@@ -312,26 +313,26 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                     }
                                 }
                             }}
-                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                            className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Centrar mapa"
                         >
-                            <Crosshair className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
+                            <Crosshair className="w-5 h-5 @5xl:w-4 @5xl:h-4 text-white" />
                         </button>
                         <div className="w-px h-auto bg-slate-700 my-1.5" />
                         <button
                             onClick={() => mapRef.current?.setZoom((mapRef.current?.getZoom() || 14) + 1)}
-                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                            className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Acercar"
                         >
-                            <Plus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
+                            <Plus className="w-5 h-5 @5xl:w-4 @5xl:h-4 text-white" />
                         </button>
                         <div className="w-px h-auto bg-slate-700 my-1.5" />
                         <button
                             onClick={() => mapRef.current?.setZoom((mapRef.current?.getZoom() || 14) - 1)}
-                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                            className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Alejar"
                         >
-                            <Minus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
+                            <Minus className="w-5 h-5 @5xl:w-4 @5xl:h-4 text-white" />
                         </button>
                     </div>
 
@@ -548,6 +549,10 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
     const [modalGaleriaAbierto, setModalGaleriaAbierto] = useState(false);
     const { esMobile: esMobileGaleria } = useBreakpoint();
+
+    // Drag-to-scroll en la galería mobile — affordance desktop al embeberse en preview/ChatYA
+    const refScrollGaleria = useRef<HTMLDivElement>(null);
+    useDragScroll(refScrollGaleria);
 
     // Distancia del usuario
     const [distanciaKm, setDistanciaKm] = useState<number | null>(null);
@@ -862,16 +867,16 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-transparent overflow-x-hidden lg:overflow-x-visible">
-                <div className="max-w-7xl mx-auto px-8 lg:px-12 2xl:px-16 py-6">
+            <div className="min-h-screen bg-transparent overflow-x-hidden @5xl:overflow-x-visible">
+                <div className="max-w-7xl mx-auto px-8 @5xl:px-12 @[96rem]:px-16 py-6">
                     {/* Skeleton Hero */}
-                    <div className="relative h-48 lg:h-56 bg-slate-200 animate-pulse rounded-b-3xl -mx-8 lg:-mx-12 2xl:-mx-16" />
+                    <div className="relative h-48 @5xl:h-56 bg-slate-200 animate-pulse rounded-b-3xl -mx-8 @5xl:-mx-12 @[96rem]:-mx-16" />
 
                     {/* Skeleton Logo + Info */}
                     <div className="py-4">
-                        <div className="flex flex-col lg:flex-row gap-6 lg:items-center">
+                        <div className="flex flex-col @5xl:flex-row gap-6 @5xl:items-center">
                             {/* Logo skeleton */}
-                            <div className="-mt-14 lg:-mt-16 w-28 h-28 lg:w-32 lg:h-32 rounded-xl bg-slate-200 animate-pulse border-4 border-white shadow-lg" />
+                            <div className="-mt-14 @5xl:-mt-16 w-28 h-28 @5xl:w-32 @5xl:h-32 rounded-xl bg-slate-200 animate-pulse border-4 border-white shadow-lg" />
 
                             <div className="flex-1">
                                 {/* Nombre skeleton */}
@@ -890,7 +895,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     </div>
 
                     {/* Skeleton Content */}
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] 2xl:grid-cols-[1fr_320px] lg:gap-4 2xl:gap-8 mt-6">
+                    <div className="grid grid-cols-1 @5xl:grid-cols-[1fr_240px] @[96rem]:grid-cols-[1fr_320px] @5xl:gap-4 @[96rem]:gap-8 mt-6">
                         {/* Columna principal skeleton */}
                         <div className="space-y-6">
                             {/* Ubicación skeleton */}
@@ -942,8 +947,10 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
     // Contenido principal
     const contenidoPrincipal = (
-        // ✅ overflow-x-hidden solo en móvil, visible en lg y 2xl
-        <div className="min-h-screen bg-transparent overflow-x-hidden lg:overflow-x-visible">
+        // overflow-x-hidden solo en móvil, visible en desktop
+        // Los container queries (@5xl:, @[96rem]:) responden al container ancestro
+        // declarado en el layout (LayoutPublico, MainLayout, PanelPreviewNegocio, PanelInfoContacto).
+        <div className="min-h-screen bg-transparent overflow-x-hidden @5xl:overflow-x-visible">
             {/* Wrapper removido - LayoutPublico ya maneja el ancho */}
 
             {/* MODAL HORARIOS */}
@@ -966,7 +973,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
             {/* ================================================================
                 HERO
             ================================================================ */}
-            <div className="relative h-60 lg:h-50 2xl:h-72 bg-slate-200 overflow-hidden rounded-b-3xl lg:rounded-b-none lg:rounded-br-[3rem] lg:-mx-3.5 2xl:-mx-7.5">
+            <div className="relative h-60 @5xl:h-50 @[96rem]:h-72 bg-slate-200 overflow-hidden rounded-b-3xl @5xl:rounded-b-none @5xl:rounded-br-[3rem] @5xl:-mx-3.5 @[96rem]:-mx-7.5">
                 {negocio.portadaUrl ? (
                     <img
                         src={negocio.portadaUrl}
@@ -977,10 +984,10 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 ) : (
                     <div className="w-full h-full bg-linear-to-br from-blue-500 to-purple-600" />
                 )}
-                <div className="absolute inset-0 bg-black/20 pointer-events-none rounded-b-3xl lg:rounded-b-none lg:rounded-br-[3rem]" />
+                <div className="absolute inset-0 bg-black/20 pointer-events-none rounded-b-3xl @5xl:rounded-b-none @5xl:rounded-br-[3rem]" />
 
                 {/* MÉTRICAS GLASSMORPHISM - Solo móvil */}
-                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-4 py-2.5 px-3 bg-white/60 backdrop-blur-md lg:hidden">
+                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-4 py-2.5 px-3 bg-white/60 backdrop-blur-md @5xl:hidden">
                     {negocio.horarios && negocio.horarios.length > 0 && (() => {
                         const info = calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria);
                         const abierto = info.estado === 'abierto';
@@ -1026,29 +1033,29 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 </div>
 
                 <div className="absolute inset-0 pointer-events-none">
-                    <div className="px-12 lg:px-16 2xl:px-20 h-full relative">
+                    <div className="px-12 @5xl:px-16 @[96rem]:px-20 h-full relative">
                         {/* Botón Volver (oculto en modo preview) */}
                         {!esModoPreview && (
-                            <div className="pointer-events-auto absolute top-14 lg:top-4 left-5 2xl:left-7.5">
+                            <div className="pointer-events-auto absolute top-14 @5xl:top-4 left-5 @[96rem]:left-7.5">
                                 <Tooltip text="Volver" position="bottom">
-                                    <button onClick={handleVolver} className="cursor-pointer p-2.5 lg:p-2 2xl:p-2.5 rounded-full border-2 bg-white/90 border-white text-slate-700 backdrop-blur-sm shadow-lg">
-                                        <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                    <button onClick={handleVolver} className="cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 bg-white/90 border-white text-slate-700 backdrop-blur-sm shadow-lg">
+                                        <ArrowLeft className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                     </button>
                                 </Tooltip>
                             </div>
                         )}
 
-                        <div className="absolute top-14 lg:top-4 right-5 2xl:right-7.5 flex gap-2 pointer-events-auto">
+                        <div className="absolute top-14 @5xl:top-4 right-5 @[96rem]:right-7.5 flex gap-2 pointer-events-auto">
                             {/* Botón Like */}
                             <Tooltip text={liked ? 'Quitar like' : 'Like'} position="bottom">
-                                <button onClick={handleLikeConAuth} className={`cursor-pointer p-2.5 lg:p-2 2xl:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${liked ? 'bg-red-50 border-red-500 text-red-500' : 'bg-white/90 border-white text-slate-700'}`}>
-                                    <Heart className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${liked ? 'fill-current' : ''}`} />
+                                <button onClick={handleLikeConAuth} className={`cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${liked ? 'bg-red-50 border-red-500 text-red-500' : 'bg-white/90 border-white text-slate-700'}`}>
+                                    <Heart className={`w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 ${liked ? 'fill-current' : ''}`} />
                                 </button>
                             </Tooltip>
                             {/* Botón Seguir */}
                             <Tooltip text={followed ? 'Dejar de seguir' : 'Seguir'} position="bottom">
-                                <button onClick={handleSaveConAuth} className={`cursor-pointer p-2.5 lg:p-2 2xl:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${followed ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white/90 border-white text-slate-700'}`}>
-                                    <Bell className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${followed ? 'fill-current' : ''}`} />
+                                <button onClick={handleSaveConAuth} className={`cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${followed ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white/90 border-white text-slate-700'}`}>
+                                    <Bell className={`w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 ${followed ? 'fill-current' : ''}`} />
                                 </button>
                             </Tooltip>
                             {/* Botón Compartir */}
@@ -1066,10 +1073,10 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
             </div>
 
             {/* Logo + Nombre + Badge CardYA + Métricas */}
-            <div className="py-4 lg:py-0 2xl:py-4 2xl:px-0">
+            <div className="py-4 @5xl:py-0 @[96rem]:py-4 @[96rem]:px-0">
                 <div className="relative w-full">
                     {/* MÓVIL: Logo + Nombre en fila */}
-                    <div className="flex items-start gap-4 lg:hidden">
+                    <div className="flex items-start gap-4 @5xl:hidden">
                         {/* Logo (izquierda, más grande, con margen) */}
                         <div
                             className={`-mt-8 ml-5 shrink-0 w-29 h-29 rounded-xl overflow-hidden border-4 border-white bg-white shadow-lg ${negocio.logoUrl ? 'cursor-pointer' : ''}`}
@@ -1105,32 +1112,32 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     </div>
 
                     {/* DESKTOP: Layout compacto */}
-                    <div className="hidden lg:flex flex-row lg:gap-4 2xl:gap-6 items-start w-full">
+                    <div className="hidden @5xl:flex flex-row @5xl:gap-4 @[96rem]:gap-6 items-start w-full">
                         {/* LOGO */}
                         <div
-                            className={`lg:-mt-14 2xl:-mt-16 lg:ml-4 2xl:ml-0 shrink-0 lg:w-24 lg:h-24 2xl:w-32 2xl:h-32 rounded-xl overflow-hidden border-4 border-white bg-white shadow-lg ${negocio.logoUrl ? 'cursor-pointer' : ''}`} onClick={() => negocio.logoUrl && abrirImagenUnica(negocio.logoUrl)}
+                            className={`@5xl:-mt-14 @[96rem]:-mt-16 @5xl:ml-4 @[96rem]:ml-0 shrink-0 @5xl:w-24 @5xl:h-24 @[96rem]:w-32 @[96rem]:h-32 rounded-xl overflow-hidden border-4 border-white bg-white shadow-lg ${negocio.logoUrl ? 'cursor-pointer' : ''}`} onClick={() => negocio.logoUrl && abrirImagenUnica(negocio.logoUrl)}
                         >
                             {negocio.logoUrl ? (
                                 <img src={negocio.logoUrl} alt={negocio.negocioNombre} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                    <span className="lg:text-3xl 2xl:text-4xl font-bold text-white">{negocio.negocioNombre.charAt(0).toUpperCase()}</span>
+                                    <span className="@5xl:text-3xl @[96rem]:text-4xl font-bold text-white">{negocio.negocioNombre.charAt(0).toUpperCase()}</span>
                                 </div>
                             )}
                         </div>
 
                         {/* CONTENIDO PRINCIPAL */}
-                        <div className="flex-1 min-w-0 w-full lg:mt-1 2xl:mt-0">
+                        <div className="flex-1 min-w-0 w-full @5xl:mt-1 @[96rem]:mt-0">
                             {/* FILA 1: Nombre + (Métricas + Badges) */}
                             <div className="flex items-start justify-between gap-4 w-full">
                                 {/* IZQUIERDA: Nombre, Sucursal, Descripción */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3">
-                                        <h1 className="lg:text-2xl 2xl:text-4xl font-bold text-slate-900 truncate">{negocio.negocioNombre}</h1>
+                                        <h1 className="@5xl:text-2xl @[96rem]:text-4xl font-bold text-slate-900 truncate">{negocio.negocioNombre}</h1>
                                         {negocio.aceptaCardya && (
                                             <Tooltip text="Acepta CardYA" position="bottom">
                                                 <div className="cursor-pointer shrink-0">
-                                                    <CreditCard className="lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-amber-500 animate-bounce" style={{ animationDuration: '2s' }} />
+                                                    <CreditCard className="@5xl:w-6 @5xl:h-6 @[96rem]:w-8 @[96rem]:h-8 text-amber-500 animate-bounce" style={{ animationDuration: '2s' }} />
                                                 </div>
                                             </Tooltip>
                                         )}
@@ -1138,31 +1145,31 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                                     {/* Sucursal */}
                                     {negocio.totalSucursales > 1 && (
-                                        <p className="lg:text-base 2xl:text-lg font-semibold text-blue-600 mt-1">
+                                        <p className="@5xl:text-base @[96rem]:text-lg font-semibold text-blue-600 mt-1">
                                             {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
                                         </p>
                                     )}
 
                                     {/* Descripción */}
                                     {negocio.negocioDescripcion && (
-                                        <p className="text-slate-600 font-medium lg:text-base 2xl:text-lg mt-1">{negocio.negocioDescripcion}</p>
+                                        <p className="text-slate-600 font-medium @5xl:text-base @[96rem]:text-lg mt-1">{negocio.negocioDescripcion}</p>
                                     )}
                                 </div>
 
                                 {/* DERECHA: Métricas + Badges en columna */}
                                 <div className="flex flex-col items-end gap-2 shrink-0">
                                     {/* MÉTRICAS */}
-                                    <div className="flex items-center bg-slate-50 rounded-xl lg:px-2 lg:py-1.5 2xl:px-4 2xl:py-2">
-                                        <div className="flex items-center lg:gap-1 2xl:gap-2 lg:pr-2 2xl:pr-4">
-                                            <Heart className="lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-red-500 fill-current animate-bounce" style={{ animationDuration: '2s' }} />
-                                            <span className="lg:text-sm 2xl:text-lg font-semibold text-slate-700">{totalLikes ?? 0} likes</span>
+                                    <div className="flex items-center bg-slate-50 rounded-xl @5xl:px-2 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2">
+                                        <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:pr-2 @[96rem]:pr-4">
+                                            <Heart className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-red-500 fill-current animate-bounce" style={{ animationDuration: '2s' }} />
+                                            <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">{totalLikes ?? 0} likes</span>
                                         </div>
-                                        <div className="lg:h-5 2xl:h-7 w-0.5 bg-slate-300 rounded-full" />
-                                        <div className="flex items-center lg:gap-1 2xl:gap-2 lg:px-2 2xl:px-4">
-                                            <Eye className="lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-slate-500 animate-bounce" style={{ animationDuration: '2.5s' }} />
-                                            <span className="lg:text-sm 2xl:text-lg font-semibold text-slate-700">{totalVisitas ?? 0} visitas</span>
+                                        <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
+                                        <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:px-2 @[96rem]:px-4">
+                                            <Eye className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-slate-500 animate-bounce" style={{ animationDuration: '2.5s' }} />
+                                            <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">{totalVisitas ?? 0} visitas</span>
                                         </div>
-                                        <div className="lg:h-5 2xl:h-7 w-0.5 bg-slate-300 rounded-full" />
+                                        <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
                                         <button
                                             onClick={async () => {
                                                 if (!sucursalId) return;
@@ -1174,19 +1181,19 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                 }
                                                 // Abrir modal de reseñas (sin destacar ninguna)
                                                 setResenaDeepLinkId('abrir');
-                                            }} className="flex items-center lg:gap-1 2xl:gap-2 lg:px-2 2xl:px-4 cursor-pointer hover:opacity-80"
+                                            }} className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:px-2 @[96rem]:px-4 cursor-pointer hover:opacity-80"
                                         >
-                                            <Star className={`lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 animate-bounce ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} style={{ animationDuration: '3s' }} />
-                                            <span className="lg:text-sm 2xl:text-lg font-semibold text-slate-700">
+                                            <Star className={`@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 animate-bounce ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} style={{ animationDuration: '3s' }} />
+                                            <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">
                                                 {tieneCalificacion ? `${promedioResenas.toFixed(1)} (${negocio?.totalCalificaciones ?? 0})` : '0'}
                                             </span>
                                         </button>
                                         {distanciaKm !== null && (
                                             <>
-                                                <div className="lg:h-5 2xl:h-7 w-0.5 bg-slate-300 rounded-full" />
-                                                <div className="flex items-center lg:gap-1 2xl:gap-2 lg:pl-2 2xl:pl-4">
-                                                    <Navigation className="lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-blue-500 animate-pulse" style={{ animationDuration: '2s' }} />
-                                                    <span className="lg:text-sm 2xl:text-lg font-semibold text-blue-600">
+                                                <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
+                                                <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:pl-2 @[96rem]:pl-4">
+                                                    <Navigation className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-500 animate-pulse" style={{ animationDuration: '2s' }} />
+                                                    <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-blue-600">
                                                         {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)} m` : `${distanciaKm.toFixed(1)} km`}
                                                     </span>
                                                 </div>
@@ -1196,17 +1203,17 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                                     {/* BADGES - Uno debajo del otro */}
                                     {(negocio.tieneEnvioDomicilio || negocio.tieneServicioDomicilio) && (
-                                        <div className="flex flex-col gap-1 lg:gap-1 2xl:gap-1.5 lg:items-start 2xl:items-end">
+                                        <div className="flex flex-col gap-1 @5xl:gap-1 @[96rem]:gap-1.5 @5xl:items-start @[96rem]:items-end">
                                             {negocio.tieneEnvioDomicilio && (
-                                                <div className="flex items-center gap-1.5 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
-                                                    <Truck className="lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white" />
-                                                    <span className="lg:text-[11px] 2xl:text-sm font-semibold text-white">Envíos</span>
+                                                <div className="flex items-center gap-1.5 @5xl:px-3 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
+                                                    <Truck className="@5xl:w-3.5 @5xl:h-3.5 @[96rem]:w-4 @[96rem]:h-4 text-white" />
+                                                    <span className="@5xl:text-[11px] @[96rem]:text-sm font-semibold text-white">Envíos</span>
                                                 </div>
                                             )}
                                             {negocio.tieneServicioDomicilio && (
-                                                <div className="flex items-center gap-1.5 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
-                                                    <Home className="lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white" />
-                                                    <span className="lg:text-[11px] 2xl:text-sm font-semibold text-white">Servicio a Domicilio</span>
+                                                <div className="flex items-center gap-1.5 @5xl:px-3 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
+                                                    <Home className="@5xl:w-3.5 @5xl:h-3.5 @[96rem]:w-4 @[96rem]:h-4 text-white" />
+                                                    <span className="@5xl:text-[11px] @[96rem]:text-sm font-semibold text-white">Servicio a Domicilio</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1222,11 +1229,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     UBICACIÓN + HORARIO (encima del grid para alinear secciones)
                 ================================================================ */}
             {/* Wrapper para bajar todo junto en laptop */}
-            <div className="lg:mt-12 2xl:mt-0">
+            <div className="@5xl:mt-12 @[96rem]:mt-0">
                 {!seccionExpandida && (
-                    <div className="mt-4 lg:mt-2 2xl:mt-4">
+                    <div className="mt-4 @5xl:mt-2 @[96rem]:mt-4">
                         {/* MÓVIL: Iconos contacto + Horario */}
-                        <div className="flex flex-col items-center gap-4 lg:hidden">
+                        <div className="flex flex-col items-center gap-4 @5xl:hidden">
                             {/* Fila de iconos: Phone + WhatsApp + ChatYA + Ubicación */}
                             <div className="flex items-center justify-center gap-3">
                                 {negocio.telefono && (
@@ -1307,9 +1314,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         </div>
 
                         {/* DESKTOP: Solo ubicación (horario va en sidebar) */}
-                        <div className="hidden lg:flex items-center gap-2 lg:ml-4 2xl:ml-0 lg:mb-4 2xl:mb-0">
-                            <MapPin className="lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-slate-400 shrink-0" />
-                            <p className="text-slate-800 lg:text-sm 2xl:text-lg font-semibold">
+                        <div className="hidden @5xl:flex items-center gap-2 @5xl:ml-4 @[96rem]:ml-0 @5xl:mb-4 @[96rem]:mb-0">
+                            <MapPin className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-slate-400 shrink-0" />
+                            <p className="text-slate-800 @5xl:text-sm @[96rem]:text-lg font-semibold">
                                 {negocio.direccion}, {negocio.ciudad}
                             </p>
                         </div>
@@ -1320,16 +1327,16 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     LAYOUT 2 COLUMNAS
                 ================================================================ */}
                 {/* Línea separadora antes de contenido - Solo móvil */}
-                <div className="w-3/4 mx-auto h-0.5 bg-linear-to-r from-transparent via-slate-300 to-transparent my-5 lg:hidden" />
+                <div className="w-3/4 mx-auto h-0.5 bg-linear-to-r from-transparent via-slate-300 to-transparent my-5 @5xl:hidden" />
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] 2xl:grid-cols-[1fr_320px] lg:gap-4 2xl:gap-8 lg:mt-0 2xl:mt-4">
+                <div className="grid grid-cols-1 @5xl:grid-cols-[1fr_240px] @[96rem]:grid-cols-[1fr_320px] @5xl:gap-4 @[96rem]:gap-8 @5xl:mt-0 @[96rem]:mt-4">
 
                     {/* ============ COLUMNA PRINCIPAL ============ */}
                     <div className="space-y-6">
 
                         {/* ============ PROMOCIONES Y OFERTAS ============ */} 
                         {!seccionExpandida && tieneOfertas && (
-                            <div className="px-5 lg:px-0">
+                            <div className="px-5 @5xl:px-0">
                                 <SeccionOfertas
                                     ofertas={ofertas}
                                     whatsapp={negocio?.whatsapp}
@@ -1341,7 +1348,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                         {/* ============ CATÁLOGO ============ */}
                         {catalogo.length > 0 && !seccionExpandida && (
-                            <div className="px-5 lg:px-0">
+                            <div className="px-5 @5xl:px-0">
                                 <SeccionCatalogo
                                     catalogo={catalogo}
                                     whatsapp={negocio?.whatsapp}
@@ -1353,29 +1360,35 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         )}
                         {/* ============ GALERÍA ============ */}
                         {!seccionExpandida && galeriaImagenes.length > 0 && (
-                            <div className="px-5 lg:px-0">
+                            <div className="px-5 @5xl:px-0">
                                 {/* Header — mismo estilo que Ofertas y Catálogo */}
                                 <button
                                     onClick={() => setModalGaleriaAbierto(true)}
-                                    className="w-full flex items-center justify-between mb-4 lg:mb-3 2xl:mb-4 bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 hover:from-slate-700 hover:via-slate-600 hover:to-slate-500 text-white px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 rounded-xl cursor-pointer"
+                                    className="w-full flex items-center justify-between mb-4 @5xl:mb-3 @[96rem]:mb-4 bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 hover:from-slate-700 hover:via-slate-600 hover:to-slate-500 text-white px-4 py-2 @5xl:px-3 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 rounded-xl cursor-pointer"
                                 >
-                                    <h2 className="flex items-center gap-2 text-lg lg:text-base 2xl:text-lg font-semibold">
-                                        <ImageIcon className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                    <h2 className="flex items-center gap-2 text-lg @5xl:text-base @[96rem]:text-lg font-semibold">
+                                        <ImageIcon className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                         <span>Galería</span>
                                         <span className="text-sm font-medium text-white/70">({galeriaImagenes.length})</span>
                                     </h2>
                                     {/* Móvil: "Ver todas" + flecha | Desktop: solo flecha */}
-                                    <div className="lg:hidden flex items-center gap-1.5 bg-white/20 px-3 py-1.5 rounded-full">
+                                    <div className="@5xl:hidden flex items-center gap-1.5 bg-white/20 px-3 py-1.5 rounded-full">
                                         <span className="text-sm font-medium">Ver todas</span>
                                         <ChevronRight className="h-5 w-5 animate-bounceX" />
                                     </div>
-                                    <div className="hidden lg:flex h-7 w-7 2xl:h-8 2xl:w-8 items-center justify-center rounded-full bg-white/20 hover:bg-white/30">
-                                        <ChevronRight className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
+                                    <div className="hidden @5xl:flex h-7 w-7 @[96rem]:h-8 @[96rem]:w-8 items-center justify-center rounded-full bg-white/20 hover:bg-white/30">
+                                        <ChevronRight className="w-4 h-4 @[96rem]:w-5 @[96rem]:h-5 text-white" />
                                     </div>
                                 </button>
 
-                                {/* Mobile: scroll horizontal (max 10) | Desktop: grid (max 4) */}
-                                <div className="flex gap-3 overflow-x-auto pb-2 lg:pb-0 lg:grid lg:grid-cols-3 2xl:grid-cols-4 lg:gap-3 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                {/* Mobile: scroll horizontal (max 10) | Desktop: grid (max 4)
+                                    Wrapper relative + fade oscuro borde derecho, altura acotada al item (bottom-2 alinea con pb-2). */}
+                                <div className="relative">
+                                    <div className="pointer-events-none absolute top-0 bottom-2 right-0 w-12 bg-gradient-to-l from-black/90 via-black/50 to-transparent @5xl:hidden z-20" />
+                                    <div
+                                        ref={refScrollGaleria}
+                                        className="flex gap-3 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pb-0 @5xl:grid @5xl:grid-cols-3 @[96rem]:grid-cols-4 @5xl:gap-3 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                                    >
                                     {(() => {
                                         const limitDesktop = window.innerWidth >= 1536 ? 4 : 3;
                                         const limit = window.innerWidth < 1024 ? 10 : limitDesktop;
@@ -1384,7 +1397,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         return (
                                             <div
                                                 key={`galeria-${index}-${imagen.id}`}
-                                                className="shrink-0 w-[60%] h-40 lg:w-auto lg:h-40 2xl:h-[190px] relative rounded-xl overflow-hidden bg-slate-200 cursor-pointer group"
+                                                className="shrink-0 w-[60%] h-40 @5xl:w-auto @5xl:h-40 @[96rem]:h-[190px] relative rounded-xl overflow-hidden bg-slate-200 cursor-pointer group"
                                                 onClick={() => esUltimaDesktop ? setModalGaleriaAbierto(true) : abrirGaleria(index)}
                                             >
                                                 <img
@@ -1414,6 +1427,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                             <span className="text-sm font-semibold text-white/70">Ver todas</span>
                                         </div>
                                     )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1421,11 +1435,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     </div>
 
                     {/* ============ SIDEBAR CONTACTO (SIN STICKY) ============ */}
-                    <div className="px-5 lg:px-0 mt-6 lg:mt-0">
-                        <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-6 lg:p-4 2xl:p-6">
+                    <div className="px-5 @5xl:px-0 mt-6 @5xl:mt-0">
+                        <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-6 @5xl:p-4 @[96rem]:p-6">
 
                             {/* HORARIO - Solo desktop */}
-                            <div className="hidden lg:block mb-4">
+                            <div className="hidden @5xl:block mb-4">
                                 {negocio.horarios && negocio.horarios.length > 0 && (() => {
                                     const infoHorario = calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria);
                                     const { estado, proximaApertura, proximoCierre } = infoHorario;
@@ -1433,25 +1447,25 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     const config = {
                                         abierto: {
                                             bg: 'bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700',
-                                            icon: <Clock className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white animate-spin" style={{ animationDuration: '8s' }} />,
+                                            icon: <Clock className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-white animate-spin" style={{ animationDuration: '8s' }} />,
                                             texto: 'Abierto',
                                             subtexto: `Cierra ${formatearHora(proximoCierre || '')}`,
                                         },
                                         cerrado: {
                                             bg: 'bg-linear-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700',
-                                            icon: <Clock className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />,
+                                            icon: <Clock className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-white" />,
                                             texto: 'Cerrado',
                                             subtexto: `Abre ${formatearHora(proximaApertura || '')}`,
                                         },
                                         cerrado_hoy: {
                                             bg: 'bg-linear-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700',
-                                            icon: <Clock className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />,
+                                            icon: <Clock className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-white" />,
                                             texto: 'Cerrado hoy',
                                             subtexto: proximaApertura ? `Abre ${formatearHora(proximaApertura)}` : '',
                                         },
                                         comida: {
                                             bg: 'bg-linear-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600',
-                                            icon: <UtensilsCrossed className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />,
+                                            icon: <UtensilsCrossed className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-white" />,
                                             texto: 'Horario de comida',
                                             subtexto: `Regresa ${formatearHora(proximaApertura || '')}`,
                                         }
@@ -1462,35 +1476,35 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     return (
                                         <button
                                             onClick={() => setModalHorariosAbierto(true)}
-                                            className={`w-full flex items-center lg:gap-2 2xl:gap-3 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 ${bg} lg:rounded-lg 2xl:rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer`}
+                                            className={`w-full flex items-center @5xl:gap-2 @[96rem]:gap-3 @5xl:px-3 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 ${bg} @5xl:rounded-lg @[96rem]:rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer`}
                                         >
                                             {/* Círculo con icono */}
-                                            <div className="lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                                            <div className="@5xl:w-7 @5xl:h-7 @[96rem]:w-9 @[96rem]:h-9 bg-white/20 rounded-full flex items-center justify-center shrink-0">
                                                 {icon}
                                             </div>
                                             {/* Texto centrado */}
                                             <div className="flex-1 flex flex-col items-center">
-                                                <span className="text-white font-bold lg:text-[11px] 2xl:text-base">{texto}</span>
+                                                <span className="text-white font-bold @5xl:text-[11px] @[96rem]:text-base">{texto}</span>
                                                 {subtexto && (
-                                                    <span className="text-white/90 lg:text-[11px] 2xl:text-sm font-medium">{subtexto}</span>
+                                                    <span className="text-white/90 @5xl:text-[11px] @[96rem]:text-sm font-medium">{subtexto}</span>
                                                 )}
                                             </div>
-                                            <ChevronDown className="lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white/80 shrink-0" />
+                                            <ChevronDown className="@5xl:w-5 @5xl:h-5 @[96rem]:w-6 @[96rem]:h-6 text-white/80 shrink-0" />
                                         </button>
                                     );
                                 })()}
                             </div>
 
                             {/* UBICACIÓN - Solo desktop */}
-                            <div className="hidden lg:block">
-                                <h4 className="flex items-center gap-2 lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider lg:mb-3 2xl:mb-3">
-                                    <MapPin className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                            <div className="hidden @5xl:block">
+                                <h4 className="flex items-center gap-2 @5xl:text-[11px] @[96rem]:text-sm font-semibold text-slate-600 uppercase tracking-wider @5xl:mb-3 @[96rem]:mb-3">
+                                    <MapPin className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                     <span>Ubicación</span>
                                 </h4>
 
                                 {/* MAPA LEAFLET */}
                                 {negocio.latitud && negocio.longitud ? (
-                                    <div className="w-full h-80 2xl:h-72 rounded-xl overflow-hidden mb-5 2xl:mb-4 relative z-0">
+                                    <div className="w-full h-80 @[96rem]:h-72 rounded-xl overflow-hidden mb-5 @[96rem]:mb-4 relative z-0">
                                         <MapContainer
                                             center={[negocio.latitud, negocio.longitud]}
                                             zoom={16}
@@ -1583,36 +1597,36 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         </MapContainer>
                                     </div>
                                 ) : (
-                                    <div className="w-full h-80 2xl:h-72 bg-slate-200 rounded-xl flex items-center justify-center mb-5 2xl:mb-4">
+                                    <div className="w-full h-80 @[96rem]:h-72 bg-slate-200 rounded-xl flex items-center justify-center mb-5 @[96rem]:mb-4">
                                         <MapPin className="w-12 h-12 text-slate-400" />
                                     </div>
                                 )}
 
                                 {/* BOTONES DE MAPA */}
-                                <div className="flex gap-2 mb-5 2xl:mb-4">
+                                <div className="flex gap-2 mb-5 @[96rem]:mb-4">
                                     <button
                                         onClick={handleDirecciones}
-                                        className="flex-1 flex items-center justify-center gap-2 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3 text-white font-semibold lg:text-sm 2xl:text-base rounded-xl shadow-md cursor-pointer active:scale-95"
+                                        className="flex-1 flex items-center justify-center gap-2 @5xl:px-3 @5xl:py-2 @[96rem]:px-4 @[96rem]:py-3 text-white font-semibold @5xl:text-sm @[96rem]:text-base rounded-xl shadow-md cursor-pointer active:scale-95"
                                         style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
                                     >
-                                        <Navigation className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                        <Navigation className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                         <span>Cómo llegar</span>
                                     </button>
                                     <button
                                         onClick={() => setModalMapaAbierto(true)}
-                                        className="shrink-0 flex items-center justify-center gap-2 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3 bg-slate-200 text-slate-700 font-semibold lg:text-sm 2xl:text-base rounded-xl border-2 border-slate-300 cursor-pointer"
+                                        className="shrink-0 flex items-center justify-center gap-2 @5xl:px-3 @5xl:py-2 @[96rem]:px-4 @[96rem]:py-3 bg-slate-200 text-slate-700 font-semibold @5xl:text-sm @[96rem]:text-base rounded-xl border-2 border-slate-300 cursor-pointer"
                                         title="Ver mapa completo"
                                     >
-                                        <Maximize2 className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                        <Maximize2 className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                     </button>
                                 </div>
 
                                 {/* SEPARADOR */}
-                                <div className="my-5 2xl:my-4 h-px bg-slate-300" />
+                                <div className="my-5 @[96rem]:my-4 h-px bg-slate-300" />
 
                                 {/* CONTACTO */}
-                                <h4 className="flex items-center gap-2 lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider lg:mb-3 2xl:mb-3">
-                                    <Send className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                <h4 className="flex items-center gap-2 @5xl:text-[11px] @[96rem]:text-sm font-semibold text-slate-600 uppercase tracking-wider @5xl:mb-3 @[96rem]:mb-3">
+                                    <Send className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                     <span>Contacto</span>
                                 </h4>
 
@@ -1620,10 +1634,10 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 {negocio.telefono && (
                                     <a
                                         href={`tel:${negocio.telefono.replace(/\s+/g, '')}`}
-                                        className="flex items-center gap-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2 lg:mb-2 2xl:mb-2 bg-slate-200 border-2 border-slate-300 rounded-lg cursor-pointer group"
+                                        className="flex items-center gap-2.5 @5xl:px-2.5 @5xl:py-2 @[96rem]:px-3 @[96rem]:py-2 @5xl:mb-2 @[96rem]:mb-2 bg-slate-200 border-2 border-slate-300 rounded-lg cursor-pointer group"
                                     >
-                                        <Phone className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
-                                        <span className="lg:text-sm 2xl:text-base font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
+                                        <Phone className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
+                                        <span className="@5xl:text-sm @[96rem]:text-base font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
                                             {negocio.telefono}
                                         </span>
                                     </a>
@@ -1633,16 +1647,16 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 {negocio.correo && (
                                     <a
                                         href={`mailto:${negocio.correo}`}
-                                        className="flex items-center gap-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2 lg:mb-3 2xl:mb-3 bg-slate-200 border-2 border-slate-300 rounded-lg cursor-pointer group"
+                                        className="flex items-center gap-2.5 @5xl:px-2.5 @5xl:py-2 @[96rem]:px-3 @[96rem]:py-2 @5xl:mb-3 @[96rem]:mb-3 bg-slate-200 border-2 border-slate-300 rounded-lg cursor-pointer group"
                                     >
-                                        <Mail className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
-                                        <span className="lg:text-sm 2xl:text-base font-medium text-slate-700 group-hover:text-blue-600 transition-colors truncate">
+                                        <Mail className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
+                                        <span className="@5xl:text-sm @[96rem]:text-base font-medium text-slate-700 group-hover:text-blue-600 transition-colors truncate">
                                             {negocio.correo}
                                         </span>
                                     </a>
                                 )}
 
-                                <div className="flex lg:gap-3 2xl:gap-4 items-center">
+                                <div className="flex @5xl:gap-3 @[96rem]:gap-4 items-center">
                                     {negocio.whatsapp && (
                                         <Tooltip text="WhatsApp" position="top">
                                             <button
@@ -1652,7 +1666,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                 <img
                                                     src="/whatsapp.webp"
                                                     alt="WhatsApp"
-                                                    className="lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain"
+                                                    className="@5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 object-contain"
                                                 />
                                             </button>
                                         </Tooltip>
@@ -1660,34 +1674,34 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     <Tooltip text="ChatYA" position="top">
                                         <button
                                             onClick={handleChatYA}
-                                            className="lg:h-8 2xl:h-10 hover:scale-110 transition-transform flex items-center cursor-pointer"
+                                            className="@5xl:h-8 @[96rem]:h-10 hover:scale-110 transition-transform flex items-center cursor-pointer"
                                         >
                                             <img
                                                 src="/ChatYA.webp"
                                                 alt="ChatYA"
-                                                className="lg:h-8 2xl:h-10 w-auto object-contain"
+                                                className="@5xl:h-8 @[96rem]:h-10 w-auto object-contain"
                                             />
                                         </button>
                                     </Tooltip>
                                 </div>
 
                                 {/* SEPARADOR */}
-                                <div className="my-5 2xl:my-4 h-px bg-slate-300" />
+                                <div className="my-5 @[96rem]:my-4 h-px bg-slate-300" />
                             </div>
 
                             {/* REDES SOCIALES - Sin correo */}
                             {(negocio.sitioWeb || negocio.redesSociales?.facebook || negocio.redesSociales?.instagram || negocio.redesSociales?.twitter || negocio.redesSociales?.tiktok) && (
                                 <>
-                                    <h4 className="flex items-center gap-2 text-base lg:text-xs 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3 lg:mb-3 2xl:mb-3">
-                                        <Link2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                    <h4 className="flex items-center gap-2 text-base @5xl:text-xs @[96rem]:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3 @5xl:mb-3 @[96rem]:mb-3">
+                                        <Link2 className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                         <span>Visítanos en:</span>
                                     </h4>
-                                    <div className="flex items-center gap-3 lg:gap-3 2xl:gap-4">
+                                    <div className="flex items-center gap-3 @5xl:gap-3 @[96rem]:gap-4">
                                         {/* Sitio Web */}
                                         {negocio.sitioWeb && (
                                             <Tooltip text="Sitio Web" position="top">
-                                                <a href={negocio.sitioWeb} target="_blank" rel="noopener noreferrer" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full bg-slate-700 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer">
-                                                    <svg className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                                                <a href={negocio.sitioWeb} target="_blank" rel="noopener noreferrer" className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 rounded-full bg-slate-700 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer">
+                                                    <svg className="w-6 h-6 @5xl:w-5 @5xl:h-5 @[96rem]:w-6 @[96rem]:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
                                                 </a>
                                             </Tooltip>
                                         )}
@@ -1695,7 +1709,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         {negocio.redesSociales?.facebook && (
                                             <Tooltip text="Facebook" position="top">
                                                 <a href={negocio.redesSociales.facebook} target="_blank" rel="noopener noreferrer" className="block hover:scale-110 transition-transform cursor-pointer">
-                                                    <img src="/facebook.webp" alt="Facebook" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain" />
+                                                    <img src="/facebook.webp" alt="Facebook" className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 object-contain" />
                                                 </a>
                                             </Tooltip>
                                         )}
@@ -1703,7 +1717,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         {negocio.redesSociales?.instagram && (
                                             <Tooltip text="Instagram" position="top">
                                                 <a href={negocio.redesSociales.instagram} target="_blank" rel="noopener noreferrer" className="block hover:scale-110 transition-transform cursor-pointer">
-                                                    <img src="/instagram.webp" alt="Instagram" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain" />
+                                                    <img src="/instagram.webp" alt="Instagram" className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 object-contain" />
                                                 </a>
                                             </Tooltip>
                                         )}
@@ -1711,7 +1725,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         {negocio.redesSociales?.twitter && (
                                             <Tooltip text="X" position="top">
                                                 <a href={negocio.redesSociales.twitter} target="_blank" rel="noopener noreferrer" className="block hover:scale-110 transition-transform cursor-pointer">
-                                                    <img src="/twitter.webp" alt="X" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain" />
+                                                    <img src="/twitter.webp" alt="X" className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 object-contain" />
                                                 </a>
                                             </Tooltip>
                                         )}
@@ -1719,7 +1733,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         {negocio.redesSociales?.tiktok && (
                                             <Tooltip text="TikTok" position="top">
                                                 <a href={negocio.redesSociales.tiktok} target="_blank" rel="noopener noreferrer" className="block hover:scale-110 transition-transform cursor-pointer">
-                                                    <img src="/tiktok.webp" alt="TikTok" className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 object-contain" />
+                                                    <img src="/tiktok.webp" alt="TikTok" className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 object-contain" />
                                                 </a>
                                             </Tooltip>
                                         )}
@@ -1728,16 +1742,16 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             )}
 
                             {/* SEPARADOR */}
-                            <div className="my-5 2xl:my-4 h-px bg-slate-300" />
+                            <div className="my-5 @[96rem]:my-4 h-px bg-slate-300" />
 
                             {/* MÉTODOS DE PAGO */}
                             {negocio.metodosPago && negocio.metodosPago.length > 0 && (
                                 <div>
-                                    <h4 className="flex items-center gap-2 text-base lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3 lg:mb-3 2xl:mb-3">
-                                        <CreditCard className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                    <h4 className="flex items-center gap-2 text-base @5xl:text-[11px] @[96rem]:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3 @5xl:mb-3 @[96rem]:mb-3">
+                                        <CreditCard className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                         <span>Métodos de Pago</span>
                                     </h4>
-                                    <div className="flex flex-wrap lg:flex-col gap-2">
+                                    <div className="flex flex-wrap @5xl:flex-col gap-2">
                                         {agruparMetodosPago(negocio.metodosPago).map((tipo) => {
                                             let bgColor = 'bg-slate-200';
                                             let textColor = 'text-slate-700';
@@ -1746,7 +1760,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                             else if (tipo.toLowerCase().includes('transfer')) { bgColor = 'bg-purple-100'; textColor = 'text-purple-700'; }
 
                                             return (
-                                                <span key={tipo} className={`px-3 py-1.5 lg:px-2.5 lg:py-1 2xl:px-3 2xl:py-1.5 ${bgColor} ${textColor} rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold`}>
+                                                <span key={tipo} className={`px-3 py-1.5 @5xl:px-2.5 @5xl:py-1 @[96rem]:px-3 @[96rem]:py-1.5 ${bgColor} ${textColor} rounded-lg text-sm @5xl:text-[11px] @[96rem]:text-sm font-semibold`}>
                                                     {nombreMetodoPago(tipo)}
                                                 </span>
                                             );
@@ -1758,8 +1772,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             {/* SERVICIOS A DOMICILIO — Solo móvil */}
                             {(negocio.tieneEnvioDomicilio || negocio.tieneServicioDomicilio) && (
                                 <>
-                                    <div className="my-5 2xl:my-4 h-px bg-slate-300 lg:hidden" />
-                                    <div className="lg:hidden">
+                                    <div className="my-5 @[96rem]:my-4 h-px bg-slate-300 @5xl:hidden" />
+                                    <div className="@5xl:hidden">
                                         <h4 className="flex items-center gap-2 text-base font-semibold text-slate-600 uppercase tracking-wider mb-3">
                                             <Truck className="w-5 h-5" />
                                             <span>Servicios</span>
@@ -1768,13 +1782,13 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                             {negocio.tieneEnvioDomicilio && (
                                                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
                                                     <Truck className="w-4 h-4 text-white" />
-                                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white">Envíos</span>
+                                                    <span className="text-sm @5xl:text-[11px] @[96rem]:text-sm font-semibold text-white">Envíos</span>
                                                 </div>
                                             )}
                                             {negocio.tieneServicioDomicilio && (
                                                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
                                                     <Home className="w-4 h-4 text-white" />
-                                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white">A Domicilio</span>
+                                                    <span className="text-sm @5xl:text-[11px] @[96rem]:text-sm font-semibold text-white">A Domicilio</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1787,7 +1801,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                 {/* ============ RESEÑAS - ANCHO COMPLETO ============ */}
                 {!seccionExpandida && (
-                    <div className="px-5 lg:px-4 2xl:px-0 mt-6 lg:mt-4 2xl:mt-6 ">
+                    <div className="px-5 @5xl:px-4 @[96rem]:px-0 mt-6 @5xl:mt-4 @[96rem]:mt-6 ">
                         <SeccionResenas
                             resenas={resenasData}
                             promedioRating={promedioResenas}
@@ -2088,23 +2102,23 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     >
                         {/* Header con gradiente slate */}
                         <div
-                            className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl"
+                            className="relative px-4 @5xl:px-3 @[96rem]:px-4 py-3 @5xl:py-2.5 @[96rem]:py-3 shrink-0 overflow-hidden rounded-t-2xl"
                             style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
                         >
                             <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
                             <div className="relative flex items-center justify-between">
-                                <div className="flex items-center gap-2 2xl:gap-3">
-                                    <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
-                                        <ImageIcon className="w-4 h-4 2xl:w-4.5 2xl:h-4.5 text-white" />
+                                <div className="flex items-center gap-2 @[96rem]:gap-3">
+                                    <div className="w-8 h-8 @[96rem]:w-9 @[96rem]:h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+                                        <ImageIcon className="w-4 h-4 @[96rem]:w-4.5 @[96rem]:h-4.5 text-white" />
                                     </div>
-                                    <h3 className="text-white font-bold text-base 2xl:text-lg">Galería ({galeriaImagenes.length})</h3>
+                                    <h3 className="text-white font-bold text-base @[96rem]:text-lg">Galería ({galeriaImagenes.length})</h3>
                                 </div>
                                 <button onClick={() => setModalGaleriaAbierto(false)} className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 cursor-pointer">
                                     <X className="w-4 h-4 text-white" />
                                 </button>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto min-h-0 p-3 2xl:p-4">
+                        <div className="flex-1 overflow-y-auto min-h-0 p-3 @[96rem]:p-4">
                             <div className="grid grid-cols-2 gap-3">
                                 {galeriaImagenes.map((imagen, index) => (
                                     <div

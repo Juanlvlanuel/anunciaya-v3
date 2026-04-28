@@ -774,35 +774,36 @@ export const Navbar = () => {
                   )}
                 </div>
 
-                {/* Botón Ver mi Negocio */}
+                {/* Botón Vista previa — glassmorphism moderno
+                    - Estado inactivo: glass sobre navbar azul (bg-white/10 + border + backdrop-blur).
+                    - Estado activo (preview abierto): glass rojo sutil, mismo tamaño. */}
                 <button
                   onClick={togglePreviewNegocio}
                   className={`
-                    flex items-center gap-1.5 lg:gap-1 2xl:gap-2
-                    px-3 lg:px-2.5 2xl:px-5
-                    py-1.5 lg:py-1.5 2xl:py-2.5
-                    rounded-lg lg:rounded-lg 2xl:rounded-xl
+                    group flex items-center gap-2
+                    px-3.5 lg:px-3 2xl:px-4
+                    py-1.5 lg:py-1.5 2xl:py-2
+                    rounded-full
                     text-xs lg:text-[11px] 2xl:text-sm
-                    font-semibold
-                    shadow-md
-                    transition-all
-                    cursor-pointer
-                    mr-4
+                    font-semibold text-white
+                    border backdrop-blur-md
+                    transition-all duration-200
+                    cursor-pointer mr-4
                     ${previewNegocioAbierto
-                      ? 'bg-red-500 text-white hover:bg-red-600 hover:scale-105'
-                      : 'bg-linear-to-r from-green-500 via-emerald-600 to-teal-700 text-white hover:from-green-600 hover:via-emerald-700 hover:to-teal-800 hover:scale-105'
+                      ? 'bg-red-500/25 border-red-300/50 hover:bg-red-500/35 hover:border-red-300/70'
+                      : 'bg-white/10 border-white/25 hover:bg-white/20 hover:border-white/40'
                     }
                   `}
                 >
                   {previewNegocioAbierto ? (
                     <>
-                      <X className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                      <span>Cerrar Preview</span>
+                      <X className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
+                      <span>Cerrar</span>
                     </>
                   ) : (
                     <>
-                      <Eye className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                      <span>Ver mi Negocio</span>
+                      <Eye className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 transition-transform group-hover:scale-110" strokeWidth={2.5} />
+                      <span>Vista previa</span>
                     </>
                   )}
                 </button>
@@ -857,6 +858,7 @@ export const Navbar = () => {
               {/* Notificaciones */}
               <button
                 onClick={togglePanel}
+                data-notificaciones-boton="true"
                 className="
                     relative
                     w-7 h-7 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10
@@ -869,7 +871,6 @@ export const Navbar = () => {
                     hover:scale-110
                     cursor-pointer
                   "
-                title="Notificaciones"
               >
                 <Bell className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                 {cantidadNoLeidas > 0 && (

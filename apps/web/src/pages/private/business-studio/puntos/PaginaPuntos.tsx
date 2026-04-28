@@ -310,12 +310,50 @@ function KPI({ tipo, valor }: { tipo: keyof typeof KPI_CONFIG; valor: string }) 
 }
 
 // =============================================================================
+// ESTADO VACÍO CONTEXTUAL (helper)
+// =============================================================================
+
+function mensajeVacioRecompensas({
+  tipoRecompensa,
+  filtroEstado,
+  esGerente,
+}: {
+  tipoRecompensa: 'basica' | 'compras_frecuentes';
+  filtroEstado: 'todas' | 'activas' | 'inactivas' | 'agotadas';
+  esGerente: boolean;
+}): { titulo: string; subtitulo: string } {
+  // Filtros de estado tienen prioridad sobre el tipo
+  if (filtroEstado === 'activas') {
+    return { titulo: 'Sin recompensas activas', subtitulo: 'Activa alguna recompensa o crea una nueva' };
+  }
+  if (filtroEstado === 'inactivas') {
+    return { titulo: 'Sin recompensas inactivas', subtitulo: 'Todas tus recompensas están activas' };
+  }
+  if (filtroEstado === 'agotadas') {
+    return { titulo: 'Sin recompensas agotadas', subtitulo: 'Ninguna recompensa ha alcanzado su límite de stock' };
+  }
+  // filtroEstado === 'todas' → mensajes según tipo
+  if (tipoRecompensa === 'compras_frecuentes') {
+    return {
+      titulo: 'Sin tarjetas de sellos',
+      subtitulo: esGerente ? 'El dueño puede crear tarjetas de sellos desde aquí.' : 'Crea tu primera tarjeta de sellos digital.',
+    };
+  }
+  return {
+    titulo: 'Sin recompensas por puntos',
+    subtitulo: esGerente ? 'El dueño puede crear recompensas desde aquí.' : 'Crea recompensas para que tus clientes las canjeen con sus puntos.',
+  };
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL — PaginaPuntos
 // =============================================================================
 
 export default function PaginaPuntos() {
   // ─── React Query — datos del servidor ────────────────────────────────────
   const periodo = usePuntosStore((s) => s.periodo);
+  const limpiarPuntos = usePuntosStore((s) => s.limpiar);
+
   const configQuery = usePuntosConfiguracion();
   const recompensasQuery = usePuntosRecompensas();
   const estadisticasQuery = usePuntosEstadisticas(periodo);
@@ -332,6 +370,11 @@ export default function PaginaPuntos() {
   const usuario        = useAuthStore((s) => s.usuario);
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
   const esGerente      = !!usuario?.sucursalAsignada; // Gerente tiene sucursalAsignada, dueño tiene null
+
+  // Reset período al cambiar de sucursal (jerarquía sucursal > toggle > filtros).
+  useEffect(() => {
+    limpiarPuntos();
+  }, [sucursalActiva, limpiarPuntos]);
   const previewNegocioAbierto = useUiStore((s) => s.previewNegocioAbierto);
   const { setGuardarBsFn, setGuardandoBs, setBsPuedeGuardar } = useUiStore();
 
@@ -1091,23 +1134,18 @@ export default function PaginaPuntos() {
               if (filtroRecompensas === 'agotadas') return r.stock !== null && r.stock === 0;
               return true;
             });
-            return recompensasFiltradas.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="text-5xl lg:text-4xl 2xl:text-5xl mb-3">
-                {tipoRecompensaFiltro === 'compras_frecuentes' ? '🎁' : '✨'}
+            return recompensasFiltradas.length === 0 ? (() => {
+            const mensaje = mensajeVacioRecompensas({ tipoRecompensa: tipoRecompensaFiltro, filtroEstado: filtroRecompensas, esGerente });
+            return (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="text-5xl lg:text-4xl 2xl:text-5xl mb-3">
+                  {tipoRecompensaFiltro === 'compras_frecuentes' ? '🎁' : '✨'}
+                </div>
+                <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-slate-700 mb-1">{mensaje.titulo}</h3>
+                <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium max-w-xs">{mensaje.subtitulo}</p>
               </div>
-              <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-slate-700 mb-1">
-                {tipoRecompensaFiltro === 'compras_frecuentes' ? 'Sin tarjetas de sellos' : 'Sin recompensas por puntos'}
-              </h3>
-              <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium max-w-xs">
-                {esGerente
-                  ? 'El dueño puede crear recompensas desde aquí.'
-                  : tipoRecompensaFiltro === 'compras_frecuentes'
-                    ? 'Crea tu primera tarjeta de sellos digital.'
-                    : 'Crea recompensas para que tus clientes las canjeen con sus puntos.'}
-              </p>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="grid grid-cols-3 2xl:grid-cols-4 gap-3">
               {[...recompensasFiltradas].sort((a, b) => b.canjesRealizados - a.canjesRealizados).map((r) => (
                   <CardRecompensa
@@ -1137,24 +1175,20 @@ export default function PaginaPuntos() {
               if (filtroRecompensas === 'agotadas') return r.stock !== null && r.stock === 0;
               return true;
             });
-          return recompensasFiltradas.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="text-5xl mb-3">
-                {tipoRecompensaFiltro === 'compras_frecuentes' ? '🎁' : '✨'}
+          return recompensasFiltradas.length === 0 ? (() => {
+            const mensaje = mensajeVacioRecompensas({ tipoRecompensa: tipoRecompensaFiltro, filtroEstado: filtroRecompensas, esGerente });
+            return (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="text-5xl mb-3">
+                  {tipoRecompensaFiltro === 'compras_frecuentes' ? '🎁' : '✨'}
+                </div>
+                <h3 className="text-lg font-bold text-slate-700 mb-1">{mensaje.titulo}</h3>
+                <p className="text-base text-slate-600 font-medium max-w-xs">{mensaje.subtitulo}</p>
               </div>
-              <h3 className="text-lg font-bold text-slate-700 mb-1">
-                {tipoRecompensaFiltro === 'compras_frecuentes' ? 'Sin tarjetas de sellos' : 'Sin recompensas por puntos'}
-              </h3>
-              <p className="text-base text-slate-600 font-medium max-w-xs">
-                {esGerente
-                  ? 'El dueño puede crear recompensas desde aquí.'
-                  : tipoRecompensaFiltro === 'compras_frecuentes'
-                    ? 'Crea tu primera tarjeta de sellos digital.'
-                    : 'Crea recompensas para que tus clientes las canjeen con sus puntos.'}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
+            );
+          })() : (
+            <div className="bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden">
+              <div className="divide-y-[1.5px] divide-slate-300">
               {[...recompensasFiltradas].sort((a, b) => b.canjesRealizados - a.canjesRealizados).map((r) => (
                 <CardRecompensa
                   key={r.id}
@@ -1165,6 +1199,7 @@ export default function PaginaPuntos() {
                   esGerente={esGerente}
                 />
               ))}
+              </div>
             </div>
           );
         })()}

@@ -16,7 +16,7 @@
 
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { RutaPrivada } from './RutaPrivada';
-import { ModoGuard } from './guards';
+import { ModoGuard, MatrizGuard } from './guards';
 import { RutaPublica } from './RutaPublica';
 import { RootLayout } from './RootLayout';
 
@@ -357,7 +357,9 @@ const router = createBrowserRouter([
             path: '/business-studio/puntos',
             element: (
               <ModoGuard requiereModo="comercial">
-                <PaginaPuntos />
+                <MatrizGuard>
+                  <PaginaPuntos />
+                </MatrizGuard>
               </ModoGuard>
             ),
           },
@@ -397,7 +399,9 @@ const router = createBrowserRouter([
             path: '/business-studio/sucursales',
             element: (
               <ModoGuard requiereModo="comercial">
-                <BSPaginaSucursales />
+                <MatrizGuard>
+                  <BSPaginaSucursales />
+                </MatrizGuard>
               </ModoGuard>
             ),
           },

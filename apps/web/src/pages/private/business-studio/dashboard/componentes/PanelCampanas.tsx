@@ -119,7 +119,7 @@ function MetricaConTooltip({ icono: Icono, valor, tooltip, urgente = false }: Me
         className={`flex items-center gap-2 2xl:gap-3 cursor-pointer ${urgente ? 'text-rose-600' : 'text-slate-600'}`}
       >
         <Icono className="w-4.5 h-4.5 lg:w-4 lg:h-4 2xl:w-4.5 2xl:h-4.5" />
-        <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium">{valor}</span>
+        <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold">{valor}</span>
       </span>
       <TooltipPortal texto={tooltip} visible={visible} posicion={posicion} />
     </>
@@ -206,10 +206,10 @@ function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps)
   return (
     <div
       onClick={onClick}
-      className="group flex gap-2 lg:gap-1.5 2xl:gap-2 p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-slate-200 transition-all cursor-pointer"
+      className="group flex items-center gap-3 lg:gap-2.5 2xl:gap-3 px-3 lg:px-3 2xl:px-3.5 py-3 lg:py-2.5 2xl:py-3 cursor-pointer hover:bg-slate-50 transition-colors"
     >
       {/* Imagen o Placeholder */}
-      <div className={`${vistaMobil ? 'w-14 h-14' : 'w-12 h-12'} lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg overflow-hidden shrink-0`}>
+      <div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg overflow-hidden shrink-0">
         {campana.imagen ? (
           <img
             src={campana.imagen}
@@ -304,7 +304,7 @@ export default function PanelCampanas({ campanas, totalActivas, onEditar, vistaM
       </div>
 
       {/* Lista de campañas */}
-      <div className="flex-1 space-y-1.5 lg:space-y-1 2xl:space-y-1.5 overflow-y-auto p-2.5 lg:p-2 2xl:p-2.5">
+      <div className="flex-1 overflow-y-auto divide-y-[1.5px] divide-slate-300">
         {campanasVisibles.length > 0 ? (
           campanasVisibles.map((campana) => (
             <CardCampana

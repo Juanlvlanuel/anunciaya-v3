@@ -51,27 +51,27 @@ export default function CardRecompensa({
   return (
     <>
       {/* ═══════════════════════════════════════════════════════════════
-          MÓVIL: Card horizontal (< lg)
+          MÓVIL: Lista horizontal (< lg)
       ═══════════════════════════════════════════════════════════════ */}
       <div
-        className={`lg:hidden w-full flex items-center gap-3 p-3 h-28 rounded-xl bg-white border-2 border-slate-300 text-left overflow-hidden ${!recompensa.activa ? 'opacity-50' : ''}`}
-        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+        onClick={() => !esGerente && onEditar(recompensa)}
+        className={`lg:hidden w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-50 transition-colors ${!esGerente ? 'cursor-pointer' : ''} ${!recompensa.activa ? 'opacity-50' : ''}`}
       >
         {/* Imagen */}
         <div
-          onClick={() => recompensa.imagenUrl && setImagenExpandida(true)}
-          className={`w-20 h-20 rounded-lg shrink-0 overflow-hidden flex items-center justify-center ${recompensa.imagenUrl ? 'cursor-pointer' : ''}`}
+          onClick={(e) => { if (recompensa.imagenUrl) { e.stopPropagation(); setImagenExpandida(true); } }}
+          className={`w-[76px] h-[76px] rounded-lg shrink-0 overflow-hidden flex items-center justify-center ${recompensa.imagenUrl ? 'cursor-pointer' : ''}`}
           style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
         >
           {recompensa.imagenUrl ? (
             <img src={recompensa.imagenUrl} alt={recompensa.nombre} className="w-full h-full object-cover" />
           ) : (
-            <Gift className="w-6 h-6 text-slate-500" />
+            <Gift className="w-10 h-10 text-slate-500" />
           )}
         </div>
 
         {/* Info */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-base font-bold text-slate-800 truncate">{recompensa.nombre}</span>
             {toggle}
@@ -112,9 +112,6 @@ export default function CardRecompensa({
             </div>
             {!esGerente && (
               <div className="flex items-center gap-3 shrink-0">
-                <button onClick={(e) => { e.stopPropagation(); onEditar(recompensa); }} className="cursor-pointer text-blue-600">
-                  <Edit2 className="w-6 h-6" />
-                </button>
                 <button onClick={(e) => { e.stopPropagation(); onEliminar(recompensa.id); }} className="cursor-pointer text-red-600">
                   <Trash2 className="w-6 h-6" />
                 </button>

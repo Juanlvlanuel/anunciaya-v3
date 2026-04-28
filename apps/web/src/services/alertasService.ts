@@ -79,5 +79,5 @@ export async function eliminarAlerta(id: string) {
 }
 
 export async function eliminarAlertasResueltas() {
-	return del<{ eliminadas: number }>('/business/alertas/resueltas');
+	return del<{ ocultadas: number }>('/business/alertas/resueltas');
 }

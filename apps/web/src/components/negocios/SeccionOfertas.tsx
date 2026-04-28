@@ -18,9 +18,10 @@
  * ACTUALIZADO: Enero 2026 - Grid 1 columna en móvil para layout horizontal
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Tag, ChevronRight } from 'lucide-react';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { useDragScroll } from '@/hooks/useDragScroll';
 import { api } from '@/services/api';
 import OfertaCard, { OfertaCardStyles } from './OfertaCard';
 import ModalOfertas from './ModalOfertas';
@@ -58,6 +59,10 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
     const [modalAbierto, setModalAbierto] = useState(false);
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<Oferta | null>(null);
     const { esMobile, esDesktop } = useBreakpoint();
+
+    // Drag-to-scroll en el carrusel mobile — affordance desktop al embeberse en preview/ChatYA
+    const refScroll = useRef<HTMLDivElement>(null);
+    useDragScroll(refScroll);
 
     // Ofertas visibles según breakpoint: móvil=3, laptop=2, desktop=3
     const ofertasVisiblesCount = esMobile ? 3 : (esDesktop ? 3 : 2);
@@ -189,7 +194,7 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                     onClick={() => setModalAbierto(true)}
                     className="mb-3 flex w-full items-center justify-between rounded-xl bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 hover:from-slate-700 hover:via-slate-600 hover:to-slate-500 px-3 py-2 text-white transition-all  hover:shadow-lg active:scale-[0.99] cursor-pointer"
                 >
-                    <h2 className="flex items-center gap-2 text-lg lg:text-base 2xl:text-lg font-semibold">
+                    <h2 className="flex items-center gap-2 text-lg @5xl:text-base @[96rem]:text-lg font-semibold">
                         <Tag className="h-5 w-5" />
                         <span>Ofertas</span>
                         <span className="text-sm font-medium text-white/70">({ofertasOrdenadas.length})</span>
@@ -202,24 +207,32 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                         </div>
                     ) : (
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 transition-colors hover:bg-white/30">
-                            <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white animate-bounceX" />
+                            <ChevronRight className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-white animate-bounceX" />
                         </div>
                     )}
                 </button>
 
                 {/* Grid de ofertas con FAB */}
                 <div className="relative">
-                    {/* 
+                    {/*
                         Grid RESPONSIVO:
                         - Móvil: 1 columna (cards horizontales)
                         - Desktop: 3 columnas (cards verticales)
                     */}
-                    {/* Mobile: scroll horizontal | Desktop: grid */}
-                    <div className="flex gap-3 overflow-x-auto pt-4 pb-4 lg:pt-0 lg:pb-0 lg:grid lg:grid-cols-2 2xl:grid-cols-3 lg:gap-5 2xl:gap-6 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    {/* Fade borde derecho: indicador de scroll horizontal en mobile/preview.
+                        Oscuro + z-50 para cubrir el badge "HAPPY HOUR" que se proyecta fuera del card.
+                        Altura acotada con top-4 bottom-4 (coincide con pt-4 pb-4 del scroll). */}
+                    <div className="pointer-events-none absolute top-4 bottom-4 right-0 w-12 bg-gradient-to-l from-black/90 via-black/50 to-transparent @5xl:hidden z-50" />
+                    {/* Mobile: scroll horizontal | Desktop: grid
+                        [&_*]:cursor-grab fuerza cursor en descendientes (cards tienen cursor-pointer propio). */}
+                    <div
+                        ref={refScroll}
+                        className="flex gap-3 overflow-x-auto pt-4 pb-4 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pt-0 @5xl:pb-0 @5xl:grid @5xl:grid-cols-2 @[96rem]:grid-cols-3 @5xl:gap-5 @[96rem]:gap-6 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                    >
                         {(esMobile ? ofertasOrdenadas.slice(0, 10) : ofertasVisibles).map((oferta, index) => {
                             const esUltimoDesktop = !esMobile && index === ofertasVisibles.length - 1 && tienemasOfertas;
                             return (
-                                <div key={getId(oferta)} className="shrink-0 w-full lg:w-auto relative">
+                                <div key={getId(oferta)} className="shrink-0 w-full @5xl:w-auto relative">
                                     <div onClick={() => esUltimoDesktop ? setModalAbierto(true) : handleClickOferta(oferta)} className="cursor-pointer">
                                         <OfertaCard oferta={oferta} size="normal" />
                                     </div>

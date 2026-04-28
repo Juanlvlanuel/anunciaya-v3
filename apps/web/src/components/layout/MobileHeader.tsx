@@ -220,7 +220,7 @@ export function MobileHeader() {
     if (location.pathname.includes('/alertas')) return 'Alertas';
     if (location.pathname.includes('/catalogo')) return 'Catálogo';
     if (location.pathname.includes('/ofertas')) return 'Promociones';
-    if (location.pathname.includes('/puntos')) return 'Puntos y Recompensas';
+    if (location.pathname.includes('/puntos')) return 'Puntos y Rec.';
     if (location.pathname.includes('/rifas')) return 'Rifas';
     if (location.pathname.includes('/empleados')) return 'Empleados';
     if (location.pathname.includes('/vacantes')) return 'Vacantes';

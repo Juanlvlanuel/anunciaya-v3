@@ -50,6 +50,35 @@ export async function crearNotificacion(
             })
             .returning();
 
+        // Si hay sucursalId, resolver el nombre para enriquecer el payload
+        // del socket. Reglas:
+        //  - Sucursal principal + negocio con varias sucursales → 'Matriz'
+        //  - Sucursal principal + única sucursal → null (no mostrar)
+        //  - Otra sucursal → nombre real
+        let sucursalNombre: string | null = null;
+        if (nueva.sucursalId) {
+            const [suc] = await db
+                .select({
+                    nombre: negocioSucursales.nombre,
+                    esPrincipal: negocioSucursales.esPrincipal,
+                    negocioId: negocioSucursales.negocioId,
+                })
+                .from(negocioSucursales)
+                .where(eq(negocioSucursales.id, nueva.sucursalId))
+                .limit(1);
+            if (suc) {
+                if (suc.esPrincipal) {
+                    const [{ total }] = await db
+                        .select({ total: sql<number>`count(*)::int` })
+                        .from(negocioSucursales)
+                        .where(eq(negocioSucursales.negocioId, suc.negocioId));
+                    sucursalNombre = total > 1 ? 'Matriz' : null;
+                } else {
+                    sucursalNombre = suc.nombre ?? null;
+                }
+            }
+        }
+
         const notificacionFormateada: NotificacionResponse = {
             id: nueva.id,
             modo: nueva.modo as NotificacionResponse['modo'],
@@ -58,6 +87,7 @@ export async function crearNotificacion(
             mensaje: nueva.mensaje,
             negocioId: nueva.negocioId,
             sucursalId: nueva.sucursalId ?? null,
+            sucursalNombre,
             referenciaId: nueva.referenciaId,
             referenciaTipo: nueva.referenciaTipo as NotificacionResponse['referenciaTipo'],
             icono: nueva.icono,
@@ -168,9 +198,40 @@ export async function obtenerNotificaciones(
             ? sql`AND (${notificaciones.sucursalId} = ${sucursalId} OR ${notificaciones.sucursalId} IS NULL)`
             : sql``;
 
+        // sucursalNombre se resuelve aquí para desambiguar en el panel del cliente:
+        // - Si la sucursal es la principal Y el negocio tiene más de una → 'Matriz'
+        // - Si la sucursal es la principal Y es la única → null (no mostrar, sería redundante)
+        // - Si es otra sucursal → nombre real
         const resultados = await db
-            .select()
+            .select({
+                id: notificaciones.id,
+                modo: notificaciones.modo,
+                tipo: notificaciones.tipo,
+                titulo: notificaciones.titulo,
+                mensaje: notificaciones.mensaje,
+                negocioId: notificaciones.negocioId,
+                sucursalId: notificaciones.sucursalId,
+                sucursalNombre: sql<string | null>`
+                    CASE
+                        WHEN ${negocioSucursales.esPrincipal} = true AND (
+                            SELECT COUNT(*)::int FROM negocio_sucursales ns2
+                            WHERE ns2.negocio_id = ${negocioSucursales.negocioId}
+                        ) > 1 THEN 'Matriz'
+                        WHEN ${negocioSucursales.esPrincipal} = true THEN NULL
+                        ELSE ${negocioSucursales.nombre}
+                    END
+                `,
+                referenciaId: notificaciones.referenciaId,
+                referenciaTipo: notificaciones.referenciaTipo,
+                icono: notificaciones.icono,
+                actorImagenUrl: notificaciones.actorImagenUrl,
+                actorNombre: notificaciones.actorNombre,
+                leida: notificaciones.leida,
+                leidaAt: notificaciones.leidaAt,
+                createdAt: notificaciones.createdAt,
+            })
             .from(notificaciones)
+            .leftJoin(negocioSucursales, eq(notificaciones.sucursalId, negocioSucursales.id))
             .where(sql`${and(
                 eq(notificaciones.usuarioId, usuarioId),
                 eq(notificaciones.modo, modo)
@@ -197,6 +258,7 @@ export async function obtenerNotificaciones(
             mensaje: n.mensaje,
             negocioId: n.negocioId,
             sucursalId: n.sucursalId ?? null,
+            sucursalNombre: n.sucursalNombre ?? null,
             referenciaId: n.referenciaId,
             referenciaTipo: n.referenciaTipo as NotificacionResponse['referenciaTipo'],
             icono: n.icono,

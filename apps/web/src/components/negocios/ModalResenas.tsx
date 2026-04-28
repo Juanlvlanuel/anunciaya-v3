@@ -1,23 +1,36 @@
 /**
  * ============================================================================
- * COMPONENTE: ModalResenas (v5 - Patrón Adaptativo)
+ * COMPONENTE: ModalResenas (v7 - Layout horizontal estilo Booking/Google)
  * ============================================================================
  *
  * UBICACIÓN: apps/web/src/components/negocios/ModalResenas.tsx
  *
  * CAMBIOS EN ESTA VERSIÓN:
- * - ✅ Móvil: ModalBottom con altura controlada
- * - ✅ Desktop: Modal centrado con 2 columnas
- * - ✅ useBreakpoint para detección de dispositivo
- * - ✅ Componentes reutilizables extraídos
+ * - ✅ Layout horizontal: stats arriba (rating + barras) + lista debajo
+ * - ✅ Acento dorado unificado con SeccionResenas
+ * - ✅ Card de reseña estilo "fila" (nombre + rating a los extremos)
  */
 
-import { useState, useEffect } from 'react';
-import { Star, X, Plus, Pencil } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Star, X, Pencil, PencilLine, ArrowUpDown, ChevronDown, Check } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { ModalBottom } from '../ui/ModalBottom';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { usePortalTarget } from '../../hooks/usePortalTarget';
 import { useAuthStore } from '../../stores/useAuthStore';
+
+// =============================================================================
+// TIPOS DE ORDENAMIENTO
+// =============================================================================
+
+type OrdenResenas = 'recientes' | 'mejores' | 'peores' | 'con_respuesta';
+
+const ETIQUETAS_ORDEN: Record<OrdenResenas, string> = {
+    recientes: 'Más recientes',
+    mejores: 'Mejor calificadas',
+    peores: 'Peores primero',
+    con_respuesta: 'Con respuesta',
+};
 
 // =============================================================================
 // TIPOS
@@ -38,6 +51,7 @@ interface Resena {
         fecha: string;
         negocioNombre: string;
         negocioLogo: string | null;
+        sucursalNombre?: string | null;
     } | null;
 }
 
@@ -76,102 +90,204 @@ const formatearFechaRelativa = (fecha: string | null): string => {
     return `hace ${Math.floor(diffDias / 365)} años`;
 };
 
-const getAvatarColor = (nombre: string): string => {
-    const colores = [
-        'from-orange-400 to-pink-500',
-        'from-violet-400 to-purple-500',
-        'from-emerald-400 to-cyan-500',
-        'from-cyan-400 to-blue-500',
-        'from-rose-400 to-red-500',
-        'from-amber-400 to-orange-500',
-        'from-teal-400 to-green-500',
-        'from-indigo-400 to-violet-500',
-    ];
-    const index = nombre.charCodeAt(0) % colores.length;
-    return colores[index];
-};
+const GRADIENT_DORADO = 'linear-gradient(135deg, #eab308 0%, #ca8a04 50%, #d4a017 100%)';
+const GRADIENT_DORADO_BARRAS = 'linear-gradient(90deg, #facc15 0%, #eab308 50%, #ca8a04 100%)';
 
 // =============================================================================
-// COMPONENTE: StatsCompacto (Móvil)
+// COMPONENTE: PanelStats (horizontal - rating + barras + chips)
 // =============================================================================
 
-interface StatsCompactoProps {
+interface PanelStatsProps {
     promedioRating?: number;
     totalResenas: number;
     distribucion: Distribucion[];
     filtroEstrellas: number | null;
     onToggleFiltro: (estrellas: number) => void;
+    orden: OrdenResenas;
+    onCambiarOrden: (orden: OrdenResenas) => void;
+    compacto?: boolean;
 }
 
-function StatsCompacto({
+function PanelStats({
     promedioRating,
     totalResenas,
     distribucion,
     filtroEstrellas,
     onToggleFiltro,
-}: StatsCompactoProps) {
+    orden,
+    onCambiarOrden,
+    compacto = false,
+}: PanelStatsProps) {
+    const [dropdownOrdenAbierto, setDropdownOrdenAbierto] = useState(false);
+    const dropdownOrdenRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!dropdownOrdenAbierto) return;
+        const handler = (e: MouseEvent) => {
+            if (!dropdownOrdenRef.current?.contains(e.target as Node)) {
+                setDropdownOrdenAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [dropdownOrdenAbierto]);
+
     return (
-        <div className="px-4 py-3 bg-amber-100 border-b border-slate-300 shrink-0">
-            <div className="flex gap-4">
-                {/* Rating */}
-                <div className="text-center shrink-0">
-                    <div className="text-3xl font-bold text-slate-800">
-                        {promedioRating?.toFixed(1) || '0.0'}
+        <div className={`${compacto ? 'p-3' : 'p-3 2xl:p-4'} bg-slate-100 border-b-2 border-slate-300 shrink-0`}>
+            {/* Fila: rating grande + divisor + barras */}
+            <div className={`flex items-center ${compacto ? 'gap-3' : 'gap-3 2xl:gap-5'}`}>
+                {/* Rating prominente */}
+                <div className={`text-center shrink-0 flex flex-col items-center justify-center ${compacto ? 'w-24' : 'w-28 2xl:w-32'}`}>
+                    <div className={`font-black text-slate-800 leading-none ${compacto ? 'text-4xl' : 'text-4xl 2xl:text-5xl'}`}>
+                        {promedioRating?.toFixed(1) ?? '—'}
                     </div>
-                    <div className="flex justify-center gap-0.5">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                                key={star}
-                                className={`w-3.5 h-3.5 ${
-                                    promedioRating && star <= Math.round(promedioRating)
-                                        ? 'text-amber-400 fill-current'
-                                        : 'text-slate-200'
-                                }`}
-                            />
-                        ))}
+                    <div className="flex gap-0.5 mt-1.5 mb-1">
+                        {[1, 2, 3, 4, 5].map((s) => {
+                            const activa = promedioRating && s <= Math.round(promedioRating);
+                            return (
+                                <Star
+                                    key={s}
+                                    className={`${compacto ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 2xl:w-4 2xl:h-4'} ${
+                                        activa ? 'fill-yellow-500 text-yellow-500' : 'text-slate-300'
+                                    }`}
+                                    strokeWidth={activa ? 0 : 2}
+                                    style={activa ? undefined : { fill: '#fff' }}
+                                />
+                            );
+                        })}
                     </div>
-                    <p className="text-sm text-slate-600 font-medium">{totalResenas} reseñas</p>
+                    <span className={`font-semibold text-slate-600 ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
+                        {totalResenas} {totalResenas === 1 ? 'reseña' : 'reseñas'}
+                    </span>
                 </div>
 
-                {/* Distribución compacta */}
-                <div className="flex-1 space-y-0.5">
+                {/* Divisor vertical */}
+                <div className="w-px self-stretch bg-slate-300 shrink-0" />
+
+                {/* Barras distribución */}
+                <div className={`flex-1 flex flex-col justify-center ${compacto ? 'gap-1' : 'gap-1 2xl:gap-1.5'}`}>
                     {distribucion.map(({ estrellas, cantidad, porcentaje }) => (
-                        <div key={estrellas} className="flex items-center gap-1.5 text-sm">
-                            <span className="w-3 text-slate-600 font-semibold">{estrellas}</span>
-                            <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden">
+                        <div key={estrellas} className="flex items-center gap-2">
+                            <span className={`w-3 font-bold text-slate-700 shrink-0 ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
+                                {estrellas}
+                            </span>
+                            <Star
+                                className="w-3 h-3 fill-yellow-500 text-yellow-500 shrink-0"
+                                strokeWidth={0}
+                            />
+                            <div className={`flex-1 bg-white rounded-full overflow-hidden border border-slate-300 ${compacto ? 'h-2' : 'h-2 2xl:h-2.5'}`}>
                                 <div
-                                    className="h-full bg-amber-400 rounded-full"
-                                    style={{ width: `${porcentaje}%` }}
+                                    className="h-full rounded-full"
+                                    style={{ width: `${porcentaje}%`, background: GRADIENT_DORADO_BARRAS }}
                                 />
                             </div>
-                            <span className="w-5 text-slate-600 font-medium text-right">{cantidad}</span>
+                            <span className={`text-right font-semibold text-slate-600 shrink-0 tabular-nums ${compacto ? 'w-8 text-sm' : 'w-10 text-sm lg:text-[11px] 2xl:text-sm'}`}>
+                                {cantidad}
+                            </span>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* Filtros */}
-            <div className="flex gap-1.5 mt-3 flex-wrap">
-                {[5, 4, 3, 2, 1].map((estrellas) => (
+            {/* Segmented control de filtros + dropdown ordenar */}
+            <div className={`flex items-center gap-2 ${compacto ? 'mt-3' : 'mt-3 2xl:mt-4 flex-wrap'}`}>
+                {!compacto && (
+                    <span className="self-center mr-0.5 font-semibold text-slate-600 text-sm lg:text-[11px] 2xl:text-sm">
+                        Filtrar:
+                    </span>
+                )}
+
+                {/* Zona scrolleable horizontal (solo móvil) para evitar clippeo del dropdown */}
+                <div className={`flex items-center gap-2 ${compacto ? 'flex-1 min-w-0 flex-nowrap overflow-x-auto' : 'contents'}`}>
+                    {/* Segmented control: estrellas */}
+                    <div className="flex items-center gap-0.5 bg-slate-200 rounded-xl p-1 shrink-0">
+                        {[5, 4, 3, 2, 1].map((estrellas) => {
+                            const activo = filtroEstrellas === estrellas;
+                            return (
+                                <button
+                                    key={estrellas}
+                                    onClick={() => onToggleFiltro(estrellas)}
+                                    className={`px-2.5 py-1 font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-all ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'} ${
+                                        activo
+                                            ? 'text-white shadow-sm'
+                                            : 'text-slate-700 hover:bg-white/60'
+                                    }`}
+                                    style={activo ? { background: GRADIENT_DORADO } : undefined}
+                                    data-testid={`filtro-estrellas-${estrellas}`}
+                                >
+                                    {estrellas} <Star className="w-3 h-3 fill-current" strokeWidth={0} />
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Botón limpiar circular */}
+                    {filtroEstrellas !== null && (
+                        <button
+                            onClick={() => onToggleFiltro(filtroEstrellas)}
+                            className="shrink-0 w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 hover:text-slate-900 flex items-center justify-center cursor-pointer transition-colors"
+                            aria-label="Limpiar filtro"
+                            data-testid="btn-limpiar-filtro"
+                        >
+                            <X className="w-4 h-4" strokeWidth={2.5} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Dropdown Ordenar (fuera del overflow para que el menu no se clippee) */}
+                <div ref={dropdownOrdenRef} className={`relative shrink-0 ${compacto ? '' : 'ml-auto'}`}>
                     <button
-                        key={estrellas}
-                        onClick={() => onToggleFiltro(estrellas)}
-                        className={`px-3 py-1.5 text-sm font-semibold rounded-lg flex items-center gap-1 cursor-pointer ${
-                            filtroEstrellas === estrellas
-                                ? 'bg-amber-500 text-white'
-                                : 'bg-white text-slate-600 border-2 border-slate-300'
+                        onClick={() => setDropdownOrdenAbierto((p) => !p)}
+                        className={`flex items-center cursor-pointer transition-colors ${
+                            compacto
+                                ? 'w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 justify-center'
+                                : 'gap-1.5 px-2.5 py-1 font-semibold rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm lg:text-[11px] 2xl:text-sm'
                         }`}
+                        aria-label={compacto ? `Ordenar reseñas: ${ETIQUETAS_ORDEN[orden]}` : undefined}
+                        data-testid="btn-ordenar-resenas"
                     >
-                        {estrellas} <Star className="w-2.5 h-2.5 fill-current" />
+                        <ArrowUpDown className={compacto ? 'w-4 h-4 shrink-0' : 'w-3.5 h-3.5 shrink-0'} strokeWidth={compacto ? 2.5 : 2} />
+                        {!compacto && (
+                            <>
+                                <span className="truncate max-w-[120px]">{ETIQUETAS_ORDEN[orden]}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${dropdownOrdenAbierto ? 'rotate-180' : ''}`} />
+                            </>
+                        )}
                     </button>
-                ))}
+                    {dropdownOrdenAbierto && (
+                        <div className="absolute z-30 right-0 mt-1.5 w-52 bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
+                            <div className="py-1">
+                                {(Object.keys(ETIQUETAS_ORDEN) as OrdenResenas[]).map((opt) => {
+                                    const activo = orden === opt;
+                                    return (
+                                        <button
+                                            key={opt}
+                                            onClick={() => { onCambiarOrden(opt); setDropdownOrdenAbierto(false); }}
+                                            className={`w-full flex items-center gap-2 px-3 py-2 text-left cursor-pointer ${compacto ? 'text-sm' : 'text-sm lg:text-[13px] 2xl:text-sm'} ${
+                                                activo
+                                                    ? 'bg-yellow-50 text-yellow-800 font-bold'
+                                                    : 'text-slate-700 font-medium hover:bg-slate-100'
+                                            }`}
+                                            data-testid={`opcion-orden-${opt}`}
+                                        >
+                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-yellow-500' : 'bg-slate-200'}`}>
+                                                {activo && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                                            </div>
+                                            <span className="truncate">{ETIQUETAS_ORDEN[opt]}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
 }
 
 // =============================================================================
-// COMPONENTE: CardResena
+// COMPONENTE: CardResena (fila horizontal)
 // =============================================================================
 
 interface CardResenaProps {
@@ -183,117 +299,117 @@ interface CardResenaProps {
 
 function CardResena({ resena, compacto = false, esPropia = false, onEditar }: CardResenaProps) {
     const [expandido, setExpandido] = useState(false);
-    const textoLargo = resena.texto && resena.texto.length > 150;
+    const textoLargo = resena.texto && resena.texto.length > 180;
 
     return (
-        <div className={`bg-white rounded-xl border-2 border-slate-300 shadow-md ${compacto ? 'p-4' : 'p-2.5 2xl:p-4'}`}>
-
-            {/* ═══════════ RESEÑA DEL CLIENTE ═══════════ */}
-            <div className={`flex items-start ${compacto ? 'gap-3' : 'gap-2 2xl:gap-3'}`}>
+        <div className={`bg-gray-200 rounded-xl ${compacto ? 'p-3' : 'p-3 2xl:p-4'}`}>
+            {/* ═══════════ HEADER: avatar + nombre/fecha (izq) + rating (der) ═══════════ */}
+            <div className={`flex items-center ${compacto ? 'gap-3' : 'gap-3 2xl:gap-4'}`}>
                 {/* Avatar */}
                 {resena.autor.avatarUrl ? (
                     <img
                         src={resena.autor.avatarUrl}
                         alt={resena.autor.nombre}
-                        className={`rounded-full object-cover shrink-0 ${compacto ? 'w-10 h-10' : 'w-8 h-8 2xl:w-10 2xl:h-10'}`}
+                        className={`rounded-full object-cover shrink-0 ${compacto ? 'w-11 h-11' : 'w-11 h-11 2xl:w-12 2xl:h-12'}`}
                     />
                 ) : (
                     <div
-                        className={`rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shrink-0 ${
-                            compacto ? 'w-10 h-10 text-sm' : 'w-8 h-8 2xl:w-10 2xl:h-10 text-sm'
+                        className={`rounded-full flex items-center justify-center text-white font-bold shrink-0 shadow-sm ${
+                            compacto ? 'w-11 h-11 text-base' : 'w-11 h-11 2xl:w-12 2xl:h-12 text-base 2xl:text-lg'
                         }`}
+                        style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%)' }}
                     >
                         {resena.autor.nombre.charAt(0).toUpperCase()}
                     </div>
                 )}
 
-                {/* Info del cliente */}
+                {/* Nombre + fecha */}
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                        <h4 className={`font-semibold text-slate-800 ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
+                    <div className="flex items-center gap-2">
+                        <h4 className={`font-bold text-slate-900 truncate ${compacto ? 'text-base' : 'text-base lg:text-sm 2xl:text-base'}`}>
                             {resena.autor.nombre}
                         </h4>
-                        <div className="flex items-center gap-2 shrink-0">
-                            {/* Botón editar (inline, solo si es propia) */}
-                            {esPropia && onEditar && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onEditar(); }}
-                                    className="flex items-center gap-1 text-amber-500 hover:text-amber-600 cursor-pointer transition-colors"
-                                >
-                                    <Pencil className={compacto ? 'w-3.5 h-3.5' : 'w-3 h-3 2xl:w-3.5 2xl:h-3.5'} />
-                                </button>
-                            )}
-                            <span className={`${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'} text-slate-600 font-medium`}>
-                                {formatearFechaRelativa(resena.createdAt)}
-                            </span>
-                        </div>
+                        {esPropia && onEditar && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onEditar(); }}
+                                className="text-yellow-600 hover:text-yellow-700 cursor-pointer shrink-0"
+                            >
+                                <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                        )}
                     </div>
+                    <p className={`font-medium text-slate-600 ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
+                        {formatearFechaRelativa(resena.createdAt)}
+                    </p>
+                </div>
 
-                    {/* Estrellas */}
-                    <div className={`flex ${compacto ? 'gap-0.5' : 'gap-0.5'} mt-0.5`}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                                key={star}
-                                className={`${compacto ? 'w-3.5 h-3.5' : 'w-3 h-3 2xl:w-3.5 2xl:h-3.5'} ${
-                                    resena.rating && star <= resena.rating
-                                        ? 'text-amber-400 fill-current'
-                                        : 'text-slate-200'
-                                }`}
-                            />
-                        ))}
-                    </div>
-
-                    {/* Texto de la reseña */}
-                    {resena.texto && (
-                        <div className="mt-1.5">
-                            <p className={`text-slate-600 font-medium leading-relaxed ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'} ${
-                                !expandido && textoLargo ? 'line-clamp-3' : ''
-                            }`}>
-                                {resena.texto}
-                            </p>
-                            {textoLargo && (
-                                <button
-                                    onClick={() => setExpandido(!expandido)}
-                                    className={`text-amber-600 mt-0.5 font-semibold cursor-pointer ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}
-                                >
-                                    {expandido ? 'Ver menos' : 'Ver más'}
-                                </button>
-                            )}
-                        </div>
-                    )}
+                {/* Rating: número grande + 1 estrella */}
+                <div className="flex items-center gap-1 shrink-0">
+                    <span className={`font-bold text-slate-900 tabular-nums ${compacto ? 'text-xl' : 'text-xl lg:text-lg 2xl:text-xl'}`}>
+                        {resena.rating?.toFixed(1) ?? '—'}
+                    </span>
+                    <Star
+                        className={`${compacto ? 'w-5 h-5' : 'w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5'} text-yellow-500 fill-yellow-500`}
+                        strokeWidth={0}
+                    />
                 </div>
             </div>
 
-            {/* ═══════════ RESPUESTA DEL NEGOCIO ═══════════ */}
+            {/* ═══════════ TEXTO DE LA RESEÑA ═══════════ */}
+            {resena.texto && (
+                <div className={`${compacto ? 'mt-2.5' : 'mt-2.5 2xl:mt-3'}`}>
+                    <p className={`text-slate-700 font-medium leading-relaxed ${compacto ? 'text-sm' : 'text-sm lg:text-[13px] 2xl:text-sm'} ${
+                        !expandido && textoLargo ? 'line-clamp-3' : ''
+                    }`}>
+                        {resena.texto}
+                    </p>
+                    {textoLargo && (
+                        <button
+                            onClick={() => setExpandido(!expandido)}
+                            className={`text-yellow-700 hover:text-yellow-900 mt-1 font-bold cursor-pointer ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}
+                        >
+                            {expandido ? 'Ver menos' : 'Ver más'}
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* ═══════════ RESPUESTA DEL NEGOCIO (burbuja de chat) ═══════════
+                Paleta slate + accent amber (consistente con header dorado del modal TC-6). */}
             {resena.respuestaNegocio && (
-                <div className={`${compacto ? 'mt-3 p-3' : 'mt-2 2xl:mt-3 p-2 2xl:p-3'} bg-blue-100 rounded-xl border-2 border-blue-300`}>
-                    <div className={`flex items-center ${compacto ? 'gap-2.5 mb-2' : 'gap-2 2xl:gap-2.5 mb-1.5 2xl:mb-2'}`}>
-                        {/* Logo del negocio */}
-                        {resena.respuestaNegocio.negocioLogo ? (
-                            <img
-                                src={resena.respuestaNegocio.negocioLogo}
-                                alt={resena.respuestaNegocio.negocioNombre}
-                                className={`rounded-full object-cover shrink-0 ring-2 ring-blue-200 ${compacto ? 'w-7 h-7' : 'w-6 h-6 2xl:w-7 2xl:h-7'}`}
-                            />
-                        ) : (
-                            <div className={`rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0 ring-2 ring-blue-200 ${
-                                compacto ? 'w-7 h-7 text-sm' : 'w-6 h-6 2xl:w-7 2xl:h-7 text-sm'
-                            }`}>
-                                {resena.respuestaNegocio.negocioNombre?.charAt(0).toUpperCase()}
+                <div className="mt-3 flex justify-end">
+                    <div className={`max-w-[92%] bg-slate-100 border-2 border-amber-300 rounded-2xl rounded-br-sm shadow-sm ${compacto ? 'p-3' : 'p-3 2xl:p-3'}`}>
+                        {/* Header: avatar + nombre/sucursal + fecha */}
+                        <div className={`flex items-center ${compacto ? 'gap-3 mb-2' : 'gap-3 mb-2'}`}>
+                            {resena.respuestaNegocio.negocioLogo ? (
+                                <img
+                                    src={resena.respuestaNegocio.negocioLogo}
+                                    alt={resena.respuestaNegocio.negocioNombre}
+                                    className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-amber-200"
+                                />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white text-base font-bold shrink-0 ring-2 ring-amber-200">
+                                    {resena.respuestaNegocio.negocioNombre?.charAt(0).toUpperCase()}
+                                </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <span className={`block text-slate-900 font-semibold truncate ${compacto ? 'text-sm' : 'text-sm lg:text-[13px] 2xl:text-sm'}`}>
+                                    {resena.respuestaNegocio.negocioNombre}
+                                </span>
+                                {resena.respuestaNegocio.sucursalNombre && (
+                                    <span className={`block text-slate-600 font-medium truncate ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
+                                        {resena.respuestaNegocio.sucursalNombre}
+                                    </span>
+                                )}
                             </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                            <span className={`text-blue-800 font-semibold block ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
-                                {resena.respuestaNegocio.negocioNombre}
+                            <span className={`text-slate-500 font-medium shrink-0 self-start ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
+                                {formatearFechaRelativa(resena.respuestaNegocio.fecha)}
                             </span>
                         </div>
-                        <span className={`${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'} text-blue-600 font-medium shrink-0`}>
-                            {formatearFechaRelativa(resena.respuestaNegocio.fecha)}
-                        </span>
+                        <p className={`text-slate-700 font-medium leading-relaxed ml-[52px] ${compacto ? 'text-sm' : 'text-sm lg:text-[13px] 2xl:text-sm'}`}>
+                            {resena.respuestaNegocio.texto}
+                        </p>
                     </div>
-                    <p className={`text-slate-700 font-medium leading-relaxed ${compacto ? 'text-sm' : 'text-sm lg:text-[11px] 2xl:text-sm'}`}>
-                        {resena.respuestaNegocio.texto}
-                    </p>
                 </div>
             )}
         </div>
@@ -304,20 +420,16 @@ function CardResena({ resena, compacto = false, esPropia = false, onEditar }: Ca
 // COMPONENTE: EmptyState
 // =============================================================================
 
-interface EmptyStateProps {
-    onLimpiar: () => void;
-}
-
-function EmptyState({ onLimpiar }: EmptyStateProps) {
+function EmptyState({ onLimpiar }: { onLimpiar: () => void }) {
     return (
-        <div className="text-center py-4 2xl:py-8">
-            <div className="w-12 h-12 2xl:w-12 2xl:h-12 mx-auto mb-2 2xl:mb-3 bg-slate-200 rounded-full flex items-center justify-center">
-                <Star className="w-6 h-6 2xl:w-6 2xl:h-6 text-slate-600" />
+        <div className="text-center py-8">
+            <div className="w-12 h-12 mx-auto mb-3 bg-yellow-100 rounded-full flex items-center justify-center ring-2 ring-yellow-200">
+                <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" strokeWidth={0} />
             </div>
-            <p className="text-slate-600 text-sm 2xl:text-sm font-medium">No se encontraron reseñas</p>
+            <p className="text-slate-600 text-sm font-semibold">No se encontraron reseñas</p>
             <button
                 onClick={onLimpiar}
-                className="mt-2 2xl:mt-2 text-sm 2xl:text-sm text-amber-600 font-semibold cursor-pointer"
+                className="mt-2 text-sm text-yellow-700 hover:text-yellow-900 font-bold cursor-pointer"
             >
                 Limpiar filtros
             </button>
@@ -329,22 +441,15 @@ function EmptyState({ onLimpiar }: EmptyStateProps) {
 // COMPONENTE: BotonEscribirResena
 // =============================================================================
 
-interface BotonEscribirResenaProps {
-    onClick: () => void;
-    compacto?: boolean;
-}
-
-function BotonEscribirResena({ onClick, compacto = false }: BotonEscribirResenaProps) {
+function BotonEscribirResena({ onClick, compacto: _compacto = false }: { onClick: () => void; compacto?: boolean }) {
     return (
         <button
             onClick={onClick}
-            className={`w-full text-white font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 ${
-                compacto ? 'py-2.5 text-base' : 'py-2.5 text-sm 2xl:text-base'
-            }`}
-            style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', boxShadow: '0 4px 14px rgba(15,23,42,0.3)' }}
+            aria-label="Escribir reseña"
+            className="w-14 h-14 rounded-full flex items-center justify-center cursor-pointer active:scale-95 text-white hover:brightness-110 transition-all"
+            style={{ background: 'linear-gradient(135deg, #475569, #334155)', boxShadow: '0 6px 18px rgba(15,23,42,0.35)' }}
         >
-            <Plus className={compacto ? 'w-4 h-4' : 'w-3.5 h-3.5 2xl:w-4 2xl:h-4'} />
-            <span>Escribir Reseña</span>
+            <PencilLine className="w-6 h-6" strokeWidth={2.5} />
         </button>
     );
 }
@@ -363,16 +468,38 @@ export function ModalResenas({
     resenaDestacadaId,
 }: ModalResenasProps) {
     const { esMobile } = useBreakpoint();
+
+    // Detectar si el modal se renderizará contenido en un wrapper (preview BS, ChatYA)
+    // para aplicar altura fija proporcional al wrapper. Necesaria porque el layout interno
+    // usa flex-1 min-h-0 para la lista de reseñas, que colapsa con altura auto.
+    // Modo normal: h-[80vh]! (altura del viewport como otros modales).
+    // Modo contenido: h-[80%]! (80% del wrapper — igualado a los otros modales y deja aire arriba
+    // para sentir el patrón "bottom sheet" que se desliza).
+    const portalTarget = usePortalTarget();
+    const esContenido = portalTarget !== document.body;
+    const clasesAltura = esContenido ? 'h-[90%]! max-h-[90%]!' : 'h-[80vh]!';
     const [filtroEstrellas, setFiltroEstrellas] = useState<number | null>(null);
+    const [orden, setOrden] = useState<OrdenResenas>('recientes');
     const [resenaHighlight, setResenaHighlight] = useState<string | null>(null);
+    const [listaLista, setListaLista] = useState(false);
     const usuarioId = useAuthStore((state) => state.usuario?.id);
+
+    // Esperar a que el modal termine su animación antes de animar las reseñas
+    useEffect(() => {
+        if (abierto) {
+            setListaLista(false);
+            const t = setTimeout(() => setListaLista(true), 280);
+            return () => clearTimeout(t);
+        }
+        setListaLista(false);
+    }, [abierto]);
 
     // Deep link: scroll a la reseña destacada cuando el modal se abre
     useEffect(() => {
         if (abierto && resenaDestacadaId && resenaDestacadaId !== 'abrir') {
             const buscandoId = `resena-${resenaDestacadaId}`;
             let intentos = 0;
-            const maxIntentos = 20; // 20 x 100ms = 2 segundos máximo
+            const maxIntentos = 20;
 
             const intervalo = setInterval(() => {
                 intentos++;
@@ -391,12 +518,32 @@ export function ModalResenas({
         }
     }, [abierto, resenaDestacadaId]);
 
-    // Filtrar reseñas por estrellas
-    const resenasFiltradas = filtroEstrellas
-        ? resenas.filter((r) => r.rating === filtroEstrellas)
-        : resenas;
+    const resenasFiltradas = useMemo(() => {
+        let resultado = filtroEstrellas
+            ? resenas.filter((r) => r.rating === filtroEstrellas)
+            : [...resenas];
 
-    // Calcular distribución de estrellas
+        const tiempo = (f: string | null) => f ? new Date(f).getTime() : 0;
+
+        switch (orden) {
+            case 'recientes':
+                resultado.sort((a, b) => tiempo(b.createdAt) - tiempo(a.createdAt));
+                break;
+            case 'mejores':
+                resultado.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || tiempo(b.createdAt) - tiempo(a.createdAt));
+                break;
+            case 'peores':
+                resultado.sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0) || tiempo(b.createdAt) - tiempo(a.createdAt));
+                break;
+            case 'con_respuesta':
+                resultado = resultado.filter((r) => !!r.respuestaNegocio);
+                resultado.sort((a, b) => tiempo(b.createdAt) - tiempo(a.createdAt));
+                break;
+        }
+
+        return resultado;
+    }, [resenas, filtroEstrellas, orden]);
+
     const distribucion: Distribucion[] = [5, 4, 3, 2, 1].map((estrellas) => ({
         estrellas,
         cantidad: resenas.filter((r) => r.rating === estrellas).length,
@@ -414,6 +561,62 @@ export function ModalResenas({
         onEscribirResena?.();
     };
 
+    const resaltadoClass = 'ring-2 ring-yellow-400 bg-yellow-50 rounded-xl shadow-lg shadow-yellow-200/50 transition-all duration-500';
+
+    // Contenido compartido: header + stats panel + lista de reseñas
+    const contenidoInterno = (compacto: boolean) => (
+        <>
+            {/* Panel de stats horizontal */}
+            <PanelStats
+                promedioRating={promedioRating}
+                totalResenas={resenas.length}
+                distribucion={distribucion}
+                filtroEstrellas={filtroEstrellas}
+                onToggleFiltro={toggleFiltro}
+                orden={orden}
+                onCambiarOrden={setOrden}
+                compacto={compacto}
+            />
+
+            {/* Lista vertical de reseñas + FAB flotante */}
+            <div className="flex-1 relative min-h-0">
+                <div className="absolute inset-0 overflow-y-auto">
+                    <div
+                        key={`${filtroEstrellas ?? 'all'}-${orden}-${listaLista ? '1' : '0'}`}
+                        className={`space-y-2.5 ${compacto ? 'px-3 pt-3 pb-20' : 'px-3 2xl:px-4 pt-3 pb-20'}`}
+                    >
+                        {resenasFiltradas.length > 0 ? (
+                            listaLista && resenasFiltradas.map((resena, idx) => (
+                                <div
+                                    key={resena.id}
+                                    id={`resena-${resena.id}`}
+                                    className={`animate-in fade-in slide-in-from-bottom-4 duration-500 ${resenaHighlight === resena.id ? resaltadoClass : 'transition-all duration-500'}`}
+                                    style={{ animationDelay: `${Math.min(idx * 70, 600)}ms`, animationFillMode: 'backwards' }}
+                                >
+                                    <CardResena
+                                        resena={resena}
+                                        compacto={compacto}
+                                        esPropia={resena.autor.id === usuarioId}
+                                        onEditar={() => onEditarResena?.(resena)}
+                                    />
+                                </div>
+                            ))
+                        ) : (
+                            <EmptyState onLimpiar={() => setFiltroEstrellas(null)} />
+                        )}
+                    </div>
+                </div>
+
+                {/* FAB flotante */}
+                {onEscribirResena && listaLista && (
+                    <div className="absolute bottom-4 right-4 z-10 animate-in zoom-in-50 duration-300">
+                        <BotonEscribirResena onClick={handleEscribirResena} compacto={compacto} />
+                    </div>
+                )}
+            </div>
+        </>
+    );
+
     // =========================================================================
     // MÓVIL: ModalBottom
     // =========================================================================
@@ -428,89 +631,55 @@ export function ModalResenas({
                 headerOscuro
                 sinScrollInterno={true}
                 alturaMaxima="lg"
-                className="h-[80vh]!"
+                className={clasesAltura}
             >
-                {/* Header con gradiente amber */}
+                {/* Header dorado */}
                 <div
                     className="relative px-4 pt-8 pb-3 shrink-0 overflow-hidden"
-                    style={{ background: '#e8910a' }}
+                    style={{ background: GRADIENT_DORADO }}
                 >
-                    <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                    <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/10" />
                     <div className="relative flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
-                            <Star className="w-4.5 h-4.5 text-white" />
+                            <Star className="w-4 h-4 text-white fill-white" strokeWidth={0} />
                         </div>
-                        <h3 className="text-white font-bold text-lg">Reseñas</h3>
+                        <h3 className="text-white font-bold text-lg tracking-tight">
+                            Reseñas ({resenas.length})
+                        </h3>
                     </div>
                 </div>
 
-                {/* Stats + Filtros */}
-                <StatsCompacto
-                    promedioRating={promedioRating}
-                    totalResenas={resenas.length}
-                    distribucion={distribucion}
-                    filtroEstrellas={filtroEstrellas}
-                    onToggleFiltro={toggleFiltro}
-                />
-
-                {/* Lista de reseñas */}
-                <div className="flex-1 overflow-y-auto min-h-0">
-                    <div className="p-3 space-y-2.5">
-                        {resenasFiltradas.length > 0 ? (
-                            resenasFiltradas.map((resena) => (
-                                <div
-                                    key={resena.id}
-                                    id={`resena-${resena.id}`}
-                                    className={resenaHighlight === resena.id ? 'ring-2 ring-amber-400 bg-amber-50 rounded-xl shadow-lg shadow-amber-200/50 transition-all duration-500' : 'transition-all duration-500'}
-                                >
-                                    <CardResena
-                                        resena={resena}
-                                        compacto
-                                        esPropia={resena.autor.id === usuarioId}
-                                        onEditar={() => onEditarResena?.(resena)}
-                                    />
-                                </div>
-                            ))
-                        ) : (
-                            <EmptyState onLimpiar={() => setFiltroEstrellas(null)} />
-                        )}
-                    </div>
-                </div>
-
-                {/* Footer fijo */}
-                {onEscribirResena && (
-                    <div className="p-3 border-t border-slate-100 bg-white shrink-0">
-                        <BotonEscribirResena onClick={handleEscribirResena} compacto />
-                    </div>
-                )}
+                {contenidoInterno(true)}
             </ModalBottom>
         );
     }
 
     // =========================================================================
-    // DESKTOP: Modal centrado con 2 columnas
+    // DESKTOP: Modal centrado, layout horizontal
     // =========================================================================
     return (
         <Modal
             abierto={abierto}
             onCerrar={onCerrar}
             mostrarHeader={false}
-            ancho="lg"
+            ancho="md"
             paddingContenido="none"
-            className="flex flex-col h-[75vh]! lg:h-[80vh]!"
+            className="flex flex-col h-[75vh]! lg:h-[85vh]! 2xl:h-[80vh]!"
         >
-            {/* Header con gradiente amber */}
+            {/* Header dorado */}
             <div
                 className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl"
-                style={{ background: '#e8910a' }}
+                style={{ background: GRADIENT_DORADO }}
             >
-                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/10" />
                 <div className="relative flex items-center justify-between">
                     <div className="flex items-center gap-2 2xl:gap-3">
                         <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
-                            <Star className="w-4 h-4 2xl:w-4.5 2xl:h-4.5 text-white fill-current" />
+                            <Star className="w-4 h-4 2xl:w-4.5 2xl:h-4.5 text-white fill-white" strokeWidth={0} />
                         </div>
-                        <h3 className="text-white font-bold text-base 2xl:text-lg">Reseñas ({resenas.length})</h3>
+                        <h3 className="text-white font-bold text-base 2xl:text-lg tracking-tight">
+                            Reseñas ({resenas.length})
+                        </h3>
                     </div>
                     <button onClick={onCerrar} className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 cursor-pointer">
                         <X className="w-4 h-4 text-white" />
@@ -518,130 +687,7 @@ export function ModalResenas({
                 </div>
             </div>
 
-            <div className="flex flex-1 min-h-0">
-
-                {/* SIDEBAR */}
-                <div className="w-52 2xl:w-64 shrink-0 p-3 2xl:p-5 bg-slate-200/50 border-r border-slate-300 flex flex-col">
-                    
-                    {/* Rating principal */}
-                    <div className="text-center mb-3 2xl:mb-4">
-                        <div className="inline-flex flex-col items-center p-2 2xl:p-2.5 bg-white rounded-lg 2xl:rounded-xl shadow-sm">
-                            <div className="text-3xl 2xl:text-4xl font-bold text-slate-800">
-                                {promedioRating?.toFixed(1) || '0.0'}
-                            </div>
-                            <div className="flex justify-center gap-0.5 mt-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star
-                                        key={star}
-                                        className={`w-3 h-3 2xl:w-4 2xl:h-4 ${
-                                            promedioRating && star <= Math.round(promedioRating)
-                                                ? 'text-amber-400 fill-current'
-                                                : 'text-slate-200'
-                                        }`}
-                                    />
-                                ))}
-                            </div>
-                            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mt-1">{resenas.length} reseñas</p>
-                        </div>
-                    </div>
-
-                    {/* Filtros */}
-                    <div className="mb-3 2xl:mb-5">
-                        <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-1.5 2xl:mb-2.5">
-                            Filtrar por
-                        </h3>
-                        <div className="flex flex-wrap gap-1.5 2xl:gap-2">
-                            {[5, 4, 3, 2, 1].map((estrellas) => (
-                                <button
-                                    key={estrellas}
-                                    onClick={() => toggleFiltro(estrellas)}
-                                    className={`px-2 py-1 2xl:px-2.5 2xl:py-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold rounded-lg flex items-center gap-0.5 2xl:gap-1 cursor-pointer ${
-                                        filtroEstrellas === estrellas
-                                            ? 'bg-amber-500 text-white'
-                                            : 'bg-white text-slate-600 border-2 border-slate-300'
-                                    }`}
-                                >
-                                    {estrellas} <Star className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 fill-current" />
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Distribución */}
-                    <div className="space-y-1 2xl:space-y-2 mb-3 2xl:mb-5">
-                        <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider mb-1.5 2xl:mb-2.5">
-                            Distribución
-                        </h3>
-                        {distribucion.map(({ estrellas, cantidad, porcentaje }) => (
-                            <div key={estrellas} className="flex items-center gap-1.5 2xl:gap-2">
-                                <span className="w-3 text-slate-600 font-semibold text-sm lg:text-[11px] 2xl:text-sm">{estrellas}</span>
-                                <Star className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-amber-400 fill-current" />
-                                <div className="flex-1 h-1.5 2xl:h-2 bg-white rounded-full overflow-hidden shadow-inner">
-                                    <div
-                                        className="h-full bg-linear-to-r from-amber-400 to-orange-400 rounded-full"
-                                        style={{ width: `${porcentaje}%` }}
-                                    />
-                                </div>
-                                <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium w-4 2xl:w-6 text-right">{cantidad}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Spacer */}
-                    <div className="flex-1" />
-
-                    {/* Botón escribir */}
-                    {onEscribirResena && (
-                        <BotonEscribirResena onClick={handleEscribirResena} />
-                    )}
-                </div>
-
-                {/* CONTENIDO PRINCIPAL */}
-                <div className="flex-1 flex flex-col min-w-0">
-                    
-                    {/* Filtro activo */}
-                    {filtroEstrellas && (
-                        <div className="px-3 2xl:px-4 py-1.5 2xl:py-2 border-b border-slate-300 flex items-center gap-2">
-                            <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">Mostrando:</span>
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold rounded-lg flex items-center gap-1">
-                                {filtroEstrellas} <Star className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 fill-current" />
-                                <button
-                                    onClick={() => setFiltroEstrellas(null)}
-                                    className="ml-0.5 cursor-pointer"
-                                >
-                                    <X className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-                                </button>
-                            </span>
-                            <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
-                                {resenasFiltradas.length} reseñas
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Lista de reseñas */}
-                    <div className="flex-1 overflow-y-auto">
-                        <div className="p-1.5 2xl:p-4 space-y-1 2xl:space-y-3">
-                            {resenasFiltradas.length > 0 ? (
-                                resenasFiltradas.map((resena) => (
-                                    <div
-                                        key={resena.id}
-                                        id={`resena-${resena.id}`}
-                                        className={resenaHighlight === resena.id ? 'ring-2 ring-amber-400 bg-amber-50 rounded-xl shadow-lg shadow-amber-200/50 transition-all duration-500' : 'transition-all duration-500'}
-                                    >
-                                        <CardResena
-                                            resena={resena}
-                                            esPropia={resena.autor.id === usuarioId}
-                                            onEditar={() => onEditarResena?.(resena)}
-                                        />
-                                    </div>
-                                ))
-                            ) : (
-                                <EmptyState onLimpiar={() => setFiltroEstrellas(null)} />
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {contenidoInterno(false)}
         </Modal>
     );
 }

@@ -76,29 +76,29 @@ function ItemAlerta({ alerta, onClick }: { alerta: Alerta; onClick: () => void }
 	return (
 		<div
 			onClick={onClick}
-			className={`flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 p-2 lg:p-1.5 2xl:p-2 rounded-lg cursor-pointer hover:bg-slate-200 ${alerta.leida ? 'opacity-50' : ''}`}
+			className={`flex items-center gap-3 lg:gap-2.5 2xl:gap-3 px-3 lg:px-3 2xl:px-3.5 py-3 lg:py-2.5 2xl:py-3 cursor-pointer hover:bg-slate-50 transition-colors ${alerta.leida ? 'opacity-50' : ''}`}
 		>
 			{/* Icono con gradiente */}
 			<div
-				className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center shrink-0"
+				className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center shrink-0"
 				style={{ background: config.iconBg, boxShadow: config.iconShadow }}
 			>
-				<Icono className={`w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 ${config.color}`} />
+				<Icono className={`w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 ${config.color}`} />
 			</div>
 
 			{/* Contenido */}
 			<div className="flex-1 min-w-0">
-				<p className={`text-sm lg:text-[11px] 2xl:text-sm font-bold truncate ${alerta.leida ? 'text-slate-500' : 'text-slate-800'}`}>
+				<p className={`text-sm lg:text-[11px] 2xl:text-sm font-bold truncate ${alerta.leida ? 'text-slate-600' : 'text-slate-800'}`}>
 					{alerta.titulo}
 				</p>
-				<p className="text-xs lg:text-[10px] 2xl:text-xs font-medium text-slate-500 truncate">
+				<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 truncate">
 					{alerta.descripcion}
 				</p>
 			</div>
 
 			{/* Fecha + badge */}
 			<div className="flex flex-col items-end gap-0.5 shrink-0">
-				<span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-medium text-slate-400">
+				<span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-900">
 					{formatearFecha(alerta.createdAt)}
 				</span>
 				{!alerta.leida && (
@@ -142,13 +142,13 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
 
 				{noLeidas === 0 ? (
 					<div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-400/15 text-emerald-400">
-						<CheckCircle className="w-3.5 h-3.5" />
-						<span className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-semibold">Todo bien</span>
+						<CheckCircle className="w-4 h-4" />
+						<span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold">Todo bien</span>
 					</div>
 				) : (
 					<button
 						onClick={() => navigate('/business-studio/alertas')}
-						className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-semibold text-white/60 hover:text-white cursor-pointer"
+						className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white/60 hover:text-white cursor-pointer"
 					>
 						Ver todas →
 					</button>
@@ -156,7 +156,7 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
 			</div>
 
 			{/* Lista */}
-			<div className={`flex-1 ${!vistaMobil && 'overflow-y-auto'} flex flex-col p-1.5 lg:p-1 2xl:p-1.5`}>
+			<div className={`flex-1 ${!vistaMobil && 'overflow-y-auto'} flex flex-col divide-y-[1.5px] divide-slate-300`}>
 				{listaAlertas.length > 0 ? (
 					listaAlertas.map((alerta) => (
 						<ItemAlerta

@@ -25,6 +25,7 @@
 import { ReactNode, useEffect, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { usePortalTarget } from '../../hooks/usePortalTarget';
 
 // =============================================================================
 // TIPOS
@@ -105,6 +106,12 @@ export function Modal({
   zIndice = 'z-50',
 }: ModalProps) {
   // ---------------------------------------------------------------------------
+  // Portal target: document.body (default) o un contenedor del preview/ChatYA
+  // ---------------------------------------------------------------------------
+  const portalTarget = usePortalTarget();
+  const esContenido = portalTarget !== document.body;
+
+  // ---------------------------------------------------------------------------
   // Estado para animación de salida
   // ---------------------------------------------------------------------------
   const [cerrando, setCerrando] = useState(false);
@@ -147,32 +154,34 @@ export function Modal({
   // Bloquear scroll y escuchar Escape
   useEffect(() => {
     if (abierto) {
-      // Guardar posición actual del scroll
-      const scrollY = window.scrollY;
-
-      // Bloquear scroll de forma robusta (funciona en iOS Safari también)
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
-      document.body.style.overflow = 'hidden';
-
-      // Escuchar Escape
+      // Escuchar Escape siempre
       document.addEventListener('keydown', handleEscape);
 
+      // Solo bloqueamos scroll del body cuando el modal es fullscreen (portal a body).
+      // Si el modal está contenido en un preview (portal a otro elemento), el scroll del
+      // documento principal no debe bloquearse.
+      if (!esContenido) {
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+          document.body.style.position = '';
+          document.body.style.top = '';
+          document.body.style.width = '';
+          document.body.style.overflow = '';
+          window.scrollTo(0, scrollY);
+          document.removeEventListener('keydown', handleEscape);
+        };
+      }
+
       return () => {
-        // Restaurar estilos del body
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        document.body.style.overflow = '';
-
-        // Restaurar posición del scroll
-        window.scrollTo(0, scrollY);
-
         document.removeEventListener('keydown', handleEscape);
       };
     }
-  }, [abierto, handleEscape]);
+  }, [abierto, handleEscape, esContenido]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -184,9 +193,13 @@ export function Modal({
   // ¿Mostrar header?
   const deberiasMostrarHeader = mostrarHeader && (titulo || mostrarBotonCerrar);
 
+  // En modo contenido (preview/ChatYA), el modal se posiciona `absolute` relativo al
+  // contenedor del portal. En modo normal (fullscreen del viewport), usa `fixed`.
+  const claseBase = esContenido ? 'absolute' : 'fixed';
+
   return createPortal(
     <div
-      className={`fixed inset-0 ${zIndice} flex items-center justify-center p-3 lg:p-6 2xl:p-8`}
+      className={`${claseBase} inset-0 ${zIndice} flex items-center justify-center p-3 lg:p-6 2xl:p-8`}
       role="dialog"
       aria-modal="true"
     >
@@ -197,12 +210,15 @@ export function Modal({
         onClick={handleClickOverlay}
       />
 
-      {/* Contenedor del modal con animación FADE + SCALE */}
+      {/* Contenedor del modal con animación FADE + SCALE.
+          En modo contenido (preview/ChatYA) usamos max-h-full (respecto al wrapper que es absolute inset-0),
+          para que el modal quepa exactamente en el panel sin desbordar. En modo normal (fullscreen) mantenemos
+          los viewport-based max-h para dejar espacio de respiración alrededor del modal. */}
       <div
         className={`
           relative w-full ${anchos[ancho]}
           bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl shadow-xl
-          max-h-[85vh] lg:max-h-[90vh] overflow-hidden
+          ${esContenido ? 'max-h-full' : 'max-h-[85vh] lg:max-h-[90vh]'} overflow-hidden
           flex flex-col
           duration-200
           ${cerrando ? 'animate-out fade-out zoom-out-95' : 'animate-in fade-in zoom-in-95'}
@@ -240,7 +256,7 @@ export function Modal({
         <div className={`${paddings[paddingContenido]} flex-1 min-h-0 ${paddingContenido === 'none' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>{children}</div>
       </div>
     </div>,
-    document.body
+    portalTarget
   );
 }
 

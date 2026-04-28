@@ -11,10 +11,10 @@
  * - Click en cualquier parte abre ModalCatalogo completo
  * - Click en imagen abre ModalImagenes
  * - Sin scroll infinito (eso está en el modal)
- * - 3 breakpoints: móvil (3 cols), laptop lg: (5 cols), desktop 2xl: (6 cols)
+ * - 3 breakpoints: móvil (3 cols), laptop @5xl: (5 cols), desktop @[96rem]: (6 cols)
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   ShoppingBag,
   ChevronRight,
@@ -23,6 +23,7 @@ import {
   Star,
 } from 'lucide-react';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { useDragScroll } from '@/hooks/useDragScroll';
 import { ModalCatalogo } from './ModalCatalogo';
 import { ModalDetalleItem } from './ModalDetalleItem';
 
@@ -81,6 +82,10 @@ export function SeccionCatalogo({
   const [modalAbierto, setModalAbierto] = useState(false);
   const [itemSeleccionado, setItemSeleccionado] = useState<ItemCatalogo | null>(null);
   const { esMobile, esDesktop } = useBreakpoint();
+
+  // Drag-to-scroll en el carrusel mobile — affordance desktop al embeberse en preview/ChatYA
+  const refScroll = useRef<HTMLDivElement>(null);
+  useDragScroll(refScroll);
   // ---------------------------------------------------------------------------
   // CÁLCULOS
   // ---------------------------------------------------------------------------
@@ -168,14 +173,14 @@ export function SeccionCatalogo({
       `}</style>
 
       {/* ============ SECCIÓN PREVIEW ============ */}
-      <div className="space-y-3 lg:space-y-2 2xl:space-y-3">
+      <div className="space-y-3 @5xl:space-y-2 @[96rem]:space-y-3">
         {/* Header con franja divisoria - Degradado igual a Galería */}
         <div
-          className="flex items-center justify-between bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 hover:from-slate-700 hover:via-slate-600 hover:to-slate-500 text-white rounded-xl px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 cursor-pointer transition-all"
+          className="flex items-center justify-between bg-linear-to-r from-slate-600 via-slate-500 to-slate-400 hover:from-slate-700 hover:via-slate-600 hover:to-slate-500 text-white rounded-xl px-4 py-2 @5xl:px-3 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 cursor-pointer transition-all"
           onClick={handleAbrirModal}
         >
-          <h2 className="flex items-center gap-2 text-lg lg:text-base 2xl:text-lg font-semibold">
-            <ShoppingBag className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+          <h2 className="flex items-center gap-2 text-lg @5xl:text-base @[96rem]:text-lg font-semibold">
+            <ShoppingBag className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
             <span>Catálogo</span>
             <span className="text-sm font-medium text-white/70">({totalItems})</span>
           </h2>
@@ -186,23 +191,31 @@ export function SeccionCatalogo({
               <ChevronRight className="h-5 w-5 animate-bounceX" />
             </div>
           ) : (
-            <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all hover:scale-110">
-              <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white animate-bounceX" />
+            <div className="w-8 h-8 @5xl:w-7 @5xl:h-7 @[96rem]:w-8 @[96rem]:h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all hover:scale-110">
+              <ChevronRight className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-white animate-bounceX" />
             </div>
           )}
         </div>
 
         {/* Grid de preview con FAB externo */}
         <div className="relative">
-          {/* Mobile: scroll horizontal | Desktop: grid 4 items */}
-          <div className="flex gap-3 overflow-x-auto pb-2 lg:pb-0 lg:grid lg:grid-cols-3 2xl:grid-cols-4 lg:gap-2.5 2xl:gap-4 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {/* Fade borde derecho: indicador visual de "hay más contenido → desliza".
+              Oscuro para destacar sobre fondos claros. Altura acotada al item (bottom-2 alinea con pb-2 del scroll).
+              z-20 para cubrir contenido del card. Solo aparece en mobile/preview. */}
+          <div className="pointer-events-none absolute top-0 bottom-2 right-0 w-12 bg-gradient-to-l from-black/90 via-black/50 to-transparent @5xl:hidden z-20" />
+          {/* Mobile: scroll horizontal | Desktop: grid 4 items
+              [&_*]:cursor-grab fuerza el cursor en descendientes (los cards tienen cursor-pointer propio). */}
+          <div
+            ref={refScroll}
+            className="flex gap-3 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pb-0 @5xl:grid @5xl:grid-cols-3 @[96rem]:grid-cols-4 @5xl:gap-2.5 @[96rem]:gap-4 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          >
             {(esMobile
               ? [...catalogo].sort((a, b) => (a.destacado && !b.destacado ? -1 : !a.destacado && b.destacado ? 1 : 0)).slice(0, 10)
               : itemsPreview
             ).map((item, index) => {
               const esUltimoDesktop = !esMobile && index === itemsPreview.length - 1 && totalItems > itemsPreview.length;
               return (
-                <div key={item.id} className="shrink-0 w-[45%] lg:w-auto relative">
+                <div key={item.id} className="shrink-0 w-[45%] @5xl:w-auto relative">
                   <CardPreview
                     item={item}
                     index={index}
@@ -289,12 +302,12 @@ function CardPreview({
   if (esDestacado) {
     return (
       <div
-        className={`group relative bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl shadow-md overflow-hidden border-2 border-amber-300 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all ${clasesVisibilidad}`}
+        className={`group relative bg-white rounded-2xl @5xl:rounded-xl @[96rem]:rounded-2xl shadow-md overflow-hidden border-2 border-amber-300 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all ${clasesVisibilidad}`}
         onClick={(e) => onItemClick?.(item, e)}
       >
         {/* Badge con animación - MÁS GRANDE */}
-        <div className="absolute top-2 left-2 lg:top-1.5 lg:left-1.5 2xl:top-2 2xl:left-2 z-10 bg-amber-500 text-white p-2 lg:p-1.5 2xl:p-2 rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-lg animate-badgeBounce">
-          <Star className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 fill-current animate-starSpin" />
+        <div className="absolute top-2 left-2 @5xl:top-1.5 @5xl:left-1.5 @[96rem]:top-2 @[96rem]:left-2 z-10 bg-amber-500 text-white p-2 @5xl:p-1.5 @[96rem]:p-2 rounded-xl @5xl:rounded-lg @[96rem]:rounded-xl shadow-lg animate-badgeBounce">
+          <Star className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 fill-current animate-starSpin" />
         </div>
 
         {/* Imagen con zoom hover y efecto shine */}
@@ -313,20 +326,20 @@ function CardPreview({
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               {esServicio ? (
-                <Wrench className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-amber-300" />
+                <Wrench className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 text-amber-300" />
               ) : (
-                <ImageIcon className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-amber-300" />
+                <ImageIcon className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 text-amber-300" />
               )}
             </div>
           )}
         </div>
 
         {/* Info - texto más grande */}
-        <div className="p-3 lg:p-2 2xl:p-3">
-          <h4 className="font-bold text-slate-800 text-base lg:text-sm 2xl:text-base line-clamp-1">
+        <div className="p-3 @5xl:p-2 @[96rem]:p-3">
+          <h4 className="font-bold text-slate-800 text-base @5xl:text-sm @[96rem]:text-base line-clamp-1">
             {item.nombre}
           </h4>
-          <p className="text-green-600 font-bold text-lg lg:text-base 2xl:text-lg">
+          <p className="text-green-600 font-bold text-lg @5xl:text-base @[96rem]:text-lg">
             ${parseFloat(item.precioBase).toFixed(0)}
           </p>
         </div>
@@ -337,7 +350,7 @@ function CardPreview({
   // Card NORMAL
   return (
     <div
-      className={`group relative bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl shadow-sm overflow-hidden border border-slate-200 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all ${clasesVisibilidad}`}
+      className={`group relative bg-white rounded-2xl @5xl:rounded-xl @[96rem]:rounded-2xl shadow-sm overflow-hidden border border-slate-200 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all ${clasesVisibilidad}`}
       onClick={(e) => onItemClick?.(item, e)}
     >
       {/* Imagen con zoom hover y efecto shine */}
@@ -356,20 +369,20 @@ function CardPreview({
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             {esServicio ? (
-              <Wrench className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-slate-600" />
+              <Wrench className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 text-slate-600" />
             ) : (
-              <ImageIcon className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-slate-600" />
+              <ImageIcon className="w-10 h-10 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 text-slate-600" />
             )}
           </div>
         )}
       </div>
 
       {/* Info - texto más grande */}
-      <div className="p-3 lg:p-2 2xl:p-3">
-        <h4 className="font-semibold text-slate-800 text-base lg:text-sm 2xl:text-base line-clamp-1">
+      <div className="p-3 @5xl:p-2 @[96rem]:p-3">
+        <h4 className="font-semibold text-slate-800 text-base @5xl:text-sm @[96rem]:text-base line-clamp-1">
           {item.nombre}
         </h4>
-        <p className="text-green-600 font-bold text-lg lg:text-base 2xl:text-lg">
+        <p className="text-green-600 font-bold text-lg @5xl:text-base @[96rem]:text-lg">
           ${parseFloat(item.precioBase).toFixed(0)}
         </p>
       </div>

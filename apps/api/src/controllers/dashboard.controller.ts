@@ -237,11 +237,16 @@ export async function obtenerAlertasRecientes(
             });
         }
 
+        const usuarioId = req.usuario?.usuarioId;
+        if (!usuarioId) {
+            return res.status(401).json({ success: false, error: 'No autenticado' });
+        }
+
         let limite = parseInt(req.query.limite as string) || 5;
         limite = Math.min(Math.max(limite, 1), 20);
         const sucursalId = req.query.sucursalId as string | undefined;
 
-        const resultado = await dashboardService.obtenerAlertasRecientes(negocioId, limite, sucursalId);
+        const resultado = await dashboardService.obtenerAlertasRecientes(negocioId, usuarioId, limite, sucursalId);
 
         return res.json(resultado);
     } catch (error) {
@@ -281,7 +286,12 @@ export async function marcarAlertaLeida(
             });
         }
 
-        const resultado = await dashboardService.marcarAlertaLeida(alertaId, negocioId);
+        const usuarioId = req.usuario?.usuarioId;
+        if (!usuarioId) {
+            return res.status(401).json({ success: false, error: 'No autenticado' });
+        }
+
+        const resultado = await dashboardService.marcarAlertaLeida(alertaId, negocioId, usuarioId);
 
         return res.json(resultado);
     } catch (error) {
