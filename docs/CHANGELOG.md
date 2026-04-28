@@ -7,6 +7,108 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [29 Abril 2026] - Fix etiqueta "Matriz" en buscador de ChatYA 🐛
+
+**Bug:** En el buscador de chats, al buscar un negocio multi-sucursal, la sucursal Matriz aparecía con el nombre del negocio duplicado en la segunda línea: *"Imprenta FindUS / Imprenta FindUS"*. Las sucursales secundarias se veían bien.
+
+**Causa raíz:** En BD la sucursal Matriz suele tener `nombre = "Imprenta FindUS"` (igual al negocio). El backend retornaba ese nombre literal sin distinguir si era principal.
+
+**Fix en `buscarNegocios` (`apps/api/src/services/chatya.service.ts`):**
+- La query ahora incluye `s.es_principal`.
+- Lógica de etiqueta:
+  - 1 sola sucursal → `null` (no se renderiza segunda línea).
+  - Sucursal Matriz de negocio con varias → `"Matriz"` literal.
+  - Sucursal secundaria → su nombre real.
+
+Frontend no requirió cambios: ya respeta `sucursalNombre` del response.
+
+Commit: `ab36c10`.
+
+---
+
+## [29 Abril 2026] - Mis Notas independientes por sucursal en ChatYA 📓
+
+**Bug:** Las notas en "Mis Notas" se compartían entre sucursales — al cambiar de sucursal activa, las notas viejas aparecían a la **izquierda** (recibidas) en lugar de a la derecha (enviadas) — efecto espejo. Causa: la lógica frontend `mensajeEsMio` ya usaba la tupla `(emisorId, emisorSucursalId)` por la Coherencia A inter-sucursal del Sprint 13, pero las notas no filtraban por sucursal, así que un mensaje grabado en Matriz se veía como "ajeno" desde otra sucursal.
+
+**Solución arquitectónica:** Mis Notas es ahora **independiente por sucursal**. Cada sucursal tiene su propio "cuaderno" de notas. Cuando el operador cambia de sucursal, ve solo las notas que escribió desde esa sucursal específica.
+
+**Cambios:**
+- **Migración SQL** (`docs/migraciones/2026-04-28-chat-mis-notas-backfill-sucursal.sql`): backfill de mensajes legacy en conversaciones tipo `notas` con `emisor_sucursal_id IS NULL`. Dueños → Matriz del negocio, gerentes → su sucursal asignada. Idempotente. Aplicada en staging (6 mensajes legacy backfileados).
+- **Backend** (`listarMensajes` en `chatya.service.ts`): filtro condicional `WHERE emisor_sucursal_id = sucursalId` cuando `contexto_tipo = 'notas'` y hay sucursal activa.
+- **Frontend**:
+  - `useChatYAStore.invalidarMisNotas()`: nueva acción que limpia `cacheMensajes`/`cacheTotalMensajes`/`cacheHayMas` de Mis Notas y recarga si está abierta.
+  - `useScanYAStore.cambiarSucursal`: invoca invalidar tras cambio en ScanYA.
+  - `useAuthStore.setSucursalActiva`: invoca invalidar en modo comercial (BS).
+
+Validación end-to-end: dueño con notas en Matriz, al cambiar a Sucursal Norte ve Mis Notas vacía; al volver a Matriz, las notas reaparecen.
+
+Commit: `30a9ff1`.
+
+---
+
+## [28-29 Abril 2026] - Rediseño profesional PanelInfoContacto + Regla 13 🎨
+
+**Problema:** El panel lateral de información de contacto en ChatYA se sentía caricaturesco / videojuego en lugar de herramienta B2B: cards anidados con headers oscuros gruesos, iconos en círculos pastel, emojis 🥉🥈🥇 como datos, saltos tipográficos exagerados, bordes 2px y colores saturados.
+
+**Rediseño aplicado** en ambas vistas (cliente y negocio) con variantes adaptativas móvil/desktop:
+
+- **Vista cliente — Puntos y nivel:** lista densa label/valor con divider 1px, iconos pequeños inline (Award, Coins, Calendar) sin círculo, sin emojis.
+- **Vista negocio — Rating + Categoría / Horario / Ver perfil / Ubicación:** `bg-white border-1 slate-300 shadow-sm`, botones con texto neutro slate, color semántico solo donde aporta info (verde "Abierto ahora", rojo "Cerrado").
+- **Variantes móvil** (sobre gradiente azul oscuro del panel): `bg-white/10 backdrop-blur-sm + border-white/15` (glass), tipografía `text-[15px]` con peso aumentado, iconos `text-white/60-70`, estados semánticos `text-emerald-400 / text-red-400` para legibilidad sobre oscuro.
+- **Footer Silenciar/Bloquear/Eliminar:** iconos un escalón menos, línea divisoria superior eliminada.
+- **Sección archivos:** `slice(0, 6)` defensivo, sin scroll interno (grid 3×2 cabe siempre con `aspect-square`).
+- **Galería completa (modal con tabs):** tamaños de tab y contador móvil aumentados, lista de documentos con tipografía y contraste mejorados.
+
+**Documentación nueva — Regla 13 "Estética Profesional vs Caricaturesca"** en `docs/estandares/TOKENS_GLOBALES.md`:
+- Anti-patrones a evitar (iconos en círculos pastel, emojis como datos, saltos tipográficos, bordes ≥2px, colores pastel saturados).
+- Patrones correctos (listas densas inline, iconos 14–16px sin círculo, jerarquía por peso no tamaño, color neutro + 1 acento).
+- Tabla de variantes móvil/desktop.
+- Excepción: vistas al consumidor final (CardYA, públicas) pueden ser más amigables.
+- Caso de referencia: `PanelInfoContacto.tsx` (28 abr 2026).
+
+Referenciada desde `CLAUDE.md` con resumen accionable para que aparezca en el contexto inicial de futuras sesiones.
+
+Commits: `1588283` + `69c1ce7`.
+
+---
+
+## [28 Abril 2026] - Auto-cierre de turnos colgados en ScanYA ⏰
+
+**Problema:** Cuando el operador cerraba ScanYA sin hacer logout, el turno (`scanya_turnos`) quedaba con `hora_fin = NULL` indefinidamente, distorsionando stats y bloqueando futuros logins.
+
+**Solución:** Cron cada 30 min que cierra turnos rebasados + aviso al operador en su próximo login a ScanYA.
+
+**Algoritmo del límite (sin config nueva):**
+- Sucursal con horario operativo ese día → duración del horario + 2h gracia.
+- Sucursal cerrada ese día o sin horario → 24h.
+- 24/7 (apertura == cierre) → 24h.
+- Cap absoluto: 30h.
+- Filtro: turnos con < 3h ni siquiera entran al cálculo.
+
+Ejemplo validado: lunes 08:30–18:30 (10h) → límite 12h.
+
+**Cierre del turno:**
+- `hora_fin = NOW()`
+- `cerrado_por = NULL` (manual siempre tiene UUID — distingue auto vs manual).
+- `notas_cierre = "Cerrado automáticamente — turno excedió Xh sin cierre manual."`
+
+**Aviso al operador (modal, no notificación):**
+- NO se envía notificación AY: los empleados no tienen cuenta propia en AnunciaYA — `empleados.usuario_id` apunta al dueño que los creó. Notificar a ese ID saturaría al dueño con notifs ajenas.
+- En su lugar, el endpoint de login (`loginDueno` / `loginEmpleado`) llama a `obtenerAvisoTurnoAutoCerrado(operador)` y retorna info del último turno auto-cerrado en las últimas 24h, si no abrió otro después y si el aviso aún no ha sido visto.
+- Frontend muestra `ModalAvisoTurnoAutoCerrado` con look ScanYA (negro + glow azul) + patrón adaptativo (bottom-sheet móvil, centrado desktop). Texto conciso, NO se auto-cierra.
+
+**Marca de "ya visto" para que no aparezca repetidamente:**
+- Migración: `docs/migraciones/2026-04-28-scanya-turnos-aviso-visto.sql` agrega columna `scanya_turnos.aviso_visto_at TIMESTAMPTZ`.
+- `obtenerAvisoTurnoAutoCerrado` filtra por `aviso_visto_at IS NULL` y, al encontrar uno, hace UPDATE para marcarlo.
+
+Validación end-to-end con turno de empleado y de dueño: modal aparece en el primer login post-cierre y NO en logins subsiguientes.
+
+Doc: `docs/arquitectura/ScanYA.md` → v1.6.
+
+Commit: `cabe419`.
+
+---
+
 ## [28 Abril 2026] - Fix zona horaria por sucursal en Reportes BS 🐛
 
 **Bug:** Una venta hecha en Puerto Peñasco a las **09:05** (hora Sonora, UTC-7) aparecía en el bucket de las **10:00** del gráfico "Horarios pico" en Reportes BS. Verificado en transacción `67b4f9d4` (raw UTC `16:05` → bucket viejo `10` → bucket correcto `9`).

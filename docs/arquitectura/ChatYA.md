@@ -358,6 +358,27 @@ Conversación consigo mismo (p1 = p2, `contexto_tipo = 'notas'`).
 - ✅ Frontend: Header personalizado (avatar dorado, "Notas personales", sin escribiendo/en línea/búsqueda/menú)
 - ✅ Frontend: Sin checkmarks ni tags "Negocio" en burbujas
 
+#### 4.12.1 Multi-sucursal en Mis Notas (29 abr 2026)
+
+Mis Notas es **independiente por sucursal**: cada sucursal tiene su propio "cuaderno". Cuando el operador (dueño/gerente) cambia de sucursal activa, ve solo las notas que escribió desde esa sucursal específica.
+
+**Por qué:** la lógica frontend `mensajeEsMio` ya considera la tupla `(emisorId, emisorSucursalId)` por la Coherencia A inter-sucursal del Sprint 13. Si una nota se grababa en Matriz y luego cambias a Sucursal X, el `emisorSucursalId` ya no coincide con `miSucursalId` y el mensaje aparecía a la izquierda como "ajeno" — efecto espejo. Filtrar las notas por sucursal resuelve el bug y modela mejor el flujo (notas operativas son del contexto de cada sucursal).
+
+**Backend** (`listarMensajes` en `chatya.service.ts`):
+```ts
+if (conv.contextoTipo === 'notas' && sucursalId) {
+    condiciones.push(eq(chatMensajes.emisorSucursalId, sucursalId));
+}
+```
+Solo filtra cuando hay sucursal activa (modo comercial). En modo personal sin sucursalId, no se filtra.
+
+**Frontend — invalidación cross-store al cambiar sucursal:**
+- `useChatYAStore.invalidarMisNotas()` limpia `cacheMensajes`/`cacheTotalMensajes`/`cacheHayMas` de Mis Notas y, si está abierta, recarga.
+- `useScanYAStore.cambiarSucursal` invoca invalidar tras cambio en ScanYA (vía `import` dinámico para evitar dependencia circular).
+- `useAuthStore.setSucursalActiva` invoca invalidar en modo comercial (BS).
+
+**Migración legacy:** `docs/migraciones/2026-04-28-chat-mis-notas-backfill-sucursal.sql` — backfill de mensajes con `emisor_sucursal_id IS NULL` en conversaciones tipo 'notas'. Dueños → Matriz del negocio, gerentes → su sucursal asignada. Idempotente.
+
 ### 4.13 Contexto de Origen
 
 El backend resuelve el nombre del recurso de origen (JOIN/lookup) y lo envía como `contextoNombre`. Cero requests extra del frontend.

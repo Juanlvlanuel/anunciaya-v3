@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 28 Abril 2026
+> **Última actualización:** 29 Abril 2026
 > **Progreso global:** 98% completado
-> **Fase actual:** ScanYA Multi-Sucursal ✅ — próximo: Secciones Públicas o Rifas/Vacantes (bloqueados)
+> **Fase actual:** Multi-sucursal cerrado en toda la app (ScanYA + BS + ChatYA) ✅ — próximo: Secciones Públicas o Rifas/Vacantes (bloqueados)
 
 ---
 
@@ -63,6 +63,7 @@
 | Sprint 12 | BS Sucursales: CRUD multi-sucursal + gerentes + clonación auto + hard delete | 16 Abr 2026 |
 | Sprint 12 ref | BS Sucursales refinamiento: validación correo 3 niveles, promoción cuentas existentes, emails rediseñados, blindajes Matriz, aislamiento por sucursal en Reportes, cupones cross-sucursal | 16 Abr 2026 |
 | Sprint 13 | ScanYA Multi-Sucursal: selector cambio sucursal (dueño), Coherencia A (token = fuente verdad), aislamiento datos por sucursal, label Matriz cross-app, fix race-condition modales, exclusión mutua chat/modales, fix stats Empleados desde `puntos_transacciones` | 28 Abr 2026 |
+| Sprint 14 | Calidad post-multi-sucursal: fix zona horaria por sucursal en Reportes (5 zonas MX), auto-cierre de turnos colgados con modal de aviso al login, rediseño profesional PanelInfoContacto + Regla 13 estética B2B, Mis Notas multi-sucursal en ChatYA, fix etiqueta "Matriz" en buscador | 28-29 Abr 2026 |
 
 > Detalle completo en el CHANGELOG.
 
