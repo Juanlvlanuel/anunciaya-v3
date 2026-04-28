@@ -195,6 +195,12 @@ interface ChatYAState {
   refrescarMensajesSilencioso: (conversacionId: string) => Promise<void>;
   /** Pre-carga mensajes de las primeras N conversaciones en segundo plano */
   precargarMensajes: () => void;
+  /**
+   * Invalida la caché local de Mis Notas. Llamar al cambiar de sucursal
+   * activa para que cuando el operador abra Mis Notas vea solo las notas
+   * de su sucursal actual (filtrado real lo hace el backend).
+   */
+  invalidarMisNotas: () => void;
   editarMensaje: (mensajeId: string, datos: EditarMensajeInput) => Promise<boolean>;
   eliminarMensaje: (mensajeId: string) => Promise<boolean>;
   reenviarMensaje: (mensajeId: string, datos: ReenviarMensajeInput) => Promise<boolean>;
@@ -830,6 +836,32 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
           }
         })
         .catch(() => { /* silencioso */ });
+    }
+  },
+
+  invalidarMisNotas: () => {
+    const { misNotasId, conversacionActivaId } = get();
+    if (!misNotasId) return;
+
+    // Limpiar caché local de Mis Notas
+    set((state) => {
+      const nuevoCacheMensajes = { ...state.cacheMensajes };
+      delete nuevoCacheMensajes[misNotasId];
+      const nuevoCacheTotal = { ...state.cacheTotalMensajes };
+      delete nuevoCacheTotal[misNotasId];
+      const nuevoCacheHayMas = { ...state.cacheHayMas };
+      delete nuevoCacheHayMas[misNotasId];
+      return {
+        cacheMensajes: nuevoCacheMensajes,
+        cacheTotalMensajes: nuevoCacheTotal,
+        cacheHayMas: nuevoCacheHayMas,
+      };
+    });
+
+    // Si Mis Notas está abierta ahora, recargarla de inmediato con el filtro
+    // de la nueva sucursal aplicado por el backend.
+    if (conversacionActivaId === misNotasId) {
+      get().cargarMensajes(misNotasId, 0);
     }
   },
 

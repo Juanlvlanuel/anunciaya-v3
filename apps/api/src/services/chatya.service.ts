@@ -1003,6 +1003,14 @@ export async function listarMensajes(
             );
         }
 
+        // Mis Notas multi-sucursal: cuando el operador opera con una sucursal
+        // activa, solo debe ver las notas que escribió estando en esa misma
+        // sucursal (notas independientes por sucursal). En modo personal sin
+        // sucursalId, no se filtra (caso fuera del contexto comercial).
+        if (conv.contextoTipo === 'notas' && sucursalId) {
+            condiciones.push(eq(chatMensajes.emisorSucursalId, sucursalId));
+        }
+
         // Obtener mensajes no eliminados, ordenados por más reciente
         const mensajes = await db
             .select()

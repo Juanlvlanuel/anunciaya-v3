@@ -552,6 +552,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           console.error('[AUTH] Error recargando notificaciones al cambiar sucursal:', error);
         }
       })();
+
+      // Invalidar Mis Notas de ChatYA: cada sucursal tiene sus propias notas.
+      (async () => {
+        try {
+          const { useChatYAStore } = await import('./useChatYAStore');
+          useChatYAStore.getState().invalidarMisNotas();
+        } catch {
+          /* silencioso si el store no está disponible */
+        }
+      })();
     }
   },
 

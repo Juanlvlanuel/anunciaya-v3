@@ -306,6 +306,16 @@ export const useScanYAStore = create<ScanYAState>()(
             refreshToken,
           });
 
+          // Invalidar Mis Notas de ChatYA: cada sucursal tiene sus propias
+          // notas, así que al cambiar debemos descartar el caché local.
+          // Import dinámico para evitar dependencia circular entre stores.
+          try {
+            const { useChatYAStore } = await import('./useChatYAStore');
+            useChatYAStore.getState().invalidarMisNotas();
+          } catch {
+            // Si el store no está disponible (test, SSR), ignorar.
+          }
+
           return { exito: true, sucursalNombre, esPrincipal };
         } catch (error: unknown) {
           let mensaje = 'Error al cambiar de sucursal';
