@@ -1,8 +1,9 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
 > **Última actualización:** 29 Abril 2026
-> **Progreso global:** 98% completado
-> **Fase actual:** Multi-sucursal cerrado en toda la app (ScanYA + BS + ChatYA) ✅ — próximo: Secciones Públicas o Rifas/Vacantes (bloqueados)
+> **Progreso global:** Multi-sucursal cerrado en toda la app ✅
+> **Fase actual:** Próximo bloque grande = Secciones Públicas (Ofertas, MarketPlace, Servicios) + Home con Pregúntale a Peñasco
+> **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (sesión estratégica abril 2026 — define las 4 secciones públicas finales y los features descartados)
 
 ---
 
@@ -19,8 +20,9 @@
 | **Sistema Lealtad + CardYA** (5.6-5.7) | ✅ 100% | - |
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
-| **Business Studio** (5.4) | ⏳ 86% (12/14 módulos) | Rifas, Vacantes (bloqueados) |
-| **Secciones Públicas** (6.x) | ⏳ 0% | Ofertas, MarketPlace, Dinámicas, Empleos |
+| **Business Studio** (5.4) | ⏳ 92% (12/13 módulos) | Vacantes (alimenta sección pública Servicios) |
+| **Secciones Públicas** (6.x) | ⏳ 0% | Ofertas, MarketPlace, Servicios |
+| **Home — Pregúntale a Peñasco** | ⏳ 0% | Feed conversacional + buscador hiperlocal + mascota. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §4 |
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
 | **Cleanup técnico Cloudinary** | ⏳ 0% | Servicio descontinuado. Pendiente: eliminar `cloudinary.service.ts`, variables env `CLOUDINARY_*`, dependencia npm `cloudinary`, helpers `eliminarImagenInteligente` y `duplicarImagenInteligente` (simplificar a solo R2). ~1-2h |
@@ -31,16 +33,19 @@
 
 **Q1 (Enero-Marzo) — Cierre:**
 - ✅ ScanYA, CardYA, Socket.io, Notificaciones, Reseñas, ChatYA, Promociones
-- ✅ Business Studio 8/14 módulos
-- ⏳ BS 80% (12/14) — no alcanzado, pasa a Q2
+- ✅ Business Studio 8/14 módulos *(meta histórica con base 14; la base actual es 13 tras la visión v3 de abril 2026)*
+- ⏳ BS 80% (12/14) — no alcanzado, pasa a Q2 *(idem; BS hoy va 12/13 = 92%)*
 
 **Q2 (Abril-Junio) — Meta:**
-- [ ] Business Studio 100% (14/14 módulos) — faltan: Rifas, Vacantes (bloqueados)
-- [ ] Secciones públicas: Ofertas, MarketPlace, Dinámicas, Empleos
+- [ ] Business Studio 100% (13/13 módulos) — falta: Vacantes
+- [ ] Secciones públicas: Ofertas, MarketPlace, Servicios
+- [ ] Home con Pregúntale a Peñasco
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto
 - [ ] Lanzamiento público
 - [ ] Stripe modo LIVE + dominio + SSL
+
+> **Removidos del alcance v1** (sesión estratégica abril 2026): Dinámicas/Rifas P2P, Live Sale, Pulse local. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.
 
 ---
 
@@ -92,15 +97,15 @@
 
 ---
 
-## ⏭️ Sprint siguiente: Secciones Públicas (Ofertas, MarketPlace, Dinámicas, Empleos)
+## ⏭️ Sprint siguiente: Secciones Públicas (Ofertas, MarketPlace, Servicios) + Home con Pregúntale a Peñasco
 
 ---
 
 ## 📅 Backlog Priorizado
 
-### Business Studio - Módulos Pendientes (2/14)
+### Business Studio - Módulos Pendientes (1/13)
 
-**Completados (12/14):**
+**Completados (12/13):**
 - ✅ Dashboard
 - ✅ Mi Perfil
 - ✅ Catálogo
@@ -114,36 +119,41 @@
 - ✅ Reportes (5 tabs, KPIs, funnels, XLSX, 12 Abr 2026)
 - ✅ Sucursales (CRUD multi-sucursal + gerentes + clonación auto, 16 Abr 2026)
 
-**Pendientes (2/14):**
-
-**🔴 Bloqueados (esperan otras secciones):**
+**Pendientes (1/13):**
 
 | # | Módulo | Tiempo Estimado | Depende de | Descripción |
 |---|--------|-----------------|------------|-------------|
-| 1 | **Rifas** | ~2 días | Dinámicas (pendiente) | Gestión rifas del negocio |
-| 2 | **Vacantes** | ~2 días | Empleos (pendiente) | Publicar/gestionar ofertas de empleo |
+| 1 | **Vacantes** | ~2 días | Sección pública Servicios | Herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública Servicios |
 
-**Total estimado:** ~4 días (distribuidos después de secciones públicas)
+> **Rifas** ya no figura como módulo pendiente. Se removió del alcance de v1 al descartarse Dinámicas (sesión estratégica abril 2026). Ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 ---
 
-### Secciones Públicas (Fase 6.0-6.3)
+### Secciones Públicas (Fase 6.0-6.2) y Home
 
 **6.0 Ofertas Públicas** (~2 días)
 - Feed público con geolocalización
 - Ya existe backend, solo falta vista pública
 
 **6.1 MarketPlace** (~4 días)
-- Compra-venta entre usuarios (modo Personal)
-- Requiere ChatYA completado
+- Compra-venta de **objetos** entre usuarios (modo Personal). NO se permiten servicios ni rifas aquí.
+- Requiere ChatYA completado ✅
 
-**6.2 Dinámicas/Rifas** (~4 días)
-- 3 tipos: con puntos, con dinero, offline
-- Requiere ChatYA + Sistema Puntos
+**6.2 Servicios** (~4 días)
+- Sección unificada: servicios e intangibles, incluye empleos.
+- Dos modos visibles: **Ofrezco** (publica quien tiene un servicio que dar o busca empleo) y **Solicito** (publica el negocio que contrata o el usuario que necesita un servicio).
+- Pendientes de diseño: si el toggle es 1ª persona (Ofrezco/Solicito) o 3ª (Ofrecidos/Solicitados); flujo del botón "Publicar".
+- Requiere ChatYA completado ✅
+- Detalle: `VISION_ESTRATEGICA_AnunciaYA.md` §3.2
 
-**6.3 Empleos** (~3 días)
-- Bidireccional: Ofertas empleo + Ofertas servicio
-- Requiere ChatYA completado
+**6.3 Home — Pregúntale a Peñasco** (estimado pendiente)
+- Feed conversacional + buscador hiperlocal (NO es sección del menú, vive en Home).
+- Tres pilares: conversacional, comunitario en vivo, mascota/identidad visual.
+- Parametrizable por ciudad (otras ciudades → "Pregúntale a [ciudad]").
+- Pendientes de diseño: mascota, layout, flujo de pregunta, algoritmo de matching keywords→push, moderación, persistencia.
+- Detalle: `VISION_ESTRATEGICA_AnunciaYA.md` §4
+
+> **Removidas del roadmap de v1:** Dinámicas/Rifas (riesgo legal SEGOB), Empleos como sección separada (absorbida en Servicios), Pulse local (reemplazado por Pregúntale a Peñasco), Live Sale (costo recurrente sin monetización validada — reconsiderable en v2).
 
 ---
 
@@ -216,7 +226,7 @@
 
 ---
 
-### 7.3 Lanzamiento Público (Abril-Mayo 2026)
+### 7.3 Lanzamiento Público (Mayo-Junio 2026)
 
 **Pre-requisitos:**
 - [ ] Beta completada exitosamente
@@ -239,8 +249,9 @@
 | Fase | Tiempo Estimado |
 |------|-----------------|
 | Sistema Lealtad + ChatYA + Promociones | ✅ Completado |
-| BS Módulos Pendientes (6/14) | ~12 días |
-| Secciones Públicas (6.0-6.3) | ~10-13 días |
+| BS Módulos Pendientes (1/13: Vacantes) | ~2 días |
+| Secciones Públicas (6.0-6.2: Ofertas, MarketPlace, Servicios) | ~10 días |
+| Home — Pregúntale a Peñasco | por estimar (depende del diseño) |
 | Panel Admin (6.7) | ~14 días |
 | Pre-lanzamiento (7.1) | ~5 días |
 | Beta (7.2) | ~21 días |
@@ -255,13 +266,13 @@
 
 **ChatYA ✅ completado — ya no es bloqueante:**
 - MarketPlace (contactar vendedor) — desbloqueado
-- Empleos (aplicar/contratar) — desbloqueado
-- Dinámicas (organizar rifas) — desbloqueado
+- Servicios (contactar oferente / contratante) — desbloqueado
+- Pregúntale a Peñasco (responder preguntas, sumarse a una pregunta) — desbloqueado
 
 **ScanYA ✅ completado — desbloqueó:**
 - Opiniones (validar compras) — ✅ completado
 - Clientes + Transacciones (datos) — ✅ completado
-- Reportes (métricas) — pendiente
+- Reportes (métricas) — ✅ completado
 
 ---
 
@@ -279,8 +290,8 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 
 ## 📅 Próxima Revisión
 
-**Fecha:** Al completar Secciones Públicas (6.0-6.3)
-**Alcance:** Desbloqueo de Rifas/Vacantes en BS y arranque de Panel Admin
+**Fecha:** Al completar Secciones Públicas (6.0-6.2) + Home con Pregúntale a Peñasco
+**Alcance:** Activación de BS Vacantes (ya con destino claro: alimenta Servicios) y arranque de Panel Admin
 
 ---
 

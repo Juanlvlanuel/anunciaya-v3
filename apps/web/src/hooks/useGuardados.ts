@@ -7,7 +7,7 @@
  * 
  * PROPÓSITO:
  * Hook para manejar guardados con actualización optimista
- * Reutilizable para ofertas, rifas y empleos
+ * Reutilizable para ofertas y servicios (publicaciones de la sección Servicios)
  * 
  * CARACTERÍSTICAS:
  * - Actualización optimista (UI responde instantáneamente)
@@ -43,11 +43,11 @@ import { notificar } from '../utils/notificaciones';
 // TIPOS
 // =============================================================================
 
-type EntityType = 'oferta' | 'rifa' | 'empleo';
+type EntityType = 'oferta' | 'servicio';
 
 interface UseGuardadosParams {
   /**
-   * Tipo de entidad (oferta, rifa, empleo)
+   * Tipo de entidad (oferta, servicio)
    */
   entityType: EntityType;
   

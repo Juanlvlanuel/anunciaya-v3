@@ -23,7 +23,7 @@
  * 
  * RUTAS PRIVADAS (SÍ se bloquea cuando isLocked=true):
  * - /negocios (directorio autenticado)
- * - /marketplace, /ofertas, /dinamicas, /empleos (secciones privadas)
+ * - /marketplace, /ofertas, /servicios (secciones privadas)
  * - /business-studio (dashboard comercial)
  * - /perfil (perfil usuario)
  * 

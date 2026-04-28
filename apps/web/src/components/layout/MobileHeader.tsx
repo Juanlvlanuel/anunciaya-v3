@@ -23,7 +23,7 @@ import { useEffect, useState, useRef } from 'react';
 import {
   Bell, Menu, Search, Eye, X, ChevronRight, ChevronLeft,
   LayoutDashboard, Receipt, Users, MessageSquare, ShoppingBag, Tag,
-  Ticket, Trophy, UserCheck, Briefcase, BarChart3, MapPin,
+  UserCheck, Briefcase, BarChart3, MapPin,
   User, CircleDollarSign, Building2, Save,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -94,7 +94,6 @@ function obtenerIconoModulo(pathname: string): LucideIcon {
   if (pathname.includes('/catalogo')) return ShoppingBag;
   if (pathname.includes('/ofertas')) return Tag;
   if (pathname.includes('/puntos')) return CircleDollarSign;
-  if (pathname.includes('/rifas')) return Trophy;
   if (pathname.includes('/empleados')) return UserCheck;
   if (pathname.includes('/vacantes')) return Briefcase;
   if (pathname.includes('/reportes')) return BarChart3;
@@ -118,7 +117,6 @@ const MODULOS_BS = [
   { nombre: 'Catálogo', ruta: '/business-studio/catalogo' },
   { nombre: 'Promociones', ruta: '/business-studio/ofertas' },
   { nombre: 'Puntos y Recompensas', ruta: '/business-studio/puntos' },
-  { nombre: 'Rifas', ruta: '/business-studio/rifas' },
   { nombre: 'Empleados', ruta: '/business-studio/empleados' },
   { nombre: 'Vacantes', ruta: '/business-studio/vacantes' },
   { nombre: 'Reportes', ruta: '/business-studio/reportes' },
@@ -221,7 +219,6 @@ export function MobileHeader() {
     if (location.pathname.includes('/catalogo')) return 'Catálogo';
     if (location.pathname.includes('/ofertas')) return 'Promociones';
     if (location.pathname.includes('/puntos')) return 'Puntos y Rec.';
-    if (location.pathname.includes('/rifas')) return 'Rifas';
     if (location.pathname.includes('/empleados')) return 'Empleados';
     if (location.pathname.includes('/vacantes')) return 'Vacantes';
     if (location.pathname.includes('/reportes')) return 'Reportes';
@@ -389,6 +386,25 @@ export function MobileHeader() {
                     )}
                   </button>
                 )}
+
+                {/* Botón Notificaciones (movido desde MenuDrawer en visión v3).
+                    `blur()` evita el hover sticky en mobile cuando se cierra el panel. */}
+                <button
+                  onClick={(e) => {
+                    e.currentTarget.blur();
+                    togglePanel();
+                  }}
+                  data-notificaciones-boton="true"
+                  className="relative p-2 text-white/90 active:bg-white/20 rounded-full transition-colors"
+                  title="Notificaciones"
+                >
+                  <Bell className="w-6 h-6" />
+                  {cantidadNoLeidas > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] bg-red-500 text-white text-[13px] rounded-full flex items-center justify-center font-bold ring-2 ring-blue-700 px-1 leading-none">
+                      {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
+                    </span>
+                  )}
+                </button>
 
                 {/* Botón Menú */}
                 <button

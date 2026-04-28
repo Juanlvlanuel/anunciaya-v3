@@ -27,7 +27,7 @@ import {
     X,
     Check,
     Briefcase,
-    FileText,
+    ShoppingCart,
     Menu,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -44,7 +44,7 @@ import type { Oferta } from '@/types/ofertas';
 // TIPOS
 // =============================================================================
 
-type TabGuardado = 'ofertas' | 'negocios' | 'empleos' | 'articulos';
+type TabGuardado = 'negocios' | 'ofertas' | 'marketplace' | 'servicios';
 
 type Ordenamiento = 'recientes' | 'antiguos' | 'alfabetico-az' | 'alfabetico-za';
 
@@ -299,11 +299,12 @@ export function PaginaGuardados() {
     // ---------------------------------------------------------------------------
     // Render
     // ---------------------------------------------------------------------------
+    // Orden B2C → P2P (visión v3): Negocios → Ofertas → Marketplace → Servicios
     const TABS_GUARDADOS: { id: TabGuardado; label: string; Icono: typeof Tag }[] = [
-        { id: 'ofertas', label: 'Ofertas', Icono: Tag },
         { id: 'negocios', label: 'Negocios', Icono: Store },
-        { id: 'empleos', label: 'Empleos', Icono: Briefcase },
-        { id: 'articulos', label: 'Artículos', Icono: FileText },
+        { id: 'ofertas', label: 'Ofertas', Icono: Tag },
+        { id: 'marketplace', label: 'Marketplace', Icono: ShoppingCart },
+        { id: 'servicios', label: 'Servicios', Icono: Briefcase },
     ];
 
     const badgePorTab = (id: TabGuardado) => {
@@ -540,7 +541,7 @@ export function PaginaGuardados() {
                         </div>
                     )}
 
-                    {(tabActivo === 'empleos' || tabActivo === 'articulos') && (
+                    {(tabActivo === 'servicios' || tabActivo === 'marketplace') && (
                         <div className="animate-fade-in">
                             <EstadoProximamente tipo={tabActivo} />
                         </div>
@@ -780,20 +781,20 @@ function ContenidoNegocios({
 // =============================================================================
 
 interface EstadoProximamenteProps {
-    tipo: 'empleos' | 'articulos';
+    tipo: 'servicios' | 'marketplace';
 }
 
 function EstadoProximamente({ tipo }: EstadoProximamenteProps) {
     const config = {
-        empleos: {
+        servicios: {
             icon: <Briefcase className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />,
-            titulo: 'Empleos guardados',
-            descripcion: 'Pronto podrás guardar tus ofertas de empleo favoritas',
+            titulo: 'Servicios guardados',
+            descripcion: 'Pronto podrás guardar tus servicios favoritos de la sección Servicios',
         },
-        articulos: {
-            icon: <FileText className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />,
-            titulo: 'Artículos guardados',
-            descripcion: 'Pronto podrás guardar artículos interesantes para leer después',
+        marketplace: {
+            icon: <ShoppingCart className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />,
+            titulo: 'Marketplace guardados',
+            descripcion: 'Pronto podrás guardar publicaciones del Marketplace para verlas después',
         },
     };
 

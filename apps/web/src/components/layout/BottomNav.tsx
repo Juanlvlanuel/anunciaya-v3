@@ -23,7 +23,7 @@
 
 import { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Store, ShoppingCart, Tag, Gift, BarChart3 } from 'lucide-react';
+import { Store, ShoppingCart, Tag, Wrench, BarChart3 } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
@@ -70,9 +70,11 @@ interface NavItem {
 // DATOS
 // =============================================================================
 
+// Orden por prioridad B2C → P2P (visión v3): Negocios → Ofertas → Marketplace → Servicios.
+// En modo comercial Marketplace se reemplaza por Business Studio en la izquierda.
 const NAV_ITEMS_LEFT_PERSONAL: NavItem[] = [
   { to: '/negocios', label: 'Negocios', icon: Store },
-  { to: '/marketplace', label: 'Market', icon: ShoppingCart },
+  { to: '/ofertas', label: 'Ofertas', icon: Tag },
 ];
 
 const NAV_ITEMS_LEFT_COMERCIAL: NavItem[] = [
@@ -80,9 +82,14 @@ const NAV_ITEMS_LEFT_COMERCIAL: NavItem[] = [
   { to: '/business-studio', label: 'Business', icon: BarChart3 },
 ];
 
-const NAV_ITEMS_RIGHT: NavItem[] = [
+const NAV_ITEMS_RIGHT_PERSONAL: NavItem[] = [
+  { to: '/marketplace', label: 'Marketplace', icon: ShoppingCart },
+  { to: '/servicios', label: 'Servicios', icon: Wrench },
+];
+
+const NAV_ITEMS_RIGHT_COMERCIAL: NavItem[] = [
   { to: '/ofertas', label: 'Ofertas', icon: Tag },
-  { to: '/dinamicas', label: 'Dinámicas', icon: Gift },
+  { to: '/servicios', label: 'Servicios', icon: Wrench },
 ];
 
 // =============================================================================
@@ -178,7 +185,7 @@ export function BottomNav() {
               </div>
 
               {/* Items derecha */}
-              {NAV_ITEMS_RIGHT.map((item) => (
+              {(esComercial ? NAV_ITEMS_RIGHT_COMERCIAL : NAV_ITEMS_RIGHT_PERSONAL).map((item) => (
                 <NavButton key={item.to} item={item} />
               ))}
             </div>

@@ -28,7 +28,6 @@ import {
   UserPlus,
   AlertTriangle,
   Star,
-  Megaphone,
   Settings,
   Trash2,
   ShoppingBag,
@@ -99,9 +98,7 @@ const getConfigPorTipo = (tipo: Notificacion['tipo']): ConfigTipo => {
       return { icono: Star, gradiente: 'linear-gradient(135deg, #f59e0b, #b45309)' };
     case 'nuevo_marketplace':
       return { icono: ShoppingBag, gradiente: 'linear-gradient(135deg, #ec4899, #be185d)' };
-    case 'nueva_dinamica':
-      return { icono: Megaphone, gradiente: 'linear-gradient(135deg, #6366f1, #4338ca)' };
-    case 'nuevo_empleo':
+    case 'nuevo_servicio':
       return { icono: Briefcase, gradiente: 'linear-gradient(135deg, #0ea5e9, #0369a1)' };
     case 'sistema':
     default:

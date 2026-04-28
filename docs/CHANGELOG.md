@@ -7,6 +7,30 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [28 Abril 2026] - Visión estratégica v3 + Fase A: alineación documental 🧭
+
+**Contexto:** Sesión estratégica en `claude.ai` redefinió el alcance del producto. Se documenta en `docs/VISION_ESTRATEGICA_AnunciaYA.md`.
+
+**Decisiones clave:**
+- Secciones públicas: pasan de 5 a **4** — Negocios, MarketPlace, Ofertas, **Servicios** (sección unificada que absorbe lo que iba a ser "Empleos", con modos Ofrezco/Solicito).
+- Home: nuevo concepto **"Pregúntale a Peñasco"** (feed conversacional + buscador hiperlocal + mascota), reemplaza la idea descartada de Pulse local.
+- **Removidos del alcance v1**: Dinámicas / Rifas P2P (riesgo legal SEGOB), Live Sale (costo recurrente sin monetización validada), Pulse local.
+- Business Studio: pasa de 14 a **13 módulos**. **Rifas removido** (dependía de Dinámicas). **Vacantes se mantiene** como herramienta del comerciante para publicar a la sección pública Servicios.
+
+**Fase A — solo documentación (sin tocar código ni BD):**
+- `CLAUDE.md`: descripción de la app reescrita ("comercio local hiperlocal, NO red social"), 4 secciones públicas, BS 12/13, link al norte estratégico, regla 4 reforzada (no proponer features descartados), scopes de commit ampliados.
+- `docs/ROADMAP.md`: Q2, backlog, dependencias y estimación realineadas; Vacantes única pendiente de BS; Servicios y Pregúntale a Peñasco agregados como sprints próximos.
+- `docs/VISION_ESTRATEGICA_AnunciaYA.md` §8: corregido stack a la realidad (React 19, TanStack Query v5, Express 5; Cloudinary marcado como descontinuado).
+- `docs/arquitectura/`: Sistema, Business_Studio, ChatYA, Guardados, Notificaciones, Base_de_Datos actualizados — describen el estado actual del código + nota explícita de qué cambia en Fases B/C/D del cleanup.
+- `docs/legacy/README.md`: aviso de obsolescencia en encabezado.
+
+**Fases siguientes (pendientes):**
+- Fase B (UI/Frontend): quitar rutas/menús de Dinámicas, renombrar Empleos → Servicios, eliminar ítem Rifas del BS.
+- Fase C (Backend): limpiar referencias en services/controllers/routes a guardados de rifas y votos sobre dinámicas.
+- Fase D (BD): SQL one-shot — decidir destino de tabla `dinamicas`, renombrar enums `'empleo'` → `'servicio'`, quitar `'dinamica'` de enums.
+
+---
+
 ## [29 Abril 2026] - Fix etiqueta "Matriz" en buscador de ChatYA 🐛
 
 **Bug:** En el buscador de chats, al buscar un negocio multi-sucursal, la sucursal Matriz aparecía con el nombre del negocio duplicado en la segunda línea: *"Imprenta FindUS / Imprenta FindUS"*. Las sucursales secundarias se veían bien.

@@ -24,8 +24,7 @@ import {
   Store,
   ShoppingCart,
   Tag,
-  Gift,
-  Briefcase,
+  Wrench,
   User,
   Settings,
   LogOut,
@@ -123,8 +122,7 @@ const animationStyles = `
 const NAV_ITEMS_BASE = [
   { id: 'negocios', label: 'Negocios', path: '/negocios', icon: Store },
   { id: 'ofertas', label: 'Ofertas', path: '/ofertas', icon: Tag },
-  { id: 'dinamicas', label: 'Dinámicas', path: '/dinamicas', icon: Gift },
-  { id: 'empleos', label: 'Empleos', path: '/empleos', icon: Briefcase },
+  { id: 'servicios', label: 'Servicios', path: '/servicios', icon: Wrench },
 ];
 
 // =============================================================================
@@ -140,7 +138,6 @@ const MODULOS_BS = [
   { nombre: 'Catálogo', ruta: '/business-studio/catalogo' },
   { nombre: 'Promociones', ruta: '/business-studio/ofertas' },
   { nombre: 'Puntos y Recompensas', ruta: '/business-studio/puntos' },
-  { nombre: 'Rifas', ruta: '/business-studio/rifas' },
   { nombre: 'Empleados', ruta: '/business-studio/empleados' },
   { nombre: 'Vacantes', ruta: '/business-studio/vacantes' },
   { nombre: 'Reportes', ruta: '/business-studio/reportes' },
@@ -155,7 +152,7 @@ const RUTAS_OCULTAS_GERENTE = [
   '/business-studio/sucursales',
 ];
 
-const NAV_ITEM_MARKET = { id: 'market', label: 'Market', path: '/marketplace', icon: ShoppingCart };
+const NAV_ITEM_MARKET = { id: 'market', label: 'Marketplace', path: '/marketplace', icon: ShoppingCart };
 
 // =============================================================================
 // SUBCOMPONENTE: DropdownItem (VERSIÓN PREMIUM)
@@ -344,7 +341,6 @@ export const Navbar = () => {
     if (location.pathname.includes('/catalogo')) return 'Catálogo';
     if (location.pathname.includes('/ofertas')) return 'Promociones';
     if (location.pathname.includes('/puntos')) return 'Puntos';
-    if (location.pathname.includes('/rifas')) return 'Rifas';
     if (location.pathname.includes('/empleados')) return 'Empleados';
     if (location.pathname.includes('/vacantes')) return 'Vacantes';
     if (location.pathname.includes('/reportes')) return 'Reportes';
@@ -442,7 +438,7 @@ export const Navbar = () => {
 
   const NAV_ITEMS = esComercial
     ? NAV_ITEMS_BASE
-    : [NAV_ITEMS_BASE[0], NAV_ITEM_MARKET, ...NAV_ITEMS_BASE.slice(1)];
+    : [...NAV_ITEMS_BASE.slice(0, 2), NAV_ITEM_MARKET, ...NAV_ITEMS_BASE.slice(2)];
 
   const mensajesCount = useChatYAStore((s) => s.totalNoLeidos);
   const { prefetchLista: prefetchListaNegocios } = useNegocioPrefetch();

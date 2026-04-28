@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
-**Última actualización:** 16 Abril 2026
-**Versión:** 2.2 (BS Sucursales completado — 12/14 módulos)
+**Última actualización:** 28 Abril 2026
+**Versión:** 2.3 (Visión v3: Rifas removido del alcance, BS pasa a 13 módulos — 12/13)
 
 ---
 
@@ -9,7 +9,7 @@
 
 Este documento describe la **arquitectura conceptual** del sistema Business Studio:
 - ✅ Arquitectura general y flujos
-- ✅ Los 14 módulos del sistema
+- ✅ Los 13 módulos del sistema (Rifas removido en visión v3 — ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1)
 - ✅ Endpoints principales verificados contra código real
 - ✅ Sistema de sucursales y roles
 - ✅ Servicio centralizado compartido
@@ -34,7 +34,7 @@ Este documento describe la **arquitectura conceptual** del sistema Business Stud
 2. [¿Para qué sirve?](#para-qué-sirve)
 3. [¿Quién lo usa?](#quién-lo-usa)
 4. [Arquitectura del Sistema](#arquitectura-del-sistema)
-5. [Los 14 Módulos](#los-14-módulos)
+5. [Los 13 Módulos](#los-13-módulos)
 6. [Sistema de Sucursales](#sistema-de-sucursales)
 7. [Servicio Centralizado](#servicio-centralizado)
 8. [Panel de Preview](#panel-de-preview)
@@ -49,13 +49,13 @@ Este documento describe la **arquitectura conceptual** del sistema Business Stud
 Business Studio es el **centro de administración completo** para negocios registrados en AnunciaYA. Es una interfaz web dedicada que permite a dueños y gerentes gestionar todos los aspectos de su negocio desde un solo lugar.
 
 **Características principales:**
-- 14 módulos especializados de gestión
+- 13 módulos especializados de gestión
 - Sistema multi-sucursal integrado
 - Interfaz responsive (móvil, laptop 1366x768, desktop 1920x1080+)
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 12 de 14 módulos completados (86%). Migración React Query: 12/12 BS completo.
+**Progreso actual:** 12 de 13 módulos completados (92%). Migración React Query: 12/12 BS completo.
 
 ---
 
@@ -77,11 +77,10 @@ Business Studio centraliza todas las operaciones comerciales en 5 áreas princip
 
 ### 3. Engagement & Recompensas
 - Sistema de puntos CardYA
-- Rifas y dinámicas
 
 ### 4. Recursos Humanos
 - Gestión de empleados (Nick+PIN para ScanYA)
-- Publicación de vacantes
+- Publicación de vacantes (alimenta la sección pública Servicios)
 
 ### 5. Análisis & Configuración
 - Reportes por periodo
@@ -163,19 +162,19 @@ Si onboarding_completado = true → Business Studio Dashboard
 ```
 
 **Componentes principales:**
-- `MenuBusinessStudio.tsx` - Navegación lateral con 14 opciones
+- `MenuBusinessStudio.tsx` - Navegación lateral con 13 opciones (pendiente de limpieza UI: aún muestra ítem Rifas removido en visión v3)
 - `SelectorSucursalesInline.tsx` - Cambiar entre sucursales (dueños)
 - `PanelPreviewNegocio.tsx` - Preview en vivo del negocio
 
 ---
 
-## 📦 Los 14 Módulos
+## 📦 Los 13 Módulos
 
-> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (6 Abril 2026)
+> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (6 Abril 2026). Verificación posterior pendiente tras la limpieza UI (Fase B): el código aún muestra el ítem Rifas removido en visión v3.
 
 ### Organización del Menú
 
-Los 14 módulos están organizados en 5 secciones lógicas:
+Los 13 módulos están organizados en 5 secciones lógicas:
 
 #### 1. Operación Diaria (5 módulos)
 
@@ -194,31 +193,32 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 | 6 | Catálogo | `/business-studio/catalogo` | ShoppingBag | ✅ 100% |
 | 7 | Promociones | `/business-studio/ofertas` | Tag | ✅ 100% (Ofertas + Cupones unificados) |
 
-#### 3. Engagement & Recompensas (2 módulos)
+#### 3. Engagement & Recompensas (1 módulo)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
 | 8 | Puntos y Recompensas | `/business-studio/puntos` | Coins | ✅ 100% |
-| 9 | Rifas | `/business-studio/rifas` | Gift | ⏳ Pendiente |
+
+> **Rifas removido del alcance v1** (visión estratégica abril 2026). El ítem aún aparece en el menú UI — pendiente de limpieza en Fase B. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 #### 4. Recursos Humanos (2 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 10 | Empleados | `/business-studio/empleados` | UserCog | ✅ 100% |
-| 11 | Vacantes | `/business-studio/vacantes` | Briefcase | ⏳ Pendiente |
+| 9 | Empleados | `/business-studio/empleados` | UserCog | ✅ 100% |
+| 10 | Vacantes | `/business-studio/vacantes` | Briefcase | ⏳ Pendiente — alimenta sección pública Servicios |
 
 #### 5. Análisis & Configuración (3 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 12 | Reportes | `/business-studio/reportes` | FileBarChart | ✅ Completo |
-| 13 | Sucursales | `/business-studio/sucursales` | Building2 | ✅ Completo |
-| 14 | Mi Perfil | `/business-studio/perfil` | User | ✅ 100% |
+| 11 | Reportes | `/business-studio/reportes` | FileBarChart | ✅ Completo |
+| 12 | Sucursales | `/business-studio/sucursales` | Building2 | ✅ Completo |
+| 13 | Mi Perfil | `/business-studio/perfil` | User | ✅ 100% |
 
 ---
 
-## ✅ Módulos Completados (12/14)
+## ✅ Módulos Completados (12/13)
 
 ### 1. Dashboard ✅
 
@@ -555,10 +555,10 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### Módulos Bloqueados
+### Módulos Pendientes y Removidos
 
-- **Rifas** — Bloqueado: espera implementación de Dinámicas (sección pública)
-- **Vacantes** — Bloqueado: espera implementación de Empleos (sección pública)
+- **Vacantes** ⏳ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública **Servicios**. Pendiente de implementar; ya no está bloqueado por una sección que iba a llamarse "Empleos" (Servicios la absorbió en visión v3).
+- **Rifas** ❌ — Removido del alcance v1. Antes figuraba como bloqueado por Dinámicas; al descartarse Dinámicas (riesgo legal SEGOB), Rifas también queda fuera. El ítem todavía aparece en el código del menú — pendiente de limpieza en Fase B. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 ---
 
@@ -823,13 +823,13 @@ apps/web/src/
 │   └── empleados/                    ✅ Gestión de empleados
 │
 ├── components/layout/
-│   ├── MenuBusinessStudio.tsx        ✅ Menú 14 opciones
+│   ├── MenuBusinessStudio.tsx        ✅ Menú (13 opciones tras limpieza Fase B; hoy aún muestra Rifas)
 │   ├── DrawerBusinessStudio.tsx      ✅ Drawer móvil
 │   ├── PanelPreviewNegocio.tsx       ✅ Preview en vivo
 │   └── SelectorSucursalesInline.tsx  ✅ Cambiar sucursal
 │
 ├── router/
-│   ├── index.tsx                     ✅ 14 rutas BS
+│   ├── index.tsx                     ✅ Rutas BS (13 tras limpieza Fase B; hoy aún incluye `/rifas`)
 │   └── guards/ModoGuard.tsx          ✅ Guard de modo
 │
 ├── services/
@@ -941,7 +941,7 @@ export async function actualizarInfoGeneral() { ... }
 
 ---
 
-### 3. ¿Por qué 14 módulos separados?
+### 3. ¿Por qué 13 módulos separados?
 
 **Alternativa A (descartada):** Módulo único gigante
 ```
@@ -949,14 +949,14 @@ export async function actualizarInfoGeneral() { ... }
   - Todo en un solo archivo de 5,000+ líneas
 ```
 
-**Alternativa B (elegida):** 14 módulos separados
+**Alternativa B (elegida):** 13 módulos separados
 ```
 /business-studio/
   - dashboard
   - perfil
   - catalogo
   - ofertas
-  - ... (11 más)
+  - ... (10 más)
 ```
 
 **Razones:**
@@ -1059,9 +1059,9 @@ export async function actualizarInfoGeneral() { ... }
 
 ## ✅ Verificación
 
-**Última verificación:** 12 Abril 2026
+**Última verificación documental:** 28 Abril 2026
 
-**Módulos completados:** 12/14 ✅
+**Módulos completados:** 12/13 ✅
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
@@ -1075,19 +1075,22 @@ export async function actualizarInfoGeneral() { ... }
 - Reportes (12/04/2026)
 - Sucursales (16/04/2026)
 
-**Módulos pendientes:** 2/14
-- Rifas (bloqueado por Dinámicas), Vacantes (bloqueado por Empleos)
+**Módulos pendientes:** 1/13
+- Vacantes — alimenta sección pública Servicios
 
-**Progreso:** 12/14 módulos = 86%
+**Removidos del alcance v1:** Rifas (visión estratégica abril 2026, ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1)
 
-**Migración React Query:** 12/12 módulos BS completados (Abril 2026)
+**Progreso:** 12/13 módulos = 92%
+
+**Migración React Query:** 12/12 módulos BS hechos completados (Abril 2026)
 - Todos los datos del servidor en `hooks/queries/`
 - Stores Zustand simplificados a solo estado UI
 - 4 stores eliminados (Artículos, Ofertas, Reseñas, Empleados)
 - Componentes auxiliares migrados (modales duplicar, selector clientes, KPIs sidebar, categorías)
+- Vacantes nacerá con React Query desde el inicio
 
 ---
 
-**Última actualización:** 12 Abril 2026
-**Autor:** Equipo AnunciaYA  
-**Versión:** 1.1 (100% Verificado contra código real)
+**Última actualización:** 28 Abril 2026
+**Autor:** Equipo AnunciaYA
+**Versión:** 2.3 (alineación con visión estratégica v3)

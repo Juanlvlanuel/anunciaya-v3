@@ -23,7 +23,7 @@ Este documento describe la arquitectura técnica base, decisiones de diseño fun
 | **Store central** | `useGpsStore` es la fuente única de verdad |
 | **Backend** | PostGIS con `ST_DWithin` para búsquedas por radio |
 
-**Secciones afectadas:** `/negocios`, `/marketplace`, `/ofertas`, `/dinamicas`, `/empleos`
+**Secciones afectadas:** `/negocios`, `/marketplace`, `/ofertas`, `/servicios` (sección unificada que absorbe lo que iba a ser "Empleos" en visión v3)
 
 ---
 
@@ -115,8 +115,7 @@ BLOQUEO DE DATOS COMERCIALES:
 ├── Productos/servicios ocultos
 ├── Ofertas despublicadas
 ├── Cupones desactivados
-├── Empleos despublicados
-├── Rifas pausadas
+├── Vacantes despublicadas (sección pública Servicios)
 ├── Empleados sin acceso a ScanYA
 └── Business Studio bloqueado
          ↓
@@ -145,8 +144,7 @@ REACTIVACIÓN AUTOMÁTICA:
 ├── Productos/servicios visibles
 ├── Ofertas reactivadas
 ├── Cupones activados
-├── Empleos republicados
-├── Rifas reactivadas
+├── Vacantes republicadas (sección pública Servicios)
 ├── Empleados recuperan acceso
 └── Business Studio desbloqueado
          ↓
@@ -276,7 +274,7 @@ async function reactivarCuenta(usuarioId: string) {
 
 | Sin local físico | Con local físico |
 |------------------|------------------|
-| Publica GRATIS en Empleos | Publica en Negocios (PAGO) |
+| Publica GRATIS en Servicios (modo Ofrezco) | Publica en Negocios (PAGO) |
 | Publica GRATIS en MarketPlace | Usa Business Studio |
 | No necesita CardYA | CardYA requiere escaneo presencial |
 
@@ -317,15 +315,17 @@ Estas decisiones arquitectónicas fueron tomadas durante la implementación del 
 
 ### 2. Optimización de Imágenes Client-Side
 
-**Decisión:** Comprimir y optimizar imágenes en el navegador antes de subir (aplica tanto a Cloudinary como a R2).
+**Decisión:** Comprimir y optimizar imágenes en el navegador antes de subir.
+
+> ⚠️ **Cloudinary descontinuado** (28 Abril 2026). El código aún tiene referencias residuales (`cloudinary.service.ts`, vars env `CLOUDINARY_*`, helpers `eliminarImagenInteligente` / `duplicarImagenInteligente`) pendientes de eliminar — ver `ROADMAP.md` "Cleanup técnico Cloudinary". El destino único de imágenes es **Cloudflare R2**.
 
 **Configuración:**
 ```typescript
-Logo:      maxWidth: 500px,  quality: 0.85, format: webp  → Cloudinary
-Portada:   maxWidth: 1600px, quality: 0.85, format: webp  → Cloudinary
-Galería:   maxWidth: 1200px, quality: 0.85, format: webp  → Cloudinary
+Logo:      maxWidth: 500px,  quality: 0.85, format: webp  → R2
+Portada:   maxWidth: 1600px, quality: 0.85, format: webp  → R2
+Galería:   maxWidth: 1200px, quality: 0.85, format: webp  → R2
 Artículos: maxWidth: 1920px, quality: 0.85, format: webp  → R2
-Ofertas:   maxWidth: 1920px, quality: 0.85, format: webp  → R2 (pendiente)
+Ofertas:   maxWidth: 1920px, quality: 0.85, format: webp  → R2
 ```
 
 **Beneficios:**
@@ -337,19 +337,14 @@ Ofertas:   maxWidth: 1920px, quality: 0.85, format: webp  → R2 (pendiente)
 
 ### 3. Upload Diferido (Optimista) y Presigned URLs
 
-**Decisión:** Mostrar preview local inmediato sin esperar upload. Dos variantes según destino:
+**Decisión:** Mostrar preview local inmediato sin esperar upload. Patrón único basado en R2 + presigned URLs.
 
-**A) Cloudinary** (Mi Perfil: logo, portada, galería) — `useOptimisticUpload`:
-- Preview instantáneo con `URL.createObjectURL()`
-- Upload directo a Cloudinary con upload preset
-- URL de Cloudinary reemplaza blob local al completar
-
-**B) Cloudflare R2** (Catálogo, Ofertas) — `useR2Upload`:
+**`useR2Upload`** (Catálogo, Ofertas, Mi Perfil):
 - Preview instantáneo con `URL.createObjectURL()`
 - Solicita presigned URL al backend (`POST /api/{módulo}/upload-imagen`)
 - PUT directo al bucket R2 con la presigned URL
 - URL pública de R2 reemplaza blob local al completar
-- Eliminación inteligente: detecta automáticamente R2 vs Cloudinary según la URL
+- Helper de eliminación legacy aún detecta R2 vs Cloudinary por URL — quedará simplificado al hacer el cleanup técnico de Cloudinary (ver `ROADMAP.md`).
 
 **Flujo R2:**
 ```
@@ -361,6 +356,8 @@ Ofertas:   maxWidth: 1920px, quality: 0.85, format: webp  → R2 (pendiente)
 ```
 
 **Razón:** UX optimista - interfaz "snappy" sin esperas. R2 tiene egress ilimitado y menor costo a largo plazo.
+
+> Histórico: existía un segundo flujo basado en Cloudinary (`useOptimisticUpload`) para Mi Perfil. Quedó deprecado al descontinuar Cloudinary. Ver `ROADMAP.md` → "Cleanup técnico Cloudinary".
 
 ---
 
@@ -690,11 +687,8 @@ Usuario Final
              ├─► Socket.io (Tiempo Real)
              │   └─► Notificaciones push, rooms por usuario
              │
-             ├─► Supabase (PostgreSQL + PostGIS)
-             │   └─► 66 tablas, 500 MB, puerto 6543
-             │
-             ├─► MongoDB Atlas (Chat - M0 Free)
-             │   └─► 512 MB, 500 conexiones
+             ├─► Supabase (PostgreSQL + PostGIS) ← incluye ChatYA
+             │   └─► ~71 tablas en schema público (incluye chat_conv y chat_mensajes)
              │
              ├─► Upstash (Redis - Free)
              │   └─► 10K commands/día
@@ -702,11 +696,8 @@ Usuario Final
              ├─► AWS SES (Emails - Sandbox)
              │   └─► 200 emails/día
              │
-             ├─► Cloudinary (Imágenes perfil - Free)
-             │   └─► Logo, portada, galería · 25 GB storage/mes
-             │
-             ├─► Cloudflare R2 (Multimedia - Free)
-             │   └─► Tickets ScanYA + Artículos + Ofertas · 10 GB, egress ilimitado
+             ├─► Cloudflare R2 (Multimedia - Free) ← único storage activo
+             │   └─► Logo, portada, galería, tickets ScanYA, artículos, ofertas · 10 GB, egress ilimitado
              │
              └─► Stripe (Pagos - Test Mode)
                  └─► Suscripciones comerciales
@@ -720,12 +711,10 @@ Usuario Final
 |----------|-----------|------|-------|---------|-------|
 | **Backend** | Render | Free | 512 MB RAM, 0.1 CPU | Cold starts 15 min | $0 |
 | **Frontend** | Vercel | Free | Edge Network global | Bandwidth ilimitado | $0 |
-| **PostgreSQL** | Supabase | Free | 500 MB, 2 CPU shared | 50K queries/día | $0 |
-| **MongoDB** | Atlas | M0 | 512 MB shared | Sin backups auto | $0 |
+| **PostgreSQL (todo, incluye chat)** | Supabase | Free | 500 MB, 2 CPU shared | 50K queries/día | $0 |
 | **Redis** | Upstash | Free | 10K commands/día | 256 MB | $0 |
 | **Emails** | AWS SES | Sandbox | 200 emails/día | Sandbox mode | $0 |
-| **Imágenes perfil** | Cloudinary | Free | 25 GB/mes | 25 créditos/mes | $0 |
-| **Multimedia** | Cloudflare R2 | Free | 10 GB storage | Egress ilimitado | $0 |
+| **Multimedia (todo)** | Cloudflare R2 | Free | 10 GB storage | Egress ilimitado | $0 |
 | **Pagos** | Stripe | Test | N/A | Test mode | $0 |
 
 **Total Infraestructura: $0/mes**

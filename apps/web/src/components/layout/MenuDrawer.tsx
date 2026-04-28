@@ -1,24 +1,20 @@
 /**
- * MenuDrawer.tsx - VERSIÓN v3.0 REDISEÑADA
- * =========================================
+ * MenuDrawer.tsx - VERSIÓN v3.2 (visión v3 — drawer adelgazado)
+ * ===============================================================
  * Menú lateral que se abre desde el header en móvil.
  *
- * ✨ MEJORAS v3.0:
- * - 📍 Ubicación y 💼 Empleos UNIVERSALES (siempre visibles)
- * - Ubicación como 1era opción destacada
- * - Empleos como 2da opción destacada con subtítulo adaptativo
- * - Mejor organización visual con secciones claras
+ * Servicios y Notificaciones se sacaron del drawer:
+ * - Servicios → ahora vive en BottomNav (acceso fijo desde la pantalla).
+ * - Notificaciones → ahora vive en MobileHeader (icono campana con badge).
  *
- * ✨ ESTRUCTURA v3.0:
+ * ✨ ESTRUCTURA:
  * 1. Header (Avatar + Toggle Modo)
- * 2. OPCIONES UNIVERSALES:
+ * 2. OPCIÓN UNIVERSAL:
  *    - 📍 Ubicación (todos)
- *    - 💼 Empleos (todos, texto adaptativo)
  * 3. OPCIONES POR MODO:
- *    - Comercial: ScanYA, Business Studio
- *    - Personal: CardYA, Cupones, Publicaciones
- * 4. OPCIONES COMUNES:
- *    - Perfil, Configuración, Guardados
+ *    - Comercial: ScanYA, Business Studio, Mis Guardados
+ *    - Personal: CardYA, Cupones, Publicaciones, Mis Guardados
+ * 4. OPCIÓN COMÚN: Mi Perfil
  * 5. Footer (Cerrar Sesión)
  *
  * Ubicación: apps/web/src/components/layout/MenuDrawer.tsx
@@ -35,15 +31,12 @@ import {
   Heart,
   FileText,
   MapPin,
-  Briefcase,
   Lock,
   Ticket,
-  Bell,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useUiStore } from '../../stores/useUiStore';
-import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { ToggleModoUsuario } from '../ui/ToggleModoUsuario';
 
 // =============================================================================
@@ -69,8 +62,6 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
   const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
   const cerrarTodo = useUiStore((state) => state.cerrarTodo);
-
-  const togglePanelNotificaciones = useNotificacionesStore((state) => state.togglePanel);
 
   // ---------------------------------------------------------------------------
   // Hooks
@@ -303,16 +294,6 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 onClick={() => handleNavegar('/business-studio')}
               />
 
-              {/* Empleos */}
-              <MenuDrawerItem
-                icon={Briefcase}
-                label="Empleos"
-                bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-amber-50"
-                onClick={() => handleNavegar('/empleos')}
-              />
-
               {/* Mis Guardados */}
               <MenuDrawerItem
                 icon={Heart}
@@ -377,32 +358,12 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 onClick={() => handleNavegar('/guardados')}
               />
 
-              {/* Empleos */}
-              <MenuDrawerItem
-                icon={Briefcase}
-                label="Empleos"
-                bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-amber-50"
-                onClick={() => handleNavegar('/empleos')}
-              />
-
               {/* Divisor después de opciones personales */}
               <div className="my-2.5 mx-4 h-[1.5px] bg-linear-to-r from-transparent via-gray-400 to-transparent"></div>
             </>
           )}
 
           {/* === OPCIONES COMUNES (TODOS) === */}
-
-          {/* Notificaciones */}
-          <MenuDrawerItem
-            icon={Bell}
-            label="Notificaciones"
-            bgColor="bg-gradient-to-br from-red-400 to-red-600"
-            iconColor="text-white"
-            hoverGradient="hover:from-red-50"
-            onClick={() => { togglePanelNotificaciones(); onClose(); }}
-          />
 
           {/* Mi Perfil */}
           <MenuDrawerItem

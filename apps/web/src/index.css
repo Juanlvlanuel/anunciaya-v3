@@ -972,6 +972,66 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
   animation: landing-float 6s ease-in-out infinite;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Carrusel del hero — puertas corredizas (visión v3)
+   Cada slot se desliza horizontalmente como puerta corrediza: la imagen
+   saliente sale hacia su lado externo mientras desaparece, la entrante
+   entra deslizándose desde el lado opuesto (efecto espejo entre los dos
+   slots — al cambiar ambos a la vez se abrirían como puertas dobles).
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Slot izquierdo: imagen sale hacia la izquierda, nueva entra desde la derecha */
+@keyframes slide-puerta-exit-izq {
+  0%   { transform: translateX(0);    opacity: 1; }
+  100% { transform: translateX(-100%); opacity: 0; }
+}
+.anim-slide-exit-izq {
+  animation: slide-puerta-exit-izq 700ms cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+  z-index: 1;
+  will-change: opacity, transform;
+}
+
+@keyframes slide-puerta-enter-izq {
+  0%   { transform: translateX(100%); opacity: 0; }
+  100% { transform: translateX(0);    opacity: 1; }
+}
+.anim-slide-enter-izq {
+  animation: slide-puerta-enter-izq 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  z-index: 2;
+  will-change: opacity, transform;
+}
+
+/* Slot derecho: imagen sale hacia la derecha, nueva entra desde la izquierda */
+@keyframes slide-puerta-exit-der {
+  0%   { transform: translateX(0);    opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+.anim-slide-exit-der {
+  animation: slide-puerta-exit-der 700ms cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+  z-index: 1;
+  will-change: opacity, transform;
+}
+
+@keyframes slide-puerta-enter-der {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  100% { transform: translateX(0);     opacity: 1; }
+}
+.anim-slide-enter-der {
+  animation: slide-puerta-enter-der 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  z-index: 2;
+  will-change: opacity, transform;
+}
+
+/* Respeta usuarios con prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .anim-slide-exit-izq,
+  .anim-slide-enter-izq,
+  .anim-slide-exit-der,
+  .anim-slide-enter-der {
+    animation: none !important;
+  }
+}
+
 /* Scroll indicator bounce */
 @keyframes landing-scroll-bounce {
   0%, 100% { transform: translateY(0); opacity: 0.6; }

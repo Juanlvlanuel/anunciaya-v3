@@ -84,16 +84,14 @@ const NOMBRES_MODULOS: Record<string, string> = {
   '/business-studio/empleados': 'BS — Empleados',
   '/business-studio/reportes': 'BS — Reportes',
   '/business-studio/sucursales': 'BS — Sucursales',
-  '/business-studio/rifas': 'BS — Rifas',
   '/business-studio/vacantes': 'BS — Vacantes',
   // Secciones públicas
   '/negocios': 'Negocios',
   '/cardya': 'CardYA',
   '/mis-cupones': 'Mis Cupones',
   '/ofertas': 'Ofertas',
-  '/marketplace': 'MarketPlace',
-  '/dinamicas': 'Dinámicas',
-  '/empleos': 'Empleos',
+  '/marketplace': 'Marketplace',
+  '/servicios': 'Servicios',
   '/perfil': 'Perfil',
   // Otras
   '/': 'Landing',

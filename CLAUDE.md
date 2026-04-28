@@ -1,6 +1,9 @@
 # CLAUDE.md — AnunciaYA v3.0
 
-> Claude Code debe leer este archivo al inicio de cada sesión.
+> **Lectura obligatoria al inicio de cada sesión:**
+> 1. Este archivo (`CLAUDE.md`) — cómo trabajar en el código.
+> 2. `docs/VISION_ESTRATEGICA_AnunciaYA.md` — qué construir y qué NO construir (norte estratégico, secciones definitivas, features descartados).
+>
 > ⚠️ IDIOMA OBLIGATORIO: TODO en español — respuestas, razonamiento interno (thinking/extended thinking), análisis y comentarios. NUNCA pensar en inglés.
 
 IMPORTANTE: Piensa y razona en español, no en inglés.
@@ -9,9 +12,19 @@ IMPORTANTE: Piensa y razona en español, no en inglés.
 
 ## Qué es AnunciaYA
 
-Super-app para comercio local en México. Conecta negocios físicos con consumidores a través de un ecosistema de lealtad/puntos. Solo developer: Juan.
+App de **comercio local hiperlocal** para la ciudad seleccionada. El usuario la abre cuando piensa *"necesito comprar / contratar / encontrar algo cerca de mí"*. **NO es una red social** — no compite con Facebook/TikTok/Instagram en feed social, contenido viral, likes ni posts.
 
-**Estado:** En desarrollo activo. Lanzamiento beta proyectado: Abril-Mayo 2026.
+Las piezas únicas que la diferencian: **CardYA, ScanYA, ChatYA, geolocalización y onboarding verificado de negocios** — cubren lo que Facebook hace mal en comercio local (saber si un negocio está abierto, filtrar por proximidad real, precios y disponibilidad, reseñas confiables, contacto directo cliente-negocio).
+
+**Modelo de negocio:** negocios pagan suscripción comercial $449 MXN/mes (Business Studio + ScanYA + presencia premium). Usuarios usan la app gratis. Sin publicidad invasiva ni venta de datos.
+
+**Beta inicial:** Puerto Peñasco, Sonora — 50 negocios piloto.
+
+**Solo developer:** Juan.
+
+**Estado:** En desarrollo activo. Lanzamiento beta proyectado: Mayo-Junio 2026.
+
+> Filosofía completa, secciones definitivas y features descartados: `docs/VISION_ESTRATEGICA_AnunciaYA.md`.
 
 ---
 
@@ -66,12 +79,17 @@ anunciaya/
 
 ## Secciones de la App
 
-**5 Públicas:** Negocios ✅, MarketPlace 🚧, Ofertas 🚧, Dinámicas 🚧, Empleos 🚧
+**4 Públicas:** Negocios ✅, MarketPlace 🚧, Ofertas 🚧, Servicios 🚧
+**Home:** Pregúntale a Peñasco 🚧 (feed conversacional + buscador hiperlocal, ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4)
 **3 Secundarias:** CardYA ✅, ChatYA ✅ (componente flotante, sin ruta dedicada), Perfil ✅
 **3 Comerciales:** Business Studio ✅, ScanYA ✅, Onboarding ✅
 **Administración del Sistema:** Panel Admin 🚧 (infraestructura backend lista, UI pendiente)
 
-> 🚧 = Ruta existe en el router pero está como placeholder (sin implementar)
+> 🚧 = Ruta existe en el router pero está como placeholder (sin implementar) — o bien, sección decidida en visión estratégica pero aún sin construir.
+
+> **Servicios** unifica lo que antes se planeaba como "Empleos": cubre servicios e intangibles con dos modos (Ofrezco / Solicito). Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §3.2.
+
+> **Descartados permanentemente para v1** (no proponer en futuras sesiones): Dinámicas/Rifas P2P (riesgo SEGOB), Live Sale (costo recurrente sin monetización validada), Pulse local (reemplazado por Pregúntale a Peñasco). Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.
 
 > **Panel Admin ≠ Business Studio**: el Panel Admin es para el equipo interno de AnunciaYA **+ vendedores/embajadores externos** que venden membresías a comerciantes. Cross-negocio: aprobar/suspender negocios, mantenimiento, reportes globales, gestión de ventas y comisiones. BS es para dueños de UN negocio. Panel Admin tiene múltiples roles (admin, vendedor) con permisos distintos. Convención de carpetas: `controllers/admin/`, `services/admin/`, `routes/admin/` con `index.ts` agregador. Ver `docs/arquitectura/Panel_Admin.md`.
 
@@ -240,6 +258,7 @@ Consultar antes de modificar UI. Breakpoints: solo `lg:` y `2xl:`. SIEMPRE inclu
 
 ```
 docs/
+├── VISION_ESTRATEGICA_AnunciaYA.md → Norte estratégico: filosofía, secciones definitivas, features descartados (LEER antes de proponer features)
 ├── CHANGELOG.md                → Historial de cambios
 ├── ROADMAP.md                  → Plan y progreso
 ├── estandares/                 → Reglas obligatorias
@@ -302,6 +321,7 @@ Mínimo 3 intentos de str_replace antes de considerar reescribir. Preservar cód
 - NO crear archivos no solicitados
 - NO borrar código de archivos compartidos
 - NO proponer rutas o nombres sin confirmar primero
+- **NO proponer features descartados en la visión estratégica.** Antes de proponer un feature nuevo, validar contra los 6 principios de `docs/VISION_ESTRATEGICA_AnunciaYA.md` §7. Descartados permanentes para v1: Dinámicas/Rifas P2P, Live Sale, Pulse local. Si dudas si algo cabe, pregunta antes de implementar.
 
 ### 5. Verificación
 
@@ -346,7 +366,7 @@ Cuestionar textos, botones y flujos pensando como el usuario final. Si un texto 
 Formato: `tipo(scope): descripción en español`
 
 Tipos: `feat`, `fix`, `chore`, `ci`, `test`, `docs`
-Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `negocios`, `dashboard`, `scanya`, `docs`
+Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `negocios`, `dashboard`, `scanya`, `marketplace`, `servicios`, `ofertas`, `home`, `admin`, `docs`
 
 ---
 
@@ -357,20 +377,22 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **ChatYA** ✅ 100% — Sprint 7 completado (20 Mar 2026). 41 API tests + 10 E2E tests
 - **Promociones** ✅ 100% — Ofertas + Cupones unificados (22 Mar 2026). 35 API tests + 7 E2E tests
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
-- **Business Studio** (86%) — 12/14 módulos completados
-- **Migración React Query** ✅ completa — BS (12/12): Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil, Reportes, Sucursales. Públicas (4/4): Negocios, CardYA, Mis Cupones, Mis Guardados. Pendientes: ChatYA, ScanYA, Onboarding (evaluar caso por caso)
+- **Business Studio** (92%) — 12/13 módulos completados
+- **Migración React Query** ✅ completa en lo construido — BS hechos (12/12 migrados): Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil, Reportes, Sucursales. Vacantes nacerá con React Query desde el inicio. Públicas (4/4): Negocios, CardYA, Mis Cupones, Mis Guardados. Pendientes: ChatYA, ScanYA, Onboarding (evaluar caso por caso)
 
-### BS Módulos Completados (12/14)
+### BS Módulos Completados (12/13)
 
 Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Empleados ✅, Reportes ✅, Sucursales ✅
 
-### BS Módulos Pendientes (2/14)
+### BS Módulos Pendientes (1/13)
 
-Rifas (bloqueado por Dinámicas), Vacantes (bloqueado por Empleos)
+**Vacantes 🚧** — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública Servicios.
+
+> **Rifas:** removido del alcance de v1. Antes figuraba como bloqueado por Dinámicas; tras la decisión estratégica de abril 2026, Dinámicas se descarta y por lo tanto Rifas también. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 ### Siguiente Sprint
 
-Secciones Públicas (Ofertas, MarketPlace, Dinámicas, Empleos) o Panel Admin
+Secciones Públicas (Ofertas, MarketPlace, Servicios) y Home con Pregúntale a Peñasco. Panel Admin sigue como opción alternativa post-públicas.
 
 ---
 

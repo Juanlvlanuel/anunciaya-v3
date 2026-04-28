@@ -526,8 +526,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               {conversacion.contextoTipo === 'negocio' && 'Contactó desde: Tu perfil'}
               {conversacion.contextoTipo === 'oferta' && `Contactó por oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
               {conversacion.contextoTipo === 'marketplace' && `Contactó por publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
-              {conversacion.contextoTipo === 'empleo' && `Contactó por vacante: ${conversacion.contextoNombre || 'Empleos'}`}
-              {conversacion.contextoTipo === 'dinamica' && `Contactó por dinámica: ${conversacion.contextoNombre || 'Dinámicas'}`}
+              {conversacion.contextoTipo === 'servicio' && `Contactó por servicio: ${conversacion.contextoNombre || 'Servicios'}`}
             </span>
           )}
         </div>

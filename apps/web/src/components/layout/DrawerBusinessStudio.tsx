@@ -23,7 +23,6 @@ import {
     Receipt,
     UserCog,
     FileBarChart,
-    Gift,
     Building2,
     Coins,
     Briefcase,
@@ -50,7 +49,7 @@ interface DrawerBusinessStudioProps {
 // ORGANIZACIÓN:
 // 1. Operación Diaria - Dashboard, Transacciones, Clientes, Opiniones, Alertas
 // 2. Catálogo & Promociones - Catálogo, Ofertas, Cupones
-// 3. Engagement & Recompensas - Puntos, Rifas
+// 3. Engagement & Recompensas - Puntos
 // 4. Recursos Humanos - Empleados, Vacantes
 // 5. Análisis & Configuración - Reportes, Sucursales, Mi Perfil
 
@@ -68,7 +67,6 @@ const opcionesMenu = [
 
     // =========== ENGAGEMENT & RECOMPENSAS ===========
     { id: 'puntos', label: 'Puntos y Recompensas', icono: Coins, ruta: '/business-studio/puntos' },
-    { id: 'rifas', label: 'Rifas', icono: Gift, ruta: '/business-studio/rifas' },
 
     // =========== RECURSOS HUMANOS ===========
     { id: 'empleados', label: 'Empleados', icono: UserCog, ruta: '/business-studio/empleados' },

@@ -547,7 +547,7 @@ function VentanaChatInner() {
     participante2Id: chatTemporal.datosCreacion.participante2Id,
     participante2Modo: (chatTemporal.datosCreacion.participante2Modo || 'personal') as 'personal' | 'comercial',
     participante2SucursalId: chatTemporal.datosCreacion.participante2SucursalId || null,
-    contextoTipo: (chatTemporal.datosCreacion.contextoTipo || 'directo') as 'directo' | 'negocio' | 'oferta' | 'marketplace' | 'empleo' | 'dinamica' | 'notas',
+    contextoTipo: (chatTemporal.datosCreacion.contextoTipo || 'directo') as 'directo' | 'negocio' | 'oferta' | 'marketplace' | 'servicio' | 'notas',
     contextoReferenciaId: null,
     contextoNombre: null,
     ultimoMensajeTexto: null,
@@ -1378,8 +1378,7 @@ function VentanaChatInner() {
                             {conversacion.contextoTipo === 'negocio' && modoActivo === 'comercial' && 'Desde: Tu perfil'}
                             {conversacion.contextoTipo === 'oferta' && `Desde oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
                             {conversacion.contextoTipo === 'marketplace' && `Desde publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
-                            {conversacion.contextoTipo === 'empleo' && `Desde vacante: ${conversacion.contextoNombre || 'Empleos'}`}
-                            {conversacion.contextoTipo === 'dinamica' && `Desde dinámica: ${conversacion.contextoNombre || 'Dinámicas'}`}
+                            {conversacion.contextoTipo === 'servicio' && `Desde servicio: ${conversacion.contextoNombre || 'Servicios'}`}
                           </span>
                         </>
                       )}

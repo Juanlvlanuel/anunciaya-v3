@@ -18,7 +18,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-type EntityType = 'negocio' | 'oferta' | 'articulo' | 'empleo' | 'rifa' | 'subasta';
+type EntityType = 'negocio' | 'oferta' | 'articulo' | 'servicio';
 
 interface EntityConfig {
   endpoint: string;
@@ -54,29 +54,15 @@ const ENTITY_CONFIG: Record<EntityType, EntityConfig> = {
     fallbackTitle: 'Producto en AnunciaYA',
     fallbackDescription: 'Descubre este producto',
   },
-  empleo: {
-    endpoint: '/empleos/publico',
-    titleField: 'titulo',
-    descriptionField: 'descripcion',
-    imageField: 'empresaLogo',
-    fallbackTitle: 'Empleo en AnunciaYA',
-    fallbackDescription: 'Oportunidad laboral disponible',
-  },
-  rifa: {
-    endpoint: '/rifas/publico',
+  servicio: {
+    // Endpoint backend pendiente de definir en Fase C — la sección pública
+    // Servicios absorbe lo que iba a ser "Empleos" (visión v3).
+    endpoint: '/servicios/publico',
     titleField: 'titulo',
     descriptionField: 'descripcion',
     imageField: 'imagen',
-    fallbackTitle: 'Rifa en AnunciaYA',
-    fallbackDescription: '¡Participa y gana!',
-  },
-  subasta: {
-    endpoint: '/subastas/publico',
-    titleField: 'titulo',
-    descriptionField: 'descripcion',
-    imageField: 'imagen',
-    fallbackTitle: 'Subasta en AnunciaYA',
-    fallbackDescription: 'Haz tu oferta ahora',
+    fallbackTitle: 'Servicio en AnunciaYA',
+    fallbackDescription: 'Servicio disponible cerca de ti',
   },
 };
 

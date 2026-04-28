@@ -39,7 +39,7 @@
     "botonPrimario": "Comenzar Ahora",
     "beneficio1": "Gana puntos",
     "beneficio2": "Publica gratis",
-    "beneficio3": "Crea tus sorteos",
+    "beneficio3": "Pregúntale a tu ciudad",
     "scrollIndicador": "Descubre más",
     "stats": {
       "negocios": "Negocios",
@@ -53,12 +53,11 @@
     "cardya": "CardYA",
     "chatya": "ChatYA",
     "marketplace": "Marketplace",
-    "dinamicas": "Dinámicas",
-    "empleos": "Empleos"
+    "servicios": "Servicios"
   },
   "secciones": {
     "titulo": "Explora AnunciaYA",
-    "subtitulo": "5 secciones para conectar consumidores y comerciantes.",
+    "subtitulo": "4 secciones para conectar consumidores y comerciantes.",
     "unete": "Únete a AnunciaYA y desbloquea beneficios",
     "alSerParte": "Al ser parte de la comunidad obtienes acceso a:",
     "negocios": {
@@ -77,7 +76,7 @@
       "stats": "+1,000 productos",
       "highlight": "Publica GRATIS",
       "beneficio": "Compra y vende",
-      "beneficioDesc": "MarketPlace local de tu comunidad"
+      "beneficioDesc": "Marketplace local de tu comunidad"
     },
     "ofertas": {
       "titulo": "Ofertas",
@@ -88,14 +87,14 @@
       "beneficio": "Ahorra con cupones",
       "beneficioDesc": "Descuentos reales que canjeas con tu celular"
     },
-    "dinamicas": {
-      "titulo": "Dinámicas",
-      "subtitulo": "Rifas y Sorteos",
-      "descripcion": "*Utiliza tus puntos para participar.<br />*Crea tus propias Rifas.<br />*0 Comisiones.",
-      "stats": "+100 Sorteos",
-      "highlight": "En vivo",
-      "beneficio": "Dinámicas y empleos",
-      "beneficioDesc": "Rifas, sorteos y bolsa de trabajo"
+    "servicios": {
+      "titulo": "Servicios",
+      "subtitulo": "Ofrezco / Solicito",
+      "descripcion": "*Encuentra plomeros, electricistas, niñeras y más.<br />*Publica tu servicio o tu vacante.<br />*0 Comisiones.",
+      "stats": "Próximamente",
+      "highlight": "Hiperlocal",
+      "beneficio": "Servicios cerca",
+      "beneficioDesc": "Servicios e intangibles, incluye empleos"
     },
     "cardya": {
       "beneficio": "Gana puntos",
@@ -126,8 +125,8 @@
       "subtitulo": "Genera ingresos vendiendo tus productos."
     },
     "chatya": {
-      "titulo": "Participa en Sorteos",
-      "subtitulo": "También puedes usar tus puntos para participar en sorteos."
+      "titulo": "Chatea con negocios",
+      "subtitulo": "Mensajería directa: fotos, audio, ubicación."
     },
     "gratis": {
       "titulo": "Apoya a tu comunidad",
@@ -186,12 +185,11 @@
     "personal": {
       "titulo": "Cuenta Personal",
       "precio": "Gratis",
-      "siempre": "siempre",
       "features": {
         "f1": "Publica en Marketplace",
-        "f2": "Crea tu propia Dinámica",
+        "f2": "Ofrece o solicita Servicios",
         "f3": "Cupones y Descuentos Exclusivos",
-        "f4": "Participa en Sorteos",
+        "f4": "Pregúntale a tu ciudad",
         "f5": "Tarjeta de Lealtad Digital (CardYA)",
         "f6": "Chat integrado (ChatYA)"
       },
@@ -199,12 +197,12 @@
     },
     "comercial": {
       "titulo": "Cuenta Comercial",
-      "badge": "POPULAR",
+      "badge": "Premium",
       "precio": "7 días gratis",
       "features": {
         "f1": "Publica en Negocios Locales",
         "f2": "Publica en Ofertas",
-        "f3": "Crea tu propia Dinámica",
+        "f3": "Publica Vacantes (sección Servicios)",
         "f4": "Crea Cupones y Promociones",
         "f5": "Otorga Puntos por tus Ventas (ScanYA)",
         "f6": "Chat integrado (ChatYA)",
@@ -219,11 +217,10 @@
     }
   },
   "collage": {
-    "cupones": "Cupones",
-    "rifas": "Rifas",
     "ofertas": "Ofertas",
+    "servicios": "Servicios",
+    "cardya": "CardYA",
     "chatya": "ChatYA",
-    "empleos": "Empleos",
     "scanya": "ScanYA"
   },
   "general": {

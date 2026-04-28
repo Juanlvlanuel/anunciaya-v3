@@ -39,7 +39,7 @@
     "botonPrimario": "Get Started",
     "beneficio1": "Earn points",
     "beneficio2": "Post for free",
-    "beneficio3": "Create raffles",
+    "beneficio3": "Ask your city",
     "scrollIndicador": "Discover more",
     "stats": {
       "negocios": "Businesses",
@@ -53,12 +53,11 @@
     "cardya": "CardYA",
     "chatya": "ChatYA",
     "marketplace": "Marketplace",
-    "dinamicas": "Dynamics",
-    "empleos": "Jobs"
+    "servicios": "Services"
   },
   "secciones": {
     "titulo": "Explore AnunciaYA",
-    "subtitulo": "5 sections to connect consumers and merchants.",
+    "subtitulo": "4 sections to connect consumers and merchants.",
     "unete": "Join AnunciaYA and unlock benefits",
     "alSerParte": "As a community member you get access to:",
     "negocios": {
@@ -77,7 +76,7 @@
       "stats": "+1,000 products",
       "highlight": "Post FREE",
       "beneficio": "Buy and sell",
-      "beneficioDesc": "Local MarketPlace for your community"
+      "beneficioDesc": "Local Marketplace for your community"
     },
     "ofertas": {
       "titulo": "Deals",
@@ -88,14 +87,14 @@
       "beneficio": "Save with coupons",
       "beneficioDesc": "Real discounts you redeem with your phone"
     },
-    "dinamicas": {
-      "titulo": "Dynamics",
-      "subtitulo": "Raffles and Giveaways",
-      "descripcion": "*Use your points to participate.<br />*Create your own Raffles.<br />*0 Commissions.",
-      "stats": "+100 Raffles",
-      "highlight": "Live",
-      "beneficio": "Dynamics and jobs",
-      "beneficioDesc": "Raffles, giveaways and job board"
+    "servicios": {
+      "titulo": "Services",
+      "subtitulo": "Offer / Request",
+      "descripcion": "*Find plumbers, electricians, babysitters and more.<br />*Post your service or job opening.<br />*0 Commissions.",
+      "stats": "Coming soon",
+      "highlight": "Hyperlocal",
+      "beneficio": "Services nearby",
+      "beneficioDesc": "Services and intangibles, includes jobs"
     },
     "cardya": {
       "beneficio": "Earn points",
@@ -126,8 +125,8 @@
       "subtitulo": "Generate income by selling your products."
     },
     "chatya": {
-      "titulo": "Join Raffles",
-      "subtitulo": "You can also use your points to participate in raffles."
+      "titulo": "Chat with businesses",
+      "subtitulo": "Direct messaging: photos, audio, location."
     },
     "gratis": {
       "titulo": "Support your community",
@@ -186,12 +185,11 @@
     "personal": {
       "titulo": "Personal Account",
       "precio": "Free",
-      "siempre": "forever",
       "features": {
         "f1": "Post in Marketplace",
-        "f2": "Create your own Dynamic",
+        "f2": "Offer or request Services",
         "f3": "Exclusive Coupons and Discounts",
-        "f4": "Join Raffles",
+        "f4": "Ask your city",
         "f5": "Digital Loyalty Card (CardYA)",
         "f6": "Integrated chat (ChatYA)"
       },
@@ -199,12 +197,12 @@
     },
     "comercial": {
       "titulo": "Business Account",
-      "badge": "POPULAR",
+      "badge": "Premium",
       "precio": "7 days free",
       "features": {
         "f1": "Post in Local Businesses",
         "f2": "Post in Deals",
-        "f3": "Create your own Dynamic",
+        "f3": "Post Job Openings (Services section)",
         "f4": "Create Coupons and Promotions",
         "f5": "Award Points for your Sales (ScanYA)",
         "f6": "Integrated chat (ChatYA)",
@@ -219,11 +217,10 @@
     }
   },
   "collage": {
-    "cupones": "Coupons",
-    "rifas": "Raffles",
     "ofertas": "Deals",
+    "servicios": "Services",
+    "cardya": "CardYA",
     "chatya": "ChatYA",
-    "empleos": "Jobs",
     "scanya": "ScanYA"
   },
   "general": {

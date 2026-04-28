@@ -214,7 +214,7 @@ Dashboard ScanYA
 └─────────────────────────────────────────────────────┘
                         ↕
 ┌─────────────────────────────────────────────────────┐
-│ FRONTEND (React 18 + Vite + Tailwind v4)           │
+│ FRONTEND (React 19 + Vite + Tailwind v4)           │
 │ - Zustand store (sy_* tokens)                       │
 │ - Zustand persist (recordatorios offline)          │
 │ - useOnlineStatus hook                              │

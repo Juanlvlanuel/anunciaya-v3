@@ -1,7 +1,7 @@
 /**
  * PaginaMisPublicaciones.tsx
  * ============================
- * Página que muestra las publicaciones del usuario en el MarketPlace.
+ * Página que muestra las publicaciones del usuario en el Marketplace.
  *
  * ¿Qué hace este archivo?
  * - Muestra mensaje "Próximamente" (placeholder)
@@ -55,7 +55,7 @@ export function PaginaMisPublicaciones() {
             Mis Publicaciones
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Gestiona tus publicaciones en el MarketPlace
+            Gestiona tus publicaciones en el Marketplace
           </p>
         </div>
 
@@ -101,7 +101,7 @@ export function PaginaMisPublicaciones() {
 
               {/* Descripción */}
               <p className="text-sm lg:text-base text-gray-600 leading-relaxed mb-6">
-                Administra tus publicaciones en el MarketPlace. Publica artículos, edita detalles, y controla la visibilidad de tus anuncios.
+                Administra tus publicaciones en el Marketplace. Publica artículos, edita detalles, y controla la visibilidad de tus anuncios.
               </p>
 
               {/* Badge del filtro activo */}

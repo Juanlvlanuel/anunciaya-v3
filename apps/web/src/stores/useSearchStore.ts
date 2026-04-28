@@ -18,7 +18,7 @@ import { create } from 'zustand';
 // TIPOS
 // =============================================================================
 
-export type SeccionBusqueda = 'negocios' | 'marketplace' | 'ofertas' | 'dinamicas' | 'empleos' | 'general';
+export type SeccionBusqueda = 'negocios' | 'marketplace' | 'ofertas' | 'servicios' | 'general';
 
 interface SearchState {
   /** Texto de búsqueda actual */
@@ -42,8 +42,7 @@ export function detectarSeccion(pathname: string): SeccionBusqueda {
   if (pathname.startsWith('/negocios')) return 'negocios';
   if (pathname.startsWith('/marketplace')) return 'marketplace';
   if (pathname.startsWith('/ofertas')) return 'ofertas';
-  if (pathname.startsWith('/dinamicas')) return 'dinamicas';
-  if (pathname.startsWith('/empleos')) return 'empleos';
+  if (pathname.startsWith('/servicios')) return 'servicios';
   return 'general';
 }
 
@@ -51,10 +50,9 @@ export function detectarSeccion(pathname: string): SeccionBusqueda {
 export function placeholderSeccion(seccion: SeccionBusqueda): string {
   switch (seccion) {
     case 'negocios': return 'Buscar negocios...';
-    case 'marketplace': return 'Buscar en MarketPlace...';
+    case 'marketplace': return 'Buscar en Marketplace...';
     case 'ofertas': return 'Buscar ofertas...';
-    case 'dinamicas': return 'Buscar dinámicas...';
-    case 'empleos': return 'Buscar empleos...';
+    case 'servicios': return 'Buscar servicios...';
     default: return 'Buscar...';
   }
 }

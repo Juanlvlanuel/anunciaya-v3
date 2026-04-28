@@ -22,8 +22,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
     MapPin, Tag, MessageCircle, ShoppingCart, Store, ArrowRight,
-    Star, Briefcase, Mail, Users, ChevronDown,
-    CheckCircle2, Globe, Ticket,
+    Star, Wrench, Mail, Users, ChevronDown,
+    CheckCircle2, Globe,
     type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
@@ -71,12 +71,14 @@ function IconoGoogle({ className = 'w-4 h-4' }: { className?: string }) {
 // DATOS ESTÁTICOS
 // =============================================================================
 
+// Visión v3: 4 secciones públicas en orden B2C → P2P
+// (Negocios → Ofertas → Marketplace → Servicios).
+// Dinámicas y Empleos quedaron descartados — Servicios absorbe a Empleos.
 const SECCIONES_CARRUSEL = [
     { key: 'negocios', icono: Store, color: 'bg-blue-600' },
-    { key: 'marketplace', icono: ShoppingCart, color: 'bg-blue-600' },
     { key: 'ofertas', icono: Tag, color: 'bg-blue-600' },
-    { key: 'dinamicas', icono: Ticket, color: 'bg-blue-600' },
-    { key: 'empleos', icono: Briefcase, color: 'bg-blue-600' },
+    { key: 'marketplace', icono: ShoppingCart, color: 'bg-blue-600' },
+    { key: 'servicios', icono: Wrench, color: 'bg-blue-600' },
 ] as const;
 
 // =============================================================================
@@ -159,17 +161,224 @@ function NavbarLanding({
 }
 
 // =============================================================================
-// COMPONENTE: COLLAGE ITEM
+// CARRUSEL DEL HERO — móvil y desktop con estilos distintos
+// =============================================================================
+//
+// Visión v3:
+// • Móvil → single-item con fade + ken-burns y dots indicadores.
+// • Desktop → dos slots verticales lado a lado (puertas corredizas):
+//   cada N segundos el slot que toca cambia (alternando izq/der). La salida
+//   se desliza al lado externo y la entrada llega desde el lado opuesto.
+//
+// La sección Servicios aún no tiene asset propio → placeholder con icono+nombre.
+
+type SlideSeccion = {
+    label: string;
+    icono: LucideIcon;
+    src?: string; // omitir → renderiza placeholder
+};
+
+const INTERVALO_SINGLE_MS = 5000;
+const INTERVALO_PUERTA_MS = 3500;
+const DURACION_ANIMACION_MS = 700;
+
+function useSlidesHero(): readonly SlideSeccion[] {
+    const { t } = useTranslation('landing');
+    // Orden B2C → P2P para las 4 secciones públicas, seguido de productos diferenciadores.
+    return [
+        { label: t('secciones.negocios.titulo'), icono: MapPin, src: '/images/secciones/negocios-locales.webp' },
+        { label: t('collage.ofertas'), icono: Tag, src: '/images/secciones/oferta.webp' },
+        { label: t('secciones.marketplace.titulo'), icono: ShoppingCart, src: '/images/secciones/marketplace.webp' },
+        { label: t('collage.servicios'), icono: Wrench /* sin src — placeholder, sección nueva sin asset */ },
+        { label: t('collage.chatya'), icono: MessageCircle, src: '/images/secciones/chatya-mobile.webp' },
+        { label: t('collage.scanya'), icono: Star, src: '/images/secciones/scanya.webp' },
+    ];
+}
+
+// =============================================================================
+// MÓVIL — single-item con fade + dots
 // =============================================================================
 
-function CollageItem({ src, label, flex, anim, icono: Icono }: { src: string; label: string; flex: string; anim: string; icono: LucideIcon }) {
+function CarruselMovilSingleItem({ activo }: { activo: boolean }) {
+    const slides = useSlidesHero();
+    const [indice, setIndice] = useState(0);
+
+    useEffect(() => {
+        if (!activo) return;
+        const id = window.setInterval(
+            () => setIndice((prev) => (prev + 1) % slides.length),
+            INTERVALO_SINGLE_MS
+        );
+        return () => window.clearInterval(id);
+    }, [activo, slides.length]);
+
     return (
-        <div className={`${flex} rounded-md 2xl:rounded-lg overflow-hidden shadow-2xl ${anim} relative group`}>
-            <img src={src} alt={label} className="w-full h-full object-cover group-hover:scale-110 duration-500" loading="eager" />
-            <div className="absolute bottom-2 2xl:bottom-3 left-1/2 -translate-x-1/2 z-10">
-                <span className="flex items-center gap-1.5 px-3 lg:px-3 2xl:px-5 py-0.5 lg:py-0.5 2xl:py-1.5 bg-black/50 backdrop-blur-sm rounded-full text-sm lg:text-[11px] 2xl:text-base font-bold text-white whitespace-nowrap">
-                    <Icono className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5" />
-                    {label}
+        <div className="relative w-full h-full overflow-hidden bg-slate-900">
+            {slides.map((slide, i) => {
+                const Icono = slide.icono;
+                const visible = i === indice;
+                return (
+                    <div
+                        key={slide.label}
+                        className={`absolute inset-0 transition-opacity duration-700 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
+                        aria-hidden={!visible}
+                    >
+                        {slide.src ? (
+                            <img
+                                src={slide.src}
+                                alt={slide.label}
+                                className={`w-full h-full object-cover ${visible ? 'landing-kenburns' : ''}`}
+                                loading="eager"
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-800 via-slate-700 to-slate-900">
+                                <Icono className="w-20 h-20 text-white/15" strokeWidth={1.5} />
+                            </div>
+                        )}
+                        {/* Label — esquina arriba-derecha */}
+                        <div className="absolute top-3 right-3 z-10">
+                            <span className="flex items-center gap-1.5 px-3 py-1 bg-black/55 backdrop-blur-md rounded-full text-sm font-bold text-white whitespace-nowrap shadow-lg ring-1 ring-white/15">
+                                <Icono className="w-3.5 h-3.5" />
+                                {slide.label}
+                            </span>
+                        </div>
+                    </div>
+                );
+            })}
+
+            {/* Indicadores (dots) */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
+                {slides.map((slide, i) => (
+                    <button
+                        key={slide.label}
+                        type="button"
+                        onClick={() => setIndice(i)}
+                        aria-label={`Ir a ${slide.label}`}
+                        className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                            i === indice ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'
+                        }`}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// =============================================================================
+// DESKTOP — doble slot vertical con puertas corredizas
+// =============================================================================
+
+function CarruselDoblePuertas({ activo }: { activo: boolean }) {
+    const slides = useSlidesHero();
+
+    // Estado por slot: slide actual + slide anterior (durante animación de salida)
+    type EstadoSlot = { actual: number; anterior: number | null };
+    const [slotIzq, setSlotIzq] = useState<EstadoSlot>({ actual: 0, anterior: null });
+    const [slotDer, setSlotDer] = useState<EstadoSlot>({ actual: 1, anterior: null });
+    const proximoEsIzq = useRef(true);
+
+    useEffect(() => {
+        if (!activo) return;
+
+        const id = window.setInterval(() => {
+            // Buscar siguiente índice que no esté visible en ningún slot
+            const visiblesActuales = [
+                proximoEsIzq.current ? slotIzq.actual : slotIzq.actual,
+                proximoEsIzq.current ? slotDer.actual : slotDer.actual,
+            ];
+
+            if (proximoEsIzq.current) {
+                setSlotIzq((prev) => {
+                    let siguiente = (prev.actual + 1) % slides.length;
+                    while (siguiente === slotDer.actual) {
+                        siguiente = (siguiente + 1) % slides.length;
+                    }
+                    return { actual: siguiente, anterior: prev.actual };
+                });
+            } else {
+                setSlotDer((prev) => {
+                    let siguiente = (prev.actual + 1) % slides.length;
+                    while (siguiente === slotIzq.actual) {
+                        siguiente = (siguiente + 1) % slides.length;
+                    }
+                    return { actual: siguiente, anterior: prev.actual };
+                });
+            }
+
+            proximoEsIzq.current = !proximoEsIzq.current;
+            void visiblesActuales;
+        }, INTERVALO_PUERTA_MS);
+
+        return () => window.clearInterval(id);
+    }, [activo, slides.length, slotIzq.actual, slotDer.actual]);
+
+    // Limpiar buffer de "anterior" cuando termine la animación
+    useEffect(() => {
+        if (slotIzq.anterior === null) return;
+        const t = window.setTimeout(
+            () => setSlotIzq((prev) => ({ ...prev, anterior: null })),
+            DURACION_ANIMACION_MS
+        );
+        return () => window.clearTimeout(t);
+    }, [slotIzq.anterior]);
+
+    useEffect(() => {
+        if (slotDer.anterior === null) return;
+        const t = window.setTimeout(
+            () => setSlotDer((prev) => ({ ...prev, anterior: null })),
+            DURACION_ANIMACION_MS
+        );
+        return () => window.clearTimeout(t);
+    }, [slotDer.anterior]);
+
+    return (
+        <div className="relative w-full h-full grid grid-cols-2 overflow-hidden rounded-xl shadow-xl ring-1 ring-white/10 bg-slate-900">
+            <SlotCarrusel lado="izq" slide={slides[slotIzq.actual]} slideAnterior={slotIzq.anterior !== null ? slides[slotIzq.anterior] : null} />
+            <SlotCarrusel lado="der" slide={slides[slotDer.actual]} slideAnterior={slotDer.anterior !== null ? slides[slotDer.anterior] : null} />
+        </div>
+    );
+}
+
+function SlotCarrusel({ lado, slide, slideAnterior }: { lado: 'izq' | 'der'; slide: SlideSeccion; slideAnterior: SlideSeccion | null }) {
+    return (
+        <div className="relative overflow-hidden bg-slate-900">
+            {slideAnterior && (
+                <ContenidoSlide
+                    key={`exit-${slideAnterior.label}`}
+                    slide={slideAnterior}
+                    className={`absolute inset-0 anim-slide-exit-${lado}`}
+                />
+            )}
+            <ContenidoSlide
+                key={`enter-${slide.label}`}
+                slide={slide}
+                className={`absolute inset-0 anim-slide-enter-${lado}`}
+            />
+        </div>
+    );
+}
+
+function ContenidoSlide({ slide, className }: { slide: SlideSeccion; className: string }) {
+    const Icono = slide.icono;
+    return (
+        <div className={className}>
+            {slide.src ? (
+                <img
+                    src={slide.src}
+                    alt={slide.label}
+                    className="w-full h-full object-cover"
+                    loading="eager"
+                />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-800 via-slate-700 to-slate-900">
+                    <Icono className="w-16 h-16 lg:w-20 lg:h-20 2xl:w-24 2xl:h-24 text-white/15" strokeWidth={1.5} />
+                </div>
+            )}
+            {/* Label — esquina arriba-derecha */}
+            <div className="absolute top-2 right-2 lg:top-2 lg:right-2 2xl:top-3 2xl:right-3 z-10">
+                <span className="flex items-center gap-1.5 px-2.5 py-1 lg:px-2.5 lg:py-0.5 2xl:px-4 2xl:py-1.5 bg-black/55 backdrop-blur-md rounded-full text-xs lg:text-[11px] 2xl:text-base font-bold text-white whitespace-nowrap shadow-lg ring-1 ring-white/15">
+                    <Icono className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
+                    {slide.label}
                 </span>
             </div>
         </div>
@@ -193,30 +402,12 @@ function HeroSection({ abrirModalLogin }: { abrirModalLogin: () => void }) {
                 style={{ background: 'linear-gradient(to bottom, #0B358F 40%, #000000 80%)' }}
             />
 
-            {/* Carrusel de imágenes — solo móvil, detrás del contenido, debajo del navbar */}
-            <div ref={refCarrusel} className="absolute top-18 left-0 right-0 h-60 overflow-hidden lg:hidden pointer-events-none">
-                {/* Desvanecido inferior */}
-                <div className="absolute bottom-0 left-0 right-0 h-30 z-10" style={{ background: 'linear-gradient(to top, #0B358F, transparent)' }} />
-                <div className="flex gap-2 landing-marquee" style={{ width: 'max-content', animationPlayState: carruselVisible ? 'running' : 'paused' }}>
-                    {[
-                        '/images/secciones/negocios-locales.webp',
-                        '/images/secciones/marketplace.webp',
-                        '/images/secciones/cupones.webp',
-                        '/images/secciones/dinamicas.webp',
-                        '/images/secciones/oferta.webp',
-                        '/images/secciones/chatya-mobile.webp',
-                        '/images/secciones/empleos.webp',
-                        '/images/secciones/negocios-locales.webp',
-                        '/images/secciones/marketplace.webp',
-                        '/images/secciones/cupones.webp',
-                        '/images/secciones/dinamicas.webp',
-                        '/images/secciones/oferta.webp',
-                        '/images/secciones/chatya-mobile.webp',
-                        '/images/secciones/empleos.webp',
-                    ].map((src, i) => (
-                        <img key={i} src={src} alt="" className="h-60 w-auto rounded-md object-cover shrink-0" loading="eager" />
-                    ))}
-                </div>
+            {/* Carrusel móvil — single-item con autoplay (visión v3, edge-to-edge).
+                z-0 explícito para que el título del hero (z-20) quede por encima. */}
+            <div ref={refCarrusel} className="absolute top-18 left-0 right-0 h-60 overflow-hidden lg:hidden z-0">
+                {/* Desvanecido inferior para fundir con el fondo azul */}
+                <div className="absolute bottom-0 left-0 right-0 h-20 z-30 pointer-events-none" style={{ background: 'linear-gradient(to top, #0B358F, transparent)' }} />
+                <CarruselMovilSingleItem activo={carruselVisible} />
             </div>
 
             {/* Línea lateral — acento */}
@@ -288,7 +479,7 @@ function HeroSection({ abrirModalLogin }: { abrirModalLogin: () => void }) {
                         <div className="hidden lg:flex items-center gap-6 2xl:gap-8">
                             {[
                                 { valor: '50+', label: t('hero.stats.negocios') },
-                                { valor: '5', label: t('hero.stats.secciones') },
+                                { valor: '4', label: t('hero.stats.secciones') },
                                 { valor: '100%', label: t('hero.stats.gratis') },
                             ].map(({ valor, label }) => (
                                 <div key={valor} className="text-center">
@@ -313,22 +504,10 @@ function HeroSection({ abrirModalLogin }: { abrirModalLogin: () => void }) {
                     </div>
                 </div>
 
-                {/* ═══ DERECHA: Collage — solo desktop, full height ═══ */}
+                {/* ═══ DERECHA: Carrusel de secciones — solo desktop, doble slot puertas corredizas ═══ */}
                 <div className="hidden lg:block relative h-full">
-                    <div className="grid grid-cols-3 gap-1.5 2xl:gap-3 lg:h-[600px] 2xl:h-[755px] lg:max-w-[600px] 2xl:max-w-none lg:ml-auto lg:mt-8 2xl:mt-12">
-                        <div className="flex flex-col gap-1.5 2xl:gap-3 min-h-0">
-                            <CollageItem src="/images/secciones/negocios-locales.webp" label={t('secciones.negocios.titulo')} icono={MapPin} flex="flex-[1.2]" anim="landing-float" />
-                            <CollageItem src="/images/secciones/cupones.webp" label={t('collage.cupones')} icono={Tag} flex="flex-1" anim="animate-float-3" />
-                        </div>
-                        <div className="flex flex-col gap-1.5 2xl:gap-3 min-h-0">
-                            <CollageItem src="/images/secciones/marketplace.webp" label={t('secciones.marketplace.titulo')} icono={ShoppingCart} flex="flex-1" anim="animate-float-2" />
-                            <CollageItem src="/images/secciones/dinamicas.webp" label={t('collage.rifas')} icono={Ticket} flex="flex-[1.4]" anim="animate-float-1" />
-                            <CollageItem src="/images/secciones/oferta.webp" label={t('collage.ofertas')} icono={Star} flex="flex-1" anim="animate-float-3" />
-                        </div>
-                        <div className="flex flex-col gap-1.5 2xl:gap-3 min-h-0">
-                            <CollageItem src="/images/secciones/chatya-mobile.webp" label={t('collage.chatya')} icono={MessageCircle} flex="flex-[1.2]" anim="animate-float-1" />
-                            <CollageItem src="/images/secciones/empleos.webp" label={t('collage.empleos')} icono={Briefcase} flex="flex-1" anim="animate-float-2" />
-                        </div>
+                    <div className="lg:h-[600px] 2xl:h-[755px] lg:max-w-[600px] 2xl:max-w-none lg:ml-auto lg:mt-8 2xl:mt-12">
+                        <CarruselDoblePuertas activo={true} />
                     </div>
                 </div>
             </div>
@@ -433,7 +612,6 @@ function SeccionPlanes() {
                         </h2>
                         <div className="mt-1">
                             <span className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold text-emerald-600">{t('cta.personal.precio')}</span>
-                            <span className="text-base lg:text-base 2xl:text-xl font-medium text-slate-600 ml-2">{t('cta.personal.siempre')}</span>
                         </div>
                     </div>
 

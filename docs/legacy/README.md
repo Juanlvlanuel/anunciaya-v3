@@ -1,8 +1,25 @@
-# 📚 AnunciaYA v3.0 - Documentación Técnica
+# 📚 AnunciaYA — Documentación Histórica (Legacy)
 
-**Versión:** 3.0  
-**Última Actualización:** 26 Diciembre 2024  
-**Estado:** En desarrollo
+> ⚠️ **AVISO: Esta carpeta contiene documentos de fases tempranas del proyecto** (Diciembre 2024 – principios 2026). Los documentos aquí reflejan **decisiones, estructura, stack y secciones que pueden NO corresponder a la realidad actual del proyecto**.
+>
+> Ejemplos de desfase conocido respecto a la **visión v3 de abril 2026**:
+> - Listan secciones públicas que ya no existen (Dinámicas, Empleos como sección separada, Live Sale, Pulse local).
+> - Mencionan stack que cambió: Cloudinary (descontinuado), MongoDB para chat (migrado a PostgreSQL), Railway (migrado a Render).
+> - Describen estructura de schemas que se consolidó (8 schemas → 1 schema público).
+>
+> **Para entender el estado actual del proyecto, consultar:**
+> - `docs/VISION_ESTRATEGICA_AnunciaYA.md` — norte estratégico, secciones definitivas, features descartados
+> - `docs/ROADMAP.md` — plan y progreso vigentes
+> - `docs/arquitectura/*.md` — referencia técnica por módulo (vigente)
+> - `CLAUDE.md` — convenciones de código vigentes
+>
+> Estos documentos se conservan como referencia histórica. **NO usar como fuente de verdad para decisiones de producto o arquitectura.**
+
+---
+
+**Versión histórica:** 3.0
+**Última actualización:** 26 Diciembre 2024
+**Estado original:** En desarrollo
 
 ---
 

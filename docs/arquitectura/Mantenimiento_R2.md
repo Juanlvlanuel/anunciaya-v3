@@ -60,6 +60,8 @@ Cobertura actual (19 campos): `usuarios.avatar_url`, `negocios.logo_url`, `negoc
 
 No hay campos pendientes — scan exhaustivo del schema completado el 17 Abril 2026.
 
+> **Pendiente Fase D del cleanup (visión v3):** los campos `dinamicas.imagen_url` y `dinamica_premios.imagen_url` quedarán sin uso al descartarse Dinámicas (`VISION_ESTRATEGICA_AnunciaYA.md` §5.1). Se mantienen en el registry hasta que se decida el destino de las tablas (drop vs congelar). El campo `bolsa_trabajo.portafolio_url` se conserva — alimenta la sección pública Servicios.
+
 ### Tipos de campo soportados
 
 - **`url`** — columna `varchar`/`text` con una URL única

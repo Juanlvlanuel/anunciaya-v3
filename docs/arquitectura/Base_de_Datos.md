@@ -184,13 +184,15 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 13. Dinámicas y Sorteos (3 tablas)
+### 13. Dinámicas y Sorteos (3 tablas) — ⚠️ removido del alcance v1
 
 | Tabla | Propósito |
 |-------|-----------|
 | `dinamicas` | Rifas y sorteos creados |
 | `dinamica_participaciones` | Participantes en cada dinámica |
 | `dinamica_premios` | Premios de las dinámicas |
+
+> **Estado:** Las tablas existen en BD pero la funcionalidad **Dinámicas/Rifas P2P fue descartada permanentemente para v1** (riesgo legal SEGOB en México). Pendientes en Fase D del cleanup: decidir si las tablas se eliminan o se conservan congeladas para una posible reconsideración futura. Hay FKs desde `chat_conv.contexto_tipo = 'dinamica'`, `notificaciones.referencia_tipo = 'dinamica'`, `promociones_pagadas.tipo_entidad = 'dinamica'` y `carrito.tipo_seccion = 'rifas'` que deberán limpiarse antes de hacer drop. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 ---
 
@@ -204,11 +206,13 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 15. Empleos (1 tabla)
+### 15. Servicios — antes "Empleos" (1 tabla)
 
 | Tabla | Propósito |
 |-------|-----------|
-| `bolsa_trabajo` | Ofertas de empleo publicadas |
+| `bolsa_trabajo` | Publicaciones de la sección pública Servicios (modos Ofrezco/Solicito). Cubre servicios e intangibles, incluye empleos. |
+
+> **Renombrado conceptual (visión v3, abril 2026):** lo que antes iba a ser una sección "Empleos" se unifica en la sección pública **Servicios**. El nombre físico de la tabla `bolsa_trabajo` se conserva por ahora. Decisión pendiente en Fase D del cleanup: dejar el nombre físico tal cual (más barato) vs renombrar a `servicios_publicaciones` (más coherente). Lo mismo aplica a los enums `chat_conv.contexto_tipo = 'empleo'`, `notificaciones.referencia_tipo = 'empleo'` y `promociones_pagadas.tipo_entidad = 'bolsa'` — pendientes de renombrar a `'servicio'`. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §3.2.
 
 ---
 
@@ -259,23 +263,20 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-## 📝 MongoDB - ChatYA
+## 📝 ChatYA (PostgreSQL)
 
-**Proveedor:** MongoDB Atlas (M0 Free)
+> **Histórico:** ChatYA estuvo planeado sobre MongoDB Atlas durante la fase 4. **Migrado a PostgreSQL con Drizzle** durante el desarrollo de ChatYA. Hoy las conversaciones y mensajes viven en el mismo schema público que el resto del sistema. Detalle técnico: `docs/arquitectura/ChatYA.md`.
 
-### Colecciones (2)
+Tablas principales (en PostgreSQL):
 
-| Colección | Propósito |
-|-----------|-----------|
-| `conversaciones` | Metadata de conversaciones (participantes, última actividad) |
-| `mensajes` | Mensajes individuales con texto/multimedia |
+| Tabla | Propósito |
+|-------|-----------|
+| `chat_conv` | Conversaciones 1:1 con `participante1_id` / `participante2_id`, `contexto_tipo`, `emisor_sucursal_id` |
+| `chat_mensajes` | Mensajes individuales con texto/imagen/audio/documento/ubicación, reacciones, palomitas |
 
-**Índices principales:**
-- `usuario_id` - Para buscar conversaciones por usuario
-- `conversacion_id` - Para cargar mensajes de una conversación
-- `created_at` - Para ordenar cronológicamente
+**Tiempo real:** Socket.io con rooms por usuario. La BD persiste en paralelo (no en el critical path).
 
-**TTL:** 90 días para mensajes antiguos (limpieza automática)
+**Archivos del chat:** Cloudflare R2 (prefixes `chat/imagenes/`, `chat/documentos/`, `chat/audio/`).
 
 ---
 
@@ -322,20 +323,18 @@ lock:puntos:{userId}:{negocioId} → TTL 10 segundos
 
 ---
 
-### 2. ¿Por qué MongoDB para ChatYA?
+### 2. ¿Por qué ChatYA está en PostgreSQL (y no en MongoDB)?
 
-**Razones:**
-- ✅ Mensajes no tienen estructura fija (texto, imagen, video, audio)
-- ✅ Alta frecuencia de escritura (miles de mensajes/día)
-- ✅ Queries simples por conversación (no joins complejos)
-- ✅ Escalabilidad horizontal fácil
-- ✅ TTL automático para limpieza de mensajes antiguos
-- ✅ Flexibilidad para agregar campos sin migraciones
+**Decisión revisada (durante el desarrollo de ChatYA):** consolidar el chat en PostgreSQL, no en MongoDB Atlas.
 
-**Ejemplos de uso:**
-- Chat entre usuarios y negocios
-- Notificaciones de pedidos
-- Consultas pre-venta
+**Razones que pesaron más que la flexibilidad de MongoDB:**
+- ✅ **Una sola BD** que mantener, respaldar y monitorear
+- ✅ **Joins reales** con `usuarios`, `negocios`, `sucursales` (etiqueta "Matriz", contextos `oferta`/`marketplace`/`empleo`)
+- ✅ Drizzle ORM ya en uso en el resto del proyecto
+- ✅ La frecuencia de escritura del chat 1:1 está muy por debajo del límite de PostgreSQL en Supabase
+- ✅ Multimedia vive en R2, no en la BD — la fila solo guarda la URL
+
+**Lo que se descartó al elegir PostgreSQL:** TTL automático y schema flexible. No se han necesitado en la práctica.
 
 ---
 
@@ -397,7 +396,8 @@ lock:puntos:{userId}:{negocioId} → TTL 10 segundos
 - `PostgreSQL_Publicaciones.html` (schema marketplace)
 - `PostgreSQL_Citas_Empleados.html` (schema citas)
 - `PostgreSQL_Limites_Planes.html` (schema planes)
-- `MODELOS_MONGODB_CHATYA.md` (schema MongoDB)
+
+> Nota: Existió un documento histórico `MODELOS_MONGODB_CHATYA.md` cuando se planeó ChatYA sobre MongoDB. Ya no aplica — el chat vive en PostgreSQL (ver `docs/arquitectura/ChatYA.md`).
 
 ---
 

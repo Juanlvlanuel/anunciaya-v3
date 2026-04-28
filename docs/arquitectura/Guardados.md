@@ -158,7 +158,9 @@ La página usa el mismo patrón visual que CardYA y Mis Cupones:
 
 ## 🗂️ Sistema de Tabs
 
-La página tiene 4 tabs: **Ofertas**, **Negocios**, **Empleos**, **Artículos**. Los dos últimos muestran estado "Próximamente disponible" con estilo rose unificado. Los tabs usan el patrón CardYA: fondo negro, tab activo en rose (`#fb7185`), badges de conteo en `bg-rose-500`.
+La página tiene 4 tabs: **Ofertas**, **Negocios**, **Servicios**, **Artículos**. Los dos últimos muestran estado "Próximamente disponible" con estilo rose unificado. Los tabs usan el patrón CardYA: fondo negro, tab activo en rose (`#fb7185`), badges de conteo en `bg-rose-500`.
+
+> En el código actual el tercer tab aún está rotulado como "Empleos" — pendiente de renombrar a "Servicios" en Fase B del cleanup, alineado con la sección pública Servicios (visión v3, ver `VISION_ESTRATEGICA_AnunciaYA.md` §3.2).
 
 ### Tab 1: Ofertas
 
@@ -203,9 +205,9 @@ GET /api/seguidos?entityType=sucursal&pagina=1&limite=50&latitud={lat}&longitud=
 
 ---
 
-### Tab 3: Empleos *(próximamente)*
+### Tab 3: Servicios *(próximamente)*
 
-Estado visual "Próximamente disponible". Sin funcionalidad activa.
+Estado visual "Próximamente disponible". Sin funcionalidad activa. Cubrirá los guardados de la sección pública Servicios (servicios e intangibles, incluye empleos). En el código actual aún figura como "Empleos" — pendiente renombrar en Fase B.
 
 ---
 
@@ -818,4 +820,4 @@ Lista se reordena instantáneamente
 **Última actualización:** 7 Abril 2026
 **Autor:** Equipo AnunciaYA
 
-**Próximo hito:** Expansión a más tipos de contenido (Artículos, Dinámicas)
+**Próximo hito:** Expansión de tabs a las secciones públicas pendientes (Servicios, Artículos del MarketPlace).

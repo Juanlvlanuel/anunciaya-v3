@@ -77,10 +77,9 @@ const PlaceholderPage = ({ nombre }: { nombre: string }) => (
 );
 
 // Páginas de secciones principales
-const PaginaMarketplace = () => <PlaceholderPage nombre="🛒 MarketPlace" />;
+const PaginaMarketplace = () => <PlaceholderPage nombre="🛒 Marketplace" />;
 const PaginaOfertas = () => <PlaceholderPage nombre="🏷️ Ofertas" />;
-const PaginaDinamicas = () => <PlaceholderPage nombre="🎲 Dinámicas" />;
-const PaginaEmpleos = () => <PlaceholderPage nombre="💼 Bolsa de Trabajo" />;
+const PaginaServicios = () => <PlaceholderPage nombre="🛠️ Servicios" />;
 
 // Páginas de usuario
 
@@ -89,7 +88,6 @@ const PaginaConfigurarNegocio = () => <PlaceholderPage nombre="🏪 Configurar N
 
 // Páginas de Business Studio (ordenadas según menú)
 import BSPaginaAlertas from '../pages/private/business-studio/alertas/PaginaAlertas';
-const BSPaginaRifas = () => <PlaceholderPage nombre="🎁 Rifas" />;
 import BSPaginaEmpleados from '../pages/private/business-studio/empleados/PaginaEmpleados';
 const BSPaginaVacantes = () => <PlaceholderPage nombre="💼 Vacantes" />;
 import BSPaginaReportes from '../pages/private/business-studio/reportes/PaginaReportes';
@@ -243,15 +241,11 @@ const router = createBrowserRouter([
             path: '/ofertas',
             element: <PaginaOfertas />,
           },
-          {
-            path: '/dinamicas',
-            element: <PaginaDinamicas />,
-          },
 
-          // Empleos
+          // Servicios (sección unificada — visión v3, absorbe Empleos)
           {
-            path: '/empleos',
-            element: <PaginaEmpleos />,
+            path: '/servicios',
+            element: <PaginaServicios />,
           },
 
           // ⭐ UPGRADE: Crear negocio (personal → comercial)
@@ -360,14 +354,6 @@ const router = createBrowserRouter([
                 <MatrizGuard>
                   <PaginaPuntos />
                 </MatrizGuard>
-              </ModoGuard>
-            ),
-          },
-          {
-            path: '/business-studio/rifas',
-            element: (
-              <ModoGuard requiereModo="comercial">
-                <BSPaginaRifas />
               </ModoGuard>
             ),
           },

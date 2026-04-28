@@ -39,11 +39,11 @@
 | Decisión | Detalle | Razón |
 |----------|---------|-------|
 | **BD para ChatYA** | PostgreSQL con Drizzle ORM | Misma BD del resto del proyecto. Evita complejidad de mantener un segundo motor. Socket.io da el tiempo real, la BD solo persiste |
-| **Chat grupal** | NO en ChatYA | ChatYA es solo 1:1. El chat grupal se construye como componente independiente en sprint de Dinámicas/Rifas (tipo YouTube Live/Twitch, no tipo WhatsApp) |
+| **Chat grupal** | NO en ChatYA | ChatYA es solo 1:1. Si en el futuro se necesita chat grupal (ej. múltiples respuestas a una pregunta de Pregúntale a Peñasco), se construirá como componente independiente — fuera del alcance de este documento. |
 | **BD sin tabla de participantes** | Diseño `participante1_id / participante2_id` | No se necesita tabla intermedia porque no hay grupos. Simplifica queries |
 | **Tiempo real** | Socket.io (ya implementado) | Socket.io maneja el delivery instantáneo. La BD escribe en paralelo, no está en el critical path |
-| **Archivos del chat** | Cloudflare R2 (prefixes `chat/imagenes/`, `chat/documentos/` y `chat/audio/`) | Egress gratuito, lifecycle rules. Separado de Cloudinary |
-| **Catálogo/ofertas** | Siguen en Cloudinary | Necesita transformaciones de imagen que R2 no ofrece |
+| **Archivos del chat** | Cloudflare R2 (prefixes `chat/imagenes/`, `chat/documentos/` y `chat/audio/`) | Egress gratuito, lifecycle rules |
+| **Catálogo/ofertas** | Cloudflare R2 | Migrado desde Cloudinary (Marzo 2026). Cloudinary descontinuado — ver `ROADMAP.md` "Cleanup técnico Cloudinary" |
 | **Notificaciones de chat** | Solo badge + sonido en logo ChatYA | NO se integra con el panel de notificaciones (campanita) |
 | **Multi-dispositivo** | Sí | Palomitas azules sincronizadas en todos los dispositivos del usuario |
 | **TTL de conversaciones** | 6 meses sin interacción | Cron job en backend (no pg_cron). Se basa en `updated_at` de la conversación |
@@ -95,7 +95,7 @@ _Ninguna pendiente._
 | participante2_id | UUID FK → usuarios | ON DELETE CASCADE |
 | participante2_modo | VARCHAR(15) | 'personal' \| 'comercial' |
 | participante2_sucursal_id | UUID FK → negocio_sucursales | Nullable, ON DELETE SET NULL |
-| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'dinamica' \| 'empleo' \| 'directo' \| 'notas' |
+| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'dinamica' \| 'empleo' \| 'directo' \| 'notas' (estado actual de la BD; en visión v3 `'dinamica'` queda obsoleto y `'empleo'` será reemplazado/renombrado a `'servicio'` — decisión final en Fase D del cleanup) |
 | contexto_referencia_id | UUID | Nullable. ID del recurso de origen |
 | ultimo_mensaje_texto | VARCHAR(100) | Preview truncado del último mensaje |
 | ultimo_mensaje_fecha | TIMESTAMPTZ | Para ordenar la lista de chats |
@@ -387,9 +387,9 @@ El backend resuelve el nombre del recurso de origen (JOIN/lookup) y lo envía co
 |-----------------|-------------|---------|
 | `'negocio'` | "Desde: Tu perfil" | Solo en modo comercial |
 | `'oferta'` | "Desde oferta: {nombre}" | "Desde oferta: 2x1 en Pizzas" |
-| `'marketplace'` | "Desde publicación: {nombre}" | Preparado para módulo futuro |
-| `'empleo'` | "Desde vacante: {nombre}" | Preparado para módulo futuro |
-| `'dinamica'` | "Desde dinámica: {nombre}" | Preparado para módulo futuro |
+| `'marketplace'` | "Desde publicación: {nombre}" | Preparado para sección pública MarketPlace |
+| `'empleo'` | "Desde vacante: {nombre}" | Preparado para sección pública Servicios (modo Ofrezco/Solicito). El valor `'empleo'` se renombrará a `'servicio'` en Fase D del cleanup |
+| `'dinamica'` | "Desde dinámica: {nombre}" | ⚠️ Obsoleto en visión v3 (Dinámicas removido del alcance). Pendiente de eliminar en Fase D — ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1 |
 | `'directo'` / `'notas'` | No muestra nada | — |
 
 **Regla de visibilidad:** Solo se muestra al **receptor** del chat (`conversacion.participante1Id !== miId`). Quien inició el chat ya sabe desde dónde lo hizo. El caso `'negocio'` ("Desde: Tu perfil") solo aplica en modo comercial — en modo personal el usuario no tiene perfil de negocio.
@@ -1663,7 +1663,7 @@ _Ninguna — todos los sprints completados (7/7)._
 |---------|-------|
 | Videollamadas | Fuera de alcance. Requiere WebRTC |
 | Llamadas de voz | Fuera de alcance |
-| Chats grupales en ChatYA | Se implementan como componente independiente en Dinámicas/Rifas (tipo YouTube Live) |
+| Chats grupales en ChatYA | Si en el futuro se necesita chat grupal, se construirá como componente independiente. ChatYA queda solo 1:1. |
 | Stories/Estados tipo WhatsApp | No aplica al modelo de negocio |
 | Mensajes temporales | Complejidad innecesaria |
 | Cifrado extremo a extremo | Complejidad extrema, no necesario ahora |
@@ -1910,7 +1910,7 @@ Las reacciones son especialmente propensas a duplicación visual por el cruce de
 37. **`content-visibility: auto` es prácticamente gratis** — Browser skipea layout/paint de elementos fuera del viewport sin librerías ni código extra. Solo un CSS property.
 38. **`LIMITE_INICIAL` controla costo de primer render** — Cargar 30 mensajes en vez de todos los cacheados reduce el trabajo inicial. IntersectionObserver carga más bajo demanda.
 39. **Detectar caché HTTP con `img.complete`** — `new Image(); img.src = url; img.complete && img.naturalHeight > 0` detecta si el browser ya tiene la imagen. Evita blur/spinner innecesario.
-40. **`startTransition` no funciona con Zustand** — `useSyncExternalStore` (que usa Zustand internamente) es incompatible con concurrent features de React 18. No se puede usar `startTransition` para diferir re-renders de stores.
+40. **`startTransition` no funciona con Zustand** — `useSyncExternalStore` (que usa Zustand internamente) es incompatible con concurrent features de React 18+ (incluyendo React 19, en uso). No se puede usar `startTransition` para diferir re-renders de stores.
 41. **Caché a nivel de módulo (Map) > useRef para datos que sobreviven desmontaje** — `useRef` se pierde al desmontar el componente. Map a nivel de módulo persiste mientras la app esté abierta. Ideal para cachés de datos que no cambian frecuentemente (conteos, archivos compartidos, datos de negocio/cliente).
 42. **useState con initializer function para lectura síncrona de caché** — `useState(() => cache.get(key))` lee del Map en el primer render, evita el ciclo `render vacío → useEffect → setState → re-render con datos` que causa flash de loading.
 43. **Visor de archivos compartidos desacoplado del store de navegación** — Usar `setVisorAbierto(true/false)` del store dispara `popstate` en ChatOverlay y cierra el chat completo. Estado local `visorArchivos` con `useState` evita afectar el historial de navegación.
@@ -1960,7 +1960,7 @@ Las reacciones son especialmente propensas a duplicación visual por el cruce de
 
 ### Bug Fixes — Patrones recurrentes
 
-72. **React 18 + Zustand: nunca llamar `set()` dentro de un updater de `useState`** — En React 18, los updater functions de `setState(prev => ...)` pueden ejecutarse durante la fase de rendering (concurrent mode). Zustand notifica síncronamente a todos sus suscriptores al llamar `set()`. Si un suscriptor (ej. ChatOverlay) intenta actualizar su propio estado al recibir la notificación, React lanza "Cannot update a component while rendering a different component". Fix: capturar el valor actual con una variable antes del setter, y llamar ambos setters en secuencia directa (no anidada):
+72. **React 18+ + Zustand: nunca llamar `set()` dentro de un updater de `useState`** — En React 18+ (incluyendo React 19, en uso), los updater functions de `setState(prev => ...)` pueden ejecutarse durante la fase de rendering (concurrent mode). Zustand notifica síncronamente a todos sus suscriptores al llamar `set()`. Si un suscriptor (ej. ChatOverlay) intenta actualizar su propio estado al recibir la notificación, React lanza "Cannot update a component while rendering a different component". Fix: capturar el valor actual con una variable antes del setter, y llamar ambos setters en secuencia directa (no anidada):
     ```typescript
     // ❌ Bug: set() de Zustand dentro del updater de React
     const togglePanel = () => setPanelAbierto(v => {

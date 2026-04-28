@@ -29,8 +29,7 @@ export type TipoNotificacion =
   | 'nueva_resena'
   | 'sistema'
   | 'nuevo_marketplace'
-  | 'nueva_dinamica'
-  | 'nuevo_empleo';
+  | 'nuevo_servicio';
 
 export type ReferenciaTipo =
   | 'transaccion'
@@ -40,8 +39,7 @@ export type ReferenciaTipo =
   | 'recompensa'
   | 'resena'
   | 'marketplace'
-  | 'dinamica'
-  | 'empleo';
+  | 'servicio';
 
 // =============================================================================
 // NOTIFICACIÓN
