@@ -61,10 +61,10 @@ psql "$DATABASE_URL" -f docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql
 - `docs/arquitectura/`: Sistema, Business_Studio, ChatYA, Guardados, Notificaciones, Base_de_Datos actualizados — describen el estado actual del código + nota explícita de qué cambia en Fases B/C/D del cleanup.
 - `docs/legacy/README.md`: aviso de obsolescencia en encabezado.
 
-**Fases siguientes (pendientes):**
-- Fase B (UI/Frontend): quitar rutas/menús de Dinámicas, renombrar Empleos → Servicios, eliminar ítem Rifas del BS.
-- Fase C (Backend): limpiar referencias en services/controllers/routes a guardados de rifas y votos sobre dinámicas.
-- Fase D (BD): SQL one-shot — decidir destino de tabla `dinamicas`, renombrar enums `'empleo'` → `'servicio'`, quitar `'dinamica'` de enums.
+**Fases siguientes (planificadas en este momento, todas completadas el mismo día):**
+- ✅ Fase B (UI/Frontend): aplicada — ver entrada del 28 Abril 2026 sobre Fase B.
+- ✅ Fase C (Backend): aplicada — ver entrada del 28 Abril 2026 sobre Fase C + D.
+- ✅ Fase D (BD): aplicada — migración en staging y producción. Ver entrada del 28 Abril 2026 sobre Fase C + D.
 
 ---
 

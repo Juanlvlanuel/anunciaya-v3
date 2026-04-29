@@ -379,6 +379,7 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
 - **Business Studio** (92%) — 12/13 módulos completados
 - **Migración React Query** ✅ completa en lo construido — BS hechos (12/12 migrados): Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil, Reportes, Sucursales. Vacantes nacerá con React Query desde el inicio. Públicas (4/4): Negocios, CardYA, Mis Cupones, Mis Guardados. Pendientes: ChatYA, ScanYA, Onboarding (evaluar caso por caso)
+- **Cleanup visión v3** ✅ completo (28 Abril 2026) — Fases A (docs), B (UI), C (backend) y D (BD aplicada en staging y producción). Código y BD alineados con `docs/VISION_ESTRATEGICA_AnunciaYA.md`. Detalle en `CHANGELOG.md`.
 
 ### BS Módulos Completados (12/13)
 

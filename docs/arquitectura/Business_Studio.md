@@ -162,7 +162,7 @@ Si onboarding_completado = true → Business Studio Dashboard
 ```
 
 **Componentes principales:**
-- `MenuBusinessStudio.tsx` - Navegación lateral con 13 opciones (pendiente de limpieza UI: aún muestra ítem Rifas removido en visión v3)
+- `MenuBusinessStudio.tsx` - Navegación lateral con 13 opciones
 - `SelectorSucursalesInline.tsx` - Cambiar entre sucursales (dueños)
 - `PanelPreviewNegocio.tsx` - Preview en vivo del negocio
 
@@ -170,7 +170,7 @@ Si onboarding_completado = true → Business Studio Dashboard
 
 ## 📦 Los 13 Módulos
 
-> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (6 Abril 2026). Verificación posterior pendiente tras la limpieza UI (Fase B): el código aún muestra el ítem Rifas removido en visión v3.
+> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (6 Abril 2026, re-verificado tras Fase B del cleanup visión v3 — 28 Abril 2026, ítem Rifas removido del menú y la ruta).
 
 ### Organización del Menú
 
@@ -199,7 +199,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 |---|--------|------|-------|--------|
 | 8 | Puntos y Recompensas | `/business-studio/puntos` | Coins | ✅ 100% |
 
-> **Rifas removido del alcance v1** (visión estratégica abril 2026). El ítem aún aparece en el menú UI — pendiente de limpieza en Fase B. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
+> **Rifas removido del alcance v1** (visión estratégica abril 2026). Limpieza UI completada en Fase B del cleanup. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 #### 4. Recursos Humanos (2 módulos)
 
@@ -558,7 +558,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 ### Módulos Pendientes y Removidos
 
 - **Vacantes** ⏳ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública **Servicios**. Pendiente de implementar; ya no está bloqueado por una sección que iba a llamarse "Empleos" (Servicios la absorbió en visión v3).
-- **Rifas** ❌ — Removido del alcance v1. Antes figuraba como bloqueado por Dinámicas; al descartarse Dinámicas (riesgo legal SEGOB), Rifas también queda fuera. El ítem todavía aparece en el código del menú — pendiente de limpieza en Fase B. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
+- **Rifas** ❌ — Removido del alcance v1. Antes figuraba como bloqueado por Dinámicas; al descartarse Dinámicas (riesgo legal SEGOB), Rifas también queda fuera. Ítem y ruta del menú eliminados en Fase B del cleanup (28 Abril 2026); tablas de BD eliminadas en Fase D. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 ---
 
@@ -823,13 +823,13 @@ apps/web/src/
 │   └── empleados/                    ✅ Gestión de empleados
 │
 ├── components/layout/
-│   ├── MenuBusinessStudio.tsx        ✅ Menú (13 opciones tras limpieza Fase B; hoy aún muestra Rifas)
+│   ├── MenuBusinessStudio.tsx        ✅ Menú con 13 opciones (Rifas eliminada en Fase B — 28 Abril 2026)
 │   ├── DrawerBusinessStudio.tsx      ✅ Drawer móvil
 │   ├── PanelPreviewNegocio.tsx       ✅ Preview en vivo
 │   └── SelectorSucursalesInline.tsx  ✅ Cambiar sucursal
 │
 ├── router/
-│   ├── index.tsx                     ✅ Rutas BS (13 tras limpieza Fase B; hoy aún incluye `/rifas`)
+│   ├── index.tsx                     ✅ Rutas BS (13 — `/rifas` eliminada en Fase B — 28 Abril 2026)
 │   └── guards/ModoGuard.tsx          ✅ Guard de modo
 │
 ├── services/

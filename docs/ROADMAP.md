@@ -26,6 +26,7 @@
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
 | **Cleanup técnico Cloudinary** | ⏳ 0% | Servicio descontinuado. Pendiente: eliminar `cloudinary.service.ts`, variables env `CLOUDINARY_*`, dependencia npm `cloudinary`, helpers `eliminarImagenInteligente` y `duplicarImagenInteligente` (simplificar a solo R2). ~1-2h |
+| **Cleanup visión v3** | ✅ 100% (28 Abr 2026) | 4 fases aplicadas: A docs · B UI · C backend · D BD (staging + producción). Drop de tablas `dinamicas`/`dinamica_premios`/`dinamica_participaciones`; renombrado `'empleo'`→`'servicio'` y `'bolsa'`→`'servicio'` en 8 CHECK constraints. Ver `CHANGELOG.md` y `docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql`. |
 
 ---
 

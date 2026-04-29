@@ -239,6 +239,7 @@ Ver `ROADMAP.md` y `CHANGELOG.md` para detalle.
 - **Stack:** Monorepo TypeScript (pnpm) — React 19 + Vite + Tailwind v4 + Zustand + TanStack Query v5 · Express 5 + Socket.io · PostgreSQL + PostGIS (Supabase) · Redis (Upstash) · Cloudflare R2.
 - **Hosting:** Render (BE) · Vercel (FE) · Supabase · Upstash.
 - **Migración React Query:** completa en lo construido (BS y públicas hechas). Pendientes evaluar caso por caso: ChatYA, ScanYA, Onboarding. Zustand se queda solo para UI state.
+- **Cleanup visión v3:** ✅ aplicado completo el 28 Abril 2026 — Fases A (docs), B (UI), C (backend), D (BD en staging y producción). Código y BD totalmente alineados con este documento.
 
 > Cloudinary fue retirado del stack (servicio descontinuado, cleanup técnico pendiente — ver `ROADMAP.md`).
 
