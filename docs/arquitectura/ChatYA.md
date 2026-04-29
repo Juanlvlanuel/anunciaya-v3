@@ -43,7 +43,7 @@
 | **BD sin tabla de participantes** | Diseño `participante1_id / participante2_id` | No se necesita tabla intermedia porque no hay grupos. Simplifica queries |
 | **Tiempo real** | Socket.io (ya implementado) | Socket.io maneja el delivery instantáneo. La BD escribe en paralelo, no está en el critical path |
 | **Archivos del chat** | Cloudflare R2 (prefixes `chat/imagenes/`, `chat/documentos/` y `chat/audio/`) | Egress gratuito, lifecycle rules |
-| **Catálogo/ofertas** | Cloudflare R2 | Migración a R2 completada el 29 Abril 2026 — ver `CHANGELOG.md` |
+| **Catálogo/ofertas** | Cloudflare R2 | Egress gratuito, lifecycle rules |
 | **Notificaciones de chat** | Solo badge + sonido en logo ChatYA | NO se integra con el panel de notificaciones (campanita) |
 | **Multi-dispositivo** | Sí | Palomitas azules sincronizadas en todos los dispositivos del usuario |
 | **TTL de conversaciones** | 6 meses sin interacción | Cron job en backend (no pg_cron). Se basa en `updated_at` de la conversación |
@@ -95,7 +95,7 @@ _Ninguna pendiente._
 | participante2_id | UUID FK → usuarios | ON DELETE CASCADE |
 | participante2_modo | VARCHAR(15) | 'personal' \| 'comercial' |
 | participante2_sucursal_id | UUID FK → negocio_sucursales | Nullable, ON DELETE SET NULL |
-| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'servicio' \| 'directo' \| 'notas' (CHECK constraint sincronizado en Fase D — visión v3, abril 2026) |
+| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'servicio' \| 'directo' \| 'notas' |
 | contexto_referencia_id | UUID | Nullable. ID del recurso de origen |
 | ultimo_mensaje_texto | VARCHAR(100) | Preview truncado del último mensaje |
 | ultimo_mensaje_fecha | TIMESTAMPTZ | Para ordenar la lista de chats |
@@ -388,7 +388,7 @@ El backend resuelve el nombre del recurso de origen (JOIN/lookup) y lo envía co
 | `'negocio'` | "Desde: Tu perfil" | Solo en modo comercial |
 | `'oferta'` | "Desde oferta: {nombre}" | "Desde oferta: 2x1 en Pizzas" |
 | `'marketplace'` | "Desde publicación: {nombre}" | Preparado para sección pública MarketPlace |
-| `'servicio'` | "Desde servicio: {nombre}" | Para sección pública Servicios (modos Ofrezco/Solicito). Antes era `'empleo'`; renombrado en Fase D del cleanup (28 Abril 2026). |
+| `'servicio'` | "Desde servicio: {nombre}" | Para sección pública Servicios (modos Ofrezco/Solicito). |
 | `'directo'` / `'notas'` | No muestra nada | — |
 
 **Regla de visibilidad:** Solo se muestra al **receptor** del chat (`conversacion.participante1Id !== miId`). Quien inició el chat ya sabe desde dónde lo hizo. El caso `'negocio'` ("Desde: Tu perfil") solo aplica en modo comercial — en modo personal el usuario no tiene perfil de negocio.
@@ -573,7 +573,7 @@ Visor tipo WhatsApp/Telegram. `VisorImagenesChat.tsx` con `createPortal(…, doc
 - ✅ Imágenes del chat → Cloudflare R2 (prefix `chat/imagenes/{userId}/`) — Presigned URL + upload directo
 - ✅ Documentos del chat → Cloudflare R2 (prefix `chat/documentos/{userId}/`) — Presigned URL + upload directo
 - ✅ Audio del chat → Cloudflare R2 (prefix `chat/audio/{userId}/`) — Presigned URL + upload directo
-- ✅ Catálogo/ofertas → Cloudflare R2 (migración completada 29 Abril 2026)
+- ✅ Catálogo/ofertas → Cloudflare R2
 - 🔲 Al hard delete de chat (AMBOS eliminaron) → eliminar archivos R2 asociados
 
 ### 4.21 UX — Rendimiento
@@ -1233,7 +1233,7 @@ Componente principal. 3 estados: cerrado, minimizado (barra avatares 56px), expa
 
 **Integración con ModalDetalleCliente:** ChatOverlay escucha el CustomEvent `chatya:ver-cliente` (despachado desde `PanelInfoContacto`) y mantiene estado `clienteDetalleId: string | null`. Al recibir el evento, monta `<ModalDetalleCliente>` directamente dentro del overlay. El prop `onVerHistorial` usa el evento `chatya:navegar-externo` (no `navigate()` directo) para navegar a la página de transacciones sin romper el sistema de historial de ChatYA.
 
-**Perfil de negocio embebido (sin iframe):** Anteriormente ChatOverlay renderizaba un iframe invisible para precargar el perfil. Esto fue reemplazado por renderizado directo de `PaginaPerfilNegocio` como componente dentro de `PanelInfoContacto`. Se usan dos mecanismos para forzar vista mobile en un panel estrecho: (1) `BreakpointOverride` context que hace que `useBreakpoint()` devuelva `esMobile: true` en todos los sub-componentes (SeccionOfertas, SeccionCatalogo, OfertaCard, etc.), y (2) CSS overrides en `index.css` con `.perfil-embebido` y `.perfil-contenedor` que neutralizan clases Tailwind `lg:`/`2xl:`. `.perfil-contenedor` usa `transform: translateZ(0)` para contener modales `fixed` dentro del panel. `PaginaPerfilNegocio` acepta props opcionales `sucursalIdOverride` y `modoPreviewOverride` para funcionar sin router.
+**Perfil de negocio embebido (sin iframe):** ChatOverlay renderiza `PaginaPerfilNegocio` directamente como componente dentro de `PanelInfoContacto`. Se usan dos mecanismos para forzar vista mobile en un panel estrecho: (1) `BreakpointOverride` context que hace que `useBreakpoint()` devuelva `esMobile: true` en todos los sub-componentes (SeccionOfertas, SeccionCatalogo, OfertaCard, etc.), y (2) CSS overrides en `index.css` con `.perfil-embebido` y `.perfil-contenedor` que neutralizan clases Tailwind `lg:`/`2xl:`. `.perfil-contenedor` usa `transform: translateZ(0)` para contener modales `fixed` dentro del panel. `PaginaPerfilNegocio` acepta props opcionales `sucursalIdOverride` y `modoPreviewOverride` para funcionar sin router.
 
 ### 10.5 Hooks Personalizados
 
@@ -2005,4 +2005,4 @@ Las reacciones son especialmente propensas a duplicación visual por el cruce de
 
 **Estado actual:** Sprints 1-7 COMPLETADOS. Módulo ChatYA cerrado (20 Mar 2026). 41 API tests + 10 E2E tests.
 **Backend:** 34 endpoints + 13 eventos Socket.io + 1 evento consulta estado + cron job activo.
-**Última actualización:** 20 Abril 2026 — §16 ampliado con Mis Notas privado por usuario real (16.8), `sucursalId=null` en modo personal (16.9), cambio de modo con reconexión de socket + cache por modo para evitar flicker (16.10) y normalización de reacciones en 3 capas (16.11). Lecciones 80-83 documentan los patrones: identidad personal vs comercial, reconexión del socket al cambiar token, swap de cache por modo, y dedup por tupla en el estado (no por clave semántica del evento).
+**Última actualización:** 20 Abril 2026.

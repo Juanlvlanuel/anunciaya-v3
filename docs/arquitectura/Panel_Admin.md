@@ -61,7 +61,7 @@ Si el rol es `vendedor`, los services deben filtrar por `regionId` y por `codigo
 
 ## Estado actual
 
-**Infraestructura backend construida (17 Abril 2026):**
+**Infraestructura backend construida:**
 - ✅ Convención de carpetas `admin/*` en `controllers/`, `services/`, `routes/`
 - ✅ Middleware temporal `requireAdminSecret` (header `x-admin-secret`)
 - ✅ Primer endpoint operativo: **Mantenimiento → Reconcile R2**
@@ -271,7 +271,7 @@ Sin esa variable, todo `/api/admin/*` responde `503` y no se expone ningún endp
 ## Decisiones de diseño registradas
 
 ### ¿Por qué sub-carpeta `admin/` en cada capa?
-Alternativas consideradas: (a) carpeta única `admin/` con todo adentro (rompe convención del proyecto), (b) prefijo plano `admin.*.ts` (se vuelve ilegible con volumen). La opción elegida mantiene la convención del proyecto (archivos por tipo) agrupando por sub-dominio cuando crece el volumen. Ver conversación del 17 Abril 2026.
+Alternativas consideradas: (a) carpeta única `admin/` con todo adentro (rompe convención del proyecto), (b) prefijo plano `admin.*.ts` (se vuelve ilegible con volumen). La opción elegida mantiene la convención del proyecto (archivos por tipo) agrupando por sub-dominio cuando crece el volumen.
 
 ### ¿Por qué `requireAdminSecret` y no auth admin real ya?
 El Panel Admin no tiene usuarios aún. Construir auth JWT separado sin UI que la use sería prematuro. El secreto compartido permite usar la herramienta hoy (Postman/cURL/scripts) y se reemplaza trivialmente cuando haya UI. Los controllers/services/rutas no cambian.

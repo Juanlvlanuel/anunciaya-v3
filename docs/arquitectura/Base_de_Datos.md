@@ -184,27 +184,7 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 13. ~~Dinámicas y Sorteos~~ — ❌ tablas eliminadas en Fase D (28 Abril 2026)
-
-Las tablas `dinamicas`, `dinamica_premios` y `dinamica_participaciones` fueron
-**eliminadas** (`DROP CASCADE`) al cerrar el cleanup técnico de la visión v3.
-Dinámicas/Rifas P2P quedaron descartadas permanentemente para v1 por riesgo
-legal SEGOB en México.
-
-Limpieza asociada (también aplicada en la migración):
-- Valor `'dinamica'` quitado de los CHECK constraints de `chat_conv.contexto_tipo`,
-  `notificaciones.referencia_tipo` y `promociones_pagadas.tipo_entidad`.
-- Valor `'rifa'` y `'subasta'` quitados de `votos.entity_type` y
-  `metricas_entidad.entity_type`. `'rifa'` también quitado de `guardados.entity_type`.
-- Valores `'rifas'`, `'subastas'`, `'turismo'` quitados de `carrito.tipo_seccion`.
-- Notificación `'nueva_dinamica'` quitada de `notificaciones.tipo`.
-
-Ver: `docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql` y
-`VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
-
----
-
-### 14. Promociones (3 tablas)
+### 13. Promociones (3 tablas)
 
 | Tabla | Propósito |
 |-------|-----------|
@@ -214,25 +194,16 @@ Ver: `docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql` y
 
 ---
 
-### 15. Servicios — antes "Empleos" (1 tabla)
+### 14. Servicios (1 tabla)
 
 | Tabla | Propósito |
 |-------|-----------|
 | `bolsa_trabajo` | Publicaciones de la sección pública Servicios (modos Ofrezco/Solicito). Cubre servicios e intangibles, incluye empleos. |
 
-> **Renombrado conceptual aplicado en Fase D (28 Abril 2026):** lo que antes
-> iba a ser una sección "Empleos" se unifica en la sección pública **Servicios**.
->
-> - **Tabla:** se conserva el nombre físico `bolsa_trabajo` (decisión pragmática:
->   renombrar implica cambios en cascada sin beneficio funcional real).
-> - **Enums sincronizados:** `chat_conv.contexto_tipo`, `notificaciones.referencia_tipo`,
->   `votos.entity_type`, `guardados.entity_type` y `metricas_entidad.entity_type`
->   ahora aceptan `'servicio'` (antes `'empleo'`); `promociones_pagadas.tipo_entidad`
->   acepta `'servicio'` (antes `'bolsa'`); `notificaciones.tipo` acepta
->   `'nuevo_servicio'` (antes `'nuevo_empleo'`).
->
-> Ver: `docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql` y
-> `VISION_ESTRATEGICA_AnunciaYA.md` §3.2.
+> **Enums:** `chat_conv.contexto_tipo`, `notificaciones.referencia_tipo`,
+> `votos.entity_type`, `guardados.entity_type` y `metricas_entidad.entity_type`
+> aceptan `'servicio'`; `promociones_pagadas.tipo_entidad` acepta `'servicio'`;
+> `notificaciones.tipo` acepta `'nuevo_servicio'`.
 
 ---
 
@@ -285,9 +256,9 @@ Ver: `docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql` y
 
 ## 📝 ChatYA (PostgreSQL)
 
-> **Histórico:** ChatYA estuvo planeado sobre MongoDB Atlas durante la fase 4. **Migrado a PostgreSQL con Drizzle** durante el desarrollo de ChatYA. Hoy las conversaciones y mensajes viven en el mismo schema público que el resto del sistema. Detalle técnico: `docs/arquitectura/ChatYA.md`.
+ChatYA vive en PostgreSQL con Drizzle. Las conversaciones y mensajes viven en el mismo schema público que el resto del sistema. Detalle técnico: `docs/arquitectura/ChatYA.md`.
 
-Tablas principales (en PostgreSQL):
+Tablas principales:
 
 | Tabla | Propósito |
 |-------|-----------|
@@ -343,18 +314,14 @@ lock:puntos:{userId}:{negocioId} → TTL 10 segundos
 
 ---
 
-### 2. ¿Por qué ChatYA está en PostgreSQL (y no en MongoDB)?
+### 2. ¿Por qué ChatYA está en PostgreSQL?
 
-**Decisión revisada (durante el desarrollo de ChatYA):** consolidar el chat en PostgreSQL, no en MongoDB Atlas.
-
-**Razones que pesaron más que la flexibilidad de MongoDB:**
+**Razones:**
 - ✅ **Una sola BD** que mantener, respaldar y monitorear
-- ✅ **Joins reales** con `usuarios`, `negocios`, `sucursales` (etiqueta "Matriz", contextos `oferta`/`marketplace`/`empleo`)
+- ✅ **Joins reales** con `usuarios`, `negocios`, `sucursales` (etiqueta "Matriz", contextos `oferta`/`marketplace`/`servicio`)
 - ✅ Drizzle ORM ya en uso en el resto del proyecto
 - ✅ La frecuencia de escritura del chat 1:1 está muy por debajo del límite de PostgreSQL en Supabase
 - ✅ Multimedia vive en R2, no en la BD — la fila solo guarda la URL
-
-**Lo que se descartó al elegir PostgreSQL:** TTL automático y schema flexible. No se han necesitado en la práctica.
 
 ---
 
@@ -376,30 +343,6 @@ lock:puntos:{userId}:{negocioId} → TTL 10 segundos
 
 ---
 
-## 🔄 Evolución del Schema
-
-### Noviembre-Diciembre 2024
-- **42 tablas iniciales**
-- 8 schemas: public, auth, negocios, contenido, puntos, dinamicas, empleos, interacciones
-
-### 17-29 Enero 2026
-- **+23 tablas nuevas** (ScanYA, vouchers, métricas, embajadores)
-- 1 schema nuevo: scanya
-- **Total: 65 tablas**
-
-### Cambios Arquitectónicos Importantes
-
-**06 Enero 2026:**
-- Eliminado tipo negocio "Online"
-- Todos los negocios requieren ubicación física (PostGIS)
-
-**17-29 Enero 2026:**
-- Schema ScanYA completo (3 tablas)
-- Sistema de recordatorios offline
-- Separación votos/guardados (SRP)
-
----
-
 ## 📚 Documentación Relacionada
 
 **Para detalles técnicos:**
@@ -416,8 +359,6 @@ lock:puntos:{userId}:{negocioId} → TTL 10 segundos
 - `PostgreSQL_Publicaciones.html` (schema marketplace)
 - `PostgreSQL_Citas_Empleados.html` (schema citas)
 - `PostgreSQL_Limites_Planes.html` (schema planes)
-
-> Nota: Existió un documento histórico `MODELOS_MONGODB_CHATYA.md` cuando se planeó ChatYA sobre MongoDB. Ya no aplica — el chat vive en PostgreSQL (ver `docs/arquitectura/ChatYA.md`).
 
 ---
 

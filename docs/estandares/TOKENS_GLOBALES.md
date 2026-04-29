@@ -84,7 +84,7 @@ El brillo de pantalla hace que los tonos claros desaparezcan. Todo debe tener pr
 
 - **Tailwind:** `bg-linear-to-br from-blue-500 via-blue-600 to-blue-700 text-white shadow-md`
 - **Style inline (cuando el gradient se tapa con imagen condicional):** `style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}` + `text-white shadow-md`
-- ❌ `bg-indigo-100 text-indigo-700` (patrón anterior) — reemplazado por gradient azul para mayor presencia visual
+- ❌ `bg-indigo-100 text-indigo-700` — usar gradient azul para mayor presencia visual
 - ❌ `bg-slate-200 text-slate-600` (placeholder neutro) — avatar siempre debe tener color
 
 **Texto:** mínimo `text-slate-600`. Nunca `text-slate-500` ni más claro.

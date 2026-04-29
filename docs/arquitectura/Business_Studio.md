@@ -1,7 +1,7 @@
 # 🏢 Business Studio - Panel de Control Comercial
 
 **Última actualización:** 28 Abril 2026
-**Versión:** 2.3 (Visión v3: Rifas removido del alcance, BS pasa a 13 módulos — 12/13)
+**Versión:** 2.3
 
 ---
 
@@ -9,7 +9,7 @@
 
 Este documento describe la **arquitectura conceptual** del sistema Business Studio:
 - ✅ Arquitectura general y flujos
-- ✅ Los 13 módulos del sistema (Rifas removido en visión v3 — ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1)
+- ✅ Los 13 módulos del sistema
 - ✅ Endpoints principales verificados contra código real
 - ✅ Sistema de sucursales y roles
 - ✅ Servicio centralizado compartido
@@ -55,7 +55,7 @@ Business Studio es el **centro de administración completo** para negocios regis
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 12 de 13 módulos completados (92%). Migración React Query: 12/12 BS completo.
+**Progreso actual:** 12 de 13 módulos completados (92%). Datos del servidor en React Query.
 
 ---
 
@@ -170,7 +170,7 @@ Si onboarding_completado = true → Business Studio Dashboard
 
 ## 📦 Los 13 Módulos
 
-> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx` (6 Abril 2026, re-verificado tras Fase B del cleanup visión v3 — 28 Abril 2026, ítem Rifas removido del menú y la ruta).
+> ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx`.
 
 ### Organización del Menú
 
@@ -198,8 +198,6 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
 | 8 | Puntos y Recompensas | `/business-studio/puntos` | Coins | ✅ 100% |
-
-> **Rifas removido del alcance v1** (visión estratégica abril 2026). Limpieza UI completada en Fase B del cleanup. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 #### 4. Recursos Humanos (2 módulos)
 
@@ -355,7 +353,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### 4. Promociones ✅ (antes "Ofertas")
+### 4. Promociones ✅
 
 **Ruta:** `/business-studio/ofertas`
 **Completado:** 22 Marzo 2026 (Ofertas + Cupones unificados)
@@ -546,7 +544,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 - Gestión de gerentes: dueño crea cuenta directamente (sin auto-registro), revoca, reenvía credenciales
 - Contraseña provisional + `requiereCambioContrasena` para primer login
 - Blindajes anti-fraude: dueño no puede auto-asignarse, correo único, 1 gerente por sucursal, gerente no puede cambiar correo/sucursalAsignada ni crear negocio propio
-- Hard delete con limpieza exhaustiva de R2 (sucursal, galería, artículos huérfanos, ofertas, empleados, dinámicas + premios, bolsa trabajo, tickets ScanYA, evidencia transacciones) en paralelo
+- Hard delete con limpieza exhaustiva de R2 (sucursal, galería, artículos huérfanos, ofertas, empleados, bolsa trabajo, tickets ScanYA, evidencia transacciones) en paralelo
 - CASCADE de PostgreSQL en tablas relacionadas
 - ChatYA NO se elimina (pertenece a conversaciones de usuarios)
 
@@ -554,10 +552,9 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-### Módulos Pendientes y Removidos
+### Módulos Pendientes
 
-- **Vacantes** ⏳ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública **Servicios**. Pendiente de implementar; ya no está bloqueado por una sección que iba a llamarse "Empleos" (Servicios la absorbió en visión v3).
-- **Rifas** ❌ — Removido del alcance v1. Antes figuraba como bloqueado por Dinámicas; al descartarse Dinámicas (riesgo legal SEGOB), Rifas también queda fuera. Ítem y ruta del menú eliminados en Fase B del cleanup (28 Abril 2026); tablas de BD eliminadas en Fase D. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
+- **Vacantes** ⏳ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública **Servicios**.
 
 ---
 
@@ -761,7 +758,7 @@ await actualizarInfoGeneral(negocioId, datos);
 
 ## 📂 Ubicación de Archivos
 
-> ✅ **VERIFICADO:** Contra estructura real del proyecto (6 Abril 2026)
+> ✅ **VERIFICADO:** Contra estructura real del proyecto.
 
 ### Backend
 
@@ -822,13 +819,13 @@ apps/web/src/
 │   └── empleados/                    ✅ Gestión de empleados
 │
 ├── components/layout/
-│   ├── MenuBusinessStudio.tsx        ✅ Menú con 13 opciones (Rifas eliminada en Fase B — 28 Abril 2026)
+│   ├── MenuBusinessStudio.tsx        ✅ Menú con 13 opciones
 │   ├── DrawerBusinessStudio.tsx      ✅ Drawer móvil
 │   ├── PanelPreviewNegocio.tsx       ✅ Preview en vivo
 │   └── SelectorSucursalesInline.tsx  ✅ Cambiar sucursal
 │
 ├── router/
-│   ├── index.tsx                     ✅ Rutas BS (13 — `/rifas` eliminada en Fase B — 28 Abril 2026)
+│   ├── index.tsx                     ✅ Rutas BS (13)
 │   └── guards/ModoGuard.tsx          ✅ Guard de modo
 │
 ├── services/
@@ -1064,7 +1061,7 @@ export async function actualizarInfoGeneral() { ... }
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
-- Promociones — antes Ofertas (16/01/2026, potenciado 22/03/2026 con Cupones)
+- Promociones (16/01/2026, potenciado 22/03/2026 con Cupones)
 - Puntos (05/02/2026, N+1 agregado 22/03/2026)
 - Transacciones (07/03/2026)
 - Clientes (07/03/2026)
@@ -1077,19 +1074,15 @@ export async function actualizarInfoGeneral() { ... }
 **Módulos pendientes:** 1/13
 - Vacantes — alimenta sección pública Servicios
 
-**Removidos del alcance v1:** Rifas (visión estratégica abril 2026, ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1)
-
 **Progreso:** 12/13 módulos = 92%
 
-**Migración React Query:** 12/12 módulos BS hechos completados (Abril 2026)
-- Todos los datos del servidor en `hooks/queries/`
-- Stores Zustand simplificados a solo estado UI
-- 4 stores eliminados (Artículos, Ofertas, Reseñas, Empleados)
-- Componentes auxiliares migrados (modales duplicar, selector clientes, KPIs sidebar, categorías)
+**Datos del servidor:** todos los módulos BS hechos usan React Query
+- Datos del servidor en `hooks/queries/`
+- Stores Zustand limitados a estado UI
 - Vacantes nacerá con React Query desde el inicio
 
 ---
 
 **Última actualización:** 28 Abril 2026
 **Autor:** Equipo AnunciaYA
-**Versión:** 2.3 (alineación con visión estratégica v3)
+**Versión:** 2.3

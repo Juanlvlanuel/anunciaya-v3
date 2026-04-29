@@ -1,14 +1,13 @@
 # 💳 CardYA - Sistema de Lealtad para Clientes
 
 **Última actualización:** 17 Abril 2026
-**Versión:** 2.1 (Notificaciones a nivel negocio + GREATEST defensivo en cancelarVoucher)
+**Versión:** 2.1
 **Estado:** ✅ 100% Operacional
 
-> **MIGRACIÓN REACT QUERY (Abril 2026):**
-> - `useCardyaStore.ts` (547 líneas) → eliminado, reemplazado por `hooks/queries/useCardYA.ts`
-> - Hooks: useCardYABilleteras, useCardYARecompensas, useCardYAVouchers, useCardYAHistorialCompras, useCardYAHistorialCanjes, useCanjearRecompensa (optimista), useCancelarVoucher (optimista)
-> - Socket `recompensa:stock-actualizado` restaurado vía `useCardYASocket()`
-> - De 24 llamadas API duplicadas a 4 limpias por visita. Revisitas: 0 calls (caché)
+> **DATOS DEL SERVIDOR (React Query):**
+> - Hooks en `hooks/queries/useCardYA.ts`: useCardYABilleteras, useCardYARecompensas, useCardYAVouchers, useCardYAHistorialCompras, useCardYAHistorialCanjes, useCanjearRecompensa (optimista), useCancelarVoucher (optimista)
+> - Socket `recompensa:stock-actualizado` vía `useCardYASocket()`
+> - Caché evita llamadas duplicadas; revisitas usan caché.
 
 ---
 
@@ -545,8 +544,6 @@ apps/web/src/pages/private/cardya/
 
 ## 📦 Estado — React Query (hooks/queries/useCardYA.ts)
 
-> Store Zustand `useCardyaStore.ts` eliminado en abril 2026. Reemplazado por React Query.
-
 ```typescript
 // Hooks disponibles
 useCardYABilleteras()          // GET billeteras de puntos
@@ -699,8 +696,6 @@ Stock de recompensa +1
 
 ## 🎯 Recompensas N+1 (Compras Frecuentes / Tarjeta de Sellos)
 
-**Agregado:** 22 Marzo 2026 | **Actualizado:** 1 Abril 2026
-
 **Concepto:** Recompensas que se desbloquean después de N compras acumuladas. Ejemplo: "Después de 5 compras, la 6ª es gratis".
 
 ### Campos en tabla `recompensas`
@@ -776,7 +771,7 @@ El desbloqueo ocurre **únicamente** en `otorgarPuntos()` de `scanya.service.ts`
 
 ## 🔔 Notificaciones emitidas por CardYA
 
-> **Actualizado:** 17 Abril 2026 — todas las notificaciones de CardYA son eventos a nivel negocio (`sucursalId: null`) y se reparten a dueño + gerentes por fan-out.
+> Todas las notificaciones de CardYA son eventos a nivel negocio (`sucursalId: null`) y se reparten a dueño + gerentes por fan-out.
 
 | Evento | Tipo | `sucursalId` | Destinatarios |
 |--------|------|--------------|---------------|

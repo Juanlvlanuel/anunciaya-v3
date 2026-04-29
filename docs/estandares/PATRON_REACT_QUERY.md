@@ -1,7 +1,6 @@
 # Patrón React Query + Zustand — AnunciaYA
 
 > Estándar obligatorio para manejo de datos en el frontend.
-> Establecido en Abril 2026 durante sprint de performance de Business Studio.
 
 ---
 
@@ -863,7 +862,7 @@ Flujo típico:
 
 ---
 
-## Módulos Migrados
+## Módulos con React Query
 
 | Módulo | Hook | Store | Estado |
 |---|---|---|---|
@@ -880,16 +879,16 @@ Flujo típico:
 | Sucursales (BS) | `hooks/queries/useSucursales.ts` | *(no aplica — filtros UI locales)* | ✅ |
 | Reportes (BS) | `hooks/queries/useReportes.ts` | *(no aplica — read-only)* | ✅ |
 
-**Secciones públicas migradas:**
+**Secciones públicas:**
 
 | Módulo | Hook | Store | Estado |
 |---|---|---|---|
-| Negocios (lista + perfil) | `hooks/queries/useNegocios.ts` | `useNegociosCacheStore.ts` *(eliminado)* | ✅ |
-| CardYA | `hooks/queries/useCardYA.ts` | `useCardyaStore.ts` *(eliminado)* | ✅ |
-| Mis Cupones | `hooks/queries/useMisCupones.ts` | `useMisCuponesStore.ts` *(eliminado)* | ✅ |
-| Mis Guardados | `hooks/queries/useMisGuardados.ts` | *(no tenía store)* | ✅ |
+| Negocios (lista + perfil) | `hooks/queries/useNegocios.ts` | *(no aplica)* | ✅ |
+| CardYA | `hooks/queries/useCardYA.ts` | *(no aplica)* | ✅ |
+| Mis Cupones | `hooks/queries/useMisCupones.ts` | *(no aplica)* | ✅ |
+| Mis Guardados | `hooks/queries/useMisGuardados.ts` | *(no aplica)* | ✅ |
 
-**Componentes adicionales migrados:**
+**Componentes adicionales con React Query:**
 - `ModalDuplicar.tsx` y `ModalDuplicarOferta.tsx` → `usePerfilSucursales()` (caché sucursales)
 - `ModalOferta.tsx` → `useClientesSelector()` + `useClientesAsignados()` (caché clientes)
 - `ColumnaIzquierda.tsx` → `useDashboard('hoy')` (caché KPIs sidebar)
@@ -990,8 +989,6 @@ Resultado: la mayoría de huecos eran cross-módulo. Se extrajeron lecciones sob
 
 ## Mutations: verificar `res.success` (obligatorio)
 
-> **Agregado:** 17 Abril 2026
-
 ### El problema
 
 El interceptor de Axios en `apps/web/src/services/api.ts` envuelve **todas las respuestas HTTP** (incluidas las 4xx/5xx) en un objeto `{ success: boolean, data?, error?, message? }` y **resuelve** la promesa. No rechaza. Esto significa que un backend que responde 409 "Nick duplicado" llega al `mutationFn` como un valor válido, y React Query dispara `onSuccess` → toast verde "Empleado creado" aunque el empleado no se haya creado.
@@ -1021,9 +1018,5 @@ Los tipos de respuesta del backend varían: algunos endpoints devuelven `error`,
 ### Mutations optimistas — no saltarse la regla
 
 Aunque uses `onMutate` para update optimista, `mutationFn` igual debe verificar `res.success`. Si el backend rechaza, `onError` dispara y puedes hacer rollback con el snapshot. Sin la verificación, `onSuccess` dispara aunque el backend haya fallado → el cambio optimista queda "confirmado" en caché y genera inconsistencias al recargar.
-
-### Historial
-
-Este patrón se estableció en abril 2026 tras descubrir que las 6 mutations de `hooks/queries/useEmpleados.ts` (Crear, Actualizar, ToggleActivo, Eliminar, ActualizarHorarios, RevocarSesion) mostraban toast de éxito aunque el backend rechazara (ej: nick duplicado). Todas fueron reescritas con el patrón anterior. Aplicar la regla a cualquier mutation nueva en el proyecto.
 
 Ver también: `docs/estandares/LECCIONES_TECNICAS.md` → "Axios y Manejo de Errores".

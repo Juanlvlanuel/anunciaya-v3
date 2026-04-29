@@ -2,7 +2,6 @@
 
 > **Última actualización:** 22 Abril 2026
 > **Estado:** ✅ Completo
-> **Sprint:** 9 (+ rework 22 Abril: modelo de estados híbrido)
 
 ---
 
@@ -10,7 +9,7 @@
 
 Sistema de alertas inteligentes para Business Studio. Detecta automáticamente patrones de seguridad, operativos, rendimiento y engagement, y notifica al comerciante para que tome acción.
 
-**Modelo de estados híbrido (22 Abril 2026):**
+**Modelo de estados híbrido:**
 
 | Estado | Naturaleza | Modelo |
 |--------|------------|--------|
@@ -18,7 +17,7 @@ Sistema de alertas inteligentes para Business Studio. Detecta automáticamente p
 | **Resuelta** | "El problema ya fue atendido" — estado del problema del negocio | **Global** |
 | **Ocultada** | "No quiero verla más en mi feed" — preferencia de vista | Por usuario |
 
-Ver sección [Modelo de estados](#modelo-de-estados-22-abril-2026).
+Ver sección [Modelo de estados](#modelo-de-estados).
 
 ---
 
@@ -99,14 +98,14 @@ DELETE /:id                  → Ocultar alerta del feed del usuario (la alerta 
 
 ### Tablas
 
-**`alertas_seguridad`** (ampliada)
+**`alertas_seguridad`**
 - Columnas: `categoria`, `sucursal_id` (FK), `acciones_sugeridas` (JSONB)
 - `resuelta` BOOLEAN + `resuelta_at` TIMESTAMPTZ + `resuelta_por_usuario_id` UUID → estado **global** del problema (quién lo resolvió y cuándo)
-- Columnas `leida`, `leida_at` **obsoletas** desde 22 Abril 2026 (se promovieron a `alerta_lecturas` por-usuario); se mantienen por ahora para backwards-compat
+- Columnas `leida`, `leida_at` **obsoletas** (la lectura vive en `alerta_lecturas` por-usuario); se mantienen para backwards-compat
 - CHECK: 16 tipos, 4 categorías
 - Índices: `categoria`, `created_at DESC`, `resuelta_por_usuario_id` (parcial)
 
-**`alerta_lecturas`** (nueva — 22 Abril 2026)
+**`alerta_lecturas`**
 - `alerta_id` + `usuario_id` (PK compuesta, FK con ON DELETE CASCADE a ambas)
 - `leida_at` TIMESTAMPTZ NULL → cada usuario marca su lectura independientemente
 - `ocultada_at` TIMESTAMPTZ NULL → cada usuario oculta la alerta de su feed (acción "Eliminar" en UI)
@@ -142,7 +141,7 @@ DELETE /:id                  → Ocultar alerta del feed del usuario (la alerta 
 - Solo para severidad `alta`
 - `crearNotificacion()` + `notificarNegocioCompleto()` + Socket.io `alerta:nueva`
 
-**Sync real-time (Socket.io) — 22 Abril 2026:**
+**Sync real-time (Socket.io):**
 - `marcarAlertaResuelta` llama `broadcastAlertaActualizada(negocioId, alertaId)` tras el UPDATE global
 - Esa función busca el `usuario_id` del dueño del negocio y emite `emitirAUsuario(duenoId, 'alerta:actualizada', { alertaId, negocioId })`
 - Los gerentes en modo comercial están unidos al room del dueño (`socketService.ts` línea 163), así que una sola emisión alcanza a dueño + todos los gerentes conectados
@@ -281,15 +280,9 @@ interface ConfiguracionAlerta {
 
 ---
 
-## Modelo de estados (22 Abril 2026)
+## Modelo de estados
 
-### Motivación
-
-El modelo inicial guardaba `leida`/`resuelta` como columnas booleanas globales en `alertas_seguridad`. Esto rompía la lógica multi-usuario: si un gerente marcaba una alerta como leída, el dueño también la veía como leída aunque nunca la hubiera visto.
-
-El primer refactor movió todo a `alerta_lecturas` (por usuario), pero eso tenía el problema opuesto para `resuelta`: si un gerente resolvía un problema, el dueño no se enteraba — cada uno lo tenía que resolver por su cuenta. Las alertas son **problemas del negocio**; una vez atendido, todos deberían saberlo.
-
-El modelo final es híbrido según la naturaleza de cada acción:
+El modelo es híbrido según la naturaleza de cada acción: las alertas son problemas del negocio, así que la resolución es global; pero "leí esta alerta" o "no la quiero ver" son preferencias de cada usuario.
 
 ### Semántica por acción
 
@@ -297,7 +290,7 @@ El modelo final es híbrido según la naturaleza de cada acción:
 |--------|----------------------|--------|---------|
 | **Leer** | "Yo la vi" — preferencia de cada persona | Por usuario | `alerta_lecturas.leida_at` |
 | **Resolver** | "El problema ya fue atendido" — estado del problema, compartido | Global | `alertas_seguridad.resuelta` + `resuelta_at` + `resuelta_por_usuario_id` |
-| **Ocultar** (antes "eliminar" desde UI) | "No quiero verla más en mi feed" — preferencia de vista | Por usuario | `alerta_lecturas.ocultada_at` |
+| **Ocultar** | "No quiero verla más en mi feed" — preferencia de vista | Por usuario | `alerta_lecturas.ocultada_at` |
 | **Borrar físicamente** | Purga admin (ej. resueltas > 90 días) | Global, solo cron/admin | `DELETE FROM alertas_seguridad` |
 
 ### Tablas
@@ -391,8 +384,8 @@ DO UPDATE SET ocultada_at = COALESCE(alerta_lecturas.ocultada_at, EXCLUDED.ocult
 
 ### Impacto en UI
 
-- **"Eliminar" desde el modal** → ahora oculta la alerta del feed del usuario (no la borra físicamente). Toast: "Alerta oculta de tu feed".
-- **"Ocultar resueltas"** (antes "Eliminar resueltas") → bulk hide de todas las globalmente resueltas en el scope de sucursal activa. Toast: "N alertas ocultas de tu feed".
+- **"Eliminar" desde el modal** → oculta la alerta del feed del usuario (no la borra físicamente). Toast: "Alerta oculta de tu feed".
+- **"Ocultar resueltas"** → bulk hide de todas las globalmente resueltas en el scope de sucursal activa. Toast: "N alertas ocultas de tu feed".
 - **Modal de detalle** → cuando `alerta.resuelta === true`, muestra badge verde *"✓ Resuelta por {Nombre} · {Fecha}"* debajo de la fecha de creación.
 - **Badge de no leídas** / KPIs / lista → por usuario, excluyendo ocultadas.
 - **Alerta global resuelta por gerente** → el dueño la verá como `resuelta = true` con el nombre del gerente como resolver, aunque el dueño no la haya visto aún.

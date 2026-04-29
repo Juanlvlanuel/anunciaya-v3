@@ -3,7 +3,7 @@
 > **Última actualización:** 29 Abril 2026
 > **Progreso global:** Multi-sucursal cerrado en toda la app ✅
 > **Fase actual:** Próximo bloque grande = Secciones Públicas (Ofertas, MarketPlace, Servicios) + Home con Pregúntale a Peñasco
-> **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (sesión estratégica abril 2026 — define las 4 secciones públicas finales y los features descartados)
+> **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (define las 4 secciones públicas y el alcance de v1)
 
 ---
 
@@ -25,7 +25,6 @@
 | **Home — Pregúntale a Peñasco** | ⏳ 0% | Feed conversacional + buscador hiperlocal + mascota. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §4 |
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
-| **Cleanup visión v3** | ✅ 100% (28 Abr 2026) | 4 fases aplicadas: A docs · B UI · C backend · D BD (staging + producción). Drop de tablas `dinamicas`/`dinamica_premios`/`dinamica_participaciones`; renombrado `'empleo'`→`'servicio'` y `'bolsa'`→`'servicio'` en 8 CHECK constraints. Ver `CHANGELOG.md` y `docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql`. |
 
 ---
 
@@ -33,8 +32,8 @@
 
 **Q1 (Enero-Marzo) — Cierre:**
 - ✅ ScanYA, CardYA, Socket.io, Notificaciones, Reseñas, ChatYA, Promociones
-- ✅ Business Studio 8/14 módulos *(meta histórica con base 14; la base actual es 13 tras la visión v3 de abril 2026)*
-- ⏳ BS 80% (12/14) — no alcanzado, pasa a Q2 *(idem; BS hoy va 12/13 = 92%)*
+- ✅ Business Studio 8/13 módulos
+- ⏳ BS 80% — no alcanzado, pasa a Q2 (BS hoy va 12/13 = 92%)
 
 **Q2 (Abril-Junio) — Meta:**
 - [ ] Business Studio 100% (13/13 módulos) — falta: Vacantes
@@ -44,8 +43,6 @@
 - [ ] Beta privada: 50 negocios piloto
 - [ ] Lanzamiento público
 - [ ] Stripe modo LIVE + dominio + SSL
-
-> **Removidos del alcance v1** (sesión estratégica abril 2026): Dinámicas/Rifas P2P, Live Sale, Pulse local. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.
 
 ---
 
@@ -125,8 +122,6 @@
 |---|--------|-----------------|------------|-------------|
 | 1 | **Vacantes** | ~2 días | Sección pública Servicios | Herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública Servicios |
 
-> **Rifas** ya no figura como módulo pendiente. Se removió del alcance de v1 al descartarse Dinámicas (sesión estratégica abril 2026). Ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
-
 ---
 
 ### Secciones Públicas (Fase 6.0-6.2) y Home
@@ -136,7 +131,7 @@
 - Ya existe backend, solo falta vista pública
 
 **6.1 MarketPlace** (~4 días)
-- Compra-venta de **objetos** entre usuarios (modo Personal). NO se permiten servicios ni rifas aquí.
+- Compra-venta de **objetos** entre usuarios (modo Personal).
 - Requiere ChatYA completado ✅
 
 **6.2 Servicios** (~4 días)
@@ -152,8 +147,6 @@
 - Parametrizable por ciudad (otras ciudades → "Pregúntale a [ciudad]").
 - Pendientes de diseño: mascota, layout, flujo de pregunta, algoritmo de matching keywords→push, moderación, persistencia.
 - Detalle: `VISION_ESTRATEGICA_AnunciaYA.md` §4
-
-> **Removidas del roadmap de v1:** Dinámicas/Rifas (riesgo legal SEGOB), Empleos como sección separada (absorbida en Servicios), Pulse local (reemplazado por Pregúntale a Peñasco), Live Sale (costo recurrente sin monetización validada — reconsiderable en v2).
 
 ---
 
@@ -264,14 +257,14 @@
 
 ## 📝 Dependencias Críticas
 
-**ChatYA ✅ completado — ya no es bloqueante:**
-- MarketPlace (contactar vendedor) — desbloqueado
-- Servicios (contactar oferente / contratante) — desbloqueado
-- Pregúntale a Peñasco (responder preguntas, sumarse a una pregunta) — desbloqueado
+**ChatYA ✅ habilita:**
+- MarketPlace (contactar vendedor)
+- Servicios (contactar oferente / contratante)
+- Pregúntale a Peñasco (responder preguntas, sumarse a una pregunta)
 
-**ScanYA ✅ completado — desbloqueó:**
+**ScanYA ✅ habilita:**
 - Opiniones (validar compras) — ✅ completado
-- Clientes + Transacciones (datos) — ✅ completado
+- Clientes + Transacciones — ✅ completado
 - Reportes (métricas) — ✅ completado
 
 ---
@@ -291,7 +284,7 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 ## 📅 Próxima Revisión
 
 **Fecha:** Al completar Secciones Públicas (6.0-6.2) + Home con Pregúntale a Peñasco
-**Alcance:** Activación de BS Vacantes (ya con destino claro: alimenta Servicios) y arranque de Panel Admin
+**Alcance:** Activación de BS Vacantes (alimenta Servicios) y arranque de Panel Admin
 
 ---
 

@@ -321,7 +321,7 @@ CREATE TABLE scanya_configuracion (
 - `foto_ticket`: `'obligatoria'` | `'opcional'` | `'nunca'`
 - `requiere_numero_orden`: Si pide número de orden al registrar venta
 
-> **Nota:** Los campos `alerta_monto_alto` y `alerta_transacciones_hora` existían en versiones anteriores pero se eliminaron en Abril 2026. Fueron reemplazados por el sistema de alertas configurables del módulo Alertas BS (`alertas_configuracion`), que usa umbrales dinámicos (multiplicador del promedio) en lugar de valores fijos. Ver `monto_inusual` y `cliente_frecuente` en el catálogo de alertas.
+> **Nota:** Las alertas de seguridad (monto inusual, cliente frecuente) se configuran en el módulo Alertas BS (`alertas_configuracion`) con umbrales dinámicos (multiplicador del promedio). Ver `monto_inusual` y `cliente_frecuente` en el catálogo de alertas.
 
 **Relación:** 1:1 con `negocios`
 
@@ -438,8 +438,6 @@ ALTER TABLE puntos_configuracion ADD COLUMN (
 
 ## 🚫 Bloqueo de login en sucursal desactivada
 
-> **Agregado:** 17 Abril 2026
-
 Cuando el dueño desactiva una sucursal desde Business Studio (`negocio_sucursales.activa = false`), **ningún usuario puede loguearse a ScanYA contra esa sucursal**. La validación aplica a los 3 flujos de login:
 
 | Flujo | Validación |
@@ -459,8 +457,6 @@ Cuando el dueño desactiva una sucursal desde Business Studio (`negocio_sucursal
 
 ## 🧹 Limpieza de notificaciones de voucher al canjearse
 
-> **Agregado:** 17 Abril 2026
-
 Cuando CardYA genera un voucher, emite una notificación `tipo = 'voucher_pendiente'` a dueño + gerentes del negocio (ver `docs/arquitectura/CardYA.md`). Esa notificación queda en el panel hasta que el voucher se entregue.
 
 **Al validar el voucher en ScanYA (`validarVoucher`), se eliminan todas las notificaciones relacionadas:**
@@ -479,8 +475,6 @@ WHERE tipo = 'voucher_pendiente'
 ---
 
 ## 🌐 Multi-sucursal frontend (v1.5)
-
-> **Agregado:** 28 Abril 2026 — Sprint dedicado de ScanYA Multi-Sucursal
 
 ### Modelo conceptual
 
@@ -683,7 +677,7 @@ Response: {
 
 ```
 POST   /api/scanya/identificar-cliente
-POST   /api/scanya/validar-codigo    (migrado de /validar-cupon → busca en oferta_usuarios.codigo_personal)
+POST   /api/scanya/validar-codigo    (busca en oferta_usuarios.codigo_personal)
 POST   /api/scanya/otorgar-puntos
 GET    /api/scanya/historial
 POST   /api/scanya/validar-voucher
@@ -1329,7 +1323,7 @@ Cupón: 10% descuento
 
 **Nota:** Multiplicadores configurables por negocio en Business Studio. UI condicionada con `nivelesActivos` — si está desactivado, no se muestran badges, multiplicadores ni mensajes de nivel.
 
-### Transacción Atómica (Abril 2026)
+### Transacción Atómica
 
 `otorgarPuntos()` envuelve todas las escrituras en `db.transaction()`:
 - Crear transacción en `puntos_transacciones`
@@ -1496,8 +1490,6 @@ if (window.location.pathname.startsWith('/scanya')) {
 **Problema:** Fotos de tickets pueden ser pesadas (1-2 MB).
 
 **Decisión:** R2 — egress gratuito, costo bajo de storage ($0.015/GB) y upload directo desde el frontend con presigned URLs. Los tickets son simples comprobantes, no requieren transformaciones server-side.
-
-> Toda la app usa R2 para imágenes desde el cleanup del 29 Abril 2026 (ver `CHANGELOG.md`).
 
 **Flujo Upload Directo:**
 ```typescript

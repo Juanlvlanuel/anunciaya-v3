@@ -262,8 +262,6 @@ WHERE e.id = $empleadoId AND ns.negocio_id = $negocioId
 
 ## Validación live de inputs en ModalEmpleado
 
-> **Agregado:** 17 Abril 2026
-
 El modal de crear/editar empleado valida en vivo tres campos críticos con feedback inmediato: **nick**, **correo** y **teléfono**.
 
 ### Nick — disponibilidad en tiempo real
@@ -333,8 +331,6 @@ Los empleados NO se borran de la BD. Al "eliminar" desde la UI:
 ---
 
 ## Avatar de Empleado (Upload desde ScanYA)
-
-> **Agregado:** 5 Abril 2026
 
 El empleado puede subir/cambiar su propia foto de avatar desde ScanYA. El dueño NO elige la foto.
 

@@ -13,10 +13,11 @@
 **Última actualización:** 7 Abril 2026
 **Estado:** ✅ 100% Operacional
 
-> **MIGRACIÓN REACT QUERY (Abril 2026):**
-> - Fetch manual (useEffect+useState) → reemplazado por `hooks/queries/useMisGuardados.ts`
+> **DATOS DEL SERVIDOR (React Query):**
+> - `hooks/queries/useMisGuardados.ts`
 > - Hooks: `useOfertasGuardadas()`, `useNegociosSeguidos()` (con GPS en query key)
 > - Eliminación de guardados usa `invalidateQueries` para refrescar
+
 **Identidad visual:** Rose (rosa) — Header dark estilo CardYA
 
 ---
@@ -160,8 +161,6 @@ La página usa el mismo patrón visual que CardYA y Mis Cupones:
 
 La página tiene 4 tabs: **Ofertas**, **Negocios**, **Servicios**, **Artículos**. Los dos últimos muestran estado "Próximamente disponible" con estilo rose unificado. Los tabs usan el patrón CardYA: fondo negro, tab activo en rose (`#fb7185`), badges de conteo en `bg-rose-500`.
 
-> Tab renombrado de "Empleos" a "Servicios" en Fase B del cleanup (28 Abril 2026), alineado con la sección pública Servicios (visión v3, ver `VISION_ESTRATEGICA_AnunciaYA.md` §3.2).
-
 ### Tab 1: Ofertas
 
 **Contador:** Muestra número total `Ofertas (5)`
@@ -207,7 +206,7 @@ GET /api/seguidos?entityType=sucursal&pagina=1&limite=50&latitud={lat}&longitud=
 
 ### Tab 3: Servicios *(próximamente)*
 
-Estado visual "Próximamente disponible". Sin funcionalidad activa. Cubrirá los guardados de la sección pública Servicios (servicios e intangibles, incluye empleos). Tab renombrado de "Empleos" a "Servicios" en Fase B del cleanup (28 Abril 2026); el `entityType` que usa el endpoint también pasó de `'empleo'` a `'servicio'` en Fase D junto con el CHECK constraint de BD.
+Estado visual "Próximamente disponible". Sin funcionalidad activa. Cubrirá los guardados de la sección pública Servicios (servicios e intangibles, incluye empleos). El `entityType` del endpoint es `'servicio'` (alineado con el CHECK constraint de BD).
 
 ---
 

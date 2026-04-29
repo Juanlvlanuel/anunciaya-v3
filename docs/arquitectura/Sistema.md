@@ -23,7 +23,7 @@ Este documento describe la arquitectura técnica base, decisiones de diseño fun
 | **Store central** | `useGpsStore` es la fuente única de verdad |
 | **Backend** | PostGIS con `ST_DWithin` para búsquedas por radio |
 
-**Secciones afectadas:** `/negocios`, `/marketplace`, `/ofertas`, `/servicios` (sección unificada que absorbe lo que iba a ser "Empleos" en visión v3)
+**Secciones afectadas:** `/negocios`, `/marketplace`, `/ofertas`, `/servicios` (sección unificada que cubre servicios e intangibles, incluye empleos)
 
 ---
 
@@ -652,21 +652,12 @@ Al cambiar de modo, el store recarga las notificaciones del nuevo modo.
 
 ---
 
-### 🎯 Objetivo Alcanzado
+### 🎯 Stack Cloud
 
-**Antes (16 Enero):**
-- Backend: Railway ($5/mes mínimo)
-- BD: PostgreSQL Local (sin backups automáticos)
-- Emails: Zoho SMTP (bloqueado desde IPs cloud)
-- **Costo:** $5-10/mes
-
-**Después (29 Enero):**
-- Backend: Render (Free tier)
-- BD: Supabase (Free tier) 
-- Emails: AWS SES (Sandbox)
-- **Costo:** $0/mes ✅
-
-**Ahorro:** ~$10-15/mes
+- **Backend:** Render (Free tier)
+- **BD:** Supabase (Free tier)
+- **Emails:** AWS SES (Sandbox)
+- **Costo actual:** $0/mes
 
 ---
 

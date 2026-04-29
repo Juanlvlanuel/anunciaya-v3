@@ -1,6 +1,6 @@
 # Visión Estratégica de AnunciaYA
 
-> **Propósito de este documento:** Capturar las decisiones de producto y la filosofía que define a AnunciaYA, para que cualquier sesión futura (Claude, colaboradores, o yo mismo en 6 meses) entienda el "por qué" detrás de la estructura de la app y no proponga features que ya fueron descartados con razón.
+> **Propósito de este documento:** Capturar las decisiones de producto y la filosofía que define a AnunciaYA, para que cualquier sesión futura (Claude, colaboradores, o yo mismo en 6 meses) entienda el "por qué" detrás de la estructura de la app.
 >
 > **Este NO es un documento técnico.** Para arquitectura técnica, ver los archivos `ARQUITECTURA_*.md`. Este documento es el norte estratégico.
 
@@ -61,7 +61,6 @@ Cada uno de esos puntos es donde AnunciaYA gana, gracias a las piezas únicas qu
 
 - **Exclusivo para objetos físicos** entre usuarios.
 - **NO se permiten servicios** publicados aquí (van en Servicios).
-- **NO se permiten rifas** publicadas aquí.
 - Mantener limpio y enfocado en compra-venta de cosas tangibles.
 
 ### 3.2 Servicios
@@ -138,87 +137,29 @@ El nombre "Pregúntale a Peñasco" es para la versión inicial. La sección debe
 
 ---
 
-## 5. Features descartados (NO proponer en futuras sesiones)
+## 5. Features considerados y pospuestos
 
-### 5.1 Dinámicas / Rifas P2P con venta de boletos entre usuarios
+Estos son ideas válidas que pueden retomarse cuando haya tracción y datos. NO implementar en v1 sin validar el core primero.
 
-**Estado:** Descartado permanentemente para v1.
-
-**Razones:**
-- **Legal:** En México, sorteo con pago + azar = Ley Federal de Juegos y Sorteos, requiere permiso de SEGOB. Aunque AnunciaYA no cobre directamente, el simple hecho de tener un módulo dedicado a organizar sorteos nos coloca como facilitadores especializados, NO como intermediarios protegidos por safe harbor (a diferencia de Facebook/WhatsApp que sí lo están porque su plataforma es genérica).
-- **Reputacional:** Estafas son inevitables (rifas fantasma, doble venta de boletos, ganadores cómplices). Una sola estafa viral en Peñasco daña la marca de AnunciaYA aunque no hayamos tocado el dinero. Las víctimas demandan a la plataforma, no a quien estafó.
-- **Riesgo de lavado de dinero / fiscal:** Premios mayores generan obligaciones de retención de ISR; UIF puede investigar.
-
-**Argumento "que paguen por fuera" NO funciona:** La ley no distingue entre facilitar el sorteo y facilitar el cobro. Si la plataforma es donde ocurre el sorteo, somos parte de la operación.
-
-**Precedente:** Apps como Rifapp, Sortealo y similares en LATAM han intentado este modelo y la mayoría cerró tras quejas de SEGOB o pivotearon a solo rifas promocionales de negocios.
-
-### 5.2 Rifas de dinero en efectivo
-
-**Estado:** Descartado permanentemente, sin importar quién las organice.
-
-**Razón:** Territorio de casinos y casas de apuesta. Regulación mucho más estricta. No vamos a entrar ahí en ningún escenario de v1, v2, ni v3.
-
-### 5.3 Rifas P2P de vehículos por particulares
-
-**Estado:** Descartado permanentemente.
-
-**Razón:** Monto alto = riesgo regulatorio alto + lavado + obligaciones fiscales. No justifica el valor que aportaría.
-
-### 5.4 Live Sale / streaming en vivo
-
-**Estado:** Descartado para v1. Reconsiderable en v2 si hay tracción y modelo de monetización claro.
-
-**Razones:**
-- **Costo recurrente real:** Cloudflare Stream Live (la única opción técnicamente viable, ver siguiente punto) cuesta ~$200-1,100 USD/mes según volumen. AnunciaYA absorbería ese costo, no los comerciantes.
-- **Los comerciantes NO están dispuestos a pagar por hacer lives** (lo conciben como gratis por costumbre de Facebook/TikTok). Por lo tanto el costo no se puede transferir directamente a ellos sin diseñar un modelo de monetización (membresía Pro, comisión por venta apartada, etc.) que aún no está validado.
-- **YouTube como alternativa "gratis" NO funciona técnicamente:**
-  - Requiere canal verificado (95% de comerciantes de Peñasco no lo tiene ni lo tramitará).
-  - Latencia de 10-30 segundos mata la mecánica de "apartar en vivo".
-  - No se puede embeber el botón "apartar" dentro del video.
-  - Algoritmo empuja el contenido a audiencias globales irrelevantes.
-  - Riesgo de copyright por música ambiental.
-
-**Cuando se reconsidere en v2:**
-- Validar primero con un MVP de "fotos en ráfaga" (Camino A: subir fotos en tiempo real durante un horario anunciado, sin video). Costo cercano a $0 sobre Cloudflare R2 (ya en uso para todo el storage de la app).
-- Si el MVP de fotos funciona, evolucionar a video real con Cloudflare Stream Live + monetización a negocios (suscripción Pro o comisión por venta).
-- NO usar YouTube como base.
-
-### 5.5 Pulse local (feed de actividad de la app)
-
-**Estado:** Descartado a favor de Pregúntale a Peñasco como feed central.
-
-**Razón:** El feed del Home se llena mejor con preguntas y respuestas de la comunidad que con eventos automáticos del sistema. La gente engancha más con conversación que con telemetría.
-
----
-
-## 6. Features considerados y pospuestos
-
-Estos NO están descartados — son ideas válidas que pueden retomarse cuando haya tracción y datos. NO implementar en v1 sin validar el core primero.
-
-### 6.1 Pedidos de grupo
+### 5.1 Pedidos de grupo
 
 Un usuario abre un pedido para traer algo de Phoenix/Tucson/Hermosillo, otros usuarios se suman compartiendo gastos de envío. Muy común informalmente en redes sociales de Peñasco. Posible feature de v1.5 o v2.
 
-### 6.2 Encarguitos
+### 5.2 Encarguitos
 
 Alguien va a hacer un mandado y ofrece llevar/traer algo a cambio de propina. Resuelve un problema diario real. Posible feature de v2.
 
-### 6.3 Negocios verificados de la semana
+### 5.3 Negocios verificados de la semana
 
 Curaduría humana (no algorítmica) que destaca 3-5 negocios chicos cada semana. Da exposición orgánica sin pago. Crea narrativa de descubrimiento. Se puede sumar al Home cuando haya tracción.
 
-### 6.4 Gamificación adicional en Ofertas
+### 5.4 Gamificación adicional en Ofertas
 
 Insignias por probar negocios nuevos, multiplicadores de puntos CardYA, mapa de calor de visitas, retos semanales. Si Ofertas necesita más engagement en el futuro, esta es la dirección — NO crear sección nueva.
 
-### 6.5 Streaming evolucionado
-
-Ver sección 5.4. Reconsiderable en v2 con monetización clara.
-
 ---
 
-## 7. Principios para futuras decisiones
+## 6. Principios para futuras decisiones
 
 Cuando se proponga un feature nuevo en futuras sesiones, validar contra estos principios:
 
@@ -231,19 +172,18 @@ Cuando se proponga un feature nuevo en futuras sesiones, validar contra estos pr
 
 ---
 
-## 8. Estado actual del proyecto (referencia rápida)
+## 7. Estado actual del proyecto (referencia rápida)
 
 Ver `ROADMAP.md` y `CHANGELOG.md` para detalle.
 
 - **Beta objetivo:** Puerto Peñasco, Sonora.
 - **Stack:** Monorepo TypeScript (pnpm) — React 19 + Vite + Tailwind v4 + Zustand + TanStack Query v5 · Express 5 + Socket.io · PostgreSQL + PostGIS (Supabase) · Redis (Upstash) · Cloudflare R2.
 - **Hosting:** Render (BE) · Vercel (FE) · Supabase · Upstash.
-- **Migración React Query:** completa en lo construido (BS y públicas hechas). Pendientes evaluar caso por caso: ChatYA, ScanYA, Onboarding. Zustand se queda solo para UI state.
-- **Cleanup visión v3:** ✅ aplicado completo el 28 Abril 2026 — Fases A (docs), B (UI), C (backend), D (BD en staging y producción). Código y BD totalmente alineados con este documento.
+- **Datos del servidor:** React Query en BS y públicas. Zustand se queda solo para UI state.
 
 ---
 
-## 9. Workflow de trabajo
+## 8. Workflow de trabajo
 
 - **Chat en claude.ai (Cerebro):** decisiones, planeación, diseño conceptual, generación de prompts.
 - **Claude Code (Ejecutor):** cambios concretos en archivos del monorepo en `E:\AnunciaYA\anunciaya\`.
@@ -252,7 +192,7 @@ Ver `ROADMAP.md` y `CHANGELOG.md` para detalle.
 
 ---
 
-## 10. Decisiones pendientes de aterrizar
+## 9. Decisiones pendientes de aterrizar
 
 Lista viva de cosas que necesitan decisión cuando lleguemos a su momento:
 
@@ -264,7 +204,3 @@ Lista viva de cosas que necesitan decisión cuando lleguemos a su momento:
 - [ ] Layout y flujos internos de Servicios (modos Ofrezco / Solicito).
 - [ ] Sistema de moderación de Pregúntale a Peñasco.
 - [ ] Persistencia/expiración de preguntas en el feed.
-
----
-
-**Última actualización:** abril 2026 (sesión de planeación estratégica).

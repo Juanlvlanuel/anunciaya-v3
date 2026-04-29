@@ -161,9 +161,7 @@ Incluye `voucher_generado` (personal), `voucher_pendiente` (comerciales) y cualq
 
 ### Socket `notificacion:eliminada` — actualización del panel en vivo
 
-Hasta abril 2026 solo emitíamos `notificacion:nueva` al crear. Al borrar, el panel del usuario conservaba la tarjeta hasta que se cerrara/reabriera o se recargara la página. Zombies visuales temporales.
-
-Ahora **todos los flujos que borran notificaciones lo hacen vía el helper `eliminarNotificacionesPorReferencia()`** (en `notificaciones.service.ts`), que además de hacer el DELETE emite `notificacion:eliminada` con el payload `{ ids: string[] }` a cada usuario afectado.
+**Todos los flujos que borran notificaciones lo hacen vía el helper `eliminarNotificacionesPorReferencia()`** (en `notificaciones.service.ts`), que además de hacer el DELETE emite `notificacion:eliminada` con el payload `{ ids: string[] }` a cada usuario afectado. Esto evita que el panel del usuario conserve tarjetas zombies tras un borrado.
 
 **Frontend** (`useNotificacionesStore.registrarListenerNotificaciones`) tiene un listener del evento que llama a `eliminarVariasPorIds(ids)`:
 - Filtra localmente las notificaciones con esos IDs
@@ -236,7 +234,7 @@ mensaje: `${nombreCliente} ganó ${puntos} puntos`,
 | `stock_bajo` | AlertTriangle | Rojo oscuro | `#dc2626 → #991b1b` |
 | `nueva_resena` | Star | Ámbar | `#f59e0b → #b45309` |
 | `nuevo_marketplace` | ShoppingBag | Rosa | `#ec4899 → #be185d` |
-| `nuevo_servicio` | Briefcase | Azul cielo | `#0ea5e9 → #0369a1` (alineado con sección pública Servicios; antes `nuevo_empleo`, renombrado en Fase D del cleanup — abril 2026) |
+| `nuevo_servicio` | Briefcase | Azul cielo | `#0ea5e9 → #0369a1` (alineado con sección pública Servicios) |
 | `sistema` | Settings | Gris | `#64748b → #475569` |
 
 **Regla:** Cada tipo tiene icono y color únicos. No repetir combinaciones.
@@ -574,7 +572,7 @@ Algunas notificaciones apuntan a un tab pero la entidad ya migró a otro. Ejempl
 ## Pendientes
 
 - [ ] Agregar campo `negocioLogoUrl` separado de `actorImagenUrl` para distinguir logo del negocio vs imagen del contenido
-- [ ] Notificaciones pendientes de crear (cuando las secciones públicas se construyan): `nuevo_marketplace`, `nuevo_servicio`. Los tipos viejos (`nueva_dinamica`, `nuevo_empleo`) ya fueron limpiados del enum en Fase D del cleanup (visión v3, abril 2026).
+- [ ] Notificaciones pendientes de crear (cuando las secciones públicas se construyan): `nuevo_marketplace`, `nuevo_servicio`.
 - [ ] Notificación `nuevo_cliente` — aún no implementada en el backend
 - [ ] Evaluar si los gerentes deben recibir `stock_bajo` / `agotado` (actualmente solo el dueño)
 - [ ] Empleados ScanYA aún no tienen panel de notificaciones visible — las notificaciones se guardan para su `usuarioId` pero no hay UI

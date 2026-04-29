@@ -335,10 +335,6 @@ Aplica cuando `COUNT(puntos_transacciones WHERE sucursal_id = X) = 0`. Flujo en 
 
 5. DELETE negocio_sucursales WHERE id = X
    └─ CASCADE elimina: horarios, métodos de pago, galería, ofertas, empleados, bolsa trabajo, transacciones
-
-> Nota: las tablas `dinamicas`, `dinamica_premios` y `dinamica_participaciones`
-> fueron eliminadas en Fase D del cleanup (visión v3 — abril 2026), por lo que
-> ya no participan en este flujo de hard-delete.
 ```
 
 ### Rama B — Con historial: desactivación guiada desde el frontend

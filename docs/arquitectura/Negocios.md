@@ -1,13 +1,12 @@
 # 🏪 Negocios - Directorio Geolocalizado
 
 **Última actualización:** 7 Abril 2026
-**Versión:** 3.0 (Migración React Query — abril 2026)
+**Versión:** 3.0
 **Estado:** ✅ 100% Operacional
 
-> **MIGRACIÓN REACT QUERY (Abril 2026):**
-> - `useListaNegocios.ts` y `usePerfilNegocio.ts` → reemplazados por `hooks/queries/useNegocios.ts`
-> - `useNegociosCacheStore.ts` → eliminado (React Query maneja caché)
-> - `useCategorias.ts` y `useSubcategorias.ts` → reemplazados por `usePerfilCategorias()` / `usePerfilSubcategorias()`
+> **DATOS DEL SERVIDOR (React Query):**
+> - Lista y perfil: `hooks/queries/useNegocios.ts` (React Query maneja caché)
+> - Categorías y subcategorías: `usePerfilCategorias()` / `usePerfilSubcategorias()`
 > - Pre-fetch de perfil/ofertas/catálogo con `queryClient.prefetchQuery`
 > - Optimizaciones: React.memo en CardNegocio y ChipsFiltros, estilos CSS inyección única, autoplay interval estable
 

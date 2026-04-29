@@ -1,13 +1,13 @@
 # 🏷️ Promociones — Ofertas y Cupones
 
 **Última actualización:** 17 Abril 2026
-**Versión:** 3.1 (Estados computados + paleta unificada de badges — abril 2026)
+**Versión:** 3.1
 **Estado:** ✅ Operacional (Ofertas públicas + Cupones privados + ChatYA + Tiempo real)
 
-> **MIGRACIÓN REACT QUERY (Abril 2026):**
-> - BS Promociones: `useOfertasStore.ts` eliminado → `hooks/queries/useOfertas.ts`
-> - Mis Cupones: `useMisCuponesStore.ts` eliminado → `hooks/queries/useMisCupones.ts`
-> - Socket `cupon:actualizado` restaurado vía `useMisCuponesSocket()` (invalida query)
+> **DATOS DEL SERVIDOR (React Query):**
+> - BS Promociones: `hooks/queries/useOfertas.ts`
+> - Mis Cupones: `hooks/queries/useMisCupones.ts`
+> - Socket `cupon:actualizado` vía `useMisCuponesSocket()` (invalida query)
 
 ---
 
@@ -288,7 +288,7 @@ ModalOferta.tsx         — Contenedor: header + tabs + botones
 | Tipo (Porcentaje/Monto/$2x1/etc.) | Solo Desktop |
 | Búsqueda por título | Móvil + Desktop |
 
-> **Nota:** El filtro de Visibilidad (Todas/Ofertas/Cupones) fue reemplazado por el toggle en el header de la tabla.
+> **Nota:** La visibilidad (Todas/Ofertas/Cupones) se controla con el toggle en el header de la tabla.
 
 ---
 
@@ -379,11 +379,11 @@ Orden de prioridad (primer match gana):
 3. `o.fecha_fin < NOW()` → **vencido**
 4. Caso contrario → **activo**
 
-Ejemplo: un cupón con `estado='activo'` pero `fecha_fin < NOW()` se muestra como **Vencido** en Mis Cupones y en TabClientes de BS. Antes, el backend devolvía `'activo'` crudo y la UI lo pintaba verde, causando confusión.
+Ejemplo: un cupón con `estado='activo'` pero `fecha_fin < NOW()` se muestra como **Vencido** en Mis Cupones y en TabClientes de BS.
 
 ### `obtenerOfertas` (ofertas públicas)
 
-Orden de prioridad corregido (abril 2026):
+Orden de prioridad:
 
 1. `activo = false` → **inactiva**
 2. `fecha_inicio > NOW()` → **próxima**
@@ -391,7 +391,7 @@ Orden de prioridad corregido (abril 2026):
 4. `fecha_fin < NOW()` → **vencida**
 5. Caso contrario → **activa**
 
-> **Bug corregido:** antes `vencida` se evaluaba antes que `agotada`. Una oferta que se agotó y luego venció aparecía como "Vencida" cuando el motivo real de cierre fue el agotamiento. La prioridad actual refleja la causa-raíz: si se agotó, siempre cuenta como agotada aunque también haya vencido.
+> Si una oferta está agotada y vencida, prevalece **agotada** porque ese fue el motivo real de cierre.
 
 ---
 
@@ -406,7 +406,7 @@ Para evitar confusión visual (por ejemplo "Activo" y "Usado" ambos en verde), l
 | Vencido | `amber` | `fecha_fin < NOW()` y no usado |
 | Revocado | `red` | Revocado por el comerciante |
 
-Label unificado: se usa **"Vencido"** en toda la UI (antes aparecía "Expirado" en algunos lados).
+Label unificado: se usa **"Vencido"** en toda la UI.
 
 Los KPIs de la página de Promociones en BS siguen la misma paleta: "Usados" en sky, "Vencidos" en amber.
 

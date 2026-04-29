@@ -67,7 +67,7 @@ Modulo de reportes analiticos para Business Studio. 5 pestanas con KPIs, tablas 
 **KPIs:** Descuento total, Por vencer (7d) — dato global
 **Fila 1 (3 tablas):** Ofertas publicas (activas/vistas/clicks/shares/expiradas), Cupones privados (emitidos/canjeados/expirados/activos), Recompensas (generados/canjeados/expirados/pendientes)
 **Fila 2 (3 cards):** Oferta mas popular (por clicks), Mejor cupon (por canjes), Mejor recompensa (por canjes). Cada card tiene imagen, badge tipo, pill de metrica, icono Flame, titulo y descripcion.
-**Notas:** Las ofertas publicas no se "canjean" — se miden por engagement (vistas/clicks/shares). Cupones si tienen canje trackeable via `oferta_usuarios.estado`. Recompensas via `vouchers_canje`. Sucursal no se filtra (ofertas/cupones/recompensas son a nivel negocio). Puntos historicos y velocidad de canje fueron eliminados por no aportar valor.
+**Notas:** Las ofertas publicas no se "canjean" — se miden por engagement (vistas/clicks/shares). Cupones si tienen canje trackeable via `oferta_usuarios.estado`. Recompensas via `vouchers_canje`. Sucursal no se filtra (ofertas/cupones/recompensas son a nivel negocio).
 
 ### Tab Resenas
 

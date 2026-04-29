@@ -304,8 +304,6 @@ El toggle cambia: KPIs, filtros disponibles, tabla/lista, y modal de detalle.
 
 ### 3.5.5 Política de visibilidad — vouchers cancelados
 
-> **Agregado:** 17 Abril 2026
-
 Los vouchers con `estado = 'cancelado'` **no aparecen en el historial** de Tab Canjes. El backend (`obtenerCanjesVouchers` en `transacciones.service.ts`) filtra con una condición base `estado != 'cancelado'`.
 
 **Rationale:**
@@ -434,8 +432,6 @@ Este dato se carga en background al hacer login/hidratar desde `obtenerSucursale
 
 ### 4.6 Cálculo de "Visitas" (unificado tabla + modal + export)
 
-> **Agregado:** 17 Abril 2026
-
 El conteo de visitas del cliente debe reflejar cuántas veces el cliente estuvo físicamente en el negocio. Aplica el mismo criterio en los 3 puntos donde se muestra: tabla principal (`listarClientes`), modal detalle (`obtenerDetalleCliente`) y export Excel (`obtenerClientesParaExportar`).
 
 **Fórmula:**
@@ -465,10 +461,10 @@ totalVisitas =
 - **Tabla, modal y export** aplican el mismo filtro → consistencia visual garantizada
 
 **Rationale del diseño:**
-- Un **canje puro de voucher** es una visita genuina: el cliente fue al negocio a reclamar su recompensa. Antes quedaba fuera porque `validarVoucher` solo actualiza `vouchers_canje`, no inserta en `puntos_transacciones`.
+- Un **canje puro de voucher** es una visita genuina: el cliente fue al negocio a reclamar su recompensa.
 - Las **transacciones revocadas** no cuentan porque la operación fue anulada (fraude, error de captura). Si las contáramos, infláríamos la frecuencia del cliente con eventos que no ocurrieron en la realidad.
 - Las **pendientes** no cuentan hasta que el cliente confirme — es el estado previo a la visita "completa" desde la perspectiva de negocio.
-- El **modal detalle** acepta ahora `sucursalId` como parámetro opcional. Antes era global del negocio y generaba inconsistencia con la tabla (gerente veía 3 visitas en tabla y 7 en modal). Ahora ambos coinciden.
+- El **modal detalle** acepta `sucursalId` como parámetro opcional para que la tabla y el modal muestren números consistentes.
 
 **Archivos afectados:**
 - `apps/api/src/services/clientes.service.ts` → 3 queries (`listarClientes`, `obtenerDetalleCliente`, `obtenerClientesParaExportar`)
@@ -740,7 +736,7 @@ export async function getHistorialCliente(id: string, limit?, offset?);
 
 ### 6.3 useTransaccionesStore.ts
 
-> **Migrado a React Query.** Los datos del servidor (KPIs, historial, operadores) ahora viven en `hooks/queries/useTransacciones.ts`. El store de Zustand solo conserva estado UI.
+> Datos del servidor (KPIs, historial, operadores) en `hooks/queries/useTransacciones.ts`. El store de Zustand solo conserva estado UI.
 
 ```typescript
 // Solo estado de UI — Zustand
@@ -780,7 +776,7 @@ limpiar()
 
 ### 6.4 useClientesStore.ts
 
-> **Migrado a React Query.** Los datos del servidor (KPIs, lista, detalle, historial) ahora viven en `hooks/queries/useClientes.ts`. El store de Zustand solo conserva filtros UI.
+> Datos del servidor (KPIs, lista, detalle, historial) en `hooks/queries/useClientes.ts`. El store de Zustand solo conserva filtros UI.
 
 ```typescript
 // Solo estado de UI — Zustand

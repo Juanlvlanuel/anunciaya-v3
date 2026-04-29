@@ -8,7 +8,7 @@
 
 ## Qué problema resuelve
 
-Con el tiempo, el bucket R2 acumula archivos huérfanos: imágenes subidas por el frontend pero nunca referenciadas en BD (uploads abandonados), imágenes anteriores al reemplazo (antes de los fixes de abril 2026), archivos dejados por eliminaciones incompletas, etc.
+Con el tiempo, el bucket R2 acumula archivos huérfanos: imágenes subidas por el frontend pero nunca referenciadas en BD (uploads abandonados), imágenes anteriores al reemplazo, archivos dejados por eliminaciones incompletas, etc.
 
 Borrar manualmente es tedioso y riesgoso (es fácil borrar un archivo que sí se usa). Esta herramienta automatiza el proceso con **0% de falsos positivos** como garantía.
 
@@ -58,7 +58,7 @@ apps/api/src/
 
 Cobertura actual (17 campos): `usuarios.avatar_url`, `negocios.logo_url`, `negocio_sucursales.foto_perfil`, `negocio_sucursales.portada_url`, `negocio_galeria.url`, `articulos.imagen_principal`, `articulos.imagenes_adicionales` (array), `pedido_articulos.imagen_url`, `ofertas.imagen`, `recompensas.imagen_url`, `empleados.foto_url`, `puntos_transacciones.foto_ticket_url`, `transacciones_evidencia.url_imagen`, `bolsa_trabajo.portafolio_url`, `notificaciones.actor_imagen_url`, `chat_mensajes.contenido` (text-scan-urls), `marketplace.imagenes` (text-scan-urls sobre JSONB).
 
-No hay campos pendientes — scan exhaustivo del schema. En Fase D (28 Abril 2026) se eliminaron del registry `dinamicas.imagen_url` y `dinamica_premios.imagen_url` al hacer DROP de las tablas dinamicas (visión v3 — Dinámicas descartadas, ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1).
+No hay campos pendientes — scan exhaustivo del schema.
 
 ### Tipos de campo soportados
 
