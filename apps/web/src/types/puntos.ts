@@ -152,7 +152,7 @@ export interface Recompensa {
 
 /**
  * Input para POST /api/puntos/recompensas
- * La imagen se sube primero a Cloudinary desde el frontend,
+ * La imagen se sube primero a R2 desde el frontend (presigned URL),
  * y se envía solo la URL resultante en imagenUrl.
  */
 export interface CrearRecompensaInput {
@@ -172,7 +172,7 @@ export interface CrearRecompensaInput {
 /**
  * Input para PUT /api/puntos/recompensas/:id
  * Todos los campos opcionales.
- * eliminarImagen: true → backend elimina imagen de Cloudinary y pone null.
+ * eliminarImagen: true → backend elimina imagen de R2 y pone null.
  * Si imagenUrl viene con valor nuevo → backend elimina la anterior automáticamente.
  */
 export interface ActualizarRecompensaInput {

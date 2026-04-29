@@ -715,7 +715,7 @@ Modo Comercial → "Proveedores de tu giro"
     "negocioId": "uuid",
     "negocioNombre": "Pescadería Hernandez",
     "negocioDescripcion": "Los mejores mariscos de la región...",
-    "logoUrl": "https://cloudinary.com/...",
+    "logoUrl": "https://pub-xxxxx.r2.dev/...",
     "sitioWeb": "https://pescaderiahernandez.com",
     "aceptaCardya": true,
     "verificado": false,
@@ -724,8 +724,8 @@ Modo Comercial → "Proveedores de tu giro"
     "sucursalId": "uuid",
     "sucursalNombre": "Pescadería Hernandez - Centro",
     "esPrincipal": true,
-    "fotoPerfilUrl": "https://cloudinary.com/...",  // ← Foto perfil sucursal
-    "portadaUrl": "https://cloudinary.com/...",
+    "fotoPerfilUrl": "https://pub-xxxxx.r2.dev/...",  // ← Foto perfil sucursal
+    "portadaUrl": "https://pub-xxxxx.r2.dev/...",
     "redesSociales": {  // ← JSONB
       "facebook": "https://facebook.com/...",
       "instagram": "https://instagram.com/..."
@@ -791,13 +791,13 @@ Modo Comercial → "Proveedores de tu giro"
     "galeria": [  // ← Array de imágenes
       {
         "id": 1,
-        "url": "https://cloudinary.com/...",
+        "url": "https://pub-xxxxx.r2.dev/...",
         "titulo": "Interior del local",
         "orden": 1
       },
       {
         "id": 2,
-        "url": "https://cloudinary.com/...",
+        "url": "https://pub-xxxxx.r2.dev/...",
         "titulo": "Pescado fresco",
         "orden": 2
       }
@@ -1509,10 +1509,9 @@ Cada mutation de sucursales (`useCrearSucursal`, `useToggleSucursalActiva`, `use
   "data": [
     {
       "id": 1,
-      "url": "https://...",
+      "url": "https://pub-xxxxx.r2.dev/...",
       "titulo": "Interior del local",
-      "orden": 1,
-      "cloudinaryPublicId": "anunciaya/galeria/abc123"
+      "orden": 1
     }
   ]
 }
@@ -1803,8 +1802,7 @@ Ver documentación de Business Studio para detalles.
 {
   "imagenes": [
     {
-      "url": "https://...",
-      "cloudinaryPublicId": "anunciaya/galeria/abc123"
+      "url": "https://pub-xxxxx.r2.dev/..."
     }
   ]
 }

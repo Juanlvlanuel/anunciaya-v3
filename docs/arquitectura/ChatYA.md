@@ -43,7 +43,7 @@
 | **BD sin tabla de participantes** | Diseño `participante1_id / participante2_id` | No se necesita tabla intermedia porque no hay grupos. Simplifica queries |
 | **Tiempo real** | Socket.io (ya implementado) | Socket.io maneja el delivery instantáneo. La BD escribe en paralelo, no está en el critical path |
 | **Archivos del chat** | Cloudflare R2 (prefixes `chat/imagenes/`, `chat/documentos/` y `chat/audio/`) | Egress gratuito, lifecycle rules |
-| **Catálogo/ofertas** | Cloudflare R2 | Migrado desde Cloudinary (Marzo 2026). Cloudinary descontinuado — ver `ROADMAP.md` "Cleanup técnico Cloudinary" |
+| **Catálogo/ofertas** | Cloudflare R2 | Migración a R2 completada el 29 Abril 2026 — ver `CHANGELOG.md` |
 | **Notificaciones de chat** | Solo badge + sonido en logo ChatYA | NO se integra con el panel de notificaciones (campanita) |
 | **Multi-dispositivo** | Sí | Palomitas azules sincronizadas en todos los dispositivos del usuario |
 | **TTL de conversaciones** | 6 meses sin interacción | Cron job en backend (no pg_cron). Se basa en `updated_at` de la conversación |
@@ -573,7 +573,7 @@ Visor tipo WhatsApp/Telegram. `VisorImagenesChat.tsx` con `createPortal(…, doc
 - ✅ Imágenes del chat → Cloudflare R2 (prefix `chat/imagenes/{userId}/`) — Presigned URL + upload directo
 - ✅ Documentos del chat → Cloudflare R2 (prefix `chat/documentos/{userId}/`) — Presigned URL + upload directo
 - ✅ Audio del chat → Cloudflare R2 (prefix `chat/audio/{userId}/`) — Presigned URL + upload directo
-- ✅ Catálogo/ofertas → siguen en Cloudinary
+- ✅ Catálogo/ofertas → Cloudflare R2 (migración completada 29 Abril 2026)
 - 🔲 Al hard delete de chat (AMBOS eliminaron) → eliminar archivos R2 asociados
 
 ### 4.21 UX — Rendimiento
@@ -1870,7 +1870,7 @@ Las reacciones son especialmente propensas a duplicación visual por el cruce de
 10. **Presigned URL = upload directo a R2** — Frontend sube sin pasar por Express. Reduce carga y latencia.
 11. **Dimensiones ANTES de optimizar** — Aspect ratio correcto desde el primer frame.
 12. **Drag & drop con contador `dragContadorRef`** — `dragEnter/dragLeave` disparan en cada hijo. Contador evita parpadeo del overlay.
-13. **Descarga cross-origin: `fetch` + blob + `URL.createObjectURL`** — `<a download>` no funciona con URLs cross-origin (R2, Cloudinary).
+13. **Descarga cross-origin: `fetch` + blob + `URL.createObjectURL`** — `<a download>` no funciona con URLs cross-origin (R2).
 14. **`vertical-align: -0.15em` centra emojis** — Posiciona relativo al baseline de la fuente, no de la línea.
 15. **`truncate` + `flex` rompe con imágenes inline** — Quitar flex del párrafo, usar `inline align-[-3px]` para palomitas.
 

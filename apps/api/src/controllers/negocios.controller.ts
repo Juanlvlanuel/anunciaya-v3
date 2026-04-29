@@ -334,7 +334,7 @@ export async function eliminarImagenGaleriaController(req: Request, res: Respons
 
 /**
  * DELETE /api/negocios/sucursal/:id/foto-perfil
- * Elimina la foto de perfil de la sucursal (pone NULL en BD + elimina de Cloudinary)
+ * Elimina la foto de perfil de la sucursal (pone NULL en BD + elimina de R2)
  */
 export async function eliminarFotoPerfilController(req: Request, res: Response) {
     try {
@@ -361,7 +361,7 @@ export async function eliminarFotoPerfilController(req: Request, res: Response) 
 
 /**
  * POST /api/negocios/:id/logo
- * Sube logo del negocio a Cloudinary y guarda en BD
+ * Recibe la URL del logo (ya subida a R2 desde el frontend) y la guarda en BD
  */
 export async function subirLogoController(req: Request, res: Response) {
     try {
@@ -389,7 +389,7 @@ export async function subirLogoController(req: Request, res: Response) {
 
 /**
  * POST /api/negocios/sucursal/:id/foto-perfil
- * Sube foto de perfil de sucursal a Cloudinary y guarda en BD
+ * Recibe la URL de la foto de perfil (ya subida a R2) y la guarda en BD
  */
 export async function subirFotoPerfilController(req: Request, res: Response) {
     try {
@@ -417,7 +417,7 @@ export async function subirFotoPerfilController(req: Request, res: Response) {
 
 /**
  * POST /api/negocios/:id/portada
- * Sube portada de sucursal a Cloudinary y guarda en BD
+ * Recibe la URL de la portada (ya subida a R2) y la guarda en BD
  */
 export async function subirPortadaController(req: Request, res: Response) {
     try {
@@ -452,12 +452,12 @@ export async function subirPortadaController(req: Request, res: Response) {
 
 /**
  * POST /api/negocios/:id/galeria
- * Agrega imágenes a la galería en Cloudinary y BD
+ * Agrega imágenes a la galería (URLs R2 ya subidas desde frontend)
  */
 export async function subirGaleriaController(req: Request, res: Response) {
     try {
         const { id: negocioId } = req.params;
-        const { imagenes } = req.body; // Array de { url, cloudinaryPublicId }
+        const { imagenes } = req.body; // Array de { url }
         const sucursalId = req.query.sucursalId as string;
 
         if (!imagenes || !Array.isArray(imagenes) || imagenes.length === 0) {

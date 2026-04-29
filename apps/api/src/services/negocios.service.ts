@@ -709,7 +709,6 @@ export async function obtenerGaleriaNegocio(negocioId: string) {
                 url: negocioGaleria.url,
                 titulo: negocioGaleria.titulo,
                 orden: negocioGaleria.orden,
-                cloudinaryPublicId: negocioGaleria.cloudinaryPublicId,
             })
             .from(negocioGaleria)
             .where(eq(negocioGaleria.negocioId, negocioId))

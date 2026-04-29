@@ -286,7 +286,7 @@ router.post(
  * Agrega imágenes a la galería
  * 
  * Query: ?sucursalId=xxx
- * Body: { imagenes: [{ url: string, cloudinaryPublicId: string }] }
+ * Body: { imagenes: [{ url: string }] }
  * 
  * Response 200:
  * {
@@ -443,8 +443,7 @@ router.get('/:id', obtenerNegocioController);
  *       "id": 1,
  *       "url": "https://...",
  *       "titulo": "Foto 1",
- *       "orden": 1,
- *       "cloudinaryPublicId": "..."
+ *       "orden": 1
  *     },
  *     ...
  *   ]

@@ -6,14 +6,14 @@
  * UBICACIÓN: apps/web/src/pages/private/business-studio/perfil/components/TabImagenes.tsx
  * 
  * PROPÓSITO:
- * Tab para gestionar imágenes del negocio usando useOptimisticUpload
+ * Tab para gestionar imágenes del negocio usando useR2Upload (R2 con presigned URLs)
  * 
  * CARACTERÍSTICAS:
  * - Upload optimista con preview instantáneo
  * - Eliminación optimista con rollback
  * - Logo, Foto Perfil y Portada en una sola fila
  * - Galería con múltiples imágenes (navegación con flechas)
- * - Integración con Cloudinary + Backend
+ * - Integración con R2 (presigned URLs) + Backend
  * - ✅ Refactorizado para usar ModalImagenes universal
  * - ✅ Botones de eliminar al lado del botón de upload
  * - ✅ Tooltips informativos en botones de eliminar
@@ -349,7 +349,7 @@ export default function TabImagenes({
 
         // 2. Guardar en BD individualmente
         const response = await api.post(`/negocios/${negocioId}/galeria`, {
-          imagenes: [{ url, cloudinaryPublicId: '' }]
+          imagenes: [{ url }]
         });
 
         // 3. Acumular para actualizar datosImagenes al final

@@ -187,8 +187,8 @@ El usuario NO selecciona manualmente la zona horaria; el backend la asigna segú
 **Funcionalidades:**
 - Upload optimista (preview instantáneo antes de confirmar)
 - Optimización automática a .webp (~90% ahorro de espacio)
-- Upload diferido a Cloudinary (evita imágenes huérfanas)
-- Eliminación dual (Cloudinary + Base de datos)
+- Upload diferido a R2 (evita imágenes huérfanas)
+- Eliminación dual (R2 + Base de datos)
 
 **Validaciones:**
 - Portada obligatoria
@@ -382,7 +382,7 @@ Productos: maxWidth 800px,  quality 0.85, format webp
 - Reducción ~90% tamaño de archivo
 - Carga más rápida en perfiles públicos
 - Menor uso de ancho de banda
-- Optimización antes de subir a Cloudinary
+- Optimización antes de subir a R2
 
 ---
 
@@ -391,12 +391,12 @@ Productos: maxWidth 800px,  quality 0.85, format webp
 **Funcionamiento:**
 1. Usuario selecciona imagen
 2. Preview local instantáneo (`URL.createObjectURL`)
-3. NO se sube a Cloudinary inmediatamente
+3. NO se sube a R2 inmediatamente
 4. Upload ocurre al hacer click en "Siguiente paso"
 5. Si usuario cancela, no quedan imágenes huérfanas
 
 **Razón:**
-- Evita imágenes huérfanas en Cloudinary
+- Evita imágenes huérfanas en R2
 - Usuario puede cambiar de opinión
 - Mejor control de costos
 - Experiencia más fluida (preview instantáneo)
@@ -747,7 +747,7 @@ stores/
 ```
 hooks/
 ├── queries/usePerfil.ts                 (usePerfilCategorias, usePerfilSubcategorias — React Query)
-└── useOptimisticUpload.ts               (Upload optimista Cloudinary)
+└── useR2Upload.ts                       (Upload optimista a R2 con presigned URL)
 ```
 
 #### Services
@@ -782,7 +782,7 @@ services/
 ├── negocioManagement.service.ts         (15 funciones CRUD compartidas)
 ├── categorias.service.ts                (Lógica categorías)
 ├── articulos.service.ts                 (CRUD productos)
-└── cloudinary.service.ts                (Upload/delete imágenes)
+└── r2.service.ts                        (Upload/delete imágenes en Cloudflare R2)
 ```
 
 **Nota:** `negocioManagement.service.ts` contiene las 15 funciones CRUD que son reutilizadas tanto por Onboarding como por Business Studio (evita duplicación de lógica).
@@ -822,7 +822,6 @@ db/
 
 ```
 config/
-├── cloudinary.ts                        (Configuración Cloudinary)
 └── env.ts                               (Variables de entorno)
 ```
 
@@ -899,7 +898,7 @@ DELETE /api/negocios/:id/galeria/:imagenId
 - ✅ Sistema de Finalización
 - ✅ Redirección según onboardingCompletado
 - ✅ JWT incluye `onboardingCompletado`
-- ✅ Cloudinary upload/delete optimista
+- ✅ R2 upload/delete optimista
 
 **Tiempo de implementación:**
 - Backend: ~3 días (Dic 20, 2024)

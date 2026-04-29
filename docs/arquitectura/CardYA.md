@@ -238,7 +238,7 @@ interface Recompensa {
 | `nombre` | VARCHAR(100) | Nombre de la recompensa |
 | `descripcion` | TEXT | Descripción opcional |
 | `puntos_requeridos` | INTEGER | Puntos para canjear |
-| `imagen_url` | VARCHAR(500) | URL Cloudinary |
+| `imagen_url` | VARCHAR(500) | URL R2 |
 | `stock` | INTEGER | -1 = ilimitado |
 | `requiere_aprobacion` | BOOLEAN | Canje manual del negocio |
 | `activa` | BOOLEAN | Visible en catálogo |
@@ -418,7 +418,7 @@ interface HistorialCanje {
       "id": "uuid",
       "negocioId": "uuid",
       "negocioNombre": "Taquería Peñasco",
-      "negocioLogo": "https://res.cloudinary.com/...",
+      "negocioLogo": "https://pub-xxxxx.r2.dev/...",
       "puntosDisponibles": 19120,
       "puntosAcumuladosTotal": 25000,
       "nivelActual": "plata",

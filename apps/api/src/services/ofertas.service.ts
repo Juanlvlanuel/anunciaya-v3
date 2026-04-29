@@ -19,8 +19,7 @@ import { sql, eq, and, count, ne } from 'drizzle-orm';
 import { db } from '../db';
 import { ofertas, ofertaUsos, ofertaUsuarios, chatMensajes } from '../db/schemas/schema';
 import { env } from '../config/env.js';
-import { duplicarImagen } from './cloudinary.service';
-import { generarPresignedUrl, duplicarArchivo, esUrlR2, eliminarArchivo } from './r2.service.js';
+import { generarPresignedUrl, duplicarArchivo, eliminarArchivo, esUrlR2 } from './r2.service.js';
 import type {
   CrearOfertaInput,
   ActualizarOfertaInput,
@@ -32,20 +31,6 @@ import { negocios, puntosBilletera, notificaciones } from '../db/schemas/schema'
 import { emitirAUsuario } from '../socket.js';
 import { crearNotificacion } from './notificaciones.service.js';
 import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
-
-// =============================================================================
-// HELPER: DUPLICAR IMAGEN (R2 o Cloudinary)
-// =============================================================================
-
-/**
- * Duplica una imagen de forma inteligente:
- * - Si es URL de R2 → usa CopyObjectCommand (sin descargar)
- * - Si es URL de Cloudinary → usa duplicarImagen de cloudinary.service
- */
-async function duplicarImagenInteligente(url: string, carpeta: string): Promise<string | null> {
-    if (esUrlR2(url)) return await duplicarArchivo(url, carpeta);
-    return await duplicarImagen(url, carpeta);
-}
 
 // =============================================================================
 // GENERAR URL DE UPLOAD PARA IMAGEN DE OFERTA (R2)
@@ -755,10 +740,9 @@ export async function actualizarOferta(
 
       // 3.1 Limpiar imagen anterior de R2 si fue reemplazada o eliminada.
       // CRÍTICO: verificar reference-count antes de borrar — la misma URL puede
-      // estar compartida con otra oferta (por fallback del clonado cuando
-      // duplicarImagenInteligente no pudo replicar, típicamente con Cloudinary)
-      // o estar referenciada dentro de contenido JSON de chat_mensajes tipo 'cupon'.
-      // Sin este check, editar la imagen de una oferta rompería las otras.
+      // estar compartida con otra oferta (al duplicarse) o estar referenciada
+      // dentro de contenido JSON de chat_mensajes tipo 'cupon'. Sin este check,
+      // editar la imagen de una oferta rompería las otras.
       if (
         datos.imagen !== undefined &&
         ofertaExistente.imagen &&
@@ -1069,10 +1053,10 @@ export async function duplicarOfertaASucursales(
         );
       }
 
-      // 3. Duplicar imagen (R2 o Cloudinary según origen)
+      // 3. Duplicar imagen en R2
       let nuevaImagenUrl: string | null = null;
       if (ofertaOriginal.imagen) {
-        nuevaImagenUrl = await duplicarImagenInteligente(ofertaOriginal.imagen, 'ofertas');
+        nuevaImagenUrl = await duplicarArchivo(ofertaOriginal.imagen, 'ofertas');
 
         if (!nuevaImagenUrl) {
           nuevaImagenUrl = ofertaOriginal.imagen; // Fallback a imagen original

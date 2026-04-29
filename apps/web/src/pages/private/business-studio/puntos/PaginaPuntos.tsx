@@ -9,7 +9,7 @@
  * COMPONENTES EXTRAÍDOS:
  *   SistemaNiveles  → card completa del sistema de niveles (cards verticales)
  *   CardRecompensa  → card vertical individual de recompensa
- *   ModalRecompensa → modal crear / editar recompensa con upload Cloudinary
+ *   ModalRecompensa → modal crear / editar recompensa con upload a R2
  *
  * LAYOUT:
  *   Mobile (default) → 3 tabs (Configuración | Niveles | Recompensas)

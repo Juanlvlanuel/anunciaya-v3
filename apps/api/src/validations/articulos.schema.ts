@@ -69,7 +69,7 @@ const campoPrecioBase = z
     .max(999999.99, 'El precio base no puede exceder $999,999.99');
 
 /**
- * Campo: imagen principal (URL de Cloudinary)
+ * Campo: imagen principal (URL de R2)
  * Opcional
  */
 const campoImagenPrincipal = z
@@ -124,7 +124,7 @@ export const actualizarArticuloSchema = z.object({
     disponible: z.boolean().optional(),
     destacado: z.boolean().optional(),
     orden: z.number().int().min(0).optional(),
-    /** URL de la imagen anterior a eliminar de R2/Cloudinary al actualizar */
+    /** URL de la imagen anterior a eliminar de R2 al actualizar */
     imagenAEliminar: z.string().url().optional(),
 }).refine(
     // Validación: al menos un campo debe estar presente

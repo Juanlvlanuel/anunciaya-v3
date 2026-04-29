@@ -310,7 +310,6 @@ export const negocioGaleria = pgTable("negocio_galeria", {
 	negocioId: uuid("negocio_id").notNull(),
 	sucursalId: uuid("sucursal_id").references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'cascade' }),
 	url: text().notNull(),
-	cloudinaryPublicId: varchar("cloudinary_public_id", { length: 200 }),
 	titulo: varchar({ length: 100 }),
 	orden: integer().default(0),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),

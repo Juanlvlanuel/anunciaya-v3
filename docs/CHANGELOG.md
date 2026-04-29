@@ -7,6 +7,32 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [29 Abril 2026] - Almacenamiento de imágenes consolidado en Cloudflare R2 🧹
+
+Stack de imágenes unificado: Cloudflare R2 con presigned URLs es el único proveedor.
+
+**BD (dev + prod):**
+- 74 URLs de proveedor anterior migradas a R2.
+- 8 filas con URLs muertas (404) limpiadas vía `docs/migraciones/2026-04-29-limpiar-cloudinary-urls-muertas.sql`: `DELETE` de 5 filas en `negocio_galeria` (URL es `NOT NULL`) y `UPDATE imagen_principal = NULL` en 3 artículos.
+- `ALTER TABLE negocio_galeria DROP COLUMN cloudinary_public_id`.
+- Verificación: 17 columnas con URLs de imagen en 0 referencias al proveedor anterior.
+
+**Backend:**
+- Eliminados archivos del proveedor anterior: `config/cloudinary.ts`, `services/cloudinary.service.ts`, `controllers/cloudinary.controller.ts`, `routes/cloudinary.routes.ts`. Ruta `/api/cloudinary` removida del router.
+- Helpers híbridos en `articulos.service.ts` y `ofertas.service.ts` removidos. Ahora usan `eliminarArchivo`/`duplicarArchivo` de `r2.service` directamente.
+- `negocioManagement.service.ts`: `eliminarLogoNegocio`/`eliminarFotoPerfilSucursal`/`eliminarPortadaSucursal` ahora usan el helper unificado `eliminarImagenSiHuerfana` (reference-count contra todas las tablas relevantes). `agregarImagenesGaleria` ya no recibe `cloudinaryPublicId`.
+- `config/env.ts`: vars `CLOUDINARY_*` removidas.
+- `apps/api/package.json`: dependencia `cloudinary` removida.
+
+**Frontend:**
+- Eliminados `apps/web/src/utils/cloudinary.ts` y `apps/web/src/hooks/useOptimisticUpload.ts`.
+- `useR2Upload` queda como único hook de upload (presigned URL → PUT directo a R2).
+- `TabImagenes.tsx` y `PasoImagenes.tsx`: insert a galería sin `cloudinaryPublicId`.
+
+**Tests:** 215/215 ✅. TypeScript backend y frontend limpios.
+
+---
+
 ## [28 Abril 2026] - Visión v3 — Fase C (backend) + Fase D (BD) 🧹
 
 **Cierra el cleanup técnico** que dejaron las Fases A (docs) y B (UI) de la visión v3.

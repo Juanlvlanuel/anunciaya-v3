@@ -4,12 +4,10 @@
  * Subida de imágenes del negocio (logo, portada, galería)
  * 
  * VERSIÓN SIMPLIFICADA CON OPTIMIZACIÓN AUTOMÁTICA:
- * - ✅ Logo, Portada y Galería usan useOptimisticUpload
- * - ✅ Hook maneja modo single (logo/portada) y multiple (galería)
- * - ✅ Optimización automática integrada en el hook (redimensionar + comprimir + WebP)
- * - ✅ Guardado automático en BD mediante callbacks onSuccess
- * - ✅ Manejo de errores y restauración automática
- * - ✅ Código limpio sin duplicación
+ * - Logo y Portada usan useR2Upload (presigned URL → upload directo a R2)
+ * - Galería usa upload directo a R2 + persistencia individual en BD
+ * - Optimización automática integrada en el hook (redimensionar + comprimir + WebP)
+ * - Guardado automático en BD mediante callbacks onSuccess
  * 
  * CARACTERÍSTICAS:
  * - Upload optimista (preview instantáneo)
@@ -595,7 +593,7 @@ export function PasoImagenes() {
 
                 // 2. Guardar en BD inmediatamente (solo esta imagen)
                 const response = await api.post(`/onboarding/${negocioId}/galeria`, {
-                    imagenes: [{ url, cloudinaryPublicId: '' }]
+                    imagenes: [{ url }]
                 });
 
                 // 3. Actualizar UI: quitar preview, agregar imagen real con su ID de BD

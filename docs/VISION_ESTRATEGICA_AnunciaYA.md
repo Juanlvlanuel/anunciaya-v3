@@ -241,8 +241,6 @@ Ver `ROADMAP.md` y `CHANGELOG.md` para detalle.
 - **Migración React Query:** completa en lo construido (BS y públicas hechas). Pendientes evaluar caso por caso: ChatYA, ScanYA, Onboarding. Zustand se queda solo para UI state.
 - **Cleanup visión v3:** ✅ aplicado completo el 28 Abril 2026 — Fases A (docs), B (UI), C (backend), D (BD en staging y producción). Código y BD totalmente alineados con este documento.
 
-> Cloudinary fue retirado del stack (servicio descontinuado, cleanup técnico pendiente — ver `ROADMAP.md`).
-
 ---
 
 ## 9. Workflow de trabajo

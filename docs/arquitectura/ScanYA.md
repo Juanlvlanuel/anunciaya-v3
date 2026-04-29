@@ -1491,20 +1491,13 @@ if (window.location.pathname.startsWith('/scanya')) {
 
 ---
 
-### 2. ¿Por qué Cloudflare R2 en lugar de Cloudinary?
+### 2. ¿Por qué Cloudflare R2 para los tickets?
 
 **Problema:** Fotos de tickets pueden ser pesadas (1-2 MB).
 
-**Comparación:**
+**Decisión:** R2 — egress gratuito, costo bajo de storage ($0.015/GB) y upload directo desde el frontend con presigned URLs. Los tickets son simples comprobantes, no requieren transformaciones server-side.
 
-| Aspecto | Cloudinary | Cloudflare R2 |
-|---------|------------|---------------|
-| **Costo** | $0.38/GB | $0.015/GB |
-| **Storage gratis** | 25 GB | 10 GB |
-| **Transformaciones** | ✅ | ❌ |
-| **Upload directo** | ❌ | ✅ Presigned URLs |
-
-**Decisión:** R2 para tickets (son simples comprobantes, no necesitan transformación).
+> Toda la app usa R2 para imágenes desde el cleanup del 29 Abril 2026 (ver `CHANGELOG.md`).
 
 **Flujo Upload Directo:**
 ```typescript

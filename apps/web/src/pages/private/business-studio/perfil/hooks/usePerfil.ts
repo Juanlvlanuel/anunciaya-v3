@@ -14,7 +14,7 @@
  * - Estado separado por tabs
  * - Actualizaciones optimistas
  * - Integración con negocioManagement.service
- * - Manejo de imágenes con Cloudinary
+ * - Manejo de imágenes con R2 (presigned URLs)
  * - Validaciones por sección
  * - Guardado independiente por tab
  */

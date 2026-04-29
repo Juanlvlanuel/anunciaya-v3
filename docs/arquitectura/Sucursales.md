@@ -244,7 +244,7 @@ Los artículos se duplican como **registros independientes**, no como asignacion
 ### 4. Imágenes de sucursal (R2)
 - **Foto de perfil** → `duplicarArchivo(url, 'perfiles')`
 - **Portada** → `duplicarArchivo(url, 'portadas')` ⚠️ carpeta correcta (no `sucursales/`)
-- **Galería completa** → por cada imagen, `duplicarArchivo(url, 'galeria')` + INSERT en `negocio_galeria` (sin `cloudinaryPublicId` porque son copias R2 independientes)
+- **Galería completa** → por cada imagen, `duplicarArchivo(url, 'galeria')` + INSERT en `negocio_galeria` (las copias son archivos R2 independientes)
 
 ### 5. Ofertas públicas (con imágenes independientes)
 
@@ -360,7 +360,7 @@ Los empleados **no** se marcan como inactivos en la tabla `empleados` — si la 
 
 ### Imágenes NO eliminadas
 - **ChatYA**: las imágenes de conversaciones NO se borran — pertenecen a mensajes de usuarios, se mantienen hasta que los usuarios borren sus mensajes/conversaciones
-- **Cloudinary legacy**: solo se eliminan URLs de R2 (verificado con `esUrlR2()`); URLs antiguas de Cloudinary se ignoran
+- **URLs no-R2**: solo se eliminan URLs de R2 (verificado con `esUrlR2()`); cualquier URL externa se ignora
 
 ### Performance
 - Las 7 queries de recolección corren con `Promise.all` (paralelo)
@@ -692,7 +692,7 @@ Cuando el gerente inicia sesión con la contraseña provisional:
 - **Artículos duplicados como registros independientes**: permite que cada sucursal tenga precios, disponibilidad e imágenes distintas desde el primer día
 - **Revocación → modo personal** (no eliminación): la cuenta del ex-gerente puede seguir usando AnunciaYA como usuario personal. Si quiere comerciante, debe pagar
 - **Campo `requiereCambioContrasena`**: más limpio que tokens temporales, se persiste en BD
-- **Galería copiada sin `cloudinaryPublicId`**: las copias son independientes en R2, no comparten referencia Cloudinary
+- **Galería copiada como archivos R2 independientes**: cada sucursal nueva recibe su propia copia en R2, sin compartir referencia con la matriz
 - **Logo de emails en R2 (no base64)**: Gmail bloquea data URIs desde 2013. URL pública + formato PNG para compatibilidad universal
 - **Emails con estilo ScanYA**: header con gradiente azul `linear-gradient(135deg, #02143D 10%, #001E70 50%, #034AE3 100%)` y logo blanco, para que visualmente se reconozca como comunicación oficial de AnunciaYA
 

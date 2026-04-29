@@ -128,7 +128,7 @@ Un solo módulo, un solo CRUD, una sola tabla (`ofertas`). La diferencia es el c
 | sucursal_id | UUID FK nullable | Sucursal específica (null = todas) |
 | titulo | VARCHAR(150) | Título de la promoción |
 | descripcion | TEXT nullable | Detalles |
-| imagen | VARCHAR(500) nullable | URL imagen (R2/Cloudinary) |
+| imagen | VARCHAR(500) nullable | URL imagen (R2) |
 | tipo | VARCHAR(20) | porcentaje, monto_fijo, 2x1, 3x2, envio_gratis, otro |
 | valor | VARCHAR(100) nullable | Valor del descuento |
 | compra_minima | NUMERIC(10,2) | Monto mínimo (default 0) |

@@ -55,7 +55,7 @@ export type MetodoCanje = 'qr_presencial' | 'codigo_online';
 export interface CrearOfertaInput {
   titulo: string;
   descripcion?: string | null;
-  imagen?: string | null;  // ← AGREGADO: URL de imagen en Cloudinary
+  imagen?: string | null;  // URL de la imagen en R2
   tipo: TipoOferta;
   valor?: string | number | null;  // Acepta string (para "otro") o number (para porcentaje/monto_fijo)
   compraMinima?: number;
@@ -113,7 +113,7 @@ export interface OfertaBasica {
   articuloId: string | null;
   titulo: string;
   descripcion: string | null;
-  imagen: string | null;  // ← AGREGADO: URL de imagen en Cloudinary
+  imagen: string | null;  // URL de la imagen en R2
   tipo: TipoOferta;
   valor: string | null; // NUMERIC viene como string
   compraMinima: string;  // NUMERIC viene como string
@@ -185,7 +185,7 @@ export interface OfertaFeedRow {
   oferta_id: string;
   titulo: string;
   descripcion: string | null;
-  imagen: string | null;  // ← AGREGADO: URL de imagen en Cloudinary
+  imagen: string | null;  // URL de la imagen en R2
   tipo: TipoOferta;
   valor: string | null;
   compra_minima: string;

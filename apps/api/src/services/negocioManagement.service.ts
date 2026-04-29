@@ -39,8 +39,7 @@ import type {
     PuntosInput,
 } from '../validations/onboarding.schema';
 
-import { v2 as cloudinary } from 'cloudinary';
-import { duplicarArchivo, eliminarArchivo, esUrlR2 } from './r2.service.js';
+import { duplicarArchivo, eliminarArchivo } from './r2.service.js';
 import { getZonaHorariaPorEstado } from '../utils/zonaHoraria.js';
 import { revocarSesionesEmpleado } from '../utils/tokenStoreScanYA.js';
 import { emitirAUsuario } from '../socket.js';
@@ -467,12 +466,12 @@ export const actualizarHorariosSucursal = async (
  * Actualiza el logo del negocio
  * 
  * @param negocioId - UUID del negocio
- * @param logoUrl - URL de Cloudinary
+ * @param logoUrl - URL de R2
  * @returns Objeto con success y mensaje
  */
 export const actualizarLogoNegocio = async (negocioId: string, logoUrl: string) => {
     try {
-        // Capturar el logo anterior antes de sobrescribir para limpiar R2/Cloudinary
+        // Capturar el logo anterior antes de sobrescribir para limpiar R2
         // (sin esto se acumulaban imágenes viejas al cambiar logo).
         const [anterior] = await db
             .select({ logoUrl: negocios.logoUrl })
@@ -505,7 +504,7 @@ export const actualizarLogoNegocio = async (negocioId: string, logoUrl: string) 
  * Actualiza la imagen de portada de la sucursal
  * 
  * @param sucursalId - UUID de la sucursal
- * @param portadaUrl - URL de Cloudinary
+ * @param portadaUrl - URL de R2
  * @returns Objeto con success y mensaje
  */
 export const actualizarPortadaSucursal = async (
@@ -545,31 +544,28 @@ export const actualizarPortadaSucursal = async (
 };
 
 /**
- * Agrega imágenes a la galería del negocio
- * Elimina las imágenes anteriores y agrega las nuevas
- * 
+ * Agrega imágenes a la galería de la sucursal del negocio.
+ *
  * @param negocioId - UUID del negocio
- * @param imagenes - Array de URLs de Cloudinary
- * @returns Objeto con success y mensaje
+ * @param sucursalId - UUID de la sucursal
+ * @param imagenes - Array de URLs de R2
+ * @returns Objeto con success y data con las imágenes insertadas
  */
 export const agregarImagenesGaleria = async (
     negocioId: string,
     sucursalId: string,
-    imagenes: Array<{ url: string; cloudinaryPublicId: string }>  // ← CAMBIO: Recibe objetos
+    imagenes: Array<{ url: string }>
 ) => {
     try {
-        // Crear array con formato correcto para la BD
         const imagenesData = imagenes.map((imagen, index) => ({
             negocioId: negocioId,
             sucursalId: sucursalId,
             url: imagen.url,
-            cloudinaryPublicId: imagen.cloudinaryPublicId,  // ← AGREGAR
             titulo: null,
             orden: index + 1,
             createdAt: new Date().toISOString(),
         }));
 
-        // Insertar nuevas imágenes y obtener los registros insertados
         const imagenesInsertadas = await db
             .insert(negocioGaleria)
             .values(imagenesData)
@@ -577,12 +573,11 @@ export const agregarImagenesGaleria = async (
                 id: negocioGaleria.id,
                 url: negocioGaleria.url,
                 orden: negocioGaleria.orden,
-                cloudinaryPublicId: negocioGaleria.cloudinaryPublicId,
             });
 
         return {
             success: true,
-            data: imagenesInsertadas,  // ← RETORNAR las imágenes con sus IDs
+            data: imagenesInsertadas,
         };
     } catch (error) {
         console.error('Error al agregar imágenes a galería:', error);
@@ -591,43 +586,18 @@ export const agregarImagenesGaleria = async (
 };
 
 // =============================================================================
-// FUNCIÓN HELPER - Extraer publicId de URL de Cloudinary
+// FUNCIÓN HELPER - Eliminar imagen huérfana
 // =============================================================================
 
 /**
- * Extrae el publicId de una URL de Cloudinary
- * Ejemplo URL: https://res.cloudinary.com/cloud/image/upload/v123/folder/image.jpg
- * Retorna: folder/image
- * 
- * @param url - URL completa de Cloudinary
- * @returns publicId o null si no es URL válida
- */
-function extraerPublicIdDeUrl(url: string | null): string | null {
-    if (!url) return null;
-
-    try {
-        // Patrón: .../upload/v{version}/{publicId}.{extension}
-        const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.\w+$/);
-        if (match && match[1]) {
-            return match[1]; // Retorna el publicId sin extensión
-        }
-        return null;
-    } catch (error) {
-        console.error('Error al extraer publicId:', error);
-        return null;
-    }
-}
-
-/**
  * Verifica si una URL de imagen está siendo usada en otro registro del sistema
- * (portada/perfil de otra sucursal, artículos, galería, ofertas). Si está huérfana
- * la borra de R2 o Cloudinary según corresponda.
+ * (portada/perfil de otra sucursal, artículos, galería, ofertas, recompensas,
+ * logo de negocio). Si está huérfana la borra de R2.
  *
  * Se usa al reemplazar imagen de portada o foto de perfil de una sucursal — evita
  * que la imagen anterior quede como basura en el storage, pero también protege
  * contra borrar por error una URL compartida con otro registro (pueden quedar
- * compartidas por el fallback del clonado cuando `duplicarArchivo` no puede
- * replicar — típicamente con Cloudinary).
+ * compartidas al duplicarse artículos/ofertas).
  *
  * @param url - URL de la imagen potencialmente huérfana
  * @param excluirSucursalId - UUID de la sucursal que acaba de cambiar su imagen
@@ -710,16 +680,8 @@ export async function eliminarImagenSiHuerfana(
             return;
         }
 
-        // 7. Huérfana — eliminar del storage correspondiente
-        if (esUrlR2(url)) {
-            await eliminarArchivo(url);
-        } else {
-            // Cloudinary
-            const publicId = extraerPublicIdDeUrl(url);
-            if (publicId) {
-                await cloudinary.uploader.destroy(publicId);
-            }
-        }
+        // 7. Huérfana — eliminar de R2
+        await eliminarArchivo(url);
     } catch (error) {
         console.error('Error en eliminarImagenSiHuerfana:', error);
     }
@@ -730,9 +692,9 @@ export async function eliminarImagenSiHuerfana(
 // =============================================================================
 
 /**
- * Elimina el logo del negocio de Cloudinary y BD
- * Extrae publicId de la URL
- * 
+ * Elimina el logo del negocio: pone NULL en BD y borra el archivo de R2 si
+ * está huérfano (reference-count contra otras tablas).
+ *
  * @param negocioId - UUID del negocio
  * @returns Objeto con success y mensaje
  */
@@ -751,24 +713,18 @@ export const eliminarLogoNegocio = async (negocioId: string) => {
             throw new Error('Negocio no encontrado');
         }
 
-        // 2. Extraer publicId de la URL
-        const publicId = extraerPublicIdDeUrl(negocio.logoUrl);
-
-        // 3. Eliminar de Cloudinary (si hay publicId)
-        if (publicId) {
-            try {
-                await cloudinary.uploader.destroy(publicId);
-            } catch (cloudinaryError) {
-                console.error('Error al eliminar logo de Cloudinary:', cloudinaryError);
-                // Continuar aunque falle Cloudinary
-            }
-        }
-
-        // 4. Poner NULL en BD
+        // 2. Poner NULL en BD
         await db
             .update(negocios)
             .set({ logoUrl: null })
             .where(eq(negocios.id, negocioId));
+
+        // 3. Eliminar archivo de R2 si está huérfano
+        if (negocio.logoUrl) {
+            eliminarImagenSiHuerfana(negocio.logoUrl).catch(err =>
+                console.error('No se pudo limpiar archivo de logo:', err)
+            );
+        }
 
         return {
             success: true,
@@ -785,9 +741,9 @@ export const eliminarLogoNegocio = async (negocioId: string) => {
 // =============================================================================
 
 /**
- * Elimina la foto de perfil de la sucursal de Cloudinary y BD
- * Extrae publicId de la URL
- * 
+ * Elimina la foto de perfil de la sucursal: pone NULL en BD y borra el archivo
+ * de R2 si está huérfano (reference-count contra otras tablas).
+ *
  * @param sucursalId - UUID de la sucursal
  * @returns Objeto con success y mensaje
  */
@@ -806,24 +762,18 @@ export const eliminarFotoPerfilSucursal = async (sucursalId: string) => {
             throw new Error('Sucursal no encontrada');
         }
 
-        // 2. Extraer publicId de la URL
-        const publicId = extraerPublicIdDeUrl(sucursal.fotoPerfil);
-
-        // 3. Eliminar de Cloudinary (si hay publicId)
-        if (publicId) {
-            try {
-                await cloudinary.uploader.destroy(publicId);
-            } catch (cloudinaryError) {
-                console.error('Error al eliminar foto de perfil de Cloudinary:', cloudinaryError);
-                // Continuar aunque falle Cloudinary
-            }
-        }
-
-        // 4. Poner NULL en BD
+        // 2. Poner NULL en BD
         await db
             .update(negocioSucursales)
             .set({ fotoPerfil: null })
             .where(eq(negocioSucursales.id, sucursalId));
+
+        // 3. Eliminar archivo de R2 si está huérfano
+        if (sucursal.fotoPerfil) {
+            eliminarImagenSiHuerfana(sucursal.fotoPerfil, sucursalId).catch(err =>
+                console.error('No se pudo limpiar archivo de foto de perfil:', err)
+            );
+        }
 
         return {
             success: true,
@@ -840,9 +790,9 @@ export const eliminarFotoPerfilSucursal = async (sucursalId: string) => {
 // =============================================================================
 
 /**
- * Elimina la portada de la sucursal de Cloudinary y BD
- * Extrae publicId de la URL
- * 
+ * Elimina la portada de la sucursal: pone NULL en BD y borra el archivo de R2
+ * si está huérfano (reference-count contra otras tablas).
+ *
  * @param sucursalId - UUID de la sucursal
  * @returns Objeto con success y mensaje
  */
@@ -861,24 +811,18 @@ export const eliminarPortadaSucursal = async (sucursalId: string) => {
             throw new Error('Sucursal no encontrada');
         }
 
-        // 2. Extraer publicId de la URL
-        const publicId = extraerPublicIdDeUrl(sucursal.portadaUrl);
-
-        // 3. Eliminar de Cloudinary (si hay publicId)
-        if (publicId) {
-            try {
-                await cloudinary.uploader.destroy(publicId);
-            } catch (cloudinaryError) {
-                console.error('Error al eliminar portada de Cloudinary:', cloudinaryError);
-                // Continuar aunque falle Cloudinary
-            }
-        }
-
-        // 4. Poner NULL en BD
+        // 2. Poner NULL en BD
         await db
             .update(negocioSucursales)
             .set({ portadaUrl: null })
             .where(eq(negocioSucursales.id, sucursalId));
+
+        // 3. Eliminar archivo de R2 si está huérfano
+        if (sucursal.portadaUrl) {
+            eliminarImagenSiHuerfana(sucursal.portadaUrl, sucursalId).catch(err =>
+                console.error('No se pudo limpiar archivo de portada:', err)
+            );
+        }
 
         return {
             success: true,
@@ -895,18 +839,17 @@ export const eliminarPortadaSucursal = async (sucursalId: string) => {
 // =============================================================================
 
 /**
- * Elimina una imagen de la galería de Cloudinary y BD
- * Usa cloudinaryPublicId si existe, sino extrae de URL
- * 
+ * Elimina una imagen de la galería: borra la fila de BD y limpia el archivo
+ * de R2 si está huérfano (reference-count contra otras tablas).
+ *
  * @param imageId - ID numérico de la imagen
  * @returns Objeto con success y mensaje
  */
 export const eliminarImagenGaleria = async (imageId: number) => {
     try {
-        // 1. Obtener URL e identificadores
+        // 1. Obtener URL antes de borrar
         const [imagen] = await db
             .select({
-                cloudinaryPublicId: negocioGaleria.cloudinaryPublicId,
                 url: negocioGaleria.url
             })
             .from(negocioGaleria)
@@ -922,10 +865,8 @@ export const eliminarImagenGaleria = async (imageId: number) => {
             .delete(negocioGaleria)
             .where(eq(negocioGaleria.id, imageId));
 
-        // 3. Eliminar archivo del storage correspondiente (R2 o Cloudinary).
-        // Antes solo se limpiaba Cloudinary — las imágenes de galería que vivían
-        // en R2 quedaban huérfanas al borrarse. El helper `eliminarImagenSiHuerfana`
-        // verifica reference-count antes de borrar (protección contra compartición).
+        // 3. Eliminar archivo de R2 si está huérfano (reference-count protege
+        // contra borrar URLs compartidas con otros registros).
         if (imagen.url) {
             eliminarImagenSiHuerfana(imagen.url).catch(err =>
                 console.error('No se pudo limpiar archivo de galería:', err)
@@ -1048,7 +989,7 @@ export const actualizarNombreSucursal = async (
  * Actualiza la foto de perfil de la sucursal
  * 
  * @param sucursalId - UUID de la sucursal
- * @param fotoPerfilUrl - URL de Cloudinary
+ * @param fotoPerfilUrl - URL de R2
  * @returns Objeto con success y mensaje
  */
 export const actualizarFotoPerfilSucursal = async (
@@ -1388,7 +1329,6 @@ export const crearSucursal = async (
 							negocioId,
 							sucursalId: sucursal.id,
 							url: nuevaUrl,
-							cloudinaryPublicId: null, // Es copia independiente en R2
 							titulo: img.titulo,
 							orden: img.orden,
 						});
@@ -1664,13 +1604,10 @@ export const eliminarSucursal = async (sucursalId: string) => {
 		// ─── 4. Eliminar imágenes de R2 en paralelo — solo las NO compartidas ───
 		// CRÍTICO: verificar que ningún otro artículo del sistema use la misma
 		// URL antes de borrar. Las URLs pueden compartirse entre artículos de
-		// distintas sucursales (fallback del clonado cuando `duplicarArchivo`
-		// no puede replicar, típicamente con Cloudinary). Filtrar solo R2 no
-		// es suficiente — también pueden existir URLs R2 compartidas.
-		const urlsR2 = urlsAEliminar.filter(url => esUrlR2(url));
-		if (urlsR2.length > 0) {
+		// distintas sucursales (al duplicarse).
+		if (urlsAEliminar.length > 0) {
 			const urlsSeguras: string[] = [];
-			for (const url of urlsR2) {
+			for (const url of urlsAEliminar) {
 				const [{ total }] = await db
 					.select({ total: sql<number>`COUNT(*)::int` })
 					.from(articulos)

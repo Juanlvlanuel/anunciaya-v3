@@ -16,8 +16,8 @@
  * 3.  obtenerRecompensas             - Lista recompensas (filtro activas)
  * 4.  obtenerRecompensaPorId         - Obtiene una recompensa específica
  * 5.  crearRecompensa                - Crea recompensa (imagen ya subida desde frontend)
- * 6.  actualizarRecompensa           - Actualiza recompensa con cleanup Cloudinary
- * 7.  eliminarRecompensa             - Soft delete con cleanup Cloudinary
+ * 6.  actualizarRecompensa           - Actualiza recompensa con cleanup R2
+ * 7.  eliminarRecompensa             - Soft delete con cleanup R2
  * 8.  obtenerEstadisticasPuntos      - 4 KPIs con filtros de periodo y sucursal
  * 8b. obtenerTopClientes             - Top clientes por puntos (Módulo Clientes)
  * 9.  obtenerHistorialTransacciones  - Historial con JOINs (Módulo Transacciones)
@@ -472,23 +472,23 @@ export async function obtenerRecompensaPorId(
 
 /**
  * Crea una nueva recompensa
- * 
+ *
  * FLUJO DE IMAGEN:
- * 1. Frontend sube imagen con uploadToCloudinary(file, 'recompensas')
- * 2. Frontend recibe URL de Cloudinary
- * 3. Frontend envía datos.imagenUrl (ya subida)
+ * 1. Frontend pide presigned URL al backend (R2)
+ * 2. Frontend sube directo a R2 con la presigned URL
+ * 3. Frontend envía datos.imagenUrl (ya subida) al endpoint de crear
  * 4. Backend solo guarda la URL en BD
- * 
+ *
  * CLEANUP:
- * Si falla la inserción en BD, el frontend debe eliminar la imagen con:
- * await eliminarDeCloudinary(imagenUrl)
+ * Si falla la inserción en BD, el frontend debe eliminar la imagen huérfana
+ * llamando al endpoint de delete de R2.
  */
 export async function crearRecompensa(
   datos: CrearRecompensaInput,
   negocioId: string
 ): Promise<RespuestaServicio<Recompensa>> {
   try {
-    // Insertar en BD (imagen ya está en Cloudinary)
+    // Insertar en BD (imagen ya está en R2)
     const [recompensa] = await db
       .insert(recompensas)
       .values({
@@ -578,20 +578,20 @@ export async function crearRecompensa(
 }
 
 // =============================================================================
-// 6. ACTUALIZAR RECOMPENSA (con cleanup Cloudinary)
+// 6. ACTUALIZAR RECOMPENSA (con cleanup R2)
 // =============================================================================
 
 /**
  * Actualiza una recompensa existente
- * 
+ *
  * FLUJO DE IMAGEN:
  * - Si datos.imagenUrl viene (nueva imagen):
- *   1. Frontend ya subió nueva imagen a Cloudinary
- *   2. Backend elimina imagen anterior
+ *   1. Frontend ya subió nueva imagen a R2
+ *   2. Backend elimina imagen anterior de R2
  *   3. Backend guarda nueva URL
- * 
+ *
  * - Si datos.eliminarImagen = true:
- *   1. Backend elimina imagen de Cloudinary
+ *   1. Backend elimina imagen de R2
  *   2. Backend pone imagenUrl = null en BD
  */
 export async function actualizarRecompensa(
@@ -726,7 +726,7 @@ export async function actualizarRecompensa(
 }
 
 // =============================================================================
-// 7. ELIMINAR RECOMPENSA (Soft delete + cleanup Cloudinary)
+// 7. ELIMINAR RECOMPENSA (Soft delete + cleanup R2)
 // =============================================================================
 
 export async function eliminarRecompensa(

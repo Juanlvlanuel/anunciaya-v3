@@ -59,11 +59,6 @@ const esquemaEnv = z.object({
   STRIPE_PRICE_COMERCIAL: z.string().min(1, 'STRIPE_PRICE_COMERCIAL es requerida'),
   STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET es requerida'),
 
-  // -------- Cloudinary --------
-  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME es requerido'),
-  CLOUDINARY_API_KEY: z.string().min(1, 'CLOUDINARY_API_KEY es requerida'),
-  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET es requerida'),
-
   // -------- Cloudflare R2 --------
   R2_ACCESS_KEY_ID: z.string().min(1, 'R2_ACCESS_KEY_ID es requerido'),
   R2_SECRET_ACCESS_KEY: z.string().min(1, 'R2_SECRET_ACCESS_KEY es requerida'),

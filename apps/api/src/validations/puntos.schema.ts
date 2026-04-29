@@ -11,7 +11,7 @@
  * - Eliminados validarHorario, horarioInicio, horarioFin (irán en Seguridad futura)
  * - Eliminados nivel*Nombre (nombres siempre fijos: Bronce/Plata/Oro)
  * - Agregados schemas para CRUD de recompensas
- * - PATRÓN: Frontend sube a Cloudinary, backend recibe URL
+ * - PATRÓN: Frontend sube a R2 (presigned URL), backend recibe URL final
  */
 
 import { z } from 'zod';
@@ -167,7 +167,7 @@ export const actualizarConfigPuntosSchema = z.object({
 
 /**
  * Crear nueva recompensa
- * NOTA: Frontend sube imagen a Cloudinary primero, luego envía URL
+ * NOTA: Frontend sube imagen a R2 primero, luego envía URL
  */
 export const crearRecompensaSchema = z.object({
   nombre: z
@@ -186,7 +186,7 @@ export const crearRecompensaSchema = z.object({
     .int('Debe ser un número entero')
     .min(1, 'Mínimo 1 punto requerido'),
   
-  // URL de Cloudinary (ya subida desde frontend)
+  // URL de R2 (ya subida desde frontend)
   imagenUrl: z
     .string()
     .url('Debe ser una URL válida')
@@ -273,7 +273,7 @@ export const actualizarRecompensaSchema = z.object({
     .min(1, 'Mínimo 1 punto requerido')
     .optional(),
   
-  // Nueva URL de Cloudinary (si se cambió la imagen)
+  // Nueva URL de R2 (si se cambió la imagen)
   imagenUrl: z
     .string()
     .url('Debe ser una URL válida')

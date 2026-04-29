@@ -15,7 +15,7 @@
  * useOpenGraph({
  *   title: 'Barbería El Güero | AnunciaYA',
  *   description: 'La mejor barbería de Puerto Peñasco',
- *   image: 'https://cloudinary.com/logo.jpg',
+ *   image: 'https://pub-xxx.r2.dev/logos/logo.webp',
  *   url: 'https://anunciaya.com/p/negocio/abc123',
  *   type: 'business.business'
  * });

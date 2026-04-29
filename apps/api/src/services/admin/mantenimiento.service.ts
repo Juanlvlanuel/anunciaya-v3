@@ -12,8 +12,7 @@
  *  2. Dry-run por defecto: reporta sin borrar
  *  3. Re-verificación antes de borrar cada URL
  *  4. Timestamp de gracia: no borra archivos subidos en los últimos N minutos
- *  5. Solo toca R2, nunca Cloudinary
- *  6. Rate limit de borrados por ejecución
+ *  5. Rate limit de borrados por ejecución
  *
  * Ubicación: apps/api/src/services/admin/mantenimiento.service.ts
  */

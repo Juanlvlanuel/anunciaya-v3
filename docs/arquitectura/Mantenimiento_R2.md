@@ -235,8 +235,7 @@ WHERE dry_run = false
 4. **Re-verificación atómica antes de borrar** — entre el reporte y la ejecución, el servicio vuelve a consultar BD (también multi-BD). Si una URL apareció como referenciada en ese intervalo, se descarta del borrado
 5. **Periodo de gracia** — archivos subidos en los últimos 5 minutos (configurable) no se borran aunque no aparezcan en BD. Cubre el caso de uploads en progreso donde el archivo ya está en R2 pero aún no se commiteó el INSERT
 6. **Tope de borrados por ejecución** — máximo 500 por default. Previene cascadas catastróficas
-7. **Solo R2** — nunca toca Cloudinary
-8. **Confirmación explícita** — el endpoint de ejecución exige el string literal `SI_BORRAR_HUERFANAS`
+7. **Confirmación explícita** — el endpoint de ejecución exige el string literal `SI_BORRAR_HUERFANAS`
 
 ---
 

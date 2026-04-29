@@ -91,7 +91,7 @@ export interface TransaccionPuntos {
   clienteId: string;
   clienteNombre: string;
   clienteTelefono: string | null;
-  clienteAvatarUrl: string | null; // Avatar del cliente (Cloudinary)
+  clienteAvatarUrl: string | null; // Avatar del cliente (R2)
   montoCompra: number;
   puntosOtorgados: number;
   multiplicadorAplicado: number;

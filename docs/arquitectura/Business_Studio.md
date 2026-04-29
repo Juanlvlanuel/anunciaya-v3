@@ -271,7 +271,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 **Funcionalidad:**
 - 6 tabs de edición
 - Mapa Leaflet interactivo (ubicación)
-- Upload de imágenes optimista (Cloudinary)
+- Upload de imágenes optimista (R2 vía presigned URL)
 - Panel CardYA integrado
 - Horarios con soporte 24/7, cerrado, break/comida
 
@@ -327,10 +327,9 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 - Sistema de asignación a sucursales (N:N)
 - Duplicar artículo a otras sucursales (solo dueños)
 
-> **Almacenamiento de imágenes:** Migrado de Cloudinary → R2 (Marzo 2026).
-> Las imágenes existentes en Cloudinary siguen siendo válidas. Nuevas imágenes van a `articulos/` en R2.
+> **Almacenamiento de imágenes:** Cloudflare R2 (carpeta `articulos/`).
 > Hook: `useR2Upload` — optimiza a WebP antes de subir.
-> La eliminación es inteligente: detecta automáticamente R2 vs Cloudinary según la URL.
+> Eliminación: `articulos.service.ts` usa `eliminarArchivo` de `r2.service` directamente.
 
 **Endpoints:**
 

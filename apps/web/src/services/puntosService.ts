@@ -125,11 +125,11 @@ export async function updateRecompensa(id: string, datos: ActualizarRecompensaIn
 }
 
 /**
- * Elimina una recompensa (soft delete + cleanup Cloudinary).
+ * Elimina una recompensa (soft delete + cleanup R2).
  * DELETE /api/puntos/recompensas/:id
  *
  * Solo dueños pueden eliminar. Gerentes reciben 403.
- * El backend marca como inactiva y elimina la imagen de Cloudinary.
+ * El backend marca como inactiva y elimina la imagen de R2.
  *
  * @param id - UUID de la recompensa
  */

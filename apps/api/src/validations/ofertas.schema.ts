@@ -52,7 +52,7 @@ const campoDescripcion = z
 
 /**
  * Campo: imagen (opcional)
- * URL de Cloudinary, máximo 500 caracteres
+ * URL de R2, máximo 500 caracteres
  */
 const campoImagen = z
   .string()

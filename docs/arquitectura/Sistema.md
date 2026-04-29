@@ -315,9 +315,7 @@ Estas decisiones arquitectónicas fueron tomadas durante la implementación del 
 
 ### 2. Optimización de Imágenes Client-Side
 
-**Decisión:** Comprimir y optimizar imágenes en el navegador antes de subir.
-
-> ⚠️ **Cloudinary descontinuado** (28 Abril 2026). El código aún tiene referencias residuales (`cloudinary.service.ts`, vars env `CLOUDINARY_*`, helpers `eliminarImagenInteligente` / `duplicarImagenInteligente`) pendientes de eliminar — ver `ROADMAP.md` "Cleanup técnico Cloudinary". El destino único de imágenes es **Cloudflare R2**.
+**Decisión:** Comprimir y optimizar imágenes en el navegador antes de subir a Cloudflare R2.
 
 **Configuración:**
 ```typescript
@@ -344,7 +342,7 @@ Ofertas:   maxWidth: 1920px, quality: 0.85, format: webp  → R2
 - Solicita presigned URL al backend (`POST /api/{módulo}/upload-imagen`)
 - PUT directo al bucket R2 con la presigned URL
 - URL pública de R2 reemplaza blob local al completar
-- Helper de eliminación legacy aún detecta R2 vs Cloudinary por URL — quedará simplificado al hacer el cleanup técnico de Cloudinary (ver `ROADMAP.md`).
+- Helper de eliminación (`eliminarImagenSiHuerfana` en `negocioManagement.service.ts`) verifica reference-count contra todas las tablas relevantes antes de borrar de R2.
 
 **Flujo R2:**
 ```
@@ -356,8 +354,6 @@ Ofertas:   maxWidth: 1920px, quality: 0.85, format: webp  → R2
 ```
 
 **Razón:** UX optimista - interfaz "snappy" sin esperas. R2 tiene egress ilimitado y menor costo a largo plazo.
-
-> Histórico: existía un segundo flujo basado en Cloudinary (`useOptimisticUpload`) para Mi Perfil. Quedó deprecado al descontinuar Cloudinary. Ver `ROADMAP.md` → "Cleanup técnico Cloudinary".
 
 ---
 
