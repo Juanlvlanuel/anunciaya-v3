@@ -2,22 +2,21 @@
  * ============================================================================
  * GUARDADOS SERVICE - Lógica de Negocio
  * ============================================================================
- * 
+ *
  * UBICACIÓN: apps/api/src/services/guardados.service.ts
- * 
+ *
  * PROPÓSITO:
- * Funciones para manejar guardados (ofertas, rifas, empleos)
+ * Funciones para manejar guardados (ofertas y publicaciones de Servicios)
  * Sistema reutilizable para guardar contenido
- * 
+ *
  * ENTITY TYPES SOPORTADOS:
  * - oferta (Ofertas/Cupones)
- * - rifa (Dinámicas - Rifas/Sorteos)
- * - empleo (Empleos/Servicios)
- * 
+ * - servicio (publicaciones de la sección pública Servicios)
+ *
  * DIFERENCIA CON VOTOS:
  * - Votos = Interacciones sociales públicas (like/follow de negocios)
  * - Guardados = Lista personal privada (guardar contenido para después)
- * 
+ *
  * CAMBIOS EN ESTA VERSIÓN:
  * ✅ JOIN con tabla ofertas cuando entityType='oferta'
  * ✅ Retorna datos completos de la oferta
@@ -32,7 +31,7 @@ import { guardados, ofertas, negocioSucursales, negocios } from '../db/schemas/s
 // TIPOS
 // =============================================================================
 
-type EntityType = 'oferta' | 'rifa' | 'empleo';
+type EntityType = 'oferta' | 'servicio';
 
 interface AgregarGuardadoParams {
     userId: string;
@@ -189,7 +188,7 @@ export async function verificarGuardado(
  * CAMBIO IMPORTANTE:
  * - Si entityType='oferta': Hace JOIN con ofertas y negocio_sucursales
  * - Retorna datos completos incluyendo whatsapp de la sucursal
- * - Si entityType='rifa' o 'empleo': Retorna solo IDs (comportamiento anterior)
+ * - Si entityType='servicio' (Servicios): Retorna solo IDs (comportamiento anterior)
  */
 export async function obtenerGuardados(
     userId: string,
@@ -282,7 +281,7 @@ export async function obtenerGuardados(
         }
 
         // =====================================================================
-        // CASO 2: entityType === 'rifa' o 'empleo' → Solo IDs
+        // CASO 2: entityType === 'servicio' (Servicios) → Solo IDs
         // =====================================================================
         else {
             // Obtener guardados (comportamiento original)

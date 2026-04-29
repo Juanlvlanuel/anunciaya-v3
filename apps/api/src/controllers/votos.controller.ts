@@ -61,7 +61,7 @@ export async function crearVotoController(req: Request, res: Response) {
             });
         }
 
-        const validEntityTypes = ['sucursal', 'articulo', 'publicacion', 'oferta', 'rifa', 'subasta', 'empleo'];
+        const validEntityTypes = ['sucursal', 'articulo', 'publicacion', 'oferta', 'servicio'];
         if (!validEntityTypes.includes(entityType)) {
             return res.status(400).json({
                 success: false,

@@ -79,9 +79,7 @@ export const IMAGE_REGISTRY: ImageField[] = [
     // ─── Recompensas (CardYA) ───
     { tabla: 'recompensas', columna: 'imagen_url', tipo: 'url', descripcion: 'Imagen de recompensa' },
 
-    // ─── Dinámicas ───
-    { tabla: 'dinamicas', columna: 'imagen_url', tipo: 'url', descripcion: 'Imagen de dinámica' },
-    { tabla: 'dinamica_premios', columna: 'imagen_url', tipo: 'url', descripcion: 'Imagen de premio de dinámica' },
+    // (Dinámicas removidas en Fase D del cleanup — visión v3, abril 2026)
 
     // ─── Empleados (ScanYA) ───
     { tabla: 'empleados', columna: 'foto_url', tipo: 'url', descripcion: 'Avatar del empleado' },

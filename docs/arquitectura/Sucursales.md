@@ -314,13 +314,12 @@ Aplica cuando `COUNT(puntos_transacciones WHERE sucursal_id = X) = 0`. Flujo en 
    ├─ Revocar cada empleadoId en Redis (timestamp para tokenStoreScanYA)
    └─ Emitir socket 'scanya:sesion-revocada' a los usuarios afectados
 
-2. Recolectar TODAS las URLs de R2 (7 queries en paralelo)
+2. Recolectar TODAS las URLs de R2 (6 queries en paralelo)
    ├─ Sucursal: foto_perfil + portada_url
    ├─ Galería: negocio_galeria.url
    ├─ Ofertas/Cupones: ofertas.imagen
    ├─ Empleados: empleados.foto_url
-   ├─ Dinámicas: dinamicas.imagen_url + dinamica_premios.imagen_url
-   ├─ Bolsa de trabajo: bolsa_trabajo.portafolio_url
+   ├─ Bolsa de trabajo (Servicios): bolsa_trabajo.portafolio_url
    └─ Transacciones ScanYA: puntos_transacciones.foto_ticket_url + transacciones_evidencia.url_imagen
 
 3. Artículos huérfanos
@@ -335,7 +334,11 @@ Aplica cuando `COUNT(puntos_transacciones WHERE sucursal_id = X) = 0`. Flujo en 
       └─ Filtra con esUrlR2() — solo elimina archivos de nuestro bucket
 
 5. DELETE negocio_sucursales WHERE id = X
-   └─ CASCADE elimina: horarios, métodos de pago, galería, ofertas, empleados, dinámicas, bolsa trabajo, transacciones
+   └─ CASCADE elimina: horarios, métodos de pago, galería, ofertas, empleados, bolsa trabajo, transacciones
+
+> Nota: las tablas `dinamicas`, `dinamica_premios` y `dinamica_participaciones`
+> fueron eliminadas en Fase D del cleanup (visión v3 — abril 2026), por lo que
+> ya no participan en este flujo de hard-delete.
 ```
 
 ### Rama B — Con historial: desactivación guiada desde el frontend

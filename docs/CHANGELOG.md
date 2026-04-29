@@ -7,6 +7,43 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [28 Abril 2026] - Visión v3 — Fase C (backend) + Fase D (BD) 🧹
+
+**Cierra el cleanup técnico** que dejaron las Fases A (docs) y B (UI) de la visión v3.
+
+**Fase C — Backend (10 archivos):**
+- `routes/index.ts`, services y controllers de `guardados`, `votos`, `metricas`: comentarios y `validEntityTypes` actualizados (sin `'rifa'`/`'subasta'`).
+- `types/notificaciones.types.ts`: `TipoNotificacion` y `ReferenciaTipo` sin valores obsoletos, agregado `'nuevo_servicio'` / `'servicio'`.
+- `types/chatya.types.ts`: `ContextoTipo` sin `'dinamica'`/`'empleo'`, agregado `'servicio'`.
+- `__tests__/mis-cupones.test.ts`: schema actualizado.
+
+**Fase C — Fixes preexistentes detectados al correr la suite:**
+- `__tests__/helpers.ts`: insert a `alerta_lecturas` con columna inexistente `resuelta_at` (que pertenece a `alertas_seguridad` global).
+- `services/reportes.service.ts:929`: ternario sobre objeto SQL (siempre truthy) generaba SQL roto `AND ou.sucursal_id = ` sin valor cuando `sucursalId` era undefined.
+- `controllers/reportes.controller.ts`: `generarExcelPromociones` leía `funnelVouchers` y `funnelOfertas.canjes` que no existen en el contrato real (`funnelRecompensas` / `funnelOfertas` sin `canjes`).
+- `__tests__/reportes.test.ts`: test esperaba `funnelVouchers` (nombre viejo) en lugar de `funnelRecompensas`.
+
+**Fase D — Base de datos (`docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql`):**
+- **DROP CASCADE** de tablas `dinamicas`, `dinamica_premios`, `dinamica_participaciones`.
+- Migración de filas existentes y reemplazo de CHECK constraints en 8 tablas (`carrito`, `votos`, `guardados`, `metricas_entidad`, `promociones_pagadas`, `notificaciones` ×2, `chat_conv`):
+  - `'empleo'` → `'servicio'`, `'bolsa'` → `'servicio'`, `'nuevo_empleo'` → `'nuevo_servicio'`.
+  - Eliminados: `'rifa'`, `'subasta'`, `'dinamica'`, `'turismo'`, `'rifas'`, `'nueva_dinamica'`.
+- Drizzle (`schema.ts`, `relations.ts`) sincronizado: tablas dinamicas removidas, CHECK constraints actualizados.
+- Backend: literales `'empleo'` → `'servicio'` (guardados, votos, controllers).
+- `imageRegistry.ts`: removidos `dinamicas.imagen_url` y `dinamica_premios.imagen_url` (de 19 → 17 campos).
+- `negocioManagement.service.ts`: hard-delete de sucursal ya no recolecta URLs de tablas dinámicas.
+
+**Tabla `bolsa_trabajo`** se conserva con su nombre físico (decisión: renombrarla no aporta beneficio funcional). El cambio conceptual a "Servicios" se refleja vía enums.
+
+**Tests:** 215/215 ✅ (8 suites verdes).
+
+**Aplicar la migración SQL antes de hacer deploy:**
+```sh
+psql "$DATABASE_URL" -f docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql
+```
+
+---
+
 ## [28 Abril 2026] - Visión estratégica v3 + Fase A: alineación documental 🧭
 
 **Contexto:** Sesión estratégica en `claude.ai` redefinió el alcance del producto. Se documenta en `docs/VISION_ESTRATEGICA_AnunciaYA.md`.

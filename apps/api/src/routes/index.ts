@@ -89,7 +89,7 @@ router.use('/votos', votosRoutes);
 // Rutas de seguidos (negocios - usa votos con tipo follow)
 router.use('/seguidos', votosRoutes);
 
-// Rutas de guardados (ofertas, rifas, empleos)
+// Rutas de guardados (ofertas y servicios — sección pública Servicios)
 router.use('/guardados', guardadosRoutes);
 
 // Rutas de Business Studio - Dashboard

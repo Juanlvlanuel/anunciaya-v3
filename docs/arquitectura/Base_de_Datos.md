@@ -184,15 +184,23 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 13. Dinámicas y Sorteos (3 tablas) — ⚠️ removido del alcance v1
+### 13. ~~Dinámicas y Sorteos~~ — ❌ tablas eliminadas en Fase D (28 Abril 2026)
 
-| Tabla | Propósito |
-|-------|-----------|
-| `dinamicas` | Rifas y sorteos creados |
-| `dinamica_participaciones` | Participantes en cada dinámica |
-| `dinamica_premios` | Premios de las dinámicas |
+Las tablas `dinamicas`, `dinamica_premios` y `dinamica_participaciones` fueron
+**eliminadas** (`DROP CASCADE`) al cerrar el cleanup técnico de la visión v3.
+Dinámicas/Rifas P2P quedaron descartadas permanentemente para v1 por riesgo
+legal SEGOB en México.
 
-> **Estado:** Las tablas existen en BD pero la funcionalidad **Dinámicas/Rifas P2P fue descartada permanentemente para v1** (riesgo legal SEGOB en México). Pendientes en Fase D del cleanup: decidir si las tablas se eliminan o se conservan congeladas para una posible reconsideración futura. Hay FKs desde `chat_conv.contexto_tipo = 'dinamica'`, `notificaciones.referencia_tipo = 'dinamica'`, `promociones_pagadas.tipo_entidad = 'dinamica'` y `carrito.tipo_seccion = 'rifas'` que deberán limpiarse antes de hacer drop. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
+Limpieza asociada (también aplicada en la migración):
+- Valor `'dinamica'` quitado de los CHECK constraints de `chat_conv.contexto_tipo`,
+  `notificaciones.referencia_tipo` y `promociones_pagadas.tipo_entidad`.
+- Valor `'rifa'` y `'subasta'` quitados de `votos.entity_type` y
+  `metricas_entidad.entity_type`. `'rifa'` también quitado de `guardados.entity_type`.
+- Valores `'rifas'`, `'subastas'`, `'turismo'` quitados de `carrito.tipo_seccion`.
+- Notificación `'nueva_dinamica'` quitada de `notificaciones.tipo`.
+
+Ver: `docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql` y
+`VISION_ESTRATEGICA_AnunciaYA.md` §5.1.
 
 ---
 
@@ -212,7 +220,19 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 |-------|-----------|
 | `bolsa_trabajo` | Publicaciones de la sección pública Servicios (modos Ofrezco/Solicito). Cubre servicios e intangibles, incluye empleos. |
 
-> **Renombrado conceptual (visión v3, abril 2026):** lo que antes iba a ser una sección "Empleos" se unifica en la sección pública **Servicios**. El nombre físico de la tabla `bolsa_trabajo` se conserva por ahora. Decisión pendiente en Fase D del cleanup: dejar el nombre físico tal cual (más barato) vs renombrar a `servicios_publicaciones` (más coherente). Lo mismo aplica a los enums `chat_conv.contexto_tipo = 'empleo'`, `notificaciones.referencia_tipo = 'empleo'` y `promociones_pagadas.tipo_entidad = 'bolsa'` — pendientes de renombrar a `'servicio'`. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §3.2.
+> **Renombrado conceptual aplicado en Fase D (28 Abril 2026):** lo que antes
+> iba a ser una sección "Empleos" se unifica en la sección pública **Servicios**.
+>
+> - **Tabla:** se conserva el nombre físico `bolsa_trabajo` (decisión pragmática:
+>   renombrar implica cambios en cascada sin beneficio funcional real).
+> - **Enums sincronizados:** `chat_conv.contexto_tipo`, `notificaciones.referencia_tipo`,
+>   `votos.entity_type`, `guardados.entity_type` y `metricas_entidad.entity_type`
+>   ahora aceptan `'servicio'` (antes `'empleo'`); `promociones_pagadas.tipo_entidad`
+>   acepta `'servicio'` (antes `'bolsa'`); `notificaciones.tipo` acepta
+>   `'nuevo_servicio'` (antes `'nuevo_empleo'`).
+>
+> Ver: `docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql` y
+> `VISION_ESTRATEGICA_AnunciaYA.md` §3.2.
 
 ---
 

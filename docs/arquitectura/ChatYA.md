@@ -95,7 +95,7 @@ _Ninguna pendiente._
 | participante2_id | UUID FK → usuarios | ON DELETE CASCADE |
 | participante2_modo | VARCHAR(15) | 'personal' \| 'comercial' |
 | participante2_sucursal_id | UUID FK → negocio_sucursales | Nullable, ON DELETE SET NULL |
-| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'dinamica' \| 'empleo' \| 'directo' \| 'notas' (estado actual de la BD; en visión v3 `'dinamica'` queda obsoleto y `'empleo'` será reemplazado/renombrado a `'servicio'` — decisión final en Fase D del cleanup) |
+| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'servicio' \| 'directo' \| 'notas' (CHECK constraint sincronizado en Fase D — visión v3, abril 2026) |
 | contexto_referencia_id | UUID | Nullable. ID del recurso de origen |
 | ultimo_mensaje_texto | VARCHAR(100) | Preview truncado del último mensaje |
 | ultimo_mensaje_fecha | TIMESTAMPTZ | Para ordenar la lista de chats |
@@ -388,8 +388,7 @@ El backend resuelve el nombre del recurso de origen (JOIN/lookup) y lo envía co
 | `'negocio'` | "Desde: Tu perfil" | Solo en modo comercial |
 | `'oferta'` | "Desde oferta: {nombre}" | "Desde oferta: 2x1 en Pizzas" |
 | `'marketplace'` | "Desde publicación: {nombre}" | Preparado para sección pública MarketPlace |
-| `'empleo'` | "Desde vacante: {nombre}" | Preparado para sección pública Servicios (modo Ofrezco/Solicito). El valor `'empleo'` se renombrará a `'servicio'` en Fase D del cleanup |
-| `'dinamica'` | "Desde dinámica: {nombre}" | ⚠️ Obsoleto en visión v3 (Dinámicas removido del alcance). Pendiente de eliminar en Fase D — ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1 |
+| `'servicio'` | "Desde servicio: {nombre}" | Para sección pública Servicios (modos Ofrezco/Solicito). Antes era `'empleo'`; renombrado en Fase D del cleanup (28 Abril 2026). |
 | `'directo'` / `'notas'` | No muestra nada | — |
 
 **Regla de visibilidad:** Solo se muestra al **receptor** del chat (`conversacion.participante1Id !== miId`). Quien inició el chat ya sabe desde dónde lo hizo. El caso `'negocio'` ("Desde: Tu perfil") solo aplica en modo comercial — en modo personal el usuario no tiene perfil de negocio.

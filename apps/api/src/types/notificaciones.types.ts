@@ -8,6 +8,9 @@
 
 export type ModoNotificacion = 'personal' | 'comercial';
 
+// Visión v3 (abril 2026): 'nueva_dinamica' removido del alcance v1 (Dinámicas
+// descartadas) y 'nuevo_empleo' renombrado a 'nuevo_servicio' (sección pública
+// unificada). CHECK constraint en BD ya sincronizado en Fase D.
 export type TipoNotificacion =
   | 'puntos_ganados'
   | 'voucher_generado'
@@ -23,10 +26,10 @@ export type TipoNotificacion =
   | 'nueva_resena'
   | 'sistema'
   | 'nuevo_marketplace'
-  | 'nueva_dinamica'
-  | 'nuevo_empleo'
+  | 'nuevo_servicio'
   | 'alerta_seguridad';
 
+// Idem ReferenciaTipo: 'dinamica' removido, 'empleo' → 'servicio' en Fase D.
 export type ReferenciaTipo =
   | 'transaccion'
   | 'voucher'
@@ -35,8 +38,7 @@ export type ReferenciaTipo =
   | 'recompensa'
   | 'resena'
   | 'marketplace'
-  | 'dinamica'
-  | 'empleo'
+  | 'servicio'
   | 'alerta';
 
 export interface CrearNotificacionInput {

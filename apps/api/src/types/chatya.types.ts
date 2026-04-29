@@ -24,12 +24,14 @@ export type TipoMensaje =
 
 export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 
+// Visión v3 (abril 2026): 'dinamica' removido del alcance v1 (Dinámicas
+// descartadas) y 'empleo' renombrado a 'servicio' (sección pública unificada).
+// CHECK constraint de chat_conv.contexto_tipo en BD ya sincronizado en Fase D.
 export type ContextoTipo =
   | 'negocio'
   | 'marketplace'
   | 'oferta'
-  | 'dinamica'
-  | 'empleo'
+  | 'servicio'
   | 'directo'
   | 'notas';
 

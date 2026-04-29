@@ -181,9 +181,13 @@ export async function crearAlertaPrueba(overrides?: {
   leida?: boolean;
   resuelta?: boolean;
 }): Promise<string> {
+  // Insert principal — incluye `resuelta_at` y `resuelta_por_usuario_id` cuando
+  // viene `resuelta: true` (modelo: `resuelta` es estado GLOBAL del problema,
+  // no preferencia por usuario — ver `alertas.service.ts` cabecera).
   const resultado = await db.execute(sql`
     INSERT INTO alertas_seguridad (
-      negocio_id, tipo, categoria, severidad, titulo, descripcion, leida, resuelta
+      negocio_id, tipo, categoria, severidad, titulo, descripcion, leida,
+      resuelta, resuelta_at, resuelta_por_usuario_id
     ) VALUES (
       ${NEGOCIO_TEST_ID},
       ${overrides?.tipo ?? 'monto_inusual'},
@@ -192,22 +196,25 @@ export async function crearAlertaPrueba(overrides?: {
       ${'Alerta de prueba'},
       ${'Descripción de la alerta de prueba'},
       ${overrides?.leida ?? false},
-      ${overrides?.resuelta ?? false}
+      ${overrides?.resuelta ?? false},
+      ${overrides?.resuelta ? sql`NOW()` : sql`NULL`},
+      ${overrides?.resuelta ? USUARIO_1_ID : null}
     )
     RETURNING id
   `);
 
   const alertaId = (resultado as unknown as { rows: { id: string }[] }).rows[0].id;
 
-  // Si se marcó leída/resuelta, registrar la lectura para el dueño de prueba
+  // Si se marcó leída/resuelta, registrar la lectura para el dueño de prueba.
+  // `alerta_lecturas` solo tiene columnas (leida_at, ocultada_at) por usuario;
+  // `resuelta_at` vive en `alertas_seguridad` (global), NO aquí.
   if (overrides?.leida || overrides?.resuelta) {
     await db.execute(sql`
-      INSERT INTO alerta_lecturas (alerta_id, usuario_id, leida_at, resuelta_at)
+      INSERT INTO alerta_lecturas (alerta_id, usuario_id, leida_at)
       VALUES (
         ${alertaId},
         ${USUARIO_1_ID},
-        ${overrides?.leida || overrides?.resuelta ? sql`NOW()` : sql`NULL`},
-        ${overrides?.resuelta ? sql`NOW()` : sql`NULL`}
+        NOW()
       )
       ON CONFLICT (alerta_id, usuario_id) DO NOTHING
     `);

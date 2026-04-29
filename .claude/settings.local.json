@@ -138,7 +138,10 @@
       "Bash(grep -nA 5 'export const useDashboardStore' apps/web/src/stores/useDashboardStore.ts)",
       "Bash(grep -nA 5 'export const usePuntosStore' apps/web/src/stores/usePuntosStore.ts)",
       "Bash(git log *)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(git stash *)",
+      "Bash(npx tsx *)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   },
   "disableAllHooks": true

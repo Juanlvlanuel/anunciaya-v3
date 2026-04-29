@@ -10,13 +10,13 @@
  * Sistema reutilizable para todas las secciones de AnunciaYA
  * 
  * ENTITY TYPES SOPORTADOS:
- * - sucursal (Directorio de negocios)
- * - articulo (Productos/Servicios)
- * - publicacion (Marketplace)
- * - oferta (Ofertas/Cupones)
- * - rifa (Dinámicas - Rifas/Sorteos)
- * - subasta (Dinámicas - Subastas)
- * - empleo (Empleos/Servicios)
+ * - sucursal     (Directorio de negocios)
+ * - articulo     (Productos/Servicios)
+ * - publicacion  (Marketplace)
+ * - oferta       (Ofertas/Cupones)
+ * - servicio     (publicaciones de la sección pública Servicios)
+ *
+ * Removidos del alcance v1: 'rifa', 'subasta' (Dinámicas descartadas).
  * 
  * VOTANTE:
  * - Si votanteSucursalId es NULL → Usuario votó como persona
@@ -31,7 +31,7 @@ import { votos } from '../db/schemas/schema';
 // TIPOS
 // =============================================================================
 
-type EntityType = 'sucursal' | 'articulo' | 'publicacion' | 'oferta' | 'rifa' | 'subasta' | 'empleo';
+type EntityType = 'sucursal' | 'articulo' | 'publicacion' | 'oferta' | 'servicio';
 type TipoAccion = 'like' | 'follow';
 
 interface CrearVotoParams {

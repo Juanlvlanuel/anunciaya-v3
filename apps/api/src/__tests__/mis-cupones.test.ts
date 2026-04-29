@@ -136,13 +136,14 @@ describe('Mis Cupones — Estados válidos', () => {
 // =============================================================================
 
 describe('Notificaciones — Tipos cupón', () => {
+  // Visión v3: 'nueva_dinamica' removido del alcance v1, 'nuevo_empleo' renombrado a 'nuevo_servicio'.
   const tipoNotificacionSchema = z.enum([
     'puntos_ganados', 'voucher_generado', 'voucher_cobrado',
     'nueva_oferta', 'nueva_recompensa', 'recompensa_desbloqueada',
     'cupon_asignado', 'cupon_revocado',
     'nuevo_cliente', 'voucher_pendiente', 'stock_bajo',
     'nueva_resena', 'sistema', 'nuevo_marketplace',
-    'nueva_dinamica', 'nuevo_empleo',
+    'nuevo_servicio',
   ]);
 
   it('debe aceptar cupon_asignado', () => {

@@ -236,8 +236,7 @@ mensaje: `${nombreCliente} ganó ${puntos} puntos`,
 | `stock_bajo` | AlertTriangle | Rojo oscuro | `#dc2626 → #991b1b` |
 | `nueva_resena` | Star | Ámbar | `#f59e0b → #b45309` |
 | `nuevo_marketplace` | ShoppingBag | Rosa | `#ec4899 → #be185d` |
-| `nueva_dinamica` | Megaphone | Índigo | `#6366f1 → #4338ca` (⚠️ obsoleto en visión v3 — Dinámicas removido del alcance) |
-| `nuevo_empleo` | Briefcase | Azul cielo | `#0ea5e9 → #0369a1` (se renombrará a `nuevo_servicio` en Fase D del cleanup, alineado con sección pública Servicios) |
+| `nuevo_servicio` | Briefcase | Azul cielo | `#0ea5e9 → #0369a1` (alineado con sección pública Servicios; antes `nuevo_empleo`, renombrado en Fase D del cleanup — abril 2026) |
 | `sistema` | Settings | Gris | `#64748b → #475569` |
 
 **Regla:** Cada tipo tiene icono y color únicos. No repetir combinaciones.
@@ -575,7 +574,7 @@ Algunas notificaciones apuntan a un tab pero la entidad ya migró a otro. Ejempl
 ## Pendientes
 
 - [ ] Agregar campo `negocioLogoUrl` separado de `actorImagenUrl` para distinguir logo del negocio vs imagen del contenido
-- [ ] Notificaciones pendientes de crear: `nuevo_marketplace`, `nuevo_servicio` (alineado con visión v3: secciones públicas MarketPlace y Servicios). El tipo `nueva_dinamica` queda obsoleto al descartarse Dinámicas — pendiente de eliminar del enum en Fase D del cleanup. El tipo `nuevo_empleo` se renombrará a `nuevo_servicio`. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §3.2 y §5.1.
+- [ ] Notificaciones pendientes de crear (cuando las secciones públicas se construyan): `nuevo_marketplace`, `nuevo_servicio`. Los tipos viejos (`nueva_dinamica`, `nuevo_empleo`) ya fueron limpiados del enum en Fase D del cleanup (visión v3, abril 2026).
 - [ ] Notificación `nuevo_cliente` — aún no implementada en el backend
 - [ ] Evaluar si los gerentes deben recibir `stock_bajo` / `agotado` (actualmente solo el dueño)
 - [ ] Empleados ScanYA aún no tienen panel de notificaciones visible — las notificaciones se guardan para su `usuarioId` pero no hay UI

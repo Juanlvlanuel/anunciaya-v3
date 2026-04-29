@@ -926,6 +926,9 @@ export async function obtenerReportePromociones(
 
     // ── Mejor cupón del período ────────────────────────────────────────────
     const condFechaFinMejorCupon = fechaFinNorm ? sql`AND ou.created_at <= ${fechaFinNorm}` : sql``;
+    // Bug preexistente: el ternario debe evaluar `sucursalId`, no `condSucOfertaUsos`
+    // (que es un objeto SQL — siempre truthy, incluso cuando es la versión vacía sql``).
+    const condSucMejorCupon = sucursalId ? sql`AND ou.sucursal_id = ${sucursalId}` : sql``;
     const mejorCuponRaw = await db.execute(sql`
       SELECT
         o.titulo,
@@ -939,7 +942,7 @@ export async function obtenerReportePromociones(
       WHERE o.negocio_id = ${negocioId}
         AND ou.created_at >= ${fechaInicio.toISOString()}
         ${condFechaFinMejorCupon}
-        ${condSucOfertaUsos ? sql`AND ou.sucursal_id = ${sucursalId}` : sql``}
+        ${condSucMejorCupon}
       GROUP BY o.id, o.titulo, o.tipo, o.valor, o.imagen, o.descripcion
       ORDER BY COUNT(ou.id) DESC
       LIMIT 1

@@ -193,7 +193,7 @@ describe('GET /api/business/reportes?tab=promociones', () => {
 
     const reporte = data.data as Record<string, unknown>;
     expect(reporte.funnelCupones).toBeDefined();
-    expect(reporte.funnelVouchers).toBeDefined();
+    expect(reporte.funnelRecompensas).toBeDefined();
     expect(typeof reporte.descuentoTotal).toBe('number');
     expect(typeof reporte.porVencer).toBe('number');
   });

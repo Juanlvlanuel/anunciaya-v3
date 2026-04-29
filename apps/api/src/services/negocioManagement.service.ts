@@ -26,8 +26,6 @@ import {
     articuloSucursales,
     ofertas,
     empleados,
-    dinamicas,
-    dinamicaPremios,
     bolsaTrabajo,
     puntosTransacciones,
     transaccionesEvidencia,
@@ -1598,12 +1596,12 @@ export const eliminarSucursal = async (sucursalId: string) => {
 		if (sucursal.portadaUrl) urlsAEliminar.push(sucursal.portadaUrl);
 
 		// Queries en paralelo para recolectar URLs
-		const [galeriaImgs, articulosAsignados, ofertasImgs, empleadosFotos, dinamicasData, vacantesImgs, transaccionesSuc] = await Promise.all([
+		// (Tablas dinámicas removidas en Fase D del cleanup — visión v3, abril 2026)
+		const [galeriaImgs, articulosAsignados, ofertasImgs, empleadosFotos, vacantesImgs, transaccionesSuc] = await Promise.all([
 			db.select({ url: negocioGaleria.url }).from(negocioGaleria).where(eq(negocioGaleria.sucursalId, sucursalId)),
 			db.select({ articuloId: articuloSucursales.articuloId }).from(articuloSucursales).where(eq(articuloSucursales.sucursalId, sucursalId)),
 			db.select({ imagen: ofertas.imagen }).from(ofertas).where(eq(ofertas.sucursalId, sucursalId)),
 			db.select({ fotoUrl: empleados.fotoUrl }).from(empleados).where(eq(empleados.sucursalId, sucursalId)),
-			db.select({ id: dinamicas.id, imagenUrl: dinamicas.imagenUrl }).from(dinamicas).where(eq(dinamicas.sucursalId, sucursalId)),
 			db.select({ portafolioUrl: bolsaTrabajo.portafolioUrl }).from(bolsaTrabajo).where(eq(bolsaTrabajo.sucursalId, sucursalId)),
 			db.select({ id: puntosTransacciones.id, fotoTicketUrl: puntosTransacciones.fotoTicketUrl }).from(puntosTransacciones).where(eq(puntosTransacciones.sucursalId, sucursalId)),
 		]);
@@ -1617,19 +1615,7 @@ export const eliminarSucursal = async (sucursalId: string) => {
 		// Empleados
 		for (const e of empleadosFotos) if (e.fotoUrl) urlsAEliminar.push(e.fotoUrl);
 
-		// Dinámicas + sus premios
-		for (const d of dinamicasData) if (d.imagenUrl) urlsAEliminar.push(d.imagenUrl);
-
-		if (dinamicasData.length > 0) {
-			const premiosImgs = await db
-				.select({ imagenUrl: dinamicaPremios.imagenUrl })
-				.from(dinamicaPremios)
-				.where(inArray(dinamicaPremios.dinamicaId, dinamicasData.map(d => d.id)));
-
-			for (const p of premiosImgs) if (p.imagenUrl) urlsAEliminar.push(p.imagenUrl);
-		}
-
-		// Bolsa de trabajo
+		// Bolsa de trabajo (publicaciones de Servicios)
 		for (const v of vacantesImgs) if (v.portafolioUrl) urlsAEliminar.push(v.portafolioUrl);
 
 		// Tickets ScanYA + evidencia

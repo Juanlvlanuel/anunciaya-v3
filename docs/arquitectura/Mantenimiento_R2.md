@@ -56,11 +56,9 @@ apps/api/src/
 
 **Regla de oro**: al agregar una columna nueva que guarde URL de imagen, AGRÉGALA al registry. Si no está en el registry, el reconcile la tratará como "no en uso" y podría borrar el archivo físico.
 
-Cobertura actual (19 campos): `usuarios.avatar_url`, `negocios.logo_url`, `negocio_sucursales.foto_perfil`, `negocio_sucursales.portada_url`, `negocio_galeria.url`, `articulos.imagen_principal`, `articulos.imagenes_adicionales` (array), `pedido_articulos.imagen_url`, `ofertas.imagen`, `recompensas.imagen_url`, `dinamicas.imagen_url`, `dinamica_premios.imagen_url`, `empleados.foto_url`, `puntos_transacciones.foto_ticket_url`, `transacciones_evidencia.url_imagen`, `bolsa_trabajo.portafolio_url`, `notificaciones.actor_imagen_url`, `chat_mensajes.contenido` (text-scan-urls), `marketplace.imagenes` (text-scan-urls sobre JSONB).
+Cobertura actual (17 campos): `usuarios.avatar_url`, `negocios.logo_url`, `negocio_sucursales.foto_perfil`, `negocio_sucursales.portada_url`, `negocio_galeria.url`, `articulos.imagen_principal`, `articulos.imagenes_adicionales` (array), `pedido_articulos.imagen_url`, `ofertas.imagen`, `recompensas.imagen_url`, `empleados.foto_url`, `puntos_transacciones.foto_ticket_url`, `transacciones_evidencia.url_imagen`, `bolsa_trabajo.portafolio_url`, `notificaciones.actor_imagen_url`, `chat_mensajes.contenido` (text-scan-urls), `marketplace.imagenes` (text-scan-urls sobre JSONB).
 
-No hay campos pendientes — scan exhaustivo del schema completado el 17 Abril 2026.
-
-> **Pendiente Fase D del cleanup (visión v3):** los campos `dinamicas.imagen_url` y `dinamica_premios.imagen_url` quedarán sin uso al descartarse Dinámicas (`VISION_ESTRATEGICA_AnunciaYA.md` §5.1). Se mantienen en el registry hasta que se decida el destino de las tablas (drop vs congelar). El campo `bolsa_trabajo.portafolio_url` se conserva — alimenta la sección pública Servicios.
+No hay campos pendientes — scan exhaustivo del schema. En Fase D (28 Abril 2026) se eliminaron del registry `dinamicas.imagen_url` y `dinamica_premios.imagen_url` al hacer DROP de las tablas dinamicas (visión v3 — Dinámicas descartadas, ver `VISION_ESTRATEGICA_AnunciaYA.md` §5.1).
 
 ### Tipos de campo soportados
 

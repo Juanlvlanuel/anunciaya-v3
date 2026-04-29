@@ -347,10 +347,12 @@ function generarExcelEmpleados(sheet: ExcelJS.Worksheet, data: Record<string, un
 // ── Promociones ─────────────────────────────────────────────────────────────
 
 function generarExcelPromociones(sheet: ExcelJS.Worksheet, data: Record<string, unknown>, estiloHeader: (cell: ExcelJS.Cell) => void) {
+  // El service emite `funnelOfertas` sin `canjes` y `funnelRecompensas` (no `funnelVouchers`).
+  // Tipos sincronizados con `ReportePromociones` en reportes.service.ts.
   const promo = data as {
-    funnelOfertas: { activas: number; vistas: number; clicks: number; shares: number; canjes: number; expiradas: number };
+    funnelOfertas: { activas: number; vistas: number; clicks: number; shares: number; expiradas: number };
     funnelCupones: { emitidos: number; canjeados: number; expirados: number; activos: number };
-    funnelVouchers: { generados: number; canjeados: number; expirados: number; pendientes: number };
+    funnelRecompensas: { generados: number; canjeados: number; expirados: number; pendientes: number };
   };
 
   sheet.columns = [
@@ -365,7 +367,6 @@ function generarExcelPromociones(sheet: ExcelJS.Worksheet, data: Record<string, 
   sheet.addRow({ seccion: 'Ofertas', metrica: 'Vistas', valor: promo.funnelOfertas.vistas });
   sheet.addRow({ seccion: 'Ofertas', metrica: 'Clicks', valor: promo.funnelOfertas.clicks });
   sheet.addRow({ seccion: 'Ofertas', metrica: 'Shares', valor: promo.funnelOfertas.shares });
-  sheet.addRow({ seccion: 'Ofertas', metrica: 'Canjes', valor: promo.funnelOfertas.canjes });
   sheet.addRow({ seccion: 'Ofertas', metrica: 'Expiradas', valor: promo.funnelOfertas.expiradas });
 
   sheet.addRow({ seccion: 'Cupones', metrica: 'Emitidos', valor: promo.funnelCupones.emitidos });
@@ -373,10 +374,10 @@ function generarExcelPromociones(sheet: ExcelJS.Worksheet, data: Record<string, 
   sheet.addRow({ seccion: 'Cupones', metrica: 'Expirados', valor: promo.funnelCupones.expirados });
   sheet.addRow({ seccion: 'Cupones', metrica: 'Activos', valor: promo.funnelCupones.activos });
 
-  sheet.addRow({ seccion: 'Vouchers', metrica: 'Generados', valor: promo.funnelVouchers.generados });
-  sheet.addRow({ seccion: 'Vouchers', metrica: 'Canjeados', valor: promo.funnelVouchers.canjeados });
-  sheet.addRow({ seccion: 'Vouchers', metrica: 'Expirados', valor: promo.funnelVouchers.expirados });
-  sheet.addRow({ seccion: 'Vouchers', metrica: 'Pendientes', valor: promo.funnelVouchers.pendientes });
+  sheet.addRow({ seccion: 'Recompensas', metrica: 'Generados', valor: promo.funnelRecompensas.generados });
+  sheet.addRow({ seccion: 'Recompensas', metrica: 'Canjeados', valor: promo.funnelRecompensas.canjeados });
+  sheet.addRow({ seccion: 'Recompensas', metrica: 'Expirados', valor: promo.funnelRecompensas.expirados });
+  sheet.addRow({ seccion: 'Recompensas', metrica: 'Pendientes', valor: promo.funnelRecompensas.pendientes });
 }
 
 // ── Reseñas ─────────────────────────────────────────────────────────────────

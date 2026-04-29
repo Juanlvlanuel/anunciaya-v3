@@ -6,7 +6,7 @@
  * UBICACIÓN: apps/api/src/controllers/guardados.controller.ts
  * 
  * PROPÓSITO:
- * Maneja las peticiones HTTP para guardados (ofertas, rifas, empleos)
+ * Maneja las peticiones HTTP para guardados (ofertas y servicios)
  */
 
 import { Request, Response } from 'express';
@@ -51,7 +51,7 @@ export async function agregarGuardadoController(req: Request, res: Response) {
             });
         }
 
-        const validEntityTypes = ['oferta', 'rifa', 'empleo'];
+        const validEntityTypes = ['oferta', 'servicio'];
         if (!validEntityTypes.includes(entityType)) {
             return res.status(400).json({
                 success: false,
@@ -109,7 +109,7 @@ export async function quitarGuardadoController(req: Request, res: Response) {
             });
         }
 
-        const validEntityTypes = ['oferta', 'rifa', 'empleo'];
+        const validEntityTypes = ['oferta', 'servicio'];
         if (!validEntityTypes.includes(entityType)) {
             return res.status(400).json({
                 success: false,
@@ -120,7 +120,7 @@ export async function quitarGuardadoController(req: Request, res: Response) {
         // Quitar de guardados
         const resultado = await quitarGuardado(
             userId,
-            entityType as 'oferta' | 'rifa' | 'empleo',
+            entityType as 'oferta' | 'servicio',
             entityId
         );
 
@@ -171,7 +171,7 @@ export async function obtenerGuardadosController(req: Request, res: Response) {
 
         // Validar entityType si se proporciona
         if (entityType) {
-            const validEntityTypes = ['oferta', 'rifa', 'empleo'];
+            const validEntityTypes = ['oferta', 'servicio'];
             if (!validEntityTypes.includes(entityType)) {
                 return res.status(400).json({
                     success: false,
@@ -182,7 +182,7 @@ export async function obtenerGuardadosController(req: Request, res: Response) {
 
         const resultado = await obtenerGuardados(
             userId,
-            entityType as 'oferta' | 'rifa' | 'empleo' | undefined,
+            entityType as 'oferta' | 'servicio' | undefined,
             pagina,
             limite
         );

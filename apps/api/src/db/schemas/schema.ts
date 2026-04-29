@@ -602,7 +602,7 @@ export const carrito = pgTable("carrito", {
 		name: "carrito_usuario_id_fkey"
 	}).onDelete("cascade"),
 	unique("carrito_usuario_vendedor_unique").on(table.usuarioId, table.tipoVendedor, table.vendedorId),
-	check("carrito_tipo_seccion_check", sql`(tipo_seccion)::text = ANY ((ARRAY['marketplace'::character varying, 'negocios_locales'::character varying, 'promociones'::character varying, 'rifas'::character varying, 'subastas'::character varying, 'turismo'::character varying])::text[])`),
+	check("carrito_tipo_seccion_check", sql`(tipo_seccion)::text = ANY ((ARRAY['marketplace'::character varying, 'negocios_locales'::character varying, 'promociones'::character varying])::text[])`),
 	check("carrito_tipo_vendedor_check", sql`(tipo_vendedor)::text = ANY ((ARRAY['comercial'::character varying, 'personal'::character varying])::text[])`),
 ]);
 
@@ -928,7 +928,7 @@ export const votos = pgTable("votos", {
 		foreignColumns: [negocioSucursales.id],  // ← AGREGAR FK
 		name: "votos_votante_sucursal_id_fkey"
 	}).onDelete("set null"),
-	check("votos_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['sucursal'::character varying, 'articulo'::character varying, 'publicacion'::character varying, 'oferta'::character varying, 'rifa'::character varying, 'subasta'::character varying, 'empleo'::character varying])::text[])`),
+	check("votos_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['sucursal'::character varying, 'articulo'::character varying, 'publicacion'::character varying, 'oferta'::character varying, 'servicio'::character varying])::text[])`),
 	check("votos_tipo_accion_check", sql`(tipo_accion)::text = ANY ((ARRAY['like'::character varying, 'follow'::character varying])::text[])`),
 ]);
 
@@ -943,7 +943,7 @@ export const guardados = pgTable("guardados", {
 	index("idx_guardados_entity").using("btree", table.entityType.asc().nullsLast(), table.entityId.asc().nullsLast()),
 	index("idx_guardados_usuario_entity").using("btree", table.usuarioId.asc().nullsLast(), table.entityType.asc().nullsLast()),
 	unique("guardados_unique").on(table.usuarioId, table.entityType, table.entityId),
-	check("guardados_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['oferta'::character varying, 'rifa'::character varying, 'empleo'::character varying])::text[])`),
+	check("guardados_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['oferta'::character varying, 'servicio'::character varying])::text[])`),
 ]);
 
 export const resenas = pgTable("resenas", {
@@ -996,7 +996,7 @@ export const metricasEntidad = pgTable("metricas_entidad", {
 	index("idx_metricas_entidad_entity").using("btree", table.entityType.asc().nullsLast(), table.entityId.asc().nullsLast()),
 	unique("metricas_entidad_unique").on(table.entityType, table.entityId),
 	// ⚠️ ACTUALIZADO: 'sucursal' en lugar de 'negocio'
-	check("metricas_entidad_type_check", sql`(entity_type)::text = ANY ((ARRAY['sucursal'::character varying, 'articulo'::character varying, 'publicacion'::character varying, 'oferta'::character varying, 'rifa'::character varying, 'subasta'::character varying, 'empleo'::character varying])::text[])`),
+	check("metricas_entidad_type_check", sql`(entity_type)::text = ANY ((ARRAY['sucursal'::character varying, 'articulo'::character varying, 'publicacion'::character varying, 'oferta'::character varying, 'servicio'::character varying])::text[])`),
 ]);
 
 
@@ -1149,7 +1149,7 @@ export const promocionesPagadas = pgTable("promociones_pagadas", {
 	check("promociones_pagadas_fechas_check", sql`expira_at > inicia_at`),
 	check("promociones_pagadas_modo_check", sql`(modo_visualizacion)::text = ANY ((ARRAY['carousel'::character varying, 'estatico'::character varying])::text[])`),
 	check("promociones_pagadas_precio_check", sql`precio_pagado >= (0)::numeric`),
-	check("promociones_pagadas_tipo_entidad_check", sql`(tipo_entidad)::text = ANY ((ARRAY['marketplace'::character varying, 'oferta'::character varying, 'dinamica'::character varying, 'bolsa'::character varying, 'negocio'::character varying])::text[])`),
+	check("promociones_pagadas_tipo_entidad_check", sql`(tipo_entidad)::text = ANY ((ARRAY['marketplace'::character varying, 'oferta'::character varying, 'servicio'::character varying, 'negocio'::character varying])::text[])`),
 ]);
 
 export const promocionesTemporales = pgTable("promociones_temporales", {
@@ -1253,34 +1253,10 @@ export const embajadorComisiones = pgTable("embajador_comisiones", {
 	check("embajador_comisiones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['primer_pago'::character varying, 'recurrente'::character varying])::text[])`),
 ]);
 
-export const dinamicaPremios = pgTable("dinamica_premios", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	dinamicaId: uuid("dinamica_id").notNull(),
-	proveedorNegocioId: uuid("proveedor_negocio_id"),
-	nombrePremio: varchar("nombre_premio", { length: 200 }).notNull(),
-	descripcion: text(),
-	imagenUrl: text("imagen_url"),
-	valorEstimado: numeric("valor_estimado", { precision: 10, scale: 2 }).notNull(),
-	cantidadDisponible: integer("cantidad_disponible").default(1).notNull(),
-	orden: integer().default(0).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_dinamica_premios_dinamica").using("btree", table.dinamicaId.asc().nullsLast(), table.orden.asc().nullsLast()),
-	index("idx_dinamica_premios_proveedor").using("btree", table.proveedorNegocioId.asc().nullsLast()).where(sql`(proveedor_negocio_id IS NOT NULL)`),
-	foreignKey({
-		columns: [table.dinamicaId],
-		foreignColumns: [dinamicas.id],
-		name: "fk_dinamica_premios_dinamica"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.proveedorNegocioId],
-		foreignColumns: [negocios.id],
-		name: "fk_dinamica_premios_negocio"
-	}).onDelete("set null"),
-	check("dinamica_premios_cantidad_check", sql`cantidad_disponible >= 0`),
-	check("dinamica_premios_valor_check", sql`valor_estimado >= (0)::numeric`),
-]);
+// Tablas dinamicas (dinamica_premios, dinamicas, dinamica_participaciones)
+// fueron eliminadas en Fase D del cleanup (visión v3 — abril 2026).
+// Dinámicas/Rifas P2P se descartaron permanentemente para v1 por riesgo legal
+// SEGOB. Ver: docs/migraciones/2026-04-28-fase-d-vision-v3-cleanup.sql.
 
 export const empleados = pgTable("empleados", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -1319,72 +1295,6 @@ export const empleados = pgTable("empleados", {
 		name: "empleados_sucursal_id_fkey"
 	}).onDelete("cascade"),
 	check("empleados_pin_acceso_check", sql`(pin_acceso IS NULL) OR ((pin_acceso)::text ~ '^[0-9]{4}$'::text)`),
-]);
-
-export const dinamicas = pgTable("dinamicas", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	negocioId: uuid("negocio_id"),
-	sucursalId: uuid("sucursal_id").references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'cascade' }),
-	creadoPor: uuid("creado_por").notNull(),
-	titulo: varchar({ length: 200 }).notNull(),
-	descripcion: text().notNull(),
-	tipo: varchar({ length: 20 }).notNull(),
-	imagenUrl: varchar("imagen_url", { length: 500 }),
-	fechaInicio: timestamp("fecha_inicio", { withTimezone: true, mode: 'string' }).notNull(),
-	fechaFin: timestamp("fecha_fin", { withTimezone: true, mode: 'string' }).notNull(),
-	fechaSorteo: timestamp("fecha_sorteo", { withTimezone: true, mode: 'string' }),
-	requisitos: jsonb(),
-	estado: varchar({ length: 20 }).default('borrador').notNull(),
-	esPublica: boolean("es_publica").default(true).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_dinamicas_creado_por").using("btree", table.creadoPor.asc().nullsLast()),
-	index("idx_dinamicas_es_publica").using("btree", table.esPublica.asc().nullsLast()).where(sql`(es_publica = true)`),
-	index("idx_dinamicas_estado").using("btree", table.estado.asc().nullsLast()).where(sql`((estado)::text = 'activa'::text)`),
-	index("idx_dinamicas_fecha_sorteo").using("btree", table.fechaSorteo.asc().nullsLast()).where(sql`(fecha_sorteo IS NOT NULL)`),
-	index("idx_dinamicas_fechas").using("btree", table.fechaInicio.asc().nullsLast(), table.fechaFin.asc().nullsLast()),
-	index("idx_dinamicas_negocio").using("btree", table.negocioId.asc().nullsLast()).where(sql`(negocio_id IS NOT NULL)`),
-	index("idx_dinamicas_sucursal").using("btree", table.sucursalId.asc().nullsLast()).where(sql`(sucursal_id IS NOT NULL)`),
-	index("idx_dinamicas_tipo").using("btree", table.tipo.asc().nullsLast()),
-	foreignKey({
-		columns: [table.creadoPor],
-		foreignColumns: [usuarios.id],
-		name: "fk_dinamicas_creado_por"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "fk_dinamicas_negocio"
-	}).onDelete("set null"),
-	check("dinamicas_estado_check", sql`(estado)::text = ANY ((ARRAY['borrador'::character varying, 'activa'::character varying, 'finalizada'::character varying, 'cancelada'::character varying])::text[])`),
-	check("dinamicas_fecha_sorteo_check", sql`(fecha_sorteo IS NULL) OR (fecha_sorteo >= fecha_inicio)`),
-	check("dinamicas_fechas_check", sql`fecha_fin > fecha_inicio`),
-	check("dinamicas_tipo_check", sql`(tipo)::text = ANY ((ARRAY['rifa'::character varying, 'sorteo'::character varying, 'promocion'::character varying, 'giveaway'::character varying])::text[])`),
-]);
-
-export const dinamicaParticipaciones = pgTable("dinamica_participaciones", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	dinamicaId: uuid("dinamica_id").notNull(),
-	usuarioId: uuid("usuario_id").notNull(),
-	entradas: integer().default(1).notNull(),
-	datosExtra: jsonb("datos_extra"),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_dinamica_participaciones_dinamica").using("btree", table.dinamicaId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
-	index("idx_dinamica_participaciones_entradas").using("btree", table.entradas.asc().nullsLast()).where(sql`(entradas > 1)`),
-	index("idx_dinamica_participaciones_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
-	foreignKey({
-		columns: [table.dinamicaId],
-		foreignColumns: [dinamicas.id],
-		name: "fk_dinamica_participaciones_dinamica"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.usuarioId],
-		foreignColumns: [usuarios.id],
-		name: "fk_dinamica_participaciones_usuario"
-	}).onDelete("cascade"),
-	unique("dinamica_participaciones_unique").on(table.dinamicaId, table.usuarioId),
-	check("dinamica_participaciones_entradas_check", sql`entradas > 0`),
 ]);
 
 export const bolsaTrabajo = pgTable("bolsa_trabajo", {
@@ -1963,8 +1873,8 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nueva_dinamica'::character varying, 'nuevo_empleo'::character varying])::text[])`),
-	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'dinamica'::character varying, 'empleo'::character varying])::text[]))`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying])::text[])`),
+	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying])::text[]))`),
 ]);
 
 
@@ -2046,7 +1956,7 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	}).onDelete("set null"),
 	check("chat_conv_modo_p1_check", sql`(participante1_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("chat_conv_modo_p2_check", sql`(participante2_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'dinamica'::character varying, 'empleo'::character varying, 'directo'::character varying, 'notas'::character varying])::text[])`),
+	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'servicio'::character varying, 'directo'::character varying, 'notas'::character varying])::text[])`),
 	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id OR contexto_tipo = 'notas' OR (participante1_sucursal_id IS NOT NULL AND participante2_sucursal_id IS NOT NULL AND participante1_sucursal_id <> participante2_sucursal_id)`),
 ]);
 

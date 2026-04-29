@@ -23,7 +23,8 @@ import { db } from '../db';
 // TIPOS
 // =============================================================================
 
-type EntityType = 'sucursal' | 'articulo' | 'publicacion' | 'oferta' | 'rifa' | 'subasta';
+// 'rifa' y 'subasta' removidos del alcance v1 (Dinámicas descartadas — visión v3).
+type EntityType = 'sucursal' | 'articulo' | 'publicacion' | 'oferta';
 
 // =============================================================================
 // REGISTRAR VISTA

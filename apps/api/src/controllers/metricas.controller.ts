@@ -44,7 +44,8 @@ export async function registrarViewController(req: Request, res: Response) {
             });
         }
 
-        const validEntityTypes = ['sucursal', 'articulo', 'publicacion', 'oferta', 'rifa', 'subasta'];
+        // 'rifa' y 'subasta' removidos del alcance v1 (Dinámicas descartadas — visión v3).
+        const validEntityTypes = ['sucursal', 'articulo', 'publicacion', 'oferta'];
         if (!validEntityTypes.includes(entityType)) {
             return res.status(400).json({
                 success: false,
