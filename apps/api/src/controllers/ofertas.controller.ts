@@ -15,7 +15,11 @@ import { Request, Response } from 'express';
 import {
   obtenerFeedOfertas,
   obtenerOfertaDetalle,
+  obtenerOfertaDestacadaDelDia as obtenerOfertaDestacadaDelDiaService,
   registrarVistaOferta,
+  registrarClickOferta,
+  registrarShareOferta,
+  obtenerSucursalesDeOferta,
   crearOferta,
   obtenerOfertas,
   obtenerOfertaPorId,
@@ -49,19 +53,14 @@ import {
 
 /**
  * GET /api/ofertas/feed
- * Obtiene feed de ofertas geolocalizadas
- * 
- * Query params:
- * - latitud, longitud, distanciaMaxKm
- * - categoriaId, tipo, busqueda
- * - limite, offset
- * 
- * Funciona en modo personal y comercial
+ * Obtiene feed de ofertas geolocalizadas.
+ *
+ * Requiere usuario autenticado (verificarToken). El feed devuelve
+ * liked/saved personalizados.
  */
 export async function getFeedOfertas(req: Request, res: Response) {
   try {
-    // Usuario autenticado (puede ser null si la ruta no requiere auth)
-    const userId = req.usuario?.usuarioId || null;
+    const userId = req.usuario!.usuarioId;
 
     // Validar query params con Zod
     const validacion = filtrosFeedSchema.safeParse(req.query);
@@ -95,7 +94,7 @@ export async function getFeedOfertas(req: Request, res: Response) {
 export async function getOfertaDetalle(req: Request, res: Response) {
   try {
     const { ofertaId } = req.params;
-    const userId = req.usuario?.usuarioId || null;
+    const userId = req.usuario!.usuarioId;
 
     // Validar formato UUID
     const uuidRegex =
@@ -119,6 +118,79 @@ export async function getOfertaDetalle(req: Request, res: Response) {
     return res.status(500).json({
       success: false,
       message: 'Error al obtener detalle de la oferta',
+    });
+  }
+}
+
+/**
+ * GET /api/ofertas/:id/sucursales
+ * Devuelve la lista de sucursales donde aplica la MISMA oferta operativa
+ * (mismo grupo de partición que el dedup del feed).
+ *
+ * Query params opcionales:
+ *  - latitud, longitud → calcula distancia desde el GPS del usuario y
+ *    ordena por distancia ASC. Sin GPS, ordena por matriz primero.
+ */
+export async function getSucursalesDeOferta(req: Request, res: Response) {
+  try {
+    const { ofertaId } = req.params;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(ofertaId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El ID de la oferta no es válido',
+      });
+    }
+
+    const latitud = Number(req.query.latitud);
+    const longitud = Number(req.query.longitud);
+    const gpsUsuario =
+      Number.isFinite(latitud) && Number.isFinite(longitud)
+        ? { latitud, longitud }
+        : undefined;
+
+    const resultado = await obtenerSucursalesDeOferta(ofertaId, gpsUsuario);
+    if (!resultado.success) {
+      return res.status(resultado.code ?? 404).json(resultado);
+    }
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getSucursalesDeOferta:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener sucursales de la oferta',
+    });
+  }
+}
+
+/**
+ * GET /api/ofertas/destacada-del-dia
+ * Devuelve la oferta destacada vigente para el feed público.
+ * - Si hay override admin activo y vigente, devuelve esa oferta.
+ * - Si no, calcula automáticamente la más popular activa.
+ * - Si no hay ninguna, devuelve `data: null` (no es error).
+ */
+export async function getOfertaDestacadaDelDia(req: Request, res: Response) {
+  try {
+    const userId = req.usuario!.usuarioId;
+
+    // GPS opcional para calcular distancia. NO filtra por ciudad
+    // (la destacada del día es contenido editorial global).
+    const latitud = Number(req.query.latitud);
+    const longitud = Number(req.query.longitud);
+    const gpsUsuario =
+      Number.isFinite(latitud) && Number.isFinite(longitud)
+        ? { latitud, longitud }
+        : undefined;
+
+    const resultado = await obtenerOfertaDestacadaDelDiaService(userId, gpsUsuario);
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getOfertaDestacadaDelDia:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener la oferta destacada del día',
     });
   }
 }
@@ -551,8 +623,9 @@ export async function postRegistrarVista(req: Request, res: Response) {
       });
     }
 
-    // Registrar vista
-    await registrarVistaOferta(id);
+    // Registrar vista (incrementa contador acumulado + evento individual)
+    const usuarioId = req.usuario!.usuarioId;
+    await registrarVistaOferta(id, usuarioId);
 
     return res.json({
       success: true,
@@ -563,6 +636,73 @@ export async function postRegistrarVista(req: Request, res: Response) {
     return res.status(500).json({
       success: false,
       message: 'Error al registrar vista',
+    });
+  }
+}
+
+/**
+ * POST /api/ofertas/:id/share
+ * Registra un share cuando el usuario comparte la oferta (WhatsApp,
+ * Facebook, X, Copiar link, Web Share API).
+ * Anti-inflación: 1 share por usuario por día calendario.
+ */
+export async function postRegistrarShare(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El ID de la oferta no es válido',
+      });
+    }
+
+    const usuarioId = req.usuario!.usuarioId;
+    await registrarShareOferta(id, usuarioId);
+
+    return res.json({
+      success: true,
+      message: 'Share registrado',
+    });
+  } catch (error) {
+    console.error('Error en postRegistrarShare:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al registrar share',
+    });
+  }
+}
+
+/**
+ * POST /api/ofertas/:id/click
+ * Registra un click (engagement) cuando el usuario abre el modal.
+ * Anti-inflación: 1 click por usuario por día calendario.
+ */
+export async function postRegistrarClick(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El ID de la oferta no es válido',
+      });
+    }
+
+    const usuarioId = req.usuario!.usuarioId;
+    await registrarClickOferta(id, usuarioId);
+
+    return res.json({
+      success: true,
+      message: 'Click registrado',
+    });
+  } catch (error) {
+    console.error('Error en postRegistrarClick:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al registrar click',
     });
   }
 }
@@ -844,6 +984,7 @@ export default {
   // Feed público (requiere auth)
   getFeedOfertas,
   getOfertaDetalle,
+  getOfertaDestacadaDelDia,
   postRegistrarVista,
 
   // Business Studio (requiere auth + modo comercial)

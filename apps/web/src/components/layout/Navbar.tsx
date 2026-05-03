@@ -399,7 +399,8 @@ export const Navbar = () => {
           if (ciudadCercana) {
             setCiudad(
               ciudadCercana.nombre,
-              ciudadCercana.estado
+              ciudadCercana.estado,
+              ciudadCercana.coordenadas
             );
           } else {
             console.warn('⚠️ [NAVBAR] No se encontró ciudad cercana');

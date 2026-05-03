@@ -78,9 +78,23 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
     setVisible(true);
   };
 
+  // En modo `triggerOnClick`, el click TOGGLE: si ya está visible, lo oculta.
+  // Antes solo lo mostraba, así que clicks repetidos lo "atascaban" abierto.
   const handleClick = () => {
+    if (visible) {
+      setVisible(false);
+      return;
+    }
     calcularPosicion();
     setVisible(true);
+  };
+
+  // Modo hover (no triggerOnClick): al presionar el botón, ocultamos el
+  // tooltip de inmediato. Sin esto, si el click abre un popup que tapa
+  // el trigger, el `onMouseLeave` nunca dispara y el tooltip queda
+  // colgado hasta que el `autoHide` lo apague (o nunca, si no está).
+  const handleMouseDownHover = () => {
+    setVisible(false);
   };
 
   const transformByPosition = {
@@ -136,6 +150,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
       className="relative inline-block"
       onMouseEnter={triggerOnClick ? undefined : handleMouseEnter}
       onMouseLeave={triggerOnClick ? undefined : () => setVisible(false)}
+      onMouseDown={triggerOnClick ? undefined : handleMouseDownHover}
       onClick={triggerOnClick ? handleClick : undefined}
       onTouchStart={handleTouchStart}
     >

@@ -19,9 +19,18 @@
  * CREADO: Enero 2026
  */
 
-import { X, MessageCircle, Heart, Truck, Flame, Clock } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, MessageCircle, Heart, Truck, Flame, Clock, Eye, MapPin, Phone, Store } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useGuardados } from '@/hooks/useGuardados';
 import { api } from '@/services/api';
+import {
+  registrarClickOferta,
+  registrarShareOferta,
+  obtenerSucursalesDeOferta,
+  type SucursalDeOferta,
+} from '@/services/ofertasService';
+import { useGpsStore } from '@/stores/useGpsStore';
 import { DropdownCompartir } from '../compartir';
 import { Modal } from '../ui/Modal';
 import Tooltip from '../ui/Tooltip';
@@ -49,6 +58,14 @@ interface Oferta {
     limiteUsos?: number | null;
     usosActuales?: number;
     activo?: boolean;
+    totalVistas?: number;
+    /** Cantidad de sucursales donde aplica la misma oferta. Si >1, el
+     *  modal pide el listado al backend y lo muestra. */
+    totalSucursales?: number;
+    /** URL del logo del negocio (para el header del modal). */
+    logoUrl?: string | null;
+    /** Nombre de la sucursal específica de esta oferta. */
+    sucursalNombre?: string | null;
 }
 
 interface ModalOfertaDetalleProps {
@@ -233,6 +250,31 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
     const { usuario } = useAuthStore();
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
     const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const navigate = useNavigate();
+
+    // Click en logo/nombre del negocio → navega al perfil del negocio
+    // dentro de la pagina /negocios (in-app, autenticado), NO al perfil
+    // público compartible. La ruta usa `sucursalId` como identificador.
+    const handleClickNegocio = () => {
+        if (!oferta?.sucursalId) return;
+        onClose();
+        navigate(`/negocios/${oferta.sucursalId}`);
+    };
+
+    // Etiqueta de sucursal a mostrar bajo el nombre del negocio:
+    //  - Si es negocio de 1 sola sucursal (sucursalNombre === negocioNombre
+    //    Y `totalSucursales` indica que solo esta sucursal tiene la oferta),
+    //    no mostramos nada para evitar duplicar el nombre.
+    //  - Si es multi-sucursal y esta es la matriz (sucursalNombre coincide
+    //    con negocioNombre), mostramos "Matriz".
+    //  - En cualquier otro caso multi-sucursal, mostramos el nombre real.
+    const esMultiSucursal = (oferta?.totalSucursales ?? 0) > 1;
+    const esMatriz = !!(oferta?.sucursalNombre && negocioNombre && oferta.sucursalNombre === negocioNombre);
+    const sucursalLabelModal: string | null = !oferta?.sucursalNombre
+        ? null
+        : esMatriz
+            ? (esMultiSucursal ? 'Matriz' : null) // single-sucursal: omitir para no duplicar
+            : oferta.sucursalNombre;
 
     // Hook de guardados
     const { guardado, toggleGuardado } = useGuardados({
@@ -240,6 +282,52 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
         entityId: oferta ? getId(oferta) : '',
         initialGuardado: false, // TODO: Pasar desde el padre si viene del backend
     });
+
+    // Lista de sucursales donde aplica la misma oferta (multi-sucursal).
+    // Solo se carga cuando `oferta.totalSucursales > 1`. La sección
+    // "Disponible en N sucursales" se muestra solo si el array tiene >0.
+    const [sucursales, setSucursales] = useState<SucursalDeOferta[]>([]);
+    const latitud = useGpsStore((s) => s.latitud);
+    const longitud = useGpsStore((s) => s.longitud);
+
+    useEffect(() => {
+        if (!oferta) return;
+        const total = oferta.totalSucursales ?? 0;
+        if (total <= 1) {
+            setSucursales([]);
+            return;
+        }
+        const ofertaId = getId(oferta);
+        if (!ofertaId) return;
+        const gps = latitud != null && longitud != null
+            ? { latitud, longitud }
+            : undefined;
+        obtenerSucursalesDeOferta(ofertaId, gps)
+            .then((r) => {
+                if (r.success && Array.isArray(r.data)) {
+                    setSucursales(r.data);
+                }
+            })
+            .catch(() => { /* silent */ });
+    }, [oferta, latitud, longitud]);
+
+    // Registrar CLICK al abrir el modal. Es engagement (no impression):
+    // el usuario ya pasó del "verla en el feed" a "querer saber más".
+    //
+    // El backend dedupea por (oferta, usuario, día calendario Sonora):
+    // un mismo usuario abriendo 10 veces el modal en un día = 1 click.
+    //
+    // Usamos un ref para evitar doble-disparo en React StrictMode (dev).
+    const ofertaIdActual = oferta ? getId(oferta) : '';
+    const ultimoIdRegistradoRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (!ofertaIdActual) return;
+        if (ultimoIdRegistradoRef.current === ofertaIdActual) return;
+        ultimoIdRegistradoRef.current = ofertaIdActual;
+        registrarClickOferta(ofertaIdActual).catch(() => {
+            // Silent: un click perdido no debe romper la UX del modal.
+        });
+    }, [ofertaIdActual]);
 
     if (!oferta) return null;
 
@@ -268,13 +356,13 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
     };
 
     const handleShare = () => {
-        // Registrar share (sin throttling - cada share cuenta)
+        // Registrar share — endpoint específico de ofertas con dedupe
+        // (1 share por usuario por día calendario Sonora). Antes usaba
+        // `/metricas/share` genérico sin dedupe, lo que permitía inflar
+        // el contador haciendo click N veces al botón.
         const ofertaId = getId(oferta);
-        
-        api.post('/metricas/share', {
-            entityType: 'oferta',
-            entityId: ofertaId
-        }).catch(() => {
+
+        registrarShareOferta(ofertaId).catch(() => {
             // Silenciar errores - las métricas no deben afectar la UX
         });
     };
@@ -441,7 +529,24 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                 </div>
                             )}
                             <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
-                            
+
+                            {/* Pill de vistas — esquina inf-izquierda. Estilo "live count"
+                                consistente con `CardOfertaHero` destacado del feed. */}
+                            {typeof oferta.totalVistas === 'number' && (
+                                <span
+                                    className="absolute bottom-3 left-3 lg:bottom-4 lg:left-4 z-10 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm lg:text-base font-bold tabular-nums leading-none shadow-md"
+                                    title={`${oferta.totalVistas} ${oferta.totalVistas === 1 ? 'vista' : 'vistas'}`}
+                                >
+                                    <Eye
+                                        className="w-4 h-4 lg:w-[18px] lg:h-[18px] shrink-0"
+                                        strokeWidth={2.5}
+                                        fill="currentColor"
+                                        fillOpacity={0.25}
+                                    />
+                                    {oferta.totalVistas}
+                                </span>
+                            )}
+
                             {/* Badge de urgencia con overlay - Alineado a la derecha */}
                             {badgeUrgencia && (
                                 <div className="absolute bottom-0 left-0 right-0 h-14 flex items-center justify-end pr-3 lg:pr-4 z-10"
@@ -466,6 +571,42 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                             {/* Barra lateral de color */}
                             <div className={`absolute left-0 top-0 bottom-0 w-2 bg-linear-to-b ${config.barColor}`} />
 
+                            {/* Header del negocio: logo + nombre + sucursal,
+                                clickeable para abrir el perfil público. */}
+                            {(negocioNombre || oferta.logoUrl) && (
+                                <button
+                                    type="button"
+                                    onClick={handleClickNegocio}
+                                    disabled={!oferta.sucursalId}
+                                    className="flex items-center gap-2.5 mb-3 pl-2.5 pr-2.5 text-left group/negocio cursor-pointer disabled:cursor-default"
+                                    aria-label={`Ver perfil de ${negocioNombre ?? 'negocio'}`}
+                                >
+                                    <div className="shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/30 flex items-center justify-center">
+                                        {oferta.logoUrl ? (
+                                            <img
+                                                src={oferta.logoUrl}
+                                                alt={negocioNombre ?? ''}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <Store className="w-4 h-4 text-white/70" strokeWidth={2} />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        {negocioNombre && (
+                                            <div className="text-white text-[15px] lg:text-base font-bold truncate group-hover/negocio:underline decoration-white/40 underline-offset-4">
+                                                {negocioNombre}
+                                            </div>
+                                        )}
+                                        {sucursalLabelModal && (
+                                            <div className="text-white/60 text-[12px] lg:text-[13px] font-medium truncate">
+                                                {sucursalLabelModal}
+                                            </div>
+                                        )}
+                                    </div>
+                                </button>
+                            )}
+
                             {/* Título */}
                             <h2 className="text-white text-xl lg:text-xl 2xl:text-2xl font-black leading-tight mb-3 pl-2.5 pr-2.5">
                                 {oferta.titulo}
@@ -480,6 +621,73 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                     <p className="text-white/90 text-sm lg:text-sm 2xl:text-base leading-relaxed whitespace-pre-wrap wrap-break-word">
                                         {oferta.descripcion}
                                     </p>
+                                </div>
+                            )}
+
+                            {/* Sucursales donde aplica la oferta — solo si      */}
+                            {/* totalSucursales > 1 y la lista cargó.            */}
+                            {sucursales.length > 1 && (
+                                <div className="mb-3 lg:mb-3.5 px-2.5">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                        <MapPin className="w-4 h-4 text-white/80 shrink-0" strokeWidth={2.5} />
+                                        <span className="text-white/80 text-xs font-bold uppercase tracking-wider">
+                                            Disponible en {sucursales.length} sucursales
+                                        </span>
+                                    </div>
+                                    <div className="bg-white/5 rounded-lg ring-1 ring-white/10 overflow-hidden">
+                                        {sucursales.map((s, idx) => (
+                                            <div
+                                                key={s.sucursalId}
+                                                className={`flex items-center gap-2.5 px-3 py-2 ${
+                                                    idx > 0 ? 'border-t border-white/10' : ''
+                                                }`}
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-white text-[13px] font-bold truncate">
+                                                            {s.sucursalNombre}
+                                                        </span>
+                                                        {s.distanciaKm != null && (
+                                                            <span className="text-amber-300 text-[11px] font-semibold tabular-nums shrink-0">
+                                                                {s.distanciaKm < 1
+                                                                    ? `${Math.round(s.distanciaKm * 1000)} m`
+                                                                    : `${s.distanciaKm.toFixed(1)} km`}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {s.direccion && (
+                                                        <p className="text-white/60 text-[11px] truncate">
+                                                            {s.direccion}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    {s.whatsapp && (
+                                                        <a
+                                                            href={`https://wa.me/${s.whatsapp.replace(/\D/g, '')}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="w-7 h-7 rounded-full bg-green-500 hover:bg-green-400 flex items-center justify-center transition-colors"
+                                                            title={`WhatsApp ${s.sucursalNombre}`}
+                                                        >
+                                                            <MessageCircle className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
+                                                        </a>
+                                                    )}
+                                                    {s.telefono && (
+                                                        <a
+                                                            href={`tel:${s.telefono.replace(/\s/g, '')}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+                                                            title={`Llamar ${s.sucursalNombre}`}
+                                                        >
+                                                            <Phone className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 

@@ -19,10 +19,12 @@
  * CREADO: Enero 2026
  */
 
-import React from 'react';
-import { Tag, Truck, Clock, Flame } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Tag, Truck, Clock, Flame, CreditCard, Sparkles, TrendingUp, Eye } from 'lucide-react';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useAutoFitText } from '@/hooks/useAutoFitText';
+import { useViewTracker } from '@/hooks/useViewTracker';
+import { registrarVistaOferta } from '@/services/ofertasService';
 
 // =============================================================================
 // TIPOS
@@ -42,6 +44,11 @@ export interface Oferta {
     limiteUsos?: number | null;
     usosActuales?: number;
     activo?: boolean;
+    totalVistas?: number;
+    totalSucursales?: number;
+    /** Para el header del modal de detalle */
+    logoUrl?: string | null;
+    sucursalNombre?: string | null;
 }
 
 interface OfertaCardProps {
@@ -54,6 +61,12 @@ interface OfertaCardProps {
     inModal?: boolean;
     /** Handler para click en la card */
     onClick?: () => void;
+    /** Microseñal: si la oferta es de un negocio que participa en CardYA */
+    aceptaCardya?: boolean;
+    /** Microseñal: si la oferta fue creada hace menos de 48 horas */
+    esNueva?: boolean;
+    /** Microseñal: si la oferta es popular esta semana (top por vistas) */
+    esPopular?: boolean;
 }
 
 // =============================================================================
@@ -316,6 +329,48 @@ const BadgeCircular = ({ texto, gradient, border, inModal = false }: BadgeCircul
 );
 
 // =============================================================================
+// COMPONENTE: Microseñal (Nueva / Popular)
+// =============================================================================
+//
+// Posición: esquina SUPERIOR IZQUIERDA de la imagen.
+// Razón: la esquina superior derecha está ocupada por el badge principal de
+// descuento (porcentaje, monto, 2x1, etc.) flotante. Colocar la microseñal
+// en la esquina opuesta evita superposición y mantiene el lenguaje visual.
+//
+// Si coincide `esPopular` y `esNueva`, prevalece `esPopular`.
+
+interface MicrosenalProps {
+    variante: 'nueva' | 'popular';
+}
+
+const Microsenal = ({ variante }: MicrosenalProps) => {
+    const config = variante === 'popular'
+        ? {
+            bg: 'bg-amber-500',
+            ring: 'ring-amber-300/60',
+            texto: 'Popular',
+            Icono: TrendingUp,
+        }
+        : {
+            bg: 'bg-emerald-500',
+            ring: 'ring-emerald-300/60',
+            texto: 'Nueva',
+            Icono: Sparkles,
+        };
+
+    const { Icono } = config;
+
+    return (
+        <div className="absolute top-2 left-2 z-20 pointer-events-none">
+            <div className={`flex items-center gap-1 ${config.bg} text-white px-2 py-0.5 rounded-full text-[11px] font-bold shadow-md ring-2 ${config.ring}`}>
+                <Icono className="w-3 h-3 shrink-0" strokeWidth={2.5} />
+                <span className="leading-none">{config.texto}</span>
+            </div>
+        </div>
+    );
+};
+
+// =============================================================================
 // COMPONENTE: Badge Rectangular (esquina)
 // =============================================================================
 
@@ -392,9 +447,34 @@ export const OfertaCardStyles = `
 // COMPONENTE PRINCIPAL: OfertaCard
 // =============================================================================
 
-export default function OfertaCard({ oferta, size = 'normal', className = '', inModal = false, onClick }: OfertaCardProps) {
+export default function OfertaCard({
+    oferta,
+    size = 'normal',
+    className = '',
+    inModal = false,
+    onClick,
+    aceptaCardya = false,
+    esNueva = false,
+    esPopular = false,
+}: OfertaCardProps) {
+    // Si coinciden, prevalece "Popular" (tiene mayor valor informativo).
+    const microsenalVariante: 'popular' | 'nueva' | null =
+        esPopular ? 'popular' : esNueva ? 'nueva' : null;
     const { esMobile } = useBreakpoint();
-    
+
+    // Tracking de vista (impression): cuando ≥50% de la card es visible
+    // por ≥1s, registramos vista. Funciona tanto para las ofertas que se
+    // ven al entrar al perfil del negocio como para las del modal "ver
+    // todas" (solo si el usuario hace scroll y las trae al viewport).
+    const refCard = useRef<HTMLDivElement>(null);
+    const ofertaIdParaVista = oferta.ofertaId || oferta.id;
+    useViewTracker(refCard, {
+        onVisto: () => {
+            if (!ofertaIdParaVista) return;
+            registrarVistaOferta(ofertaIdParaVista).catch(() => { /* silent */ });
+        },
+    });
+
     // Obtener configuración según tipo
     const config = CONFIG_TIPO[oferta.tipo];
 
@@ -519,7 +599,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
     // LAYOUT MÓVIL: Horizontal
     if (esMobile) {
         return (
-            <div className={`@container ${s.card} group cursor-pointer ${className}`} onClick={onClick}>
+            <div ref={refCard} className={`@container ${s.card} group cursor-pointer ${className}`} onClick={onClick}>
                 <div className={`relative h-full flex flex-row overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                     {/* Badge */}
@@ -540,14 +620,35 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
                         )}
                         <div className="absolute inset-0 bg-linear-to-r from-black/50 to-transparent" />
 
-                        {/* Badge de Urgencia - Esquina inferior izquierda */}
+                        {/* Microseñal Nueva / Popular — esquina sup. izquierda */}
+                        {microsenalVariante && <Microsenal variante={microsenalVariante} />}
+
+                        {/* Pill de vistas — esquina inf. IZQUIERDA. Mismo
+                            patrón que el modal: views-left, urgencia-right. */}
+                        {typeof oferta.totalVistas === 'number' && (
+                            <span
+                                className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm lg:text-base font-bold tabular-nums leading-none shadow-md"
+                                title={`${oferta.totalVistas} ${oferta.totalVistas === 1 ? 'vista' : 'vistas'}`}
+                            >
+                                <Eye
+                                    className="w-4 h-4 lg:w-[18px] lg:h-[18px] shrink-0"
+                                    strokeWidth={2.5}
+                                    fill="currentColor"
+                                    fillOpacity={0.25}
+                                />
+                                {oferta.totalVistas}
+                            </span>
+                        )}
+
+                        {/* Badge de Urgencia - Esquina inferior DERECHA.
+                            Mismas proporciones que el modal de detalle. */}
                         {badgeUrgencia && (
-                            <div className="absolute bottom-2 left-2 z-10">
-                                <div className={`px-2.5 py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-sm shadow-lg flex items-center gap-1 animate-pulseScale`}>
+                            <div className="absolute bottom-2 right-2 z-10">
+                                <div className={`px-2.5 py-1 lg:px-3 lg:py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
                                     {badgeUrgencia.icono === "flame" ? (
-                                        <Flame className="h-2.5 w-2.5 shrink-0" />
+                                        <Flame className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
                                     ) : (
-                                        <Clock className="h-2.5 w-2.5 shrink-0" />
+                                        <Clock className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
                                     )}
                                     <span>{badgeUrgencia.texto}</span>
                                 </div>
@@ -561,16 +662,23 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
                         {/* Barra lateral de color */}
                         <div className={`absolute left-0 top-0 bottom-0 ${s.gradiente} bg-linear-to-b ${config.barColor} rounded-bl-xl`} />
 
+                        {/* Icono CardYA — esquina sup. derecha del panel */}
+                        {aceptaCardya && (
+                            <div className="absolute top-1.5 right-2 z-10" title="Acepta CardYA">
+                                <CreditCard className="w-3.5 h-3.5 text-white/70" strokeWidth={2.5} />
+                            </div>
+                        )}
+
                         {/* Contenido: Título + Separador Dinámico + Descripción */}
                         <div className="w-full pl-3 pr-3 space-y-1">
                             {/* Título - Auto-fit dinámico */}
-                            <div 
+                            <div
                                 ref={containerRef}
                                 className="w-full h-[50px] flex items-center justify-center overflow-hidden"
                             >
-                                <h4 
+                                <h4
                                     className="font-black text-white leading-tight text-center w-full tracking-tight drop-shadow-lg"
-                                    style={{ 
+                                    style={{
                                         fontSize: `${fontSize}px`,
                                         textShadow: '0 2px 8px rgba(0,0,0,0.5)',
                                         lineHeight: 1.1,
@@ -599,7 +707,7 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
 
     // LAYOUT DESKTOP: Vertical (ORIGINAL - sin cambios)
     return (
-        <div className={`${s.card} group cursor-pointer ${className}`} onClick={onClick}>
+        <div ref={refCard} className={`${s.card} group cursor-pointer ${className}`} onClick={onClick}>
             <div className={`relative h-full flex flex-col overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                 {/* Badge */}
@@ -620,19 +728,40 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
                     )}
                     <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
 
-                    {/* Badge de Urgencia con Overlay */}
+                    {/* Microseñal Nueva / Popular — esquina sup. izquierda */}
+                    {microsenalVariante && <Microsenal variante={microsenalVariante} />}
+
+                    {/* Badge de Urgencia con Overlay — alineado a la DERECHA
+                        (mismo patrón que el modal de detalle). */}
                     {badgeUrgencia && (
-                        <div className="absolute bottom-0 left-0 right-0 h-14 flex items-center justify-center z-10"
+                        <div className="absolute bottom-0 left-0 right-0 h-14 flex items-center justify-end pr-3 lg:pr-4 z-10"
                             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)" }}>
-                            <div className={`px-3 py-1.5 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
+                            <div className={`px-2.5 py-1 lg:px-3 lg:py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
                                 {badgeUrgencia.icono === "flame" ? (
-                                    <Flame className="h-3 w-3 shrink-0" />
+                                    <Flame className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
                                 ) : (
-                                    <Clock className="h-3 w-3 shrink-0" />
+                                    <Clock className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
                                 )}
                                 <span>{badgeUrgencia.texto}</span>
                             </div>
                         </div>
+                    )}
+
+                    {/* Pill de vistas — esquina inf. IZQUIERDA (z-20 para que
+                        se vea sobre el overlay de urgencia). */}
+                    {typeof oferta.totalVistas === 'number' && (
+                        <span
+                            className="absolute bottom-2 left-2 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm lg:text-base font-bold tabular-nums leading-none shadow-md"
+                            title={`${oferta.totalVistas} ${oferta.totalVistas === 1 ? 'vista' : 'vistas'}`}
+                        >
+                            <Eye
+                                className="w-4 h-4 lg:w-[18px] lg:h-[18px] shrink-0"
+                                strokeWidth={2.5}
+                                fill="currentColor"
+                                fillOpacity={0.25}
+                            />
+                            {oferta.totalVistas}
+                        </span>
                     )}
                 </div>
 
@@ -642,6 +771,12 @@ export default function OfertaCard({ oferta, size = 'normal', className = '', in
                     {/* Barra lateral de color */}
                     <div className={`absolute left-0 top-0 bottom-0 ${s.gradiente} bg-linear-to-b ${config.barColor} rounded-bl-xl`} />
 
+                    {/* Icono CardYA — esquina sup. derecha del panel */}
+                    {aceptaCardya && (
+                        <div className="absolute top-2 right-2.5 z-10" title="Acepta CardYA">
+                            <CreditCard className="w-4 h-4 text-white/70" strokeWidth={2.5} />
+                        </div>
+                    )}
 
                     {/* Contenido: Título + Separador Dinámico + Descripción */}
                     <div className="w-full pl-3 pr-3 space-y-1">

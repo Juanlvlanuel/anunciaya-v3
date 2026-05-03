@@ -579,6 +579,15 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         tipo: o.tipo as Oferta['tipo'],
         valor: o.valor != null ? (isNaN(Number(o.valor)) ? o.valor : Number(o.valor)) as Oferta['valor'] : undefined,
         fechaFin: o.fechaFin as string | undefined,
+        // `totalVistas` propaga la métrica al pill "live count" en
+        // OfertaCard y ModalOfertaDetalle (consistente con el feed público).
+        totalVistas: typeof o.totalVistas === 'number' ? o.totalVistas : undefined,
+        // `totalSucursales` permite al modal mostrar la lista de
+        // sucursales donde aplica la oferta (cuando >1).
+        totalSucursales: typeof o.totalSucursales === 'number' ? o.totalSucursales : undefined,
+        // Logo + sucursal — para el header del modal de detalle.
+        logoUrl: typeof o.logoUrl === 'string' ? o.logoUrl : undefined,
+        sucursalNombre: typeof o.sucursalNombre === 'string' ? o.sucursalNombre : undefined,
     }));
 
     const [puedeResenar, setPuedeResenar] = useState(false);

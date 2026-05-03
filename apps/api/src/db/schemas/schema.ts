@@ -769,6 +769,73 @@ export const ofertaUsuarios = pgTable("oferta_usuarios", {
 // Tablas de cupones ELIMINADAS — migradas a ofertas con código
 // Ver: ofertaUsos, ofertaUsuarios (arriba)
 
+// ============================================================================
+// oferta_vistas — Eventos individuales de vista de ofertas (feed público)
+// Migración: docs/migraciones/2026-04-29-crear-oferta-vistas.sql
+//
+// Complementa a `metricas_entidad.total_views` (acumulado histórico).
+// Permite calcular popularidad por ventana de tiempo (ej. últimos 7 días).
+// ============================================================================
+export const ofertaVistas = pgTable("oferta_vistas", {
+	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
+	ofertaId: uuid("oferta_id").notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_oferta_vistas_oferta_fecha").using(
+		"btree",
+		table.ofertaId.asc().nullsLast(),
+		table.createdAt.desc().nullsLast(),
+	),
+	index("idx_oferta_vistas_usuario_fecha").using(
+		"btree",
+		table.usuarioId.asc().nullsLast(),
+		table.createdAt.desc().nullsLast(),
+	),
+	foreignKey({
+		columns: [table.ofertaId],
+		foreignColumns: [ofertas.id],
+		name: "oferta_vistas_oferta_id_fkey"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "oferta_vistas_usuario_id_fkey"
+	}).onDelete("cascade"),
+]);
+
+// ============================================================================
+// ofertas_destacadas — Override administrable para "Oferta del día"
+// Migración: docs/migraciones/2026-04-29-crear-ofertas-destacadas.sql
+// ============================================================================
+export const ofertasDestacadas = pgTable("ofertas_destacadas", {
+	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
+	ofertaId: uuid("oferta_id").notNull(),
+	fijadaPor: uuid("fijada_por").notNull(),
+	fijadaAt: timestamp("fijada_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	vigenteDesde: timestamp("vigente_desde", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	vigenteHasta: timestamp("vigente_hasta", { withTimezone: true, mode: 'string' }).notNull(),
+	motivo: varchar({ length: 200 }),
+	activa: boolean().default(true).notNull(),
+}, (table) => [
+	index("idx_ofertas_destacadas_vigencia").using(
+		"btree",
+		table.activa.asc().nullsLast(),
+		table.vigenteDesde.asc().nullsLast(),
+		table.vigenteHasta.asc().nullsLast(),
+	),
+	foreignKey({
+		columns: [table.ofertaId],
+		foreignColumns: [ofertas.id],
+		name: "ofertas_destacadas_oferta_id_fkey"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.fijadaPor],
+		foreignColumns: [usuarios.id],
+		name: "ofertas_destacadas_fijada_por_fkey"
+	}).onDelete("restrict"),
+]);
+
 
 export const marketplace = pgTable("marketplace", {
 	id: uuid().defaultRandom().primaryKey().notNull(),

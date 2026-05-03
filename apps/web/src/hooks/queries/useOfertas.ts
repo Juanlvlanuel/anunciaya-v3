@@ -63,6 +63,7 @@ export function useOfertasInvalidar() {
     qc.invalidateQueries({ queryKey: ['dashboard', 'kpis', sucursalId] });
     qc.invalidateQueries({ queryKey: ['negocios', 'ofertas', sucursalId] });
     qc.invalidateQueries({ queryKey: ['reportes', 'promociones'] });
+    qc.invalidateQueries({ queryKey: queryKeys.ofertasFeed.all() });
   };
 
   const actualizarLocal = (actualizador: (ofertas: Oferta[]) => Oferta[]) => {
@@ -93,6 +94,7 @@ function invalidarOfertasRelacionadas(
   qc.invalidateQueries({ queryKey: ['dashboard', 'kpis', sucursalId] });
   qc.invalidateQueries({ queryKey: ['negocios', 'ofertas', sucursalId] });
   qc.invalidateQueries({ queryKey: ['reportes', 'promociones'] });
+  qc.invalidateQueries({ queryKey: queryKeys.ofertasFeed.all() });
 }
 
 export function useCrearOferta() {

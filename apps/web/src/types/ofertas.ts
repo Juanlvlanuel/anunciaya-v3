@@ -90,9 +90,13 @@ export interface OfertaFeed {
   limiteUsos: number | null;
   usosActuales: number;
   activo: boolean;
+  /** Timestamp real de creación (para microseñal "Nueva") */
+  createdAt: string;
 
   // Datos del negocio
   negocioId: string;
+  /** UUID del usuario dueño del negocio (para iniciar ChatYA desde el feed) */
+  negocioUsuarioId: string;
   negocioNombre: string;
   logoUrl: string | null;
   aceptaCardya: boolean;
@@ -131,6 +135,20 @@ export interface OfertaFeed {
   // Estado del usuario
   liked: boolean;
   saved: boolean;
+
+  /**
+   * Cuántas sucursales del mismo negocio tienen esta misma oferta
+   * (mismo contenido operativo). Siempre >= 1.
+   * Usado para mostrar chip "+N sucursales más" en las cards.
+   */
+  totalSucursales: number;
+
+  /**
+   * Marcado por backend (post-procesado): true para top N cuando
+   * `orden=populares` y hay datos de vistas reales. False en cualquier
+   * otro caso. Permite al frontend pintar el pill "Popular" honestamente.
+   */
+  esPopular: boolean;
 }
 
 /**
@@ -203,6 +221,15 @@ export interface OfertaDuplicada {
 // =============================================================================
 
 /**
+ * Tipos de ordenamiento del feed público
+ */
+export type OrdenFeedOfertas =
+  | 'distancia'
+  | 'recientes'
+  | 'populares'
+  | 'vencen_pronto';
+
+/**
  * Filtros para el feed de ofertas
  */
 export interface FiltrosFeedOfertas {
@@ -215,6 +242,12 @@ export interface FiltrosFeedOfertas {
   limite?: number;
   offset?: number;
   fechaLocal?: string; // Formato YYYY-MM-DD - fecha local del usuario para filtrar ofertas activas
+  /** Orden del feed (default: distancia si hay GPS, sino created_at DESC) */
+  orden?: OrdenFeedOfertas;
+  /** Filtrar a sólo negocios que participan en CardYA */
+  soloCardya?: boolean;
+  /** Filtrar a ofertas creadas en las últimas N horas (rango 1–720) */
+  creadasUltimasHoras?: number;
 }
 
 /**

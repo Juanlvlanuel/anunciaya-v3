@@ -53,6 +53,7 @@ import PaginaDashboard from '../pages/private/business-studio/dashboard/PaginaDa
 import PaginaPerfil from '../pages/private/business-studio/perfil/PaginaPerfil';
 import PaginaCatalogo from '../pages/private/business-studio/catalogo/PaginaCatalogo';
 import BSPaginaOfertas from '../pages/private/business-studio/ofertas/PaginaOfertas';
+import PaginaOfertas from '../pages/private/ofertas/PaginaOfertas';
 import PaginaPuntos from '../pages/private/business-studio/puntos/PaginaPuntos';
 import PaginaTransacciones from '../pages/private/business-studio/transacciones/PaginaTransacciones';
 import PaginaClientes from '../pages/private/business-studio/clientes/PaginaClientes';
@@ -78,7 +79,6 @@ const PlaceholderPage = ({ nombre }: { nombre: string }) => (
 
 // Páginas de secciones principales
 const PaginaMarketplace = () => <PlaceholderPage nombre="🛒 Marketplace" />;
-const PaginaOfertas = () => <PlaceholderPage nombre="🏷️ Ofertas" />;
 const PaginaServicios = () => <PlaceholderPage nombre="🛠️ Servicios" />;
 
 // Páginas de usuario

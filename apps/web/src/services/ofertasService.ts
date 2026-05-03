@@ -135,6 +135,9 @@ export async function obtenerFeedOfertas(filtros?: FiltrosFeedOfertas) {
   if (filtros?.busqueda) params.append('busqueda', filtros.busqueda);
   if (filtros?.limite) params.append('limite', filtros.limite.toString());
   if (filtros?.offset) params.append('offset', filtros.offset.toString());
+  if (filtros?.orden) params.append('orden', filtros.orden);
+  if (filtros?.soloCardya) params.append('soloCardya', 'true');
+  if (filtros?.creadasUltimasHoras) params.append('creadasUltimasHoras', filtros.creadasUltimasHoras.toString());
 
   // Siempre enviar fecha local del usuario para filtrar ofertas activas correctamente
   // Esto garantiza que las ofertas se muestren según la medianoche local, no UTC
@@ -143,6 +146,27 @@ export async function obtenerFeedOfertas(filtros?: FiltrosFeedOfertas) {
 
   const query = params.toString() ? `?${params.toString()}` : '';
   return get<OfertaFeed[]>(`/ofertas/feed${query}`);
+}
+
+/**
+ * Obtiene la oferta destacada del día (Hero del feed editorial).
+ * GET /api/ofertas/destacada-del-dia
+ *
+ * El backend devuelve `data: null` cuando no hay nada destacado — NO es
+ * error. El frontend lo maneja ocultando el bloque Hero silenciosamente.
+ *
+ * Caso especial: la "Oferta del día" NO se filtra por ciudad (es contenido
+ * editorial global), pero sí acepta `lat/lng` opcionales para CALCULAR la
+ * distancia y mostrarla en la card. Sin GPS, `distanciaKm` viene null.
+ */
+export async function obtenerOfertaDestacadaDelDia(gps?: { latitud: number; longitud: number }) {
+  const params = new URLSearchParams();
+  if (gps?.latitud != null && gps?.longitud != null) {
+    params.append('latitud', gps.latitud.toString());
+    params.append('longitud', gps.longitud.toString());
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return get<OfertaFeed | null>(`/ofertas/destacada-del-dia${query}`);
 }
 
 /**
@@ -158,13 +182,75 @@ export async function obtenerDetalleOferta(ofertaId: string) {
 }
 
 /**
- * Registra una vista de oferta (métrica)
+ * Registra una VISTA (impression) de oferta.
+ * Disparado cuando la card aparece en el viewport del usuario.
+ * Anti-inflación: 1 vista/usuario/día.
+ *
  * POST /api/ofertas/:id/vista
- * 
- * @param ofertaId - UUID de la oferta
  */
 export async function registrarVistaOferta(ofertaId: string) {
   return post(`/ofertas/${ofertaId}/vista`, {});
+}
+
+/**
+ * Registra un CLICK (engagement) de oferta.
+ * Disparado cuando el usuario abre el modal de detalle.
+ * Anti-inflación: 1 click/usuario/día.
+ *
+ * POST /api/ofertas/:id/click
+ */
+export async function registrarClickOferta(ofertaId: string) {
+  return post(`/ofertas/${ofertaId}/click`, {});
+}
+
+/**
+ * Sucursal donde aplica una oferta multi-sucursal.
+ */
+export interface SucursalDeOferta {
+  ofertaId: string;
+  sucursalId: string;
+  sucursalNombre: string;
+  direccion: string | null;
+  ciudad: string | null;
+  telefono: string | null;
+  whatsapp: string | null;
+  esPrincipal: boolean;
+  latitud: number;
+  longitud: number;
+  distanciaKm: number | null;
+}
+
+/**
+ * Obtiene la lista de sucursales donde aplica la MISMA oferta operativa
+ * (mismo grupo de partición que la dedup del feed).
+ *
+ * Solo tiene sentido cuando `oferta.totalSucursales > 1`.
+ *
+ * GET /api/ofertas/:id/sucursales
+ */
+export async function obtenerSucursalesDeOferta(
+  ofertaId: string,
+  gps?: { latitud: number; longitud: number }
+) {
+  const params = new URLSearchParams();
+  if (gps?.latitud != null && gps?.longitud != null) {
+    params.append('latitud', gps.latitud.toString());
+    params.append('longitud', gps.longitud.toString());
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return get<SucursalDeOferta[]>(`/ofertas/${ofertaId}/sucursales${query}`);
+}
+
+/**
+ * Registra un SHARE de oferta.
+ * Disparado cuando el usuario comparte la oferta vía WhatsApp,
+ * Facebook, X, Copiar link, o Web Share API nativo.
+ * Anti-inflación: 1 share/usuario/día.
+ *
+ * POST /api/ofertas/:id/share
+ */
+export async function registrarShareOferta(ofertaId: string) {
+  return post(`/ofertas/${ofertaId}/share`, {});
 }
 
 // =============================================================================
@@ -247,6 +333,7 @@ export default {
 
   // Feed público
   obtenerFeedOfertas,
+  obtenerOfertaDestacadaDelDia,
   obtenerDetalleOferta,
   registrarVistaOferta,
 

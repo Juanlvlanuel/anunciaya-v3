@@ -14,7 +14,7 @@
  * REGLA: Azul solo para acentos decorativos. Botones/chips/filtros en slate.
  */
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -38,11 +38,13 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { useNegociosLista } from '../../../hooks/queries/useNegocios';
+import { useScrollDirection } from '../../../hooks/useScrollDirection';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { usePerfilCategorias, usePerfilSubcategorias } from '../../../hooks/queries/usePerfil';
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
+import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { CardNegocio } from '../../../components/negocios/CardNegocio';
 import type { NegocioResumen } from '../../../types/negocios';
@@ -551,6 +553,7 @@ export function PaginaNegocios() {
   const [popupFiltrosMovil, setPopupFiltrosMovil] = useState(false);
   const inputBusquedaRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const cardsScrollRef = useRef<HTMLDivElement>(null);
   const [dropdownDistancia, setDropdownDistancia] = useState(false);
   const [posDropdownDist, setPosDropdownDist] = useState({ top: 0, left: 0 });
   const [dropdownCategoria, setDropdownCategoria] = useState(false);
@@ -565,6 +568,8 @@ export function PaginaNegocios() {
 
   // Stores y hooks
   const { latitud, longitud } = useGpsStore();
+  const ciudadGps = useGpsStore(s => s.ciudad);
+  const nombreCiudad = ciudadGps?.nombre || 'tu ciudad';
   const { data: negociosRaw = [], isPending: loading } = useNegociosLista();
   const searchQuery = useSearchStore((s) => s.query);
   const setSearchQuery = useSearchStore((s) => s.setQuery);
@@ -682,13 +687,53 @@ export function PaginaNegocios() {
     }
   }, [tabActiva, negocioSeleccionadoId]);
 
-  // Medir header para posicionar mapa mobile
+  // El scroll real de la página en desktop vive en el <main> de MainLayout
+  // (overflow-y-auto fixed), NO en window. El store guarda esa ref.
+  // En mobile con header propio, MainLayout pone null para que se use window.
+  const mainScrollRef = useMainScrollStore(s => s.mainScrollRef);
+
+  // Compresión sticky scroll-aware:
+  // - Vista Mapa (desktop): scroll en el contenedor interno de cards.
+  // - Vista Lista (desktop/mobile): scroll en el <main> de MainLayout (o window si null).
+  const scrollRefActivo = useMemo((): RefObject<HTMLElement | null> | undefined => {
+    if (tabActiva === 'mapa') return cardsScrollRef as RefObject<HTMLElement | null>;
+    return mainScrollRef ?? undefined;
+  }, [tabActiva, mainScrollRef]);
+
+  const { scrollY } = useScrollDirection({
+    scrollRef: scrollRefActivo,
+    threshold: 10,
+    topOffset: 10,
+  });
+
+  const [comprimido, setComprimido] = useState(false);
+
   useEffect(() => {
-    if (headerRef.current) {
-      const h = headerRef.current.offsetHeight;
-      document.documentElement.style.setProperty('--negocios-header-h', `${h}px`);
+    if (!comprimido && scrollY > 100) {
+      setComprimido(true);
+    } else if (comprimido && scrollY < 40) {
+      setComprimido(false);
     }
-  }, [tabActiva, buscadorMovilAbierto]);
+  }, [scrollY, comprimido]);
+
+  // Al cambiar de tab, el scroll del nuevo contenedor comienza desde 0;
+  // expandir el header para que el usuario no quede en estado comprimido sin scroll.
+  useEffect(() => {
+    setComprimido(false);
+  }, [tabActiva]);
+
+  // ResizeObserver en el header: actualiza --negocios-header-h en tiempo real
+  // mientras dura la transición CSS (300ms), no solo al inicio.
+  // Necesario para que el contenedor mapa+cards crezca suavemente al comprimirse.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      document.documentElement.style.setProperty('--negocios-header-h', `${el.offsetHeight}px`);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Invalidar mapa al cambiar tab a mapa + sincronizar store
   useEffect(() => {
@@ -808,7 +853,10 @@ export function PaginaNegocios() {
                   {!buscadorMovilAbierto ? (
                     <>
                       {/* Fila principal: flecha, nombre, buscador, menú */}
-                      <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
+                      <div className={[
+                        'flex items-center justify-between px-3 transition-[padding] duration-300',
+                        comprimido ? 'pt-2.5 pb-2' : 'pt-4 pb-2.5',
+                      ].join(' ')}>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             data-testid="btn-volver-negocios"
@@ -818,16 +866,35 @@ export function PaginaNegocios() {
                             <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
                           </button>
                           <div
-                            className="w-9 h-9 rounded-lg flex items-center justify-center"
+                            className={[
+                              'rounded-lg flex items-center justify-center shrink-0 transition-all duration-300',
+                              comprimido ? 'w-7 h-7' : 'w-9 h-9',
+                            ].join(' ')}
                             style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
                           >
-                            <Store className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+                            <Store
+                              className={[
+                                'text-white transition-all duration-300',
+                                comprimido ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5',
+                              ].join(' ')}
+                              strokeWidth={2.5}
+                            />
                           </div>
-                          <span className="text-2xl font-extrabold text-white tracking-tight">
+                          <span
+                            className={[
+                              'font-extrabold text-white tracking-tight truncate transition-all duration-300',
+                              comprimido ? 'text-base' : 'text-2xl',
+                            ].join(' ')}
+                          >
                             Negocios <span className="text-blue-400">Locales</span>
                           </span>
                         </div>
                         <div className="flex items-center gap-1 mr-1">
+                          {comprimido && (
+                            <span className="text-[10px] tracking-[1px] text-white/55 font-medium uppercase mr-1">
+                              {negocios.length} HOY
+                            </span>
+                          )}
                           <button
                             data-testid="btn-buscar-negocios"
                             onClick={() => {
@@ -847,19 +914,29 @@ export function PaginaNegocios() {
                           </button>
                         </div>
                       </div>
-                      {/* Subtítulo móvil */}
-                      <div className="flex items-center justify-center gap-2.5 pb-2">
-                        <div
-                          className="h-0.5 w-14 rounded-full"
-                          style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
-                        />
-                        <span className="text-base font-light text-white/70 tracking-wide">
-                          Descubre en tu <span className="font-bold text-white">comunidad</span>
-                        </span>
-                        <div
-                          className="h-0.5 w-14 rounded-full"
-                          style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
-                        />
+                      {/* Subtítulo móvil — se oculta al comprimir */}
+                      <div
+                        className={[
+                          'transition-[opacity,max-height,padding] duration-300 overflow-hidden',
+                          comprimido
+                            ? 'opacity-0 max-h-0 pb-0 pointer-events-none'
+                            : 'opacity-100 max-h-12 pb-2',
+                        ].join(' ')}
+                        aria-hidden={comprimido}
+                      >
+                        <div className="flex items-center justify-center gap-2.5">
+                          <div
+                            className="h-0.5 w-14 rounded-full"
+                            style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
+                          />
+                          <span className="text-base font-light text-white/70 tracking-wide">
+                            Descubre en <span className="font-bold text-white">{nombreCiudad}</span>
+                          </span>
+                          <div
+                            className="h-0.5 w-14 rounded-full"
+                            style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
+                          />
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -898,14 +975,14 @@ export function PaginaNegocios() {
                           <X className="w-7 h-7" />
                         </button>
                       </div>
-                      {/* Subtítulo se mantiene */}
+                      {/* Subtítulo se mantiene al buscar */}
                       <div className="flex items-center justify-center gap-2.5 pb-2">
                         <div
                           className="h-0.5 w-14 rounded-full"
                           style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
                         />
                         <span className="text-base font-light text-white/70 tracking-wide">
-                          Descubre en tu <span className="font-bold text-white">comunidad</span>
+                          Descubre en <span className="font-bold text-white">{nombreCiudad}</span>
                         </span>
                         <div
                           className="h-0.5 w-14 rounded-full"
@@ -918,30 +995,60 @@ export function PaginaNegocios() {
 
                 {/* ══ DESKTOP HEADER ══ */}
                 <div className="hidden lg:block">
-                  <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
-                    {/* Logo + Título */}
+                  <div className={[
+                    'flex items-center justify-between gap-6 px-6 2xl:px-8 transition-[padding] duration-300',
+                    comprimido ? 'py-3' : 'py-4 2xl:py-5',
+                  ].join(' ')}>
+                    {/* Logo + Título (encoge al comprimir) */}
                     <div className="flex items-center gap-3 shrink-0">
                       <div
-                        className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
+                        className={[
+                          'rounded-lg flex items-center justify-center transition-all duration-300',
+                          comprimido ? 'w-10 h-10' : 'w-11 h-11 2xl:w-12 2xl:h-12',
+                        ].join(' ')}
                         style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
                       >
-                        <Store className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
+                        <Store
+                          className={[
+                            'text-white transition-all duration-300',
+                            comprimido ? 'w-5 h-5' : 'w-6 h-6 2xl:w-6.5 2xl:h-6.5',
+                          ].join(' ')}
+                          strokeWidth={2.5}
+                        />
                       </div>
                       <div className="flex items-baseline">
-                        <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
+                        <span
+                          className={[
+                            'font-extrabold text-white tracking-tight transition-all duration-300',
+                            comprimido ? 'text-2xl' : 'text-2xl 2xl:text-3xl',
+                          ].join(' ')}
+                        >
                           Negocios{' '}
                         </span>
-                        <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight">
+                        <span
+                          className={[
+                            'font-extrabold text-blue-400 tracking-tight transition-all duration-300',
+                            comprimido ? 'text-2xl' : 'text-2xl 2xl:text-3xl',
+                          ].join(' ')}
+                        >
                           Locales
                         </span>
                       </div>
                     </div>
 
-                    {/* Centro: Subtítulo */}
-                    <div className="flex-1 text-center min-w-0">
+                    {/* Centro: Subtítulo — se oculta al comprimir */}
+                    <div
+                      className={[
+                        'flex-1 text-center min-w-0 transition-[opacity,max-height] duration-300 overflow-hidden',
+                        comprimido
+                          ? 'opacity-0 max-h-0 pointer-events-none'
+                          : 'opacity-100 max-h-24',
+                      ].join(' ')}
+                      aria-hidden={comprimido}
+                    >
                       <h1 className="text-3xl 2xl:text-[34px] font-light text-white/70 leading-tight truncate">
-                        Descubre en tu{' '}
-                        <span className="font-bold text-white">comunidad</span>
+                        Descubre en{' '}
+                        <span className="font-bold text-white">{nombreCiudad}</span>
                       </h1>
                       <div className="flex items-center justify-center gap-3 mt-1.5">
                         <div
@@ -958,38 +1065,50 @@ export function PaginaNegocios() {
                       </div>
                     </div>
 
-                    {/* KPIs */}
-                    <div className="flex items-center gap-5 shrink-0 w-[200px] 2xl:w-[220px]">
-                      <div className="flex flex-col items-center w-16 2xl:w-18">
-                        <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 leading-none">
-                          {negocios.length}
-                        </span>
-                        <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
-                          Negocios
-                        </span>
-                      </div>
-                      <div className="w-1 h-16 rounded-full" style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.25) 30%, rgba(255,255,255,0.25) 70%, transparent)' }} />
-                      <div className="flex flex-col items-center w-16 2xl:w-18">
-                        {cercaDeMi ? (
-                          <>
+                    {/* KPIs: primera columna siempre visible, segunda se oculta al comprimir */}
+                    <div className="flex items-center gap-5 shrink-0">
+                      {/* Comprimido: "19 Negocios" en una línea. Normal: columna vertical. */}
+                      {comprimido ? (
+                        <div className="flex items-baseline gap-1.5 shrink-0">
+                          <span className="text-2xl font-extrabold text-blue-400 leading-none tabular-nums">
+                            {negocios.length}
+                          </span>
+                          <span className="text-sm font-semibold text-white/40 uppercase tracking-wider">
+                            Negocios
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center w-16 2xl:w-18">
+                          <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 leading-none tabular-nums">
+                            {negocios.length}
+                          </span>
+                          <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
+                            Negocios
+                          </span>
+                        </div>
+                      )}
+                      {/* Separador + radio — solo cuando el filtro de cercanía está activo */}
+                      {cercaDeMi && (
+                        <div
+                          className={[
+                            'flex items-center gap-5 transition-[opacity,max-height] duration-300 overflow-hidden',
+                            comprimido
+                              ? 'opacity-0 max-h-0 pointer-events-none'
+                              : 'opacity-100 max-h-24',
+                          ].join(' ')}
+                          aria-hidden={comprimido}
+                        >
+                          <div className="w-1 h-16 rounded-full" style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.25) 30%, rgba(255,255,255,0.25) 70%, transparent)' }} />
+                          <div className="flex flex-col items-center w-16 2xl:w-18">
                             <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none whitespace-nowrap">
                               {distancia} km
                             </span>
                             <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
                               Radio
                             </span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider">
-                              En tu
-                            </span>
-                            <span className="text-xl 2xl:text-2xl font-extrabold text-white leading-none mt-1">
-                              Ciudad
-                            </span>
-                          </>
-                        )}
-                      </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1049,7 +1168,7 @@ export function PaginaNegocios() {
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* CONTENIDO                                                        */}
         {/* ══════════════════════════════════════════════════════════════════ */}
-        <div className="relative z-0 p-4 lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto">
+        <div className={`relative z-0 lg:max-w-7xl lg:mx-auto ${tabActiva === 'mapa' ? 'p-4 lg:px-6 lg:py-3 2xl:px-8 2xl:py-3' : 'p-4 lg:p-6 2xl:p-8'}`}>
 
           {/* ── MOBILE: Tab Lista ── */}
           {tabActiva === 'lista' && (
@@ -1059,12 +1178,22 @@ export function PaginaNegocios() {
                   <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                 </div>
               ) : negocios.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <div className="w-20 h-20 rounded-full bg-linear-to-br from-blue-100 to-blue-50 flex items-center justify-center ring-8 ring-blue-50 mb-4">
-                    <Store className="w-10 h-10 text-blue-400" />
+                <div className="flex flex-col items-center justify-center py-12 px-4 bg-white border-2 border-[#e8e6e0] rounded-xl shadow-md">
+                  <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-3">
+                    <Store className="w-6 h-6 text-blue-500" strokeWidth={2} />
                   </div>
-                  <p className="text-xl font-bold text-gray-900">Sin resultados</p>
-                  <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">Ajusta los filtros o amplía el radio</p>
+                  <p className="text-base font-bold text-[#1a1a1a]">Sin resultados</p>
+                  <p className="text-sm text-[#6b6b6b] mt-1 mb-4">
+                    Ajusta los filtros o amplía el radio
+                  </p>
+                  {filtrosActivos > 0 && (
+                    <button
+                      onClick={limpiarFiltros}
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1a1a1a] text-white text-xs font-semibold hover:bg-[#333] cursor-pointer"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1140,9 +1269,9 @@ export function PaginaNegocios() {
 
             {/* Tab Mapa: Cards izquierda + Mapa derecha */}
             {tabActiva === 'mapa' && (
-              <div className="flex gap-4 2xl:gap-5" style={{ height: 'calc(100vh - 300px)' }}>
+              <div className="flex gap-4 2xl:gap-5" style={{ height: 'calc(100vh - 83px - var(--negocios-header-h) - 24px)' }}>
                 {/* Cards scrollable izquierda */}
-                <div className="negocios-cards-scroll w-[380px] 2xl:w-[420px] shrink-0 overflow-y-auto overflow-x-visible pr-1 z-10">
+                <div ref={cardsScrollRef} className="negocios-cards-scroll w-[380px] 2xl:w-[420px] shrink-0 overflow-y-auto overflow-x-visible pr-1 z-10">
                   {loading && negocios.length === 0 ? (
                     <div className="flex flex-col gap-5">
                       {Array.from({ length: 4 }).map((_, i) => (
@@ -1156,12 +1285,22 @@ export function PaginaNegocios() {
                       ))}
                     </div>
                   ) : negocios.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16">
-                      <div className="w-20 h-20 rounded-full bg-linear-to-br from-blue-100 to-blue-50 flex items-center justify-center ring-8 ring-blue-50 mb-5">
-                        <Store className="w-10 h-10 text-blue-400" />
+                    <div className="flex flex-col items-center justify-center py-12 px-4 bg-white border-2 border-[#e8e6e0] rounded-xl shadow-md">
+                      <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-3">
+                        <Store className="w-6 h-6 text-blue-500" strokeWidth={2} />
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900">Sin resultados</h3>
-                      <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">Ajusta los filtros o amplía el radio</p>
+                      <h3 className="text-base font-bold text-[#1a1a1a]">Sin resultados</h3>
+                      <p className="text-sm text-[#6b6b6b] mt-1 mb-4">
+                        Ajusta los filtros o amplía el radio
+                      </p>
+                      {filtrosActivos > 0 && (
+                        <button
+                          onClick={limpiarFiltros}
+                          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1a1a1a] text-white text-xs font-semibold hover:bg-[#333] cursor-pointer"
+                        >
+                          Limpiar filtros
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-4 2xl:gap-5 pb-4">

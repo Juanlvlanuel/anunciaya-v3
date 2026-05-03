@@ -30,3 +30,4 @@ Thumbs.db
 
 # Docker volumes locales
 docker-data/
+_contexto-claude-ofertas/

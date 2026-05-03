@@ -349,9 +349,24 @@ export const filtrosFeedSchema = z.object({
   categoriaId: z.coerce.number().int().positive().optional(),
   tipo: campoTipo.optional(),
   busqueda: z.string().trim().max(100).optional(),
-  limite: z.coerce.number().int().positive().max(100).optional().default(20),
+  limite: z.coerce.number().int().positive().max(200).optional().default(100),
   offset: z.coerce.number().int().min(0).optional().default(0),
   fechaLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato debe ser YYYY-MM-DD').optional(),
+  orden: z
+    .enum(['distancia', 'recientes', 'populares', 'vencen_pronto'], {
+      message: 'orden debe ser: distancia, recientes, populares o vencen_pronto',
+    })
+    .optional(),
+  soloCardya: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
+    .optional(),
+  creadasUltimasHoras: z.coerce
+    .number()
+    .int()
+    .min(1, 'creadasUltimasHoras debe ser al menos 1')
+    .max(720, 'creadasUltimasHoras no puede exceder 720 (30 días)')
+    .optional(),
 });
 
 export type FiltrosFeedInput = z.infer<typeof filtrosFeedSchema>;

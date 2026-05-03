@@ -54,6 +54,9 @@ const RUTAS_SIN_SUCURSAL = [
   '/duplicar',     // Duplicar artículos usa sucursalesIds en el body, no en query params
   '/notificaciones', // El service de notificaciones calcula su propio sucursalId según ubicación
                      // (BS usa sucursalActiva, fuera de BS usa sucursalPrincipalId)
+  '/ofertas/feed',           // Feed público de ofertas — filtra por ciudad, NO por sucursal del comerciante
+  '/ofertas/destacada-del-dia', // Hero de ofertas — contenido editorial global
+  '/ofertas/detalle/',       // Detalle público de una oferta
 ];
 
 /**

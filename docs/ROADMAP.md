@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 29 Abril 2026
-> **Progreso global:** Multi-sucursal cerrado en toda la app ✅
-> **Fase actual:** Próximo bloque grande = Secciones Públicas (Ofertas, MarketPlace, Servicios) + Home con Pregúntale a Peñasco
+> **Última actualización:** 1 Mayo 2026
+> **Progreso global:** Sección Ofertas Públicas v1.4 cerrada ✅ (analytics, multi-sucursal, swipe, modal completo)
+> **Fase actual:** Próximo bloque grande = MarketPlace + Servicios + Home con Pregúntale a Peñasco
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (define las 4 secciones públicas y el alcance de v1)
 
 ---
@@ -21,7 +21,7 @@
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
 | **Business Studio** (5.4) | ⏳ 92% (12/13 módulos) | Vacantes (alimenta sección pública Servicios) |
-| **Secciones Públicas** (6.x) | ⏳ 0% | Ofertas, MarketPlace, Servicios |
+| **Secciones Públicas** (6.x) | ⏳ 33% (1/3) | ✅ Ofertas v1.4 (1 May 2026). Pendiente: MarketPlace, Servicios |
 | **Home — Pregúntale a Peñasco** | ⏳ 0% | Feed conversacional + buscador hiperlocal + mascota. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §4 |
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
@@ -37,7 +37,8 @@
 
 **Q2 (Abril-Junio) — Meta:**
 - [ ] Business Studio 100% (13/13 módulos) — falta: Vacantes
-- [ ] Secciones públicas: Ofertas, MarketPlace, Servicios
+- [x] **Sección pública Ofertas** ✅ (1 May 2026 — feed editorial, multi-sucursal, swipe, analytics)
+- [ ] Secciones públicas restantes: MarketPlace, Servicios
 - [ ] Home con Pregúntale a Peñasco
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto
@@ -66,6 +67,7 @@
 | Sprint 12 ref | BS Sucursales refinamiento: validación correo 3 niveles, promoción cuentas existentes, emails rediseñados, blindajes Matriz, aislamiento por sucursal en Reportes, cupones cross-sucursal | 16 Abr 2026 |
 | Sprint 13 | ScanYA Multi-Sucursal: selector cambio sucursal (dueño), Coherencia A (token = fuente verdad), aislamiento datos por sucursal, label Matriz cross-app, fix race-condition modales, exclusión mutua chat/modales, fix stats Empleados desde `puntos_transacciones` | 28 Abr 2026 |
 | Sprint 14 | Calidad post-multi-sucursal: fix zona horaria por sucursal en Reportes (5 zonas MX), auto-cierre de turnos colgados con modal de aviso al login, rediseño profesional PanelInfoContacto + Regla 13 estética B2B, Mis Notas multi-sucursal en ChatYA, fix etiqueta "Matriz" en buscador | 28-29 Abr 2026 |
+| Sprint 15 | **Sección Ofertas Públicas v1.4**: feed editorial (Hero rotativo + carruseles + ticker logos + lista densa), modelo de analytics estándar (vista/click/share con anti-inflación 1/usuario/día + insider rule), multi-sucursal en modal con lista de sucursales, vista expandida via chip "Todas", swipe drag-en-vivo + flechas desktop, fix interceptor sucursalId, distancia con MapPin, cálculo correcto "Vence en N días", header del negocio en modal con click → perfil, GPS opcional en destacada del día. **55 tests** (38 backend + 17 E2E) | 1 May 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -81,6 +83,7 @@
 | Promociones (Ofertas + Cupones) | ✅ 100% | 22 Mar 2026 | `docs/arquitectura/Promociones.md` |
 | Cupones: ChatYA + Revocar/Reactivar + Rediseño | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Promociones.md` |
 | Mis Guardados: Rediseño estilo CardYA (rose) | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Guardados.md` |
+| **Sección Ofertas Públicas v1.4** | ✅ 100% | 1 May 2026 | `docs/arquitectura/Ofertas.md` |
 
 ### Pendientes menores
 
@@ -94,7 +97,7 @@
 
 ---
 
-## ⏭️ Sprint siguiente: Secciones Públicas (Ofertas, MarketPlace, Servicios) + Home con Pregúntale a Peñasco
+## ⏭️ Sprint siguiente: MarketPlace + Servicios + Home con Pregúntale a Peñasco
 
 ---
 
@@ -126,9 +129,14 @@
 
 ### Secciones Públicas (Fase 6.0-6.2) y Home
 
-**6.0 Ofertas Públicas** (~2 días)
-- Feed público con geolocalización
-- Ya existe backend, solo falta vista pública
+**6.0 Ofertas Públicas** ✅ Cerrada 1 May 2026
+- Feed editorial completo con Hero rotativo, 3 carruseles, ticker de logos, lista densa.
+- Modelo analytics estándar (vista / click / share) con anti-inflación 1/usuario/día.
+- Multi-sucursal con lista de sucursales en modal.
+- Swipe drag-en-vivo + flechas desktop en par superior.
+- Insider rule (dueño/empleado no infla métricas propias).
+- 55 tests pasando (38 backend + 17 E2E).
+- Detalle: `docs/arquitectura/Ofertas.md` v1.4.
 
 **6.1 MarketPlace** (~4 días)
 - Compra-venta de **objetos** entre usuarios (modo Personal).
@@ -243,7 +251,7 @@
 |------|-----------------|
 | Sistema Lealtad + ChatYA + Promociones | ✅ Completado |
 | BS Módulos Pendientes (1/13: Vacantes) | ~2 días |
-| Secciones Públicas (6.0-6.2: Ofertas, MarketPlace, Servicios) | ~10 días |
+| Secciones Públicas restantes (6.1-6.2: MarketPlace, Servicios) | ~8 días |
 | Home — Pregúntale a Peñasco | por estimar (depende del diseño) |
 | Panel Admin (6.7) | ~14 días |
 | Pre-lanzamiento (7.1) | ~5 días |

@@ -23,6 +23,9 @@ import {
   getFeedOfertas,
   getOfertaDetalle,
   postRegistrarVista,
+  postRegistrarClick,
+  postRegistrarShare,
+  getSucursalesDeOferta,
   postCrearOferta,
   getOfertas,
   getOferta,
@@ -40,41 +43,56 @@ import {
   postRevelarCodigo,
   getMisExclusivas,
   getOfertaPublica,
+  getOfertaDestacadaDelDia,
 } from '../controllers/ofertas.controller.js';
 import { verificarToken } from '../middleware/auth.js';
-import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
 import { verificarNegocio } from '../middleware/negocio.middleware.js';
 import { validarAccesoSucursal } from '../middleware/sucursal.middleware.js';
 
 const router: ExpressRouter = Router();
 
 // =============================================================================
-// RUTAS PÚBLICAS (Auth opcional - funcionan con o sin login)
+// RUTAS PÚBLICAS DE OFERTAS (REQUIEREN LOGIN)
 // =============================================================================
 
 /**
  * GET /api/ofertas/feed
  * Feed de ofertas geolocalizadas
- * 
- * Middleware: verificarTokenOpcional
- * - Funciona CON o SIN login
- * - Si hay usuario → incluye liked/saved personalizados
- * - Si NO hay usuario → liked/saved = false
- * - Query params: latitud, longitud, distanciaMaxKm, categoriaId, tipo, busqueda, limite, offset
+ *
+ * Middleware: verificarToken
+ * - Login obligatorio (toda la sección Ofertas requiere usuario autenticado)
+ * - Incluye liked/saved personalizados
+ * - Query params: latitud, longitud, distanciaMaxKm, categoriaId, tipo,
+ *   busqueda, limite, offset, orden, soloCardya, creadasUltimasHoras
  */
-router.get('/feed', verificarTokenOpcional, getFeedOfertas);
+router.get('/feed', verificarToken, getFeedOfertas);
 
 /**
  * GET /api/ofertas/detalle/:ofertaId
  * Detalle de una oferta específica
- * 
- * Middleware: verificarTokenOpcional
- * - Para modal de detalle o enlaces compartidos
- * - Funciona CON o SIN login
- * - Si hay usuario → incluye liked/saved personalizados
- * - Si NO hay usuario → liked/saved = false
+ *
+ * Middleware: verificarToken
+ * - Login obligatorio
+ * - Incluye liked/saved personalizados
  */
-router.get('/detalle/:ofertaId', verificarTokenOpcional, getOfertaDetalle);
+router.get('/detalle/:ofertaId', verificarToken, getOfertaDetalle);
+
+/**
+ * GET /api/ofertas/:ofertaId/sucursales
+ * Lista de sucursales donde aplica la misma oferta operativa.
+ * Solo tiene sentido cuando `oferta.totalSucursales > 1`.
+ */
+router.get('/:ofertaId/sucursales', verificarToken, getSucursalesDeOferta);
+
+/**
+ * GET /api/ofertas/destacada-del-dia
+ * Devuelve la oferta destacada vigente (override admin) o, en su defecto,
+ * la oferta activa con más vistas en los últimos 7 días.
+ *
+ * IMPORTANTE: registrada ANTES de cualquier ruta `/:id` para evitar
+ * colisiones con el matcher dinámico de Express.
+ */
+router.get('/destacada-del-dia', verificarToken, getOfertaDestacadaDelDia);
 
 /**
  * POST /api/ofertas/:id/vista
@@ -85,6 +103,21 @@ router.get('/detalle/:ofertaId', verificarTokenOpcional, getOfertaDetalle);
  * - Llamado cuando se abre el modal de detalle
  */
 router.post('/:id/vista', verificarToken, postRegistrarVista);
+
+/**
+ * POST /api/ofertas/:id/click
+ * Registra un CLICK (engagement) cuando el usuario abre el modal de
+ * detalle. Diferente a `vista` (impression al aparecer en viewport).
+ * Anti-inflación: 1 click por usuario por día.
+ */
+router.post('/:id/click', verificarToken, postRegistrarClick);
+
+/**
+ * POST /api/ofertas/:id/share
+ * Registra un SHARE cuando el usuario comparte la oferta.
+ * Anti-inflación: 1 share por usuario por día.
+ */
+router.post('/:id/share', verificarToken, postRegistrarShare);
 
 // =============================================================================
 // RUTAS PÚBLICAS SIN AUTH (código de oferta)

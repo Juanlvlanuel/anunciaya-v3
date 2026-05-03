@@ -194,9 +194,13 @@ export interface OfertaFeedRow {
   limite_usos: number | null;
   usos_actuales: number;
   activo: boolean;
+  /** Timestamp real de creación (para microseñal "Nueva" en frontend) */
+  created_at: string;
 
   // Datos del negocio
   negocio_id: string;
+  /** UUID del usuario dueño del negocio (para iniciar ChatYA desde el feed) */
+  negocio_usuario_id: string;
   negocio_nombre: string;
   logo_url: string | null;
   acepta_cardya: boolean;
@@ -235,6 +239,20 @@ export interface OfertaFeedRow {
   // Estado del usuario
   liked: boolean;
   saved: boolean;
+
+  /**
+   * Cantidad de sucursales del mismo negocio que tienen esta misma oferta
+   * (mismo contenido operativo). Se usa en el frontend para mostrar
+   * "+N sucursales más". Siempre >= 1.
+   */
+  total_sucursales: number;
+
+  /**
+   * Marcado por backend en post-procesado: true para las primeras N filas
+   * cuando `orden=populares` y la tabla `oferta_vistas` existe (vistas reales
+   * últimos 7 días). En cualquier otro caso, false.
+   */
+  es_popular: boolean;
 }
 
 /**
@@ -254,6 +272,15 @@ export interface OfertaConArticulo extends OfertaBasica {
 // =============================================================================
 
 /**
+ * Tipos de ordenamiento soportados por el feed público
+ */
+export type OrdenFeedOfertas =
+  | 'distancia'
+  | 'recientes'
+  | 'populares'
+  | 'vencen_pronto';
+
+/**
  * Filtros para el feed de ofertas
  */
 export interface FiltrosFeedOfertas {
@@ -266,7 +293,10 @@ export interface FiltrosFeedOfertas {
   busqueda?: string;
   limite?: number;
   offset?: number;
-  fechaLocal?: string;  
+  fechaLocal?: string;
+  orden?: OrdenFeedOfertas;
+  soloCardya?: boolean;
+  creadasUltimasHoras?: number;
 }
 
 // =============================================================================

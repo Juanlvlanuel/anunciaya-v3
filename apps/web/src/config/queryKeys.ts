@@ -145,6 +145,16 @@ export const queryKeys = {
       ['negocios', 'detalle', sucursalId] as const,
   },
 
+  // ─── Sección pública — Feed de Ofertas ────────────────────────────────────
+  // Distinto de `ofertas` (BS, CRUD por sucursal). El `nombre` permite
+  // identificar bloques editoriales del feed: 'cerca', 'recientes',
+  // 'populares', 'vencen_pronto', etc.
+  ofertasFeed: {
+    all: () => ['ofertasFeed'] as const,
+    bloque: (nombre: string, filtros?: Record<string, unknown>) =>
+      ['ofertasFeed', nombre, filtros] as const,
+  },
+
   // ─── CardYA ───────────────────────────────────────────────────────────────
   cardya: {
     all: () => ['cardya'] as const,

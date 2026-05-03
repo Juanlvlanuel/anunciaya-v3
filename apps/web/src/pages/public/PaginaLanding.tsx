@@ -170,8 +170,6 @@ function NavbarLanding({
 //   cada N segundos el slot que toca cambia (alternando izq/der). La salida
 //   se desliza al lado externo y la entrada llega desde el lado opuesto.
 //
-// La sección Servicios aún no tiene asset propio → placeholder con icono+nombre.
-
 type SlideSeccion = {
     label: string;
     icono: LucideIcon;
@@ -189,7 +187,7 @@ function useSlidesHero(): readonly SlideSeccion[] {
         { label: t('secciones.negocios.titulo'), icono: MapPin, src: '/images/secciones/negocios-locales.webp' },
         { label: t('collage.ofertas'), icono: Tag, src: '/images/secciones/oferta.webp' },
         { label: t('secciones.marketplace.titulo'), icono: ShoppingCart, src: '/images/secciones/marketplace.webp' },
-        { label: t('collage.servicios'), icono: Wrench /* sin src — placeholder, sección nueva sin asset */ },
+        { label: t('collage.servicios'), icono: Wrench, src: '/images/secciones/servicios.webp' },
         { label: t('collage.chatya'), icono: MessageCircle, src: '/images/secciones/chatya-mobile.webp' },
         { label: t('collage.scanya'), icono: Star, src: '/images/secciones/scanya.webp' },
     ];

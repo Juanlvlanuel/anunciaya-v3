@@ -48,6 +48,32 @@ export async function generarUrlUploadImagenOferta(nombreArchivo: string, conten
 }
 
 // =============================================================================
+// HELPERS INTERNOS
+// =============================================================================
+
+/**
+ * Verifica si la tabla `oferta_vistas` existe en la BD.
+ *
+ * Se usa para degradar graciosamente el orden `populares` y el fallback de
+ * `destacada-del-dia` mientras la migración
+ * `2026-04-29-crear-oferta-vistas.sql` no se aplique en Supabase.
+ *
+ * Una sola consulta a `to_regclass` (~0.1ms): sin caché por simplicidad.
+ * Se puede cachear en memoria si en el futuro se vuelve hot path.
+ */
+async function tablaOfertaVistasExiste(): Promise<boolean> {
+  try {
+    const r = await db.execute(
+      sql`SELECT to_regclass('public.oferta_vistas') IS NOT NULL AS existe`
+    );
+    const row = r.rows[0] as { existe: boolean } | undefined;
+    return row?.existe === true;
+  } catch {
+    return false;
+  }
+}
+
+// =============================================================================
 // FEED DE OFERTAS (VISTA PÚBLICA - AMBOS MODOS)
 // =============================================================================
 
@@ -76,178 +102,268 @@ export async function obtenerFeedOfertas(
       categoriaId,
       tipo,
       busqueda,
-      limite = 20,
+      limite = 100,
       offset = 0,
-      fechaLocal, // Fecha local del usuario (YYYY-MM-DD)
+      fechaLocal,
+      orden,
+      soloCardya,
+      creadasUltimasHoras,
     } = filtros;
 
-    // Query SQL raw para PostGIS
-    const query = sql`
-      SELECT 
-        -- Datos de la oferta
-        o.id as oferta_id,
-        o.titulo,
-        o.descripcion,
-        o.imagen,
-        o.tipo,
-        o.valor,
-        o.compra_minima,
-        o.fecha_inicio,
-        o.fecha_fin,
-        o.limite_usos,
-        o.usos_actuales,
-        o.activo,
-        
-        -- Datos del negocio
-        n.id as negocio_id,
-        n.nombre as negocio_nombre,
-        n.logo_url,
-        n.participa_puntos as acepta_cardya,
-        n.verificado,
-        
-        -- Datos de la sucursal
-        s.id as sucursal_id,
-        s.nombre as sucursal_nombre,
-        s.direccion,
-        s.ciudad,
-        s.telefono,
-        s.whatsapp,
-        
-        -- Coordenadas de la sucursal
-        ST_Y(s.ubicacion::geometry) as latitud,
-        ST_X(s.ubicacion::geometry) as longitud,
-        
-        -- Distancia calculada con PostGIS (si hay GPS)
-        ${latitud && longitud
-        ? sql`
+    const tieneGps = Boolean(latitud && longitud);
+    // Con sucursalId específico (perfil de negocio), no deduplicar — el
+    // usuario quiere ver TODAS las ofertas de esa sucursal concreta.
+    const deduplicar = !sucursalId;
+
+    // Para `orden=populares` necesitamos calcular vistas reales de los
+    // últimos 7 días. Si la tabla aún no existe, degradamos a created_at DESC.
+    const usaPopularidadReal =
+      orden === 'populares' && (await tablaOfertaVistasExiste());
+
+    const vistasUltimos7DiasFragment = usaPopularidadReal
+      ? sql`,
+        COALESCE((
+          SELECT COUNT(*)::int
+          FROM oferta_vistas ov
+          WHERE ov.oferta_id = o.id
+            AND ov.created_at >= NOW() - INTERVAL '7 days'
+        ), 0) AS vistas_ultimos_7_dias`
+      : sql``;
+
+    // ORDER BY del outer query sobre el CTE (sin prefijo de tabla porque
+    // el CTE expone los campos directamente).
+    let orderByFragment;
+    switch (orden) {
+      case 'distancia':
+        orderByFragment = sql`distancia_km ASC NULLS LAST`;
+        break;
+      case 'recientes':
+        orderByFragment = sql`created_at DESC`;
+        break;
+      case 'populares':
+        orderByFragment = usaPopularidadReal
+          ? sql`vistas_ultimos_7_dias DESC, created_at DESC`
+          : sql`created_at DESC`;
+        break;
+      case 'vencen_pronto':
+        orderByFragment = sql`fecha_fin ASC`;
+        break;
+      default:
+        orderByFragment = tieneGps ? sql`distancia_km ASC` : sql`created_at DESC`;
+    }
+
+    // Tiebreaker de distancia dentro del ROW_NUMBER del CTE.
+    // Se recalcula la expresión ST_Distance (los aliases del mismo nivel SELECT
+    // no son accesibles en window functions en PostgreSQL).
+    const distanciaTiebreakerFragment = latitud && longitud
+      ? sql`COALESCE(
           ST_Distance(
             s.ubicacion::geography,
             ST_SetSRID(ST_MakePoint(${longitud}, ${latitud}), 4326)::geography
-          ) / 1000 as distancia_km,
-        `
-        : sql`NULL as distancia_km,`
-      }
-        
-        -- Categorías del negocio
-        (
-          SELECT json_agg(json_build_object(
-            'id', sc.id,
-            'nombre', sc.nombre,
-            'categoria', json_build_object(
-              'id', c.id,
-              'nombre', c.nombre,
-              'icono', c.icono
-            )
-          ))
-          FROM asignacion_subcategorias asig_sub
-          JOIN subcategorias_negocio sc ON sc.id = asig_sub.subcategoria_id
-          JOIN categorias_negocio c ON c.id = sc.categoria_id
-          WHERE asig_sub.negocio_id = n.id
-        ) as categorias,
-        
-        -- Métricas de la oferta
-        COALESCE(me.total_views, 0) as total_vistas,
-        COALESCE(me.total_shares, 0) as total_shares,
-        
-        -- Estado de voto del usuario
-        ${userId
-        ? sql`
-          EXISTS(
-            SELECT 1 FROM votos v 
-            WHERE v.entity_type = 'oferta'
-              AND v.entity_id = o.id 
-              AND v.user_id = ${userId}
-              AND v.tipo_accion = 'like'
-          ) as liked,
-          EXISTS(
-            SELECT 1 FROM votos v 
-            WHERE v.entity_type = 'oferta'
-              AND v.entity_id = o.id 
-              AND v.user_id = ${userId}
-              AND v.tipo_accion = 'save'
-          ) as saved
-        `
-        : sql`
-          false as liked,
-          false as saved
-        `
-      }
-        
-      FROM ofertas o
-      INNER JOIN negocios n ON n.id = o.negocio_id
-      INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
-      LEFT JOIN metricas_entidad me ON me.entity_type = 'oferta' AND me.entity_id = o.id
-      
-      WHERE o.activo = true
-        AND n.activo = true
-        AND s.activa = true
-        AND n.es_borrador = false
-        AND n.onboarding_completado = true
-        
-      -- Filtro: Solo ofertas ACTIVAS (en rango de fechas y no excedidas)
-        -- Usa la fecha local del usuario para que las ofertas se muestren
-        -- según SU medianoche, no la del servidor UTC
-        AND DATE(${fechaLocal || sql`CURRENT_DATE`}) >= DATE(o.fecha_inicio)
-        AND DATE(${fechaLocal || sql`CURRENT_DATE`}) <= DATE(o.fecha_fin)
-        AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
-        
-        -- Filtro: Sucursal específica (para perfil de negocio)
-        ${sucursalId ? sql`AND s.id = ${sucursalId}` : sql``}
-        
-        -- Filtro: Geolocalización (si hay GPS y NO hay sucursalId)
-        ${!sucursalId && latitud && longitud
-        ? sql`
-          AND ST_DWithin(
-            s.ubicacion::geography,
-            ST_SetSRID(ST_MakePoint(${longitud}, ${latitud}), 4326)::geography,
-            ${distanciaMaxKm * 1000}
-          )
-        `
-        : sql``
-      }
-        
-        -- Filtro: Categoría
-        ${categoriaId
-        ? sql`
-          AND EXISTS(
-            SELECT 1 FROM asignacion_subcategorias asig
-            JOIN subcategorias_negocio sc ON sc.id = asig.subcategoria_id
-            WHERE asig.negocio_id = n.id
-              AND sc.categoria_id = ${categoriaId}
-          )
-        `
-        : sql``
-      }
-        
-        -- Filtro: Tipo de oferta
-        ${tipo ? sql`AND o.tipo = ${tipo}` : sql``}
-        
-        -- Filtro: Búsqueda (título o descripción)
-        ${busqueda
-        ? sql`
-          AND (
-            o.titulo ILIKE ${`%${busqueda}%`}
-            OR o.descripcion ILIKE ${`%${busqueda}%`}
-            OR n.nombre ILIKE ${`%${busqueda}%`}
-          )
-        `
-        : sql``
-      }
-      
-      -- Ordenar por distancia (si hay GPS) o por fecha de creación
-      ORDER BY ${latitud && longitud ? sql`distancia_km ASC` : sql`o.created_at DESC`
-      }
-      
+          ) / 1000,
+          999999
+        ) ASC,`
+      : sql``;
+
+    // CTE + outer query: el CTE calcula todos los campos + rn + total_sucursales.
+    // El outer query filtra rn = 1 (una sola fila por grupo de "misma oferta
+    // operativa") y aplica el ordenamiento final pedido por el usuario.
+    const query = sql`
+      WITH feed_base AS (
+        SELECT
+          -- Datos de la oferta
+          o.id AS oferta_id,
+          o.titulo,
+          o.descripcion,
+          o.imagen,
+          o.tipo,
+          o.valor,
+          o.compra_minima,
+          o.fecha_inicio,
+          o.fecha_fin,
+          o.limite_usos,
+          o.usos_actuales,
+          o.activo,
+          o.created_at,
+
+          -- Datos del negocio
+          n.id AS negocio_id,
+          n.usuario_id AS negocio_usuario_id,
+          n.nombre AS negocio_nombre,
+          n.logo_url,
+          n.participa_puntos AS acepta_cardya,
+          n.verificado,
+
+          -- Datos de la sucursal
+          s.id AS sucursal_id,
+          s.nombre AS sucursal_nombre,
+          s.direccion,
+          s.ciudad,
+          s.telefono,
+          s.whatsapp,
+
+          -- Coordenadas de la sucursal
+          ST_Y(s.ubicacion::geometry) AS latitud,
+          ST_X(s.ubicacion::geometry) AS longitud,
+
+          -- Distancia calculada con PostGIS (si hay GPS)
+          ${latitud && longitud
+            ? sql`ST_Distance(
+                s.ubicacion::geography,
+                ST_SetSRID(ST_MakePoint(${longitud}, ${latitud}), 4326)::geography
+              ) / 1000 AS distancia_km,`
+            : sql`NULL AS distancia_km,`
+          }
+
+          -- Categorías del negocio
+          (
+            SELECT json_agg(json_build_object(
+              'id', sc.id,
+              'nombre', sc.nombre,
+              'categoria', json_build_object(
+                'id', c.id,
+                'nombre', c.nombre,
+                'icono', c.icono
+              )
+            ))
+            FROM asignacion_subcategorias asig_sub
+            JOIN subcategorias_negocio sc ON sc.id = asig_sub.subcategoria_id
+            JOIN categorias_negocio c ON c.id = sc.categoria_id
+            WHERE asig_sub.negocio_id = n.id
+          ) AS categorias,
+
+          -- Métricas acumuladas
+          COALESCE(me.total_views, 0) AS total_vistas,
+          COALESCE(me.total_shares, 0) AS total_shares
+          -- Vistas reales últimos 7 días (solo cuando orden=populares)
+          ${vistasUltimos7DiasFragment}
+          ,
+
+          -- Estado de interacción del usuario
+          ${userId
+            ? sql`
+              EXISTS(
+                SELECT 1 FROM votos v
+                WHERE v.entity_type = 'oferta'
+                  AND v.entity_id = o.id
+                  AND v.user_id = ${userId}
+                  AND v.tipo_accion = 'like'
+              ) AS liked,
+              EXISTS(
+                SELECT 1 FROM votos v
+                WHERE v.entity_type = 'oferta'
+                  AND v.entity_id = o.id
+                  AND v.user_id = ${userId}
+                  AND v.tipo_accion = 'save'
+              ) AS saved
+            `
+            : sql`false AS liked, false AS saved`
+          }
+          ,
+
+          -- DEDUPLICACIÓN: sucursal representante del grupo de "misma oferta operativa"
+          -- Tiebreaker: 1) más cercana (GPS), 2) matriz, 3) más recientemente actualizada
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              o.negocio_id, o.titulo, o.descripcion, o.tipo,
+              o.valor, o.imagen, o.fecha_inicio, o.fecha_fin
+            ORDER BY
+              ${distanciaTiebreakerFragment}
+              s.es_principal DESC,
+              o.updated_at DESC
+          ) AS rn,
+
+          -- Cuántas sucursales tienen esta misma oferta
+          COUNT(*) OVER (
+            PARTITION BY
+              o.negocio_id, o.titulo, o.descripcion, o.tipo,
+              o.valor, o.imagen, o.fecha_inicio, o.fecha_fin
+          ) AS total_sucursales
+
+        FROM ofertas o
+        INNER JOIN negocios n ON n.id = o.negocio_id
+        INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+        LEFT JOIN metricas_entidad me ON me.entity_type = 'oferta' AND me.entity_id = o.id
+
+        WHERE o.activo = true
+          AND o.visibilidad = 'publico'
+          AND n.activo = true
+          AND s.activa = true
+          AND n.es_borrador = false
+          AND n.onboarding_completado = true
+          AND DATE(${fechaLocal || sql`CURRENT_DATE`}) >= DATE(o.fecha_inicio)
+          AND DATE(${fechaLocal || sql`CURRENT_DATE`}) <= DATE(o.fecha_fin)
+          AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
+
+          -- Filtro: sucursal específica (perfil de negocio)
+          ${sucursalId ? sql`AND s.id = ${sucursalId}` : sql``}
+
+          -- Filtro: geolocalización (solo si hay GPS y sin sucursalId)
+          ${!sucursalId && latitud && longitud
+            ? sql`AND ST_DWithin(
+                s.ubicacion::geography,
+                ST_SetSRID(ST_MakePoint(${longitud}, ${latitud}), 4326)::geography,
+                ${distanciaMaxKm * 1000}
+              )`
+            : sql``
+          }
+
+          -- Filtro: categoría
+          ${categoriaId
+            ? sql`AND EXISTS(
+                SELECT 1 FROM asignacion_subcategorias asig
+                JOIN subcategorias_negocio sc ON sc.id = asig.subcategoria_id
+                WHERE asig.negocio_id = n.id
+                  AND sc.categoria_id = ${categoriaId}
+              )`
+            : sql``
+          }
+
+          -- Filtro: tipo de oferta
+          ${tipo ? sql`AND o.tipo = ${tipo}` : sql``}
+
+          -- Filtro: solo negocios CardYA
+          ${soloCardya ? sql`AND n.participa_puntos = true` : sql``}
+
+          -- Filtro: creadas en las últimas N horas
+          ${creadasUltimasHoras
+            ? sql`AND o.created_at >= NOW() - (${creadasUltimasHoras}::int * INTERVAL '1 hour')`
+            : sql``
+          }
+
+          -- Filtro: búsqueda por texto
+          ${busqueda
+            ? sql`AND (
+                o.titulo ILIKE ${`%${busqueda}%`}
+                OR o.descripcion ILIKE ${`%${busqueda}%`}
+                OR n.nombre ILIKE ${`%${busqueda}%`}
+              )`
+            : sql``
+          }
+      )
+      SELECT * FROM feed_base
+      ${deduplicar ? sql`WHERE rn = 1` : sql``}
+      ORDER BY ${orderByFragment}
       LIMIT ${limite}
       OFFSET ${offset}
     `;
 
     const resultado = await db.execute(query);
 
+    // Post-procesado: marcar top N como `es_popular` cuando el orden lo
+    // justifica y hay datos reales de vistas. Opera sobre las filas ya
+    // deduplicadas del outer query.
+    const TOP_POPULARES = 3;
+    const filas = resultado.rows.map((row, idx) => ({
+      ...row,
+      es_popular:
+        orden === 'populares' && usaPopularidadReal && idx < TOP_POPULARES,
+    }));
+
     // ✅ Retornar directo - el middleware transforma automáticamente
     return {
       success: true,
-      data: resultado.rows,
+      data: filas,
     };
   } catch (error) {
     console.error('Error al obtener feed de ofertas:', error);
@@ -269,11 +385,14 @@ export async function obtenerFeedOfertas(
  */
 export async function obtenerOfertaDetalle(
   ofertaId: string,
-  userId: string | null
+  userId: string | null,
+  gpsUsuario?: { latitud: number; longitud: number }
 ) {
   try {
+    const lat = gpsUsuario?.latitud;
+    const lng = gpsUsuario?.longitud;
     const query = sql`
-      SELECT 
+      SELECT
         -- Datos de la oferta
         o.id as oferta_id,
         o.titulo,
@@ -288,16 +407,17 @@ export async function obtenerOfertaDetalle(
         o.usos_actuales,
         o.activo,
         o.created_at,
-        
+
         -- Datos del negocio
         n.id as negocio_id,
+        n.usuario_id as negocio_usuario_id,
         n.nombre as negocio_nombre,
         n.descripcion as negocio_descripcion,
         n.logo_url,
         n.participa_puntos as acepta_cardya,
         n.verificado,
         n.sitio_web,
-        
+
         -- Datos de la sucursal
         s.id as sucursal_id,
         s.nombre as sucursal_nombre,
@@ -306,30 +426,43 @@ export async function obtenerOfertaDetalle(
         s.telefono,
         s.whatsapp,
         s.correo,
-        
+
         -- Coordenadas
         ST_Y(s.ubicacion::geometry) as latitud,
         ST_X(s.ubicacion::geometry) as longitud,
-        
+
+        -- Distancia desde el GPS del usuario (si lo proporcionó)
+        ${lat && lng
+          ? sql`ST_Distance(
+              s.ubicacion::geography,
+              ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+            ) / 1000 AS distancia_km,`
+          : sql`NULL AS distancia_km,`
+        }
+
         -- Métricas
         COALESCE(me.total_views, 0) as total_vistas,
         COALESCE(me.total_shares, 0) as total_shares,
         COALESCE(me.total_clicks, 0) as total_clicks,
-        
+
+        -- Marcador "es popular" — siempre false en el detalle individual.
+        -- (Solo aplica al feed con orden=populares + tabla oferta_vistas.)
+        false as es_popular,
+
         -- Estado del usuario
         ${userId
         ? sql`
           EXISTS(
-            SELECT 1 FROM votos v 
+            SELECT 1 FROM votos v
             WHERE v.entity_type = 'oferta'
-              AND v.entity_id = o.id 
+              AND v.entity_id = o.id
               AND v.user_id = ${userId}
               AND v.tipo_accion = 'like'
           ) as liked,
           EXISTS(
-            SELECT 1 FROM votos v 
+            SELECT 1 FROM votos v
             WHERE v.entity_type = 'oferta'
-              AND v.entity_id = o.id 
+              AND v.entity_id = o.id
               AND v.user_id = ${userId}
               AND v.tipo_accion = 'save'
           ) as saved
@@ -339,16 +472,17 @@ export async function obtenerOfertaDetalle(
           false as saved
         `
       }
-        
+
       FROM ofertas o
       INNER JOIN negocios n ON n.id = o.negocio_id
       INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
       LEFT JOIN metricas_entidad me ON me.entity_type = 'oferta' AND me.entity_id = o.id
-      
+
       WHERE o.id = ${ofertaId}
+        AND o.visibilidad = 'publico'
         AND n.activo = true
         AND s.activa = true
-      
+
       LIMIT 1
     `;
 
@@ -1117,20 +1251,307 @@ export async function duplicarOfertaASucursales(
  * @param ofertaId - UUID de la oferta
  * @returns Confirmación de registro
  */
-export async function registrarVistaOferta(ofertaId: string) {
+// =============================================================================
+// OBTENER SUCURSALES DONDE APLICA LA MISMA OFERTA OPERATIVA
+// =============================================================================
+//
+// Dada una `ofertaId`, busca el "grupo" de ofertas con misma partición
+// (negocio_id + titulo + descripcion + tipo + valor + imagen +
+// fecha_inicio + fecha_fin) y devuelve la lista de sucursales donde
+// aplica esa oferta, con sus datos de contacto y distancia desde el GPS
+// del usuario (si lo proporciona).
+//
+// Mismo set de filtros que el feed (activa, vigente, negocio completo,
+// sucursal activa) — coherente con la "misma oferta operativa" que la
+// dedup del CTE colapsa en una sola card.
+//
+// Uso: el modal de detalle llama a este endpoint cuando `totalSucursales > 1`
+// para mostrar "Disponible en N sucursales" con cada nombre, dirección,
+// distancia y botones de contacto (WhatsApp, teléfono).
+export async function obtenerSucursalesDeOferta(
+  ofertaId: string,
+  gpsUsuario?: { latitud: number; longitud: number },
+) {
   try {
-    // Incrementar contador de vistas en metricas_entidad
-    // El trigger SQL se encarga de la sincronización
-    const query = sql`
-      INSERT INTO metricas_entidad (entity_type, entity_id, total_views)
-      VALUES ('oferta', ${ofertaId}, 1)
-      ON CONFLICT (entity_type, entity_id)
-      DO UPDATE SET 
-        total_views = metricas_entidad.total_views + 1,
-        updated_at = CURRENT_TIMESTAMP
+    // Paso 1: obtener los campos de partición de la oferta solicitada.
+    const ofertaQuery = sql`
+      SELECT
+        o.negocio_id, o.titulo, o.descripcion, o.tipo,
+        o.valor, o.imagen, o.fecha_inicio, o.fecha_fin
+      FROM ofertas o
+      WHERE o.id = ${ofertaId}
+      LIMIT 1
     `;
+    const ofertaResult = await db.execute(ofertaQuery);
+    if (ofertaResult.rows.length === 0) {
+      return { success: false, error: 'Oferta no encontrada', code: 404 };
+    }
+    const p = ofertaResult.rows[0] as Record<string, unknown>;
 
-    await db.execute(query);
+    const lat = gpsUsuario?.latitud;
+    const lng = gpsUsuario?.longitud;
+
+    // Paso 2: traer todas las sucursales con la MISMA partición.
+    // Usamos COALESCE para igualar correctamente cuando descripcion/valor/
+    // imagen son NULL (sino una NULL no iguala con otra NULL en SQL).
+    const distanciaSelect = lat && lng
+      ? sql`ST_Distance(
+          s.ubicacion::geography,
+          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+        ) / 1000 AS distancia_km`
+      : sql`NULL::float AS distancia_km`;
+
+    const orderByDistancia = lat && lng
+      ? sql`distancia_km ASC NULLS LAST, s.es_principal DESC`
+      : sql`s.es_principal DESC, s.nombre ASC`;
+
+    const result = await db.execute(sql`
+      SELECT
+        o.id AS oferta_id,
+        s.id AS sucursal_id,
+        s.nombre AS sucursal_nombre,
+        s.direccion,
+        s.ciudad,
+        s.telefono,
+        s.whatsapp,
+        s.es_principal,
+        ST_Y(s.ubicacion::geometry) AS latitud,
+        ST_X(s.ubicacion::geometry) AS longitud,
+        ${distanciaSelect}
+      FROM ofertas o
+      INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+      INNER JOIN negocios n ON n.id = o.negocio_id
+      WHERE o.negocio_id = ${p.negocio_id as string}
+        AND o.titulo = ${p.titulo as string}
+        AND COALESCE(o.descripcion, '') = COALESCE(${(p.descripcion as string | null) ?? ''}, '')
+        AND o.tipo = ${p.tipo as string}
+        AND COALESCE(o.valor::text, '') = COALESCE(${(p.valor as string | null) ?? ''}::text, '')
+        AND COALESCE(o.imagen, '') = COALESCE(${(p.imagen as string | null) ?? ''}, '')
+        AND o.fecha_inicio = ${p.fecha_inicio as string}
+        AND o.fecha_fin = ${p.fecha_fin as string}
+        AND o.activo = true
+        AND o.visibilidad = 'publico'
+        AND s.activa = true
+        AND n.activo = true
+        AND n.es_borrador = false
+        AND n.onboarding_completado = true
+        AND CURRENT_DATE >= DATE(o.fecha_inicio)
+        AND CURRENT_DATE <= DATE(o.fecha_fin)
+        AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
+      ORDER BY ${orderByDistancia}
+    `);
+
+    return {
+      success: true,
+      data: result.rows,
+    };
+  } catch (error) {
+    console.error('Error en obtenerSucursalesDeOferta:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// HELPER: ¿el usuario está vinculado al negocio dueño de la oferta?
+// =============================================================================
+//
+// Si la oferta pertenece a un negocio donde el usuario es dueño o
+// empleado (`usuarios.negocio_id` apunta a ese mismo negocio), las
+// métricas de vista/click/share NO deben contarse — sería inflar las
+// propias estadísticas del comerciante con sus propios accesos.
+//
+// Devuelve `true` si el usuario es "insider" del negocio dueño y la
+// métrica debe descartarse.
+async function esInsiderDelNegocio(
+  ofertaId: string,
+  usuarioId: string,
+): Promise<boolean> {
+  try {
+    const r = await db.execute(sql`
+      SELECT 1
+      FROM usuarios u
+      JOIN ofertas o ON o.negocio_id = u.negocio_id
+      WHERE u.id = ${usuarioId} AND o.id = ${ofertaId}
+      LIMIT 1
+    `);
+    return r.rows.length > 0;
+  } catch {
+    // Si falla el query (raro), por defecto dejamos pasar (no bloqueamos).
+    return false;
+  }
+}
+
+// =============================================================================
+// REGISTRAR SHARE DE OFERTA
+// =============================================================================
+//
+// Disparado cuando un usuario comparte una oferta (WhatsApp, Facebook,
+// X, Copiar link, Web Share API). Misma política anti-inflación que
+// vistas y clicks: máximo 1 share por usuario por día calendario.
+//
+// Antes los shares usaban la función SQL global `registrar_share` sin
+// dedupe. A partir del 1 May 2026 ofertas usa su propia tabla con índice
+// único per día.
+export async function registrarShareOferta(ofertaId: string, usuarioId: string) {
+  try {
+    // No contar accesos del propio comerciante a sus ofertas.
+    if (await esInsiderDelNegocio(ofertaId, usuarioId)) {
+      return { success: true, message: 'Share ignorado (insider)' };
+    }
+
+    let inserto = false;
+    try {
+      const insertEvento = sql`
+        INSERT INTO oferta_shares (oferta_id, usuario_id)
+        VALUES (${ofertaId}, ${usuarioId})
+        ON CONFLICT DO NOTHING
+        RETURNING id
+      `;
+      const r = await db.execute(insertEvento);
+      inserto = r.rows.length > 0;
+    } catch (eventoError) {
+      const msg = eventoError instanceof Error ? eventoError.message : '';
+      if (msg.includes('oferta_shares') || msg.includes('42P01')) {
+        // Tabla no existe (pre-migración). Modo legacy: incrementar siempre.
+        inserto = true;
+      } else {
+        console.error('Error al insertar evento en oferta_shares:', eventoError);
+      }
+    }
+
+    if (inserto) {
+      const queryAcumulado = sql`
+        INSERT INTO metricas_entidad (entity_type, entity_id, total_shares)
+        VALUES ('oferta', ${ofertaId}, 1)
+        ON CONFLICT (entity_type, entity_id)
+        DO UPDATE SET
+          total_shares = metricas_entidad.total_shares + 1,
+          updated_at = CURRENT_TIMESTAMP
+      `;
+      await db.execute(queryAcumulado);
+    }
+
+    return { success: true, message: 'Share registrado' };
+  } catch (error) {
+    console.error('Error al registrar share:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// REGISTRAR CLICK DE OFERTA (ENGAGEMENT)
+// =============================================================================
+//
+// Disparado cuando un usuario ABRE el modal de detalle de una oferta.
+// Es el evento de engagement (vs vista, que es la impression cuando la
+// card aparece en el viewport).
+//
+// Misma política anti-inflación que vistas: máximo 1 click por usuario
+// por día calendario (Sonora). El acumulado en `metricas_entidad.total_clicks`
+// solo se incrementa cuando el INSERT realmente agregó una fila nueva.
+export async function registrarClickOferta(ofertaId: string, usuarioId: string) {
+  try {
+    // No contar accesos del propio comerciante a sus ofertas.
+    if (await esInsiderDelNegocio(ofertaId, usuarioId)) {
+      return { success: true, message: 'Click ignorado (insider)' };
+    }
+
+    let inserto = false;
+    try {
+      const insertEvento = sql`
+        INSERT INTO oferta_clicks (oferta_id, usuario_id)
+        VALUES (${ofertaId}, ${usuarioId})
+        ON CONFLICT DO NOTHING
+        RETURNING id
+      `;
+      const r = await db.execute(insertEvento);
+      inserto = r.rows.length > 0;
+    } catch (eventoError) {
+      const msg = eventoError instanceof Error ? eventoError.message : '';
+      if (msg.includes('oferta_clicks') || msg.includes('42P01')) {
+        // Tabla no existe (pre-migración). Modo legacy: incrementar siempre.
+        inserto = true;
+      } else {
+        console.error('Error al insertar evento en oferta_clicks:', eventoError);
+      }
+    }
+
+    if (inserto) {
+      const queryAcumulado = sql`
+        INSERT INTO metricas_entidad (entity_type, entity_id, total_clicks)
+        VALUES ('oferta', ${ofertaId}, 1)
+        ON CONFLICT (entity_type, entity_id)
+        DO UPDATE SET
+          total_clicks = metricas_entidad.total_clicks + 1,
+          updated_at = CURRENT_TIMESTAMP
+      `;
+      await db.execute(queryAcumulado);
+    }
+
+    return { success: true, message: 'Click registrado' };
+  } catch (error) {
+    console.error('Error al registrar click:', error);
+    throw error;
+  }
+}
+
+export async function registrarVistaOferta(ofertaId: string, usuarioId: string) {
+  try {
+    // No contar accesos del propio comerciante a sus ofertas (dueño o
+    // empleado vinculado al negocio dueño de la oferta). Sin esto, las
+    // métricas se inflan con sus propios accesos al feed.
+    if (await esInsiderDelNegocio(ofertaId, usuarioId)) {
+      return { success: true, message: 'Vista ignorada (insider)' };
+    }
+
+    // POLÍTICA ANTI-INFLACIÓN (1 May 2026):
+    // Máximo 1 vista por usuario por día calendario (zona horaria
+    // `America/Hermosillo`). El índice único `uniq_oferta_vistas_por_dia`
+    // hace cumplir la regla a nivel BD; el service usa `RETURNING` para
+    // saber si REALMENTE se insertó una fila nueva. Solo en ese caso
+    // incrementamos el contador acumulado de `metricas_entidad`. Así el
+    // total acumulado refleja vistas ÚNICAS por día, no taps repetidos.
+    //
+    // Comportamiento esperado:
+    //  - Primera apertura del modal del día → +1 en oferta_vistas, +1 en metricas.
+    //  - Apertura repetida el mismo día (mismo user) → ON CONFLICT, no inserta,
+    //    no incrementa metricas. Devuelve success silenciosamente.
+    //  - Día siguiente → cuenta como vista nueva.
+
+    let inserto = false;
+    try {
+      const insertEvento = sql`
+        INSERT INTO oferta_vistas (oferta_id, usuario_id)
+        VALUES (${ofertaId}, ${usuarioId})
+        ON CONFLICT DO NOTHING
+        RETURNING id
+      `;
+      const r = await db.execute(insertEvento);
+      inserto = r.rows.length > 0;
+    } catch (eventoError) {
+      const msg = eventoError instanceof Error ? eventoError.message : '';
+      // Postgres SQLSTATE 42P01 = undefined_table. Si la migración aún no
+      // se aplicó (entorno antiguo), degradamos: incrementar el acumulado
+      // sin deduplicar. La deduplicación se activa al aplicar la migración.
+      if (msg.includes('oferta_vistas') || msg.includes('42P01')) {
+        inserto = true; // tratar como vista nueva en modo legacy
+      } else {
+        // Otros errores: log y seguir, pero no incrementar metricas.
+        console.error('Error al insertar evento en oferta_vistas:', eventoError);
+      }
+    }
+
+    if (inserto) {
+      const queryAcumulado = sql`
+        INSERT INTO metricas_entidad (entity_type, entity_id, total_views)
+        VALUES ('oferta', ${ofertaId}, 1)
+        ON CONFLICT (entity_type, entity_id)
+        DO UPDATE SET
+          total_views = metricas_entidad.total_views + 1,
+          updated_at = CURRENT_TIMESTAMP
+      `;
+      await db.execute(queryAcumulado);
+    }
 
     return {
       success: true,
@@ -2150,6 +2571,156 @@ export async function obtenerClientesAsignados(ofertaId: string, negocioId: stri
 }
 
 // =============================================================================
+// OFERTA DESTACADA DEL DÍA (FEED PÚBLICO — BLOQUE EDITORIAL)
+// =============================================================================
+
+/**
+ * Devuelve la oferta destacada vigente para el feed público.
+ *
+ * Lógica:
+ *  1. Si existe un override en `ofertas_destacadas` con
+ *     `activa=true AND vigente_desde <= NOW() AND vigente_hasta >= NOW()`,
+ *     se usa esa oferta.
+ *  2. Si no hay override vigente, se elige automáticamente la oferta activa
+ *     con más vistas (`metricas_entidad.total_views` como proxy — la
+ *     granularidad por ventana de 7 días no existe hoy en BD; ver reporte
+ *     `ofertas-publicas-prompt-1-cierre.md` desviación 1).
+ *  3. Si no hay ninguna oferta activa, retorna `data: null` (no es error).
+ *
+ * El formato de respuesta reutiliza `obtenerOfertaDetalle` para que el
+ * frontend pueda renderizar el bloque con el mismo componente que el modal
+ * de detalle.
+ */
+export async function obtenerOfertaDestacadaDelDia(
+  userId: string,
+  gpsUsuario?: { latitud: number; longitud: number }
+) {
+  try {
+    // 1) Buscar override administrable vigente
+    // Si la tabla `ofertas_destacadas` no existe todavía (migración pendiente),
+    // capturamos el error y caemos al fallback automático para no romper la
+    // experiencia del feed público antes de aplicar la migración en Supabase.
+    // POLÍTICA (1 May 2026): la destacada del día SÍ respeta el filtro
+    // de ciudad cuando hay GPS. Antes era contenido editorial "global",
+    // pero mostrar una oferta a 1400km del usuario rompe la promesa
+    // hiperlocal del producto. Si no hay nada destacado dentro del radio,
+    // el slot simplemente no se renderiza.
+    const lat = gpsUsuario?.latitud;
+    const lng = gpsUsuario?.longitud;
+    const radioMetros = 50 * 1000; // 50km — mismo radio que el feed
+    const filtroGps = lat && lng
+      ? sql`AND ST_DWithin(
+          s.ubicacion::geography,
+          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+          ${radioMetros}
+        )`
+      : sql``;
+
+    let ofertaId: string | null = null;
+    try {
+      // Override admin: solo válido si la oferta cae dentro del radio
+      // del usuario. Sin GPS, se acepta cualquier override.
+      const overrideQuery = sql`
+        SELECT od.oferta_id
+        FROM ofertas_destacadas od
+        INNER JOIN ofertas o ON o.id = od.oferta_id
+        INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+        WHERE od.activa = true
+          AND od.vigente_desde <= NOW()
+          AND od.vigente_hasta >= NOW()
+          ${filtroGps}
+        ORDER BY od.fijada_at DESC
+        LIMIT 1
+      `;
+      const overrideResult = await db.execute(overrideQuery);
+      if (overrideResult.rows.length > 0) {
+        const row = overrideResult.rows[0] as { oferta_id: string };
+        ofertaId = row.oferta_id;
+      }
+    } catch (overrideError) {
+      const msg = overrideError instanceof Error ? overrideError.message : '';
+      // Postgres SQLSTATE 42P01 = undefined_table
+      if (!msg.includes('ofertas_destacadas') && !msg.includes('42P01')) {
+        throw overrideError;
+      }
+      // Tabla aún no existe: ignoramos y dejamos que actúe el fallback
+    }
+
+    if (!ofertaId) {
+      // 2) Fallback automático: oferta PÚBLICA activa más popular (últimos 7
+      //    días), filtrada por radio cuando hay GPS, deduplicada por grupo
+      //    de "misma oferta operativa".
+      const usaVistasReales = await tablaOfertaVistasExiste();
+
+      const fallbackQuery = sql`
+        WITH grupos AS (
+          SELECT
+            o.id,
+            o.created_at,
+            ${usaVistasReales
+              ? sql`COALESCE((
+                  SELECT COUNT(*)::int
+                  FROM oferta_vistas ov
+                  WHERE ov.oferta_id = o.id
+                    AND ov.created_at >= NOW() - INTERVAL '7 days'
+                ), 0) AS vistas_7_dias,`
+              : sql``
+            }
+            ROW_NUMBER() OVER (
+              PARTITION BY
+                o.negocio_id, o.titulo, o.descripcion, o.tipo,
+                o.valor, o.imagen, o.fecha_inicio, o.fecha_fin
+              ORDER BY
+                s.es_principal DESC,
+                o.updated_at DESC
+            ) AS rn
+          FROM ofertas o
+          INNER JOIN negocios n ON n.id = o.negocio_id
+          INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+          WHERE o.activo = true
+            AND o.visibilidad = 'publico'
+            AND n.activo = true
+            AND s.activa = true
+            AND n.es_borrador = false
+            AND n.onboarding_completado = true
+            AND CURRENT_DATE >= DATE(o.fecha_inicio)
+            AND CURRENT_DATE <= DATE(o.fecha_fin)
+            AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
+            ${filtroGps}
+        )
+        SELECT id FROM grupos
+        WHERE rn = 1
+        ORDER BY ${usaVistasReales ? sql`vistas_7_dias DESC,` : sql``} created_at DESC
+        LIMIT 1
+      `;
+      const fallbackResult = await db.execute(fallbackQuery);
+      if (fallbackResult.rows.length > 0) {
+        const row = fallbackResult.rows[0] as { id: string };
+        ofertaId = row.id;
+      }
+    }
+
+    // 3) Sin oferta destacada disponible
+    if (!ofertaId) {
+      return {
+        success: true,
+        data: null,
+      };
+    }
+
+    // 4) Reutilizar el formato del detalle (mismos joins, métricas y
+    //    liked/saved del usuario). Pasamos el GPS opcional para que la
+    //    distancia se calcule cuando el usuario lo proporcione (la oferta
+    //    NO se filtra por ciudad — es contenido editorial global — pero
+    //    sí se muestra la distancia para orientación visual).
+    return await obtenerOfertaDetalle(ofertaId, userId, gpsUsuario);
+  } catch (error) {
+    console.error('Error al obtener oferta destacada del día:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -2157,6 +2728,7 @@ export default {
   // Feed público (ambos modos)
   obtenerFeedOfertas,
   obtenerOfertaDetalle,
+  obtenerOfertaDestacadaDelDia,
   registrarVistaOferta,
 
   // Business Studio (modo comercial)
