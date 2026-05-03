@@ -21,6 +21,7 @@ import { verificarAccessTokenScanYA } from '../utils/jwtScanYA.js';
  * - negocioId: UUID del negocio (agregado por verificarNegocio middleware)
  */
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       usuario?: TokenDecodificado & { empleadoId?: string | null };
@@ -168,6 +169,7 @@ export async function verificarTokenChatYA(req: Request, res: Response, next: Ne
 
   // 1. Intentar como token AnunciaYA (descartar si es token ScanYA)
   const resultadoAY = verificarAccessToken(token);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (resultadoAY.valido && resultadoAY.payload && !(resultadoAY.payload as any)._tipo) {
     const payload = resultadoAY.payload;
     // Gerente en modo comercial: sustituir usuarioId por el del dueño del negocio

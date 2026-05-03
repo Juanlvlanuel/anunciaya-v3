@@ -92,8 +92,6 @@ export function DropdownCompartir({
 
         if (!abierto && buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
-            const isMobile = window.innerWidth < 1024; // lg breakpoint
-            
             setPosicion({
                 top: rect.bottom + 8,
                 right: window.innerWidth - rect.right,

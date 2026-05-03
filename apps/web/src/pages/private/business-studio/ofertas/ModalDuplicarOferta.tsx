@@ -84,7 +84,6 @@ function formatearValor(tipo: TipoOferta, valor: string | null): string {
 // =============================================================================
 
 export function ModalDuplicarOferta({ oferta, onDuplicar, onCerrar }: ModalDuplicarOfertaProps) {
-    const { usuario } = useAuthStore();
     const setTotalSucursales = useAuthStore((s) => s.setTotalSucursales);
     const { data: sucursalesData, isPending: cargando } = usePerfilSucursales();
     const sucursales = (sucursalesData ?? []) as Sucursal[];

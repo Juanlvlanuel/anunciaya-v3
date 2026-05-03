@@ -174,7 +174,7 @@ export function usePerfil() {
 
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   // Estados iniciales para detectar cambios
   const [datosInicialesInformacion, setDatosInicialesInformacion] = useState<DatosInformacion | null>(null);

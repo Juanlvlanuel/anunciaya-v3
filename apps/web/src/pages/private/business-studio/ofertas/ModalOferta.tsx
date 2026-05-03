@@ -13,7 +13,7 @@
  * - TabClientes.tsx — filtros (nivel, actividad) + selector + chips
  */
 
-import { useState, useLayoutEffect, useEffect, useCallback } from 'react';
+import { useState, useLayoutEffect, useEffect } from 'react';
 import {
     Eye, EyeOff,
     Gift, Truck, Percent, DollarSign, ShoppingBag, Tag,

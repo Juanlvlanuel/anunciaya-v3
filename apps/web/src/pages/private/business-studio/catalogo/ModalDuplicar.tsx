@@ -51,8 +51,6 @@ interface ModalDuplicarProps {
 // =============================================================================
 
 export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarProps) {
-  const { usuario } = useAuthStore();
-  const totalSucursalesStore = useAuthStore((s) => s.totalSucursales);
   const setTotalSucursales = useAuthStore((s) => s.setTotalSucursales);
   const { data: sucursalesData, isPending: cargando } = usePerfilSucursales();
   const sucursales = (sucursalesData ?? []) as Sucursal[];

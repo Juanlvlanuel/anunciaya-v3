@@ -20,8 +20,8 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { obtenerConexionesReconcile } from '../../db/reconcileConnections.js';
-import { eliminarArchivo, esUrlR2, listarObjetosR2, type ObjetoR2 } from '../r2.service.js';
-import { IMAGE_REGISTRY, CARPETAS_PROTEGIDAS, type ImageField } from '../../utils/imageRegistry.js';
+import { eliminarArchivo, esUrlR2, listarObjetosR2 } from '../r2.service.js';
+import { IMAGE_REGISTRY, CARPETAS_PROTEGIDAS } from '../../utils/imageRegistry.js';
 import { env } from '../../config/env.js';
 
 // =============================================================================

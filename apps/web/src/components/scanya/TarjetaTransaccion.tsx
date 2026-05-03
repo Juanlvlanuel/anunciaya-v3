@@ -11,7 +11,6 @@
  */
 
 import {
-  User,
   Clock,
   Ticket,
   XCircle,

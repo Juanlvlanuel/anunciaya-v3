@@ -13,7 +13,7 @@
  * CREADO: Abril 2026 — Sprint 12 BS Sucursales
  */
 
-import { eq, and, sql, ilike, or } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { db } from '../db';

@@ -13,8 +13,6 @@ import {
 	Wrench,
 	TrendingUp,
 	Heart,
-	CheckCircle2,
-	Eye,
 	Lightbulb,
 	Clock,
 	BarChart3,

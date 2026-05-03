@@ -151,14 +151,15 @@ export const verificarNegocio = async (
 
         // Si tiene negocio propio (es dueño)
         if (negocio) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (req as any).negocioId = negocio.id;
             return next();
         }
 
         // Si no tiene negocio propio, buscar en usuarios (puede ser gerente/empleado)
         const queryUsuario = await db.execute(sql`
-            SELECT negocio_id 
-            FROM usuarios 
+            SELECT negocio_id
+            FROM usuarios
             WHERE id = ${usuarioId}
         `);
 
@@ -170,6 +171,7 @@ export const verificarNegocio = async (
         }
 
         // Inyectar negocioId del empleado
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (req as any).negocioId = queryUsuario.rows[0].negocio_id;
 
         next();

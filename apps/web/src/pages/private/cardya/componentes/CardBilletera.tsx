@@ -114,26 +114,6 @@ export default function CardBilletera({
   );
 
 
-  // ─── Badge de nivel ───
-  const badgeNivel = (
-    <div
-      className="absolute top-2 right-2 lg:top-3 lg:right-3 px-2.5 py-1 lg:px-2.5 lg:py-1 rounded-lg flex items-center gap-1.5 lg:gap-1.5 backdrop-blur-sm"
-      style={{
-        background: nivel.badgeBg,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        border: '1px solid rgba(255,255,255,0.5)',
-      }}
-    >
-      <span className="text-sm lg:text-sm leading-none">{nivel.icono}</span>
-      <span
-        className="text-sm lg:text-[11px] 2xl:text-sm font-bold"
-        style={{ color: nivel.color }}
-      >
-        {nivel.label}
-      </span>
-    </div>
-  );
-
   // ─── Barra de progreso ───
   const esNivelMaximo = billetera.nivelActual === 'oro';
 

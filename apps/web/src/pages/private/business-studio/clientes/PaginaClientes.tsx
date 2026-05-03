@@ -39,7 +39,6 @@ import {
   Inbox,
   Clock,
   Phone,
-  Eye,
   Download,
   X,
 } from 'lucide-react';

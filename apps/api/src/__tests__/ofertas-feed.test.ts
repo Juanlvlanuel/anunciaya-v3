@@ -33,8 +33,10 @@ import {
   request,
 } from './helpers';
 import { db } from '../db/index.js';
-import { ofertas, negocios, negocioSucursales } from '../db/schemas/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { ofertas } from '../db/schemas/schema.js';
+import { sql } from 'drizzle-orm';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // =============================================================================
 // IDs de ofertas de prueba (UUIDs fijos para reusar entre tests)
@@ -436,8 +438,9 @@ describe('GET /api/ofertas/:ofertaId/sucursales', () => {
     expect(status).toBe(200);
     expect(data.success).toBe(true);
     expect(Array.isArray(data.data)).toBe(true);
-    expect(data.data.length).toBeGreaterThanOrEqual(1);
-    const primera = data.data[0] as Record<string, unknown>;
+    const datosArray = data.data as unknown[];
+    expect(datosArray.length).toBeGreaterThanOrEqual(1);
+    const primera = datosArray[0] as Record<string, unknown>;
     expect(primera.sucursalId).toBeDefined();
     expect(primera.sucursalNombre).toBeDefined();
   });

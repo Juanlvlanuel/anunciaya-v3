@@ -10,9 +10,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
 	crearUsuariosPrueba,
 	crearNegocioPrueba,
-	limpiarNegocioPrueba,
 	TOKEN_COMERCIAL_1,
-	NEGOCIO_TEST_ID,
 	SUCURSAL_TEST_ID,
 	request,
 } from './helpers';

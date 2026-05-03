@@ -23,7 +23,6 @@ import { useEffect, useRef, useState } from 'react';
 import { X, MessageCircle, Heart, Truck, Flame, Clock, Eye, MapPin, Phone, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useGuardados } from '@/hooks/useGuardados';
-import { api } from '@/services/api';
 import {
   registrarClickOferta,
   registrarShareOferta,

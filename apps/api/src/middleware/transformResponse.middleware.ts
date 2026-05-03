@@ -36,6 +36,8 @@ function snakeToCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * Transforma recursivamente un objeto/array de snake_case a camelCase
  * 

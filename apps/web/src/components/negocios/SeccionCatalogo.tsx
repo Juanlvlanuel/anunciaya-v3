@@ -104,9 +104,6 @@ export function SeccionCatalogo({
     return ordenados.slice(0, previewCount);
   }, [catalogo, previewCount]);
 
-  // Cuántos items quedan por mostrar
-  const itemsRestantesLaptop = Math.max(0, totalItems - ITEMS_PREVIEW_LAPTOP);
-  const itemsRestantesDesktop = Math.max(0, totalItems - ITEMS_PREVIEW_DESKTOP);
 
   // ---------------------------------------------------------------------------
   // HANDLERS
@@ -286,9 +283,9 @@ interface CardPreviewProps {
   onItemClick?: (item: ItemCatalogo, e: React.MouseEvent) => void;
 }
 
-function CardPreview({ 
-  item, 
-  index, 
+function CardPreview({
+  item,
+  index: _index,
   onItemClick
 }: CardPreviewProps) {
   const esServicio = item.tipo === 'servicio';

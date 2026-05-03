@@ -425,6 +425,7 @@ export async function obtenerSeguidos(
             const resultado = await db.execute(query);
             
             // Convertir resultado a formato esperado
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const seguidos = resultado.rows.map((row: any) => ({
                 id: row.voto_id.toString(),
                 sucursalId: row.sucursal_id,

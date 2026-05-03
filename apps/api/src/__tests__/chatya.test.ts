@@ -524,7 +524,7 @@ describe('OG Preview', () => {
   });
 
   it('debe rechazar URL sin protocolo HTTP', async () => {
-    const { status, data } = await request(`/chatya/og-preview?url=${encodeURIComponent('ftp://example.com')}`, {
+    const { data } = await request(`/chatya/og-preview?url=${encodeURIComponent('ftp://example.com')}`, {
       token: TOKEN_USUARIO_1(),
     });
 
@@ -532,7 +532,7 @@ describe('OG Preview', () => {
   });
 
   it('debe rechazar URL inválida', async () => {
-    const { status, data } = await request('/chatya/og-preview?url=no-es-una-url', {
+    const { data } = await request('/chatya/og-preview?url=no-es-una-url', {
       token: TOKEN_USUARIO_1(),
     });
 

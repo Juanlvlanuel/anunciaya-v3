@@ -239,14 +239,6 @@ export function ModalCanjearVoucher({
     if (nuevoMetodo === 'qr') iniciarCamara();
   };
 
-  const handleVolverMetodos = () => {
-    detenerCamara();
-    setMetodo(null);
-    setCodigo(['', '', '', '', '', '']);
-    setError(null);
-    setCamaraDisponible(null);
-  };
-
   const handleCerrar = () => {
     detenerCamara();
     if (onCerrarTodo) {

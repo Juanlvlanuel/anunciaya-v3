@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, Users, ChevronDown, Check, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Search, Users, ChevronDown, Check, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import type { ClienteAsignado } from '../../../../services/ofertasService';

@@ -36,6 +36,7 @@ export function diagMarca(nombre: string) {
   const tiempo = Math.round(performance.now() - sesionActual.inicio);
   sesionActual.marcas.push({ nombre, tiempo });
   // Imprimir en consola cuando el monitor está activo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (typeof window !== 'undefined' && (window as any).__PERF_BS__) {
     console.log(`%c[ChatYA] %c${nombre} %c→ ${tiempo}ms`, 'color:#10b981;font-weight:bold', 'color:#e2e8f0', 'color:#facc15;font-weight:bold');
   }

@@ -15,7 +15,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import jwt from 'jsonwebtoken';
 
-const API_URL = 'http://localhost:4000/api';
 const APP_URL = 'http://localhost:3000';
 const JWT_SECRET = process.env.JWT_SECRET!;
 

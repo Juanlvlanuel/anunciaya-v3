@@ -13,7 +13,6 @@ import {
   limpiarNegocioPrueba,
   limpiarDatosPrueba,
   TOKEN_COMERCIAL_1,
-  TOKEN_USUARIO_1,
   TOKEN_USUARIO_2,
   SUCURSAL_TEST_ID,
   request,

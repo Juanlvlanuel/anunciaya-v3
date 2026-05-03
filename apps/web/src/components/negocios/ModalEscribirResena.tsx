@@ -16,7 +16,7 @@
  */
 
 import { useState } from 'react';
-import { Star, X } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { ModalBottom } from '../ui/ModalBottom';
 import { useBreakpoint } from '../../hooks/useBreakpoint';

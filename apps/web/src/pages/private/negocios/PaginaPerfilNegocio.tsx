@@ -531,10 +531,6 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     const [seccionExpandida] = useState<'catalogo' | null>(null);
     const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false);
 
-    // Paginación de galería
-    const [paginaGaleria, setPaginaGaleria] = useState(0);
-    const IMAGENES_POR_PAGINA = 4;
-
     // ✅ NUEVO: Estado unificado para ModalImagenes
     const [modalImagenes, setModalImagenes] = useState<{
         isOpen: boolean;
@@ -842,24 +838,6 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
             initialIndex: 0,
         });
     };
-
-    // Paginación de galería
-    const siguientePaginaGaleria = () => {
-        const totalPaginas = Math.ceil(galeriaImagenes.length / IMAGENES_POR_PAGINA);
-        setPaginaGaleria(prev => prev < totalPaginas - 1 ? prev + 1 : prev);
-    };
-
-    const anteriorPaginaGaleria = () => {
-        const totalPaginas = Math.ceil(galeriaImagenes.length / IMAGENES_POR_PAGINA);
-        setPaginaGaleria(prev => (prev - 1 + totalPaginas) % totalPaginas);
-    };
-
-    const imagenesActuales = galeriaImagenes.slice(
-        paginaGaleria * IMAGENES_POR_PAGINA,
-        (paginaGaleria + 1) * IMAGENES_POR_PAGINA
-    );
-    const hayMasImagenes = galeriaImagenes.length > IMAGENES_POR_PAGINA;
-    const totalPaginasGaleria = Math.ceil(galeriaImagenes.length / IMAGENES_POR_PAGINA);
 
     // =============================================================================
     // HELPERS

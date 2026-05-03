@@ -21,7 +21,7 @@
 
 import { db } from '../db/index.js';
 import { chatConversaciones, chatMensajes } from '../db/schemas/schema.js';
-import { sql, lt, eq, and } from 'drizzle-orm';
+import { sql, lt, eq } from 'drizzle-orm';
 import { eliminarArchivo, esUrlR2 } from '../services/r2.service.js';
 import { env } from '../config/env.js';
 

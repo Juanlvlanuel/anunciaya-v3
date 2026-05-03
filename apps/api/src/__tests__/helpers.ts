@@ -150,6 +150,7 @@ export async function crearNegocioPrueba(): Promise<void> {
     nombre: 'Negocio Test E2E',
     descripcion: 'Negocio de prueba para tests',
     activo: true,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
   // Vincular usuario al negocio
@@ -164,6 +165,7 @@ export async function crearNegocioPrueba(): Promise<void> {
     nombre: 'Sucursal Principal Test',
     ciudad: 'Test',
     esPrincipal: true,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 }
 

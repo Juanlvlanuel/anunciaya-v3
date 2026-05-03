@@ -44,6 +44,7 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
 
     // 1. Intentar como token AnunciaYA (descartar si es ScanYA)
     const resultadoAY = verificarAccessToken(token);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (resultadoAY.valido && resultadoAY.payload && !(resultadoAY.payload as any)._tipo) {
       const payload = resultadoAY.payload;
       // Gerente en modo comercial → room del dueño (opera "como el negocio").

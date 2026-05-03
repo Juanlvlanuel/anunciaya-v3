@@ -333,9 +333,11 @@ export async function misNotasController(req: Request, res: Response) {
     let usuarioId = req.usuario?.empleadoId || obtenerUsuarioId(req);
 
     // Si usuarioId está vacío (token ScanYA viejo sin negocioUsuarioId), obtener de BD
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (!usuarioId && (req as any).scanyaUsuario?.negocioId) {
       const { db } = await import('../db/index.js');
       const { sql } = await import('drizzle-orm');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const r = await db.execute(sql`SELECT usuario_id FROM negocios WHERE id = ${(req as any).scanyaUsuario.negocioId}`);
       const rows = Array.isArray(r) ? r : (r as unknown as { rows: unknown[] }).rows;
       const row = rows?.[0] as { usuario_id?: string } | undefined;

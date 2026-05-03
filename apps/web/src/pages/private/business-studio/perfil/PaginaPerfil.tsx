@@ -14,7 +14,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Save, User, Building2, Phone, MapPin, Clock,
-  Image as ImageIcon, Settings2, Store, GitBranch,
+  Image as ImageIcon, Settings2,
 } from 'lucide-react';
 import { usePerfil } from './hooks/usePerfil';
 import { useUiStore } from '../../../../stores/useUiStore';

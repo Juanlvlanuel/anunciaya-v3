@@ -1407,7 +1407,7 @@ export async function restablecerContrasena(
     // Paso 6: Cerrar TODAS las sesiones por seguridad
     // -------------------------------------------------------------------------
     // Si alguien más tenía acceso, ya no podrá usarlo
-    const sesionesEliminadas = await eliminarTodasLasSesiones(usuario.id);
+    await eliminarTodasLasSesiones(usuario.id);
 
     return {
       success: true,

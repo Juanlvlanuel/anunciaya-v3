@@ -111,7 +111,6 @@ export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, negoc
 
     // Título compartido
     const titulo = `Todas las Ofertas (${ofertas.length})`;
-    const iconoTitulo = <Tag className="h-5 w-5 lg:h-4 lg:w-4 2xl:h-5 2xl:w-5 text-white" />;
 
     return (
         <>

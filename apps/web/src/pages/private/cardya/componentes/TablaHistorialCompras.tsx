@@ -80,7 +80,7 @@ const agruparPorMes = (transacciones: Transaccion[]) => {
 export default function TablaHistorialCompras({
   transacciones,
   onClickTransaccion,
-  stickyTop = 0,
+  stickyTop: _stickyTop = 0,
   negocioFiltro = 'todos',
   filtroEstado = 'todos',
 }: {

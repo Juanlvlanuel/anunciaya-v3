@@ -66,6 +66,7 @@ const ENTITY_CONFIG: Record<EntityType, EntityConfig> = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getNestedField(obj: any, path: string): any {
   if (!path) return undefined;
   
@@ -173,7 +174,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     return res.status(200).send(html);
     
-  } catch (error) {
+  } catch {
     const fallbackHtml = `
 <!DOCTYPE html>
 <html lang="es">

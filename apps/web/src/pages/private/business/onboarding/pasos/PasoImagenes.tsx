@@ -74,7 +74,7 @@ interface ZonaUploadProps {
 }
 
 function ZonaUpload({
-    imageUrl, miniatura, isUploading, r2Url, inputRef, isDragging, aspect,
+    imageUrl, miniatura, isUploading, r2Url: _r2Url, inputRef, isDragging, aspect,
     onFileChange, onDelete, onDragEnter, onDragOver, onDragLeave, onDrop,
     placeholder, uploadingText, onImageClick,
 }: ZonaUploadProps) {

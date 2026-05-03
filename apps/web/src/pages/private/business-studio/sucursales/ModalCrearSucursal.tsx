@@ -19,7 +19,6 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useCrearSucursal, useSucursalesLista } from '../../../../hooks/queries/useSucursales';
-import { Spinner } from '../../../../components/ui/Spinner';
 import { notificar } from '../../../../utils/notificaciones';
 import { buscarCiudades, type CiudadConNombreCompleto } from '../../../../data/ciudadesPopulares';
 import { InputTelefono, normalizarTelefono } from '../../../../components/ui/InputTelefono';
@@ -325,7 +324,7 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 	// Estados del flujo
 	const [mostrandoProgreso, setMostrandoProgreso] = useState(false);
 	const [requestCompletado, setRequestCompletado] = useState(false);
-	const [huboError, setHuboError] = useState(false);
+	const [, setHuboError] = useState(false);
 
 	// Popup fullscreen del mapa — permite ajustar el marcador con mucho más espacio
 	const [mapaFullscreen, setMapaFullscreen] = useState(false);

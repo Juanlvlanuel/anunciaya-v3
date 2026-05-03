@@ -288,14 +288,13 @@ export default function TabImagenes({
     () => datosImagenes.galeria?.map(img => img.url) ?? []
   );
   const [subiendoGaleria, setSubiendoGaleria] = useState(false);
-  const galeriaInputRef = useRef<HTMLInputElement>(null);
 
   // Sincronizar si galería cambia externamente (ej: refetch tras guardar) y local está vacío
   useEffect(() => {
     if (galeriaUrls.length === 0 && datosImagenes.galeria && datosImagenes.galeria.length > 0) {
       setGaleriaUrls(datosImagenes.galeria.map(img => img.url));
     }
-  }, [datosImagenes.galeria]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [datosImagenes.galeria]);
 
   const subirImagenGaleriaR2 = async (file: File): Promise<string> => {
     const blob = await new Promise<Blob>((resolve, reject) => {
@@ -382,19 +381,6 @@ export default function TabImagenes({
     }
   };
 
-  // Limpiar blob URL de miniatura después de fade-in
-  const handleGaleriaCargada = (url: string) => {
-    const blobUrl = miniaturasGaleria[url];
-    if (blobUrl) {
-      URL.revokeObjectURL(blobUrl);
-      setMiniaturasGaleria(prev => {
-        const next = { ...prev };
-        delete next[url];
-        return next;
-      });
-    }
-  };
-
   const handleEliminarImagenGaleria = async (url: string, id?: number | string) => {
     if (!negocioId) return;
 
@@ -436,7 +422,7 @@ export default function TabImagenes({
       if (negocioId) await api.delete(`/negocios/${negocioId}/logo`);
       invalidarCachesNegocio({ logoNegocio: null });
       notificar.exito('Logo eliminado');
-    } catch (error) {
+    } catch {
       setDatosImagenes({ ...datosImagenes, logoUrl: urlAnterior });
       notificar.error('Error al eliminar logo');
     }
@@ -461,7 +447,7 @@ export default function TabImagenes({
         fotoPerfilSucursalAsignada: null,
       });
       notificar.exito('Foto de perfil eliminada');
-    } catch (error) {
+    } catch {
       setDatosImagenes({ ...datosImagenes, fotoPerfilUrl: urlAnterior });
       notificar.error('Error al eliminar foto de perfil');
     }
@@ -483,7 +469,7 @@ export default function TabImagenes({
       if (negocioId) await api.delete(`/negocios/${negocioId}/portada`);
       invalidarCachesNegocio();
       notificar.exito('Portada eliminada');
-    } catch (error) {
+    } catch {
       setDatosImagenes({ ...datosImagenes, portadaUrl: urlAnterior });
       notificar.error('Error al eliminar portada');
     }

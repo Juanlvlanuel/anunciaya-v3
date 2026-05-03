@@ -2,6 +2,7 @@
   "name": "anunciaya",
   "version": "3.0.0",
   "private": true,
+  "type": "module",
   "description": "AnunciaYA - Plataforma de negocios locales",
   "scripts": {
     "dev": "pnpm -r dev",

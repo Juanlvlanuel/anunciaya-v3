@@ -618,7 +618,7 @@ function CollageItem({
       onClick={onClick}
       title={oferta.titulo}
       style={{ transform: `rotate(${deg}deg)` }}
-      className="w-full aspect-[3/4] rounded-lg overflow-hidden bg-[#e8e6e0] opacity-70 hover:opacity-90 transition-opacity duration-300 shadow-sm cursor-pointer"
+      className="w-full aspect-3/4 rounded-lg overflow-hidden bg-[#e8e6e0] opacity-70 hover:opacity-90 transition-opacity duration-300 shadow-sm cursor-pointer"
     >
       {oferta.imagen ? (
         <img

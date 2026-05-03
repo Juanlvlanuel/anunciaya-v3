@@ -33,9 +33,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     MessageSquare,
-    MessageCircle,
     Search,
-    Send,
     Star,
     Clock,
     CheckCircle2,
@@ -382,14 +380,6 @@ export function PaginaOpiniones() {
     /** Toggle filtro de estrellas (click en barra distribución) */
     const toggleFiltroEstrellas = (estrellas: number) => {
         setFiltroEstrellas((prev) => prev === estrellas ? null : estrellas);
-    };
-
-    const hayFiltrosActivos = filtroEstado !== 'todas' || filtroEstrellas !== null || busqueda.trim() !== '';
-
-    const limpiarFiltros = () => {
-        setFiltroEstado('todas');
-        setFiltroEstrellas(null);
-        setBusqueda('');
     };
 
     // =========================================================================

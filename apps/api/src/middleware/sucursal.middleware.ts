@@ -41,6 +41,7 @@ export async function validarAccesoSucursal(
 ) {
     try {
         const { sucursalId } = req.query;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
         
         if (!userId) {

@@ -140,42 +140,6 @@ const formatearFechaLarga = (fechaISO: string | null) => {
   return `${dia} ${mes} ${anio}`;
 };
 
-/** Formatea fecha relativa: "Hace 2h", "Ayer 3:20 PM", "12 Feb" */
-const formatearFechaCorta = (fechaISO: string | null) => {
-  if (!fechaISO) return '—';
-  const fecha = new Date(fechaISO);
-  const ahora = new Date();
-  const diffMs = ahora.getTime() - fecha.getTime();
-  const diffMin = Math.floor(diffMs / (1000 * 60));
-  const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMin < 60) return `Hace ${diffMin}min`;
-  if (diffHoras < 24) return `Hace ${diffHoras}h`;
-  if (diffDias === 1) {
-    return `Ayer ${fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
-  }
-  if (diffDias < 7) return `Hace ${diffDias}d`;
-  if (diffDias < 30) return `Hace ${Math.floor(diffDias / 7)}sem`;
-  return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-
-/** Formatea teléfono: +526441234567 → +52 644 1234567 */
-const formatearTelefono = (tel: string): string => {
-  const limpio = tel.replace(/\s+/g, '');
-  if (limpio.startsWith('+52') && limpio.length === 13) {
-    return `+52 ${limpio.slice(3, 6)} ${limpio.slice(6)}`;
-  }
-  // Fallback: insertar espacio cada 3 dígitos después del código de país
-  if (limpio.startsWith('+') && limpio.length > 4) {
-    const codigo = limpio.slice(0, 3); // +XX
-    const resto = limpio.slice(3);
-    return `${codigo} ${resto.slice(0, 3)} ${resto.slice(3)}`;
-  }
-  return tel;
-};
-
 /** Formatea fecha de expiración con indicador de urgencia */
 const formatearExpiracion = (fechaISO: string | null) => {
   if (!fechaISO) return '—';
@@ -517,7 +481,6 @@ export default function PaginaTransacciones() {
     busquedaCanjes,
     setBusquedaCanjes,
     limpiar,
-    resetFiltros,
   } = useTransaccionesStore();
 
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
@@ -557,7 +520,6 @@ export default function PaginaTransacciones() {
   const hayMas = historialQuery.hasNextPage;
   const totalResultados = historialQuery.data?.pages[0]?.total ?? 0;
   const kpisCupones = kpisCuponesQuery.data ?? null;
-  const cargandoKpisCupones = kpisCuponesQuery.isPending;
   const historialCupones = historialCuponesQuery.data?.pages.flatMap((p) => p.historial) ?? [];
   const cargandoHistorialCupones = historialCuponesQuery.isPending;
   const cargandoMasCupones = historialCuponesQuery.isFetchingNextPage;

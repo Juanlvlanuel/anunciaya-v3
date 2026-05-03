@@ -674,11 +674,6 @@ export function ModalVouchers({
             if (l.length === 10) return `+52 ${l.slice(0, 3)} ${l.slice(3, 6)} ${l.slice(6)}`;
             return tel;
         };
-        const formatFechaLarga = (f: string) => {
-            const d = new Date(f);
-            return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) +
-                ', ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
-        };
         const formatFechaCorta = (f: string) => {
             const d = new Date(f);
             return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) +

@@ -26,7 +26,6 @@ import {
   Tag,
   Wrench,
   User,
-  Settings,
   LogOut,
   Eye,
   X,

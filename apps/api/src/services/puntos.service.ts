@@ -57,7 +57,7 @@ import type {
   TransaccionPuntos,
   PeriodoEstadisticas
 } from '../types/puntos.types.js';
-import { generarPresignedUrl, eliminarArchivo } from './r2.service.js';
+import { generarPresignedUrl } from './r2.service.js';
 import { eliminarImagenSiHuerfana } from './negocioManagement.service.js';
 import { startOfDay, subDays, subMonths, subYears } from 'date-fns';
 import { crearNotificacion, eliminarNotificacionesPorReferencia, obtenerSucursalPrincipal } from './notificaciones.service.js';

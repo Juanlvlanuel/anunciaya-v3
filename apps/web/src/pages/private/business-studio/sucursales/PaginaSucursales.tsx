@@ -75,7 +75,7 @@ export default function PaginaSucursales() {
 	const [busquedaLocal, setBusquedaLocal] = useState('');
 	const [busqueda, setBusqueda] = useState('');
 	const [filtroActiva, setFiltroActiva] = useState<boolean | undefined>(undefined);
-	const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+	const [, setIsMobile] = useState(() => window.innerWidth < 1024);
 
 	const esGerente = !!usuario?.sucursalAsignada;
 

@@ -128,6 +128,7 @@ api.interceptors.request.use(
 
     // Obtener tokens según el tipo de ruta
     let accessToken: string | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let usuario: any;
 
     if (esScanYA) {
@@ -229,7 +230,9 @@ api.interceptors.request.use(
     }
 
     // PERF MONITOR — registrar inicio del request
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof window !== 'undefined' && (window as any).__PERF_BS__) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (config as any).__perfInicio = performance.now();
     }
 
@@ -248,7 +251,9 @@ api.interceptors.response.use(
   // Respuesta exitosa: registrar duración y pasar
   (response) => {
     // PERF MONITOR — registrar fin del request
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof window !== 'undefined' && (window as any).__PERF_BS__) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const inicio = (response.config as any).__perfInicio;
       if (inicio) {
         const duracion = Math.round(performance.now() - inicio);
@@ -267,7 +272,9 @@ api.interceptors.response.use(
     };
 
     // PERF MONITOR — registrar error de request
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof window !== 'undefined' && (window as any).__PERF_BS__) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const inicio = (originalRequest as any)?.__perfInicio;
       if (inicio) {
         const duracion = Math.round(performance.now() - inicio);

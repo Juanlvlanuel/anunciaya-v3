@@ -452,6 +452,7 @@ export const guardarBorradorPaso1 = async (
     data: Paso1Draft
 ) => {
     try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateData: any = { updatedAt: new Date().toISOString() };
 
         // Solo actualizar campos que NO sean null o undefined
@@ -516,6 +517,7 @@ export const guardarBorradorSucursal = async (
         }
 
         // Preparar datos (permite null para borrar campos)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateData: any = {
             updatedAt: new Date().toISOString()
         };
@@ -588,7 +590,9 @@ export const guardarBorradorContacto = async (
         }
 
         // Preparar datos (permite null para borrar campos)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateSucursal: any = { updatedAt: new Date().toISOString() };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateNegocio: any = { updatedAt: new Date().toISOString() };
 
         // Permite null o string (para borrar o actualizar)
@@ -885,6 +889,7 @@ export const guardarBorradorArticulos = async (
                 .where(eq(articulos.negocioId, negocioId));
 
             // Insertar nuevos artículos
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const articulosData = data.articulos.map((art: any, index: number) => ({
                 negocioId,
                 tipo: art.tipo,

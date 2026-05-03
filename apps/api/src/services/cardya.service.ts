@@ -19,7 +19,6 @@ import {
   empleados,
   scanyaTurnos,
   usuarios,
-  notificaciones,
   ofertaUsos,
   ofertas,
 } from '../db/schemas/schema.js';

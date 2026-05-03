@@ -16,7 +16,7 @@
  * - compartido: Alguien compartió el negocio
  */
 
-import { Users, ShoppingCart, Ticket, Heart, Bell, Share2, Star, User } from 'lucide-react';
+import { Users, ShoppingCart, Ticket, Heart, Bell, Share2, Star } from 'lucide-react';
 import type { Interaccion } from '../../../../../services/dashboardService';
 
 // =============================================================================

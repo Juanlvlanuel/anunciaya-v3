@@ -58,9 +58,9 @@ const TABS_ONBOARDING = [
 
 export function LayoutOnboarding({
   children,
-  tituloPaso,
-  descripcionPaso,
-  iconoPaso,
+  tituloPaso: _tituloPaso,
+  descripcionPaso: _descripcionPaso,
+  iconoPaso: _iconoPaso,
   onPausar,
 }: LayoutOnboardingProps) {
   const { pasoActual, pasosCompletados, irAPaso } = useOnboardingStore();

@@ -58,11 +58,6 @@ function capitalizarMes(fechaFormateada: string): string {
   return fechaFormateada;
 }
 
-function formatearDiaSemana(fecha: Date): string {
-  const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  return dias[fecha.getUTCDay()];
-}
-
 // =============================================================================
 // TOOLTIP PERSONALIZADO
 // =============================================================================
@@ -115,7 +110,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
 
   const datosGrafica = ventas.map((v) => {
     // Parsear fecha sin conversión de zona horaria
-    const [anio, mes, dia] = v.fecha.split('-').map(Number);
+    const [, mes, dia] = v.fecha.split('-').map(Number);
     const fechaFormateada = `${dia} ${['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][mes - 1]}`;
 
 
@@ -128,13 +123,6 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
 
   const breakpoint = useBreakpoint();
   const tickFontSize = { mobile: 14, laptop: 11, desktop: 14 }[breakpoint];
-
-  const altura = {
-    mobile: 240,
-    laptop: 240,
-    desktop: 300,
-  }[breakpoint];
-
 
   const crecimientoPositivo = (estadisticas?.crecimiento ?? 0) >= 0;
 

@@ -7,7 +7,6 @@
  */
 
 import {
-	UserCog,
 	Edit3,
 	ShoppingCart,
 	Gift,

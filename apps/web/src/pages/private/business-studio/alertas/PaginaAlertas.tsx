@@ -196,7 +196,6 @@ export default function PaginaAlertas() {
 	// ─── Aliases ──────────────────────────────────────────────────────────────
 	const alertas = listaQuery.data?.pages.flatMap((p) => p.alertas) ?? [];
 	const kpis = kpisQuery.data ?? null;
-	const totalAlertas = listaQuery.data?.pages[0]?.total ?? 0;
 	const cargandoAlertas = listaQuery.isPending;
 	const cargandoMas = listaQuery.isFetchingNextPage;
 	const hayMas = listaQuery.hasNextPage;

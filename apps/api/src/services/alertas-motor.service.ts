@@ -11,7 +11,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { crearAlerta, existeAlertaReciente, estaAlertaActiva, obtenerUmbrales } from './alertas.service.js';
-import type { TipoAlerta, CrearAlertaInput } from '../types/alertas.types.js';
 
 // ============================================================================
 // HELPER: Obtener sucursales activas del negocio

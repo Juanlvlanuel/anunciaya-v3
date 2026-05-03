@@ -860,10 +860,6 @@ export async function obtenerReportePromociones(
       .orderBy(sql`${metricasEntidad.totalClicks} DESC NULLS LAST`)
       .limit(1);
 
-    // Filtro de sucursal para oferta_usos y vouchers_canje (tablas que registran donde ocurrió el canje)
-    const condSucOfertaUsos = sucursalId ? sql`AND sucursal_id = ${sucursalId}` : sql``;
-    const condSucVouchers = sucursalId ? sql`AND sucursal_id = ${sucursalId}` : sql``;
-
     // ── Funnel cupones (oferta_usuarios = cupones privados) ────────────────
     // Cruza con ofertas.fecha_fin para determinar expirados correctamente:
     // - estado 'activo' + oferta vencida → expirado (aunque el campo no se actualizó)

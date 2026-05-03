@@ -272,7 +272,6 @@ export function ModalResenas({ abierto, onClose, onResenaRespondida }: ModalRese
   // Store
   // ---------------------------------------------------------------------------
   const { usuario } = useScanYAStore();
-  const tipoUsuario = usuario?.tipo || 'empleado';
 
   // ---------------------------------------------------------------------------
   // Estado - Filtros

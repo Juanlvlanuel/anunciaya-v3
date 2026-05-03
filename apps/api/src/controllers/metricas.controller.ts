@@ -199,6 +199,7 @@ export async function obtenerMetricasController(req: Request, res: Response) {
             });
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const resultado = await obtenerMetricas(entityType as any, entityId);
 
         res.status(200).json(resultado);

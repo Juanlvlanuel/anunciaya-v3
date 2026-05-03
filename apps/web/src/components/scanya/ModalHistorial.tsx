@@ -26,7 +26,6 @@ import {
   RefreshCw,
   ChevronDown,
   Check,
-  User,
   Phone,
   Coins,
   Banknote,
@@ -40,7 +39,6 @@ import {
   ShieldCheck,
   Users,
   Award,
-  MessageCircle,
 } from 'lucide-react';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import scanyaService, { type PeriodoHistorial } from '@/services/scanyaService';
@@ -48,7 +46,6 @@ import type { TransaccionScanYA } from '@/types/scanya';
 import { TarjetaTransaccion } from './TarjetaTransaccion';
 import { useChatYAStore } from '@/stores/useChatYAStore';
 import { useUiStore } from '@/stores/useUiStore';
-import { ModalImagenes } from '@/components/ui/ModalImagenes';
 
 // =============================================================================
 // TIPOS
@@ -484,10 +481,6 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     if (pagina < totalPaginas && !cargandoMas) {
       cargarHistorial(pagina + 1, true);
     }
-  };
-
-  const handleVerFoto = (url: string) => {
-    setFotoUrl(url);
   };
 
   const handleCerrarFoto = () => {

@@ -135,7 +135,7 @@ export function MobileHeader() {
   const abrirMenuDrawer = useUiStore((state) => state.abrirMenuDrawer);
 
   // Search Store — buscador inline
-  const { query, buscadorAbierto, setQuery, abrirBuscador, cerrarBuscador } = useSearchStore();
+  const { query, buscadorAbierto, setQuery, cerrarBuscador } = useSearchStore();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // GPS Store
@@ -164,12 +164,6 @@ export function MobileHeader() {
   const navigate = useNavigate();
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
   const seccionActiva = detectarSeccion(location.pathname);
-
-  // Handler: abrir buscador inline y enfocar
-  const handleAbrirBuscador = () => {
-    abrirBuscador();
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
 
   // Estado del drawer BS
   const [drawerBsAbierto, setDrawerBsAbierto] = useState(false);

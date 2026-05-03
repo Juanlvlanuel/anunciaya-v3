@@ -488,7 +488,7 @@ export function ModalCatalogo({
   onCerrar,
   catalogo,
   whatsapp,
-  nombreNegocio = 'Catálogo',
+  nombreNegocio: _nombreNegocio = 'Catálogo',
   negocioUsuarioId,
   sucursalId,
   negocioNombre,

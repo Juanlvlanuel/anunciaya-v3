@@ -31,7 +31,7 @@ import {
 } from '../controllers/clientes.controller.js';
 
 // Importar middlewares
-import { verificarToken, verificarTokenChatYA } from '../middleware/auth.js';
+import { verificarTokenChatYA } from '../middleware/auth.js';
 import { verificarNegocio } from '../middleware/negocio.middleware.js';
 
 // =============================================================================

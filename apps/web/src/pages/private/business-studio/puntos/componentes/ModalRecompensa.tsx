@@ -18,7 +18,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Gift, ImagePlus, Trash2, Loader2, Sparkles, Repeat } from 'lucide-react';
+import { Gift, ImagePlus, Trash2, Loader2, Repeat } from 'lucide-react';
 import { useR2Upload } from '../../../../../hooks/useR2Upload';
 import { generarUrlUploadImagenRecompensa } from '../../../../../services/puntosService';
 import { ModalAdaptativo } from '../../../../../components/ui/ModalAdaptativo';
@@ -94,14 +94,11 @@ export default function ModalRecompensa({
   const [imagenEliminada, setImagenEliminada] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const recompensaExtendida = recompensa as unknown as Record<string, unknown> | null;
-  const [tipoRecompensa, setTipoRecompensa] = useState<'basica' | 'compras_frecuentes'>(
+  const [tipoRecompensa] = useState<'basica' | 'compras_frecuentes'>(
     recompensaExtendida?.tipo === 'compras_frecuentes' ? 'compras_frecuentes' : tipoInicial
   );
   const [comprasRequeridas, setComprasRequeridas] = useState<string>(
     recompensaExtendida?.numeroComprasRequeridas?.toString() ?? ''
-  );
-  const [requierePuntos, setRequierePuntos] = useState(
-    recompensaExtendida?.requierePuntos !== false
   );
 
   const imagenOriginal = recompensa?.imagenUrl ?? null;

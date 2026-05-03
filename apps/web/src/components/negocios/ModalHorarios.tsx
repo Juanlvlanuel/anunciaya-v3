@@ -12,7 +12,7 @@
  * ESTILO: Timeline vertical con indicadores visuales + footer de estado
  */
 
-import { Calendar, X, UtensilsCrossed, Clock } from 'lucide-react';
+import { X, UtensilsCrossed, Clock } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 
 // =============================================================================

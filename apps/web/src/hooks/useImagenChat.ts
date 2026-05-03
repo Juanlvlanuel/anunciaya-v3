@@ -202,7 +202,7 @@ function generarLQIP(
   anchoLQIP: number = LQIP_ANCHO,
   calidadLQIP: number = LQIP_CALIDAD,
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     const url = URL.createObjectURL(archivo);
     const img = new Image();
 

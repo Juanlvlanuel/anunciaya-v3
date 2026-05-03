@@ -254,6 +254,7 @@ export async function obtenerMetricasMultiples(
         );
 
         // Estructurar respuesta
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const metricas: Record<string, any> = {};
 
         // Inicializar todos en 0
@@ -267,6 +268,7 @@ export async function obtenerMetricasMultiples(
         });
 
         // Sobrescribir con datos reales
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         resultado.rows.forEach((row: any) => {
             metricas[row.entity_id] = {
                 totalLikes: Number(row.total_likes) || 0,

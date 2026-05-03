@@ -43,7 +43,6 @@ import {
     PauseCircle,
     Eye,
     EyeOff,
-    Edit2,
     Share2,
     MousePointerClick,
     Trash2,
@@ -573,7 +572,6 @@ export function PaginaOfertas() {
             estados.add(calcularEstado(oferta));
         });
         return estados;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ofertas, filtros.visibilidad]);
 
     // ===========================================================================

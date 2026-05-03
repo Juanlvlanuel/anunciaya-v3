@@ -63,7 +63,6 @@ export default function PaginaScanYA() {
   const abrirChatYA = useUiStore((s) => s.abrirChatYA);
   const cerrarChatYA = useUiStore((s) => s.cerrarChatYA);
   const chatYAAbierto = useUiStore((s) => s.chatYAAbierto);
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
 
   // Cambiar título de la página
   useTituloPagina('ScanYA - Puntos de Lealtad');

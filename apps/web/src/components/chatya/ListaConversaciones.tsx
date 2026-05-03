@@ -26,7 +26,7 @@ import { ConversacionItem } from './ConversacionItem';
 import { MenuContextualChat } from './MenuContextualChat';
 import { MenuContextualContacto } from './MenuContextualContacto';
 import * as chatyaService from '../../services/chatyaService';
-import type { ModoChatYA, PersonaBusqueda, NegocioBusqueda, Conversacion, Contacto } from '../../types/chatya';
+import type { PersonaBusqueda, NegocioBusqueda, Conversacion, Contacto } from '../../types/chatya';
 import Tooltip from '../ui/Tooltip';
 
 // =============================================================================

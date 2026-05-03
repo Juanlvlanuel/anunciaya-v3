@@ -213,7 +213,6 @@ export const actualizarContacto = async (req: Request, res: Response) => {
 
 export const guardarHorarios = async (req: Request, res: Response) => {
     try {
-        const { negocioId } = req.params;
         const { sucursalId } = req.body;
 
         if (!sucursalId) {
@@ -283,8 +282,7 @@ export const actualizarLogo = async (req: Request, res: Response) => {
 
 export const actualizarPortada = async (req: Request, res: Response) => {
     try {
-        const { negocioId } = req.params;
-        const { sucursalId, portadaUrl } = req.body;  // ← AGREGAR sucursalId
+        const { sucursalId, portadaUrl } = req.body;
 
         if (!sucursalId) {  // ← VALIDAR sucursalId
             return res.status(400).json({
@@ -594,11 +592,11 @@ export const guardarBorradorPaso1Controller = async (req: Request, res: Response
 
         const resultado = await guardarBorradorPaso1(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorPaso1Controller:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador',
         });
     }
 };
@@ -623,11 +621,11 @@ export const guardarBorradorSucursalController = async (req: Request, res: Respo
 
         const resultado = await guardarBorradorSucursal(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorSucursalController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de ubicación',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de ubicación',
         });
     }
 };
@@ -652,11 +650,11 @@ export const guardarBorradorContactoController = async (req: Request, res: Respo
 
         const resultado = await guardarBorradorContacto(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorContactoController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de contacto',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de contacto',
         });
     }
 };
@@ -681,11 +679,11 @@ export const guardarBorradorHorariosController = async (req: Request, res: Respo
 
         const resultado = await guardarBorradorHorarios(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorHorariosController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de horarios',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de horarios',
         });
     }
 };
@@ -710,11 +708,11 @@ export const guardarBorradorLogoController = async (req: Request, res: Response)
 
         const resultado = await guardarBorradorLogo(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorLogoController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de logo',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de logo',
         });
     }
 };
@@ -739,11 +737,11 @@ export const guardarBorradorPortadaController = async (req: Request, res: Respon
 
         const resultado = await guardarBorradorPortada(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorPortadaController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de portada',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de portada',
         });
     }
 };
@@ -768,11 +766,11 @@ export const guardarBorradorGaleriaController = async (req: Request, res: Respon
 
         const resultado = await guardarBorradorGaleria(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorGaleriaController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de galería',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de galería',
         });
     }
 };
@@ -797,11 +795,11 @@ export const guardarBorradorMetodosPagoController = async (req: Request, res: Re
 
         const resultado = await guardarBorradorMetodosPago(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorMetodosPagoController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de métodos de pago',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de métodos de pago',
         });
     }
 };
@@ -826,11 +824,11 @@ export const guardarBorradorPuntosController = async (req: Request, res: Respons
 
         const resultado = await guardarBorradorPuntos(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorPuntosController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de puntos',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de puntos',
         });
     }
 };
@@ -855,11 +853,11 @@ export const guardarBorradorArticulosController = async (req: Request, res: Resp
 
         const resultado = await guardarBorradorArticulos(negocioId, validacion.data);
         return res.status(200).json(resultado);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error en guardarBorradorArticulosController:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error al guardar borrador de artículos',
+            message: (error instanceof Error ? error.message : null) || 'Error al guardar borrador de artículos',
         });
     }
 };

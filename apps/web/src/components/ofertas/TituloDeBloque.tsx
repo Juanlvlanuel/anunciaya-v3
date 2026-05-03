@@ -117,7 +117,7 @@ export default function TituloDeBloque({
   eyebrow,
   titulo,
   iconoLucide: IconoLucide,
-  indicadorAuto = false,
+  indicadorAuto: _indicadorAuto = false,
   variante = 'normal',
   anchoUnderline,
 }: TituloDeBloqueProps) {

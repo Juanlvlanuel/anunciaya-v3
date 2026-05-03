@@ -195,7 +195,7 @@ interface CardCampanaProps {
   vistaMobil?: boolean;
 }
 
-function CardCampana({ campana, onClick, vistaMobil = false }: CardCampanaProps) {
+function CardCampana({ campana, onClick, vistaMobil: _vistaMobil = false }: CardCampanaProps) {
   const diasRestantes = calcularDiasRestantes(campana.fechaFin);
 
   // No renderizar si ya venció

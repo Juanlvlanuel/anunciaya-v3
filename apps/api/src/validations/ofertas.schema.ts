@@ -114,19 +114,6 @@ const campoLimiteUsosPorUsuario = z
   .nullable();
 
 /**
- * Campo: código de descuento (opcional)
- * Se transforma a MAYÚSCULAS, máximo 50 caracteres
- */
-const campoCodigo = z
-  .string()
-  .trim()
-  .min(3, 'El código debe tener al menos 3 caracteres')
-  .max(50, 'El código no puede exceder 50 caracteres')
-  .transform((val) => val.toUpperCase())
-  .optional()
-  .nullable();
-
-/**
  * Campo: visibilidad
  */
 const campoVisibilidad = z

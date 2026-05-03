@@ -19,12 +19,10 @@
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Plus, Edit2, Trash2, Copy, Loader2, Package, Scissors } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { api } from '@/services/api';
 import { ModalArticulo } from '@/pages/private/business-studio/catalogo/ModalArticulo';
 import type { Articulo as ArticuloCatalogo, CrearArticuloInput, ActualizarArticuloInput } from '@/types/articulos';
 import { notificar } from '@/utils/notificaciones';
-import { useNavigate } from 'react-router-dom';
 import { eliminarImagenHuerfana } from '@/services/r2Service';
 
 // =============================================================================
@@ -56,17 +54,14 @@ const cache8 = {
 // =============================================================================
 
 export function PasoProductos() {
-    const navigate = useNavigate();
-    const { negocioId, guardarPaso8, finalizarOnboarding, setSiguienteDeshabilitado } = useOnboardingStore();
-    const { usuario, setUsuario } = useAuthStore();
+    const { negocioId, guardarPaso8, setSiguienteDeshabilitado } = useOnboardingStore();
 
     // Estados — inicializar desde caché
     const [articulos, setArticulos] = useState<Articulo[]>(cache8.articulos);
     const [cargandoDatos, setCargandoDatos] = useState(!cache8.cargado);
     const [modalAbierto, setModalAbierto] = useState(false);
     const [articuloEditar, setArticuloEditar] = useState<Articulo | null>(null);
-    const [guardando, setGuardando] = useState(false);
-    const [finalizando, setFinalizando] = useState(false);
+    const [, setGuardando] = useState(false);
 
     // ---------------------------------------------------------------------------
     // Cargar artículos existentes
@@ -272,59 +267,6 @@ export function PasoProductos() {
 
         setArticulos(prev => [...prev, copia]);
         notificar.exito('Producto duplicado');
-    };
-
-    // ---------------------------------------------------------------------------
-    // Finalizar onboarding
-    // ---------------------------------------------------------------------------
-    const handleFinalizar = async () => {
-        if (articulos.length < 3) {
-            notificar.advertencia('Debes agregar al menos 3 productos/servicios para finalizar');
-            return;
-        }
-
-        if (!usuario?.id) {
-            notificar.error('No se pudo identificar al usuario');
-            return;
-        }
-
-        const confirmado = await notificar.confirmar(
-            '🎉 ¿Finalizar y Publicar?',
-            `Tu negocio será publicado con ${articulos.length} productos/servicios. Podrás editarlo después desde tu Business Studio.`
-        );
-
-        if (!confirmado) return;
-
-        setFinalizando(true);
-
-        try {
-            // 1. Guardar artículos
-            await guardarPaso8(articulos);
-
-            // 2. Finalizar onboarding (actualiza esBorrador y onboardingCompletado)
-            await finalizarOnboarding(usuario.id);
-
-            // 3. Actualizar estado del usuario localmente
-            if (usuario) {
-                setUsuario({
-                    ...usuario,
-                    onboardingCompletado: true,
-                });
-            }
-
-            // 4. Mostrar mensaje de éxito
-            notificar.exito('🎉 ¡Negocio publicado! Redirigiendo a Business Studio...');
-
-            // 5. Redirigir a Business Studio (con delay para que vea la notificación)
-            setTimeout(() => {
-                navigate('/business/dashboard');
-            }, 1500);
-        } catch (error) {
-            console.error('Error al finalizar onboarding:', error);
-            notificar.error('Error al finalizar. Intenta nuevamente');
-        } finally {
-            setFinalizando(false);
-        }
     };
 
     // ---------------------------------------------------------------------------

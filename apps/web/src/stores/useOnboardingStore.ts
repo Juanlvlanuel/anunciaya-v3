@@ -12,6 +12,7 @@
  * Ubicación: apps/web/src/stores/useOnboardingStore.ts
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '@/services/api';
@@ -400,7 +401,7 @@ export const useOnboardingStore = create<OnboardingState>()(
             },
 
             siguiente: async () => {
-                const { pasoActual, siguienteDeshabilitado, pasosCompletados } = get();
+                const { pasoActual, siguienteDeshabilitado } = get();
 
                 // Validar que el formulario esté completo
                 if (siguienteDeshabilitado) {

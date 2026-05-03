@@ -33,7 +33,7 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 	const [nombre, setNombre] = useState(empleado?.nombre ?? '');
 	const [nick, setNick] = useState(empleado?.nick ?? '');
 	const [pin, setPin] = useState(empleado?.pinAcceso ?? '');
-	const [sucursalId, setSucursalId] = useState(empleado?.sucursalId ?? usuario?.sucursalActiva ?? '');
+	const [sucursalId] = useState(empleado?.sucursalId ?? usuario?.sucursalActiva ?? '');
 	const [especialidad, setEspecialidad] = useState(empleado?.especialidad ?? '');
 	const [telefono, setTelefono] = useState(empleado?.telefono ?? '');
 	const [correo, setCorreo] = useState(empleado?.correo ?? '');

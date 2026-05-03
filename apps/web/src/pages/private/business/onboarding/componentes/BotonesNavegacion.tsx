@@ -55,6 +55,7 @@ export function BotonesNavegacion() {
   // ---------------------------------------------------------------------------
   // FUNCIÓN COMPARTIDA: Guardar paso actual
   // ---------------------------------------------------------------------------
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const guardarPasoActual = async (validar: boolean) => {
 
     if (pasoActual === 1) {
@@ -109,6 +110,7 @@ export function BotonesNavegacion() {
       }
     }
   };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   // ---------------------------------------------------------------------------
   // Manejar click en "Anterior"
@@ -123,6 +125,7 @@ export function BotonesNavegacion() {
       // RETROCEDER AL PASO ANTERIOR
       atras();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Error al guardar paso:', error);
       notificar.error(error.message || 'Error al guardar. Intenta de nuevo.');
@@ -168,8 +171,7 @@ export function BotonesNavegacion() {
         // 6. ✅ FORZAR flush de localStorage con await en Promise
         await new Promise(resolve => {
           // Leer de vuelta para forzar flush
-          const verificar = localStorage.getItem('ay_usuario');
-          const parsed = verificar ? JSON.parse(verificar) : null;
+          localStorage.getItem('ay_usuario');
           setTimeout(resolve, 300); // Esperar 300ms adicionales
         });
 
@@ -180,6 +182,7 @@ export function BotonesNavegacion() {
         siguiente();
       }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Error:', error);
       notificar.error(error.message || 'Error al procesar.');

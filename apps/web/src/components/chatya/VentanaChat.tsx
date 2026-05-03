@@ -18,7 +18,7 @@ import { useScanYAStore } from '../../stores/useScanYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
 import { useUiStore } from '../../stores/useUiStore';
 import * as chatyaService from '../../services/chatyaService';
-import { emitirEvento, emitirCuandoConectado } from '@/services/socketService';
+import { emitirCuandoConectado } from '@/services/socketService';
 import type { Conversacion, Mensaje } from '../../types/chatya';
 import { BurbujaMensaje } from './BurbujaMensaje';
 import { InputMensaje } from './InputMensaje';

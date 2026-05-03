@@ -55,20 +55,7 @@ import { env } from '../config/env.js';
 // =============================================================================
 
 /**
- * Determina si el usuario es participante1 o participante2 en la conversación.
- * Retorna 'p1', 'p2', o null si no es participante.
- */
-function determinarPosicion(
-    conv: { participante1Id: string; participante2Id: string },
-    usuarioId: string
-): 'p1' | 'p2' | null {
-    if (conv.participante1Id === usuarioId) return 'p1';
-    if (conv.participante2Id === usuarioId) return 'p2';
-    return null;
-}
-
-/**
- * Variante de `determinarPosicion` que desempata usando `sucursalId` cuando
+ * Variante que desempata usando `sucursalId` cuando
  * el mismo usuario está en ambos lados (chat inter-sucursal del mismo negocio).
  * Cae al comportamiento legacy si no hay match por sucursal.
  */

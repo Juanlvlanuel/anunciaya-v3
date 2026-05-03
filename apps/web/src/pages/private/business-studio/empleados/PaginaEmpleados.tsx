@@ -21,11 +21,6 @@ import {
 	Users,
 	UserCheck,
 	UserX,
-	Star,
-	Clock,
-	ShoppingCart,
-	MessageSquare,
-	Eye,
 	Trash2,
 	X,
 	MapPin,
@@ -36,7 +31,6 @@ import {
 	useEmpleadosKPIs,
 	useEmpleadosLista,
 	useEmpleadoDetalle,
-	useToggleEmpleadoActivo,
 	useEliminarEmpleado,
 } from '../../../../hooks/queries/useEmpleados';
 import { Input } from '../../../../components/ui/Input';
@@ -84,19 +78,16 @@ export default function PaginaEmpleados() {
 	const [empleadoSeleccionadoId, setEmpleadoSeleccionadoId] = useState<string | null>(null);
 	const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
 	const sentinelaRef = useRef<HTMLDivElement | null>(null);
-	const esGerente = !!usuario?.sucursalAsignada;
 	// React Query — datos del servidor
 	const kpisQuery = useEmpleadosKPIs();
 	const kpis = kpisQuery.data ?? null;
 	const listaQuery = useEmpleadosLista({ busqueda, activo: filtroActivo });
 	const empleados = listaQuery.data?.pages.flatMap((p) => p.empleados) ?? [];
-	const total = listaQuery.data?.pages[0]?.total ?? 0;
 	const cargandoEmpleados = listaQuery.isPending;
 	const cargandoMas = listaQuery.isFetchingNextPage;
 	const hayMas = listaQuery.hasNextPage;
 	const detalleQuery = useEmpleadoDetalle(empleadoSeleccionadoId);
 	const empleadoDetalle = detalleQuery.data ?? null;
-	const toggleActivoMutation = useToggleEmpleadoActivo();
 	const eliminarMutation = useEliminarEmpleado();
 	// Detectar móvil
 	useEffect(() => {
@@ -510,7 +501,7 @@ function CardEmpleadoMovil({ empleado, onClick }: {
 	);
 }
 
-function FilaEmpleadoDesktop({ empleado, indice, onClick, onEditar, onEliminar }: {
+function FilaEmpleadoDesktop({ empleado, indice, onClick, onEditar: _onEditar, onEliminar }: {
 	empleado: EmpleadoResumen;
 	indice: number;
 	onClick: () => void;

@@ -57,19 +57,6 @@ export function invalidarCachéArchivos(conversacionId: string) {
 // HELPERS
 // =============================================================================
 
-function nivelColor(nivel: string) {
-  const n = nivel?.toLowerCase();
-  if (n === 'oro') return 'text-amber-500';
-  if (n === 'plata') return 'text-slate-600';
-  return 'text-amber-700';
-}
-
-function nivelEmoji(nivel: string) {
-  const n = nivel?.toLowerCase();
-  if (n === 'oro') return '🥇';
-  if (n === 'plata') return '🥈';
-  return '🥉';
-}
 
 function formatFecha(fecha: string | null) {
   if (!fecha) return 'Sin registros';
@@ -162,7 +149,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   // ---------------------------------------------------------------------------
   // Stores
   // ---------------------------------------------------------------------------
-  const { miId, modo: modoActivo, origen, sucursalId: miSucursalId } = useChatYASession();
+  const { miId, modo: modoActivo, sucursalId: miSucursalId } = useChatYASession();
   const { esMobile } = useBreakpoint();
 
   const { data: configPuntos } = usePuntosConfiguracion();

@@ -10,9 +10,7 @@
  */
 
 import {
-  User,
   Gift,
-  Coins,
   Clock,
   CheckCircle,
   XCircle,

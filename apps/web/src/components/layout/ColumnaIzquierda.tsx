@@ -18,7 +18,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Gift,
   BarChart3,
   ChevronRight,
   ChevronLeft,
@@ -27,9 +26,7 @@ import {
   TrendingUp,
   Users,
   Receipt,
-  Eye,
   Lock,
-  Ticket,
   MapPin,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';

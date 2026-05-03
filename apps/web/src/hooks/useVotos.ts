@@ -244,6 +244,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
       });
 
       invalidarCaches();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('❌ Error al dar like:', error);
       
@@ -281,6 +282,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
       await api.delete(`/votos/${entityType}/${entityId}/like`);
 
       invalidarCaches();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('❌ Error al quitar like:', error);
       
@@ -338,6 +340,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
 
       notificar.exito('¡Siguiendo!');
       invalidarCaches();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('❌ Error al seguir:', error);
       
@@ -375,6 +378,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
 
       notificar.info('Dejaste de seguir');
       invalidarCaches();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('❌ Error al quitar de guardados:', error);
       

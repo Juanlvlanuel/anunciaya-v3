@@ -46,7 +46,7 @@ export function tiempoRestanteToken(token: string | null): number {
     const restante = Math.max(0, Math.floor((exp - ahora) / 1000));
     
     return restante;
-  } catch (error) {
+  } catch {
     return 0;
   }
 }

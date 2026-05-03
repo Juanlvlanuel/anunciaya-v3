@@ -33,7 +33,7 @@ type SubVista2FA = 'totp' | 'respaldo';
 
 export function Vista2FA({
   tokenTemporal,
-  onCambiarVista,
+  onCambiarVista: _onCambiarVista,
   onCerrarModal,
 }: Vista2FAProps) {
   const { t } = useTranslation('auth');

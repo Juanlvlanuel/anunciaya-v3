@@ -135,6 +135,7 @@ export async function eliminarVotoController(req: Request, res: Response) {
         // Eliminar voto
         const resultado = await eliminarVoto(
             userId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             entityType as any,
             entityId,
             tipoAccion as 'like' | 'follow',
@@ -215,6 +216,7 @@ export async function obtenerSeguidosController(req: Request, res: Response) {
 
         const resultado = await obtenerSeguidos(
             userId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             entityType as any,
             pagina,
             limite,
@@ -253,6 +255,7 @@ export async function obtenerContadoresController(req: Request, res: Response) {
         }
 
         const resultado = await obtenerContadoresVotos(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             entityType as any,
             entityId
         );

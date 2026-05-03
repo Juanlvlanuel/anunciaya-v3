@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  MapPin,
   Locate,
   CreditCard,
   Truck,
@@ -57,8 +56,8 @@ export interface ChipsFiltrosProps {
 
 export function ChipsFiltros({
   variante,
-  cercaDeMi, toggleCercaDeMi,
-  distancia, setDistancia,
+  cercaDeMi, toggleCercaDeMi: _toggleCercaDeMi,
+  distancia, setDistancia: _setDistancia,
   categoria, categorias,
   dropdownCategoria, setDropdownCategoria, btnCategoriaRef, setPosicionDropdownCat,
   opcionesSubcategorias, subcategoriasSeleccionadas,
@@ -67,14 +66,14 @@ export function ChipsFiltros({
   conEnvio, toggleConEnvio,
   conServicioDomicilio, toggleConServicioDomicilio,
   dropdownDistancia, setDropdownDistancia,
-  posDropdownDist, setPosDropdownDist,
+  posDropdownDist: _posDropdownDist, setPosDropdownDist,
   filtrosActivos, limpiarFiltros,
 }: ChipsFiltrosProps) {
   const esFlotante = variante === 'flotante';
 
   // Estado local del slider: visual instantáneo, commit al store solo al soltar
   const [distanciaLocal, setDistanciaLocal] = useState(distancia);
-  const [arrastrando, setArrastrando] = useState(false);
+  const [arrastrando] = useState(false);
   const btnDistanciaRef = React.useRef<HTMLButtonElement>(null);
 
   // Sincronizar si el store cambia externamente (ej: limpiar filtros)

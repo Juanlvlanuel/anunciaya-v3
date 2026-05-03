@@ -111,7 +111,7 @@ function fechaDinamica(voucher: Voucher): { label: string; fecha: string } {
 export default function TablaHistorialVouchers({
   vouchers,
   onClickVoucher,
-  stickyTop = 0,
+  stickyTop: _stickyTop = 0,
   negocioFiltro: negocioFiltroExterno,
   onClickImagen,
   filtroEstado = 'todos',

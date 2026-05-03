@@ -121,7 +121,7 @@ function WhatsAppIcon({ className }: { className: string }) {
 export function CardNegocioDetallado({
     negocio,
     onClick,
-    showBookmark = false,
+    showBookmark: _showBookmark = false,
     onClickBookmark,
     bookmarkSelected = false,
     className = '',

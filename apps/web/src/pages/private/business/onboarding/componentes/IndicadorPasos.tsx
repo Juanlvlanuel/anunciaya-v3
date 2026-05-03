@@ -55,6 +55,7 @@ export function IndicadorPasos() {
   // FUNCIÓN: Guardar paso actual antes de cambiar (SIN VALIDAR)
   // ---------------------------------------------------------------------------
   const guardarPasoActual = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const guardarFn = (window as any)[`guardarPaso${pasoActual}`];
     if (typeof guardarFn === 'function') {
       await guardarFn(false); // false = NO validar

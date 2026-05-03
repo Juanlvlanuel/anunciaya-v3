@@ -82,7 +82,6 @@ export function useDashboard(periodo: Periodo) {
 // =============================================================================
 
 export function useDashboardRefresh() {
-  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
   const queryClientInstance = useQueryClient();
 
   const refetchTodo = async () => {

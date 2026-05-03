@@ -507,6 +507,7 @@ export async function actualizarInformacionController(req: Request, res: Respons
     try {
         const { id: negocioId } = req.params;
         const { nombre, descripcion, subcategoriasIds, participaCardYA, nombreSucursal, sucursalId } = req.body;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
 
         if (!userId) {
@@ -597,6 +598,7 @@ export async function actualizarContactoController(req: Request, res: Response) 
     try {
         const { id: negocioId } = req.params;
         const { nombreSucursal, telefono, whatsapp, correo, sitioWeb, redesSociales } = req.body;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
         const sucursalId = req.query.sucursalId as string | undefined;
 
@@ -677,6 +679,7 @@ export async function actualizarContactoController(req: Request, res: Response) 
 export async function actualizarUbicacionController(req: Request, res: Response) {
     try {
         const { direccion, ciudad, estado, latitud, longitud, zonaHoraria } = req.body;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
         const sucursalId = req.query.sucursalId as string | undefined;
 
@@ -735,6 +738,7 @@ export async function actualizarUbicacionController(req: Request, res: Response)
 export async function actualizarHorariosController(req: Request, res: Response) {
     try {
         const { horarios } = req.body;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
         const sucursalId = req.query.sucursalId as string | undefined;
 
@@ -796,6 +800,7 @@ export async function actualizarImagenesController(req: Request, res: Response) 
     try {
         const { id: negocioId } = req.params;
         const { logoUrl, fotoPerfilUrl, portadaUrl, galeriaUrls } = req.body;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
         const sucursalId = req.query.sucursalId as string | undefined;
 
@@ -874,6 +879,7 @@ export async function actualizarOperacionController(req: Request, res: Response)
     try {
         const { id: negocioId } = req.params;
         const { metodosPago, tieneEnvio, tieneServicio } = req.body;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
         const sucursalId = req.query.sucursalId as string | undefined;
 

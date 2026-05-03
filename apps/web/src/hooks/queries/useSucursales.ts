@@ -21,7 +21,6 @@ import {
 import * as sucursalesService from '../../services/sucursalesService';
 import type {
 	SucursalResumen,
-	KPIsSucursales,
 	CrearSucursalInput,
 	CrearGerenteInput,
 	FiltrosSucursalesUI,

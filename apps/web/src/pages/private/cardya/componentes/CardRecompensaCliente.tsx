@@ -106,9 +106,6 @@ export default function CardRecompensaCliente({
     </span>
   );
 
-  // ─── Botón de acción para N+1 desbloqueada ───
-  const botonN1 = esN1 && desbloqueadaN1 && !stockAgotado;
-
   return (
     <>
       {/* ═══════════════════════════════════════════════════════════════════
@@ -229,8 +226,6 @@ export default function CardRecompensaCliente({
                     const ventanaInicio = Math.max(0, Math.min(comprasActuales - 2, comprasRequeridas - 5));
                     const ventanaFin = Math.min(ventanaInicio + 5, comprasRequeridas);
                     const posiciones = Array.from({ length: ventanaFin - ventanaInicio }, (_, i) => ventanaInicio + i);
-                    const fila1 = posiciones.slice(0, 2);
-                    const fila2 = posiciones.slice(2, 5);
                     const faltantes = comprasRequeridas > ventanaFin ? comprasRequeridas - ventanaFin : 0;
                     const circulo = (pos: number) => {
                       const completado = pos < comprasActuales;

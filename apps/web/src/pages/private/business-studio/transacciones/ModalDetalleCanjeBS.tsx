@@ -27,7 +27,6 @@ import {
   Hourglass,
   CheckCircle,
   AlertCircle,
-  XCircle,
   Calendar,
   UserCheck,
 } from 'lucide-react';
@@ -63,19 +62,6 @@ const formatearFechaCorta = (fechaISO: string) => {
   return `${dia} ${mes} ${anio}`;
 };
 
-const formatearTelefono = (tel: string): string => {
-  const limpio = tel.replace(/\s+/g, '');
-  if (limpio.startsWith('+52') && limpio.length === 13) {
-    return `+52 ${limpio.slice(3, 6)} ${limpio.slice(6)}`;
-  }
-  if (limpio.startsWith('+') && limpio.length > 4) {
-    const codigo = limpio.slice(0, 3);
-    const resto = limpio.slice(3);
-    return `${codigo} ${resto.slice(0, 3)} ${resto.slice(3)}`;
-  }
-  return tel;
-};
-
 /** Calcula días restantes para expiración */
 const calcularDiasRestantes = (fechaISO: string): { texto: string; urgente: boolean; vencido: boolean } => {
   const diffDias = Math.ceil((new Date(fechaISO).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -95,13 +81,6 @@ const GRADIENTES_ESTADO = {
   usado: { bg: 'linear-gradient(135deg, #064e3b, #065f46)', shadow: 'rgba(5,150,105,0.4)' },
   expirado: { bg: 'linear-gradient(135deg, #7f1d1d, #991b1b)', shadow: 'rgba(220,38,38,0.4)' },
   cancelado: { bg: 'linear-gradient(135deg, #475569, #64748b)', shadow: 'rgba(100,116,139,0.4)' },
-};
-
-const ICONOS_ESTADO = {
-  pendiente: <Hourglass className="w-5 h-5 text-blue-200" />,
-  usado: <CheckCircle className="w-5 h-5 text-emerald-300" />,
-  expirado: <AlertCircle className="w-5 h-5 text-red-300" />,
-  cancelado: <XCircle className="w-5 h-5 text-slate-300" />,
 };
 
 const ETIQUETAS_ESTADO = {

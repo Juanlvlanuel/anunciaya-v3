@@ -19,7 +19,6 @@ import {
 	Phone,
 	Mail,
 	Star,
-	User,
 	UserPlus,
 	UserCheck,
 	KeyRound,

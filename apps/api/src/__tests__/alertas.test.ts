@@ -23,8 +23,6 @@ import {
 let alertaAltaId: string;
 let alertaMediaId: string;
 let alertaBajaId: string;
-let alertaOperativaId: string;
-let alertaLeidaId: string;
 
 // =============================================================================
 // SETUP / TEARDOWN
@@ -38,8 +36,8 @@ beforeAll(async () => {
 	alertaAltaId = await crearAlertaPrueba({ tipo: 'monto_inusual', categoria: 'seguridad', severidad: 'alta' });
 	alertaMediaId = await crearAlertaPrueba({ tipo: 'fuera_horario', categoria: 'seguridad', severidad: 'media' });
 	alertaBajaId = await crearAlertaPrueba({ tipo: 'oferta_por_expirar', categoria: 'operativa', severidad: 'baja' });
-	alertaOperativaId = await crearAlertaPrueba({ tipo: 'voucher_estancado', categoria: 'operativa', severidad: 'media' });
-	alertaLeidaId = await crearAlertaPrueba({ tipo: 'pico_actividad', categoria: 'rendimiento', severidad: 'baja', leida: true });
+	await crearAlertaPrueba({ tipo: 'voucher_estancado', categoria: 'operativa', severidad: 'media' });
+	await crearAlertaPrueba({ tipo: 'pico_actividad', categoria: 'rendimiento', severidad: 'baja', leida: true });
 });
 
 afterAll(async () => {
