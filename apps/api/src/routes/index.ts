@@ -38,6 +38,7 @@ import cardyaRoutes from './cardya.routes';
 import notificacionesRoutes from './notificaciones.routes';
 import chatyaRoutes from './chatya.routes';
 import reportesRoutes from './reportes.routes';
+import marketplaceRoutes from './marketplace.routes';
 import adminRoutes from './admin/index.js';
 
 const router: Router = Router();
@@ -127,7 +128,7 @@ router.use('/business/reportes', reportesRoutes);
 // Preparadas para ser consumidas por el futuro Panel Admin
 router.use('/admin', adminRoutes);
 
-// Aquí se agregarán más rutas:
-// router.use('/marketplace', marketplaceRoutes);
+// Rutas de MarketPlace (compra-venta P2P de objetos físicos)
+router.use('/marketplace', marketplaceRoutes);
 
 export default router;

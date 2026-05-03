@@ -106,9 +106,11 @@ export const IMAGE_REGISTRY: ImageField[] = [
     { tabla: 'chat_mensajes', columna: 'contenido', tipo: 'text-scan-urls', descripcion: 'URLs R2 de imágenes/audios/documentos/cupones en mensajes' },
 
     // ─── Marketplace ───
-    // Campo JSONB con estructura variable (array de objetos o array de URLs).
-    // `text-scan-urls` hace cast a text y extrae con regex — cubre ambos formatos.
-    { tabla: 'marketplace', columna: 'imagenes', tipo: 'text-scan-urls', descripcion: 'Imágenes de publicaciones de marketplace (JSONB)' },
+    // Tabla `articulos_marketplace` (Sprint 1, Mayo 2026). Campo `fotos` es
+    // JSONB (array de URLs en R2). `text-scan-urls` hace cast a text y extrae
+    // con regex — cubre tanto array plano como array de objetos si en el
+    // futuro la estructura crece.
+    { tabla: 'articulos_marketplace', columna: 'fotos', tipo: 'text-scan-urls', descripcion: 'Fotos del artículo de MarketPlace (JSONB array de URLs)' },
 ];
 
 /**

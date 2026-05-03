@@ -1009,7 +1009,7 @@ export const guardados = pgTable("guardados", {
 	index("idx_guardados_entity").using("btree", table.entityType.asc().nullsLast(), table.entityId.asc().nullsLast()),
 	index("idx_guardados_usuario_entity").using("btree", table.usuarioId.asc().nullsLast(), table.entityType.asc().nullsLast()),
 	unique("guardados_unique").on(table.usuarioId, table.entityType, table.entityId),
-	check("guardados_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['oferta'::character varying, 'servicio'::character varying])::text[])`),
+	check("guardados_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['oferta'::character varying, 'servicio'::character varying, 'articulo_marketplace'::character varying])::text[])`),
 ]);
 
 export const resenas = pgTable("resenas", {
@@ -1939,7 +1939,7 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying])::text[])`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying])::text[])`),
 	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying])::text[]))`),
 ]);
 
@@ -1965,6 +1965,11 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	// Contexto de origen
 	contextoTipo: varchar("contexto_tipo", { length: 20 }).default('directo').notNull(),
 	contextoReferenciaId: uuid("contexto_referencia_id"),
+
+	// Referencia específica al artículo de MarketPlace (si aplica). Se usa
+	// referencia perezosa porque `articulosMarketplace` se declara al final
+	// del schema (mismo patrón que `usuarios.referidoPor`).
+	articuloMarketplaceId: uuid("articulo_marketplace_id").references((): AnyPgColumn => articulosMarketplace.id, { onDelete: 'set null' }),
 
 	// Preview del último mensaje
 	ultimoMensajeTexto: varchar("ultimo_mensaje_texto", { length: 100 }),
@@ -2000,6 +2005,7 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	index("idx_chat_conv_updated").using("btree", table.updatedAt.desc().nullsFirst()),
 	index("idx_chat_conv_p1_activas").using("btree", table.participante1Id.asc().nullsLast(), table.updatedAt.desc().nullsFirst()).where(sql`(eliminada_por_p1 = false)`),
 	index("idx_chat_conv_p2_activas").using("btree", table.participante2Id.asc().nullsLast(), table.updatedAt.desc().nullsFirst()).where(sql`(eliminada_por_p2 = false)`),
+	index("idx_chat_conv_articulo_marketplace").using("btree", table.articuloMarketplaceId.asc().nullsLast()).where(sql`(articulo_marketplace_id IS NOT NULL)`),
 	foreignKey({
 		columns: [table.participante1Id],
 		foreignColumns: [usuarios.id],
@@ -2022,7 +2028,7 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	}).onDelete("set null"),
 	check("chat_conv_modo_p1_check", sql`(participante1_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("chat_conv_modo_p2_check", sql`(participante2_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'servicio'::character varying, 'directo'::character varying, 'notas'::character varying])::text[])`),
+	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'vendedor_marketplace'::character varying, 'oferta'::character varying, 'servicio'::character varying, 'directo'::character varying, 'notas'::character varying])::text[])`),
 	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id OR contexto_tipo = 'notas' OR (participante1_sucursal_id IS NOT NULL AND participante2_sucursal_id IS NOT NULL AND participante1_sucursal_id <> participante2_sucursal_id)`),
 ]);
 
@@ -2202,4 +2208,74 @@ export const chatBloqueados = pgTable("chat_bloqueados", {
 	}).onDelete("cascade"),
 	unique("chat_bloqueados_unique").on(table.usuarioId, table.bloqueadoId),
 	check("chat_bloqueados_no_auto", sql`usuario_id != bloqueado_id`),
+]);
+
+
+// ============================================================================
+// MarketPlace v1 — Compra-venta P2P de objetos físicos
+// Sprint 1 — Mayo 2026
+// Doc maestro: docs/arquitectura/MarketPlace.md
+// Migración:   docs/migraciones/2026-05-03-marketplace-base.sql
+// ============================================================================
+
+/**
+ * `ubicacion` y `ubicacion_aproximada` son `GEOGRAPHY(POINT, 4326)` en BD.
+ * Drizzle no tiene tipo nativo geography — se declaran como `text()` y los
+ * services las manipulan con SQL crudo (`ST_MakePoint`, `ST_Distance`, etc.).
+ *
+ * Reglas:
+ * - `ubicacion` (real) NUNCA se devuelve al frontend.
+ * - `ubicacion_aproximada` (aleatorizada dentro de 500m) es la única pública.
+ * - `expira_at` se setea SOLO al crear (NOW() + 30 días). El UPDATE general
+ *   no la modifica; solo el endpoint futuro de "Reactivar" (Sprint 7) la
+ *   puede extender.
+ */
+export const articulosMarketplace = pgTable("articulos_marketplace", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usuarioId: uuid("usuario_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+
+	// Contenido
+	titulo: varchar({ length: 80 }).notNull(),
+	descripcion: text().notNull(),
+	precio: numeric({ precision: 10, scale: 2 }).notNull(),
+	condicion: varchar({ length: 20 }).notNull(),
+	aceptaOfertas: boolean("acepta_ofertas").default(true).notNull(),
+
+	// Fotos (JSONB array de URLs en R2; min 1, max 8 — validado en Zod)
+	fotos: jsonb().default(sql`'[]'::jsonb`).notNull(),
+	fotoPortadaIndex: smallint("foto_portada_index").default(0).notNull(),
+
+	// Ubicación con privacidad (manejadas con SQL crudo en services)
+	ubicacion: text().notNull(),
+	ubicacionAproximada: text("ubicacion_aproximada").notNull(),
+	ciudad: varchar({ length: 100 }).notNull(),
+	zonaAproximada: varchar("zona_aproximada", { length: 150 }).notNull(),
+
+	// Estado del ciclo de vida
+	estado: varchar({ length: 20 }).default('activa').notNull(),
+
+	// Métricas
+	totalVistas: integer("total_vistas").default(0).notNull(),
+	totalMensajes: integer("total_mensajes").default(0).notNull(),
+	totalGuardados: integer("total_guardados").default(0).notNull(),
+
+	// TTL — solo se setea al crear; cron del Sprint 7 lo usa para auto-pausar
+	expiraAt: timestamp("expira_at", { withTimezone: true, mode: 'string' }).notNull(),
+
+	// Timestamps
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	vendidaAt: timestamp("vendida_at", { withTimezone: true, mode: 'string' }),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_marketplace_estado").using("btree", table.estado.asc().nullsLast()),
+	index("idx_marketplace_ciudad").using("btree", table.ciudad.asc().nullsLast()),
+	index("idx_marketplace_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_marketplace_created").using("btree", table.createdAt.desc().nullsFirst()),
+	index("idx_marketplace_expira").using("btree", table.expiraAt.asc().nullsLast()),
+	// Índices GIST (ubicacion_aproximada) y GIN (FTS) viven solo en SQL —
+	// Drizzle no soporta declarar GIST/GIN sobre columnas custom geography ni
+	// sobre to_tsvector(). La migración SQL los crea y la BD los mantiene.
+	check("articulos_marketplace_condicion_check", sql`(condicion)::text = ANY ((ARRAY['nuevo'::character varying, 'seminuevo'::character varying, 'usado'::character varying, 'para_reparar'::character varying])::text[])`),
+	check("articulos_marketplace_estado_check", sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'pausada'::character varying, 'vendida'::character varying, 'eliminada'::character varying])::text[])`),
 ]);
