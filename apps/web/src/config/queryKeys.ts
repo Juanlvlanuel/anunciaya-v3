@@ -178,6 +178,17 @@ export const queryKeys = {
       ['cupones', 'lista', usuarioId] as const,
   },
 
+  // ─── Sección pública — MarketPlace ────────────────────────────────────────
+  // Compra-venta P2P de objetos físicos. El feed (recientes + cercanos) se
+  // sirve desde un único endpoint, así que `feed` recibe los 3 filtros como
+  // parte del key. Detalle individual y mis-articulos se sumarán en sprints
+  // siguientes.
+  marketplace: {
+    all: () => ['marketplace'] as const,
+    feed: (filtros: { ciudad: string; lat: number; lng: number }) =>
+      ['marketplace', 'feed', filtros] as const,
+  },
+
   // ─── Business Studio — Sucursales ────────────────────────────────────────
   sucursales: {
     all: () => ['sucursales'] as const,

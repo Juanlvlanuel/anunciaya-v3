@@ -17,6 +17,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { RutaPrivada } from './RutaPrivada';
 import { ModoGuard, MatrizGuard } from './guards';
+import { ModoPersonalEstrictoGuard } from './guards/ModoPersonalEstrictoGuard';
 import { RutaPublica } from './RutaPublica';
 import { RootLayout } from './RootLayout';
 
@@ -78,7 +79,7 @@ const PlaceholderPage = ({ nombre }: { nombre: string }) => (
 );
 
 // Páginas de secciones principales
-const PaginaMarketplace = () => <PlaceholderPage nombre="🛒 Marketplace" />;
+import PaginaMarketplace from '../pages/private/marketplace/PaginaMarketplace';
 const PaginaServicios = () => <PlaceholderPage nombre="🛠️ Servicios" />;
 
 // Páginas de usuario
@@ -235,7 +236,11 @@ const router = createBrowserRouter([
           },
           {
             path: '/marketplace',
-            element: <PaginaMarketplace />,
+            element: (
+              <ModoPersonalEstrictoGuard>
+                <PaginaMarketplace />
+              </ModoPersonalEstrictoGuard>
+            ),
           },
           {
             path: '/ofertas',

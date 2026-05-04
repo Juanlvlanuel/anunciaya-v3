@@ -43,11 +43,12 @@ import { notificar } from '../utils/notificaciones';
 // TIPOS
 // =============================================================================
 
-type EntityType = 'oferta' | 'servicio';
+type EntityType = 'oferta' | 'servicio' | 'articulo_marketplace';
 
 interface UseGuardadosParams {
   /**
-   * Tipo de entidad (oferta, servicio)
+   * Tipo de entidad (oferta, servicio, articulo_marketplace).
+   * El backend valida con check constraint sobre `guardados.entity_type`.
    */
   entityType: EntityType;
   
