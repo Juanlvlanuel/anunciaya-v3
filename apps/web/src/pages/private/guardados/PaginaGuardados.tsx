@@ -36,9 +36,15 @@ import { CardNegocioDetallado } from '@/components/negocios/CardNegocioDetallado
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryKeys';
 import api from '@/services/api';
-import { useOfertasGuardadas, useNegociosSeguidos } from '@/hooks/queries/useMisGuardados';
+import {
+    useOfertasGuardadas,
+    useNegociosSeguidos,
+    useArticulosMarketplaceGuardados,
+} from '@/hooks/queries/useMisGuardados';
 import notificar from '@/utils/notificaciones';
+import { CardArticulo } from '@/components/marketplace/CardArticulo';
 import type { Oferta } from '@/types/ofertas';
+import type { ArticuloFeed } from '@/types/marketplace';
 
 // =============================================================================
 // TIPOS
@@ -103,10 +109,19 @@ export function PaginaGuardados() {
     // React Query — datos del servidor
     const ofertasQuery = useOfertasGuardadas();
     const negociosQuery = useNegociosSeguidos();
+    const articulosMarketplaceQuery = useArticulosMarketplaceGuardados();
     const ofertas = (ofertasQuery.data ?? []) as GuardadoOferta[];
     const negocios = (negociosQuery.data ?? []) as NegocioSeguido[];
+    const articulosMarketplace = (articulosMarketplaceQuery.data ?? []) as Array<{
+        id: string;
+        entityType: string;
+        entityId: string;
+        createdAt: string;
+        articulo: ArticuloFeed;
+    }>;
     const loadingOfertas = ofertasQuery.isPending;
     const loadingNegocios = negociosQuery.isPending;
+    const loadingArticulosMarketplace = articulosMarketplaceQuery.isPending;
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<GuardadoOferta | null>(null);
 
     // Filtros (para implementación futura)
@@ -541,7 +556,16 @@ export function PaginaGuardados() {
                         </div>
                     )}
 
-                    {(tabActivo === 'servicios' || tabActivo === 'marketplace') && (
+                    {tabActivo === 'marketplace' && (
+                        <div className="animate-fade-in">
+                            <ContenidoMarketplace
+                                items={articulosMarketplace}
+                                loading={loadingArticulosMarketplace}
+                            />
+                        </div>
+                    )}
+
+                    {tabActivo === 'servicios' && (
                         <div className="animate-fade-in">
                             <EstadoProximamente tipo={tabActivo} />
                         </div>
@@ -814,6 +838,64 @@ function EstadoProximamente({ tipo }: EstadoProximamenteProps) {
             <div className="inline-flex items-center gap-2 px-6 py-3 bg-rose-100 text-rose-700 rounded-xl font-semibold">
                 Próximamente disponible
             </div>
+        </div>
+    );
+}
+
+// =============================================================================
+// CONTENIDO MARKETPLACE (Sprint 7)
+// =============================================================================
+
+interface ItemMarketplaceGuardado {
+    id: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    articulo: ArticuloFeed;
+}
+
+interface ContenidoMarketplaceProps {
+    items: ItemMarketplaceGuardado[];
+    loading: boolean;
+}
+
+function ContenidoMarketplace({ items, loading }: ContenidoMarketplaceProps) {
+    if (loading) {
+        return (
+            <div className="flex min-h-40 items-center justify-center">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-500 border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (items.length === 0) {
+        return (
+            <div className="text-center py-12 lg:py-16">
+                <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-rose-100 to-rose-50 rounded-full flex items-center justify-center ring-8 ring-rose-50">
+                    <ShoppingCart className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />
+                </div>
+                <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">
+                    Aún no guardas artículos
+                </h3>
+                <p className="text-base lg:text-lg font-medium text-gray-600 mb-6 max-w-md mx-auto">
+                    Cuando guardes artículos del Marketplace con el ❤️, aparecerán aquí
+                    para verlos después.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            data-testid="grid-articulos-marketplace-guardados"
+            className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4"
+        >
+            {items.map((item) => (
+                <CardArticulo
+                    key={item.id}
+                    articulo={{ ...item.articulo, distanciaMetros: null } as ArticuloFeed}
+                />
+            ))}
         </div>
     );
 }

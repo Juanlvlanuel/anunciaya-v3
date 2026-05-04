@@ -40,11 +40,13 @@ import {
     ShoppingCart,
     PackageX,
     PauseCircle,
+    PlayCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import {
     useArticuloMarketplace,
     registrarVistaArticulo,
+    useReactivarArticulo,
 } from '../../../hooks/queries/useMarketplace';
 import { useGuardados } from '../../../hooks/useGuardados';
 import {
@@ -90,6 +92,9 @@ export function PaginaArticuloMarketplace() {
         entityId: articuloId ?? '',
     });
 
+    // ─── Reactivar (Sprint 7) ─────────────────────────────────────────────────
+    const reactivarMutation = useReactivarArticulo();
+
     // ─── Registrar vista (filtra dueño + dedup por sessionStorage) ─────────────
     useEffect(() => {
         if (!articulo || !articuloId) return;
@@ -114,6 +119,17 @@ export function PaginaArticuloMarketplace() {
     const handleBloquearVendedor = () => {
         setMenuAbierto(false);
         notificar.info('Próximamente disponible');
+    };
+    const handleReactivar = async () => {
+        if (!articuloId) return;
+        try {
+            const resp = await reactivarMutation.mutateAsync({ articuloId });
+            notificar.exito(
+                resp.message ?? 'Tu publicación está activa de nuevo. Expira en 30 días.'
+            );
+        } catch {
+            notificar.error('No pudimos reactivar la publicación. Intenta de nuevo.');
+        }
     };
 
     // ─── Estados ───────────────────────────────────────────────────────────────
@@ -287,7 +303,21 @@ export function PaginaArticuloMarketplace() {
                         <div className="sticky top-4 space-y-4">
                             <BloqueInfo articulo={articulo} />
                             <CardVendedor vendedor={articulo.vendedor} />
-                            <BarraContacto articulo={articulo} variante="desktop" />
+                            {/*
+                              Si el visitante es el dueño Y el artículo está
+                              pausado, mostramos botón Reactivar EN LUGAR de
+                              la BarraContacto (no tiene sentido contactarse
+                              a uno mismo).
+                            */}
+                            {usuarioActual?.id === articulo.vendedor.id &&
+                            articulo.estado === 'pausada' ? (
+                                <BotonReactivar
+                                    onClick={handleReactivar}
+                                    cargando={reactivarMutation.isPending}
+                                />
+                            ) : (
+                                <BarraContacto articulo={articulo} variante="desktop" />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -297,9 +327,42 @@ export function PaginaArticuloMarketplace() {
                 BARRA FIJA INFERIOR — solo móvil
             ════════════════════════════════════════════════════════════════ */}
             <div className="fixed inset-x-0 bottom-0 z-20 lg:hidden">
-                <BarraContacto articulo={articulo} variante="mobile" />
+                {usuarioActual?.id === articulo.vendedor.id &&
+                articulo.estado === 'pausada' ? (
+                    <div className="border-t border-slate-200 bg-white p-3">
+                        <BotonReactivar
+                            onClick={handleReactivar}
+                            cargando={reactivarMutation.isPending}
+                        />
+                    </div>
+                ) : (
+                    <BarraContacto articulo={articulo} variante="mobile" />
+                )}
             </div>
         </div>
+    );
+}
+
+// =============================================================================
+// BOTÓN REACTIVAR (Sprint 7)
+// =============================================================================
+
+interface BotonReactivarProps {
+    onClick: () => void;
+    cargando: boolean;
+}
+
+function BotonReactivar({ onClick, cargando }: BotonReactivarProps) {
+    return (
+        <button
+            data-testid="btn-reactivar-articulo"
+            onClick={onClick}
+            disabled={cargando}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-br from-teal-600 to-teal-800 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] disabled:opacity-60"
+        >
+            <PlayCircle className="h-4 w-4" strokeWidth={2.5} />
+            {cargando ? 'Reactivando…' : 'Reactivar publicación'}
+        </button>
     );
 }
 

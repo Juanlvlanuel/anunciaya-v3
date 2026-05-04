@@ -35,6 +35,30 @@ export function useOfertasGuardadas() {
 }
 
 // =============================================================================
+// ARTÍCULOS DEL MARKETPLACE GUARDADOS (Sprint 7)
+// =============================================================================
+
+/**
+ * Lista paginada de artículos del MarketPlace que el usuario guardó.
+ * Usa el endpoint genérico `/guardados` con `entityType=articulo_marketplace`.
+ */
+export function useArticulosMarketplaceGuardados() {
+  const usuarioId = useAuthStore((s) => s.usuario?.id ?? '');
+  const habilitado = !!usuarioId;
+
+  return useQuery({
+    queryKey: ['guardados', 'articulos_marketplace', usuarioId] as const,
+    queryFn: async () => {
+      const response = await api.get('/guardados', {
+        params: { entityType: 'articulo_marketplace', pagina: 1, limite: 50 },
+      });
+      return response.data.success ? response.data.data.guardados ?? [] : [];
+    },
+    enabled: habilitado,
+  });
+}
+
+// =============================================================================
 // NEGOCIOS SEGUIDOS
 // =============================================================================
 

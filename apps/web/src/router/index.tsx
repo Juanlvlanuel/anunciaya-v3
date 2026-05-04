@@ -30,6 +30,7 @@ import PaginaRegistro from '../pages/public/PaginaRegistro';
 import PaginaRegistroExito from '../pages/public/PaginaRegistroExito';
 import PaginaArticuloPublico from '../pages/public/PaginaArticuloPublico';
 import PaginaOfertaPublico from '../pages/public/PaginaOfertaPublico';
+import PaginaArticuloMarketplacePublico from '../pages/public/PaginaArticuloMarketplacePublico';
 
 // Páginas privadas
 import PaginaInicio from '../pages/private/PaginaInicio';
@@ -154,6 +155,10 @@ const router = createBrowserRouter([
       {
         path: '/p/oferta/:ofertaId',
         element: <PaginaOfertaPublico />,
+      },
+      {
+        path: '/p/articulo-marketplace/:articuloId',
+        element: <PaginaArticuloMarketplacePublico />,
       },
 
       // -----------------------------------------------------------------------

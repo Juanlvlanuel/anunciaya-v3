@@ -241,6 +241,32 @@ interface RespuestaActualizarOk {
 
 type RespuestaActualizar = RespuestaActualizarOk | RespuestaModeracion;
 
+/**
+ * Reactiva un artículo `pausada` (Sprint 7). El backend extiende `expira_at`
+ * 30 días más y vuelve a `estado='activa'`. Solo puede reactivar el dueño.
+ */
+export function useReactivarArticulo() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        { success: boolean; message?: string; data?: { estado: 'activa' } },
+        unknown,
+        { articuloId: string }
+    >({
+        mutationFn: async ({ articuloId }) => {
+            const response = await api.post(
+                `/marketplace/articulos/${articuloId}/reactivar`
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.articulo(variables.articuloId),
+            });
+            queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.all() });
+        },
+    });
+}
+
 export function useActualizarArticulo() {
     const queryClient = useQueryClient();
     return useMutation<

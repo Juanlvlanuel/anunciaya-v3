@@ -25,13 +25,19 @@
 
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db';
-import { guardados, ofertas, negocioSucursales, negocios } from '../db/schemas/schema';
+import {
+    guardados,
+    ofertas,
+    negocioSucursales,
+    negocios,
+    articulosMarketplace,
+} from '../db/schemas/schema';
 
 // =============================================================================
 // TIPOS
 // =============================================================================
 
-type EntityType = 'oferta' | 'servicio';
+type EntityType = 'oferta' | 'servicio' | 'articulo_marketplace';
 
 interface AgregarGuardadoParams {
     userId: string;
@@ -281,7 +287,138 @@ export async function obtenerGuardados(
         }
 
         // =====================================================================
-        // CASO 2: entityType === 'servicio' (Servicios) → Solo IDs
+        // CASO 2: entityType === 'articulo_marketplace' → JOIN con MarketPlace
+        // (Sprint 7 — tab "Artículos" en Mis Guardados)
+        // =====================================================================
+        else if (entityType === 'articulo_marketplace') {
+            // SQL crudo para extraer ubicacion_aproximada con ST_Y/ST_X
+            // (Drizzle no tiene tipo geography y la columna está como text).
+            const offsetSql = (pagina - 1) * limite;
+            const guardadosRaw = await db.execute(sql`
+                SELECT
+                    g.id,
+                    g.entity_type AS "entityType",
+                    g.entity_id AS "entityId",
+                    g.created_at AS "createdAt",
+                    a.id AS "articuloId",
+                    a.usuario_id AS "articuloUsuarioId",
+                    a.titulo AS "articuloTitulo",
+                    a.descripcion AS "articuloDescripcion",
+                    a.precio AS "articuloPrecio",
+                    a.condicion AS "articuloCondicion",
+                    a.acepta_ofertas AS "articuloAceptaOfertas",
+                    a.fotos AS "articuloFotos",
+                    a.foto_portada_index AS "articuloFotoPortadaIndex",
+                    ST_Y(a.ubicacion_aproximada::geometry) AS "articuloLat",
+                    ST_X(a.ubicacion_aproximada::geometry) AS "articuloLng",
+                    a.ciudad AS "articuloCiudad",
+                    a.zona_aproximada AS "articuloZonaAproximada",
+                    a.estado AS "articuloEstado",
+                    a.total_vistas AS "articuloTotalVistas",
+                    a.total_mensajes AS "articuloTotalMensajes",
+                    a.total_guardados AS "articuloTotalGuardados",
+                    a.expira_at AS "articuloExpiraAt",
+                    a.created_at AS "articuloCreatedAt",
+                    a.updated_at AS "articuloUpdatedAt",
+                    a.vendida_at AS "articuloVendidaAt"
+                FROM guardados g
+                INNER JOIN articulos_marketplace a ON a.id = g.entity_id
+                WHERE g.usuario_id = ${userId}
+                  AND g.entity_type = 'articulo_marketplace'
+                  AND a.deleted_at IS NULL
+                ORDER BY g.created_at DESC
+                LIMIT ${limite}
+                OFFSET ${offsetSql}
+            `);
+
+            interface RawRow {
+                id: string;
+                entityType: string;
+                entityId: string;
+                createdAt: string;
+                articuloId: string;
+                articuloUsuarioId: string;
+                articuloTitulo: string;
+                articuloDescripcion: string;
+                articuloPrecio: string;
+                articuloCondicion: string;
+                articuloAceptaOfertas: boolean;
+                articuloFotos: string[];
+                articuloFotoPortadaIndex: number;
+                articuloLat: number;
+                articuloLng: number;
+                articuloCiudad: string;
+                articuloZonaAproximada: string;
+                articuloEstado: string;
+                articuloTotalVistas: number;
+                articuloTotalMensajes: number;
+                articuloTotalGuardados: number;
+                articuloExpiraAt: string;
+                articuloCreatedAt: string;
+                articuloUpdatedAt: string;
+                articuloVendidaAt: string | null;
+            }
+
+            const guardadosConArticulo = (guardadosRaw.rows as unknown as RawRow[]).map(
+                (r) => ({
+                    id: r.id,
+                    entityType: r.entityType,
+                    entityId: r.entityId,
+                    createdAt: r.createdAt,
+                    articulo: {
+                        id: r.articuloId,
+                        usuarioId: r.articuloUsuarioId,
+                        titulo: r.articuloTitulo,
+                        descripcion: r.articuloDescripcion,
+                        precio: r.articuloPrecio,
+                        condicion: r.articuloCondicion,
+                        aceptaOfertas: r.articuloAceptaOfertas,
+                        fotos: r.articuloFotos,
+                        fotoPortadaIndex: r.articuloFotoPortadaIndex,
+                        ubicacionAproximada: { lat: r.articuloLat, lng: r.articuloLng },
+                        ciudad: r.articuloCiudad,
+                        zonaAproximada: r.articuloZonaAproximada,
+                        estado: r.articuloEstado,
+                        totalVistas: r.articuloTotalVistas,
+                        totalMensajes: r.articuloTotalMensajes,
+                        totalGuardados: r.articuloTotalGuardados,
+                        expiraAt: r.articuloExpiraAt,
+                        createdAt: r.articuloCreatedAt,
+                        updatedAt: r.articuloUpdatedAt,
+                        vendidaAt: r.articuloVendidaAt,
+                    },
+                })
+            );
+
+            // Total
+            const [{ count }] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(guardados)
+                .innerJoin(articulosMarketplace, eq(articulosMarketplace.id, guardados.entityId))
+                .where(
+                    and(
+                        eq(guardados.usuarioId, userId),
+                        eq(guardados.entityType, 'articulo_marketplace'),
+                        sql`${articulosMarketplace.deletedAt} IS NULL`
+                    )
+                );
+            const total = Number(count);
+            const totalPaginas = Math.ceil(total / limite);
+
+            return {
+                success: true,
+                data: {
+                    guardados: guardadosConArticulo,
+                    total,
+                    pagina,
+                    limite,
+                    totalPaginas,
+                },
+            };
+        }
+
+        // =====================================================================
+        // CASO 3: entityType === 'servicio' (Servicios) → Solo IDs
         // =====================================================================
         else {
             // Obtener guardados (comportamiento original)

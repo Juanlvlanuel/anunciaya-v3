@@ -10,6 +10,7 @@ import { inicializarSocket } from './socket';
 import { inicializarCronChatYA } from './cron/chatya.cron.js';
 import { inicializarCronAlertas } from './cron/alertas.cron.js';
 import { inicializarCronScanYA } from './cron/scanya.cron.js';
+import { inicializarCronMarketplaceExpiracion } from './cron/marketplace-expiracion.cron.js';
 
 const PORT = process.env.API_PORT || 4000;
 const HOST = process.env.API_HOST || '0.0.0.0';
@@ -35,6 +36,7 @@ const iniciarServidor = async () => {
     inicializarCronChatYA();      // Limpieza chats inactivos (diario 3:00 AM)
     inicializarCronAlertas();     // Detección alertas (diario 4:00 AM + semanal lunes 5:00 AM)
     inicializarCronScanYA();      // Cierre auto de turnos colgados (cada 30 min)
+    inicializarCronMarketplaceExpiracion(); // Auto-pausa cada 6h + notif próx exp diaria 9:00 UTC
   } catch (error) {
     console.error('❌ Error iniciando servidor:', error);
     process.exit(1);

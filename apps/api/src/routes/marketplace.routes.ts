@@ -49,6 +49,7 @@ import {
     getSugerenciasBuscador,
     getPopularesBuscador,
     getBuscarArticulos,
+    postReactivarArticulo,
 } from '../controllers/marketplace.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -184,6 +185,18 @@ router.delete(
     verificarToken,
     requiereModoPersonal,
     deleteArticulo
+);
+
+/**
+ * POST /api/marketplace/articulos/:id/reactivar
+ * El dueño reactiva un artículo `pausada` (extiende +30 días + estado=activa).
+ * Sprint 7.
+ */
+router.post(
+    '/articulos/:id/reactivar',
+    verificarToken,
+    requiereModoPersonal,
+    postReactivarArticulo
 );
 
 // =============================================================================

@@ -32,6 +32,7 @@ import {
     obtenerPopulares,
     buscarArticulos,
 } from '../services/marketplace/buscador.js';
+import { reactivarArticulo } from '../services/marketplace/expiracion.js';
 import {
     crearArticuloSchema,
     actualizarArticuloSchema,
@@ -516,6 +517,45 @@ export async function getBuscarArticulos(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al ejecutar la búsqueda',
+        });
+    }
+}
+
+// =============================================================================
+// REACTIVAR ARTÍCULO (Sprint 7)
+// =============================================================================
+
+/**
+ * POST /api/marketplace/articulos/:id/reactivar
+ * El dueño reactiva un artículo `pausada` — extiende `expira_at` 30 días más
+ * y vuelve a `estado='activa'`.
+ */
+export async function postReactivarArticulo(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+        if (!UUID_REGEX.test(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID del artículo no es válido',
+            });
+        }
+
+        const usuarioId = obtenerUsuarioId(req);
+        if (!usuarioId) {
+            return res.status(401).json({ success: false, message: 'No autenticado' });
+        }
+
+        const resultado = await reactivarArticulo(id, usuarioId);
+
+        if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {
+            return res.status(resultado.code).json(resultado);
+        }
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en postReactivarArticulo:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al reactivar el artículo',
         });
     }
 }
