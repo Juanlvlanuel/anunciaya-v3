@@ -219,6 +219,53 @@ export const misArticulosQuerySchema = z.object({
 export type MisArticulosQueryInput = z.infer<typeof misArticulosQuerySchema>;
 
 // =============================================================================
+// SCHEMAS DE BUSCADOR (Sprint 6)
+// =============================================================================
+
+export const sugerenciasQuerySchema = z.object({
+    q: z.string().trim().min(1, 'q es requerido').max(100),
+    ciudad: campoCiudad,
+});
+
+export const popularesQuerySchema = z.object({
+    ciudad: campoCiudad,
+});
+
+export const buscarQuerySchema = z.object({
+    q: z.string().trim().max(100).optional(),
+    ciudad: campoCiudad,
+    lat: z.coerce.number().min(-90).max(90).optional(),
+    lng: z.coerce.number().min(-180).max(180).optional(),
+    precioMin: z.coerce.number().int().min(0).max(999999).optional(),
+    precioMax: z.coerce.number().int().min(0).max(999999).optional(),
+    /**
+     * Acepta CSV (`condicion=nuevo,seminuevo`). Se transforma a array.
+     */
+    condicion: z
+        .string()
+        .optional()
+        .transform((val) =>
+            val
+                ? val
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter((s): s is 'nuevo' | 'seminuevo' | 'usado' | 'para_reparar' =>
+                          ['nuevo', 'seminuevo', 'usado', 'para_reparar'].includes(s)
+                      )
+                : undefined
+        ),
+    distanciaMaxKm: z.coerce.number().min(0).max(500).optional(),
+    ordenar: z
+        .enum(['recientes', 'cercanos', 'precio_asc', 'precio_desc'])
+        .optional()
+        .default('recientes'),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+    offset: z.coerce.number().int().min(0).optional().default(0),
+});
+
+export type BuscarQueryInput = z.infer<typeof buscarQuerySchema>;
+
+// =============================================================================
 // SCHEMA 6: UPLOAD DE IMAGEN (presigned URL)
 // =============================================================================
 // POST /api/marketplace/upload-imagen

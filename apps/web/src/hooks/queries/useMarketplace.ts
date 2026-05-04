@@ -12,8 +12,14 @@
  * Ubicación: apps/web/src/hooks/queries/useMarketplace.ts
  */
 
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useState, useCallback } from 'react';
+import {
+    useQuery,
+    useInfiniteQuery,
+    useMutation,
+    useQueryClient,
+    keepPreviousData,
+} from '@tanstack/react-query';
+import { useState, useCallback, useEffect } from 'react';
 import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
 import type {
@@ -418,6 +424,132 @@ export function useVendedorPublicaciones(
         },
         enabled: !!usuarioId,
         staleTime: 60 * 1000,
+        placeholderData: keepPreviousData,
+    });
+}
+
+// =============================================================================
+// BUSCADOR (Sprint 6)
+// =============================================================================
+
+/**
+ * Sugerencias en vivo con debounce 300ms.
+ *
+ * El componente pasa el `query` "raw" del input — este hook se encarga de
+ * debouncear y solo dispara fetch cuando el query estabilizado tiene >= 2
+ * caracteres. Sin esto, cada tecla pegada spamearía el backend.
+ */
+export function useBuscadorSugerencias(queryRaw: string, ciudad: string | null) {
+    const [queryDebounced, setQueryDebounced] = useState(queryRaw);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setQueryDebounced(queryRaw), 300);
+        return () => clearTimeout(timer);
+    }, [queryRaw]);
+
+    return useQuery({
+        queryKey: queryKeys.marketplace.sugerencias(queryDebounced, ciudad ?? ''),
+        queryFn: async (): Promise<string[]> => {
+            const response = await api.get<{ success: boolean; data?: string[] }>(
+                '/marketplace/buscar/sugerencias',
+                { params: { q: queryDebounced, ciudad } }
+            );
+            return response.data.data ?? [];
+        },
+        enabled: !!ciudad && queryDebounced.trim().length >= 2,
+        staleTime: 60 * 1000,
+        placeholderData: keepPreviousData,
+    });
+}
+
+/**
+ * Top 6 búsquedas populares por ciudad. El backend cachea en Redis 1h, el
+ * frontend cachea en React Query 5min — ambos suficientes para una sección
+ * de "más buscado" que cambia poco.
+ */
+export function useBuscadorPopulares(ciudad: string | null) {
+    return useQuery({
+        queryKey: queryKeys.marketplace.populares(ciudad ?? ''),
+        queryFn: async (): Promise<string[]> => {
+            const response = await api.get<{ success: boolean; data?: string[] }>(
+                '/marketplace/buscar/populares',
+                { params: { ciudad } }
+            );
+            return response.data.data ?? [];
+        },
+        enabled: !!ciudad,
+        staleTime: 5 * 60 * 1000,
+    });
+}
+
+/**
+ * Filtros que el wizard pasa al endpoint `/buscar`. Se serializan a query
+ * string en `URLSearchParams`.
+ */
+export interface FiltrosBusquedaCliente {
+    q?: string;
+    lat?: number;
+    lng?: number;
+    precioMin?: number;
+    precioMax?: number;
+    condicion?: Array<'nuevo' | 'seminuevo' | 'usado' | 'para_reparar'>;
+    distanciaMaxKm?: number;
+    ordenar?: 'recientes' | 'cercanos' | 'precio_asc' | 'precio_desc';
+}
+
+interface RespuestaBusqueda {
+    success: boolean;
+    data: ArticuloMarketplace[];
+    paginacion: { total: number; limit: number; offset: number };
+    query: string;
+}
+
+/**
+ * Resultados de búsqueda paginados con scroll infinito (`useInfiniteQuery`).
+ * Cada página trae 20 artículos. El componente concatena todas las páginas y
+ * dispara `fetchNextPage` cuando el sentinel entra en viewport.
+ */
+export function useBuscadorResultados(
+    ciudad: string | null,
+    filtros: FiltrosBusquedaCliente
+) {
+    const limit = 20;
+
+    return useInfiniteQuery({
+        queryKey: queryKeys.marketplace.resultadosBusqueda({
+            ciudad,
+            ...filtros,
+        }),
+        queryFn: async ({ pageParam }): Promise<RespuestaBusqueda> => {
+            const params: Record<string, unknown> = {
+                ciudad,
+                limit,
+                offset: pageParam,
+                ordenar: filtros.ordenar ?? 'recientes',
+            };
+            if (filtros.q) params.q = filtros.q;
+            if (filtros.lat !== undefined) params.lat = filtros.lat;
+            if (filtros.lng !== undefined) params.lng = filtros.lng;
+            if (filtros.precioMin !== undefined) params.precioMin = filtros.precioMin;
+            if (filtros.precioMax !== undefined) params.precioMax = filtros.precioMax;
+            if (filtros.condicion && filtros.condicion.length > 0) {
+                params.condicion = filtros.condicion.join(',');
+            }
+            if (filtros.distanciaMaxKm !== undefined) {
+                params.distanciaMaxKm = filtros.distanciaMaxKm;
+            }
+            const response = await api.get<RespuestaBusqueda>('/marketplace/buscar', {
+                params,
+            });
+            return response.data;
+        },
+        initialPageParam: 0,
+        getNextPageParam: (ultima) => {
+            const cargados = ultima.paginacion.offset + ultima.data.length;
+            return cargados < ultima.paginacion.total ? cargados : undefined;
+        },
+        enabled: !!ciudad,
+        staleTime: 30 * 1000,
         placeholderData: keepPreviousData,
     });
 }

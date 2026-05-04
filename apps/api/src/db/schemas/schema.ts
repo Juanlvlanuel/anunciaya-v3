@@ -2279,3 +2279,20 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	check("articulos_marketplace_condicion_check", sql`(condicion)::text = ANY ((ARRAY['nuevo'::character varying, 'seminuevo'::character varying, 'usado'::character varying, 'para_reparar'::character varying])::text[])`),
 	check("articulos_marketplace_estado_check", sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'pausada'::character varying, 'vendida'::character varying, 'eliminada'::character varying])::text[])`),
 ]);
+
+
+/**
+ * Log de búsquedas de MarketPlace (Sprint 6). Sirve para calcular populares
+ * por ciudad. `usuario_id` se inserta siempre NULL en v1 por privacidad
+ * (la columna queda nullable como opt-in retroactivo si v2 decide
+ * personalización).
+ */
+export const marketplaceBusquedasLog = pgTable("marketplace_busquedas_log", {
+	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
+	ciudad: varchar({ length: 100 }).notNull(),
+	termino: varchar({ length: 100 }).notNull(),
+	usuarioId: uuid("usuario_id").references(() => usuarios.id, { onDelete: 'set null' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_busquedas_ciudad_fecha").using("btree", table.ciudad.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+]);

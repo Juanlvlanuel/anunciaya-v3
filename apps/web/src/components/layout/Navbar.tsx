@@ -240,8 +240,11 @@ export const Navbar = () => {
   // ─────────────────────────────────────────────────────────────────────────────
   const searchQuery = useSearchStore((s) => s.query);
   const setSearchQuery = useSearchStore((s) => s.setQuery);
+  const abrirBuscadorStore = useSearchStore((s) => s.abrirBuscador);
+  const cerrarBuscadorStore = useSearchStore((s) => s.cerrarBuscador);
   const seccionActiva = detectarSeccion(location.pathname);
   const placeholderBuscador = placeholderSeccion(seccionActiva);
+  const seccionUsaOverlay = seccionActiva === 'marketplace';
 
   // ─────────────────────────────────────────────────────────────────────────────
   // EFFECT: Inyectar estilos de animación
@@ -607,9 +610,24 @@ export const Navbar = () => {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => {
+                          // Sprint 6 MarketPlace: abrir overlay al hacer focus.
+                          // Otras secciones siguen filtrando inline (sin overlay).
+                          if (seccionUsaOverlay) abrirBuscadorStore();
+                        }}
                         onBlur={() => {
                           if (!searchQuery.trim()) {
                             setBuscadorExpandido(false);
+                            // En MarketPlace, solo cerrar el overlay si el
+                            // query está vacío (delay para permitir clicks
+                            // dentro del overlay antes de cerrarlo).
+                            if (seccionUsaOverlay) {
+                              setTimeout(() => {
+                                if (!useSearchStore.getState().query.trim()) {
+                                  cerrarBuscadorStore();
+                                }
+                              }, 200);
+                            }
                           }
                         }}
                         placeholder={placeholderBuscador}

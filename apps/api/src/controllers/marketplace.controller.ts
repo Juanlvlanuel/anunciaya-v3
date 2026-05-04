@@ -28,12 +28,20 @@ import {
     obtenerArticulosDeVendedor,
 } from '../services/marketplace.service.js';
 import {
+    obtenerSugerencias,
+    obtenerPopulares,
+    buscarArticulos,
+} from '../services/marketplace/buscador.js';
+import {
     crearArticuloSchema,
     actualizarArticuloSchema,
     cambiarEstadoSchema,
     feedQuerySchema,
     misArticulosQuerySchema,
     uploadImagenSchema,
+    sugerenciasQuerySchema,
+    popularesQuerySchema,
+    buscarQuerySchema,
     formatearErroresZod,
 } from '../validations/marketplace.schema.js';
 
@@ -424,6 +432,90 @@ export async function getPublicacionesDeVendedor(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al obtener las publicaciones del vendedor',
+        });
+    }
+}
+
+// =============================================================================
+// BUSCADOR (Sprint 6)
+// =============================================================================
+
+/**
+ * GET /api/marketplace/buscar/sugerencias?q=...&ciudad=...
+ * Top 5 títulos de artículos activos cuyo FTS matchea el query.
+ */
+export async function getSugerenciasBuscador(req: Request, res: Response) {
+    try {
+        const validacion = sugerenciasQuerySchema.safeParse(req.query);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Query inválida',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+        const { q, ciudad } = validacion.data;
+        const resultado = await obtenerSugerencias(q, ciudad);
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getSugerenciasBuscador:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener sugerencias',
+        });
+    }
+}
+
+/**
+ * GET /api/marketplace/buscar/populares?ciudad=...
+ * Top 6 términos más buscados en la ciudad en los últimos 7 días.
+ * Cacheado en Redis con TTL 1h.
+ */
+export async function getPopularesBuscador(req: Request, res: Response) {
+    try {
+        const validacion = popularesQuerySchema.safeParse(req.query);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Query inválida',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+        const resultado = await obtenerPopulares(validacion.data.ciudad);
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getPopularesBuscador:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener búsquedas populares',
+        });
+    }
+}
+
+/**
+ * GET /api/marketplace/buscar?q=...&ciudad=...&lat=...&lng=...&precioMin=...
+ *      &precioMax=...&condicion=nuevo,usado&distanciaMaxKm=10&ordenar=...&limit=...&offset=...
+ *
+ * Búsqueda completa con filtros + orden + paginado. Inserta en
+ * `marketplace_busquedas_log` fire-and-forget (usuario_id NULL por privacidad).
+ */
+export async function getBuscarArticulos(req: Request, res: Response) {
+    try {
+        const validacion = buscarQuerySchema.safeParse(req.query);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Query inválida',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+        const resultado = await buscarArticulos(validacion.data);
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getBuscarArticulos:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al ejecutar la búsqueda',
         });
     }
 }

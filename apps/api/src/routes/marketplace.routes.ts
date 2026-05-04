@@ -46,6 +46,9 @@ import {
     postUploadImagen,
     getVendedorMarketplace,
     getPublicacionesDeVendedor,
+    getSugerenciasBuscador,
+    getPopularesBuscador,
+    getBuscarArticulos,
 } from '../controllers/marketplace.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -74,6 +77,26 @@ router.get('/articulos/:id', verificarTokenOpcional, getArticulo);
  * Incrementa total_vistas. Sin auth requerida.
  */
 router.post('/articulos/:id/vista', postRegistrarVista);
+
+/**
+ * GET /api/marketplace/buscar/sugerencias?q=...&ciudad=...
+ * Top 5 títulos de artículos activos cuyo FTS matchea el query.
+ * IMPORTANTE: declarado ANTES de las rutas paramétricas para que Express no
+ * lo confunda con `/:id`.
+ */
+router.get('/buscar/sugerencias', getSugerenciasBuscador);
+
+/**
+ * GET /api/marketplace/buscar/populares?ciudad=...
+ * Top 6 términos más buscados en la ciudad en los últimos 7 días.
+ */
+router.get('/buscar/populares', getPopularesBuscador);
+
+/**
+ * GET /api/marketplace/buscar?q=...&ciudad=...&filtros...
+ * Búsqueda completa con filtros, orden y paginado.
+ */
+router.get('/buscar', getBuscarArticulos);
 
 /**
  * GET /api/marketplace/vendedor/:usuarioId

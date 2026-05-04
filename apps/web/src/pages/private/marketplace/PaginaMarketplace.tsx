@@ -30,6 +30,7 @@ import { useGpsStore } from '../../../stores/useGpsStore';
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { useMarketplaceFeed } from '../../../hooks/queries/useMarketplace';
 import { CardArticulo } from '../../../components/marketplace/CardArticulo';
+import { OverlayBuscadorMarketplace } from '../../../components/marketplace/OverlayBuscadorMarketplace';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
 import type { ArticuloFeed } from '../../../types/marketplace';
@@ -347,6 +348,8 @@ export function PaginaMarketplace() {
                 <Plus className="h-6 w-6" strokeWidth={2.5} />
             </button>
 
+            {/* Overlay del buscador (anclado al useSearchStore global) */}
+            <OverlayBuscadorMarketplace />
         </div>
     );
 }

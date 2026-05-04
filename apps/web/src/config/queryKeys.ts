@@ -197,6 +197,12 @@ export const queryKeys = {
       paginacion: { limit: number; offset: number }
     ) =>
       ['marketplace', 'vendedor', usuarioId, 'publicaciones', estado, paginacion] as const,
+    sugerencias: (q: string, ciudad: string) =>
+      ['marketplace', 'buscar', 'sugerencias', q, ciudad] as const,
+    populares: (ciudad: string) =>
+      ['marketplace', 'buscar', 'populares', ciudad] as const,
+    resultadosBusqueda: (params: Record<string, unknown>) =>
+      ['marketplace', 'buscar', 'resultados', params] as const,
   },
 
   // ─── Business Studio — Sucursales ────────────────────────────────────────
