@@ -15,7 +15,7 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
-import type { FeedMarketplace } from '../../types/marketplace';
+import type { FeedMarketplace, ArticuloMarketplaceDetalle } from '../../types/marketplace';
 
 // =============================================================================
 // FEED DEL MARKETPLACE (recientes + cercanos)
@@ -69,4 +69,74 @@ export function useMarketplaceFeed(params: UseMarketplaceFeedParams) {
         staleTime: 2 * 60 * 1000,
         placeholderData: keepPreviousData,
     });
+}
+
+// =============================================================================
+// DETALLE DEL ARTÍCULO
+// =============================================================================
+
+/**
+ * Consume `GET /api/marketplace/articulos/:id`.
+ *
+ * Devuelve el artículo completo con datos del vendedor (incluye `telefono`
+ * para el botón WhatsApp). El backend NO devuelve `ubicacion` exacta, solo
+ * `ubicacionAproximada` (decisión de privacidad — círculo de 500m).
+ *
+ * Se permite `staleTime` corto (1 min) — el detalle cambia poco una vez
+ * publicado, pero queremos refrescar `total_vistas` y `total_guardados` con
+ * relativa frecuencia para que el vendedor vea sus métricas casi en vivo.
+ */
+export function useArticuloMarketplace(articuloId: string | undefined) {
+    return useQuery({
+        queryKey: queryKeys.marketplace.articulo(articuloId ?? ''),
+        queryFn: async (): Promise<ArticuloMarketplaceDetalle | null> => {
+            const response = await api.get<{
+                success: boolean;
+                data?: ArticuloMarketplaceDetalle;
+                message?: string;
+            }>(`/marketplace/articulos/${articuloId}`);
+            if (!response.data.success || !response.data.data) return null;
+            return response.data.data;
+        },
+        enabled: !!articuloId,
+        staleTime: 60 * 1000,
+        // No retry si es 404 — el endpoint devuelve 404 limpio para artículos
+        // inexistentes/eliminados, no es un error transitorio.
+        retry: (failureCount, error) => {
+            const status = (error as { response?: { status?: number } })?.response?.status;
+            if (status === 404) return false;
+            return failureCount < 2;
+        },
+    });
+}
+
+// =============================================================================
+// REGISTRAR VISTA (fire-and-forget)
+// =============================================================================
+
+const STORAGE_PREFIX_VISTA = 'vista_marketplace_';
+
+/**
+ * Registra una vista del artículo en el backend (incrementa `total_vistas`).
+ *
+ * Reglas de negocio:
+ * - El caller decide si llamar (la página filtra `vendedor.id !== usuario.id`
+ *   para que el dueño no infle sus propias métricas).
+ * - Dedupe por sesión vía `sessionStorage`: un mismo visitante que recarga la
+ *   página varias veces no infla el contador. Se resetea al cerrar la pestaña.
+ * - Fire-and-forget: errores se silencian (la vista no es crítica para UX).
+ */
+export async function registrarVistaArticulo(articuloId: string): Promise<void> {
+    const key = `${STORAGE_PREFIX_VISTA}${articuloId}`;
+    if (typeof window !== 'undefined' && sessionStorage.getItem(key)) {
+        return;
+    }
+    try {
+        await api.post(`/marketplace/articulos/${articuloId}/vista`);
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem(key, '1');
+        }
+    } catch {
+        // Silencioso a propósito.
+    }
 }

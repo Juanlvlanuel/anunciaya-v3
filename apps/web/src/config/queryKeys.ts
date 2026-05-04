@@ -187,6 +187,8 @@ export const queryKeys = {
     all: () => ['marketplace'] as const,
     feed: (filtros: { ciudad: string; lat: number; lng: number }) =>
       ['marketplace', 'feed', filtros] as const,
+    articulo: (articuloId: string) =>
+      ['marketplace', 'articulo', articuloId] as const,
   },
 
   // ─── Business Studio — Sucursales ────────────────────────────────────────

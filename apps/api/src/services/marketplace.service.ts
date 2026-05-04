@@ -66,6 +66,8 @@ interface ArticuloConVendedorRow extends ArticuloRow {
         apellidos: string;
         avatarUrl: string | null;
         ciudad: string | null;
+        /** Nullable: el FE oculta el botón WhatsApp si es null. */
+        telefono: string | null;
     };
 }
 
@@ -312,7 +314,8 @@ export async function obtenerArticuloPorId(articuloId: string) {
                 u.nombre       AS vendedor_nombre,
                 u.apellidos    AS vendedor_apellidos,
                 u.avatar_url   AS vendedor_avatar_url,
-                u.ciudad       AS vendedor_ciudad
+                u.ciudad       AS vendedor_ciudad,
+                u.telefono     AS vendedor_telefono
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
             WHERE a.id = ${articuloId}
@@ -333,6 +336,7 @@ export async function obtenerArticuloPorId(articuloId: string) {
             vendedor_apellidos: string;
             vendedor_avatar_url: string | null;
             vendedor_ciudad: string | null;
+            vendedor_telefono: string | null;
         };
 
         const data: ArticuloConVendedorRow = {
@@ -343,6 +347,7 @@ export async function obtenerArticuloPorId(articuloId: string) {
                 apellidos: row.vendedor_apellidos,
                 avatarUrl: row.vendedor_avatar_url,
                 ciudad: row.vendedor_ciudad,
+                telefono: row.vendedor_telefono,
             },
         };
 

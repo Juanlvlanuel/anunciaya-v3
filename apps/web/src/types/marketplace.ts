@@ -83,6 +83,11 @@ export interface VendedorArticulo {
     apellidos: string;
     avatarUrl: string | null;
     ciudad: string | null;
+    /**
+     * Teléfono para abrir WhatsApp. `null` si el vendedor no completó el campo
+     * en su perfil — en ese caso el FE oculta el botón WhatsApp.
+     */
+    telefono: string | null;
 }
 
 /**

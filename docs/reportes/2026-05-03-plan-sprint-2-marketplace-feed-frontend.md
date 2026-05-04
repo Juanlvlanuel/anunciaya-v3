@@ -461,3 +461,20 @@ Doc: docs/arquitectura/MarketPlace.md
 Sprint: docs/prompts Marketplace/Sprint-2-Feed-Frontend.md
 Reporte: docs/reportes/2026-05-03-plan-sprint-2-marketplace-feed-frontend.md
 ```
+
+---
+
+## Cierre publicado
+
+| Operación | Resultado |
+|---|---|
+| Commit | [`78c38f9`](https://github.com/Juanlvlanuel/anunciaya-v3/commit/78c38f9) |
+| Archivos | 9 nuevos + 3 modificados |
+| Diff | +1467 / -4 líneas |
+| Push | `e2cca03..78c38f9 main -> main` ✅ |
+| Branch | `main` |
+| Working tree | clean |
+| Fecha cierre | 04 Mayo 2026 |
+
+**Sprint 1 anterior:** [`e2cca03`](https://github.com/Juanlvlanuel/anunciaya-v3/commit/e2cca03) — backend base.
+**Sprint 3 siguiente:** Detalle del artículo (`PaginaArticuloMarketplace.tsx` + integración con ChatYA). Prompt en `docs/prompts Marketplace/Sprint-3-Detalle-Articulo.md`.
