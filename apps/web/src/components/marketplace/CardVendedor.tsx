@@ -2,16 +2,17 @@
  * CardVendedor.tsx
  * =================
  * Card del vendedor en el detalle del artículo. Muestra avatar, nombre,
- * ciudad y link "Ver perfil →" (placeholder hasta Sprint 5).
+ * ciudad y link "Ver perfil →" que navega al perfil del vendedor (P3,
+ * implementado en Sprint 5).
  *
- * Doc maestro: docs/arquitectura/MarketPlace.md (§8 P2)
+ * Doc maestro: docs/arquitectura/MarketPlace.md (§8 P2 + §8 P3)
  * Sprint:      docs/prompts Marketplace/Sprint-3-Detalle-Articulo.md
  *
  * Ubicación: apps/web/src/components/marketplace/CardVendedor.tsx
  */
 
 import { ChevronRight, User } from 'lucide-react';
-import { notificar } from '../../utils/notificaciones';
+import { useNavigate } from 'react-router-dom';
 import type { VendedorArticulo } from '../../types/marketplace';
 
 interface CardVendedorProps {
@@ -19,8 +20,9 @@ interface CardVendedorProps {
 }
 
 export function CardVendedor({ vendedor }: CardVendedorProps) {
+    const navigate = useNavigate();
     const handleVerPerfil = () => {
-        notificar.info('Próximamente disponible');
+        navigate(`/marketplace/vendedor/${vendedor.id}`);
     };
 
     const iniciales = obtenerIniciales(vendedor.nombre, vendedor.apellidos);

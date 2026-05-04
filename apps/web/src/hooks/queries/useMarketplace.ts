@@ -21,6 +21,8 @@ import type {
     ArticuloMarketplaceDetalle,
     ArticuloMarketplace,
     CondicionArticulo,
+    PerfilVendedorMarketplace,
+    PublicacionesDeVendedor,
 } from '../../types/marketplace';
 
 // =============================================================================
@@ -345,4 +347,77 @@ export function useSubirFotoMarketplace(): UseSubirFotoMarketplaceResult {
     }, []);
 
     return { publicUrl, isUploading, error, subir, reset };
+}
+
+// =============================================================================
+// PERFIL DEL VENDEDOR (Sprint 5)
+// =============================================================================
+
+/**
+ * Consume `GET /api/marketplace/vendedor/:usuarioId`.
+ *
+ * Devuelve perfil público con KPIs calculados (publicaciones activas,
+ * vendidos, tiempo de respuesta). Si el vendedor bloqueó al usuario actual,
+ * el backend devuelve 404 sin revelar el motivo.
+ */
+export function useVendedorMarketplace(usuarioId: string | undefined) {
+    return useQuery({
+        queryKey: queryKeys.marketplace.vendedor(usuarioId ?? ''),
+        queryFn: async (): Promise<PerfilVendedorMarketplace | null> => {
+            const response = await api.get<{
+                success: boolean;
+                data?: PerfilVendedorMarketplace;
+            }>(`/marketplace/vendedor/${usuarioId}`);
+            if (!response.data.success || !response.data.data) return null;
+            return response.data.data;
+        },
+        enabled: !!usuarioId,
+        staleTime: 2 * 60 * 1000,
+        retry: (failureCount, error) => {
+            const status = (error as { response?: { status?: number } })?.response?.status;
+            if (status === 404) return false;
+            return failureCount < 2;
+        },
+    });
+}
+
+/**
+ * Consume `GET /api/marketplace/vendedor/:usuarioId/publicaciones`.
+ *
+ * Lista paginada de publicaciones del vendedor por estado (activa | vendida).
+ * Usa `placeholderData: keepPreviousData` para evitar temblor visual al
+ * cambiar de tab.
+ */
+export function useVendedorPublicaciones(
+    usuarioId: string | undefined,
+    estado: 'activa' | 'vendida',
+    paginacion: { limit: number; offset: number } = { limit: 20, offset: 0 }
+) {
+    return useQuery({
+        queryKey: queryKeys.marketplace.vendedorPublicaciones(
+            usuarioId ?? '',
+            estado,
+            paginacion
+        ),
+        queryFn: async (): Promise<PublicacionesDeVendedor> => {
+            const response = await api.get<{
+                success: boolean;
+                data?: ArticuloMarketplace[];
+                paginacion?: PublicacionesDeVendedor['paginacion'];
+            }>(`/marketplace/vendedor/${usuarioId}/publicaciones`, {
+                params: { estado, ...paginacion },
+            });
+            return {
+                data: response.data.data ?? [],
+                paginacion: response.data.paginacion ?? {
+                    total: 0,
+                    limit: paginacion.limit,
+                    offset: paginacion.offset,
+                },
+            };
+        },
+        enabled: !!usuarioId,
+        staleTime: 60 * 1000,
+        placeholderData: keepPreviousData,
+    });
 }

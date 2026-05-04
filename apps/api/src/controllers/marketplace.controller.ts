@@ -24,6 +24,8 @@ import {
     eliminarArticulo,
     registrarVista,
     generarUrlUploadImagenMarketplace,
+    obtenerVendedorPorId,
+    obtenerArticulosDeVendedor,
 } from '../services/marketplace.service.js';
 import {
     crearArticuloSchema,
@@ -345,6 +347,83 @@ export async function postUploadImagen(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al generar URL de subida',
+        });
+    }
+}
+
+// =============================================================================
+// PERFIL DEL VENDEDOR (Sprint 5)
+// =============================================================================
+
+/**
+ * GET /api/marketplace/vendedor/:usuarioId
+ * Devuelve el perfil público del vendedor con KPIs reales. Si el vendedor
+ * bloqueó al usuario actual, devuelve 404.
+ */
+export async function getVendedorMarketplace(req: Request, res: Response) {
+    try {
+        const { usuarioId } = req.params;
+        if (!UUID_REGEX.test(usuarioId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID del vendedor no es válido',
+            });
+        }
+
+        const usuarioActual = obtenerUsuarioId(req) ?? undefined;
+        const resultado = await obtenerVendedorPorId(usuarioId, usuarioActual);
+
+        if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {
+            return res.status(resultado.code).json(resultado);
+        }
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getVendedorMarketplace:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener el perfil del vendedor',
+        });
+    }
+}
+
+/**
+ * GET /api/marketplace/vendedor/:usuarioId/publicaciones?estado=&limit=&offset=
+ * Devuelve la lista paginada de publicaciones del vendedor por estado.
+ */
+export async function getPublicacionesDeVendedor(req: Request, res: Response) {
+    try {
+        const { usuarioId } = req.params;
+        if (!UUID_REGEX.test(usuarioId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID del vendedor no es válido',
+            });
+        }
+
+        const estadoParam = (req.query.estado as string) ?? 'activa';
+        if (estadoParam !== 'activa' && estadoParam !== 'vendida') {
+            return res.status(400).json({
+                success: false,
+                message: 'estado debe ser "activa" o "vendida"',
+            });
+        }
+
+        const limit = Math.min(
+            Math.max(parseInt((req.query.limit as string) ?? '20', 10) || 20, 1),
+            100
+        );
+        const offset = Math.max(parseInt((req.query.offset as string) ?? '0', 10) || 0, 0);
+
+        const resultado = await obtenerArticulosDeVendedor(usuarioId, estadoParam, {
+            limit,
+            offset,
+        });
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getPublicacionesDeVendedor:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener las publicaciones del vendedor',
         });
     }
 }

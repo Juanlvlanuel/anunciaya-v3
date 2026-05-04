@@ -44,6 +44,8 @@ import {
     deleteArticulo,
     getMisArticulos,
     postUploadImagen,
+    getVendedorMarketplace,
+    getPublicacionesDeVendedor,
 } from '../controllers/marketplace.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -72,6 +74,19 @@ router.get('/articulos/:id', verificarTokenOpcional, getArticulo);
  * Incrementa total_vistas. Sin auth requerida.
  */
 router.post('/articulos/:id/vista', postRegistrarVista);
+
+/**
+ * GET /api/marketplace/vendedor/:usuarioId
+ * Perfil público del vendedor con KPIs. Acepta token opcional para detectar
+ * bloqueo (vendedor → usuario actual) y devolver 404 sin revelar el motivo.
+ */
+router.get('/vendedor/:usuarioId', verificarTokenOpcional, getVendedorMarketplace);
+
+/**
+ * GET /api/marketplace/vendedor/:usuarioId/publicaciones?estado=&limit=&offset=
+ * Listado paginado de artículos del vendedor por estado (activa | vendida).
+ */
+router.get('/vendedor/:usuarioId/publicaciones', verificarTokenOpcional, getPublicacionesDeVendedor);
 
 // =============================================================================
 // PRIVADOS — RUTAS ESPECÍFICAS PRIMERO (para que no las traguen las :id)

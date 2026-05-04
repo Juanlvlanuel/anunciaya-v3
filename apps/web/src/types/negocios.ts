@@ -275,9 +275,16 @@ export type MetodoPagoTipo =
   | 'mercado_pago';
 
 /**
- * Entity type para sistema de votos
+ * Entity type para sistema de votos.
+ * Incluye 'usuario' desde Sprint 5 del MarketPlace para "Seguir vendedor"
+ * (ver migración docs/migraciones/2026-05-04-marketplace-votos-usuario.sql).
  */
-export type EntityType = 'sucursal' | 'articulo' | 'publicacion' | 'oferta';
+export type EntityType =
+    | 'sucursal'
+    | 'articulo'
+    | 'publicacion'
+    | 'oferta'
+    | 'usuario';
 
 /**
  * Tipo de acción de voto

@@ -189,6 +189,14 @@ export const queryKeys = {
       ['marketplace', 'feed', filtros] as const,
     articulo: (articuloId: string) =>
       ['marketplace', 'articulo', articuloId] as const,
+    vendedor: (usuarioId: string) =>
+      ['marketplace', 'vendedor', usuarioId] as const,
+    vendedorPublicaciones: (
+      usuarioId: string,
+      estado: 'activa' | 'vendida',
+      paginacion: { limit: number; offset: number }
+    ) =>
+      ['marketplace', 'vendedor', usuarioId, 'publicaciones', estado, paginacion] as const,
   },
 
   // ─── Business Studio — Sucursales ────────────────────────────────────────

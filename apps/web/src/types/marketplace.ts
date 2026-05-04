@@ -96,3 +96,31 @@ export interface VendedorArticulo {
 export interface ArticuloMarketplaceDetalle extends ArticuloMarketplace {
     vendedor: VendedorArticulo;
 }
+
+/**
+ * Perfil público del vendedor (P3). Expuesto por
+ * `GET /api/marketplace/vendedor/:usuarioId`. KPIs calculados en el backend.
+ */
+export interface PerfilVendedorMarketplace {
+    id: string;
+    nombre: string;
+    apellidos: string;
+    avatarUrl: string | null;
+    ciudad: string | null;
+    /** ISO o formato Postgres del `created_at` del usuario (cuando se registró) */
+    miembroDesde: string;
+    kpis: {
+        publicacionesActivas: number;
+        vendidos: number;
+        /** String formateado del tiempo de respuesta: '<1h', '2h', '1d', '—' */
+        tiempoRespuesta: string;
+    };
+}
+
+/**
+ * Respuesta paginada del listado de artículos de un vendedor.
+ */
+export interface PublicacionesDeVendedor {
+    data: ArticuloMarketplace[];
+    paginacion: { total: number; limit: number; offset: number };
+}

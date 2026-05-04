@@ -994,7 +994,7 @@ export const votos = pgTable("votos", {
 		foreignColumns: [negocioSucursales.id],  // ← AGREGAR FK
 		name: "votos_votante_sucursal_id_fkey"
 	}).onDelete("set null"),
-	check("votos_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['sucursal'::character varying, 'articulo'::character varying, 'publicacion'::character varying, 'oferta'::character varying, 'servicio'::character varying])::text[])`),
+	check("votos_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['sucursal'::character varying, 'articulo'::character varying, 'publicacion'::character varying, 'oferta'::character varying, 'servicio'::character varying, 'usuario'::character varying])::text[])`),
 	check("votos_tipo_accion_check", sql`(tipo_accion)::text = ANY ((ARRAY['like'::character varying, 'follow'::character varying])::text[])`),
 ]);
 

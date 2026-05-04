@@ -38,10 +38,14 @@ export type TipoMensaje =
 /** Estados de entrega del mensaje (palomitas) */
 export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 
-/** Desde dónde se inició la conversación */
+/** Desde dónde se inició la conversación. `vendedor_marketplace` agregado en
+ *  Sprint 5 del MarketPlace para chats iniciados desde el perfil del vendedor
+ *  (sin artículo específico). El check de BD ya soporta este valor desde la
+ *  migración del Sprint 1. */
 export type ContextoTipo =
   | 'negocio'
   | 'marketplace'
+  | 'vendedor_marketplace'
   | 'oferta'
   | 'servicio'
   | 'directo'

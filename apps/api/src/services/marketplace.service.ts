@@ -896,6 +896,217 @@ export async function generarUrlUploadImagenMarketplace(
 }
 
 // =============================================================================
+// PERFIL DEL VENDEDOR (Sprint 5)
+// =============================================================================
+
+/**
+ * Formatea el promedio de minutos de respuesta a un string corto para el UI.
+ *
+ *  null / sin datos → '—'
+ *  < 60   → '<1h'
+ *  < 1440 → 'Xh' (horas)
+ *  >= 1440 → 'Xd' (días)
+ */
+function formatearTiempoRespuesta(minutos: number | null): string {
+    if (minutos === null || minutos === undefined || isNaN(minutos) || minutos < 0) {
+        return '—';
+    }
+    if (minutos < 60) return '<1h';
+    if (minutos < 1440) {
+        const horas = Math.round(minutos / 60);
+        return `${horas}h`;
+    }
+    const dias = Math.round(minutos / 1440);
+    return `${dias}d`;
+}
+
+interface PerfilVendedor {
+    id: string;
+    nombre: string;
+    apellidos: string;
+    avatarUrl: string | null;
+    ciudad: string | null;
+    miembroDesde: string; // ISO de created_at
+    kpis: {
+        publicacionesActivas: number;
+        vendidos: number;
+        tiempoRespuesta: string;
+    };
+}
+
+/**
+ * Obtiene el perfil público de un vendedor (P3 del MarketPlace).
+ *
+ * KPIs:
+ *  - Publicaciones activas: COUNT(*) WHERE estado='activa' AND deleted_at IS NULL.
+ *  - Vendidos: COUNT(*) WHERE estado='vendida'.
+ *  - Tiempo de respuesta: promedio de minutos entre el primer mensaje del
+ *    comprador y la primera respuesta del vendedor en cada conversación de
+ *    los últimos 30 días. NO se filtra por contexto_tipo — el tiempo de
+ *    respuesta es característica de la persona, no del módulo (decisión
+ *    aplicada al feedback del usuario para que el KPI sea útil en beta).
+ *
+ * Si el vendedor bloqueó al `usuarioActualId`, devuelve 404 sin revelar el
+ * motivo (privacidad del bloqueo).
+ */
+export async function obtenerVendedorPorId(
+    vendedorId: string,
+    usuarioActualId?: string
+) {
+    try {
+        // 1) Si hay usuario logueado, verificar bloqueo (vendedor → usuario actual)
+        if (usuarioActualId) {
+            const bloqueo = await db.execute(sql`
+                SELECT 1 FROM chat_bloqueados
+                WHERE usuario_id = ${vendedorId} AND bloqueado_id = ${usuarioActualId}
+                LIMIT 1
+            `);
+            if (bloqueo.rows.length > 0) {
+                return { success: false, message: 'Vendedor no encontrado', code: 404 };
+            }
+        }
+
+        // 2) Datos básicos del vendedor + KPIs de articulos en una query
+        const datos = await db.execute(sql`
+            SELECT
+                u.id, u.nombre, u.apellidos, u.avatar_url, u.ciudad, u.created_at,
+                COALESCE(act.total, 0) AS activas,
+                COALESCE(vend.total, 0) AS vendidos
+            FROM usuarios u
+            LEFT JOIN (
+                SELECT usuario_id, COUNT(*)::int AS total
+                FROM articulos_marketplace
+                WHERE estado = 'activa' AND deleted_at IS NULL
+                GROUP BY usuario_id
+            ) act ON act.usuario_id = u.id
+            LEFT JOIN (
+                SELECT usuario_id, COUNT(*)::int AS total
+                FROM articulos_marketplace
+                WHERE estado = 'vendida' AND deleted_at IS NULL
+                GROUP BY usuario_id
+            ) vend ON vend.usuario_id = u.id
+            WHERE u.id = ${vendedorId}
+            LIMIT 1
+        `);
+
+        if (datos.rows.length === 0) {
+            return { success: false, message: 'Vendedor no encontrado', code: 404 };
+        }
+
+        const row = datos.rows[0] as {
+            id: string;
+            nombre: string;
+            apellidos: string;
+            avatar_url: string | null;
+            ciudad: string | null;
+            created_at: string;
+            activas: number;
+            vendidos: number;
+        };
+
+        // 3) Tiempo de respuesta promedio en últimos 30 días.
+        // CTE: para cada conversación donde el vendedor participó, calcular el
+        // primer mensaje del comprador (emisor != vendedor) y la primera
+        // respuesta del vendedor (emisor = vendedor) POSTERIOR a ese primer
+        // mensaje. El delta promedio es el tiempo de respuesta.
+        // No filtramos por contexto_tipo (decisión: el tiempo de respuesta
+        // es característica de la persona, no del módulo).
+        const respuesta = await db.execute(sql`
+            WITH primeros AS (
+                SELECT
+                    m.conversacion_id,
+                    MIN(m.created_at) FILTER (WHERE m.emisor_id != ${vendedorId}) AS t_comprador,
+                    MIN(m.created_at) FILTER (WHERE m.emisor_id = ${vendedorId})  AS t_vendedor
+                FROM chat_mensajes m
+                INNER JOIN chat_conversaciones c ON c.id = m.conversacion_id
+                WHERE m.created_at > NOW() - INTERVAL '30 days'
+                  AND (c.participante1_id = ${vendedorId} OR c.participante2_id = ${vendedorId})
+                GROUP BY m.conversacion_id
+            )
+            SELECT AVG(EXTRACT(EPOCH FROM (t_vendedor - t_comprador)) / 60.0)::float AS minutos_promedio
+            FROM primeros
+            WHERE t_comprador IS NOT NULL
+              AND t_vendedor IS NOT NULL
+              AND t_vendedor > t_comprador
+        `);
+
+        const minutos = (respuesta.rows[0] as { minutos_promedio: number | null })
+            .minutos_promedio;
+
+        const perfil: PerfilVendedor = {
+            id: row.id,
+            nombre: row.nombre,
+            apellidos: row.apellidos,
+            avatarUrl: row.avatar_url,
+            ciudad: row.ciudad,
+            miembroDesde: row.created_at,
+            kpis: {
+                publicacionesActivas: row.activas,
+                vendidos: row.vendidos,
+                tiempoRespuesta: formatearTiempoRespuesta(minutos),
+            },
+        };
+
+        return { success: true, data: perfil };
+    } catch (error) {
+        console.error('Error al obtener perfil del vendedor:', error);
+        throw error;
+    }
+}
+
+/**
+ * Lista pública paginada de artículos de un vendedor por estado. Distinto de
+ * `obtenerMisArticulos` (que toma usuario del token) porque acá el caller es
+ * cualquier visitante que ve el perfil del vendedor.
+ */
+export async function obtenerArticulosDeVendedor(
+    vendedorId: string,
+    estado: 'activa' | 'vendida',
+    paginacion: { limit: number; offset: number }
+) {
+    try {
+        const resultado = await db.execute(sql`
+            SELECT
+                a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
+                a.condicion, a.acepta_ofertas,
+                a.fotos, a.foto_portada_index,
+                ST_Y(a.ubicacion_aproximada::geometry) AS lat,
+                ST_X(a.ubicacion_aproximada::geometry) AS lng,
+                a.ciudad, a.zona_aproximada, a.estado,
+                a.total_vistas, a.total_mensajes, a.total_guardados,
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at
+            FROM articulos_marketplace a
+            WHERE a.usuario_id = ${vendedorId}
+              AND a.estado = ${estado}
+              AND a.deleted_at IS NULL
+            ORDER BY ${estado === 'vendida' ? sql`a.vendida_at` : sql`a.created_at`} DESC
+            LIMIT ${paginacion.limit}
+            OFFSET ${paginacion.offset}
+        `);
+
+        const totalResultado = await db.execute(sql`
+            SELECT COUNT(*)::int AS total
+            FROM articulos_marketplace
+            WHERE usuario_id = ${vendedorId}
+              AND estado = ${estado}
+              AND deleted_at IS NULL
+        `);
+
+        const total = (totalResultado.rows[0] as { total: number }).total;
+        const data = (resultado.rows as unknown as RawArticuloDb[]).map(mapearArticulo);
+
+        return {
+            success: true,
+            data,
+            paginacion: { total, limit: paginacion.limit, offset: paginacion.offset },
+        };
+    } catch (error) {
+        console.error('Error al obtener artículos del vendedor:', error);
+        throw error;
+    }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -911,4 +1122,6 @@ export default {
     eliminarArticulo,
     registrarVista,
     generarUrlUploadImagenMarketplace,
+    obtenerVendedorPorId,
+    obtenerArticulosDeVendedor,
 };
