@@ -1,17 +1,17 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
-> **Última actualización:** 03 Mayo 2026
-> **Estado:** ⏳ 0% — Pendiente de implementación (Fase 6.1)
-> **Versión:** 1.0 (alcance v1)
-> **Tiempo estimado:** ~4 días
-> **Depende de:** ChatYA ✅ completado
+> **Última actualización:** 04 Mayo 2026
+> **Estado:** ✅ v1 completado y desplegado en producción
+> **Versión:** 1.0
+> **Pendientes opcionales:** v1.1 — Sistema de Niveles del Vendedor
 
 > **DATOS DEL SERVIDOR (React Query):**
-> - Feed y detalle: `hooks/queries/useMarketplace.ts` (a crear)
-> - Sistema de guardados existente: `useGuardados` con `entity_type='articulo_marketplace'`
-> - Sistema de votos existente: NO aplica en MarketPlace v1 (sin likes/follows en artículos)
+> - Hooks principales: `apps/web/src/hooks/queries/useMarketplace.ts`
+> - Sistema de guardados existente: `useArticulosMarketplaceGuardados` con `entity_type='articulo_marketplace'`
+> - Sistema de votos existente: `useVotos` con `entity_type='usuario'` (botón "Seguir vendedor")
 
 > **Identidad visual:** Verde teal — Header dark sticky estilo CardYA / Cupones / Guardados
+> **Política de visibilidad:** Solo modo Personal. Modo Comercial bloqueado por completo.
 
 ---
 
@@ -19,24 +19,24 @@
 
 1. [¿Qué es MarketPlace?](#qué-es-marketplace)
 2. [Filosofía y Tono del Módulo](#filosofía-y-tono-del-módulo)
-3. [Visión y Alcance v1](#visión-y-alcance-v1)
-4. [Decisiones Rechazadas (NO volver a proponer)](#decisiones-rechazadas)
-5. [Política de Visibilidad por Modo](#política-de-visibilidad-por-modo)
-6. [Estados del Artículo](#estados-del-artículo)
-7. [Moderación Autónoma](#moderación-autónoma)
-8. [Sistema de Niveles del Vendedor](#sistema-de-niveles-del-vendedor)
-9. [Identidad Visual](#identidad-visual)
-10. [Pantallas](#pantallas)
-    - [P1 — Feed](#p1--feed-de-marketplace)
-    - [P2 — Detalle del Artículo](#p2--detalle-del-artículo)
-    - [P3 — Perfil del Vendedor](#p3--perfil-del-vendedor)
-    - [P4 — Wizard de Publicar / Editar](#p4--wizard-de-publicar--editar)
-    - [P5 — Buscador Potenciado](#p5--buscador-potenciado)
-11. [Integraciones con Otros Módulos](#integraciones-con-otros-módulos)
-12. [Backend — Endpoints Sugeridos](#backend--endpoints-sugeridos)
-13. [Base de Datos — Tabla Sugerida](#base-de-datos--tabla-sugerida)
-14. [Roadmap de Sprints](#roadmap-de-sprints)
-15. [Preguntas Pendientes](#preguntas-pendientes)
+3. [Alcance v1](#alcance-v1)
+4. [Política de Visibilidad por Modo](#política-de-visibilidad-por-modo)
+5. [Estados del Artículo](#estados-del-artículo)
+6. [Moderación Autónoma](#moderación-autónoma)
+7. [Identidad Visual](#identidad-visual)
+8. [Pantallas](#pantallas)
+   - [P1 — Feed](#p1--feed-de-marketplace)
+   - [P2 — Detalle del Artículo](#p2--detalle-del-artículo)
+   - [P3 — Perfil del Vendedor](#p3--perfil-del-vendedor)
+   - [P4 — Wizard de Publicar / Editar](#p4--wizard-de-publicar--editar)
+   - [P5 — Buscador Potenciado](#p5--buscador-potenciado)
+   - [P6 — Página Pública Compartible](#p6--página-pública-compartible)
+9. [Integraciones con Otros Módulos](#integraciones-con-otros-módulos)
+10. [Backend — Endpoints en Producción](#backend--endpoints-en-producción)
+11. [Base de Datos — Tablas en Producción](#base-de-datos--tablas-en-producción)
+12. [Cron Jobs en Producción](#cron-jobs-en-producción)
+13. [Decisiones Rechazadas](#decisiones-rechazadas)
+14. [v1.1 Pendiente — Sistema de Niveles del Vendedor](#v11-pendiente--sistema-de-niveles-del-vendedor)
 
 ---
 
@@ -67,8 +67,6 @@
 - ❌ NO sirve para que negocios vendan su catálogo (eso es Business Studio → Catálogo)
 - ❌ NO procesa pagos (la transacción es offline entre las personas)
 - ❌ NO tiene sistema de envíos integrado
-
-> Ver: `01-VISION_ESTRATEGICA.md` §3.1 para el contexto estratégico.
 
 ---
 
@@ -132,29 +130,32 @@ Preguntarse:
 
 Si la respuesta a cualquiera es "no", la decisión se rechaza.
 
+
 ---
 
-## 🎯 Visión y Alcance v1
+## 🎯 Alcance v1
 
 ### Funciones del Comprador
 
 - Ver feed de artículos cercanos con secciones "Recién publicado" y "Cerca de ti"
 - Buscar artículos con buscador potenciado (sugerencias en vivo, búsquedas recientes, populares en la ciudad)
 - Aplicar filtros: precio, condición, distancia
-- Ver detalle del artículo con galería completa
+- Ver detalle del artículo con galería completa (hasta 8 fotos)
 - Contactar al vendedor por **ChatYA** o **WhatsApp**
 - Guardar artículo en **Mis Guardados** (tab Artículos)
 - Ver perfil simple del vendedor con sus publicaciones
+- Compartir publicación por link público
 
 ### Funciones del Vendedor
 
 - Publicar artículo en wizard de 3 pasos (Fotos+Título → Precio+Detalles → Ubicación+Confirmación)
 - Editar publicación existente (reusa el wizard en modo edición)
 - Pausar / activar / marcar como vendida / eliminar publicación
+- Reactivar publicaciones pausadas (extiende +30 días)
 - Ver métricas básicas por publicación: vistas, mensajes, guardados
-- Gestionar todas sus publicaciones desde **`/mis-publicaciones`** (página global del usuario, fuera de este módulo)
+- Recibir notificaciones automáticas de próxima expiración (3 días antes) y expiración
 
-### Lo que SÍ está en v1
+### Tabla resumen v1
 
 | Función | Comprador | Vendedor |
 |---------|-----------|----------|
@@ -164,87 +165,13 @@ Si la respuesta a cualquiera es "no", la decisión se rechaza.
 | Contactar por ChatYA / WhatsApp | ✅ | — |
 | Guardar artículo en Mis Guardados | ✅ | — |
 | Ver perfil simple del vendedor | ✅ | — |
+| Compartir por link público con OG tags | ✅ | — |
 | Publicar artículo (3 pasos) | — | ✅ |
 | Editar publicación | — | ✅ |
 | Cambiar estado (pausar/vender/eliminar) | — | ✅ |
+| Reactivar publicación pausada | — | ✅ |
 | Métricas básicas (vistas/mensajes/guardados) | — | ✅ |
-
-
----
-
-## 🚫 Decisiones Rechazadas
-
-> Esta sección documenta features que se evaluaron y descartaron para v1, con su justificación. **NO volver a proponer en futuras sesiones** sin nueva evidencia.
-
-### "Lo busco" / Modo demanda
-
-- **Qué era:** los compradores publicaban lo que buscaban y los vendedores respondían "Tengo eso".
-- **Por qué se descarta:** se encima con **"Pregúntale a Peñasco"** del Home (feed conversacional donde cualquier usuario pregunta y vecinos/negocios responden). Tener ambos crearía confusión sobre dónde publicar una búsqueda.
-- **Solución:** las búsquedas se hacen desde Pregúntale a Peñasco en el Home, que ya cubre ese caso de uso de forma más amplia (objetos, servicios, recomendaciones, etc.).
-
-### Categorías como navegación principal
-
-- **Qué era:** grid de categorías (Segunda mano, Hecho a mano, Hogar, Electrónicos, Moda, Libros, Deporte, etc.) como destino navegable en el feed.
-- **Por qué se descarta:** el comportamiento real del usuario es buscar directo por nombre del artículo. Mantener categorías obliga a clasificar al publicar (alarga el wizard) sin aportar al descubrimiento. Facebook Marketplace y OLX han reducido el peso de categorías por la misma razón.
-- **Solución:** se potencia el buscador (sugerencias, populares, recientes) y se eliminan las categorías como navegación. El artículo NO requiere categoría al publicar.
-
-### Integración con CardYA
-
-- **Qué era:** badge "CardYA habilitado" en cards y toggle "Cobrar con CardYA" al publicar como método de pago seguro.
-- **Por qué se descarta:** CardYA es para puntos de lealtad en negocios verificados con suscripción comercial. NO aplica a compra-venta entre personas. Mezclarlos confunde la propuesta de valor de ambos sistemas.
-
-### "Buen precio" automático y "Buen título" feedback
-
-- **Qué era:** sugerencias inteligentes al publicar comparando con artículos similares en la ciudad.
-- **Por qué se descarta para v1:** requiere histórico de ventas y data suficiente. En beta no habrá datos para que la sugerencia sea confiable.
-- **Cuándo retomar:** cuando haya 200+ artículos publicados y ventas confirmadas en el sistema.
-
-### Karma / Reputación del vendedor + Reseñas de vendedor
-
-- **Qué era:** sistema de calificación al vendedor por sus compradores anteriores.
-- **Por qué se descarta para v1:** requiere histórico. En beta todos arrancan en cero. Además, las "ventas" no se confirman dentro de la app (la transacción es offline), lo que hace difícil detectar quién vendió a quién.
-- **Cuándo retomar:** cuando haya un mecanismo claro para confirmar que la transacción ocurrió.
-
-### Borradores de publicaciones
-
-- **Qué era:** guardar una publicación incompleta para terminar después.
-- **Por qué se descarta para v1:** suma complejidad de UX y backend (estado adicional, lista de borradores, recuperación). Si el usuario abandona el wizard a medio publicar, vuelve a empezar.
-
-### "Acepta trueque" como toggle al publicar
-
-- **Qué era:** marcar la publicación como dispuesta a intercambiar por otro artículo.
-- **Por qué se descarta para v1:** caso de uso de nicho. Si el comprador quiere proponer trueque, lo hace por ChatYA. No vale la pena un toggle dedicado en el wizard.
-
-### "Hacer oferta" como botón aparte en el detalle
-
-- **Qué era:** botón formal "Hacer oferta $XXX" separado del botón de mensaje, con flujo de ofertas y contraofertas dentro de la app.
-- **Por qué se descarta para v1:** el botón "Enviar mensaje" ya cubre la negociación. Diferenciar "ofertas formales" agrega complejidad de backend (estado de oferta, expiración, contraoferta) sin valor claro mientras la transacción siga siendo offline.
-
-### Importar lote (carga masiva)
-
-- **Qué era:** subir varios artículos de una sola vez con un archivo.
-- **Por qué se descarta:** feature de plataformas como Mercado Libre o vendedores profesionales. En MarketPlace de AnunciaYA el volumen por usuario es bajo (alguien vendiendo cosas usadas, no un comerciante).
-
-### Vista previa en vivo en móvil
-
-- **Qué era:** mientras publicas en móvil, ver al lado cómo se va a ver tu publicación.
-- **Por qué se descarta:** el viewport móvil no tiene espacio para mostrar el formulario y la vista previa simultáneamente. Solo se conserva en **desktop** como bonus en el wizard.
-
-### Notificaciones propias del módulo
-
-- **Qué era:** sección de notificaciones específica de MarketPlace.
-- **Por qué se descarta:** la app ya tiene `PanelNotificaciones` global. Las notificaciones del MarketPlace caen ahí con el `referencia_tipo` correspondiente.
-
-### Chat propio del módulo
-
-- **Qué era:** sistema de mensajería interna del MarketPlace.
-- **Por qué se descarta:** la app ya tiene **ChatYA** completo. Las conversaciones se hacen desde ChatYA con `contextoTipo='marketplace'` y `articuloMarketplaceId` (campo nuevo a sumar a `chat_conv`, ver §10).
-
-### Favoritos propios del módulo
-
-- **Qué era:** sección "Favoritos" exclusiva de MarketPlace.
-- **Por qué se descarta:** la app ya tiene **Mis Guardados** con sistema de tabs (Ofertas, Negocios, Servicios, Artículos). Los artículos guardados de MarketPlace caen en la tab "Artículos".
-
+| Notificaciones de expiración (3d antes / al expirar) | — | ✅ |
 
 ---
 
@@ -258,9 +185,9 @@ Si la respuesta a cualquiera es "no", la decisión se rechaza.
 ### Modo Comercial
 
 - **Bloqueo total** de la sección
-- NO aparece en BottomNav ni Navbar (ya está implementado en `47-fe-layout-BottomNav.tsx`)
+- NO aparece en BottomNav ni Navbar
 - Si entra por URL directa (`/marketplace`, `/marketplace/articulo/:id`, etc.) → redirige a `/inicio` con notificación: `notificar.info('MarketPlace solo está disponible en modo Personal')`
-- Implementación: usar guard de ruta similar a `ModoGuard` pero al revés (`requiereModo="personal"`)
+- Implementado en el guard `ModoPersonalEstrictoGuard.tsx` (separado de `ModoGuard` para no romper auto-cambio en CardYA/ScanYA)
 
 ### Justificación
 
@@ -286,7 +213,7 @@ Los artículos pasan por 4 estados a lo largo de su ciclo de vida:
 Activa  ⇄ Pausada
 Activa  → Vendida
 Activa  → Eliminada
-Pausada → Activa
+Pausada → Activa  (vía botón "Reactivar")
 Pausada → Eliminada
 Vendida → Eliminada
 ```
@@ -296,137 +223,105 @@ Vendida → Eliminada
 - **Pausada** es temporal: el vendedor la oculta del feed pero la sigue viendo en su panel. Útil cuando quiere "guardar" el anuncio pero no recibir mensajes ahora (vacaciones, lo está mostrando a alguien específico, etc.).
 - **Vendida** es definitiva pero recuperable como histórico (no se borra de BD). Sirve para que el vendedor vea sus ventas pasadas.
 - **Eliminada** es soft delete (`deleted_at`). El registro se mantiene en BD para auditoría pero no se muestra en ningún lado.
-- Hay un **TTL automático**: las publicaciones Activas se marcan como Pausada después de 30 días sin actividad. El vendedor puede reactivarlas.
+- **TTL automático:** las publicaciones Activas se marcan como Pausada después de 30 días sin actividad. Notificación automática al vendedor. El vendedor puede reactivarlas con un click (extiende +30 días).
+
 
 ---
 
 ## 🛡️ Moderación Autónoma
 
-> **Contexto:** AnunciaYA es operada por una sola persona (Juan). MarketPlace es un espacio gratuito que NO genera ingresos directos. Por lo tanto, la moderación debe ser **100% automatizada** y **cero intervención humana**. No hay equipo de moderadores, no hay panel de revisión, no hay sistema de reportes, no hay cola de aprobación.
+> **Contexto:** AnunciaYA es operada por una sola persona. MarketPlace es un espacio gratuito que NO genera ingresos directos. Por lo tanto, la moderación es **100% automatizada** y **cero intervención humana**. No hay equipo de moderadores, no hay panel de revisión, no hay sistema de reportes, no hay cola de aprobación.
 >
-> El compromiso es: **filtrar el 80% del ruido con automatizaciones simples**, y aceptar el 20% restante como costo del modelo. La filosofía del módulo + las validaciones automáticas hacen el trabajo pesado.
+> El compromiso es: **filtrar el ruido con automatizaciones simples**, y aceptar el resto como costo del modelo. La filosofía del módulo + las validaciones automáticas hacen el trabajo pesado.
 
 ### Capa 1 — Validación preventiva al publicar
 
 Esta capa corre en el wizard (frontend + backend) y es la **única defensa real** del sistema. Si pasa esta capa, la publicación queda en el feed sin más controles.
 
-#### 1.1 — Mínimos obligatorios
+**Implementación:** `apps/api/src/services/marketplace/filtros.ts`
 
-Ya cubiertos en el wizard (P4):
+#### 1.1 — Mínimos obligatorios (en el wizard P4)
 
 - Mínimo 1 foto, máximo 8
 - Título entre 10 y 80 caracteres
 - Precio entero positivo, máximo $999,999
-- Condición seleccionada (1 de 4)
+- Condición seleccionada (1 de 4: Nuevo / Seminuevo / Usado / Para reparar)
 - Descripción mínimo 50 caracteres, máximo 1000
-- Ubicación obligatoria
-- Checklist final de 3 confirmaciones
+- Ubicación obligatoria (GPS del usuario o coordenada de su ciudad)
+- Checklist final de 3 confirmaciones (solo en modo crear, no en edición)
 
 #### 1.2 — Filtro de palabras prohibidas (RECHAZO DURO)
 
 Si el título o la descripción contiene cualquier palabra de la lista negra, el wizard **NO permite publicar** y muestra un mensaje claro al usuario explicando por qué.
 
-**Ubicación del filtro:** `apps/api/src/services/marketplace/filtros.ts` (constante exportada en código, no en BD).
-
-**Comportamiento:**
-
+**Comportamiento técnico:**
 - Validación tanto en frontend (feedback inmediato) como en backend (defensa real).
 - Búsqueda **case-insensitive**, ignora acentos (`normalize('NFD').replace(/\p{Diacritic}/gu, '')`).
 - Match por **palabra completa** (regex con `\b`), no por substring — para evitar falsos positivos como "subastasta" o "barrifa".
-- El mensaje al usuario debe ser **claro y sin ambigüedad**, indicando qué palabra activó el bloqueo y por qué.
+- 32 tests unitarios cubren palabras exactas, mayúsculas, acentos, y edge cases que NO deben matchear.
 
-**Lista negra inicial (categorías):**
+**Lista negra implementada (5 categorías):**
 
-| Categoría | Palabras |
-|-----------|----------|
-| **Rifas y sorteos** | `rifa`, `rifas`, `rifo`, `rifando`, `sorteo`, `sorteos`, `sorteando`, `boleto`, `boletos`, `cachito`, `cachitos`, `tómbola`, `tombola` |
-| **Subastas** | `subasta`, `subastas`, `subastando`, `mejor postor`, `puja`, `pujar`, `pujas`, `remate`, `remato` |
-| **Esquemas** | `multinivel`, `multi nivel`, `pirámide`, `piramide`, `network marketing`, `cripto`, `bitcoin`, `ethereum`, `forex`, `inversión garantizada`, `gana dinero rápido`, `gana desde casa` |
-| **Adultos** | (lista a definir en implementación, palabras de contenido sexual explícito) |
-| **Ilegal** | `arma`, `armas`, `pistola`, `revólver`, `revolver`, `municiones`, `droga`, `drogas`, `cocaína`, `marihuana`, `peyote`, `animales exóticos`, `tigre`, `tortuga marina`, `coral` |
+| Categoría | Mensaje al usuario |
+|-----------|-------------------|
+| **Rifas y sorteos** (rifa, sorteo, boleto, tómbola, cachito, etc.) | "No puedes publicar rifas, sorteos ni venta de boletos en MarketPlace. Las rifas no están permitidas." |
+| **Subastas** (subasta, mejor postor, puja, remate) | "No puedes publicar subastas en MarketPlace. Establece un precio fijo y publica de nuevo." |
+| **Esquemas** (multinivel, pirámide, criptomonedas, forex, gana dinero rápido) | "MarketPlace no permite la promoción de esquemas multinivel, criptomonedas ni inversiones." |
+| **Adultos** (contenido sexual explícito) | "El contenido para adultos no está permitido en AnunciaYA." |
+| **Ilegal** (armas, drogas, animales protegidos) | "No puedes publicar artículos prohibidos por la ley en AnunciaYA." |
 
-> La lista exacta y completa se construye al implementar el filtro. Esta tabla es orientativa.
-
-**Mensajes según categoría:**
-
-| Categoría detectada | Mensaje al usuario |
-|--------------------|-------------------|
-| Rifas y sorteos | "No puedes publicar rifas, sorteos ni venta de boletos en MarketPlace. Las rifas no están permitidas." |
-| Subastas | "No puedes publicar subastas en MarketPlace. Establece un precio fijo y publica de nuevo." |
-| Esquemas | "MarketPlace no permite la promoción de esquemas multinivel, criptomonedas ni inversiones." |
-| Adultos | "El contenido para adultos no está permitido en AnunciaYA." |
-| Ilegal | "No puedes publicar artículos prohibidos por la ley en AnunciaYA." |
+**Ubicación de la lista:** vive en código (`filtros.ts`), no en BD. Para agregar una palabra: editar archivo, commit y deploy. Sin migración, sin panel admin.
 
 #### 1.3 — Detección de servicios disfrazados (SUGERENCIA SUAVE)
 
-Cuando el texto sugiere un servicio en lugar de un objeto físico, el wizard muestra un aviso amarillo **sin bloquear**, dando la opción de continuar o ir a la sección correcta.
+Cuando el texto sugiere un servicio en lugar de un objeto físico, el wizard muestra un modal con dos opciones:
 
-**Por qué suave (no rechazo duro):** la línea entre objeto y servicio puede ser ambigua ("servicio de mesa de porcelana" es un objeto; "servicio de plomería" no). Mejor sugerir y dejar que el usuario decida.
+**Patrones detectados:** `ofrezco mis servicios de…`, `doy clases de…`, `servicio de [verbo]`, `cobro $X la hora`, `disponible para…`, `me dedico a…`, `soy [profesión]`, `presupuesto sin compromiso`, etc.
 
-**Patrones a detectar (regex flexibles):**
-
-- `ofrezco mis servicios de…`
-- `doy clases de…`, `clases de…`
-- `servicio de [verbo]` — limpieza, plomería, jardinería, cuidado, etc.
-- `cobro $X la hora`, `cobro por hora`
-- `disponible para…`
-- `me dedico a…`
-- `soy [profesión]`
-- `presupuesto sin compromiso`
-- `cotizo…`
-
-**Comportamiento:**
+**Modal `ModalSugerenciaModeracion.tsx`:**
 
 ```
 ┌──────────────────────────────────────┐
-│ ⚠ ¿Esto es un servicio?              │
+│ ¿Esto es un servicio?                │
 │                                      │
 │ Detectamos que tu publicación        │
 │ podría ser un servicio en lugar de   │
 │ un objeto en venta.                  │
 │                                      │
-│ Los servicios deben publicarse en    │
-│ la sección Servicios.                │
-│                                      │
-│ [Llevar a Servicios] [Continuar]     │
+│ [Editar mi publicación]              │
+│ [Continuar de todos modos]           │
 └──────────────────────────────────────┘
 ```
 
-- "Llevar a Servicios" → navega a `/servicios/publicar` (cuando exista) y mantiene los datos en sessionStorage para precargarlos allá.
-- "Continuar" → permite seguir publicando en MarketPlace bajo la responsabilidad del usuario.
+- "Editar mi publicación" → cierra modal, vuelve al paso correspondiente.
+- "Continuar de todos modos" → reenvía al backend con `confirmadoPorUsuario: true` y publica.
 
-#### 1.4 — Detección de búsquedas
+> **Nota:** se omitió el botón "Llevar a Servicios" porque la sección `/servicios` aún no existe. Se agregará cuando se implemente.
 
-Si el texto sugiere una búsqueda en lugar de una venta, mismo patrón de sugerencia suave.
+#### 1.4 — Detección de búsquedas (SUGERENCIA SUAVE)
 
-**Patrones:**
-
-- `busco…`, `se busca…`, `necesito…`, `quiero comprar…`, `compro…`, `quien tenga…`, `alguien que venda…`
-
-**Mensaje:**
-
-> "¿Estás buscando algo en lugar de vender? Las búsquedas se publican en *Pregúntale a [ciudad]* en el Home, donde más personas pueden ayudarte."
-
-Botones: `[Ir al Home]` `[Continuar publicando]`.
+Mismo patrón que servicios. Si detecta `busco…`, `se busca…`, `necesito…`, `quiero comprar…`, `compro…`, etc. → modal sugiriendo usar *Pregúntale a [ciudad]* en el Home.
 
 #### 1.5 — Validación de precio
 
-Bloqueo duro:
-
-- Precio = $0 → "El precio debe ser mayor a cero. Si quieres regalar el artículo, no es el lugar correcto."
-- Precio < $10 → advertencia suave: "Este precio parece muy bajo. ¿Es correcto?" (no bloquea, solo confirma).
-- Precio > $999,999 → "El precio máximo permitido es $999,999."
+- Precio = $0 → bloqueo duro: "El precio debe ser mayor a cero."
+- Precio < $10 → advertencia suave en frontend: "Este precio parece muy bajo. ¿Es correcto?" (no bloquea, solo confirma).
+- Precio > $999,999 → bloqueo en Zod.
 
 ### Capa 2 — Auto-expiración (TTL)
 
-Cron job diario que mueve a `pausada` toda publicación con `expira_at < NOW()` y `estado = 'activa'`. Notificación al vendedor: "Tu publicación expiró. Reactívala con 1 click si sigue disponible."
+**Cron job:** `apps/api/src/cron/marketplace-expiracion.cron.ts`
 
-Esto evita que el feed se llene de publicaciones zombi de hace 6 meses sin requerir intervención humana.
+Dos schedules:
+- **Auto-pausa de expirados:** cada 6 horas (60s después del arranque + intervalo). Marca como `pausada` toda publicación con `expira_at < NOW()` y `estado = 'activa'`. Notificación al vendedor: "Tu publicación expiró. Reactívala con 1 click si sigue disponible."
+- **Notificación de próxima expiración:** 1 vez al día (09:00 UTC). Detecta artículos que expiran en 3 días y notifica al vendedor.
+
+Ambas notificaciones son **idempotentes** (verifica `WHERE referencia_id+tipo` antes de insertar). Si el cron corre 2 veces, no spamea.
 
 ### Lo que NO se implementa (decisión consciente)
 
 - ❌ **Sistema de reportes de usuarios** — sin equipo para revisarlos, los reportes serían un canal sin destinatario. Falsa promesa al usuario.
-- ❌ **Auto-pausa por umbral de reportes** — se descarta porque depende de los reportes mismos.
+- ❌ **Auto-pausa por umbral de reportes** — depende de los reportes mismos.
 - ❌ **Bloqueo automático de usuarios reincidentes** — sin reportes, no hay forma justa de medir reincidencia.
 - ❌ **Panel admin de moderación** — sin tiempo para atenderlo, sería un backlog que crece sin parar.
 - ❌ **Aprobación manual antes de publicar** — no escala con un solo operador.
@@ -437,212 +332,10 @@ Esto evita que el feed se llene de publicaciones zombi de hace 6 meses sin reque
 Si alguna publicación logra evadir la Capa 1 (palabra que no estaba en la lista, contenido en imagen, etc.), simplemente se queda hasta que:
 
 1. El propio vendedor la borra o pausa.
-2. Expira a los 30 días.
-3. Juan la borra manualmente desde la BD si llega a saber de ella.
+2. Expira a los 30 días por TTL automático.
+3. Se borra manualmente desde la BD si llega a saberse.
 
-Es un costo aceptable y honesto del modelo. La filosofía del módulo (sección Filosofía) y la Capa 1 ya filtran la mayoría del ruido.
-
-### Lista negra como artefacto vivo
-
-La lista de palabras prohibidas debe poder crecer fácilmente. Como vive en código (`filtros.ts`), agregar palabras es:
-
-1. Editar el archivo
-2. Hacer commit
-3. Deploy en Render
-
-No requiere migración de BD ni panel admin. Es lo más simple posible.
-
----
-
-## 🏆 Sistema de Niveles del Vendedor
-
-> **Inspiración:** MercadoLíder de Mercado Libre, adaptado a un modelo P2P offline donde no existen reclamos formales, cancelaciones rastreables ni despachos. Mide **comportamiento real sostenido** en lugar de calificaciones u opiniones.
->
-> **Objetivo:** generar confianza entre desconocidos, premiar a los vendedores activos, y diferenciar AnunciaYA de Facebook Marketplace donde todos los perfiles se ven iguales.
->
-> **100% automático.** Se calcula con un cron job diario sin intervención humana. No hay reseñas, no hay reclamos, no hay panel admin.
-
-### Datos que se miden (todos automáticos)
-
-| Dato | Fuente | Cómo se calcula |
-|------|--------|-----------------|
-| Antigüedad | `usuarios.created_at` | `NOW() - created_at` |
-| Tiempo de respuesta promedio | `chat_mensajes` | Promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor, en últimos 30 días |
-| Tasa de respuesta | `chat_conv` + `chat_mensajes` | % de conversaciones donde el vendedor respondió al menos una vez, en últimos 30 días |
-| Publicaciones activas | `articulos_marketplace` | `COUNT(*) WHERE estado='activa' AND usuario_id=X` |
-| Ventas auto-reportadas | `articulos_marketplace` | `COUNT(*) WHERE estado='vendida' AND usuario_id=X` |
-| Ventas confirmadas | `articulos_marketplace.venta_confirmada_por_comprador = true` | Ver §Confirmación de compra |
-| Última actividad | `usuarios.ultima_conexion` | Fecha del último login o acción |
-
-### Confirmación de compra (sin fricción)
-
-Cuando el vendedor marca una publicación como `vendida`, el sistema dispara una pregunta automática al comprador con el que más mensajes intercambió en esa conversación:
-
-```
-┌──────────────────────────────────────┐
-│ Mensaje automático en ChatYA:        │
-│                                      │
-│ Lucía marcó este artículo como       │
-│ vendido. ¿Confirmas que lo compraste?│
-│                                      │
-│ [Sí, lo compré] [No fue conmigo]    │
-└──────────────────────────────────────┘
-```
-
-**Comportamiento:**
-- Si responde **"Sí"** → la venta cuenta como **confirmada**
-- Si responde **"No"** → la venta queda como **auto-reportada** (cuenta para "ventas" pero no para "ventas confirmadas"). NO penaliza al vendedor (puede ser que vendió a otro comprador).
-- Si **ignora el mensaje** (no responde en 7 días) → queda como auto-reportada
-- Esta interacción NO es una reseña ni una calificación. Solo un check booleano.
-- El comprador puede ignorarlo sin consecuencia. No genera fricción ni notificaciones molestas.
-
-### Los 5 niveles
-
-Los niveles **describen** el comportamiento del vendedor. **No hay niveles negativos** (sin colores rojo/amarillo). Si alguien no tiene actividad, simplemente no tiene nivel — no se le señala como "malo".
-
-#### Nivel 0 — Sin nivel (default)
-
-- Usuario nuevo sin actividad o con perfil incompleto
-- No se muestra ningún badge
-- En el perfil del vendedor (P3) aparece sin distintivo
-
-#### Nivel 1 — Activo
-
-**Requisitos (todos):**
-- 1+ publicación activa en últimos 30 días
-- Perfil completo: avatar real + nombre completo
-
-**Cómo se ve:**
-- En el perfil (P3): pequeño "✓ Vendedor activo" en gris discreto al lado del nombre
-- En cards del feed: NO aparece badge (sería ruido)
-
-#### Nivel 2 — Frecuente
-
-**Requisitos (todos):**
-- 5+ ventas auto-reportadas históricas
-
-**Cómo se ve:**
-- En el perfil (P3): badge "Vendedor frecuente" en gris medio
-- En cards del feed: NO aparece badge
-
-#### Nivel 3 — Confiable
-
-**Requisitos (todos):**
-- 10+ ventas auto-reportadas
-- 3+ ventas confirmadas por compradores
-- Tiempo de respuesta promedio < 2 horas (últimos 30 días)
-- Antigüedad > 30 días
-
-**Cómo se ve:**
-- En el perfil (P3): badge "Vendedor confiable" en teal
-- En cards del feed: badge teal pequeño en esquina inferior izquierda de la imagen
-- En búsquedas con orden "Más relevantes": +20% boost de prioridad
-
-#### Nivel 4 — Recomendado
-
-**Requisitos (todos):**
-- 25+ ventas auto-reportadas
-- 10+ ventas confirmadas por compradores
-- Tiempo de respuesta promedio < 1 hora (últimos 30 días)
-- Tasa de respuesta > 80% (últimos 30 días)
-- Antigüedad > 6 meses
-
-**Cómo se ve:**
-- En el perfil (P3): badge "Recomendado" en teal con ícono destacado (estilo medalla simple)
-- En cards del feed: badge teal con ícono pequeño
-- En búsquedas con orden "Más relevantes": +40% boost de prioridad
-
-### Comportamiento del sistema
-
-#### Cron job diario
-
-Archivo sugerido: `apps/api/src/cron/marketplace-niveles.cron.ts`
-
-- Corre 1 vez al día (madrugada)
-- Recalcula nivel de todos los usuarios con publicaciones en MarketPlace
-- Actualiza campo `nivel_marketplace` en tabla `usuarios` (a sumar al schema)
-- Si un usuario sube de nivel: notificación push: *"¡Subiste a nivel Confiable! Tus publicaciones tendrán más visibilidad."*
-- Si un usuario baja de nivel: NO se notifica (no se le hace pasar mal). El badge simplemente se actualiza silenciosamente.
-
-#### Visibilidad en UI
-
-| Lugar | Nivel 0 | Nivel 1 | Nivel 2 | Nivel 3 | Nivel 4 |
-|-------|---------|---------|---------|---------|---------|
-| **Card del feed** | — | — | — | Badge pequeño | Badge con ícono |
-| **Detalle artículo (card vendedor)** | — | "✓ Activo" | "Frecuente" | Badge teal | Badge teal+ícono |
-| **Perfil del vendedor (P3)** | — | Badge gris | Badge gris medio | Badge teal grande | Badge teal+ícono grande |
-| **Resultados de búsqueda** (orden Más relevantes) | sin boost | sin boost | sin boost | +20% prioridad | +40% prioridad |
-
-#### Tooltips explicativos
-
-Cada badge es **clickeable** y abre un mini-modal explicando qué significa el nivel y qué hace falta para subir al siguiente. Esto le da al usuario la sensación de progreso sin gamificación caricaturesca.
-
-Ejemplo:
-
-```
-┌──────────────────────────────────────┐
-│ Vendedor confiable                   │
-│                                      │
-│ Lucía es un vendedor con              │
-│ trayectoria comprobada en AnunciaYA: │
-│                                      │
-│ • 12 ventas reportadas               │
-│ • 4 confirmadas por compradores      │
-│ • Responde en <1h en promedio        │
-│ • Miembro desde hace 8 meses         │
-│                                      │
-│ [Ver perfil completo]                │
-└──────────────────────────────────────┘
-```
-
-### Decisiones explícitas
-
-#### Por qué NO calificación numérica (4.5 estrellas, etc.)
-
-Las reseñas requieren acción del comprador y son fáciles de manipular. Los niveles basados en comportamiento son más justos y no requieren intervención.
-
-#### Por qué SÍ tiempo de respuesta
-
-Es un indicador real de qué tan serio es el vendedor para el comprador. Y es 100% automático (`chat_mensajes`).
-
-#### Por qué SÍ antigüedad
-
-Filtra cuentas creadas para estafar. Una cuenta de 6 meses con ventas reales es muy difícil de falsificar.
-
-#### Por qué NO penalizar bajadas
-
-Si un vendedor baja de Confiable a Frecuente porque no respondió rápido este mes, no se le humilla. El sistema simplemente actualiza el badge en silencio. Cuando vuelva a subir, ahí sí se le notifica.
-
-#### Por qué los beneficios reales del nivel alto importan
-
-Sin beneficios concretos (boost en búsqueda, badges visibles), el sistema sería decorativo. Los vendedores serios merecen recompensa real por su comportamiento. Es lo que hace que el sistema **incentive** buen comportamiento, no solo lo registre.
-
-### Backend — campos sugeridos
-
-**Tabla `usuarios`** — agregar:
-```sql
-ALTER TABLE usuarios 
-  ADD COLUMN nivel_marketplace SMALLINT NOT NULL DEFAULT 0
-    CHECK (nivel_marketplace BETWEEN 0 AND 4),
-  ADD COLUMN nivel_marketplace_actualizado_at TIMESTAMPTZ;
-```
-
-**Tabla `articulos_marketplace`** — agregar:
-```sql
-ALTER TABLE articulos_marketplace 
-  ADD COLUMN venta_confirmada_por_comprador BOOLEAN DEFAULT false,
-  ADD COLUMN comprador_id UUID REFERENCES usuarios(id) ON DELETE SET NULL;
-```
-
-> `comprador_id` se llena cuando el vendedor marca como vendida y selecciona con quién (auto-detectado por el comprador con más mensajes en la conversación, confirmado por el vendedor).
-
-### Endpoints adicionales
-
-| Método | Endpoint | Propósito |
-|--------|----------|-----------|
-| POST | `/api/marketplace/articulos/:id/marcar-vendida` | Vendedor marca como vendida + selecciona comprador (auto-sugerido) |
-| POST | `/api/marketplace/articulos/:id/confirmar-compra` | Comprador confirma o rechaza |
-| GET | `/api/marketplace/usuarios/:id/nivel` | Detalles del nivel actual del usuario (para tooltips) |
+Es un costo aceptable y honesto del modelo.
 
 ---
 
@@ -652,8 +345,8 @@ ALTER TABLE articulos_marketplace
 
 **Verde teal** — distinto del verde esmeralda de Cupones. Representa MarketPlace en toda la app.
 
-| Uso | Token Tailwind | Hex aprox |
-|-----|----------------|-----------|
+| Uso | Token Tailwind | Hex |
+|-----|----------------|-----|
 | Acento principal (icono header, números destacados) | `teal-400` | `#2dd4bf` |
 | Acento secundario (línea tab activo, badges sutiles) | `teal-500` | `#14b8a6` |
 | Hover sobre acento | `teal-600` | `#0d9488` |
@@ -665,13 +358,6 @@ ALTER TABLE articulos_marketplace
 ```css
 background: linear-gradient(135deg, #1e293b, #0f172a);
 ```
-
-Aplica a:
-- "Publicar artículo" (header del feed)
-- "Continuar" / "Anterior" (wizard)
-- "Publicar ahora" (final del wizard)
-- "Enviar mensaje" (detalle del artículo)
-- "Guardar cambios" (modo edición)
 
 ### Botones secundarios
 
@@ -706,6 +392,12 @@ Imagen arriba + bloque blanco abajo. Distinto del glassmorphism inmersivo de Car
 - Color neutro slate + acento teal como único color de marca
 - Bordes `border-2 border-slate-300` en cards, sombras `shadow-md` sin hover de elevación
 
+### Decisiones visuales específicas tomadas durante implementación
+
+- **Perfil del vendedor sin portada decorativa** — un banner teal full-width o imagen genérica se ve como publicidad. Solo avatar grande centrado en bloque blanco.
+- **Sin badge "✓ Verificado"** — todos los usuarios tienen correo verificado (es requisito de login), por lo que el badge no diferencia a nadie. La diferenciación real vendrá con el sistema de niveles (v1.1).
+- **Buscador físico vive en el Navbar global**, NO local en MarketPlace. El overlay del buscador se ancla al store global `useSearchStore` y solo aporta el contenido (recientes/populares/sugerencias).
+
 
 ---
 
@@ -714,7 +406,7 @@ Imagen arriba + bloque blanco abajo. Distinto del glassmorphism inmersivo de Car
 ### P1 — Feed de MarketPlace
 
 **Ruta:** `/marketplace`
-**Archivo sugerido:** `apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx`
+**Archivo:** `apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx`
 
 #### Móvil — Estructura
 
@@ -724,10 +416,9 @@ Scroll vertical continuo, no estático. Invita a explorar.
 ┌──────────────────────────────────────┐
 │ HEADER DARK STICKY                   │
 │ ┌──────────────────────────────────┐ │
-│ │ 🛒 MarketPlace          [Buscar] │ │
+│ │ 🛒 MarketPlace                   │ │
 │ │ COMPRA-VENTA LOCAL               │ │
 │ │ 📍 Manzanillo · 247 artículos    │ │
-│ │ [+ Publicar artículo] (CTA neg.) │ │
 │ └──────────────────────────────────┘ │
 ├──────────────────────────────────────┤
 │ ✦ LO MÁS FRESCO                      │
@@ -740,23 +431,20 @@ Scroll vertical continuo, no estático. Invita a explorar.
 │ │ Card │ │ Card │                    │     scroll infinito
 │ ├──────┤ ├──────┤                    │
 │ │ Card │ │ Card │                    │
-│ ├──────┤ ├──────┤                    │
-│ │ Card │ │ Card │                    │
 │ └──────┘ └──────┘                    │
-│         [Cargar más...]              │
 └──────────────────────────────────────┘
                                   [+]   ← FAB "Publicar" sobre BottomNav
 ```
 
 #### Desktop — Estructura
 
-Mismo contenido, layout adaptado:
-- Header con buscador inline (no necesita expandirse)
-- Carrusel "Recién publicado" con drag-to-scroll y fade lateral
+- Header con CTA "+ Publicar artículo" inline a la derecha
+- Carrusel "Recién publicado" con drag-to-scroll (`useDragScroll`)
 - Grid de "Cerca de ti" en 4-6 columnas según viewport (`@5xl:grid-cols-4 @[96rem]:grid-cols-6`)
-- CTA "Publicar artículo" en el header, no flotante
 
 #### Card del artículo (estilo B)
+
+**Componente:** `apps/web/src/components/marketplace/CardArticulo.tsx`
 
 ```
 ┌─────────────────────┐
@@ -764,7 +452,6 @@ Mismo contenido, layout adaptado:
 │                     │
 │      IMAGEN         │  ← portada cuadrada (aspect 1:1)
 │      PORTADA        │
-│                     │
 ├─────────────────────┤
 │ $11,910             │  ← precio bold grande
 │ Bicicleta vintage…  │  ← título 1 línea (truncado)
@@ -772,39 +459,39 @@ Mismo contenido, layout adaptado:
 └─────────────────────┘
 ```
 
-**Reglas:**
-- Solo se muestra la **portada** (1ra foto) en la card
-- NO carrusel interno en cards del feed (ensucia el grid)
-- Para ver más fotos, el usuario entra al detalle
-- Hover desktop: `shadow-md` estático, sin scale ni elevación
-
 #### Comportamiento
 
 - **Tap/click en card** → navega a `/marketplace/articulo/:id` (P2)
 - **Tap en ❤️ guardar** → toggle vía `useGuardados` con `entity_type='articulo_marketplace'`
 - **Tap en "+ Publicar artículo"** → navega a `/marketplace/publicar` (P4 modo creación)
-- **Tap en buscador del header** → abre overlay del Buscador (P5)
-- **Pull-to-refresh** en móvil → refresca feed
+- **Buscador del Navbar global** abre overlay (P5) cuando se le hace focus en `/marketplace*`
 
 #### Datos del servidor
 
-- `useMarketplaceFeed({ ciudad, lat, lng })` — devuelve dos arrays: `recientes` y `cercanos`
-- Carrusel "Recién publicado": últimos 20 artículos publicados en la ciudad (orden por `created_at DESC`)
-- Grid "Cerca de ti": ordenado por distancia ascendente, paginado de 20 en 20
-- Filtro automático: solo artículos en estado `activa` y dentro del radio de la ciudad activa
+- **Hook:** `useMarketplaceFeed({ ciudad, lat, lng })`
+- **Endpoint:** `GET /api/marketplace/feed`
+- Solo dispara si hay GPS + ciudad + lat/lng. Sin GPS muestra banner accionable "Activa tu ubicación".
+- StaleTime: 2 minutos
+
+#### Estados visuales
+
+- Loading → spinner centrado
+- Sin GPS → banner accionable "Activa tu ubicación" + solo "Recién publicado"
+- Arrays vacíos → mensaje amistoso "Aún no hay artículos en tu ciudad. ¡Sé el primero en publicar!"
+- Error → bloque rojo con botón reintentar
 
 ---
 
 ### P2 — Detalle del Artículo
 
 **Ruta:** `/marketplace/articulo/:articuloId`
-**Archivo sugerido:** `apps/web/src/pages/private/marketplace/PaginaArticuloMarketplace.tsx`
+**Archivo:** `apps/web/src/pages/private/marketplace/PaginaArticuloMarketplace.tsx`
 
 #### Móvil — Estructura
 
 ```
 ┌──────────────────────────────────────┐
-│ [←]              [↑ compartir] [♥] [⋯]│  ← header transparente flotante
+│ [←]      [↑ compartir] [♥]    [⋯]   │  ← header transparente flotante
 │                                      │
 │         GALERÍA DE FOTOS             │
 │      (swipe horizontal)              │
@@ -812,14 +499,14 @@ Mismo contenido, layout adaptado:
 ├──────────────────────────────────────┤
 │ $11,910                              │  ← precio bold gigante
 │ Bicicleta vintage Rinos restaurada   │
-│ [Nuevo] [Bicicleta] [600m]           │  ← chips
+│ [Nuevo] [600m]                       │  ← chips
 │ hace 6d · 144 vistas                 │
 ├──────────────────────────────────────┤
 │ Descripción                          │
 │ Bici de los 80s con piñón Shimano…   │
 ├──────────────────────────────────────┤
 │ ┌────────────────────────────────┐   │
-│ │ [LR] Lucía R. ✓ Verificada     │   │  ← card vendedor
+│ │ [LR] Lucía R.                  │   │  ← card vendedor
 │ │      Manzanillo, Colima        │   │
 │ │      [Ver perfil →]            │   │
 │ └────────────────────────────────┘   │
@@ -829,7 +516,6 @@ Mismo contenido, layout adaptado:
 │ │      MAPA con círculo 500m     │   │
 │ │           ⭕                    │   │
 │ └────────────────────────────────┘   │
-│ Centro · Manzanillo                  │
 └──────────────────────────────────────┘
 ┌──────────────────────────────────────┐  ← barra fija inferior
 │ [📱 WhatsApp] [💬 Enviar mensaje]   │
@@ -838,119 +524,83 @@ Mismo contenido, layout adaptado:
 
 #### Desktop — Estructura (2 columnas 60/40)
 
-**Columna izquierda (~60%):**
-- Galería con thumbnails verticales al lado izquierdo (estilo Mercado Libre)
-- Debajo: Descripción + Ubicación con mapa
+**Columna izquierda (~60%):** Galería con thumbnails verticales + Descripción + Mapa
 
-**Columna derecha (~40%) — sticky:**
-- Precio + título + chips
-- Card del vendedor con "Ver perfil"
-- Botones de contacto: "Enviar mensaje" (negro grande) + WhatsApp (verde) + ❤️ Guardar
-- Tiempo y vistas
+**Columna derecha (~40%) — sticky:** Precio + título + chips + Card vendedor + Botones de contacto
 
-Patrón inspirado en `66-fe-page-public-PaginaArticuloPublico.tsx` que ya existe en tu app — los compradores que ya usan AnunciaYA se sienten en casa.
+#### Componentes
+
+- **Galería:** `apps/web/src/components/marketplace/GaleriaArticulo.tsx`
+  - Móvil: swipe horizontal con `scroll-snap-x mandatory` + indicador `1/8` dinámico
+  - Desktop: thumbnails verticales 88px + imagen principal grande
+  - Tap en imagen → abre `ModalImagenes` (lightbox fullscreen reusado)
+
+- **Card vendedor:** `apps/web/src/components/marketplace/CardVendedor.tsx`
+  - Avatar circular 48px (con fallback a iniciales)
+  - Nombre + ciudad + link "Ver perfil →" (navega a P3)
+
+- **Mapa:** `apps/web/src/components/marketplace/MapaUbicacion.tsx`
+  - `<MapContainer>` no interactivo (zoom/dragging desactivados)
+  - `<Circle radius={500}>` con stroke teal y fill teal/15%
+  - Sin marker central
+  - Texto debajo: "Mostraremos un círculo de 500m, no la dirección exacta. Acuerda el punto de encuentro por chat."
+
+- **Barra de contacto:** `apps/web/src/components/marketplace/BarraContacto.tsx`
+  - WhatsApp (verde `#25D366`) → mensaje precargado: `"Hola, vi tu publicación de [título] en AnunciaYA"`
+  - "Enviar mensaje" (Dark Gradient) → `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}`
+  - Si vendedor sin teléfono → oculta WhatsApp
+  - Si visitante es el dueño → oculta toda la barra
+  - Si dueño + estado=pausada → reemplaza la barra con botón "Reactivar publicación"
 
 #### Comportamiento
 
-- **Tap en galería** → abre `ModalImagenes` a pantalla completa (lightbox con swipe)
-- **Tap en "Enviar mensaje"** → abre `ChatOverlay` con `contextoTipo='marketplace'` y `articuloMarketplaceId={id}`
-- **Tap en WhatsApp** → abre WhatsApp con número del vendedor + mensaje precargado: `"Hola, vi tu publicación de [título] en AnunciaYA"`
-- **Tap en ❤️** → toggle `useGuardados` con `entity_type='articulo_marketplace'`
-- **Tap en compartir (↑)** → genera link público `/p/articulo-marketplace/:id` (similar al sistema universal de compartir existente)
-- **Tap en ⋯** → menú con opciones: Bloquear vendedor
+- Al montar la página: incrementa `total_vistas` (solo si NO eres el dueño + dedupe por `sessionStorage`)
+- **Tap en compartir (↑)** → copia link `/p/articulo-marketplace/:id` al portapapeles
+- **Tap en ⋯** → menú con opción "Bloquear vendedor" (placeholder hasta v1.1+)
 - **Tap en "Ver perfil →"** → navega a P3
-- **Tap en mapa** → NO abre nada (es decorativo, ubicación aproximada)
-
-#### Datos del servidor
-
-- `useArticuloMarketplace(articuloId)` — devuelve artículo completo con galería, datos del vendedor, ubicación aproximada
-- Al montar la página: `POST /api/marketplace/articulos/:id/vista` (incrementa vistas, sin auth requerida)
-- Si el usuario está bloqueado por el vendedor → mostrar mensaje "Esta publicación no está disponible"
+- **Estado pausada (público):** overlay informativo "Esta publicación está pausada por el vendedor"
+- **Estado vendida (público):** overlay informativo "Este artículo ya fue vendido"
 
 #### Privacidad de ubicación
 
-- El backend devuelve coordenadas **aleatorizadas** dentro de un círculo de 500m alrededor de la ubicación real
-- El círculo se renderiza con Leaflet (`L.circle`) sin pin central
-- Texto bajo el mapa: `"Mostraremos un círculo de 500m, no la dirección exacta. Acuerda el punto de encuentro por chat."`
-
+- El backend devuelve coordenadas **aleatorizadas** dentro de un círculo de 500m alrededor de la ubicación real (calculadas al guardar, no al consultar — coordenada estable entre sesiones)
+- La columna `ubicacion` exacta NUNCA se serializa al frontend
+- Distribución uniforme en disco usando `r = R · √random()` con compensación por latitud (test unitario verifica que 100 puntos generados están todos dentro del círculo de 500m)
 
 ---
 
 ### P3 — Perfil del Vendedor
 
 **Ruta:** `/marketplace/vendedor/:usuarioId`
-**Archivo sugerido:** `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx`
+**Archivo:** `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx`
 
-#### Móvil — Estructura
+#### Estructura (móvil + desktop)
 
-```
-┌──────────────────────────────────────┐
-│ [←]                            [⋯]   │  ← header transparente flotante
-│                                      │
-│      PORTADA (color teal sólido      │
-│       o imagen genérica)             │
-│                                      │
-├──────────────────────────────────────┤
-│      ┌──────┐                        │
-│      │ AVATAR│  Lucía R. ✓ Verificada│
-│      └──────┘  Manzanillo, Colima    │
-│                Miembro desde Mar 2026│
-│                                      │
-│  ┌────┐  ┌────┐  ┌────┐             │
-│  │ 12 │  │ 45 │  │<1h │             │  ← KPIs simples
-│  │Activ│ │Vend│ │Resp│             │
-│  └────┘  └────┘  └────┘             │
-│                                      │
-│ [💬 Enviar mensaje]                  │  ← botón principal negro
-│ [👁 Seguir vendedor]                 │  ← secundario blanco/borde
-├──────────────────────────────────────┤
-│ ┌─────────────────────────────────┐  │
-│ │ Publicaciones (12) │ Vendidos(45)│  │  ← tabs
-│ └─────────────────────────────────┘  │
-├──────────────────────────────────────┤
-│  Grid de cards estilo B (igual feed) │
-│  ┌──────┐ ┌──────┐                   │
-│  │ Card │ │ Card │                   │
-│  └──────┘ └──────┘                   │
-└──────────────────────────────────────┘
-```
-
-#### Desktop — Estructura
-
-- Misma estructura, header con portada más alta
-- KPIs en fila completa (4 columnas si agregamos uno más)
-- Grid de publicaciones en 4 columnas
-
-#### KPIs (3 números en fila)
-
-| KPI | Valor | Cálculo |
-|-----|-------|---------|
-| Publicaciones activas | número entero | `COUNT(*) WHERE estado='activa'` |
-| Vendidos | número entero | `COUNT(*) WHERE estado='vendida'` |
-| Tiempo de respuesta | "<1h", "2h", "1d", "—" | promedio de tiempo entre primer mensaje y primera respuesta del vendedor en últimos 30 días |
-
-> Sin tonos pastel, sin emojis como datos, sin saltos tipográficos exagerados (Regla 13 de TOKENS_GLOBALES.md). Listas densas inline tipo definition list.
-
-#### Tabs
-
-- **Publicaciones (X)** — solo `estado='activa'`. Grid de cards estilo B.
-- **Vendidos (X)** — `estado='vendida'`. Grid de cards con marca de agua "VENDIDO" (overlay slate translúcido).
-
-#### Comportamiento
-
-- **Tap en "Enviar mensaje"** → abre ChatOverlay con `contextoTipo='vendedor_marketplace'` (sin artículo específico)
-- **Tap en "Seguir vendedor"** → reusa sistema de votos existente (`tipo_accion='follow'`, `entity_type='usuario'`). Aparece en Mis Guardados → tab futura "Vendedores" o se integra en "Negocios" según se decida
-- **Tap en card de publicación** → navega a P2 (detalle de ese artículo)
-- **Tap en ⋯** → menú: Bloquear usuario
-
-#### Sin tab de reseñas
-
-Como definimos en el alcance, las reseñas de vendedor se cortan para v1. Cuando se sume, será una 3ra tab.
+- Header transparente flotante (← atrás, ⋯ menú con "Bloquear usuario" placeholder)
+- **Sin portada decorativa** (decisión consciente — banner teal o imagen genérica se ven como publicidad)
+- Avatar circular grande (96px) centrado en bloque blanco limpio
+- Nombre completo + ciudad + "Miembro desde [Mes Año]"
+- 3 KPIs en fila inline (sin pastel, sin emojis, sin saltos tipográficos):
+  - **Publicaciones activas** — `COUNT(*) WHERE estado='activa'`
+  - **Vendidos** — `COUNT(*) WHERE estado='vendida'`
+  - **Tiempo de respuesta** — promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor en últimos 30 días, **sin filtro de `contexto_tipo`** (es característica de la persona, no del módulo)
+- 2 botones (ocultos si visitas tu propio perfil):
+  - "Enviar mensaje" (Dark Gradient negro) → ChatYA con `contextoTipo='vendedor_marketplace'`
+  - "Seguir vendedor" (blanco con borde) → `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`
+- Tabs: **Publicaciones (X)** | **Vendidos (X)** con subrayado teal en activa
+- Grid de cards estilo B (reusa `CardArticulo`)
+- En tab "Vendidos": cada card envuelta en wrapper con overlay slate translúcido + texto "VENDIDO"
 
 #### Datos del servidor
 
-- `useVendedorMarketplace(usuarioId)` — devuelve perfil + KPIs + lista de publicaciones (paginada)
-- Si el vendedor bloqueó al usuario actual → mostrar 404 sin revelar que el bloqueo existe
+- `useVendedorMarketplace(usuarioId)` — perfil + KPIs (staleTime 2 min)
+- `useVendedorPublicaciones(usuarioId, estado)` — lista paginada por estado
+- Si el vendedor bloqueó al usuario actual → 404 sin revelar el motivo
+- Si visitas tu propio perfil → botones Mensaje/Seguir ocultos
+
+#### Notas sobre "Seguir vendedor" en v1
+
+El botón funciona y registra el voto correctamente, pero **no aparece en ningún lado del UI** más allá del estado del propio botón. La lista de seguidos se materializará cuando se cree la tab "Vendedores" en Mis Guardados (v1.1+).
 
 ---
 
@@ -960,11 +610,9 @@ Como definimos en el alcance, las reseñas de vendedor se cortan para v1. Cuando
 - Crear: `/marketplace/publicar`
 - Editar: `/marketplace/publicar/:articuloId`
 
-**Archivo sugerido:** `apps/web/src/pages/private/marketplace/PaginaPublicarArticulo.tsx`
+**Archivo:** `apps/web/src/pages/private/marketplace/PaginaPublicarArticulo.tsx`
 
 #### Modos del Wizard
-
-El mismo componente funciona en 2 modos según la URL:
 
 | Modo | Detección | Título | Botón final |
 |------|-----------|--------|-------------|
@@ -973,20 +621,16 @@ El mismo componente funciona en 2 modos según la URL:
 
 En modo edición:
 - Datos precargados de la publicación existente
-- Las fotos ya existentes se muestran como editables (puede quitar/agregar)
-- El paso 3 (ubicación) es modificable pero opcional (ya tiene una)
-- El checklist del paso 3 NO se vuelve a mostrar (ya lo aceptó al publicar)
+- El paso 3 (ubicación) es modificable pero el checklist NO se vuelve a mostrar
+- `expira_at` NO se modifica (solo el endpoint "Reactivar" lo extiende)
 
 #### Estructura general (móvil)
 
 ```
 ┌──────────────────────────────────────┐
 │ [←]    Paso X de 3                   │
-│                                      │
 │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━     │  ← barra progreso (3 segmentos)
-│                                      │
 │   [contenido del paso actual]        │
-│                                      │
 └──────────────────────────────────────┘
 ┌──────────────────────────────────────┐  ← barra fija inferior
 │ [← Anterior]    [Continuar →]        │
@@ -995,226 +639,147 @@ En modo edición:
 
 #### Paso 1 — Fotos y Título
 
-```
-┌──────────────────────────────────────┐
-│ Fotos · hasta 8                      │
-│ La primera foto será la portada.     │
-│ Buena luz natural y fondo limpio     │
-│ venden más.                          │
-│                                      │
-│ ┌──────┐ ┌──────┐ ┌──────┐          │
-│ │FOTO 1│ │FOTO 2│ │FOTO 3│          │  ← grid 4 cols
-│ │PORTAD│ │  [X] │ │  [X] │          │     primera = "Portada"
-│ └──────┘ └──────┘ └──────┘          │
-│ ┌──────┐ ┌──────┐                    │
-│ │FOTO 4│ │  +   │                    │
-│ │  [X] │ │      │                    │
-│ └──────┘ └──────┘                    │
-│                                      │
-│ Título de tu publicación             │
-│ ┌────────────────────────────────┐   │
-│ │ Bicicleta vintage Rinos        │   │
-│ └────────────────────────────────┘   │
-│                              34/80   │  ← contador
-└──────────────────────────────────────┘
-```
-
-**Reglas:**
-- Mínimo 1 foto, máximo 8
-- Primera foto siempre marca "Portada", drag & drop para reordenar (bonus, puede esperar a v1.1)
-- Upload directo a R2 (presigned URL, prefijo `marketplace/`) usando `useR2Upload`
-- Título: mínimo 10 caracteres, máximo 80
-- Botón "Continuar" deshabilitado si no cumple mínimos
+- Grid de 8 slots (tap → `<input type="file">`). Upload directo a R2 con `useSubirFotoMarketplace` (presigned URL, prefijo `marketplace/`)
+- Primera foto se marca como "Portada" automáticamente (badge teal)
+- Cada foto con botón X
+- Input "Título" (10-80 caracteres, contador visible)
+- Drag & drop reorden de fotos: pendiente para v1.1
 
 #### Paso 2 — Precio y Detalles
 
-```
-┌──────────────────────────────────────┐
-│ Precio                               │
-│ ┌────────────────────────────────┐   │
-│ │ $ 2,800                MXN     │   │  ← input grande bold
-│ └────────────────────────────────┘   │
-│                                      │
-│ Condición                            │
-│ [● Nuevo] [Seminuevo] [Usado]       │  ← chips selección única
-│ [Para reparar]                       │
-│                                      │
-│ Acepta ofertas              [Toggle] │  ← negociar por chat
-│                                      │
-│ Descripción                          │
-│ ┌────────────────────────────────┐   │
-│ │ Bicicleta restaurada con       │   │
-│ │ piezas originales Shimano…     │   │  ← textarea
-│ │                                │   │
-│ └────────────────────────────────┘   │
-│ Mín. 50 caracteres        148/1000   │
-└──────────────────────────────────────┘
-```
-
-**Reglas:**
-- Precio: número entero positivo, en MXN, máximo $999,999
-- Condición: una de [`nuevo`, `seminuevo`, `usado`, `para_reparar`]
-- Acepta ofertas: boolean (default `true`)
-- Descripción: mínimo 50 caracteres, máximo 1000
+- Input precio grande con `$` y `MXN`
+- 4 chips de condición (Nuevo / Seminuevo / Usado / Para reparar) — selección única
+- Toggle "Acepta ofertas" (default `true`)
+- Textarea descripción (50-1000 caracteres, contador)
+- Si precio < $10 → modal de advertencia antes de avanzar
 
 #### Paso 3 — Ubicación y Confirmación
 
-```
-┌──────────────────────────────────────┐
-│ Zona aproximada                      │
-│ Mostraremos un círculo de 500m,      │
-│ no tu dirección exacta.              │
-│                                      │
-│ ┌────────────────────────────────┐   │
-│ │       MAPA con círculo         │   │
-│ │           ⭕                    │   │  ← Leaflet
-│ │                                │   │
-│ └────────────────────────────────┘   │
-│ 📍 Centro · Manzanillo  [Cambiar]    │
-│                                      │
-│ ─────── Resumen ───────              │
-│ ┌────────────────────────────────┐   │
-│ │ [foto] Bicicleta vintage Rinos │   │
-│ │        $2,800                  │   │  ← preview compacta
-│ │        Acepta ofertas · Nuevo  │   │
-│ └────────────────────────────────┘   │
-│                                      │
-│ Antes de publicar                    │
-│ ☑ No vendo artículos prohibidos      │  ← checklist 3 items
-│ ☑ Las fotos son del artículo real    │     todos requeridos
-│ ☑ Acepto que mi publicación se       │
-│   mostrará 30 días                   │
-└──────────────────────────────────────┘
-┌──────────────────────────────────────┐
-│ [← Anterior]   [✓ Publicar ahora]   │
-└──────────────────────────────────────┘
-```
-
-**Reglas:**
-- Ubicación inicial: GPS del dispositivo o ubicación de la ciudad activa
-- Botón "Publicar ahora" deshabilitado hasta que los 3 checks estén marcados
-- En modo edición: el checklist NO aparece (ya se aceptó al publicar la primera vez)
-- Al publicar: POST al backend → notificación de éxito → redirige a `/mis-publicaciones`
+- Mapa Leaflet no interactivo con `<Circle radius={500}>` alrededor de GPS o coordenada de ciudad
+- Texto: "Mostraremos un círculo de 500m, no tu dirección exacta."
+- Si no hay GPS ni coordenada de ciudad → banner amarillo pidiendo activar ubicación (no permite avanzar)
+- "Cambiar ubicación" omitido en v1 (mapa interactivo con marker arrastrable se evalúa para v1.1)
+- Resumen compacto: foto portada + título + precio + condición
+- Checklist obligatorio (3 checkboxes, solo en modo crear):
+  - "No vendo artículos prohibidos por las reglas"
+  - "Las fotos son del artículo real, sin retoque"
+  - "Acepto que mi publicación se mostrará 30 días"
+- Botón "Publicar ahora" / "Guardar cambios" — deshabilitado hasta cumplir todo
 
 #### Vista previa en vivo (solo desktop)
 
-En desktop, el wizard usa layout 2 columnas:
-- **Izquierda (60%):** formulario del paso actual
-- **Derecha (40%):** card del artículo en vivo, actualizada en tiempo real conforme escribes
+- Layout 2 columnas (`lg:grid-cols-[60%_40%]`)
+- Columna derecha sticky con instancia de `<CardArticulo>` actualizada en tiempo real
+- Texto debajo: "Tip: Las publicaciones con buenas fotos y precio competitivo se venden en promedio 3 días más rápido."
+- En móvil: NO hay vista previa (no cabe)
 
-Card de preview muestra cómo se verá el artículo en el feed (estilo B con la foto portada actual + título + precio + condición).
+#### Manejo de moderación
 
-En móvil, NO hay vista previa — no cabe.
+- **Rechazo duro (HTTP 422)** → modal inline con palabra detectada visible. No permite continuar.
+- **Sugerencia suave (HTTP 200 con `warning`)** → `ModalSugerenciaModeracion.tsx` con 2 botones:
+  - "Editar mi publicación" → cierra modal, vuelve al paso correspondiente
+  - "Continuar de todos modos" → reenvía con `confirmadoPorUsuario: true`
+- Botón "Llevar a Servicios" omitido hasta que la sección `/servicios` exista
 
-#### Comportamiento
+#### Auto-save
 
-- **Tap en "Continuar"** → valida el paso actual, si pasa avanza al siguiente
-- **Tap en "Anterior"** → vuelve al paso anterior conservando datos
-- **Tap en "←" del header** → confirma "¿Salir sin publicar?" (los datos se pierden, no hay borradores en v1)
-- **Validaciones inline** — errores debajo de cada campo en rojo, no bloquean tipeo
-- **Auto-save al estado local** del navegador (sessionStorage) por si recarga la página accidentalmente
-
-#### Datos del servidor
-
-- Crear: `POST /api/marketplace/articulos`
-- Editar: `PUT /api/marketplace/articulos/:id`
-- Validación Zod en backend con los mismos rangos que frontend
-- Imágenes ya están en R2 antes de hacer el POST/PUT (se sube cada foto al agregarla, no en el submit final)
-
+- `sessionStorage` debounced 500ms bajo key `wizard_marketplace_${articuloId ?? 'nuevo'}`
+- Modo crear y modo editar tienen keys separadas (no se contaminan)
 
 ---
 
 ### P5 — Buscador Potenciado
 
-**No es una pantalla con ruta propia** — es un **overlay** que se monta encima del feed cuando el usuario toca el input de búsqueda en el header.
+**Implementación:** overlay anclado al store global `useSearchStore`. **NO tiene input propio** — el input físico vive en el Navbar global.
 
-**Archivo sugerido:** `apps/web/src/components/marketplace/OverlayBuscador.tsx`
+**Componente overlay:** `apps/web/src/components/marketplace/OverlayBuscadorMarketplace.tsx`
+**Página de resultados:** `apps/web/src/pages/private/marketplace/PaginaResultadosMarketplace.tsx`
+
+#### Comportamiento del overlay
+
+- Suscribe a `useSearchStore.buscadorAbierto` y `query`
+- Aparece cuando `buscadorAbierto && pathname.startsWith('/marketplace')`
+- En el Navbar, `onFocus` del input emite `abrirBuscador()` solo en `/marketplace*`
+- `onBlur` con delay cierra el overlay solo si query vacío (permite click dentro del overlay)
 
 #### Estado vacío (al abrir)
 
-```
-┌──────────────────────────────────────┐
-│ [←]  ┌──────────────────────────┐    │  ← input con foco automático
-│      │ 🔍 Buscar...             │    │
-│      └──────────────────────────┘    │
-├──────────────────────────────────────┤
-│ Búsquedas recientes      [Borrar]   │
-│ [lentes ray ban  X]                  │
-│ [mancuernas      X]                  │  ← chips eliminables
-│ [mesa de centro  X]                  │
-│                                      │
-│ Más buscado en Manzanillo            │
-│ [Bicicleta] [iPhone] [Sofá]          │  ← chips populares
-│ [Plantas] [Libros] [Cámara]          │     no eliminables
-└──────────────────────────────────────┘
-```
+- Sección "Búsquedas recientes" con chips eliminables (X) — guardadas en localStorage `marketplace_busquedas_recientes` (FIFO máx 10)
+- Sección "Más buscado en [ciudad]" con chips populares (top 6 de últimos 7 días)
+- Botón "Borrar todo" si hay recientes
 
-#### Mientras escribes (sugerencias en vivo)
+#### Mientras escribes (debounce 300ms)
 
-```
-┌──────────────────────────────────────┐
-│ [←]  ┌──────────────────────────┐    │
-│      │ bicic                  X │    │  ← input con texto
-│      └──────────────────────────┘    │
-├──────────────────────────────────────┤
-│ Sugerencias                          │
-│ 🔍 Bicicleta vintage Rinos      ↗    │  ← coincidencias en títulos
-│ 🔍 Bicicleta de montaña r26     ↗    │     de publicaciones activas
-│ 🔍 Bicicleta plegable urbana    ↗    │     en la ciudad
-└──────────────────────────────────────┘
-```
+- Sugerencias en vivo: top 5 títulos completos de artículos existentes (FTS `to_tsvector('spanish', titulo) @@ plainto_tsquery(...)`)
+- Solo dispara si `query.length >= 2`
 
 #### Vista de resultados (después de Enter o tap en sugerencia)
 
-```
-┌──────────────────────────────────────┐
-│ HEADER DARK STICKY (modo resultados) │
-│ ┌──────────────────────────────────┐ │
-│ │ [←] "silla vintage" · 24 result. │ │
-│ │  Cerca primero ▾    [Filtros]    │ │  ← ordenar + botón filtros
-│ └──────────────────────────────────┘ │
-├──────────────────────────────────────┤
-│ Filtros activos:                     │
-│ [Distancia: 5km X] [Precio: <$30k X] │  ← chips removibles
-│ [Condición: Nuevo X]   [Limpiar]     │
-├──────────────────────────────────────┤
-│  Grid 2 cols (móvil) / 4-6 (desktop) │
-│  ┌──────┐ ┌──────┐                   │
-│  │ Card │ │ Card │  ← cards estilo B │
-│  └──────┘ └──────┘                   │
-│  …                                   │
-└──────────────────────────────────────┘
-```
+- Header dark sticky: ← atrás, `"[query]" · X resultados`, dropdown ordenar
+- Chips de filtros activos arriba del grid (removibles individuales o "Limpiar todos")
+- Grid de cards estilo B (reusa `CardArticulo`) con scroll infinito (`IntersectionObserver`)
+- Estado vacío: "No encontramos artículos para '[query]'. Probá quitar algunos filtros." + botón "Limpiar filtros"
 
-#### Filtros aplicables (en bottom sheet móvil / sidebar desktop)
+#### Filtros (`FiltrosBuscador.tsx`)
+
+Bottom sheet en móvil, sidebar fija en desktop:
 
 | Filtro | Tipo | Valores |
 |--------|------|---------|
-| Distancia | Chips única | 1km · 3km · 5km · 10km · 25km · 50km |
-| Precio | Slider doble | $0 - $999,999 (presets: <$500, $500-1k, $1k-5k, $5k+) |
+| Distancia | Chips única | 1km · 3km · 5km · 10km · 25km · 50km (oculto si no hay GPS) |
+| Precio | Slider con presets | <$500, $500-1k, $1k-5k, $5k+ y min/max manual |
 | Condición | Chips múltiples | Nuevo, Seminuevo, Usado, Para reparar |
-| Acepta ofertas | Toggle | sí/no |
+
+> **Filtro "Acepta ofertas" omitido en v1** — el default es `true`, por lo que el filtro siempre devolvería casi todo. Se evaluará si en v1.1 los vendedores empiezan a desactivar el toggle.
 
 #### Ordenar (dropdown)
 
-- **Más recientes** (por `created_at DESC`) — default
-- **Más cercanos** (por distancia ASC, requiere GPS del usuario)
-- **Precio menor** (por `precio ASC`)
-- **Precio mayor** (por `precio DESC`)
+- **Más recientes** (default)
+- **Más cercanos** (requiere GPS)
+- **Precio menor**
+- **Precio mayor**
 
-#### Comportamiento
+#### URL state
 
-- **Búsquedas recientes** se guardan en localStorage (últimas 10), por usuario
-- **Más buscado en [ciudad]** se calcula en backend a partir de búsquedas agregadas (top 6 términos de la ciudad en últimos 7 días)
-- **Sugerencias en vivo** consumen `/api/marketplace/buscar/sugerencias?q=…&ciudad=…` con debounce 300ms
-- **Al ejecutar búsqueda:** se navega a `/marketplace/buscar?q=…&filtros=…` para que sea compartible y bookmarkeable
-- **Estado vacío de resultados:** mostrar mensaje "No encontramos artículos para ‘X'. Probá quitar algunos filtros." con botón "Limpiar filtros"
+- `useFiltrosBuscadorUrl` — sincroniza filtros ↔ `URLSearchParams`
+- URL compartible y bookmarkeable: `/marketplace/buscar?q=bici&precioMax=5000&condicion=usado`
 
-#### Datos del servidor
+#### Privacidad
 
-- `useBuscadorSugerencias(query, ciudad)` — devuelve top 5 sugerencias
-- `useBuscadorPopulares(ciudad)` — devuelve top 6 búsquedas populares
-- `useBuscadorResultados({ q, filtros, ordenar, ciudad, lat, lng })` — paginado, devuelve artículos + total
+- `marketplace_busquedas_log` guarda `usuario_id = NULL` siempre (aunque el endpoint sea autenticado). Solo `ciudad + termino + created_at`. Suficiente para calcular populares, imposible de usar para perfilamiento.
+- Sanitización del término al guardar: `trim() + toLowerCase()`, quitar puntuación con regex, descartar si `length < 3`.
+
+---
+
+### P6 — Página Pública Compartible
+
+**Ruta:** `/p/articulo-marketplace/:articuloId` (sin guard, fuera del MainLayout privado)
+**Archivo:** `apps/web/src/pages/public/PaginaArticuloMarketplacePublico.tsx`
+
+#### Propósito
+
+Permitir compartir un artículo en redes sociales (WhatsApp, Facebook, etc.) con preview correcto vía OG tags.
+
+#### Estructura
+
+- Layout similar a P2 pero sin el MainLayout privado (no muestra Navbar/BottomNav)
+- Galería + descripción + card vendedor (sin link "Ver perfil") + mapa con círculo 500m
+- OG tags vía `useOpenGraph({ titulo, descripcion, imagen, precio })` — formato: `"$11,910 · Bicicleta vintage Rinos"`
+- Footer con CTA "Descubre más en AnunciaYA →" → navega a landing
+
+#### Botones de contacto
+
+**Privacidad — sin WhatsApp directo en página pública:**
+- Solo botón "Enviar mensaje al vendedor" → si NO está logueado → `ModalAuthRequerido` con redirect a la misma URL
+- WhatsApp solo aparece después de login (en la versión privada)
+- Esto evita que scrapers anónimos recolecten teléfonos de vendedores desde páginas públicas
+
+#### Mensajes diferenciados según estado
+
+- **Vendida:** overlay "Este artículo ya fue vendido" + botones de contacto OCULTOS
+- **Pausada:** overlay "Esta publicación está pausada por el vendedor" + botones de contacto OCULTOS
+- **Eliminada:** 404 amigable directo (no se muestra nada del artículo)
+
 
 ---
 
@@ -1222,72 +787,73 @@ En móvil, NO hay vista previa — no cabe.
 
 ### ChatYA
 
-- **Contacto comprador → vendedor** se realiza desde ChatYA con `contextoTipo='marketplace'` y un nuevo campo `articuloMarketplaceId` en `chat_conv` (a sumar al schema existente).
-- En el header de la VentanaChat, cuando es contexto MarketPlace, se muestra una mini-card del artículo: foto + título + precio + botón "Ver publicación →".
-- Si la publicación pasa a estado `vendida`, `pausada` o `eliminada`, el chat queda intacto pero la mini-card muestra un badge correspondiente y el botón "Ver publicación" deja de funcionar (estado `inactivo`).
+- Contacto comprador → vendedor desde `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}` (campo genérico).
+- También usa `contextoTipo='vendedor_marketplace'` para mensajes desde el perfil sin artículo específico.
+- La columna específica `chat_conversaciones.articulo_marketplace_id` existe en BD desde Sprint 1 pero no se llena vía el endpoint actual de `abrirChatTemporal`. Quedará para una iteración futura cuando se necesite.
 
 ### Mis Guardados
 
-- Los artículos de MarketPlace se guardan con `entity_type='articulo_marketplace'` en la tabla `guardados` existente.
-- En `/guardados`, la tab **"Artículos"** (que actualmente está como "Próximamente disponible") se activa con esta integración.
+- Los artículos de MarketPlace se guardan con `entity_type='articulo_marketplace'` en la tabla `guardados`.
+- Tab "Artículos" en `PaginaGuardados.tsx` activa con render de `<CardArticulo>`.
+- Hook nuevo paralelo `useArticulosMarketplaceGuardados` (no se modificó `useMisGuardados` polimórfico para no romper Ofertas/Negocios).
 
 ### Mis Publicaciones (`/mis-publicaciones`)
 
 - **Página global del modo Personal**, fuera del módulo MarketPlace.
-- Ya existe como placeholder en producción.
-- En el futuro tendrá tabs por tipo de publicación: Artículos del MarketPlace, Servicios (cuando se sumen), etc.
-- Su diseño definitivo se aterriza en otro documento (`10-arq-Mis_Publicaciones.md`) cuando se decida cómo encajan los Servicios.
-- MarketPlace solo necesita exponer el endpoint `GET /api/marketplace/mis-articulos` para que esa página lo consuma.
+- Su diseño definitivo se aterriza en otro documento (`MisPublicaciones.md`) cuando se decida cómo encajan los Servicios.
+- MarketPlace expone `GET /api/marketplace/mis-articulos` para que esa página lo consuma cuando se construya.
 
-### ModalCambiarModo (no aplica)
+### ModoPersonalEstrictoGuard
 
-- Como decidimos bloqueo total para modo comercial, el `ModalCambiarModo` NO se invoca desde MarketPlace.
-- Si el usuario en modo comercial entra por URL → redirige directo a `/inicio`.
+- Guard separado de `ModoGuard` existente. La política de MarketPlace es bloqueo total (sin auto-cambio), distinta de CardYA/ScanYA/Mis Publicaciones que sí auto-cambian.
 
 ### Sistema Universal de Compartir
 
-- Los artículos generan link público `/p/articulo-marketplace/:id` similar al sistema existente de Negocios y Ofertas.
-- Página pública renderiza con OG tags (foto + título + precio) para compartir en redes sociales.
-- Si el visitante no está logueado y toca "Enviar mensaje" → `ModalAuthRequerido` (componente existente).
+- Botón "Compartir" en P2 usa `DropdownCompartir` reusado (Web Share API + copiar al portapapeles).
+- URL compartida: `/p/articulo-marketplace/:id` (página pública P6 con OG tags).
 
 ### PanelNotificaciones (campanita global)
 
-- Eventos del MarketPlace que disparan notificaciones:
-  - **Nuevo mensaje** sobre tu publicación → ya lo maneja ChatYA
-  - **Publicación próxima a expirar** (faltan 3 días para los 30) → notificación tipo `marketplace_proxima_expirar`
-  - **Publicación expirada** (pasó a Pausada por TTL) → notificación tipo `marketplace_expirada`
+Eventos del MarketPlace que disparan notificaciones (ya implementados):
+- **`marketplace_proxima_expirar`** — 3 días antes de expirar
+- **`marketplace_expirada`** — al auto-pausar por TTL
+- **`marketplace_nuevo_mensaje`** — reservado (lo dispara ChatYA cuando aplica)
 
 ### Onboarding y Auth
 
-- MarketPlace requiere usuario autenticado. Sin auth, las páginas públicas (`/p/articulo-marketplace/:id`) sí son visibles pero el botón de mensaje muestra `ModalAuthRequerido`.
-- No requiere un flujo de onboarding adicional — cualquier usuario en modo Personal puede publicar de inmediato.
+- MarketPlace requiere usuario autenticado en modo Personal.
+- Página pública (`/p/articulo-marketplace/:id`) es visible sin auth pero el botón de mensaje muestra `ModalAuthRequerido`.
 
+### Sistema de Votos (`useVotos`)
+
+- Botón "Seguir vendedor" en P3 reusa `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`.
+- Migración del Sprint 5 agregó `'usuario'` al check `votos_entity_type_check`.
 
 ---
 
-## 🔌 Backend — Endpoints Sugeridos
+## 🔌 Backend — Endpoints en Producción
 
-> Estos son endpoints **sugeridos** para guiar la implementación. Los nombres y rutas finales se definen al armar `apps/api/src/routes/marketplace.routes.ts`.
-
-### Públicos (sin auth, con `verificarTokenOpcional`)
+### Públicos (con `verificarTokenOpcional`)
 
 | Método | Endpoint | Propósito |
 |--------|----------|-----------|
 | GET | `/api/marketplace/feed` | Feed inicial (recientes + cercanos) por ciudad y GPS |
-| GET | `/api/marketplace/articulos/:id` | Detalle público de un artículo (para link compartido) |
-| POST | `/api/marketplace/articulos/:id/vista` | Registrar vista (incrementa contador, sin auth) |
+| GET | `/api/marketplace/articulos/:id` | Detalle público de un artículo |
+| POST | `/api/marketplace/articulos/:id/vista` | Registrar vista (incrementa contador) |
 | GET | `/api/marketplace/buscar/sugerencias` | Sugerencias en vivo (autocompletar) |
-| GET | `/api/marketplace/buscar/populares` | Top búsquedas populares por ciudad |
+| GET | `/api/marketplace/buscar/populares` | Top búsquedas populares por ciudad (cache Redis 1h) |
 | GET | `/api/marketplace/buscar` | Resultados de búsqueda con filtros |
-| GET | `/api/marketplace/vendedor/:usuarioId` | Perfil público del vendedor + sus publicaciones |
+| GET | `/api/marketplace/vendedor/:usuarioId` | Perfil público del vendedor + KPIs |
+| GET | `/api/marketplace/vendedor/:usuarioId/publicaciones` | Lista de publicaciones del vendedor por estado |
 
-### Privados (requieren `verificarToken` + modo Personal)
+### Privados (requieren `verificarToken` + `requiereModoPersonal`)
 
 | Método | Endpoint | Propósito |
 |--------|----------|-----------|
-| POST | `/api/marketplace/articulos` | Crear artículo |
-| PUT | `/api/marketplace/articulos/:id` | Editar artículo (solo dueño) |
+| POST | `/api/marketplace/articulos` | Crear artículo (con validación de moderación) |
+| PUT | `/api/marketplace/articulos/:id` | Editar artículo (solo dueño, con validación de moderación) |
 | PATCH | `/api/marketplace/articulos/:id/estado` | Cambiar estado (pausar/activar/vender) |
+| POST | `/api/marketplace/articulos/:id/reactivar` | Reactivar publicación pausada (extiende +30 días) |
 | DELETE | `/api/marketplace/articulos/:id` | Eliminar (soft delete, solo dueño) |
 | GET | `/api/marketplace/mis-articulos` | Lista paginada de artículos del usuario actual |
 | POST | `/api/marketplace/upload-imagen` | Presigned URL para subir foto a R2 (prefijo `marketplace/`) |
@@ -1295,31 +861,26 @@ En móvil, NO hay vista previa — no cabe.
 ### Middleware aplicable
 
 - `verificarToken` o `verificarTokenOpcional` según endpoint
-- `validarModoPersonal` (a crear) — equivalente a `ModoGuard` pero para backend, devuelve 403 si el usuario está en modo Comercial
-- `verificarPropietarioArticulo` (a crear) — para PUT/DELETE/PATCH, valida que el `usuario_id` del artículo coincida con el token
+- `requiereModoPersonal` (existente, reusado del módulo de validación de modos)
+- `verificarPropietarioArticulo` (verificación inline en service para PUT/DELETE/PATCH)
 
 ### Validaciones Zod
 
-Schema `crearArticuloSchema`:
+`apps/api/src/validations/marketplace.schema.ts`:
 
-```typescript
-{
-  titulo: z.string().min(10).max(80),
-  precio: z.number().int().positive().max(999999),
-  condicion: z.enum(['nuevo', 'seminuevo', 'usado', 'para_reparar']),
-  aceptaOfertas: z.boolean(),
-  descripcion: z.string().min(50).max(1000),
-  fotos: z.array(z.string().url()).min(1).max(8),
-  fotoPortadaIndex: z.number().int().min(0).max(7).default(0),
-  latitud: z.number(),
-  longitud: z.number(),
-  zonaAproximada: z.string(),  // ej: "Centro · Manzanillo"
-}
-```
+- `crearArticuloSchema` — campos completos del wizard
+- `actualizarArticuloSchema` — todos opcionales, NO acepta `expira_at` ni `estado` (lock de seguridad)
+- `cambiarEstadoSchema` — enum `activa | pausada | vendida` (`eliminada` solo por DELETE)
+- `feedQuerySchema` — `lat`, `lng`, `ciudad`
+- `misArticulosQuerySchema` — paginación + filtro opcional por estado
+- `uploadImagenSchema` — tipos `image/jpeg | image/png | image/webp`
+- `sugerenciasQuerySchema`, `popularesQuerySchema`, `buscarQuerySchema` — buscador
+
+Todos aceptan `confirmadoPorUsuario?: boolean` para flujo de moderación con sugerencia suave.
 
 ---
 
-## 🗄️ Base de Datos — Tabla Sugerida
+## 🗄️ Base de Datos — Tablas en Producción
 
 ### `articulos_marketplace`
 
@@ -1327,36 +888,36 @@ Schema `crearArticuloSchema`:
 CREATE TABLE articulos_marketplace (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  
+
   -- Contenido
   titulo VARCHAR(80) NOT NULL,
   descripcion TEXT NOT NULL,
   precio NUMERIC(10, 2) NOT NULL,
   condicion VARCHAR(20) NOT NULL CHECK (condicion IN ('nuevo','seminuevo','usado','para_reparar')),
   acepta_ofertas BOOLEAN NOT NULL DEFAULT true,
-  
+
   -- Fotos (array de URLs en R2)
   fotos JSONB NOT NULL DEFAULT '[]'::jsonb,
   foto_portada_index SMALLINT NOT NULL DEFAULT 0,
-  
+
   -- Ubicación (con privacidad)
-  ubicacion GEOGRAPHY(POINT, 4326) NOT NULL,  -- exacta, NUNCA se devuelve al frontend
-  ubicacion_aproximada GEOGRAPHY(POINT, 4326) NOT NULL,  -- aleatorizada dentro de 500m, ESTA es la pública
+  ubicacion GEOGRAPHY(POINT, 4326) NOT NULL,            -- exacta, NUNCA pública
+  ubicacion_aproximada GEOGRAPHY(POINT, 4326) NOT NULL, -- aleatorizada 500m, ESTA es pública
   ciudad VARCHAR(100) NOT NULL,
-  zona_aproximada VARCHAR(150) NOT NULL,  -- texto para mostrar (ej: "Centro · Manzanillo")
-  
+  zona_aproximada VARCHAR(150) NOT NULL,
+
   -- Estado
-  estado VARCHAR(20) NOT NULL DEFAULT 'activa' 
+  estado VARCHAR(20) NOT NULL DEFAULT 'activa'
     CHECK (estado IN ('activa','pausada','vendida','eliminada')),
-  
+
   -- Métricas
   total_vistas INTEGER NOT NULL DEFAULT 0,
   total_mensajes INTEGER NOT NULL DEFAULT 0,
   total_guardados INTEGER NOT NULL DEFAULT 0,
-  
+
   -- TTL (auto-pausa a los 30 días)
   expira_at TIMESTAMPTZ NOT NULL,
-  
+
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -1371,163 +932,339 @@ CREATE INDEX idx_marketplace_usuario ON articulos_marketplace(usuario_id);
 CREATE INDEX idx_marketplace_created ON articulos_marketplace(created_at DESC);
 CREATE INDEX idx_marketplace_expira ON articulos_marketplace(expira_at);
 CREATE INDEX idx_marketplace_ubicacion ON articulos_marketplace USING GIST(ubicacion_aproximada);
-CREATE INDEX idx_marketplace_titulo_fts ON articulos_marketplace 
+CREATE INDEX idx_marketplace_titulo_fts ON articulos_marketplace
   USING GIN(to_tsvector('spanish', titulo || ' ' || descripcion));
 ```
 
-### Cambios a tablas existentes
-
-**`chat_conv`** — agregar campo:
-```sql
-ALTER TABLE chat_conv ADD COLUMN articulo_marketplace_id UUID REFERENCES articulos_marketplace(id) ON DELETE SET NULL;
-```
-
-Y agregar `'marketplace'` y `'vendedor_marketplace'` al check constraint de `contexto_tipo`.
-
-**`guardados`** — agregar `'articulo_marketplace'` al enum de `entity_type`.
-
-**`notificaciones`** — agregar tipos:
-- `'marketplace_nuevo_mensaje'`
-- `'marketplace_proxima_expirar'`
-- `'marketplace_expirada'`
-
-### Cron jobs nuevos
-
-- **Auto-pausar artículos expirados:** corre cada hora, marca como `pausada` los artículos donde `expira_at < NOW()` y `estado = 'activa'`. Envía notificación al vendedor.
-- **Notificar próxima expiración:** corre diario, notifica a vendedores cuyas publicaciones expiran en 3 días.
-
-### Búsquedas populares (tabla agregada)
-
-Para "Más buscado en [ciudad]":
+### `marketplace_busquedas_log`
 
 ```sql
 CREATE TABLE marketplace_busquedas_log (
   id BIGSERIAL PRIMARY KEY,
   ciudad VARCHAR(100) NOT NULL,
   termino VARCHAR(100) NOT NULL,
-  usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,  -- siempre NULL en v1 por privacidad
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_busquedas_ciudad_fecha ON marketplace_busquedas_log(ciudad, created_at DESC);
 ```
 
-Cron diario que agrega los últimos 7 días por ciudad y guarda top 6 en cache (Redis).
+### Cambios a tablas existentes
+
+**`chat_conversaciones`** — agregada en Sprint 1:
+- Columna `articulo_marketplace_id UUID REFERENCES articulos_marketplace(id) ON DELETE SET NULL`
+- Check `contexto_tipo` ampliado con `'vendedor_marketplace'`
+- Índice parcial `idx_chat_conv_articulo_marketplace`
+
+**`guardados`** — agregada en Sprint 1:
+- Check `entity_type` ampliado con `'articulo_marketplace'`
+
+**`votos`** — agregada en Sprint 5:
+- Check `entity_type` ampliado con `'usuario'`
+
+**`notificaciones`** — agregada en Sprint 1:
+- Check `tipo` ampliado con `'marketplace_nuevo_mensaje'`, `'marketplace_proxima_expirar'`, `'marketplace_expirada'`
+
+---
+
+## ⏰ Cron Jobs en Producción
+
+**Archivo:** `apps/api/src/cron/marketplace-expiracion.cron.ts`
+
+### Auto-pausar expirados
+
+- **Frecuencia:** cada 6 horas (60s después del arranque + intervalo)
+- **Acción:** `UPDATE articulos_marketplace SET estado='pausada' WHERE estado='activa' AND expira_at < NOW()` con `RETURNING`
+- Por cada artículo afectado crea notificación tipo `marketplace_expirada` (idempotente — verifica existencia previa)
+- Logs: `[Marketplace Cron] Auto-pausados: N`
+
+### Notificar próxima expiración
+
+- **Frecuencia:** 1 vez al día a las 09:00 UTC (mañana en México)
+- **Acción:** SELECT artículos con `expira_at` entre `NOW()+3d` y `NOW()+3d+1h`, estado `activa`
+- Por cada uno crea notificación `marketplace_proxima_expirar` (idempotente)
+- Solo crea la notificación 1 vez por artículo
+
+### Helper compartido
+
+`crearNotificacionMarketplace(usuarioId, tipo, titulo, articuloId)` verifica `WHERE referencia_id+tipo` antes de insertar. Garantiza idempotencia para ambos crons.
 
 
 ---
 
-## 🗓️ Roadmap de Sprints
+## 🚫 Decisiones Rechazadas
 
-> Sugerencia de orden de implementación. Cada sprint genera un commit funcional revisable.
+> Esta sección documenta features que se evaluaron y descartaron. **NO volver a proponer en futuras sesiones** sin nueva evidencia.
 
-### Sprint 1 — Backend base (~1 día)
+### "Lo busco" / Modo demanda
 
-- Crear tabla `articulos_marketplace` con migración SQL
-- Modificar `chat_conv`, `guardados`, `notificaciones` con los campos/enums nuevos
-- Schema Drizzle para la tabla nueva
-- Service: `marketplace.service.ts` con CRUD básico (crear, obtener, actualizar, eliminar)
-- Controller + Routes: 5 endpoints públicos + 5 privados básicos
-- Validaciones Zod
-- Middleware `validarModoPersonal`
-- Test con usuario en modo Personal y modo Comercial
+- **Qué era:** los compradores publicaban lo que buscaban y los vendedores respondían "Tengo eso".
+- **Por qué se descarta:** se encima con **"Pregúntale a [ciudad]"** del Home (feed conversacional donde cualquier usuario pregunta y vecinos/negocios responden). Tener ambos crearía confusión sobre dónde publicar una búsqueda.
+- **Solución:** las búsquedas se hacen desde Pregúntale a [ciudad] en el Home, que ya cubre ese caso de uso de forma más amplia (objetos, servicios, recomendaciones, etc.).
 
-### Sprint 2 — Feed (~1 día)
+### Categorías como navegación principal
 
-- Endpoint `GET /api/marketplace/feed` con secciones recientes + cercanos
-- Hook React Query `useMarketplaceFeed`
-- `PaginaMarketplace.tsx` con header dark sticky + carrusel + grid
-- Componente `CardArticulo.tsx` (estilo B)
-- Integración con `useGuardados` (botón ❤️)
-- Ruta `/marketplace` en router (protegida con guard de modo Personal)
-- Visible en BottomNav y Navbar (ya está)
+- **Qué era:** grid de categorías (Segunda mano, Hecho a mano, Hogar, Electrónicos, etc.) como destino navegable en el feed.
+- **Por qué se descarta:** el comportamiento real del usuario es buscar directo por nombre del artículo. Mantener categorías obliga a clasificar al publicar (alarga el wizard) sin aportar al descubrimiento. Facebook Marketplace y OLX han reducido el peso de categorías por la misma razón.
+- **Solución:** se potencia el buscador (sugerencias, populares, recientes) y se eliminan las categorías. El artículo NO requiere categoría al publicar.
 
-### Sprint 3 — Detalle del artículo (~1 día)
+### Integración con CardYA
 
-- Endpoint `GET /api/marketplace/articulos/:id` (con `verificarTokenOpcional`)
-- Hook `useArticuloMarketplace`
-- `PaginaArticuloMarketplace.tsx` con galería + descripción + card vendedor + mapa aproximado
-- Integración con `ChatOverlay` (contexto `'marketplace'`)
-- Botón WhatsApp con número del vendedor
-- Ruta `/marketplace/articulo/:id`
+- **Qué era:** badge "CardYA habilitado" en cards y toggle "Cobrar con CardYA" al publicar como método de pago seguro.
+- **Por qué se descarta:** CardYA es para puntos de lealtad en negocios verificados con suscripción comercial. NO aplica a compra-venta entre personas.
 
-### Sprint 4 — Wizard de Publicar (~1 día)
+### "Buen precio" automático y "Buen título" feedback
 
-- Endpoint `POST /api/marketplace/articulos` + `PUT /api/marketplace/articulos/:id`
-- Endpoint `/upload-imagen` con presigned URL
-- **Crear `apps/api/src/services/marketplace/filtros.ts`** con la lista de palabras prohibidas y funciones `detectarPalabraProhibida(texto)`, `detectarServicio(texto)`, `detectarBusqueda(texto)`
-- Validación en backend: rechazar publicación si detecta palabra prohibida (Capa 1.2)
-- Validación en frontend: feedback inmediato + modal sugerencia para servicios/búsquedas (Capa 1.3 y 1.4)
-- `PaginaPublicarArticulo.tsx` con 3 pasos
-- Modo creación + modo edición en el mismo componente
-- Validaciones inline + auto-save sessionStorage
-- Vista previa en vivo (solo desktop)
-- Ruta `/marketplace/publicar` y `/marketplace/publicar/:id`
+- **Qué era:** sugerencias inteligentes al publicar comparando con artículos similares en la ciudad.
+- **Por qué se descarta para v1:** requiere histórico de ventas y data suficiente. En beta no habrá datos para que la sugerencia sea confiable.
+- **Cuándo retomar:** cuando haya 200+ artículos publicados y ventas confirmadas en el sistema.
 
-### Sprint 5 — Perfil del vendedor (~0.5 día)
+### Borradores de publicaciones
 
-- Endpoint `GET /api/marketplace/vendedor/:usuarioId`
-- `PaginaPerfilVendedor.tsx` con KPIs, tabs, grid
-- Cálculo de tiempo de respuesta (query agregada con ChatYA)
-- Ruta `/marketplace/vendedor/:id`
+- **Qué era:** guardar una publicación incompleta para terminar después.
+- **Por qué se descarta para v1:** suma complejidad de UX y backend (estado adicional, lista de borradores, recuperación). Si el usuario abandona el wizard a medio publicar, vuelve a empezar. Hay auto-save en sessionStorage que cubre el caso de recarga accidental.
 
-### Sprint 6 — Buscador potenciado (~1 día)
+### "Acepta trueque" como toggle al publicar
 
-- Endpoints de búsqueda: sugerencias, populares, resultados con filtros
-- Tabla `marketplace_busquedas_log` + cron de cálculo de populares
-- `OverlayBuscador.tsx` con estado vacío + sugerencias en vivo
-- Vista de resultados con filtros y orden
-- Ruta `/marketplace/buscar?q=…`
+- **Qué era:** marcar la publicación como dispuesta a intercambiar por otro artículo.
+- **Por qué se descarta para v1:** caso de uso de nicho. Si el comprador quiere proponer trueque, lo hace por ChatYA.
 
-### Sprint 7 — Polish + Cron jobs + Sistema de compartir (~0.5 día)
+### "Hacer oferta" como botón aparte en el detalle
 
-- Cron auto-pausar expirados + notificar próxima expiración
-- Notificaciones en `PanelNotificaciones`
-- Página pública `/p/articulo-marketplace/:id` con OG tags
-- Activar tab "Artículos" en Mis Guardados
-- Endpoint `GET /api/marketplace/mis-articulos` para que `/mis-publicaciones` lo consuma
-- Tests E2E flujos completos
+- **Qué era:** botón formal "Hacer oferta $XXX" separado del botón de mensaje, con flujo de ofertas y contraofertas dentro de la app.
+- **Por qué se descarta para v1:** el botón "Enviar mensaje" ya cubre la negociación. Diferenciar "ofertas formales" agrega complejidad de backend sin valor claro mientras la transacción siga siendo offline.
 
-### Sprint 8 — Sistema de niveles del vendedor (~1 día)
+### Importar lote (carga masiva)
 
-- Migración BD: agregar `nivel_marketplace` y `nivel_marketplace_actualizado_at` a `usuarios`
-- Migración BD: agregar `venta_confirmada_por_comprador` y `comprador_id` a `articulos_marketplace`
-- Service `marketplace-niveles.service.ts` con función `calcularNivel(usuarioId)` que evalúa los 5 niveles
-- Cron `marketplace-niveles.cron.ts` que recalcula niveles de todos los usuarios cada noche
-- Endpoint `POST /marcar-vendida` con auto-detección de comprador
-- Endpoint `POST /confirmar-compra` (consumido por mensaje automático en ChatYA)
-- Mensaje automático en ChatYA al marcar vendida (nuevo tipo de mensaje sistema con 2 botones)
-- Componentes UI: badges de nivel en CardArticulo, perfil del vendedor, tooltip explicativo
-- Integración en buscador: boost de prioridad para niveles 3 y 4
-- Notificación push al subir de nivel
+- **Qué era:** subir varios artículos de una sola vez con un archivo.
+- **Por qué se descarta:** feature de plataformas como Mercado Libre o vendedores profesionales. En MarketPlace de AnunciaYA el volumen por usuario es bajo.
 
-### Total estimado: ~6 días de trabajo
+### Vista previa en vivo en móvil
 
-> El estimado original del Roadmap era 4 días. Se extiende a 6 por incluir el buscador potenciado, sistema de compartir y sistema de niveles del vendedor. **El sistema de niveles puede dejarse para v1.1** si se quiere lanzar antes — el módulo funciona sin él, y los niveles se pueden activar después con un cron retroactivo que calcule basado en datos históricos.
+- **Qué era:** mientras publicas en móvil, ver al lado cómo se va a ver tu publicación.
+- **Por qué se descarta:** el viewport móvil no tiene espacio para mostrar el formulario y la vista previa simultáneamente. Solo se conserva en **desktop** como bonus.
+
+### Notificaciones propias del módulo
+
+- **Qué era:** sección de notificaciones específica de MarketPlace.
+- **Por qué se descarta:** la app ya tiene `PanelNotificaciones` global. Las notificaciones del MarketPlace caen ahí con el `tipo` correspondiente.
+
+### Chat propio del módulo
+
+- **Qué era:** sistema de mensajería interna del MarketPlace.
+- **Por qué se descarta:** la app ya tiene **ChatYA** completo. Las conversaciones se hacen desde ChatYA con `contextoTipo='marketplace'`.
+
+### Favoritos propios del módulo
+
+- **Qué era:** sección "Favoritos" exclusiva de MarketPlace.
+- **Por qué se descarta:** la app ya tiene **Mis Guardados** con sistema de tabs. Los artículos guardados de MarketPlace caen en la tab "Artículos".
+
+### Sistema de reportes de usuarios
+
+- **Qué era:** botón "Reportar publicación" + cola de revisión admin.
+- **Por qué se descarta:** sin equipo para revisar reportes, sería un canal sin destinatario. Falsa promesa al usuario. La moderación se mantiene 100% automatizada (Capa 1 + auto-expiración).
+
+### Filtro "Acepta ofertas" en buscador
+
+- **Qué era:** toggle para filtrar solo publicaciones que aceptan ofertas.
+- **Por qué se descarta para v1:** como `aceptaOfertas` default es `true`, el filtro siempre devolvería casi todo. Si en v1.1 los vendedores empiezan a desactivar el toggle, se agrega.
+
+### Buscador local en MarketPlace
+
+- **Qué era:** input de búsqueda dentro del header dark de MarketPlace.
+- **Por qué se descarta:** la app ya tiene un buscador global en el Navbar (`useSearchStore`) que se adapta a la sección activa con `placeholderSeccion('marketplace')`. Tener dos inputs confunde al usuario y duplica código.
+- **Solución:** el overlay del buscador en MarketPlace NO tiene input propio — solo aporta contenido (sugerencias, populares, recientes) anclado al store global.
+
+### "Cambiar ubicación" con input lat/lng manual
+
+- **Qué era:** botón en el wizard de publicar para cambiar la ubicación del artículo introduciendo coordenadas manualmente.
+- **Por qué se descarta:** ningún usuario sabe sus coordenadas. En v1 se usa solo GPS del usuario o coordenada de la ciudad activa por defecto. Si en v1.1 los usuarios lo piden, se agrega un mapa interactivo con marker arrastrable.
+
+### Botón "Llevar a Servicios" en modal de sugerencia
+
+- **Qué era:** cuando el wizard detecta un servicio disfrazado, ofrecer botón para precargar los datos en `/servicios/publicar`.
+- **Por qué se descarta:** la sección `/servicios` aún no existe. El modal solo ofrece "Editar mi publicación" y "Continuar de todos modos". Se reactivará cuando exista la sección.
+
+### Portada decorativa en perfil del vendedor
+
+- **Qué era:** banner teal sólido o imagen genérica en la parte superior del perfil del vendedor.
+- **Por qué se descarta:** se ve como banner publicitario raro. Solo avatar grande centrado en bloque blanco limpio. Si los usuarios suben portadas reales en v1.1, se agrega.
+
+### Badge "✓ Verificado" en perfil
+
+- **Qué era:** badge azul al lado del nombre del vendedor si tiene correo verificado.
+- **Por qué se descarta:** todos los usuarios tienen correo verificado (es requisito de login), por lo que el badge no diferencia a nadie. La diferenciación real vendrá con el sistema de niveles del vendedor (v1.1).
+
+### Filtrar tiempo de respuesta por `contexto_tipo`
+
+- **Qué era:** calcular el KPI "tiempo de respuesta promedio" del vendedor solo con conversaciones de MarketPlace.
+- **Por qué se descarta:** el tiempo de respuesta es característica de la persona, no del módulo. Filtrar por contexto haría que en beta (con pocos chats MarketPlace) el KPI siempre muestre `—` para vendedores que sí responden rápido en otros contextos.
+- **Solución:** se usan TODOS los chats del vendedor (cross-módulo) en últimos 30 días.
+
+### WhatsApp directo en página pública
+
+- **Qué era:** botón WhatsApp visible sin login en la página `/p/articulo-marketplace/:id`.
+- **Por qué se descarta:** un visitante anónimo podría obtener el número del vendedor con un scraper. Por privacidad, en la página pública solo aparece "Enviar mensaje" → `ModalAuthRequerido`. WhatsApp solo aparece después de login.
+
+### Persistir `usuario_id` en `marketplace_busquedas_log`
+
+- **Qué era:** guardar quién hizo cada búsqueda para "mis búsquedas frecuentes" personalizadas.
+- **Por qué se descarta para v1:** principio de privacidad. Solo se necesita `ciudad + termino + created_at` para calcular populares. Si en v2 se quiere personalizar, hay localStorage para eso.
+- **Implementación:** `usuario_id = NULL` siempre en `marketplace_busquedas_log`, aunque el endpoint sea autenticado.
+
 
 ---
 
-## ❓ Preguntas Pendientes
+## 🏆 v1.1 Pendiente — Sistema de Niveles del Vendedor
 
-> Decisiones que se postergaron para resolver durante la implementación. NO bloquean el inicio del sprint, pero hay que cerrarlas antes de los sprints correspondientes.
+> **Estado:** ⏸ Pendiente — diseñado pero no implementado
+> **Recomendación:** implementar después de tener data real de la beta (mínimo 2-3 meses de uso o 50+ ventas confirmadas). Los umbrales de cada nivel son adivinanzas hasta validarse con comportamiento real de usuarios.
+>
+> El módulo MarketPlace v1 funciona perfectamente sin este sistema.
 
-### Pendientes de UX
+### Inspiración
 
-1. **Drag & drop para reordenar fotos** en el wizard — nice-to-have. ¿Lo metemos en v1 o esperamos a v1.1?
-2. **¿Mostrar el número de teléfono o solo el botón WhatsApp?** — por privacidad, mejor solo el botón que abre el chat con mensaje precargado.
-3. **Política de fotos prohibidas** — bloquear automáticamente subida de fotos con ciertos contenidos detectados (a futuro).
+MercadoLíder de Mercado Libre, adaptado a un modelo P2P offline donde no existen reclamos formales, cancelaciones rastreables ni despachos. Mide **comportamiento real sostenido** en lugar de calificaciones u opiniones.
 
-### Pendientes técnicos
+### Objetivo
 
-5. **Aleatorización de la ubicación aproximada** — ¿la hacemos al guardar (genera 1 vez y queda fija) o al consultar (cambia cada vez)? Recomendación: al guardar, así el círculo no "salta" entre sesiones.
-6. **Caché del feed** — ¿stale-time de cuántos minutos? Recomendación: 2 min para "Recién", 5 min para "Cerca".
-7. **Política de re-publicación** — si una publicación expiró, ¿el usuario puede reactivarla con 1 click o tiene que volver a llenar el wizard? Recomendación: 1 click, que extienda 30 días más.
+Generar confianza entre desconocidos, premiar a los vendedores activos, y diferenciar AnunciaYA de Facebook Marketplace donde todos los perfiles se ven iguales.
 
-### Pendientes de producto
+**100% automático.** Se calcula con un cron job diario sin intervención humana. No hay reseñas, no hay reclamos, no hay panel admin.
 
-8. **¿Qué pasa con publicaciones de un usuario que cambia a modo Comercial?** — sus publicaciones deberían quedar visibles, pero él no podría editarlas hasta volver a Personal. Necesita confirmación.
-9. **¿Cómo manejamos** un mismo artículo publicado en MarketPlace que también aparece en el catálogo de un negocio? — no debería pasar (el usuario no es negocio), pero si en el futuro permitimos a negocios publicar usados, hay que pensarlo.
-10. **Reseñas del comprador al vendedor (post-v1)** — ¿se hace por confianza o se vincula a algún evento confirmable?
+### Datos que se medirían (todos automáticos)
+
+| Dato | Fuente | Cómo se calcula |
+|------|--------|-----------------|
+| Antigüedad | `usuarios.created_at` | `NOW() - created_at` |
+| Tiempo de respuesta promedio | `chat_mensajes` | Promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor, en últimos 30 días |
+| Tasa de respuesta | `chat_conversaciones` + `chat_mensajes` | % de conversaciones donde el vendedor respondió al menos una vez, en últimos 30 días |
+| Publicaciones activas | `articulos_marketplace` | `COUNT(*) WHERE estado='activa' AND usuario_id=X` |
+| Ventas auto-reportadas | `articulos_marketplace` | `COUNT(*) WHERE estado='vendida' AND usuario_id=X` |
+| Ventas confirmadas | `articulos_marketplace.venta_confirmada_por_comprador = true` | Ver §Confirmación de compra |
+| Última actividad | `usuarios.ultima_conexion` | Fecha del último login o acción |
+
+### Confirmación de compra (sin fricción)
+
+Cuando el vendedor marca una publicación como `vendida`, el sistema dispara un mensaje automático en ChatYA al comprador con el que más mensajes intercambió en esa conversación:
+
+```
+┌──────────────────────────────────────┐
+│ Lucía marcó este artículo como       │
+│ vendido. ¿Confirmas que lo compraste?│
+│                                      │
+│ [Sí, lo compré] [No fue conmigo]    │
+└──────────────────────────────────────┘
+```
+
+**Comportamiento:**
+- Si responde **"Sí"** → la venta cuenta como **confirmada**
+- Si responde **"No"** → la venta queda como **auto-reportada** (cuenta para "ventas" pero no para "ventas confirmadas"). NO penaliza al vendedor.
+- Si **ignora el mensaje** (no responde en 7 días) → queda como auto-reportada
+- Esta interacción NO es una reseña ni una calificación. Solo un check booleano.
+
+### Los 5 niveles
+
+Los niveles **describen** el comportamiento del vendedor. **No hay niveles negativos** (sin colores rojo/amarillo). Si alguien no tiene actividad, simplemente no tiene nivel — no se le señala como "malo".
+
+#### Nivel 0 — Sin nivel (default)
+
+- Usuario nuevo sin actividad o con perfil incompleto
+- No se muestra ningún badge
+
+#### Nivel 1 — Activo
+
+**Requisitos (todos):**
+- 1+ publicación activa en últimos 30 días
+- Perfil completo: avatar real + nombre completo
+
+**Cómo se ve:**
+- En el perfil (P3): pequeño "✓ Vendedor activo" en gris discreto al lado del nombre
+
+#### Nivel 2 — Frecuente
+
+**Requisitos (todos):**
+- 5+ ventas auto-reportadas históricas
+
+**Cómo se ve:**
+- En el perfil (P3): badge "Vendedor frecuente" en gris medio
+
+#### Nivel 3 — Confiable
+
+**Requisitos (todos):**
+- 10+ ventas auto-reportadas
+- 3+ ventas confirmadas por compradores
+- Tiempo de respuesta promedio < 2 horas (últimos 30 días)
+- Antigüedad > 30 días
+
+**Cómo se ve:**
+- En el perfil (P3): badge "Vendedor confiable" en teal
+- En cards del feed: badge teal pequeño en esquina inferior izquierda de la imagen
+- En búsquedas con orden "Más relevantes": **boost de prioridad** (ajustado en implementación, recomendación inicial 1.2x)
+
+#### Nivel 4 — Recomendado
+
+**Requisitos (todos):**
+- 25+ ventas auto-reportadas
+- 10+ ventas confirmadas por compradores
+- Tiempo de respuesta promedio < 1 hora (últimos 30 días)
+- Tasa de respuesta > 80% (últimos 30 días)
+- Antigüedad > 6 meses
+
+**Cómo se ve:**
+- En el perfil (P3): badge "Recomendado" en teal con ícono destacado
+- En cards del feed: badge teal con ícono pequeño
+- En búsquedas con orden "Más relevantes": **boost de prioridad** mayor (recomendación inicial 1.4x — evaluar si es muy agresivo y bajar a 1.2x para no perjudicar a vendedores nuevos)
+
+### Comportamiento del sistema
+
+#### Cron job diario
+
+- Corre 1 vez al día (madrugada, 03:00 UTC)
+- Recalcula nivel de todos los usuarios con publicaciones en MarketPlace en últimos 30 días
+- Actualiza campo `nivel_marketplace` en tabla `usuarios`
+- Si un usuario sube de nivel: notificación push: *"¡Subiste a nivel Confiable! Tus publicaciones tendrán más visibilidad."*
+- Si un usuario baja de nivel: NO se notifica (no se le hace pasar mal). El badge simplemente se actualiza silenciosamente.
+
+#### Tooltips explicativos
+
+Cada badge es **clickeable** y abre un mini-modal explicando qué significa el nivel y qué hace falta para subir al siguiente. Esto le da al usuario la sensación de progreso sin gamificación caricaturesca.
+
+### Backend — campos requeridos
+
+**Tabla `usuarios`** — agregar:
+```sql
+ALTER TABLE usuarios
+  ADD COLUMN nivel_marketplace SMALLINT NOT NULL DEFAULT 0
+    CHECK (nivel_marketplace BETWEEN 0 AND 4),
+  ADD COLUMN nivel_marketplace_actualizado_at TIMESTAMPTZ;
+```
+
+**Tabla `articulos_marketplace`** — agregar:
+```sql
+ALTER TABLE articulos_marketplace
+  ADD COLUMN venta_confirmada_por_comprador BOOLEAN DEFAULT false,
+  ADD COLUMN comprador_id UUID REFERENCES usuarios(id) ON DELETE SET NULL;
+```
+
+### Endpoints adicionales
+
+| Método | Endpoint | Propósito |
+|--------|----------|-----------|
+| POST | `/api/marketplace/articulos/:id/marcar-vendida` | Vendedor marca como vendida + dispara mensaje de confirmación al comprador |
+| POST | `/api/marketplace/articulos/:id/confirmar-compra` | Comprador confirma `{ confirma: boolean }` |
+| GET | `/api/marketplace/usuarios/:id/nivel` | Detalles del nivel actual del usuario para tooltips |
+
+### Decisiones explícitas para v1.1
+
+- **Sin calificación numérica (4.5 estrellas, etc.)** — las reseñas requieren acción del comprador y son fáciles de manipular. Los niveles basados en comportamiento son más justos.
+- **Sin penalización por bajada** — si un vendedor baja de Confiable a Frecuente porque no respondió rápido este mes, no se le humilla. El sistema solo actualiza el badge en silencio.
+- **Boost en búsqueda con cuidado** — el boost no debe ser tan agresivo como para crear círculo vicioso (vendedor nuevo → menos visibilidad → menos ventas → no sube de nivel). Considerar boost suave (1.1x-1.2x) o mini-boost para vendedores con menos de 30 días.
+
+### Acoplamiento con ChatYA
+
+El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` para detectar el tipo `'confirmacion_compra_marketplace'` y renderizar botones interactivos. Esto **acopla ChatYA con MarketPlace** — si esto es problema, considerar API de slots configurables en ChatYA. Para v1.1 puede acoplarse y documentarse como deuda técnica.
 
 ---
 
@@ -1536,22 +1273,57 @@ Cron diario que agrega los últimos 7 días por ciudad y guarda top 6 en cache (
 ### Documentos relacionados
 
 - `01-VISION_ESTRATEGICA.md` §3.1 — definición estratégica del MarketPlace
-- `02-ROADMAP.md` — Sprint 6.1 con estimación de 4 días
-- `10-arq-Sistema.md` §1.2 — Sistema de Modos (visibilidad por modo)
-- `10-arq-ChatYA.md` — integración del chat
-- `10-arq-Guardados.md` — tab "Artículos" pendiente de activar
-- `20-est-TOKENS_GLOBALES.md` Regla 13 — estética profesional B2B
-- `20-est-TOKENS_COMPONENTES.md` §7 — Dark Gradient de Marca para botones
+- `Sistema.md` §1.2 — Sistema de Modos (visibilidad por modo)
+- `ChatYA.md` — integración del chat
+- `Guardados.md` — tab "Artículos" activada
+- `TOKENS_GLOBALES.md` Regla 13 — estética profesional B2B
+- `TOKENS_COMPONENTES.md` §7 — Dark Gradient de Marca para botones
 
-### Código de referencia (patrones a replicar)
+### Reportes de implementación (por sprint)
 
-- `41-fe-PaginaPerfilNegocio.tsx` — layout 2 columnas en desktop con sticky derecha
-- `66-fe-page-public-PaginaArticuloPublico.tsx` — galería con thumbnails + descripción
-- `68-fe-page-cardya-PaginaCardYA.tsx` — header dark sticky con tabs
-- `49-fe-negocios-CardNegocio.tsx` — NO replicar el glassmorphism (MarketPlace usa estilo B)
-- `47-fe-layout-BottomNav.tsx` — la lógica de visibilidad por modo ya existe ahí
+- Sprint 1 — Backend Base
+- Sprint 2 — Feed Frontend
+- Sprint 3 — Detalle del Artículo
+- Sprint 4 — Wizard de Publicar + Moderación
+- Sprint 5 — Perfil del Vendedor
+- Sprint 6 — Buscador Potenciado
+- Sprint 7 — Polish + Crons + Página Pública (cierre v1)
+
+### Archivos del módulo
+
+**Backend:**
+- `apps/api/src/services/marketplace.service.ts` — CRUD principal
+- `apps/api/src/services/marketplace/filtros.ts` — Capa 1 de moderación
+- `apps/api/src/services/marketplace/buscador.ts` — Lógica de búsqueda
+- `apps/api/src/services/marketplace/expiracion.ts` — TTL y reactivación
+- `apps/api/src/controllers/marketplace.controller.ts` — Handlers
+- `apps/api/src/routes/marketplace.routes.ts` — Rutas
+- `apps/api/src/validations/marketplace.schema.ts` — Schemas Zod
+- `apps/api/src/cron/marketplace-expiracion.cron.ts` — Crons
+
+**Frontend:**
+- `apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx` — P1 Feed
+- `apps/web/src/pages/private/marketplace/PaginaArticuloMarketplace.tsx` — P2 Detalle
+- `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx` — P3 Perfil
+- `apps/web/src/pages/private/marketplace/PaginaPublicarArticulo.tsx` — P4 Wizard
+- `apps/web/src/pages/private/marketplace/PaginaResultadosMarketplace.tsx` — P5 Resultados
+- `apps/web/src/pages/public/PaginaArticuloMarketplacePublico.tsx` — P6 Pública
+- `apps/web/src/components/marketplace/CardArticulo.tsx`
+- `apps/web/src/components/marketplace/GaleriaArticulo.tsx`
+- `apps/web/src/components/marketplace/CardVendedor.tsx`
+- `apps/web/src/components/marketplace/MapaUbicacion.tsx`
+- `apps/web/src/components/marketplace/BarraContacto.tsx`
+- `apps/web/src/components/marketplace/OverlayBuscadorMarketplace.tsx`
+- `apps/web/src/components/marketplace/FiltrosBuscador.tsx`
+- `apps/web/src/components/marketplace/ModalSugerenciaModeracion.tsx`
+- `apps/web/src/router/guards/ModoPersonalEstrictoGuard.tsx`
+- `apps/web/src/hooks/queries/useMarketplace.ts`
+- `apps/web/src/hooks/useFiltrosBuscadorUrl.ts`
+- `apps/web/src/utils/busquedasRecientes.ts`
+- `apps/web/src/types/marketplace.ts`
 
 ---
 
-**Última actualización:** 03 Mayo 2026
-**Estado del documento:** Versión 1.0 — Listo para arrancar Sprint 1 en Claude Code
+**Última actualización:** 04 Mayo 2026
+**Estado del módulo:** ✅ v1 completado y desplegado
+**Próximo paso:** evaluar Sprint 8 (Sistema de Niveles) después de tener data de beta

@@ -14,6 +14,7 @@
 import { ChevronRight, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { VendedorArticulo } from '../../types/marketplace';
+import { formatearUltimaConexion } from '../../utils/marketplace';
 
 interface CardVendedorProps {
     vendedor: VendedorArticulo;
@@ -26,12 +27,17 @@ export function CardVendedor({ vendedor }: CardVendedorProps) {
     };
 
     const iniciales = obtenerIniciales(vendedor.nombre, vendedor.apellidos);
+    const conexionLabel = formatearUltimaConexion(vendedor.ultimaConexion);
+    const responderapido =
+        vendedor.tiempoRespuestaMinutos !== null &&
+        vendedor.tiempoRespuestaMinutos !== undefined &&
+        vendedor.tiempoRespuestaMinutos < 60;
 
     return (
         <button
             data-testid="card-vendedor"
             onClick={handleVerPerfil}
-            className="flex w-full items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
         >
             {/* Avatar */}
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-200">
@@ -57,6 +63,16 @@ export function CardVendedor({ vendedor }: CardVendedorProps) {
                 {vendedor.ciudad && (
                     <div className="truncate text-xs text-slate-500">
                         {vendedor.ciudad}
+                    </div>
+                )}
+                {conexionLabel && (
+                    <div className="truncate text-xs text-slate-400">
+                        {conexionLabel}
+                    </div>
+                )}
+                {responderapido && (
+                    <div className="truncate text-xs text-slate-400">
+                        Suele responder rápido
                     </div>
                 )}
             </div>

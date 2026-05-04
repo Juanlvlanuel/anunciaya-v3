@@ -25,6 +25,7 @@
 
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
+import { redis } from '../db/redis.js';
 import { articulosMarketplace } from '../db/schemas/schema.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
@@ -70,11 +71,15 @@ interface ArticuloConVendedorRow extends ArticuloRow {
         ciudad: string | null;
         /** Nullable: el FE oculta el botón WhatsApp si es null. */
         telefono: string | null;
+        ultimaConexion: string | null;
+        tiempoRespuestaMinutos: number | null;
     };
 }
 
 interface ArticuloFeedRow extends ArticuloRow {
     distanciaMetros: number | null;
+    viendo: number;
+    vistas24h: number;
 }
 
 // =============================================================================
@@ -364,6 +369,76 @@ export async function crearArticulo(
 }
 
 // =============================================================================
+// HELPERS REDIS: Sorted Set "viendo ahora" + vistas 24h
+// =============================================================================
+
+const VIENDO_TTL_MS = 120_000; // 2 minutos en milisegundos
+
+/**
+ * Cuenta cuántos usuarios están viendo el artículo en este momento.
+ * Limpia primero las entradas cuyo último heartbeat superó los 2 minutos.
+ */
+async function contarViendo(articuloId: string): Promise<number> {
+    const key = `articulo:viendo:${articuloId}`;
+    const corte = Date.now() - VIENDO_TTL_MS;
+    await redis.zremrangebyscore(key, 0, corte);
+    return redis.zcard(key);
+}
+
+/**
+ * Registra o renueva la presencia activa del usuario en el artículo.
+ * Usa Sorted Set con timestamp como score — cada heartbeat actualiza el
+ * score del userId sin duplicar miembros.
+ */
+export async function registrarHeartbeat(
+    articuloId: string,
+    usuarioId: string
+): Promise<void> {
+    const key = `articulo:viendo:${articuloId}`;
+    await redis.zadd(key, Date.now(), usuarioId);
+}
+
+/**
+ * Devuelve el contador de vistas de las últimas 24h desde Redis.
+ */
+async function obtenerVistas24h(articuloId: string): Promise<number> {
+    const val = await redis.get(`articulo:vistas24h:${articuloId}`);
+    return val ? parseInt(val, 10) : 0;
+}
+
+// =============================================================================
+// HELPER PRIVADO: Calcular tiempo de respuesta promedio de un vendedor
+// =============================================================================
+
+/**
+ * Calcula el promedio de minutos que tarda un vendedor en responder al primer
+ * mensaje del comprador, en conversaciones de los últimos 30 días.
+ * Devuelve null si no hay datos suficientes.
+ */
+async function calcularTiempoRespuesta(vendedorId: string): Promise<number | null> {
+    const resultado = await db.execute(sql`
+        WITH primeros AS (
+            SELECT
+                m.conversacion_id,
+                MIN(m.created_at) FILTER (WHERE m.emisor_id != ${vendedorId}) AS t_comprador,
+                MIN(m.created_at) FILTER (WHERE m.emisor_id = ${vendedorId})  AS t_vendedor
+            FROM chat_mensajes m
+            INNER JOIN chat_conversaciones c ON c.id = m.conversacion_id
+            WHERE m.created_at > NOW() - INTERVAL '30 days'
+              AND (c.participante1_id = ${vendedorId} OR c.participante2_id = ${vendedorId})
+            GROUP BY m.conversacion_id
+        )
+        SELECT AVG(EXTRACT(EPOCH FROM (t_vendedor - t_comprador)) / 60.0)::float AS minutos_promedio
+        FROM primeros
+        WHERE t_comprador IS NOT NULL
+          AND t_vendedor IS NOT NULL
+          AND t_vendedor > t_comprador
+    `);
+    const minutos = (resultado.rows[0] as { minutos_promedio: number | null }).minutos_promedio;
+    return minutos !== null && !isNaN(minutos) ? minutos : null;
+}
+
+// =============================================================================
 // OBTENER ARTÍCULO POR ID (público con verificarTokenOpcional)
 // =============================================================================
 
@@ -384,12 +459,13 @@ export async function obtenerArticuloPorId(articuloId: string) {
                 a.ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
                 a.expira_at, a.created_at, a.updated_at, a.vendida_at,
-                u.id           AS vendedor_id,
-                u.nombre       AS vendedor_nombre,
-                u.apellidos    AS vendedor_apellidos,
-                u.avatar_url   AS vendedor_avatar_url,
-                u.ciudad       AS vendedor_ciudad,
-                u.telefono     AS vendedor_telefono
+                u.id              AS vendedor_id,
+                u.nombre          AS vendedor_nombre,
+                u.apellidos       AS vendedor_apellidos,
+                u.avatar_url      AS vendedor_avatar_url,
+                u.ciudad          AS vendedor_ciudad,
+                u.telefono        AS vendedor_telefono,
+                u.ultima_conexion AS vendedor_ultima_conexion
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
             WHERE a.id = ${articuloId}
@@ -411,7 +487,12 @@ export async function obtenerArticuloPorId(articuloId: string) {
             vendedor_avatar_url: string | null;
             vendedor_ciudad: string | null;
             vendedor_telefono: string | null;
+            vendedor_ultima_conexion: string | null;
         };
+
+        const [tiempoRespuestaMinutos] = await Promise.all([
+            calcularTiempoRespuesta(row.vendedor_id),
+        ]);
 
         const data: ArticuloConVendedorRow = {
             ...mapearArticulo(row),
@@ -422,6 +503,8 @@ export async function obtenerArticuloPorId(articuloId: string) {
                 avatarUrl: row.vendedor_avatar_url,
                 ciudad: row.vendedor_ciudad,
                 telefono: row.vendedor_telefono,
+                ultimaConexion: row.vendedor_ultima_conexion,
+                tiempoRespuestaMinutos,
             },
         };
 
@@ -499,24 +582,33 @@ export async function obtenerFeed(
             LIMIT 20
         `);
 
-        const mapearConDistancia = (
-            row: RawArticuloDb & { distancia_metros: number | null }
-        ): ArticuloFeedRow => ({
-            ...mapearArticulo(row),
-            distanciaMetros:
-                row.distancia_metros !== null ? Math.round(row.distancia_metros) : null,
-        });
+        type RawFeedRow = RawArticuloDb & { distancia_metros: number | null };
+        const recientesRows = recientesResultado.rows as unknown as RawFeedRow[];
+        const cercanosRows = cercanosResultado.rows as unknown as RawFeedRow[];
+
+        // Enriquecer con datos de Redis en paralelo para todos los artículos.
+        const enriquecer = async (row: RawFeedRow): Promise<ArticuloFeedRow> => {
+            const [viendo, vistas24h] = await Promise.all([
+                contarViendo(row.id),
+                obtenerVistas24h(row.id),
+            ]);
+            return {
+                ...mapearArticulo(row),
+                distanciaMetros:
+                    row.distancia_metros !== null ? Math.round(row.distancia_metros) : null,
+                viendo,
+                vistas24h,
+            };
+        };
+
+        const [recientes, cercanos] = await Promise.all([
+            Promise.all(recientesRows.map(enriquecer)),
+            Promise.all(cercanosRows.map(enriquecer)),
+        ]);
 
         return {
             success: true,
-            data: {
-                recientes: (recientesResultado.rows as unknown as Array<
-                    RawArticuloDb & { distancia_metros: number | null }
-                >).map(mapearConDistancia),
-                cercanos: (cercanosResultado.rows as unknown as Array<
-                    RawArticuloDb & { distancia_metros: number | null }
-                >).map(mapearConDistancia),
-            },
+            data: { recientes, cercanos },
         };
     } catch (error) {
         console.error('Error al obtener feed MarketPlace:', error);
@@ -865,12 +957,23 @@ export async function eliminarArticulo(articuloId: string, usuarioId: string) {
  */
 export async function registrarVista(articuloId: string) {
     try {
-        await db.execute(sql`
-            UPDATE articulos_marketplace
-            SET total_vistas = total_vistas + 1
-            WHERE id = ${articuloId}
-              AND deleted_at IS NULL
-        `);
+        const vistas24hKey = `articulo:vistas24h:${articuloId}`;
+
+        const [, valor] = await Promise.all([
+            db.execute(sql`
+                UPDATE articulos_marketplace
+                SET total_vistas = total_vistas + 1
+                WHERE id = ${articuloId}
+                  AND deleted_at IS NULL
+            `),
+            redis.incr(vistas24hKey),
+        ]);
+
+        // Aplica TTL de 24h solo al crear la key (valor === 1 → recién creada).
+        if (valor === 1) {
+            await redis.expire(vistas24hKey, 86400);
+        }
+
         return { success: true };
     } catch (error) {
         console.error('Error al registrar vista MarketPlace:', error);
@@ -893,6 +996,104 @@ export async function generarUrlUploadImagenMarketplace(
 ) {
     const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
     return generarPresignedUrl('marketplace', nombreArchivo, contentType, 300, TIPOS_PERMITIDOS);
+}
+
+// =============================================================================
+// TRENDING — "Lo más visto hoy" (Sprint 9.1)
+// =============================================================================
+
+/**
+ * Top artículos con más actividad en las últimas 24h para la ciudad dada.
+ *
+ * Flujo:
+ *  1. SQL: top 30 candidatos con guardados_24h + mensajes_24h (datos en BD).
+ *  2. JS: para cada candidato, consultar Redis → vistas24h.
+ *  3. Score completo = vistas24h * 1 + guardados_24h * 3 + mensajes_24h * 5.
+ *  4. Ordenar por score DESC y devolver los primeros 10.
+ *  5. Si quedan < 3 artículos → devolver array vacío (sección no aparece en beta).
+ *
+ * @param ciudad     - Ciudad filtro.
+ * @param excluirIds - IDs ya mostrados en otras secciones (deduplicación).
+ */
+export async function obtenerTrending(
+    ciudad: string,
+    excluirIds: string[]
+): Promise<ArticuloFeedRow[]> {
+    const filtroExcluir =
+        excluirIds.length > 0
+            ? sql`AND am.id NOT IN (${sql.join(
+                  excluirIds.map((id) => sql`${id}`),
+                  sql`, `
+              )})`
+            : sql``;
+
+    const resultado = await db.execute(sql`
+        SELECT
+            am.id, am.usuario_id, am.titulo, am.descripcion, am.precio,
+            am.condicion, am.acepta_ofertas,
+            am.fotos, am.foto_portada_index,
+            ST_Y(am.ubicacion_aproximada::geometry) AS lat,
+            ST_X(am.ubicacion_aproximada::geometry) AS lng,
+            am.ciudad, am.zona_aproximada, am.estado,
+            am.total_vistas, am.total_mensajes, am.total_guardados,
+            am.expira_at, am.created_at, am.updated_at, am.vendida_at,
+            COALESCE(g24.total, 0) AS guardados_24h,
+            COALESCE(m24.total, 0) AS mensajes_24h
+        FROM articulos_marketplace am
+        LEFT JOIN (
+            SELECT entity_id, COUNT(*)::int AS total
+            FROM guardados
+            WHERE entity_type = 'articulo_marketplace'
+              AND created_at > NOW() - INTERVAL '24 hours'
+            GROUP BY entity_id
+        ) g24 ON g24.entity_id = am.id
+        LEFT JOIN (
+            SELECT c.articulo_marketplace_id, COUNT(*)::int AS total
+            FROM chat_mensajes m
+            JOIN chat_conversaciones c ON c.id = m.conversacion_id
+            WHERE m.created_at > NOW() - INTERVAL '24 hours'
+            GROUP BY c.articulo_marketplace_id
+        ) m24 ON m24.articulo_marketplace_id = am.id
+        WHERE am.ciudad = ${ciudad}
+          AND am.estado = 'activa'
+          AND am.deleted_at IS NULL
+          ${filtroExcluir}
+        ORDER BY (COALESCE(g24.total, 0) + COALESCE(m24.total, 0)) DESC
+        LIMIT 30
+    `);
+
+    type RawTrendingRow = RawArticuloDb & {
+        guardados_24h: number;
+        mensajes_24h: number;
+    };
+
+    const candidatos = resultado.rows as unknown as RawTrendingRow[];
+
+    // Enriquecer con Redis y calcular score completo en JS.
+    const enriquecidos = await Promise.all(
+        candidatos.map(async (row) => {
+            const vistas24h = await obtenerVistas24h(row.id);
+            const score =
+                vistas24h * 1.0 +
+                row.guardados_24h * 3.0 +
+                row.mensajes_24h * 5.0;
+            return { row, vistas24h, score };
+        })
+    );
+
+    const ordenados = enriquecidos
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+
+    if (ordenados.length < 3) return [];
+
+    return ordenados.map(({ row, vistas24h }) => ({
+        ...mapearArticulo(row),
+        distanciaMetros: null,
+        viendo: 0,
+        vistas24h,
+    }));
 }
 
 // =============================================================================
@@ -1004,34 +1205,8 @@ export async function obtenerVendedorPorId(
             vendidos: number;
         };
 
-        // 3) Tiempo de respuesta promedio en últimos 30 días.
-        // CTE: para cada conversación donde el vendedor participó, calcular el
-        // primer mensaje del comprador (emisor != vendedor) y la primera
-        // respuesta del vendedor (emisor = vendedor) POSTERIOR a ese primer
-        // mensaje. El delta promedio es el tiempo de respuesta.
-        // No filtramos por contexto_tipo (decisión: el tiempo de respuesta
-        // es característica de la persona, no del módulo).
-        const respuesta = await db.execute(sql`
-            WITH primeros AS (
-                SELECT
-                    m.conversacion_id,
-                    MIN(m.created_at) FILTER (WHERE m.emisor_id != ${vendedorId}) AS t_comprador,
-                    MIN(m.created_at) FILTER (WHERE m.emisor_id = ${vendedorId})  AS t_vendedor
-                FROM chat_mensajes m
-                INNER JOIN chat_conversaciones c ON c.id = m.conversacion_id
-                WHERE m.created_at > NOW() - INTERVAL '30 days'
-                  AND (c.participante1_id = ${vendedorId} OR c.participante2_id = ${vendedorId})
-                GROUP BY m.conversacion_id
-            )
-            SELECT AVG(EXTRACT(EPOCH FROM (t_vendedor - t_comprador)) / 60.0)::float AS minutos_promedio
-            FROM primeros
-            WHERE t_comprador IS NOT NULL
-              AND t_vendedor IS NOT NULL
-              AND t_vendedor > t_comprador
-        `);
-
-        const minutos = (respuesta.rows[0] as { minutos_promedio: number | null })
-            .minutos_promedio;
+        // 3) Tiempo de respuesta promedio en últimos 30 días (helper reutilizable).
+        const minutos = await calcularTiempoRespuesta(vendedorId);
 
         const perfil: PerfilVendedor = {
             id: row.id,
@@ -1121,6 +1296,8 @@ export default {
     cambiarEstado,
     eliminarArticulo,
     registrarVista,
+    registrarHeartbeat,
+    obtenerTrending,
     generarUrlUploadImagenMarketplace,
     obtenerVendedorPorId,
     obtenerArticulosDeVendedor,

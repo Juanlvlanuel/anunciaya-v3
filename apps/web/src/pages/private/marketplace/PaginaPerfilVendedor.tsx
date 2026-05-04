@@ -185,7 +185,7 @@ export function PaginaPerfilVendedor() {
                             data-testid="btn-volver-perfil"
                             onClick={handleVolver}
                             aria-label="Volver"
-                            className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
+                            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
                         >
                             <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                         </button>
@@ -199,7 +199,7 @@ export function PaginaPerfilVendedor() {
                                 aria-label="Más opciones"
                                 aria-haspopup="menu"
                                 aria-expanded={menuAbierto}
-                                className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
+                                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
                             >
                                 <MoreVertical className="h-5 w-5" strokeWidth={2.5} />
                             </button>
@@ -212,7 +212,7 @@ export function PaginaPerfilVendedor() {
                                     <button
                                         data-testid="opcion-bloquear-usuario"
                                         onClick={handleBloquear}
-                                        className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                        className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                                     >
                                         Bloquear usuario
                                     </button>
@@ -275,7 +275,7 @@ export function PaginaPerfilVendedor() {
                                 <button
                                     data-testid="btn-enviar-mensaje-vendedor"
                                     onClick={handleEnviarMensaje}
-                                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
+                                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
                                 >
                                     <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
                                     Enviar mensaje
@@ -285,7 +285,7 @@ export function PaginaPerfilVendedor() {
                                     onClick={toggleFollow}
                                     disabled={cargandoSeguir}
                                     aria-pressed={followed}
-                                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-bold transition-colors disabled:opacity-60 ${
+                                    className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-bold transition-colors disabled:opacity-60 ${
                                         followed
                                             ? 'border-teal-500 bg-teal-50 text-teal-700'
                                             : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -408,7 +408,7 @@ function TabBoton({ activa, label, onClick, testId }: TabBotonProps) {
             data-testid={testId}
             onClick={onClick}
             aria-pressed={activa}
-            className={`flex-1 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+            className={`flex-1 cursor-pointer border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
                 activa
                     ? 'border-teal-500 text-slate-900'
                     : 'border-transparent text-slate-500 hover:text-slate-700'

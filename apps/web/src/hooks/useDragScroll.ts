@@ -13,7 +13,7 @@
  *   const refCarrusel = useRef<HTMLDivElement>(null);
  *   useDragScroll(refCarrusel);
  *
- *   <div ref={refCarrusel} className="flex overflow-x-auto cursor-grab [&:active]:cursor-grabbing">
+ *   <div ref={refCarrusel} className="flex overflow-x-auto cursor-grab active:cursor-grabbing select-none">
  *     {items...}
  *   </div>
  *
@@ -27,41 +27,41 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>) {
     const el = ref.current;
     if (!el) return;
 
+    let sePresiono = false;
     let estaArrastrando = false;
     let inicioX = 0;
     let scrollInicial = 0;
-    let sePresiono = false;
 
     const onMouseDown = (e: MouseEvent) => {
-      // Solo click izquierdo
       if (e.button !== 0) return;
       sePresiono = true;
       estaArrastrando = false;
-      inicioX = e.pageX - el.offsetLeft;
+      inicioX = e.pageX;
       scrollInicial = el.scrollLeft;
+      el.style.userSelect = 'none';
     };
 
+    // mousemove en document para que funcione aunque el mouse salga del elemento
     const onMouseMove = (e: MouseEvent) => {
       if (!sePresiono) return;
-      // Activar arrastre solo cuando hay movimiento real (>3px) para no matar clicks
-      const desplazamiento = e.pageX - el.offsetLeft - inicioX;
+      const desplazamiento = e.pageX - inicioX;
       if (!estaArrastrando && Math.abs(desplazamiento) < 3) return;
       if (!estaArrastrando) {
-        // Primer frame de arrastre real: forzar cursor grabbing globalmente
-        // (los descendientes con cursor-pointer anulan el cursor del contenedor)
+        estaArrastrando = true;
         document.body.style.cursor = 'grabbing';
       }
-      estaArrastrando = true;
       e.preventDefault();
       el.scrollLeft = scrollInicial - desplazamiento * 1.2;
     };
 
+    // mouseup en document para capturar el release fuera del elemento
     const onMouseUp = () => {
+      if (!sePresiono) return;
       sePresiono = false;
+      el.style.userSelect = '';
       document.body.style.cursor = '';
-      // Si hubo arrastre real, cancelar el próximo click para que no dispare acciones
-      // (ej: abrir un artículo al arrastrar sobre él)
       if (estaArrastrando) {
+        // Cancelar el click que sigue al drag para no abrir el artículo accidentalmente
         const cancelarClick = (ev: MouseEvent) => {
           ev.stopPropagation();
           ev.preventDefault();
@@ -71,30 +71,22 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>) {
       estaArrastrando = false;
     };
 
-    const onMouseLeave = () => {
-      sePresiono = false;
-      estaArrastrando = false;
-      document.body.style.cursor = '';
-    };
-
-    // Previene el drag nativo HTML5 de <img> (arrastrar imagen a otra pestaña).
-    // Sin esto, el browser muestra un "velo fantasma" y el cursor 🚫, interfiriendo con el drag-to-scroll.
-    const onDragStart = (e: DragEvent) => {
-      e.preventDefault();
-    };
+    // Previene arrastrar imágenes nativamente (velo fantasma del browser)
+    const onDragStart = (e: DragEvent) => e.preventDefault();
 
     el.addEventListener('mousedown', onMouseDown);
-    el.addEventListener('mousemove', onMouseMove);
-    el.addEventListener('mouseup', onMouseUp);
-    el.addEventListener('mouseleave', onMouseLeave);
+    // passive: false es necesario para poder llamar preventDefault() en Chrome
+    document.addEventListener('mousemove', onMouseMove, { passive: false });
+    document.addEventListener('mouseup', onMouseUp);
     el.addEventListener('dragstart', onDragStart);
 
     return () => {
       el.removeEventListener('mousedown', onMouseDown);
-      el.removeEventListener('mousemove', onMouseMove);
-      el.removeEventListener('mouseup', onMouseUp);
-      el.removeEventListener('mouseleave', onMouseLeave);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
       el.removeEventListener('dragstart', onDragStart);
+      el.style.userSelect = '';
+      document.body.style.cursor = '';
     };
   }, [ref]);
 }

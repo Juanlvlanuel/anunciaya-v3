@@ -203,6 +203,8 @@ export const queryKeys = {
       ['marketplace', 'buscar', 'populares', ciudad] as const,
     resultadosBusqueda: (params: Record<string, unknown>) =>
       ['marketplace', 'buscar', 'resultados', params] as const,
+    trending: (ciudad: string, excluirIds: string[]) =>
+      ['marketplace', 'feed', 'trending', ciudad, excluirIds] as const,
   },
 
   // ─── Business Studio — Sucursales ────────────────────────────────────────

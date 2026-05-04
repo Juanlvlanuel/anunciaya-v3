@@ -23,12 +23,12 @@
  * Ubicación: apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Plus, MapPin, AlertCircle } from 'lucide-react';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useDragScroll } from '../../../hooks/useDragScroll';
-import { useMarketplaceFeed } from '../../../hooks/queries/useMarketplace';
+import { useMarketplaceFeed, useTrendingMarketplace } from '../../../hooks/queries/useMarketplace';
 import { CardArticulo } from '../../../components/marketplace/CardArticulo';
 import { OverlayBuscadorMarketplace } from '../../../components/marketplace/OverlayBuscadorMarketplace';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -54,9 +54,15 @@ export function PaginaMarketplace() {
         lng: longitud,
     });
 
-    // ─── Drag-to-scroll del carrusel ──────────────────────────────────────────
-    const refCarrusel = useRef<HTMLDivElement>(null);
-    useDragScroll(refCarrusel);
+    const recientes = data?.recientes ?? [];
+    const cercanos = data?.cercanos ?? [];
+
+    const idsRecientes = useMemo(() => recientes.map((a) => a.id), [recientes]);
+
+    const { data: trending = [] } = useTrendingMarketplace({
+        ciudad,
+        excluirIds: idsRecientes,
+    });
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
     const navigate = useNavigate();
@@ -84,9 +90,23 @@ export function PaginaMarketplace() {
 
     // ─── Render ────────────────────────────────────────────────────────────────
 
-    const recientes = data?.recientes ?? [];
-    const cercanos = data?.cercanos ?? [];
     const sinGps = !latitud || !longitud;
+
+    // Cercanos deduplicados: excluye los ya mostrados en recientes y trending.
+    const cercanosDeduplicados = useMemo(() => {
+        const excluir = new Set([...idsRecientes, ...trending.map((a) => a.id)]);
+        return cercanos.filter((a) => !excluir.has(a.id));
+    }, [cercanos, idsRecientes, trending]);
+
+    // Total deduplicado para el KPI del header.
+    const totalArticulos = useMemo(() => {
+        if (!data) return 0;
+        const ids = new Set([
+            ...recientes.map((a) => a.id),
+            ...cercanos.map((a) => a.id),
+        ]);
+        return ids.size;
+    }, [data, recientes, cercanos]);
 
     return (
         <div className="min-h-full bg-transparent">
@@ -140,7 +160,7 @@ export function PaginaMarketplace() {
                                         Market<span className="text-teal-400">Place</span>
                                     </span>
                                 </div>
-                                {/* Subtítulo decorativo */}
+                                {/* Subtítulo decorativo — ciudad + total al estilo Ofertas */}
                                 <div className="flex items-center justify-center gap-2.5 pb-3">
                                     <div
                                         className="h-0.5 w-14 rounded-full"
@@ -149,8 +169,22 @@ export function PaginaMarketplace() {
                                                 'linear-gradient(90deg, transparent, rgba(20,184,166,0.7))',
                                         }}
                                     />
-                                    <span className="text-[11px] font-bold uppercase tracking-widest text-white/70">
-                                        Compra-Venta Local
+                                    <span className="text-sm font-light text-white/70 tracking-wide whitespace-nowrap">
+                                        {ciudad ? (
+                                            <>
+                                                En{' '}
+                                                <span className="font-bold text-white">
+                                                    {ciudad}
+                                                </span>
+                                                {data && (
+                                                    <> · {totalArticulos} artículos</>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
+                                                Compra-Venta Local
+                                            </span>
+                                        )}
                                     </span>
                                     <div
                                         className="h-0.5 w-14 rounded-full"
@@ -179,29 +213,55 @@ export function PaginaMarketplace() {
                                                 strokeWidth={2.5}
                                             />
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-2xl font-extrabold tracking-tight text-white 2xl:text-3xl">
-                                                Market
-                                                <span className="text-teal-400">Place</span>
+                                        <span className="text-2xl font-extrabold tracking-tight text-white 2xl:text-3xl">
+                                            Market
+                                            <span className="text-teal-400">Place</span>
+                                        </span>
+                                    </div>
+
+                                    {/* Centro: "Compra y vende en Ciudad" + subtítulo */}
+                                    <div className="min-w-0 flex-1 text-center">
+                                        <h1 className="truncate text-3xl font-light leading-tight text-white/70 2xl:text-[34px]">
+                                            Compra y vende en{' '}
+                                            <span className="font-bold text-white">
+                                                {ciudad || 'tu ciudad'}
                                             </span>
-                                            <span className="text-[11px] font-bold uppercase tracking-widest text-white/60">
-                                                Compra-Venta Local
+                                        </h1>
+                                        <div className="mt-1.5 flex items-center justify-center gap-3">
+                                            <div
+                                                className="h-0.5 w-20 rounded-full 2xl:w-24"
+                                                style={{
+                                                    background:
+                                                        'linear-gradient(90deg, transparent, rgba(20,184,166,0.7))',
+                                                }}
+                                            />
+                                            <span className="text-sm font-semibold uppercase tracking-[3px] text-teal-400/80 2xl:text-base">
+                                                artículos cerca de ti
                                             </span>
+                                            <div
+                                                className="h-0.5 w-20 rounded-full 2xl:w-24"
+                                                style={{
+                                                    background:
+                                                        'linear-gradient(90deg, rgba(20,184,166,0.7), transparent)',
+                                                }}
+                                            />
                                         </div>
                                     </div>
 
-                                    {/* CTA "+ Publicar" — alineado a la derecha.
-                                        El input de búsqueda lo aporta el Navbar
-                                        global, no este header. */}
-                                    <div className="flex-1" />
-                                    <button
-                                        data-testid="btn-publicar-desktop"
-                                        onClick={handlePublicar}
-                                        className="flex shrink-0 items-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.02]"
-                                    >
-                                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                                        Publicar artículo
-                                    </button>
+                                    {/* Derecha: solo KPI */}
+                                    {data && (
+                                        <div className="flex shrink-0 flex-col items-end">
+                                            <span
+                                                data-testid="kpi-total-articulos"
+                                                className="text-3xl font-extrabold leading-none tabular-nums text-white 2xl:text-[40px]"
+                                            >
+                                                {totalArticulos}
+                                            </span>
+                                            <span className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-teal-400/80 2xl:text-sm">
+                                                Artículos
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -213,6 +273,18 @@ export function PaginaMarketplace() {
                 CONTENIDO
             ════════════════════════════════════════════════════════════════ */}
             <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                {/* Botón Publicar — solo desktop, debajo del header */}
+                <div className="hidden lg:flex justify-end pt-4 pb-1">
+                    <button
+                        data-testid="btn-publicar-desktop"
+                        onClick={handlePublicar}
+                        className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2 text-sm font-bold text-white shadow-md hover:scale-[1.02] transition-transform"
+                    >
+                        <Plus className="h-4 w-4" strokeWidth={2.5} />
+                        Publicar artículo
+                    </button>
+                </div>
+
                 {/* Estado: sin ciudad seleccionada en el Navbar global */}
                 {!ciudad && (
                     <div className="mx-3 mt-6 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:mx-0">
@@ -255,7 +327,7 @@ export function PaginaMarketplace() {
                                     data-testid="btn-activar-ubicacion"
                                     onClick={handleActivarUbicacion}
                                     disabled={cargandoGps}
-                                    className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-teal-700 disabled:opacity-60"
+                                    className="mt-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-teal-700 disabled:opacity-60"
                                 >
                                     {cargandoGps ? 'Obteniendo...' : 'Activar ubicación'}
                                 </button>
@@ -289,7 +361,7 @@ export function PaginaMarketplace() {
                                 <button
                                     data-testid="btn-reintentar-feed"
                                     onClick={() => refetch()}
-                                    className="mt-2.5 inline-flex items-center rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-700"
+                                    className="mt-2.5 inline-flex cursor-pointer items-center rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-700"
                                 >
                                     Reintentar
                                 </button>
@@ -299,16 +371,18 @@ export function PaginaMarketplace() {
                 )}
 
                 {/* ─── Sección "Recién publicado" ────────────────────────── */}
-                {!isLoading && !isError && data && (
-                    <SeccionRecientes
-                        articulos={recientes}
-                        carruselRef={refCarrusel}
-                    />
+                {!isLoading && !isError && data && recientes.length > 0 && (
+                    <SeccionRecientes articulos={recientes} />
                 )}
 
-                {/* ─── Sección "Cerca de ti" (solo si hay GPS) ──────────── */}
-                {!isLoading && !isError && data && !sinGps && (
-                    <SeccionCercanos articulos={cercanos} />
+                {/* ─── Sección "Lo más visto hoy" (trending) ─────────────── */}
+                {!isLoading && !isError && trending.length >= 3 && (
+                    <SeccionTrending articulos={trending} />
+                )}
+
+                {/* ─── Sección "Cerca de ti" (solo si hay GPS, deduplicada) ─ */}
+                {!isLoading && !isError && data && !sinGps && cercanosDeduplicados.length >= 4 && (
+                    <SeccionCercanos articulos={cercanosDeduplicados} />
                 )}
 
                 {/* Estado: vacío total */}
@@ -343,7 +417,7 @@ export function PaginaMarketplace() {
                 data-testid="fab-publicar-mobile"
                 onClick={handlePublicar}
                 aria-label="Publicar artículo"
-                className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg transition-transform hover:scale-105 lg:hidden"
+                className="fixed bottom-20 right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg transition-transform hover:scale-105 lg:hidden"
             >
                 <Plus className="h-6 w-6" strokeWidth={2.5} />
             </button>
@@ -358,35 +432,84 @@ export function PaginaMarketplace() {
 // SECCIÓN: RECIÉN PUBLICADO (carrusel horizontal)
 // =============================================================================
 
-interface SeccionRecientesProps {
-    articulos: ArticuloFeed[];
-    carruselRef: React.RefObject<HTMLDivElement | null>;
-}
-
-function SeccionRecientes({ articulos, carruselRef }: SeccionRecientesProps) {
-    if (articulos.length === 0) return null;
+function SeccionRecientes({ articulos }: { articulos: ArticuloFeed[] }) {
+    const carruselRef = useRef<HTMLDivElement>(null);
+    useDragScroll(carruselRef);
 
     return (
         <section className="mt-6 lg:mt-8">
-            <div className="px-3 lg:px-0">
-                <h2 className="text-lg font-bold text-slate-900 lg:text-xl">
+            <div className="flex items-baseline gap-3 px-3 lg:px-0">
+                <h2 className="text-lg font-bold text-slate-900 lg:text-xl 2xl:text-2xl">
                     Recién publicado
                 </h2>
-                <p className="text-xs text-slate-500 lg:text-sm">Lo más fresco</p>
+                <span className="text-base font-semibold text-teal-500 lg:text-lg 2xl:text-xl">
+                    {articulos.length}
+                </span>
             </div>
-            <div
-                ref={carruselRef}
-                className="mt-3 flex cursor-grab gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] active:cursor-grabbing lg:gap-4 lg:px-0 [&::-webkit-scrollbar]:hidden"
-                data-testid="carrusel-recientes"
-            >
-                {articulos.map((articulo) => (
-                    <div
-                        key={articulo.id}
-                        className="w-44 shrink-0 lg:w-56 2xl:w-60"
-                    >
-                        <CardArticulo articulo={articulo} />
-                    </div>
-                ))}
+            {/* Wrapper relativo para la sombra fade derecha */}
+            <div className="relative">
+                <div
+                    ref={carruselRef}
+                    className="mt-3 flex cursor-grab select-none gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_article]:cursor-grab! active:[&_article]:cursor-grabbing! lg:gap-4 lg:px-0"
+                    data-testid="carrusel-recientes"
+                >
+                    {articulos.map((articulo) => (
+                        <div
+                            key={articulo.id}
+                            className="w-44 shrink-0 lg:w-56 2xl:w-60"
+                        >
+                            <CardArticulo articulo={articulo} />
+                        </div>
+                    ))}
+                </div>
+                {/* Sombra fade derecha — indica más contenido */}
+                <div
+                    className="pointer-events-none absolute inset-y-0 right-0 w-16 lg:w-20"
+                    style={{
+                        background: 'linear-gradient(to left, rgba(0,0,0,0.22) 0%, transparent 100%)',
+                    }}
+                />
+            </div>
+        </section>
+    );
+}
+
+// =============================================================================
+// SECCIÓN: LO MÁS VISTO HOY (carrusel horizontal, igual patrón que recientes)
+// =============================================================================
+
+function SeccionTrending({ articulos }: { articulos: ArticuloFeed[] }) {
+    const carruselRef = useRef<HTMLDivElement>(null);
+    useDragScroll(carruselRef);
+
+    return (
+        <section className="mt-8 lg:mt-10">
+            <div className="flex items-baseline gap-3 px-3 lg:px-0">
+                <h2 className="text-lg font-bold text-slate-900 lg:text-xl 2xl:text-2xl">
+                    Lo más visto hoy
+                </h2>
+                <span className="text-base font-semibold text-teal-500 lg:text-lg 2xl:text-xl">
+                    {articulos.length}
+                </span>
+            </div>
+            <div className="relative">
+                <div
+                    ref={carruselRef}
+                    className="mt-3 flex cursor-grab select-none gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_article]:cursor-grab! active:[&_article]:cursor-grabbing! lg:gap-4 lg:px-0"
+                    data-testid="carrusel-trending"
+                >
+                    {articulos.map((articulo) => (
+                        <div key={articulo.id} className="w-44 shrink-0 lg:w-56 2xl:w-60">
+                            <CardArticulo articulo={articulo} />
+                        </div>
+                    ))}
+                </div>
+                <div
+                    className="pointer-events-none absolute inset-y-0 right-0 w-16 lg:w-20"
+                    style={{
+                        background: 'linear-gradient(to left, rgba(0,0,0,0.22) 0%, transparent 100%)',
+                    }}
+                />
             </div>
         </section>
     );
@@ -405,11 +528,10 @@ function SeccionCercanos({ articulos }: SeccionCercanosProps) {
 
     return (
         <section className="mt-8 lg:mt-10">
-            <div className="px-3 lg:px-0">
-                <h2 className="text-lg font-bold text-slate-900 lg:text-xl">
+            <div className="flex items-baseline gap-3 px-3 lg:px-0">
+                <h2 className="text-lg font-bold text-slate-900 lg:text-xl 2xl:text-2xl">
                     Cerca de ti
                 </h2>
-                <p className="text-xs text-slate-500 lg:text-sm">A pasos de aquí</p>
             </div>
             <div
                 data-testid="grid-cercanos"

@@ -100,7 +100,7 @@ export function GaleriaArticulo({
                             key={`${foto}-${idx}`}
                             data-testid={`slide-${idx}`}
                             onClick={() => abrirLightbox(idx)}
-                            className="aspect-square w-full shrink-0 snap-center"
+                            className="aspect-square w-full shrink-0 snap-center cursor-pointer"
                         >
                             <img
                                 src={foto}
@@ -140,7 +140,7 @@ export function GaleriaArticulo({
                                 onClick={() => setIndiceActual(idx)}
                                 aria-label={`Ver foto ${idx + 1}`}
                                 aria-pressed={indiceActual === idx}
-                                className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-colors 2xl:h-24 2xl:w-24 ${
+                                className={`h-20 w-20 cursor-pointer shrink-0 overflow-hidden rounded-lg border-2 transition-colors 2xl:h-24 2xl:w-24 ${
                                     indiceActual === idx
                                         ? 'border-teal-500'
                                         : 'border-slate-200 hover:border-slate-400'
@@ -162,7 +162,7 @@ export function GaleriaArticulo({
                     data-testid="img-principal"
                     onClick={() => abrirLightbox(indiceActual)}
                     aria-label="Ver imagen ampliada"
-                    className="group relative flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-slate-100"
+                    className="group relative flex flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-slate-100"
                 >
                     <img
                         src={fotosOrdenadas[indiceActual]}

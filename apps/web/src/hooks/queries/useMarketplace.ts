@@ -24,6 +24,7 @@ import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
 import type {
     FeedMarketplace,
+    ArticuloFeed,
     ArticuloMarketplaceDetalle,
     ArticuloMarketplace,
     CondicionArticulo,
@@ -150,6 +151,49 @@ export async function registrarVistaArticulo(articuloId: string): Promise<void> 
         if (typeof window !== 'undefined') {
             sessionStorage.setItem(key, '1');
         }
+    } catch {
+        // Silencioso a propósito.
+    }
+}
+
+// =============================================================================
+// TRENDING "LO MÁS VISTO HOY"
+// =============================================================================
+
+interface UseTrendingMarketplaceParams {
+    ciudad: string | null | undefined;
+    excluirIds: string[];
+}
+
+/**
+ * Consume `GET /api/marketplace/feed/trending?ciudad=X&excluirIds[]=...`.
+ * Devuelve array vacío si hay menos de 3 artículos con actividad (backend).
+ * staleTime: 5 min — la métrica cambia lento y es costosa de calcular.
+ */
+export function useTrendingMarketplace({ ciudad, excluirIds }: UseTrendingMarketplaceParams) {
+    return useQuery({
+        queryKey: queryKeys.marketplace.trending(ciudad ?? '', excluirIds),
+        queryFn: async (): Promise<ArticuloFeed[]> => {
+            const params = new URLSearchParams({ ciudad: ciudad ?? '' });
+            excluirIds.forEach((id) => params.append('excluirIds[]', id));
+            const response = await api.get<{ success: boolean; data: ArticuloFeed[] }>(
+                `/marketplace/feed/trending?${params.toString()}`
+            );
+            return response.data.success ? response.data.data : [];
+        },
+        enabled: !!ciudad,
+        staleTime: 5 * 60 * 1000,
+        placeholderData: keepPreviousData,
+    });
+}
+
+/**
+ * Señal de presencia activa en el detalle del artículo.
+ * Fire-and-forget — errores silenciados (no es crítico).
+ */
+export async function heartbeatArticulo(articuloId: string): Promise<void> {
+    try {
+        await api.post(`/marketplace/articulos/${articuloId}/heartbeat`);
     } catch {
         // Silencioso a propósito.
     }

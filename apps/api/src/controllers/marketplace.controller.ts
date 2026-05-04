@@ -23,6 +23,8 @@ import {
     cambiarEstado,
     eliminarArticulo,
     registrarVista,
+    registrarHeartbeat,
+    obtenerTrending,
     generarUrlUploadImagenMarketplace,
     obtenerVendedorPorId,
     obtenerArticulosDeVendedor,
@@ -518,6 +520,68 @@ export async function getBuscarArticulos(req: Request, res: Response) {
             success: false,
             message: 'Error al ejecutar la búsqueda',
         });
+    }
+}
+
+// =============================================================================
+// TRENDING "LO MÁS VISTO HOY" (Sprint 9.1)
+// =============================================================================
+
+/**
+ * GET /api/marketplace/feed/trending?ciudad=X&excluirIds[]=id1&excluirIds[]=id2
+ * Devuelve hasta 10 artículos ordenados por score de actividad 24h.
+ * Si hay menos de 3 con actividad, devuelve array vacío (sección oculta).
+ */
+export async function getTrendingFeed(req: Request, res: Response) {
+    try {
+        const ciudad = (req.query.ciudad as string | undefined)?.trim();
+        if (!ciudad) {
+            return res.status(400).json({ success: false, message: 'ciudad es requerida' });
+        }
+
+        const excluirRaw = req.query.excluirIds;
+        const excluirIds: string[] = Array.isArray(excluirRaw)
+            ? (excluirRaw as string[]).filter((id) => UUID_REGEX.test(id))
+            : typeof excluirRaw === 'string' && UUID_REGEX.test(excluirRaw)
+              ? [excluirRaw]
+              : [];
+
+        const data = await obtenerTrending(ciudad, excluirIds);
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error en getTrendingFeed:', error);
+        return res.status(500).json({ success: false, message: 'Error al obtener trending' });
+    }
+}
+
+// =============================================================================
+// HEARTBEAT "VIENDO AHORA" (Sprint 9.1)
+// =============================================================================
+
+/**
+ * POST /api/marketplace/articulos/:id/heartbeat
+ * El usuario autenticado señala que sigue en el detalle del artículo.
+ * Actualiza su score en el Sorted Set de Redis con timestamp actual.
+ * Fire-and-forget desde el frontend cada 60s — responde siempre { ok: true }.
+ */
+export async function postHeartbeat(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+        if (!UUID_REGEX.test(id)) {
+            return res.status(400).json({ success: false, message: 'El ID del artículo no es válido' });
+        }
+
+        const usuarioId = obtenerUsuarioId(req);
+        if (!usuarioId) {
+            return res.status(401).json({ success: false, message: 'No autenticado' });
+        }
+
+        await registrarHeartbeat(id, usuarioId);
+        return res.json({ ok: true });
+    } catch (error) {
+        console.error('Error en postHeartbeat:', error);
+        // No exponemos el error — el heartbeat es best-effort.
+        return res.json({ ok: true });
     }
 }
 

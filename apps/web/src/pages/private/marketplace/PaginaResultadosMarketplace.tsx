@@ -157,7 +157,7 @@ export function PaginaResultadosMarketplace() {
                             data-testid="btn-volver-resultados"
                             onClick={() => navigate('/marketplace')}
                             aria-label="Volver al MarketPlace"
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
+                            className="flex h-10 w-10 cursor-pointer shrink-0 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
                         >
                             <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                         </button>
@@ -185,7 +185,7 @@ export function PaginaResultadosMarketplace() {
                             <button
                                 data-testid="btn-ordenar"
                                 onClick={() => setOrdenarAbierto((v) => !v)}
-                                className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                             >
                                 {ordenLabel}
                                 <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -200,7 +200,7 @@ export function PaginaResultadosMarketplace() {
                                                 actualizarFiltro('ordenar', o.valor);
                                                 setOrdenarAbierto(false);
                                             }}
-                                            className={`block w-full px-3 py-2 text-left text-xs ${
+                                            className={`block w-full cursor-pointer px-3 py-2 text-left text-xs ${
                                                 (filtros.ordenar ?? 'recientes') === o.valor
                                                     ? 'bg-teal-50 font-semibold text-teal-700'
                                                     : 'text-slate-700 hover:bg-slate-50'
@@ -217,7 +217,7 @@ export function PaginaResultadosMarketplace() {
                             data-testid="btn-abrir-filtros-mobile"
                             onClick={() => setFiltrosMobileAbierto(true)}
                             aria-label="Abrir filtros"
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 lg:hidden"
+                            className="flex h-10 w-10 cursor-pointer shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 lg:hidden"
                         >
                             <SlidersHorizontal className="h-4 w-4" strokeWidth={2.5} />
                             {chipsActivos.length > 0 && (
@@ -244,7 +244,7 @@ export function PaginaResultadosMarketplace() {
                                         data-testid={`btn-quitar-chip-${chip.key}`}
                                         onClick={() => quitarFiltro(chip.key)}
                                         aria-label={`Quitar filtro ${chip.label}`}
-                                        className="flex h-5 w-5 items-center justify-center rounded-full text-teal-700 hover:bg-teal-100"
+                                        className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-teal-700 hover:bg-teal-100"
                                     >
                                         <X className="h-3 w-3" strokeWidth={2.5} />
                                     </button>
@@ -253,7 +253,7 @@ export function PaginaResultadosMarketplace() {
                             <button
                                 data-testid="btn-limpiar-todos-chips"
                                 onClick={limpiarFiltros}
-                                className="ml-1 text-xs font-semibold text-rose-600 hover:text-rose-700"
+                                className="ml-1 cursor-pointer text-xs font-semibold text-rose-600 hover:text-rose-700"
                             >
                                 Limpiar todos
                             </button>
@@ -376,7 +376,7 @@ function EstadoVacio({ query, hayFiltros, onLimpiar }: EstadoVacioProps) {
                 <button
                     data-testid="btn-limpiar-filtros-vacio"
                     onClick={onLimpiar}
-                    className="mt-4 inline-flex items-center rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2 text-sm font-bold text-white"
+                    className="mt-4 inline-flex cursor-pointer items-center rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2 text-sm font-bold text-white"
                 >
                     Limpiar filtros
                 </button>

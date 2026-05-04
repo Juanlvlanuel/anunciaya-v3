@@ -36,8 +36,10 @@
 import { Router } from 'express';
 import {
     getFeed,
+    getTrendingFeed,
     getArticulo,
     postRegistrarVista,
+    postHeartbeat,
     postCrearArticulo,
     putActualizarArticulo,
     patchCambiarEstado,
@@ -68,6 +70,13 @@ const router: Router = Router();
 router.get('/feed', verificarTokenOpcional, getFeed);
 
 /**
+ * GET /api/marketplace/feed/trending?ciudad=X&excluirIds[]=id1...
+ * Top artículos por actividad 24h. Array vacío si < 3 con actividad.
+ * IMPORTANTE: declarado ANTES de /articulos/:id para que Express no lo confunda.
+ */
+router.get('/feed/trending', verificarTokenOpcional, getTrendingFeed);
+
+/**
  * GET /api/marketplace/articulos/:id
  * Detalle público para link compartido. Funciona con o sin login.
  */
@@ -78,6 +87,14 @@ router.get('/articulos/:id', verificarTokenOpcional, getArticulo);
  * Incrementa total_vistas. Sin auth requerida.
  */
 router.post('/articulos/:id/vista', postRegistrarVista);
+
+/**
+ * POST /api/marketplace/articulos/:id/heartbeat
+ * Señal de presencia activa del usuario en el detalle. Privado.
+ * Actualiza Sorted Set Redis con TTL de 2 min por usuario.
+ * NOTA: registrado antes de las rutas paramétricas genéricas de /:id.
+ */
+router.post('/articulos/:id/heartbeat', verificarToken, postHeartbeat);
 
 /**
  * GET /api/marketplace/buscar/sugerencias?q=...&ciudad=...

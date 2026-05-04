@@ -90,7 +90,7 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
                 <button
                     data-testid="btn-whatsapp"
                     onClick={handleWhatsApp}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#1fb858]"
+                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#1fb858]"
                 >
                     <MessageCircle className="h-4 w-4" strokeWidth={2.5} />
                     WhatsApp
@@ -99,7 +99,7 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
             <button
                 data-testid="btn-enviar-mensaje"
                 onClick={handleEnviarMensaje}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
+                className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
             >
                 <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
                 Enviar mensaje

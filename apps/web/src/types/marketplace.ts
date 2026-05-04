@@ -62,6 +62,10 @@ export interface ArticuloMarketplace {
 export interface ArticuloFeed extends ArticuloMarketplace {
     /** Distancia en metros entre el usuario y el artículo. null si no aplica. */
     distanciaMetros: number | null;
+    /** Usuarios con heartbeat activo en los últimos 2 min (Redis). */
+    viendo?: number;
+    /** Vistas en las últimas 24h (Redis). */
+    vistas24h?: number;
 }
 
 /**
@@ -88,6 +92,10 @@ export interface VendedorArticulo {
      * en su perfil — en ese caso el FE oculta el botón WhatsApp.
      */
     telefono: string | null;
+    /** ISO o formato Postgres de `usuarios.ultima_conexion`. null si no disponible. */
+    ultimaConexion?: string | null;
+    /** Promedio de minutos de respuesta en los últimos 30 días. null si sin datos. */
+    tiempoRespuestaMinutos?: number | null;
 }
 
 /**

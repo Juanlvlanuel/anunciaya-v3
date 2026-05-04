@@ -98,6 +98,40 @@ export function formatearTiempoRelativo(timestamp: string): string {
 }
 
 // =============================================================================
+// FORMATO DE ÚLTIMA CONEXIÓN DEL VENDEDOR
+// =============================================================================
+
+/**
+ * Formatea `usuarios.ultima_conexion` para la mini-bio del vendedor en P2.
+ *
+ * Rangos:
+ *   < 5 min   → "Activa ahora"
+ *   < 60 min  → "Activa hace X minutos"
+ *   < 24h     → "Activa hace X horas"
+ *   < 7 días  → "Activa hace X días"
+ *   >= 7 días → null (no aporta confianza, no se muestra)
+ *   null      → null
+ */
+export function formatearUltimaConexion(ultimaConexion: string | null | undefined): string | null {
+    if (!ultimaConexion) return null;
+    const fecha = parsearFechaPostgres(ultimaConexion);
+    const diff = Date.now() - fecha.getTime();
+
+    if (diff < 5 * MIN_EN_MS) return 'Activa ahora';
+    if (diff < HORA_EN_MS) {
+        const min = Math.floor(diff / MIN_EN_MS);
+        return `Activa hace ${min} minuto${min !== 1 ? 's' : ''}`;
+    }
+    if (diff < DIA_EN_MS) {
+        const horas = Math.floor(diff / HORA_EN_MS);
+        return `Activa hace ${horas} hora${horas !== 1 ? 's' : ''}`;
+    }
+    const dias = Math.floor(diff / DIA_EN_MS);
+    if (dias < 7) return `Activa hace ${dias} día${dias !== 1 ? 's' : ''}`;
+    return null;
+}
+
+// =============================================================================
 // HELPERS DE ARTÍCULO
 // =============================================================================
 

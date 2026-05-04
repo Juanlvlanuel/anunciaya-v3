@@ -46,6 +46,7 @@ import { useAuthStore } from '../../../stores/useAuthStore';
 import {
     useArticuloMarketplace,
     registrarVistaArticulo,
+    heartbeatArticulo,
     useReactivarArticulo,
 } from '../../../hooks/queries/useMarketplace';
 import { useGuardados } from '../../../hooks/useGuardados';
@@ -101,6 +102,22 @@ export function PaginaArticuloMarketplace() {
         if (usuarioActual?.id === articulo.vendedor.id) return;
         registrarVistaArticulo(articuloId);
     }, [articulo, articuloId, usuarioActual?.id]);
+
+    // ─── Heartbeat "viendo ahora" — solo usuarios autenticados ─────────────────
+    // Primer ping a los 5s (evita contar rebotes). Luego cada 60s.
+    useEffect(() => {
+        if (!articuloId || !usuarioActual) return;
+        const primerPing = setTimeout(() => {
+            heartbeatArticulo(articuloId);
+        }, 5000);
+        const intervalo = setInterval(() => {
+            heartbeatArticulo(articuloId);
+        }, 60_000);
+        return () => {
+            clearTimeout(primerPing);
+            clearInterval(intervalo);
+        };
+    }, [articuloId, usuarioActual]);
 
     // ─── Cerrar menú al hacer click fuera ──────────────────────────────────────
     useEffect(() => {
@@ -178,7 +195,7 @@ export function PaginaArticuloMarketplace() {
                                 data-testid="btn-volver-articulo"
                                 onClick={handleVolver}
                                 aria-label="Volver"
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md transition-colors hover:bg-white"
+                                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md transition-colors hover:bg-white"
                             >
                                 <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                             </button>
@@ -201,7 +218,7 @@ export function PaginaArticuloMarketplace() {
                                             : 'Guardar artículo'
                                     }
                                     aria-pressed={guardado}
-                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md transition-colors hover:bg-white disabled:opacity-50"
+                                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md transition-colors hover:bg-white disabled:opacity-50"
                                 >
                                     <Heart
                                         className="h-4 w-4"
@@ -218,7 +235,7 @@ export function PaginaArticuloMarketplace() {
                                         aria-label="Más opciones"
                                         aria-haspopup="menu"
                                         aria-expanded={menuAbierto}
-                                        className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md transition-colors hover:bg-white"
+                                        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md transition-colors hover:bg-white"
                                     >
                                         <MoreVertical className="h-5 w-5" strokeWidth={2.5} />
                                     </button>
@@ -231,7 +248,7 @@ export function PaginaArticuloMarketplace() {
                                             <button
                                                 data-testid="opcion-bloquear-vendedor"
                                                 onClick={handleBloquearVendedor}
-                                                className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                                className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                                             >
                                                 Bloquear vendedor
                                             </button>
@@ -358,7 +375,7 @@ function BotonReactivar({ onClick, cargando }: BotonReactivarProps) {
             data-testid="btn-reactivar-articulo"
             onClick={onClick}
             disabled={cargando}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-br from-teal-600 to-teal-800 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] disabled:opacity-60"
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-teal-600 to-teal-800 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] disabled:opacity-60"
         >
             <PlayCircle className="h-4 w-4" strokeWidth={2.5} />
             {cargando ? 'Reactivando…' : 'Reactivar publicación'}

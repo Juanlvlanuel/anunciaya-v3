@@ -208,7 +208,7 @@ export function FiltrosBuscador({
                     <button
                         data-testid="btn-limpiar-filtros-desktop"
                         onClick={handleLimpiar}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                        className="cursor-pointer text-xs font-semibold text-rose-600 hover:text-rose-700"
                     >
                         Limpiar
                     </button>
@@ -217,7 +217,7 @@ export function FiltrosBuscador({
                 <button
                     data-testid="btn-aplicar-filtros-desktop"
                     onClick={handleAplicar}
-                    className="mt-5 w-full rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-bold text-white"
+                    className="mt-5 w-full cursor-pointer rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-bold text-white"
                 >
                     Aplicar filtros
                 </button>
@@ -243,7 +243,7 @@ export function FiltrosBuscador({
                         data-testid="btn-cerrar-filtros-mobile"
                         onClick={onCerrar}
                         aria-label="Cerrar filtros"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100"
+                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg hover:bg-slate-100"
                     >
                         <X className="h-5 w-5" strokeWidth={2.5} />
                     </button>
@@ -253,14 +253,14 @@ export function FiltrosBuscador({
                     <button
                         data-testid="btn-limpiar-filtros-mobile"
                         onClick={handleLimpiar}
-                        className="flex-1 rounded-lg border-2 border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                        className="flex-1 cursor-pointer rounded-lg border-2 border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
                     >
                         Limpiar
                     </button>
                     <button
                         data-testid="btn-aplicar-filtros-mobile"
                         onClick={handleAplicar}
-                        className="flex-1 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-bold text-white"
+                        className="flex-1 cursor-pointer rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-bold text-white"
                     >
                         Aplicar
                     </button>
@@ -291,7 +291,7 @@ function Bloque({
 
 function chipClase(activo: boolean): string {
     return [
-        'rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-colors',
+        'cursor-pointer rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-colors',
         activo
             ? 'border-teal-500 bg-teal-50 text-teal-900'
             : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',

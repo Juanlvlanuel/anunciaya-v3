@@ -7,6 +7,85 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [03-04 Mayo 2026] - MarketPlace v1 — Compra-venta P2P de objetos físicos 🛒
+
+**Módulo nuevo completo:** sección pública para que usuarios en modo Personal compren y vendan objetos físicos entre sí (P2P), con transacción 100% offline (la app NO procesa pagos ni envíos, solo conecta comprador y vendedor por ChatYA o WhatsApp).
+
+**Filosofía:** alternativa ordenada y profesional a Facebook Marketplace. Hiperlocal, sin caos, división estricta entre objetos físicos (MarketPlace) y servicios. Sin subastas, sin rifas, sin servicios disfrazados.
+
+**7 sprints implementados (v1 cerrado):**
+
+**Sprint 1 — Backend Base** (`e2cca03`):
+- Tabla `articulos_marketplace` con PostGIS (ubicación exacta privada + ubicación aproximada aleatorizada 500m con `r=R·√random()` y compensación por latitud).
+- 10 endpoints CRUD (públicos y privados con `requiereModoPersonal`), validaciones Zod, integración con R2 (presigned URLs prefijo `marketplace/`).
+- Modificaciones a `chat_conversaciones` (+`articulo_marketplace_id`+`vendedor_marketplace`), `guardados` (+`articulo_marketplace`), `notificaciones` (+3 tipos).
+- 4 tests unitarios del helper `aleatorizarCoordenada` (privacidad de ubicación).
+
+**Sprint 2 — Feed Frontend** (`78c38f9`):
+- `PaginaMarketplace.tsx` con header dark teal + carrusel "Recién publicado" + grid "Cerca de ti" (responsive 2/4/6 cols).
+- `CardArticulo.tsx` estilo B (imagen aspect 1:1 arriba + bloque blanco abajo), badge "NUEVO" si <24h, ❤️ con `useGuardados`.
+- `ModoPersonalEstrictoGuard` separado de `ModoGuard` (bloqueo total, sin auto-cambio): modo Comercial → redirige a `/inicio`.
+- Bug cazado: "hace NaN meses" por offset Postgres `+00` (sin colon) que rompía `new Date()` en Safari iOS. Fix con regex en helper `parsearFechaPostgres`.
+- QA post-Sprint 2 detectó input duplicado en header local. **Decisión arquitectónica corregida:** el buscador físico vive SOLO en el Navbar global (`useSearchStore`); MarketPlace solo aporta el overlay con contenido (recientes/populares/sugerencias).
+
+**Sprint 3 — Detalle del Artículo** (`ac1d6a6`):
+- `PaginaArticuloMarketplace.tsx` con header transparente flotante, galería con `ModalImagenes` reusado (lightbox), `CardVendedor`, `MapaUbicacion` (Leaflet `<Circle radius={500}>` sin marker).
+- `BarraContacto`: WhatsApp (verde `#25D366`) + "Enviar mensaje" → `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'`.
+- Vista solo NO-dueños + dedupe sessionStorage por `articuloId`.
+- 404 amigable con icono + botón "Volver al MarketPlace" (no pantalla blanca).
+- Backend tweak: agregado `telefono` al SELECT de `obtenerArticuloPorId`.
+
+**Sprint 4 — Wizard de Publicar + Moderación Autónoma** (`1f772be`):
+- `PaginaPublicarArticulo.tsx` wizard 3 pasos (Fotos+Título → Precio+Detalles → Ubicación+Confirmación), state machine inline, auto-save sessionStorage debounced 500ms.
+- Hidratación dual: modo crear lee sessionStorage, modo editar precarga del backend.
+- Vista previa en vivo solo desktop (lg+).
+- **Capa 1 de Moderación Autónoma** en `services/marketplace/filtros.ts`:
+  - 5 categorías de palabras prohibidas (rifas, subastas, esquemas, adultos, ilegal) con match case-insensitive, sin acentos, por palabra completa con `\b`.
+  - 32 tests unitarios cubren palabras exactas, mayúsculas, edge cases que NO deben matchear (subastasta, barrifa, armario, boletines).
+  - Detección suave de servicios ("doy clases", "ofrezco mis servicios") y búsquedas ("busco", "necesito") → modal `ModalSugerenciaModeracion` con 2 botones (Editar / Continuar de todos modos).
+  - Rechazo duro → 422 con mensaje específico por categoría. Sugerencia suave → 200 con warning, acepta `confirmadoPorUsuario:true`.
+- Validación de precio < $10: advertencia frontend (no bloquea).
+- **Decisión: SIN sistema de reportes** — sin equipo para revisar, sería falsa promesa al usuario. Moderación 100% automatizada.
+- 3 tests E2E con curl validan rechazo + sugerencia + confirmación.
+
+**Sprint 5 — Perfil del Vendedor** (`24f31c8`):
+- `PaginaPerfilVendedor.tsx`: hero SIN portada decorativa (decisión consciente — banner teal full-width se ve como publicidad). Avatar grande centrado + nombre + ciudad + miembro desde + 3 KPIs en fila inline.
+- KPIs reales: publicaciones activas, vendidos, tiempo de respuesta promedio (CTE sobre `chat_mensajes` SIN filtro `contexto_tipo` — característica de la persona, no del módulo).
+- Botón "Seguir vendedor" con `useVotos` (`entity_type='usuario'`, `tipo_accion='follow'`). Migración SQL para extender `votos_entity_type_check` con `'usuario'`.
+- Tabs Publicaciones/Vendidos con CardArticulo reusada + overlay slate translúcido + "VENDIDO" en tab Vendidos.
+- Si visitas tu propio perfil → botones Mensaje/Seguir ocultos.
+- SIN badge "✓ Verificado" en v1 (todos tienen correo verificado por ser requisito de login, no diferencia a nadie).
+
+**Sprint 6 — Buscador Potenciado** (`10cf522`):
+- 3 endpoints: `/buscar/sugerencias` (top 5 títulos vía FTS español), `/buscar/populares` (top 6 últimos 7 días, cache Redis 1h), `/buscar` (filtros + orden + paginado, fire-and-forget log).
+- `OverlayBuscadorMarketplace.tsx` SIN input propio — anclado al `useSearchStore` global, muestra recientes (localStorage FIFO 10) + populares + sugerencias en vivo (debounce 300ms).
+- `PaginaResultadosMarketplace.tsx` con header sticky, dropdown ordenar (recientes/cercanos/precio asc/desc), chips de filtros activos, scroll infinito (`IntersectionObserver`).
+- `FiltrosBuscador.tsx`: bottom sheet móvil + sidebar desktop (Distancia/Precio/Condición). Filtro "Acepta ofertas" omitido v1 (default true, devolvería todo).
+- URL state con `URLSearchParams` — `/marketplace/buscar?q=...&precioMax=...&condicion=...` compartible y bookmarkeable.
+- **Privacidad:** `marketplace_busquedas_log` guarda `usuario_id = NULL` siempre. Sanitización del término (`trim()` + `toLowerCase()` + regex puntuación + `length >= 3`) evita basura en populares.
+- Navbar `onFocus` emite `abrirBuscador()` solo en `/marketplace*`. Snapshot a11y confirma 1 solo `textbox` visible (no duplicación).
+
+**Sprint 7 — Polish + Crons + Página Pública (cierre v1)** (commit pendiente):
+- Cron `marketplace-expiracion.cron.ts`: auto-pausa cada 6h (TTL 30 días) + notificación próxima expiración 1 vez al día 09:00 UTC. Notificaciones idempotentes.
+- Endpoint `POST /:id/reactivar` (extiende +30d, solo dueño + estado=pausada).
+- `PaginaArticuloMarketplacePublico.tsx` (`/p/articulo-marketplace/:id`): versión pública sin login, OG tags vía `useOpenGraph` (foto + precio + título). Mensajes diferenciados por estado (vendida / pausada / eliminada). **Privacidad: SIN WhatsApp directo** en página pública (evita scrapers de teléfonos), solo "Enviar mensaje" → `ModalAuthRequerido`.
+- Detalle privado: botón "Reactivar" REEMPLAZA BarraContacto cuando dueño + estado=pausada.
+- Tab "Artículos" en `PaginaGuardados` activada con hook paralelo `useArticulosMarketplaceGuardados` (NO se modificó polimórfico para no romper Ofertas/Negocios).
+- 4 tests E2E Playwright con flujos felices.
+
+**Sprint 8 — Sistema de Niveles del Vendedor:** ⏸ **Pendiente para post-beta.** Diseñado completo (5 niveles 0-4 estilo MercadoLíder, cron diario, confirmación de compra sin fricción) pero pospuesto hasta tener data real (≥2-3 meses uso o 50+ ventas confirmadas) para validar umbrales con comportamiento real.
+
+**Documentación:** `docs/arquitectura/MarketPlace.md` (1,329 líneas) describe el módulo completo en su estado final + `docs/reportes/marketplace-v1/` con los 7 reportes de sprint.
+
+**Migraciones SQL aplicadas:**
+- `2026-05-03-marketplace-base.sql` (Sprint 1)
+- `2026-05-04-marketplace-votos-usuario.sql` (Sprint 5)
+- `2026-05-04-marketplace-busquedas-log.sql` (Sprint 6)
+
+**Commits:** `e2cca03` · `78c38f9` · `ac1d6a6` · `1f772be` · `24f31c8` · `10cf522` · (Sprint 7 pendiente).
+
+---
+
 ## [29 Abril 2026] - Almacenamiento de imágenes consolidado en Cloudflare R2 🧹
 
 Stack de imágenes unificado: Cloudflare R2 con presigned URLs es el único proveedor.

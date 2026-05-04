@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 1 Mayo 2026
-> **Progreso global:** Sección Ofertas Públicas v1.4 cerrada ✅ (analytics, multi-sucursal, swipe, modal completo)
-> **Fase actual:** Próximo bloque grande = MarketPlace + Servicios + Home con Pregúntale a Peñasco
+> **Última actualización:** 4 Mayo 2026
+> **Progreso global:** MarketPlace v1 cerrado ✅ (7 sprints completados, 1 opcional pendiente para post-beta)
+> **Fase actual:** Próximo bloque = Servicios + Home con Pregúntale a Peñasco
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (define las 4 secciones públicas y el alcance de v1)
 
 ---
@@ -21,7 +21,7 @@
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
 | **Business Studio** (5.4) | ⏳ 92% (12/13 módulos) | Vacantes (alimenta sección pública Servicios) |
-| **Secciones Públicas** (6.x) | ⏳ 33% (1/3) | ✅ Ofertas v1.4 (1 May 2026). Pendiente: MarketPlace, Servicios |
+| **Secciones Públicas** (6.x) | ⏳ 67% (2/3) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1 (4 May 2026). Pendiente: Servicios |
 | **Home — Pregúntale a Peñasco** | ⏳ 0% | Feed conversacional + buscador hiperlocal + mascota. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §4 |
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
@@ -38,7 +38,8 @@
 **Q2 (Abril-Junio) — Meta:**
 - [ ] Business Studio 100% (13/13 módulos) — falta: Vacantes
 - [x] **Sección pública Ofertas** ✅ (1 May 2026 — feed editorial, multi-sucursal, swipe, analytics)
-- [ ] Secciones públicas restantes: MarketPlace, Servicios
+- [x] **Sección pública MarketPlace v1** ✅ (4 May 2026 — compra-venta P2P, moderación autónoma, buscador potenciado, página pública compartible)
+- [ ] Sección pública restante: Servicios
 - [ ] Home con Pregúntale a Peñasco
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto
@@ -68,6 +69,13 @@
 | Sprint 13 | ScanYA Multi-Sucursal: selector cambio sucursal (dueño), Coherencia A (token = fuente verdad), aislamiento datos por sucursal, label Matriz cross-app, fix race-condition modales, exclusión mutua chat/modales, fix stats Empleados desde `puntos_transacciones` | 28 Abr 2026 |
 | Sprint 14 | Calidad post-multi-sucursal: fix zona horaria por sucursal en Reportes (5 zonas MX), auto-cierre de turnos colgados con modal de aviso al login, rediseño profesional PanelInfoContacto + Regla 13 estética B2B, Mis Notas multi-sucursal en ChatYA, fix etiqueta "Matriz" en buscador | 28-29 Abr 2026 |
 | Sprint 15 | **Sección Ofertas Públicas v1.4**: feed editorial (Hero rotativo + carruseles + ticker logos + lista densa), modelo de analytics estándar (vista/click/share con anti-inflación 1/usuario/día + insider rule), multi-sucursal en modal con lista de sucursales, vista expandida via chip "Todas", swipe drag-en-vivo + flechas desktop, fix interceptor sucursalId, distancia con MapPin, cálculo correcto "Vence en N días", header del negocio en modal con click → perfil, GPS opcional en destacada del día. **55 tests** (38 backend + 17 E2E) | 1 May 2026 |
+| Sprint 16 | **MarketPlace Sprint 1 — Backend Base**: tabla `articulos_marketplace` con PostGIS (ubicación exacta privada + ubicación aproximada aleatorizada 500m con `r=R·√random()`), 10 endpoints CRUD con `requiereModoPersonal`, validaciones Zod, integración R2, 4 tests del helper de privacidad de ubicación | 3 May 2026 |
+| Sprint 17 | **MarketPlace Sprint 2 — Feed Frontend**: `PaginaMarketplace.tsx` con header dark teal + carrusel Recién publicado + grid Cerca de ti, `CardArticulo` estilo B, `ModoPersonalEstrictoGuard` (bloqueo total sin auto-cambio), bug "hace NaN meses" cazado en QA (offset Postgres `+00` rompía `new Date()` en Safari iOS) | 3 May 2026 |
+| Sprint 18 | **MarketPlace Sprint 3 — Detalle del Artículo**: `PaginaArticuloMarketplace.tsx` con galería + lightbox reusado, `CardVendedor`, `MapaUbicacion` con círculo 500m sin marker, `BarraContacto` con WhatsApp + Enviar mensaje vía ChatYA, vista solo NO-dueños + dedupe sessionStorage, 404 amigable | 4 May 2026 |
+| Sprint 19 | **MarketPlace Sprint 4 — Wizard de Publicar + Moderación Autónoma**: wizard 3 pasos con auto-save sessionStorage + vista previa en vivo desktop, **Capa 1 de Moderación Autónoma** (`filtros.ts` con 5 categorías de palabras prohibidas + detección suave de servicios y búsquedas), 32 tests unitarios cubriendo edge cases (subastasta, barrifa, armario), 3 tests E2E con curl | 4 May 2026 |
+| Sprint 20 | **MarketPlace Sprint 5 — Perfil del Vendedor**: `PaginaPerfilVendedor.tsx` SIN portada decorativa + SIN badge verificado (decisiones conscientes de Regla 13), KPIs reales (publicaciones activas, vendidos, tiempo de respuesta sin filtro `contexto_tipo`), botón Seguir vendedor con migración SQL para `votos_entity_type_check += 'usuario'`, tabs Publicaciones/Vendidos | 4 May 2026 |
+| Sprint 21 | **MarketPlace Sprint 6 — Buscador Potenciado**: 3 endpoints (sugerencias FTS español + populares cache Redis 1h + buscar paginado), `OverlayBuscadorMarketplace` SIN input propio (anclado al `useSearchStore` global del Navbar), página de resultados con scroll infinito + URL state compartible, `FiltrosBuscador` (Distancia/Precio/Condición), privacidad: `usuario_id=NULL` siempre + sanitización del término | 4 May 2026 |
+| Sprint 22 | **MarketPlace Sprint 7 — Polish + Crons + Página Pública (cierre v1)**: cron auto-pausa cada 6h + cron próxima expiración diario 09:00 UTC (notificaciones idempotentes), endpoint `/reactivar` extiende +30d, `PaginaArticuloMarketplacePublico` con OG tags + mensajes diferenciados por estado + SIN WhatsApp directo (privacidad), botón Reactivar reemplaza BarraContacto, tab "Artículos" en Mis Guardados activada, 4 tests E2E Playwright | 4 May 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -84,6 +92,7 @@
 | Cupones: ChatYA + Revocar/Reactivar + Rediseño | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Promociones.md` |
 | Mis Guardados: Rediseño estilo CardYA (rose) | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Guardados.md` |
 | **Sección Ofertas Públicas v1.4** | ✅ 100% | 1 May 2026 | `docs/arquitectura/Ofertas.md` |
+| **Sección MarketPlace v1** (P2P, moderación autónoma, buscador potenciado) | ✅ 100% (7 sprints) | 4 May 2026 | `docs/arquitectura/MarketPlace.md` |
 
 ### Pendientes menores
 
@@ -97,7 +106,7 @@
 
 ---
 
-## ⏭️ Sprint siguiente: MarketPlace + Servicios + Home con Pregúntale a Peñasco
+## ⏭️ Sprint siguiente: Servicios + Home con Pregúntale a Peñasco
 
 ---
 
@@ -138,9 +147,13 @@
 - 55 tests pasando (38 backend + 17 E2E).
 - Detalle: `docs/arquitectura/Ofertas.md` v1.4.
 
-**6.1 MarketPlace** (~4 días)
-- Compra-venta de **objetos** entre usuarios (modo Personal).
-- Requiere ChatYA completado ✅
+**6.1 MarketPlace v1** ✅ Cerrada 4 May 2026
+- Compra-venta de **objetos físicos** entre usuarios (modo Personal), transacción 100% offline (sin pagos en la app).
+- 7 sprints: backend base, feed, detalle, wizard publicar + moderación autónoma (5 categorías de palabras prohibidas + 32 tests), perfil del vendedor con KPIs reales, buscador potenciado (sugerencias FTS + populares + filtros + URL state), polish (crons auto-pausa + página pública compartible + tab Artículos en Mis Guardados + tests E2E).
+- Filosofía: alternativa ordenada y profesional a Facebook Marketplace. Hiperlocal, división estricta entre objetos físicos (MarketPlace) y servicios. Sin subastas, sin rifas, sin servicios disfrazados.
+- Decisiones clave: SIN sistema de reportes (moderación 100% autónoma), SIN portada en perfil del vendedor (estética profesional), SIN WhatsApp directo en página pública (privacidad de teléfonos), buscador anclado al Navbar global.
+- Sprint 8 (Sistema de Niveles del Vendedor) **pendiente para post-beta** — los umbrales se ajustan mejor con data real de comportamiento.
+- Detalle: `docs/arquitectura/MarketPlace.md` v1.0.
 
 **6.2 Servicios** (~4 días)
 - Sección unificada: servicios e intangibles, incluye empleos.
@@ -250,14 +263,15 @@
 | Fase | Tiempo Estimado |
 |------|-----------------|
 | Sistema Lealtad + ChatYA + Promociones | ✅ Completado |
+| **Sección MarketPlace v1** | ✅ Completado (4 May 2026) |
 | BS Módulos Pendientes (1/13: Vacantes) | ~2 días |
-| Secciones Públicas restantes (6.1-6.2: MarketPlace, Servicios) | ~8 días |
+| Sección pública restante (6.2: Servicios) | ~4 días |
 | Home — Pregúntale a Peñasco | por estimar (depende del diseño) |
 | Panel Admin (6.7) | ~14 días |
 | Pre-lanzamiento (7.1) | ~5 días |
 | Beta (7.2) | ~21 días |
-| **TOTAL OPTIMISTA** | **~8-10 semanas** |
-| **TOTAL REALISTA** | **~10-12 semanas** |
+| **TOTAL OPTIMISTA** | **~6-8 semanas** |
+| **TOTAL REALISTA** | **~8-10 semanas** |
 
 **Fecha lanzamiento público proyectada:** Mayo-Junio 2026
 
@@ -291,7 +305,7 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 
 ## 📅 Próxima Revisión
 
-**Fecha:** Al completar Secciones Públicas (6.0-6.2) + Home con Pregúntale a Peñasco
+**Fecha:** Al completar Sección Servicios (6.2) + Home con Pregúntale a Peñasco
 **Alcance:** Activación de BS Vacantes (alimenta Servicios) y arranque de Panel Admin
 
 ---

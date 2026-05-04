@@ -21,7 +21,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Heart, MapPin, ImageOff } from 'lucide-react';
+import { Heart, MapPin, ImageOff, Users, Eye } from 'lucide-react';
 import { useGuardados } from '../../hooks/useGuardados';
 import {
     formatearDistancia,
@@ -47,6 +47,29 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
     const esNuevo = esArticuloNuevo(articulo.createdAt);
     const distancia = formatearDistancia(articulo.distanciaMetros);
     const tiempo = formatearTiempoRelativo(articulo.createdAt);
+
+    // Señal de actividad — una sola línea, en orden de prioridad.
+    const senalActividad: { icono: React.ReactNode; texto: string } | null = (() => {
+        if ((articulo.viendo ?? 0) >= 3) {
+            return {
+                icono: <Users className="h-3 w-3 shrink-0" strokeWidth={2} />,
+                texto: `${articulo.viendo} personas viendo ahora`,
+            };
+        }
+        if (articulo.totalGuardados >= 5) {
+            return {
+                icono: <Heart className="h-3 w-3 shrink-0" strokeWidth={2} />,
+                texto: `${articulo.totalGuardados} personas lo guardaron`,
+            };
+        }
+        if ((articulo.vistas24h ?? 0) >= 20) {
+            return {
+                icono: <Eye className="h-3 w-3 shrink-0" strokeWidth={2} />,
+                texto: `Visto ${articulo.vistas24h} veces hoy`,
+            };
+        }
+        return null;
+    })();
 
     const handleClickCard = () => {
         navigate(`/marketplace/articulo/${articulo.id}`);
@@ -95,7 +118,7 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
                     disabled={loading}
                     aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
                     aria-pressed={guardado}
-                    className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-md transition-colors hover:bg-white hover:text-rose-500 disabled:opacity-50"
+                    className="absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-md transition-colors hover:bg-white hover:text-rose-500 disabled:opacity-50"
                 >
                     <Heart
                         className="h-4 w-4"
@@ -129,6 +152,17 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
                     )}
                     <span>{tiempo}</span>
                 </div>
+
+                {/* Señal de actividad — condicional, máximo una línea */}
+                {senalActividad && (
+                    <div
+                        data-testid={`actividad-${articulo.id}`}
+                        className="flex items-center gap-1 text-xs text-slate-500"
+                    >
+                        {senalActividad.icono}
+                        <span>{senalActividad.texto}</span>
+                    </div>
+                )}
             </div>
         </article>
     );
