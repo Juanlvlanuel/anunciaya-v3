@@ -27,6 +27,8 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { articulosMarketplace } from '../db/schemas/schema.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
+import { validarTextoPublicacion } from './marketplace/filtros.js';
+import type { ResultadoValidacion } from './marketplace/filtros.js';
 import type {
     CrearArticuloInput,
     ActualizarArticuloInput,
@@ -224,6 +226,65 @@ function mapearArticulo(row: RawArticuloDb): ArticuloRow {
 }
 
 // =============================================================================
+// HELPER: Aplicar resultado de moderación a la respuesta del service
+// =============================================================================
+
+/**
+ * Convierte un `ResultadoValidacion` en la respuesta correspondiente del
+ * service:
+ *  - `severidad: 'rechazo'` → `{ success: false, code: 422, ... }` siempre.
+ *  - `severidad: 'sugerencia'` → solo bloquea si el cliente NO ha confirmado
+ *    (`confirmadoPorUsuario !== true`). Devuelve `code: 200` con warning.
+ *  - `valido: true` → devuelve null (continúa el flujo normal).
+ */
+function aplicarModeracion(
+    validacion: ResultadoValidacion,
+    confirmadoPorUsuario?: boolean
+): {
+    success: false;
+    code: number;
+    message: string;
+    moderacion: {
+        severidad: 'rechazo' | 'sugerencia';
+        categoria: ResultadoValidacion['categoria'];
+        mensaje: string;
+        palabraDetectada?: string;
+    };
+} | null {
+    if (validacion.valido) return null;
+
+    if (validacion.severidad === 'rechazo') {
+        return {
+            success: false,
+            code: 422,
+            message: validacion.mensaje,
+            moderacion: {
+                severidad: 'rechazo',
+                categoria: validacion.categoria,
+                mensaje: validacion.mensaje,
+                palabraDetectada: validacion.palabraDetectada,
+            },
+        };
+    }
+
+    // Sugerencia suave: solo bloquea si el usuario NO ha confirmado.
+    if (confirmadoPorUsuario === true) {
+        return null;
+    }
+
+    return {
+        success: false,
+        code: 200,
+        message: validacion.mensaje,
+        moderacion: {
+            severidad: 'sugerencia',
+            categoria: validacion.categoria,
+            mensaje: validacion.mensaje,
+        },
+    };
+}
+
+// =============================================================================
 // CREAR ARTÍCULO
 // =============================================================================
 
@@ -234,6 +295,14 @@ function mapearArticulo(row: RawArticuloDb): ArticuloRow {
  * - `ubicacion` = punto exacto recibido (privado)
  * - `ubicacion_aproximada` = punto aleatorizado dentro de 500m (público)
  *
+ * MODERACIÓN (Capa 1):
+ *  - Si título/descripción contiene palabra prohibida → respuesta `code: 422`
+ *    con la categoría detectada. El controller mapea a HTTP 422.
+ *  - Si detecta servicio o búsqueda y `confirmadoPorUsuario !== true` →
+ *    respuesta `code: 200` con `warning` (sin INSERT). El frontend muestra
+ *    modal "Editar mi publicación / Continuar de todos modos". Si el usuario
+ *    elige continuar, reenvía con `confirmadoPorUsuario: true`.
+ *
  * @param usuarioId - UUID del usuario en modo Personal (validado por middleware)
  * @param datos    - Payload validado por `crearArticuloSchema`
  */
@@ -242,6 +311,11 @@ export async function crearArticulo(
     datos: CrearArticuloInput
 ) {
     try {
+        // ─── Capa 1: Moderación autónoma ──────────────────────────────────
+        const validacion = validarTextoPublicacion(datos.titulo, datos.descripcion);
+        const resultadoModeracion = aplicarModeracion(validacion, datos.confirmadoPorUsuario);
+        if (resultadoModeracion) return resultadoModeracion;
+
         const aprox = aleatorizarCoordenada(datos.latitud, datos.longitud);
 
         const resultado = await db.execute(sql`
@@ -569,6 +643,29 @@ export async function actualizarArticulo(
                 message: 'No puedes editar un artículo vendido',
                 code: 409,
             };
+        }
+
+        // ─── Capa 1: Moderación si cambian título o descripción ───────────
+        // Solo se valida cuando el editor tocó esos campos. Si solo cambia
+        // precio/fotos/etc, no hay riesgo de palabras prohibidas nuevas.
+        if (datos.titulo !== undefined || datos.descripcion !== undefined) {
+            const tituloEval = datos.titulo ?? '';
+            const descEval = datos.descripcion ?? '';
+            // Si el caller solo pasó uno, leemos el otro de BD para validar conjunto.
+            const necesitaLeerActual = datos.titulo === undefined || datos.descripcion === undefined;
+            let tituloFinal = tituloEval;
+            let descFinal = descEval;
+            if (necesitaLeerActual) {
+                const completo = await db.execute(sql`
+                    SELECT titulo, descripcion FROM articulos_marketplace WHERE id = ${articuloId}
+                `);
+                const r = completo.rows[0] as { titulo: string; descripcion: string };
+                tituloFinal = datos.titulo ?? r.titulo;
+                descFinal = datos.descripcion ?? r.descripcion;
+            }
+            const validacion = validarTextoPublicacion(tituloFinal, descFinal);
+            const resultadoModeracion = aplicarModeracion(validacion, datos.confirmadoPorUsuario);
+            if (resultadoModeracion) return resultadoModeracion;
         }
 
         // 2) Construir SET dinámico. expira_at NUNCA se incluye.

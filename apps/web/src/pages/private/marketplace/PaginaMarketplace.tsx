@@ -24,6 +24,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Plus, MapPin, AlertCircle } from 'lucide-react';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useDragScroll } from '../../../hooks/useDragScroll';
@@ -57,8 +58,9 @@ export function PaginaMarketplace() {
     useDragScroll(refCarrusel);
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
+    const navigate = useNavigate();
     const handlePublicar = () => {
-        notificar.info('Próximamente podrás publicar tus artículos');
+        navigate('/marketplace/publicar');
     };
 
     const handleActivarUbicacion = async () => {

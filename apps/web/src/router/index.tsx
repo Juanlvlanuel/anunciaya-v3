@@ -81,6 +81,7 @@ const PlaceholderPage = ({ nombre }: { nombre: string }) => (
 // Páginas de secciones principales
 import PaginaMarketplace from '../pages/private/marketplace/PaginaMarketplace';
 import PaginaArticuloMarketplace from '../pages/private/marketplace/PaginaArticuloMarketplace';
+import PaginaPublicarArticulo from '../pages/private/marketplace/PaginaPublicarArticulo';
 const PaginaServicios = () => <PlaceholderPage nombre="🛠️ Servicios" />;
 
 // Páginas de usuario
@@ -248,6 +249,22 @@ const router = createBrowserRouter([
             element: (
               <ModoPersonalEstrictoGuard>
                 <PaginaArticuloMarketplace />
+              </ModoPersonalEstrictoGuard>
+            ),
+          },
+          {
+            path: '/marketplace/publicar',
+            element: (
+              <ModoPersonalEstrictoGuard>
+                <PaginaPublicarArticulo />
+              </ModoPersonalEstrictoGuard>
+            ),
+          },
+          {
+            path: '/marketplace/publicar/:articuloId',
+            element: (
+              <ModoPersonalEstrictoGuard>
+                <PaginaPublicarArticulo />
               </ModoPersonalEstrictoGuard>
             ),
           },

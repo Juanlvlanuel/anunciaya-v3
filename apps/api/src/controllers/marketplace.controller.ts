@@ -154,6 +154,11 @@ export async function postCrearArticulo(req: Request, res: Response) {
         }
 
         const resultado = await crearArticulo(usuarioId, validacion.data);
+        // Service puede devolver { success: false, code: 422 } por moderación
+        // (rechazo) o { success: false, code: 200 } por sugerencia suave.
+        if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {
+            return res.status(resultado.code).json(resultado);
+        }
         return res.status(201).json(resultado);
     } catch (error) {
         console.error('Error en postCrearArticulo:', error);

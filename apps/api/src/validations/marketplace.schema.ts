@@ -99,6 +99,12 @@ export const crearArticuloSchema = z
         longitud: campoLongitud,
         ciudad: campoCiudad,
         zonaAproximada: campoZonaAproximada,
+        /**
+         * Moderación: si el wizard detectó una sugerencia (servicio o
+         * búsqueda) y el usuario eligió "Continuar de todos modos", reenvía
+         * con este flag en true para que el backend acepte la publicación.
+         */
+        confirmadoPorUsuario: z.boolean().optional(),
     })
     .refine((data) => data.fotoPortadaIndex < data.fotos.length, {
         message: 'fotoPortadaIndex debe ser menor que la cantidad de fotos',
@@ -129,10 +135,20 @@ export const actualizarArticuloSchema = z
         longitud: campoLongitud.optional(),
         ciudad: campoCiudad.optional(),
         zonaAproximada: campoZonaAproximada.optional(),
+        /** Idéntico al schema de crear: confirma sugerencia suave. */
+        confirmadoPorUsuario: z.boolean().optional(),
     })
-    .refine((data) => Object.keys(data).length > 0, {
-        message: 'Debes proporcionar al menos un campo para actualizar',
-    })
+    .refine(
+        (data) => {
+            // Considerar confirmadoPorUsuario como meta, no como cambio editable.
+            const sinMeta = { ...data };
+            delete (sinMeta as Record<string, unknown>).confirmadoPorUsuario;
+            return Object.keys(sinMeta).length > 0;
+        },
+        {
+            message: 'Debes proporcionar al menos un campo para actualizar',
+        }
+    )
     .refine(
         (data) =>
             data.fotoPortadaIndex === undefined ||
