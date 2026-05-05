@@ -1905,7 +1905,7 @@ export const notificaciones = pgTable("notificaciones", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull(),
 	modo: varchar({ length: 15 }).notNull(),
-	tipo: varchar({ length: 30 }).notNull(),
+	tipo: varchar({ length: 50 }).notNull(),
 	titulo: varchar({ length: 200 }).notNull(),
 	mensaje: varchar({ length: 500 }).notNull(),
 	negocioId: uuid("negocio_id"),

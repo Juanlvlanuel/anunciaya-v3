@@ -167,8 +167,8 @@ export async function crearPregunta(
 
         return { success: true, message: 'Pregunta enviada', data: { id: nueva.id } };
     } catch (error: unknown) {
-        const pgError = error as { code?: string };
-        if (pgError?.code === '23505') {
+        const pgError = error as { code?: string; cause?: { code?: string } };
+        if (pgError?.code === '23505' || pgError?.cause?.code === '23505') {
             return { success: false, message: 'Ya tienes una pregunta en esta publicación' };
         }
         throw error;
