@@ -366,6 +366,8 @@ Formato: `tipo(scope): descripción en español`
 Tipos: `feat`, `fix`, `chore`, `ci`, `test`, `docs`
 Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `negocios`, `dashboard`, `scanya`, `marketplace`, `servicios`, `ofertas`, `home`, `admin`, `docs`
 
+**Rama de destino:** todo `commit + push` va SIEMPRE a `main`. No usar feature branches ni PRs intermedios — Juan trabaja directo sobre main porque es solo developer y necesita que Vercel/Render redeployeen automático con cada cambio. Si estás en un worktree con otra rama (ej. `claude/...-...`), antes de pushear hay que mergear/rebasear sobre main y subir a `origin/main`.
+
 ---
 
 ## Estado Actual del Proyecto

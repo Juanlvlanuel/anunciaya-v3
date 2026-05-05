@@ -420,10 +420,15 @@ export async function eliminarPreguntaComprador(
 // =============================================================================
 
 /**
- * El vendedor decide responder por chat privado en lugar del Q&A público.
- * Hace soft delete de la pregunta y devuelve los datos del comprador para
- * que el frontend abra ChatYA con abrirChatTemporal + abrirChatYA.
- * El vendedor escribe el mensaje manualmente — no hay mensaje precargado en v1.
+ * El vendedor abre un chat privado con el comprador para responder fuera del
+ * Q&A público. Devuelve los datos del comprador para que el frontend abra
+ * ChatYA con abrirChatTemporal + abrirChatYA. El vendedor escribe el mensaje
+ * manualmente — no hay mensaje precargado en v1.
+ *
+ * NOTA: la pregunta pública NO se elimina al derivar a chat. El vendedor
+ * puede usar el chat para conversar privado y aún así responder la pregunta
+ * pública por separado si quiere. La pregunta solo se elimina con el botón
+ * explícito "Eliminar".
  */
 export async function derivarPreguntaAChat(
     preguntaId: string,
@@ -462,16 +467,9 @@ export async function derivarPreguntaAChat(
         avatar_url: string | null;
     };
 
-    // Soft delete de la pregunta
-    await db.execute(sql`
-        UPDATE marketplace_preguntas
-        SET deleted_at = NOW()
-        WHERE id = ${preguntaId}
-    `);
-
     return {
         success: true,
-        message: 'Pregunta derivada a chat',
+        message: 'Chat abierto',
         data: {
             compradorId: comprador.id,
             compradorNombre: comprador.nombre,

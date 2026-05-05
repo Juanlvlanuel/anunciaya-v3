@@ -31,7 +31,6 @@ import {
     ChevronLeft,
     MoreVertical,
     User,
-    MessageSquare,
     UserPlus,
     UserCheck,
     AlertCircle,
@@ -39,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
+import { useUiStore } from '../../../stores/useUiStore';
 import { useVotos } from '../../../hooks/useVotos';
 import {
     useVendedorMarketplace,
@@ -91,6 +91,7 @@ export function PaginaPerfilVendedor() {
     const navigate = useNavigate();
     const usuarioActual = useAuthStore((s) => s.usuario);
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     const [tabActiva, setTabActiva] = useState<'activa' | 'vendida'>('activa');
     const [menuAbierto, setMenuAbierto] = useState(false);
@@ -147,6 +148,7 @@ export function PaginaPerfilVendedor() {
                 contextoTipo: 'vendedor_marketplace',
             },
         });
+        abrirChatYA();
     };
 
     // ─── Estados ──────────────────────────────────────────────────────────────
@@ -273,12 +275,12 @@ export function PaginaPerfilVendedor() {
                         {!esUnoMismo && (
                             <div className="mx-auto mt-5 flex max-w-md flex-col gap-2 lg:flex-row lg:max-w-2xl">
                                 <button
-                                    data-testid="btn-enviar-mensaje-vendedor"
+                                    data-testid="btn-chatya-vendedor"
                                     onClick={handleEnviarMensaje}
-                                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
+                                    aria-label="Contactar por ChatYA"
+                                    className="flex flex-1 cursor-pointer items-center justify-center rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-1.5 text-white shadow-md transition-transform hover:scale-[1.01]"
                                 >
-                                    <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
-                                    Enviar mensaje
+                                    <img src="/ChatYA.webp" alt="ChatYA" className="h-9 w-auto shrink-0 object-contain" />
                                 </button>
                                 <button
                                     data-testid="btn-seguir-vendedor"

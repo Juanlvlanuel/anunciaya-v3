@@ -4,8 +4,8 @@
  * Botones de contacto del comprador con el vendedor en el detalle del
  * artículo:
  *  - WhatsApp (verde de marca #25D366) — solo si vendedor tiene teléfono.
- *  - Enviar mensaje (Dark Gradient de Marca) — abre ChatYA con contexto
- *    'marketplace' y referencia al artículo.
+ *  - ChatYA (Dark Gradient de Marca, ícono oficial) — abre ChatYA con
+ *    contexto 'marketplace' y referencia al artículo.
  *
  * Layout:
  *  - Móvil: usar `<BarraContacto variante="mobile" />` dentro de un wrapper
@@ -20,8 +20,9 @@
  * Ubicación: apps/web/src/components/marketplace/BarraContacto.tsx
  */
 
-import { MessageCircle, MessageSquare } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
+import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';
 import type { ArticuloMarketplaceDetalle } from '../../types/marketplace';
@@ -34,6 +35,7 @@ interface BarraContactoProps {
 export function BarraContacto({ articulo, variante }: BarraContactoProps) {
     const usuarioActual = useAuthStore((s) => s.usuario);
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     const { vendedor, titulo, id } = articulo;
     const esDueno = usuarioActual?.id === vendedor.id;
@@ -75,6 +77,7 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
                 contextoReferenciaId: id,
             },
         });
+        abrirChatYA();
     };
 
     // ─── Variantes ────────────────────────────────────────────────────────────
@@ -82,7 +85,7 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
     const claseContenedor =
         variante === 'mobile'
             ? 'flex gap-2 border-t border-slate-200 bg-white px-3 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]'
-            : 'flex flex-col gap-2';
+            : 'flex gap-2';
 
     return (
         <div data-testid={`barra-contacto-${variante}`} className={claseContenedor}>
@@ -90,19 +93,19 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
                 <button
                     data-testid="btn-whatsapp"
                     onClick={handleWhatsApp}
-                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#1fb858]"
+                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-[#22C55E] to-[#15803D] px-4 py-1.5 text-base font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
                 >
-                    <MessageCircle className="h-4 w-4" strokeWidth={2.5} />
+                    <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2.5} />
                     WhatsApp
                 </button>
             )}
             <button
-                data-testid="btn-enviar-mensaje"
+                data-testid="btn-chatya"
                 onClick={handleEnviarMensaje}
-                className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
+                aria-label="Contactar por ChatYA"
+                className="flex flex-1 cursor-pointer items-center justify-center rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-1.5 text-white shadow-md transition-transform hover:scale-[1.01]"
             >
-                <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
-                Enviar mensaje
+                <img src="/ChatYA.webp" alt="ChatYA" className="h-9 w-auto shrink-0 object-contain" />
             </button>
         </div>
     );
