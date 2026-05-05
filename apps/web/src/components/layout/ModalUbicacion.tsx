@@ -122,7 +122,8 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
                     } else {
                         setCiudad(
                             ciudadCercana.nombre,
-                            ciudadCercana.estado
+                            ciudadCercana.estado,
+                            ciudadCercana.coordenadas
                         );
                     }
                     onClose();

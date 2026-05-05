@@ -23,6 +23,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { ciudadesPopulares } from '../data/ciudadesPopulares';
 
 // =============================================================================
 // TIPOS
@@ -259,17 +260,33 @@ export const useGpsStore = create<GpsState>()(
         estado: string,
         coordenadas?: { lat: number; lng: number }
       ) => {
+        // Auto-rellenar coordenadas desde el catálogo `ciudadesPopulares` si
+        // no se pasaron. Evita que la ciudad quede sin punto de referencia
+        // (bug detectado: `setCiudad` se llamaba sin coordenadas en algunos
+        // flujos, dejando el state con `latitud`/`longitud` en null aunque
+        // hubiera ciudad seleccionada → banner "Activa tu ubicación" falso).
+        let coordenadasFinales = coordenadas;
+        if (!coordenadasFinales) {
+          const match = ciudadesPopulares.find(
+            (c) =>
+              c.nombre.trim().toLowerCase() === nombre.trim().toLowerCase() &&
+              c.estado.trim().toLowerCase() === estado.trim().toLowerCase()
+          );
+          if (match?.coordenadas) {
+            coordenadasFinales = match.coordenadas;
+          }
+        }
+
         set({
           ciudad: {
             nombre,
             estado,
             nombreCompleto: `${nombre}, ${estado}`,
-            coordenadas,
+            coordenadas: coordenadasFinales,
           },
-          // También actualizar coordenadas si se proporcionan
-          ...(coordenadas && {
-            latitud: coordenadas.lat,
-            longitud: coordenadas.lng,
+          ...(coordenadasFinales && {
+            latitud: coordenadasFinales.lat,
+            longitud: coordenadasFinales.lng,
           }),
         });
       },

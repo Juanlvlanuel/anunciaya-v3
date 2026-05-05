@@ -123,19 +123,46 @@ export function RootLayout() {
     deteccionEjecutada.current = true;
 
     const detectarUbicacion = async () => {
-      // 1. Si hay ciudad en localStorage, garantizamos que el store la tenga.
-      //    Si zustand persist ya rehidrató bien, este `setCiudad` es idempotente
-      //    (mismo valor, no genera re-render). Si la rehidratación falló (bug
-      //    raro de HMR o cambio de viewport), aquí re-aplicamos al store.
+      // 1. Si hay ciudad en localStorage, garantizamos que el store la tenga
+      //    Y que las coordenadas también estén sincronizadas. Disparamos
+      //    setCiudad si:
+      //      - La ciudad del store difiere (rehidratación falló) O
+      //      - El store no tiene coordenadas pero la ciudad guardada sí
+      //        (caso reportado: ciudad persiste pero lat/lng no, lo que
+      //        provoca que el feed muestre "Activa tu ubicación" aunque el
+      //        usuario ya había aceptado GPS).
       const ciudadGuardada = leerCiudadDeStorage();
       if (ciudadGuardada) {
         const stateActual = useGpsStore.getState();
-        if (stateActual.ciudad?.nombre !== ciudadGuardada.nombre) {
+        const ciudadDistinta = stateActual.ciudad?.nombre !== ciudadGuardada.nombre;
+        const sinCoordenadas =
+          stateActual.latitud === null || stateActual.longitud === null;
+        // Forzamos setCiudad cuando hay desincronización; setCiudad ahora
+        // auto-rellena coordenadas desde ciudadesPopulares si no se pasan
+        // (centro de la ciudad como fallback inmediato).
+        if (ciudadDistinta || sinCoordenadas) {
           setCiudad(
             ciudadGuardada.nombre,
             ciudadGuardada.estado,
             ciudadGuardada.coordenadas
           );
+        }
+
+        // Aún teniendo ciudad, intentamos conseguir las COORDENADAS REALES
+        // del usuario en background. Si el browser tiene permiso `granted`,
+        // getCurrentPosition se resuelve sin prompt y las distancias del feed
+        // pasan a ser exactas (no desde el centro de la ciudad).
+        // Si está `denied` o `prompt`, el browser maneja el error y caemos
+        // de vuelta al fallback del catálogo.
+        if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+          navigator.permissions
+            .query({ name: 'geolocation' as PermissionName })
+            .then((p) => {
+              if (p.state === 'granted') {
+                void obtenerUbicacion().catch(() => undefined);
+              }
+            })
+            .catch(() => undefined);
         }
         return;
       }

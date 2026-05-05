@@ -326,9 +326,12 @@ export function PaginaMarketplace() {
                                         </span>
                                     </div>
 
-                                    {/* Centro: "Compra y vende en Ciudad" + subtítulo */}
+                                    {/* Centro: "Compra y vende en Ciudad" + subtítulo.
+                                        Tamaño reducido en `lg:` (1024-1535px) para que
+                                        ciudades largas como "Puerto Peñasco" entren
+                                        completas. En 2xl+ vuelve al tamaño grande. */}
                                     <div className="min-w-0 flex-1 text-center">
-                                        <h1 className="truncate text-3xl font-light leading-tight text-white/70 2xl:text-[34px]">
+                                        <h1 className="truncate text-[22px] font-light leading-tight text-white/70 2xl:text-[34px]">
                                             Compra y vende en{' '}
                                             <span className="font-bold text-white">
                                                 {ciudad || 'tu ciudad'}
@@ -422,33 +425,61 @@ export function PaginaMarketplace() {
                     </div>
                 )}
 
-                {/* Estado: con ciudad pero sin GPS ─ mensaje accionable */}
+                {/* Estado: con ciudad pero sin GPS — invitación dinámica al
+                    estilo de los demás estados (sin card, halos pulsantes,
+                    sparkles). Importante: este bloque NO bloquea el feed,
+                    el usuario sigue viendo lo "Recién publicado" debajo. */}
                 {ciudad && sinGps && (
-                    <div className="mx-3 mt-6 rounded-xl border-2 border-teal-200 bg-teal-50 p-4 text-sm text-teal-900 lg:mx-0">
-                        <div className="flex items-start gap-3">
-                            <MapPin
-                                className="h-5 w-5 shrink-0 text-teal-600"
-                                strokeWidth={2}
+                    <div className="relative mt-8 flex flex-col items-center px-6 pb-6 text-center lg:mt-12 lg:pb-8">
+                        <Sparkles
+                            className="absolute left-8 top-1 h-5 w-5 animate-pulse text-teal-400/70"
+                            strokeWidth={2}
+                            style={{ animationDuration: '2.5s' }}
+                        />
+                        <Sparkles
+                            className="absolute right-10 top-8 h-4 w-4 animate-pulse text-teal-300/70"
+                            strokeWidth={2}
+                            style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
+                        />
+
+                        <div className="relative mb-5">
+                            <div
+                                className="absolute inset-0 -m-5 animate-ping rounded-full bg-teal-300/40"
+                                style={{ animationDuration: '2.4s' }}
                             />
-                            <div className="flex-1">
-                                <strong className="font-semibold">
-                                    Activa tu ubicación
-                                </strong>
-                                <p className="mt-0.5">
-                                    Para ver artículos cerca de ti necesitamos tu ubicación.
-                                    Mientras tanto te mostramos lo recién publicado en{' '}
-                                    {ciudad}.
-                                </p>
-                                <button
-                                    data-testid="btn-activar-ubicacion"
-                                    onClick={handleActivarUbicacion}
-                                    disabled={cargandoGps}
-                                    className="mt-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-teal-700 disabled:opacity-60"
-                                >
-                                    {cargandoGps ? 'Obteniendo...' : 'Activar ubicación'}
-                                </button>
+                            <div
+                                className="absolute inset-0 -m-2 animate-ping rounded-full bg-teal-400/40"
+                                style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
+                            />
+                            <div
+                                className="relative flex h-20 w-20 items-center justify-center rounded-full shadow-xl"
+                                style={{
+                                    background:
+                                        'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                }}
+                            >
+                                <MapPin className="h-9 w-9 text-white" strokeWidth={2} />
                             </div>
                         </div>
+
+                        <h3 className="mb-2 text-xl font-extrabold tracking-tight text-slate-900 lg:text-2xl">
+                            Activa tu ubicación
+                        </h3>
+                        <p className="mb-5 max-w-sm text-sm text-slate-600 lg:text-base">
+                            Para ver artículos cerca de ti necesitamos tu ubicación.
+                            Mientras tanto, te mostramos lo recién publicado en{' '}
+                            <span className="font-bold text-slate-900">{ciudad}</span>.
+                        </p>
+
+                        <button
+                            data-testid="btn-activar-ubicacion"
+                            onClick={handleActivarUbicacion}
+                            disabled={cargandoGps}
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-teal-500 to-teal-700 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <MapPin className="h-4 w-4" strokeWidth={2.5} />
+                            {cargandoGps ? 'Obteniendo...' : 'Activar ubicación'}
+                        </button>
                     </div>
                 )}
 
