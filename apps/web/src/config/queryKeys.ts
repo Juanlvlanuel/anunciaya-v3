@@ -205,6 +205,8 @@ export const queryKeys = {
       ['marketplace', 'buscar', 'resultados', params] as const,
     trending: (ciudad: string, excluirIds: string[]) =>
       ['marketplace', 'feed', 'trending', ciudad, excluirIds] as const,
+    preguntas: (articuloId: string) =>
+      ['marketplace', 'preguntas', articuloId] as const,
   },
 
   // ─── Business Studio — Sucursales ────────────────────────────────────────

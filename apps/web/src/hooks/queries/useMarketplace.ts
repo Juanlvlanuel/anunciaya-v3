@@ -30,6 +30,8 @@ import type {
     CondicionArticulo,
     PerfilVendedorMarketplace,
     PublicacionesDeVendedor,
+    PreguntaMarketplace,
+    PreguntasParaVendedor,
 } from '../../types/marketplace';
 
 // =============================================================================
@@ -621,5 +623,148 @@ export function useBuscadorResultados(
         enabled: !!ciudad,
         staleTime: 30 * 1000,
         placeholderData: keepPreviousData,
+    });
+}
+
+// =============================================================================
+// PREGUNTAS Y RESPUESTAS (Sprint 9.2)
+// =============================================================================
+
+/**
+ * Obtiene preguntas de un artículo.
+ * - Si `esDueno=true` → GET devuelve `{ pendientes, respondidas }`.
+ * - Si `esDueno=false` → GET devuelve array de preguntas respondidas.
+ */
+export function usePreguntasArticulo(
+    articuloId: string | undefined,
+    esDueno: boolean
+) {
+    return useQuery({
+        queryKey: queryKeys.marketplace.preguntas(articuloId ?? ''),
+        queryFn: async (): Promise<PreguntaMarketplace[] | PreguntasParaVendedor> => {
+            const response = await api.get<{
+                success: boolean;
+                data: PreguntaMarketplace[] | PreguntasParaVendedor;
+            }>(`/marketplace/articulos/${articuloId}/preguntas`);
+            return response.data.data;
+        },
+        enabled: !!articuloId,
+        staleTime: 60 * 1000,
+    });
+}
+
+export function useCrearPregunta() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        { success: boolean; message: string },
+        unknown,
+        { articuloId: string; pregunta: string }
+    >({
+        mutationFn: async ({ articuloId, pregunta }) => {
+            const response = await api.post(
+                `/marketplace/articulos/${articuloId}/preguntas`,
+                { pregunta }
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+            });
+        },
+    });
+}
+
+export function useResponderPregunta() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        { success: boolean; message: string },
+        unknown,
+        { preguntaId: string; articuloId: string; respuesta: string }
+    >({
+        mutationFn: async ({ preguntaId, respuesta }) => {
+            const response = await api.post(
+                `/marketplace/preguntas/${preguntaId}/responder`,
+                { respuesta }
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+            });
+        },
+    });
+}
+
+export function useEliminarPregunta() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        { success: boolean; message: string },
+        unknown,
+        { preguntaId: string; articuloId: string }
+    >({
+        mutationFn: async ({ preguntaId }) => {
+            const response = await api.delete(
+                `/marketplace/preguntas/${preguntaId}`
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+            });
+        },
+    });
+}
+
+export function useEliminarPreguntaMia() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        { success: boolean; message: string },
+        unknown,
+        { preguntaId: string; articuloId: string }
+    >({
+        mutationFn: async ({ preguntaId }) => {
+            const response = await api.delete(
+                `/marketplace/preguntas/${preguntaId}/mia`
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+            });
+        },
+    });
+}
+
+export function useDerivarPreguntaAChat() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        {
+            success: boolean;
+            data: {
+                compradorId: string;
+                compradorNombre: string;
+                compradorApellidos: string;
+                compradorAvatarUrl: string | null;
+                articuloId: string;
+            };
+        },
+        unknown,
+        { preguntaId: string; articuloId: string }
+    >({
+        mutationFn: async ({ preguntaId }) => {
+            const response = await api.post(
+                `/marketplace/preguntas/${preguntaId}/derivar-a-chat`
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+            });
+        },
     });
 }

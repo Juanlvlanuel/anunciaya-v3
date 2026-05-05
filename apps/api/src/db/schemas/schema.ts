@@ -1939,7 +1939,7 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying])::text[])`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying])::text[])`),
 	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying])::text[]))`),
 ]);
 
@@ -2295,4 +2295,23 @@ export const marketplaceBusquedasLog = pgTable("marketplace_busquedas_log", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_busquedas_ciudad_fecha").using("btree", table.ciudad.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+]);
+
+// ============================================================================
+// MarketPlace — Preguntas y Respuestas (Sprint 9.2)
+// ============================================================================
+
+export const marketplacePreguntas = pgTable("marketplace_preguntas", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	articuloId: uuid("articulo_id").notNull().references(() => articulosMarketplace.id, { onDelete: 'cascade' }),
+	compradorId: uuid("comprador_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+	pregunta: varchar({ length: 200 }).notNull(),
+	respuesta: varchar({ length: 500 }),
+	respondidaAt: timestamp("respondida_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	unique("preguntas_unique_comprador").on(table.articuloId, table.compradorId),
+	index("idx_preguntas_articulo").using("btree", table.articuloId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_preguntas_respondidas").using("btree", table.articuloId.asc().nullsLast(), table.respondidaAt.asc().nullsLast()).where(sql`respondida_at IS NOT NULL AND deleted_at IS NULL`),
 ]);

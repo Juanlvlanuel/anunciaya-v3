@@ -58,6 +58,8 @@ import { GaleriaArticulo } from '../../../components/marketplace/GaleriaArticulo
 import { CardVendedor } from '../../../components/marketplace/CardVendedor';
 import { MapaUbicacion } from '../../../components/marketplace/MapaUbicacion';
 import { BarraContacto } from '../../../components/marketplace/BarraContacto';
+import { SeccionPreguntas } from '../../../components/marketplace/SeccionPreguntas';
+import { ModalHacerPregunta } from '../../../components/marketplace/ModalHacerPregunta';
 import { DropdownCompartir } from '../../../components/compartir/DropdownCompartir';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
@@ -86,6 +88,9 @@ export function PaginaArticuloMarketplace() {
     const { data: articulo, isLoading, isError, error } = useArticuloMarketplace(articuloId);
     const [menuAbierto, setMenuAbierto] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const [modalPreguntaAbierto, setModalPreguntaAbierto] = useState(false);
+
+    const esDueno = !!usuarioActual && !!articulo && usuarioActual.id === articulo.vendedor.id;
 
     // ─── Botón guardar ─────────────────────────────────────────────────────────
     const { guardado, loading: cargandoGuardar, toggleGuardado } = useGuardados({
@@ -313,6 +318,16 @@ export function PaginaArticuloMarketplace() {
                                 zonaAproximada={articulo.zonaAproximada}
                             />
                         </div>
+
+                        {/* Preguntas y Respuestas */}
+                        <div className="px-3 lg:px-0">
+                            <SeccionPreguntas
+                                articuloId={articulo.id}
+                                esDueno={esDueno}
+                                usuarioAutenticado={!!usuarioActual}
+                                onAbrirModalPregunta={() => setModalPreguntaAbierto(true)}
+                            />
+                        </div>
                     </div>
 
                     {/* ─── COLUMNA DERECHA — solo desktop, sticky ─────────── */}
@@ -339,6 +354,13 @@ export function PaginaArticuloMarketplace() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal hacer pregunta */}
+            <ModalHacerPregunta
+                abierto={modalPreguntaAbierto}
+                articuloId={articulo.id}
+                onCerrar={() => setModalPreguntaAbierto(false)}
+            />
 
             {/* ════════════════════════════════════════════════════════════════
                 BARRA FIJA INFERIOR — solo móvil

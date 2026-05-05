@@ -21,7 +21,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Heart, MapPin, ImageOff, Users, Eye } from 'lucide-react';
+import { Heart, MapPin, ImageOff, Users, Eye, MessageCircle } from 'lucide-react';
 import { useGuardados } from '../../hooks/useGuardados';
 import {
     formatearDistancia,
@@ -60,6 +60,13 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
             return {
                 icono: <Heart className="h-3 w-3 shrink-0" strokeWidth={2} />,
                 texto: `${articulo.totalGuardados} personas lo guardaron`,
+            };
+        }
+        const nPreguntas = articulo.totalPreguntasRespondidas ?? 0;
+        if (nPreguntas >= 1) {
+            return {
+                icono: <MessageCircle className="h-3 w-3 shrink-0" strokeWidth={2} />,
+                texto: `${nPreguntas} pregunta${nPreguntas > 1 ? 's' : ''} respondida${nPreguntas > 1 ? 's' : ''}`,
             };
         }
         if ((articulo.vistas24h ?? 0) >= 20) {

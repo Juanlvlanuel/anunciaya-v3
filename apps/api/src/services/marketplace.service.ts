@@ -80,6 +80,7 @@ interface ArticuloFeedRow extends ArticuloRow {
     distanciaMetros: number | null;
     viendo: number;
     vistas24h: number;
+    totalPreguntasRespondidas: number;
 }
 
 // =============================================================================
@@ -551,8 +552,16 @@ export async function obtenerFeed(
                 ST_Distance(
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-                ) AS distancia_metros
+                ) AS distancia_metros,
+                COALESCE(pq.total, 0) AS total_preguntas_respondidas
             FROM articulos_marketplace a
+            LEFT JOIN (
+                SELECT articulo_id, COUNT(*)::int AS total
+                FROM marketplace_preguntas
+                WHERE respondida_at IS NOT NULL
+                  AND deleted_at IS NULL
+                GROUP BY articulo_id
+            ) pq ON pq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
               AND a.ciudad = ${ciudad}
@@ -573,8 +582,16 @@ export async function obtenerFeed(
                 ST_Distance(
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-                ) AS distancia_metros
+                ) AS distancia_metros,
+                COALESCE(pq.total, 0) AS total_preguntas_respondidas
             FROM articulos_marketplace a
+            LEFT JOIN (
+                SELECT articulo_id, COUNT(*)::int AS total
+                FROM marketplace_preguntas
+                WHERE respondida_at IS NOT NULL
+                  AND deleted_at IS NULL
+                GROUP BY articulo_id
+            ) pq ON pq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
               AND a.ciudad = ${ciudad}
@@ -582,7 +599,10 @@ export async function obtenerFeed(
             LIMIT 20
         `);
 
-        type RawFeedRow = RawArticuloDb & { distancia_metros: number | null };
+        type RawFeedRow = RawArticuloDb & {
+            distancia_metros: number | null;
+            total_preguntas_respondidas: number;
+        };
         const recientesRows = recientesResultado.rows as unknown as RawFeedRow[];
         const cercanosRows = cercanosResultado.rows as unknown as RawFeedRow[];
 
@@ -598,6 +618,7 @@ export async function obtenerFeed(
                     row.distancia_metros !== null ? Math.round(row.distancia_metros) : null,
                 viendo,
                 vistas24h,
+                totalPreguntasRespondidas: row.total_preguntas_respondidas ?? 0,
             };
         };
 
@@ -1038,7 +1059,8 @@ export async function obtenerTrending(
             am.total_vistas, am.total_mensajes, am.total_guardados,
             am.expira_at, am.created_at, am.updated_at, am.vendida_at,
             COALESCE(g24.total, 0) AS guardados_24h,
-            COALESCE(m24.total, 0) AS mensajes_24h
+            COALESCE(m24.total, 0) AS mensajes_24h,
+            COALESCE(pq.total, 0) AS total_preguntas_respondidas
         FROM articulos_marketplace am
         LEFT JOIN (
             SELECT entity_id, COUNT(*)::int AS total
@@ -1054,6 +1076,13 @@ export async function obtenerTrending(
             WHERE m.created_at > NOW() - INTERVAL '24 hours'
             GROUP BY c.articulo_marketplace_id
         ) m24 ON m24.articulo_marketplace_id = am.id
+        LEFT JOIN (
+            SELECT articulo_id, COUNT(*)::int AS total
+            FROM marketplace_preguntas
+            WHERE respondida_at IS NOT NULL
+              AND deleted_at IS NULL
+            GROUP BY articulo_id
+        ) pq ON pq.articulo_id = am.id
         WHERE am.ciudad = ${ciudad}
           AND am.estado = 'activa'
           AND am.deleted_at IS NULL
@@ -1065,6 +1094,7 @@ export async function obtenerTrending(
     type RawTrendingRow = RawArticuloDb & {
         guardados_24h: number;
         mensajes_24h: number;
+        total_preguntas_respondidas: number;
     };
 
     const candidatos = resultado.rows as unknown as RawTrendingRow[];
@@ -1093,6 +1123,7 @@ export async function obtenerTrending(
         distanciaMetros: null,
         viendo: 0,
         vistas24h,
+        totalPreguntasRespondidas: row.total_preguntas_respondidas ?? 0,
     }));
 }
 

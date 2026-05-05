@@ -27,7 +27,12 @@ export type TipoNotificacion =
   | 'sistema'
   | 'nuevo_marketplace'
   | 'nuevo_servicio'
-  | 'alerta_seguridad';
+  | 'alerta_seguridad'
+  | 'marketplace_nuevo_mensaje'
+  | 'marketplace_proxima_expirar'
+  | 'marketplace_expirada'
+  | 'marketplace_nueva_pregunta'
+  | 'marketplace_pregunta_respondida';
 
 // Idem ReferenciaTipo: 'dinamica' removido, 'empleo' → 'servicio' en Fase D.
 export type ReferenciaTipo =

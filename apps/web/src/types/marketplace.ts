@@ -66,6 +66,28 @@ export interface ArticuloFeed extends ArticuloMarketplace {
     viendo?: number;
     /** Vistas en las últimas 24h (Redis). */
     vistas24h?: number;
+    /** Preguntas con respuesta visible públicamente (Sprint 9.2). */
+    totalPreguntasRespondidas?: number;
+}
+
+/**
+ * Una pregunta sobre un artículo (vista pública o del vendedor).
+ * - Vista pública: solo preguntas con `respondidaAt != null`.
+ * - Vista vendedor: pendientes (`respuesta == null`) + respondidas.
+ */
+export interface PreguntaMarketplace {
+    id: string;
+    /** "Nombre I." — inicial del apellido para anonimato parcial */
+    compradorNombre: string;
+    pregunta: string;
+    respuesta: string | null;
+    respondidaAt: string | null;
+    createdAt: string;
+}
+
+export interface PreguntasParaVendedor {
+    pendientes: PreguntaMarketplace[];
+    respondidas: PreguntaMarketplace[];
 }
 
 /**

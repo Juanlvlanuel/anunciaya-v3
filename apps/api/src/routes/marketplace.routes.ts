@@ -52,6 +52,12 @@ import {
     getPopularesBuscador,
     getBuscarArticulos,
     postReactivarArticulo,
+    getPreguntasArticulo,
+    postCrearPregunta,
+    postResponderPregunta,
+    postDerivarPreguntaAChat,
+    deletePreguntaVendedor,
+    deletePreguntaMia,
 } from '../controllers/marketplace.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -75,6 +81,14 @@ router.get('/feed', verificarTokenOpcional, getFeed);
  * IMPORTANTE: declarado ANTES de /articulos/:id para que Express no lo confunda.
  */
 router.get('/feed/trending', verificarTokenOpcional, getTrendingFeed);
+
+/**
+ * GET /api/marketplace/articulos/:id/preguntas
+ * IMPORTANTE: declarado ANTES de /articulos/:id para que Express no confunda
+ * la ruta con el detalle del artículo.
+ * Si el caller es el dueño → pendientes + respondidas. Si no → solo respondidas.
+ */
+router.get('/articulos/:id/preguntas', verificarTokenOpcional, getPreguntasArticulo);
 
 /**
  * GET /api/marketplace/articulos/:id
@@ -214,6 +228,66 @@ router.post(
     verificarToken,
     requiereModoPersonal,
     postReactivarArticulo
+);
+
+// =============================================================================
+// PREGUNTAS Y RESPUESTAS (Sprint 9.2)
+// =============================================================================
+
+/**
+ * POST /api/marketplace/articulos/:id/preguntas
+ * El comprador hace una pregunta pública sobre el artículo.
+ */
+router.post(
+    '/articulos/:id/preguntas',
+    verificarToken,
+    requiereModoPersonal,
+    postCrearPregunta
+);
+
+/**
+ * POST /api/marketplace/preguntas/:id/responder
+ * El vendedor responde una pregunta pendiente.
+ */
+router.post(
+    '/preguntas/:id/responder',
+    verificarToken,
+    requiereModoPersonal,
+    postResponderPregunta
+);
+
+/**
+ * POST /api/marketplace/preguntas/:id/derivar-a-chat
+ * El vendedor deriva la pregunta a chat privado (soft delete + datos del comprador).
+ */
+router.post(
+    '/preguntas/:id/derivar-a-chat',
+    verificarToken,
+    requiereModoPersonal,
+    postDerivarPreguntaAChat
+);
+
+/**
+ * DELETE /api/marketplace/preguntas/:id/mia
+ * IMPORTANTE: declarado ANTES de /preguntas/:id para evitar conflicto Express.
+ * El comprador retira su pregunta, solo si aún no tiene respuesta.
+ */
+router.delete(
+    '/preguntas/:id/mia',
+    verificarToken,
+    requiereModoPersonal,
+    deletePreguntaMia
+);
+
+/**
+ * DELETE /api/marketplace/preguntas/:id
+ * El vendedor elimina una pregunta de su artículo.
+ */
+router.delete(
+    '/preguntas/:id',
+    verificarToken,
+    requiereModoPersonal,
+    deletePreguntaVendedor
 );
 
 // =============================================================================
