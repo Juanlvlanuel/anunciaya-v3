@@ -557,7 +557,20 @@ export async function getTrendingFeed(req: Request, res: Response) {
               ? [excluirRaw]
               : [];
 
-        const data = await obtenerTrending(ciudad, excluirIds);
+        // GPS opcional para calcular distanciaMetros — alineado con /feed.
+        const latRaw = req.query.lat as string | undefined;
+        const lngRaw = req.query.lng as string | undefined;
+        const lat = latRaw !== undefined && latRaw !== '' ? Number(latRaw) : null;
+        const lng = lngRaw !== undefined && lngRaw !== '' ? Number(lngRaw) : null;
+        const latValido = lat !== null && !isNaN(lat) && lat >= -90 && lat <= 90;
+        const lngValido = lng !== null && !isNaN(lng) && lng >= -180 && lng <= 180;
+
+        const data = await obtenerTrending(
+            ciudad,
+            excluirIds,
+            latValido ? lat : null,
+            lngValido ? lng : null,
+        );
         return res.json({ success: true, data });
     } catch (error) {
         console.error('Error en getTrendingFeed:', error);

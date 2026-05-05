@@ -440,9 +440,16 @@ export default function PaginaOfertas() {
           ) : isError ? (
             <EstadoError onReintentar={() => refetch()} />
           ) : ofertas.length === 0 ? (
-            <EstadoVacioFiltro
-              onLimpiar={() => useFiltrosOfertasStore.getState().resetear()}
-            />
+            // Distinguimos dos casos:
+            //  - Sin filtros y feed vacío → la ciudad no tiene ofertas todavía
+            //  - Con filtros y feed vacío → el filtro no devuelve resultados
+            chipActivo === 'todas' ? (
+              <EstadoCiudadSinOfertas ciudad={ciudadNombre} />
+            ) : (
+              <EstadoVacioFiltro
+                onLimpiar={() => useFiltrosOfertasStore.getState().resetear()}
+              />
+            )
           ) : !vistaExpandida && chipActivo === 'todas' ? (
             // Layout COMPACTO — 3 columnas: collage | lista única | collage.
             // Solo se usa cuando estás en la vista editorial completa (sin
@@ -558,23 +565,111 @@ function EstadoCargando() {
   );
 }
 
+/**
+ * Estado mostrado cuando la ciudad NO tiene ofertas activas en absoluto
+ * (sin filtros aplicados). Mensaje distinto a EstadoVacioFiltro: aquí el
+ * usuario no se equivoca con un filtro, simplemente la ciudad aún no tiene
+ * negocios publicando ofertas.
+ */
+function EstadoCiudadSinOfertas({ ciudad }: { ciudad: string }) {
+  return (
+    <div className="relative flex flex-col items-center px-6 pt-10 pb-12 text-center lg:pt-16 lg:pb-20">
+      {/* Sparkles decorativos */}
+      <Sparkles
+        className="absolute left-8 top-2 h-5 w-5 animate-pulse text-amber-400/70"
+        strokeWidth={2}
+        style={{ animationDuration: '2.5s' }}
+      />
+      <Sparkles
+        className="absolute right-10 top-10 h-4 w-4 animate-pulse text-amber-300/70"
+        strokeWidth={2}
+        style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
+      />
+
+      {/* Icono central con halos pulsantes */}
+      <div className="relative mb-6">
+        <div
+          className="absolute inset-0 -m-5 animate-ping rounded-full bg-amber-300/40"
+          style={{ animationDuration: '2.4s' }}
+        />
+        <div
+          className="absolute inset-0 -m-2 animate-ping rounded-full bg-amber-400/40"
+          style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
+        />
+        <div
+          className="relative flex h-24 w-24 items-center justify-center rounded-full shadow-xl"
+          style={{
+            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+          }}
+        >
+          <Tag className="h-11 w-11 text-white" strokeWidth={2} />
+        </div>
+      </div>
+
+      <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+        Aún no hay ofertas en{' '}
+        <span className="text-amber-600">{ciudad || 'tu ciudad'}</span>
+      </h3>
+      <p className="max-w-sm text-base text-slate-600">
+        Estamos sumando negocios locales. Pronto verás aquí descuentos y
+        promociones de comercios cerca de ti.
+      </p>
+    </div>
+  );
+}
+
 function EstadoVacioFiltro({ onLimpiar }: { onLimpiar: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 bg-white border-2 border-[#e8e6e0] rounded-xl shadow-md">
-      <div className="w-14 h-14 rounded-full bg-[#f0eee9] flex items-center justify-center mb-3">
-        <Tag className="w-6 h-6 text-[#888]" strokeWidth={2} />
+    <div className="relative flex flex-col items-center px-6 pt-10 pb-12 text-center lg:pt-16 lg:pb-20">
+      {/* Sparkles decorativos */}
+      <Sparkles
+        className="absolute left-8 top-2 h-5 w-5 animate-pulse text-amber-400/70"
+        strokeWidth={2}
+        style={{ animationDuration: '2.5s' }}
+      />
+      <Sparkles
+        className="absolute right-10 top-10 h-4 w-4 animate-pulse text-amber-300/70"
+        strokeWidth={2}
+        style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
+      />
+
+      {/* Icono central con halos pulsantes (color amber de marca) */}
+      <div className="relative mb-6">
+        <div
+          className="absolute inset-0 -m-5 animate-ping rounded-full bg-amber-300/40"
+          style={{ animationDuration: '2.4s' }}
+        />
+        <div
+          className="absolute inset-0 -m-2 animate-ping rounded-full bg-amber-400/40"
+          style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
+        />
+        <div
+          className="relative flex h-24 w-24 items-center justify-center rounded-full shadow-xl"
+          style={{
+            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+          }}
+        >
+          <Tag className="h-11 w-11 text-white" strokeWidth={2} />
+        </div>
       </div>
-      <p className="text-base font-bold text-[#1a1a1a]">
-        Sin ofertas con estos filtros
+
+      <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+        Sin coincidencias
+      </h3>
+      <p className="mb-6 max-w-sm text-base text-slate-600">
+        No encontramos ofertas con estos filtros. Prueba con otro chip o vuelve a
+        ver todas las ofertas activas.
       </p>
-      <p className="text-sm text-[#6b6b6b] mt-1 mb-4">
-        Prueba con otro chip o limpia los filtros
-      </p>
+
+      {/* CTA con animación sutil de pulso */}
       <button
+        data-testid="btn-ver-todas-ofertas"
         onClick={onLimpiar}
-        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1a1a1a] text-white text-xs font-semibold hover:bg-[#333] cursor-pointer"
+        className="inline-flex animate-pulse cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-amber-500 to-amber-700 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02]"
+        style={{ animationDuration: '2.4s' }}
       >
-        Ver todas
+        <Tag className="h-4 w-4" strokeWidth={2.5} />
+        Ver todas las ofertas
       </button>
     </div>
   );

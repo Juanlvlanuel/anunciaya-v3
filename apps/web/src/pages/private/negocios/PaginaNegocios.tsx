@@ -36,6 +36,7 @@ import {
   Search,
   X,
   SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { useNegociosLista } from '../../../hooks/queries/useNegocios';
 import { useScrollDirection } from '../../../hooks/useScrollDirection';
@@ -922,8 +923,8 @@ export function PaginaNegocios() {
                             className="h-0.5 w-14 rounded-full"
                             style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
                           />
-                          <span className="text-base font-light text-white/70 tracking-wide">
-                            Descubre en <span className="font-bold text-white">{nombreCiudad}</span>
+                          <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
+                            En <span className="font-bold text-white">{nombreCiudad}</span> · {negocios.length} negocios
                           </span>
                           <div
                             className="h-0.5 w-14 rounded-full"
@@ -1058,24 +1059,30 @@ export function PaginaNegocios() {
                       </div>
                     </div>
 
-                    {/* KPIs: primera columna siempre visible, segunda se oculta al comprimir */}
+                    {/* KPIs — alineados al patrón de Ofertas: número grande blanco,
+                        label en color de marca, justificado a la derecha. */}
                     <div className="flex items-center gap-5 shrink-0">
-                      {/* Comprimido: "19 Negocios" en una línea. Normal: columna vertical. */}
                       {comprimido ? (
                         <div className="flex items-baseline gap-1.5 shrink-0">
-                          <span className="text-2xl font-extrabold text-blue-400 leading-none tabular-nums">
+                          <span
+                            data-testid="kpi-total-negocios"
+                            className="text-2xl font-extrabold text-white leading-none tabular-nums"
+                          >
                             {negocios.length}
                           </span>
-                          <span className="text-sm font-semibold text-white/40 uppercase tracking-wider">
+                          <span className="text-sm font-semibold text-blue-400/80 uppercase tracking-wider">
                             Negocios
                           </span>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center w-16 2xl:w-18">
-                          <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 leading-none tabular-nums">
+                        <div className="flex flex-col items-end shrink-0">
+                          <span
+                            data-testid="kpi-total-negocios"
+                            className="text-3xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                          >
                             {negocios.length}
                           </span>
-                          <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
+                          <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-400/80 uppercase tracking-wider mt-1">
                             Negocios
                           </span>
                         </div>
@@ -1171,23 +1178,11 @@ export function PaginaNegocios() {
                   <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                 </div>
               ) : negocios.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 px-4 bg-white border-2 border-[#e8e6e0] rounded-xl shadow-md">
-                  <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-3">
-                    <Store className="w-6 h-6 text-blue-500" strokeWidth={2} />
-                  </div>
-                  <p className="text-base font-bold text-[#1a1a1a]">Sin resultados</p>
-                  <p className="text-sm text-[#6b6b6b] mt-1 mb-4">
-                    Ajusta los filtros o amplía el radio
-                  </p>
-                  {filtrosActivos() > 0 && (
-                    <button
-                      onClick={limpiarFiltros}
-                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1a1a1a] text-white text-xs font-semibold hover:bg-[#333] cursor-pointer"
-                    >
-                      Limpiar filtros
-                    </button>
-                  )}
-                </div>
+                filtrosActivos() === 0 ? (
+                  <EstadoCiudadSinNegocios ciudad={nombreCiudad} />
+                ) : (
+                  <EstadoFiltroSinNegocios onLimpiar={limpiarFiltros} />
+                )
               ) : (
                 <div className="space-y-4">
                   {negocios.map((negocio) => (
@@ -1237,13 +1232,11 @@ export function PaginaNegocios() {
                     ))}
                   </div>
                 ) : negocios.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20">
-                    <div className="w-24 h-24 rounded-full bg-linear-to-br from-blue-100 to-blue-50 flex items-center justify-center ring-8 ring-blue-50 mb-6">
-                      <Store className="w-12 h-12 lg:w-16 lg:h-16 text-blue-400" />
-                    </div>
-                    <p className="text-xl lg:text-2xl font-bold text-gray-900">No se encontraron negocios</p>
-                    <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">Intenta ajustar los filtros o ampliar el radio de búsqueda</p>
-                  </div>
+                  filtrosActivos() === 0 ? (
+                    <EstadoCiudadSinNegocios ciudad={nombreCiudad} />
+                  ) : (
+                    <EstadoFiltroSinNegocios onLimpiar={limpiarFiltros} />
+                  )
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-5 2xl:gap-6">
                     {negocios.map((negocio) => (
@@ -1278,23 +1271,11 @@ export function PaginaNegocios() {
                       ))}
                     </div>
                   ) : negocios.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 px-4 bg-white border-2 border-[#e8e6e0] rounded-xl shadow-md">
-                      <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-3">
-                        <Store className="w-6 h-6 text-blue-500" strokeWidth={2} />
-                      </div>
-                      <h3 className="text-base font-bold text-[#1a1a1a]">Sin resultados</h3>
-                      <p className="text-sm text-[#6b6b6b] mt-1 mb-4">
-                        Ajusta los filtros o amplía el radio
-                      </p>
-                      {filtrosActivos() > 0 && (
-                        <button
-                          onClick={limpiarFiltros}
-                          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1a1a1a] text-white text-xs font-semibold hover:bg-[#333] cursor-pointer"
-                        >
-                          Limpiar filtros
-                        </button>
-                      )}
-                    </div>
+                    filtrosActivos() === 0 ? (
+                      <EstadoCiudadSinNegocios ciudad={nombreCiudad} />
+                    ) : (
+                      <EstadoFiltroSinNegocios onLimpiar={limpiarFiltros} />
+                    )
                   ) : (
                     <div className="flex flex-col gap-4 2xl:gap-5 pb-4">
                       {negocios.map((negocio) => (
@@ -1620,6 +1601,112 @@ export function PaginaNegocios() {
 
       </div>
     </>
+  );
+}
+
+// ============================================================================
+// SUB-COMPONENTES — Estados vacíos
+// ============================================================================
+
+/**
+ * Ciudad SIN negocios en absoluto (sin filtros aplicados). Mensaje claro:
+ * la ciudad aún no tiene comercios registrados, no es un error del usuario.
+ */
+function EstadoCiudadSinNegocios({ ciudad }: { ciudad: string }) {
+  return (
+    <div className="relative flex flex-col items-center px-6 pt-10 pb-12 text-center lg:pt-16 lg:pb-20">
+      <Sparkles
+        className="absolute left-8 top-2 h-5 w-5 animate-pulse text-blue-400/70"
+        strokeWidth={2}
+        style={{ animationDuration: '2.5s' }}
+      />
+      <Sparkles
+        className="absolute right-10 top-10 h-4 w-4 animate-pulse text-blue-300/70"
+        strokeWidth={2}
+        style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
+      />
+
+      <div className="relative mb-6">
+        <div
+          className="absolute inset-0 -m-5 animate-ping rounded-full bg-blue-300/40"
+          style={{ animationDuration: '2.4s' }}
+        />
+        <div
+          className="absolute inset-0 -m-2 animate-ping rounded-full bg-blue-400/40"
+          style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
+        />
+        <div
+          className="relative flex h-24 w-24 items-center justify-center rounded-full shadow-xl"
+          style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
+        >
+          <Store className="h-11 w-11 text-white" strokeWidth={2} />
+        </div>
+      </div>
+
+      <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+        Aún no hay negocios en{' '}
+        <span className="text-blue-600">{ciudad || 'tu ciudad'}</span>
+      </h3>
+      <p className="max-w-sm text-base text-slate-600">
+        Estamos sumando comercios locales. Pronto verás aquí restaurantes,
+        tiendas y servicios cerca de ti.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Filtro activo sin resultados. CTA para limpiar filtros.
+ */
+function EstadoFiltroSinNegocios({ onLimpiar }: { onLimpiar: () => void }) {
+  return (
+    <div className="relative flex flex-col items-center px-6 pt-10 pb-12 text-center lg:pt-16 lg:pb-20">
+      <Sparkles
+        className="absolute left-8 top-2 h-5 w-5 animate-pulse text-blue-400/70"
+        strokeWidth={2}
+        style={{ animationDuration: '2.5s' }}
+      />
+      <Sparkles
+        className="absolute right-10 top-10 h-4 w-4 animate-pulse text-blue-300/70"
+        strokeWidth={2}
+        style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
+      />
+
+      <div className="relative mb-6">
+        <div
+          className="absolute inset-0 -m-5 animate-ping rounded-full bg-blue-300/40"
+          style={{ animationDuration: '2.4s' }}
+        />
+        <div
+          className="absolute inset-0 -m-2 animate-ping rounded-full bg-blue-400/40"
+          style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
+        />
+        <div
+          className="relative flex h-24 w-24 items-center justify-center rounded-full shadow-xl"
+          style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
+        >
+          <Store className="h-11 w-11 text-white" strokeWidth={2} />
+        </div>
+      </div>
+
+      <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+        Sin coincidencias
+      </h3>
+      <p className="mb-6 max-w-sm text-base text-slate-600">
+        No encontramos negocios con estos filtros. Prueba ampliar el radio o
+        ver todos los negocios de tu ciudad.
+      </p>
+
+      <button
+        data-testid="btn-limpiar-filtros-negocios"
+        onClick={onLimpiar}
+        className="inline-flex animate-pulse cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-blue-500 to-blue-700 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02]"
+        style={{ animationDuration: '2.4s' }}
+      >
+        <Store className="h-4 w-4" strokeWidth={2.5} />
+        Ver todos los negocios
+      </button>
+    </div>
   );
 }
 

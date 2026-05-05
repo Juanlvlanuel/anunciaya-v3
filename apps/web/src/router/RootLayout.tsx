@@ -18,18 +18,35 @@ import { buscarCiudadCercana } from '../data/ciudadesPopulares';
 import { useTituloDinamico } from '../hooks/useTituloDinamico';
 
 /**
- * Verifica si hay ciudad guardada en localStorage
- * Esto es más confiable que esperar hidratación de Zustand
+ * Lee la ciudad guardada en localStorage. Más confiable que esperar
+ * hidratación de Zustand (que en algunos escenarios — Vite HMR, DevTools
+ * toggleando viewport, primer arranque tras force-stop — puede desincronizarse
+ * con el storage).
+ *
+ * Devuelve `null` si no hay ciudad o si el storage está corrupto.
  */
-function hayCiudadGuardada(): boolean {
+function leerCiudadDeStorage(): {
+  nombre: string;
+  estado: string;
+  coordenadas?: { lat: number; lng: number };
+} | null {
   try {
     const stored = localStorage.getItem('ay_ubicacion');
-    if (!stored) return false;
-
-    const parsed = JSON.parse(stored);
-    return parsed?.state?.ciudad !== null && parsed?.state?.ciudad !== undefined;
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as {
+      state?: {
+        ciudad?: {
+          nombre: string;
+          estado: string;
+          coordenadas?: { lat: number; lng: number };
+        } | null;
+      };
+    };
+    const c = parsed?.state?.ciudad;
+    if (!c?.nombre || !c?.estado) return null;
+    return { nombre: c.nombre, estado: c.estado, coordenadas: c.coordenadas };
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -106,11 +123,24 @@ export function RootLayout() {
     deteccionEjecutada.current = true;
 
     const detectarUbicacion = async () => {
-      // Verificar directamente en localStorage (más confiable)
-      if (hayCiudadGuardada()) {
+      // 1. Si hay ciudad en localStorage, garantizamos que el store la tenga.
+      //    Si zustand persist ya rehidrató bien, este `setCiudad` es idempotente
+      //    (mismo valor, no genera re-render). Si la rehidratación falló (bug
+      //    raro de HMR o cambio de viewport), aquí re-aplicamos al store.
+      const ciudadGuardada = leerCiudadDeStorage();
+      if (ciudadGuardada) {
+        const stateActual = useGpsStore.getState();
+        if (stateActual.ciudad?.nombre !== ciudadGuardada.nombre) {
+          setCiudad(
+            ciudadGuardada.nombre,
+            ciudadGuardada.estado,
+            ciudadGuardada.coordenadas
+          );
+        }
         return;
       }
 
+      // 2. Sin ciudad guardada → intentar auto-detectar por GPS.
       try {
         const coordenadas = await obtenerUbicacion();
 

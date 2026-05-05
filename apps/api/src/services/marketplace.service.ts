@@ -1038,7 +1038,9 @@ export async function generarUrlUploadImagenMarketplace(
  */
 export async function obtenerTrending(
     ciudad: string,
-    excluirIds: string[]
+    excluirIds: string[],
+    lat?: number | null,
+    lng?: number | null
 ): Promise<ArticuloFeedRow[]> {
     const filtroExcluir =
         excluirIds.length > 0
@@ -1047,6 +1049,14 @@ export async function obtenerTrending(
                   sql`, `
               )})`
             : sql``;
+
+    const tieneGps = lat !== undefined && lat !== null && lng !== undefined && lng !== null;
+    const distanciaSelect = tieneGps
+        ? sql`ST_Distance(
+                am.ubicacion_aproximada,
+                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+            ) AS distancia_metros,`
+        : sql`NULL::float AS distancia_metros,`;
 
     const resultado = await db.execute(sql`
         SELECT
@@ -1058,6 +1068,7 @@ export async function obtenerTrending(
             am.ciudad, am.zona_aproximada, am.estado,
             am.total_vistas, am.total_mensajes, am.total_guardados,
             am.expira_at, am.created_at, am.updated_at, am.vendida_at,
+            ${distanciaSelect}
             COALESCE(g24.total, 0) AS guardados_24h,
             COALESCE(m24.total, 0) AS mensajes_24h,
             COALESCE(pq.total, 0) AS total_preguntas_respondidas
@@ -1092,6 +1103,7 @@ export async function obtenerTrending(
     `);
 
     type RawTrendingRow = RawArticuloDb & {
+        distancia_metros: number | null;
         guardados_24h: number;
         mensajes_24h: number;
         total_preguntas_respondidas: number;
@@ -1120,7 +1132,8 @@ export async function obtenerTrending(
 
     return ordenados.map(({ row, vistas24h }) => ({
         ...mapearArticulo(row),
-        distanciaMetros: null,
+        distanciaMetros:
+            row.distancia_metros !== null ? Math.round(row.distancia_metros) : null,
         viendo: 0,
         vistas24h,
         totalPreguntasRespondidas: row.total_preguntas_respondidas ?? 0,

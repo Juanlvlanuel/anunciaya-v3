@@ -299,10 +299,33 @@ export const useGpsStore = create<GpsState>()(
     }),
     {
       name: STORAGE_KEY,
-      // Solo persistir la ciudad (no las coordenadas GPS que pueden cambiar)
+      // Persistimos ciudad + coordenadas + permiso para evitar que el feed
+      // muestre "Activa tu ubicación" cada vez que el usuario refresca. Las
+      // coordenadas pueden quedar levemente desactualizadas si se mueve, pero
+      // `onRehydrateStorage` dispara un refresh en background si el permiso
+      // ya estaba concedido (ver abajo).
       partialize: (state) => ({
         ciudad: state.ciudad,
+        latitud: state.latitud,
+        longitud: state.longitud,
+        permiso: state.permiso,
       }),
+      // Al rehidratar desde localStorage: si el usuario ya había concedido
+      // permiso de geolocalización, refrescamos las coordenadas en background
+      // (fire-and-forget). Si la respuesta tarda, el feed usa las coordenadas
+      // cacheadas mientras llega; cuando se actualizan, React Query revalida
+      // y el feed se ajusta sin parpadeo.
+      onRehydrateStorage: () => (state) => {
+        if (state?.permiso === 'concedido') {
+          // setTimeout 0 para que la rehidratación termine antes de disparar
+          // navigator.geolocation.getCurrentPosition.
+          setTimeout(() => {
+            state.obtenerUbicacion().catch(() => {
+              // Silencioso: si falla seguimos con coordenadas cacheadas.
+            });
+          }, 0);
+        }
+      },
     }
   )
 );

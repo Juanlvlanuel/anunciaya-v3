@@ -165,18 +165,24 @@ export async function registrarVistaArticulo(articuloId: string): Promise<void> 
 interface UseTrendingMarketplaceParams {
     ciudad: string | null | undefined;
     excluirIds: string[];
+    /** GPS opcional — si está presente, las cards traen `distanciaMetros`
+     *  igual que en `/feed`. Sin GPS, viene `null`. */
+    lat?: number | null;
+    lng?: number | null;
 }
 
 /**
- * Consume `GET /api/marketplace/feed/trending?ciudad=X&excluirIds[]=...`.
+ * Consume `GET /api/marketplace/feed/trending?ciudad=X&lat=Y&lng=Z&excluirIds[]=...`.
  * Devuelve array vacío si hay menos de 3 artículos con actividad (backend).
  * staleTime: 5 min — la métrica cambia lento y es costosa de calcular.
  */
-export function useTrendingMarketplace({ ciudad, excluirIds }: UseTrendingMarketplaceParams) {
+export function useTrendingMarketplace({ ciudad, excluirIds, lat, lng }: UseTrendingMarketplaceParams) {
     return useQuery({
         queryKey: queryKeys.marketplace.trending(ciudad ?? '', excluirIds),
         queryFn: async (): Promise<ArticuloFeed[]> => {
             const params = new URLSearchParams({ ciudad: ciudad ?? '' });
+            if (lat !== null && lat !== undefined) params.set('lat', String(lat));
+            if (lng !== null && lng !== undefined) params.set('lng', String(lng));
             excluirIds.forEach((id) => params.append('excluirIds[]', id));
             const response = await api.get<{ success: boolean; data: ArticuloFeed[] }>(
                 `/marketplace/feed/trending?${params.toString()}`

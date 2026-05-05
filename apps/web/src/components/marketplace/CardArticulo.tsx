@@ -91,7 +91,7 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
         <article
             data-testid={`card-articulo-${articulo.id}`}
             onClick={handleClickCard}
-            className="group cursor-pointer overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md transition-shadow hover:shadow-lg"
+            className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md transition-shadow hover:shadow-lg"
         >
             {/* ── Imagen portada (aspect 1:1) ────────────────────────────── */}
             <div className="relative aspect-square w-full bg-slate-100">
@@ -138,8 +138,8 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
                 </button>
             </div>
 
-            {/* ── Bloque blanco abajo ────────────────────────────────────── */}
-            <div className="space-y-1 px-3 py-2.5">
+            {/* ── Bloque blanco abajo (altura uniforme entre cards) ───────── */}
+            <div className="flex flex-1 flex-col gap-1 px-3 py-2.5">
                 {/* Precio */}
                 <div className="text-xl font-bold leading-tight text-slate-900">
                     {formatearPrecio(articulo.precio)}
@@ -162,16 +162,23 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
                     <span>{tiempo}</span>
                 </div>
 
-                {/* Señal de actividad — condicional, máximo una línea */}
-                {senalActividad && (
-                    <div
-                        data-testid={`actividad-${articulo.id}`}
-                        className="flex items-center gap-1 text-xs text-slate-500"
-                    >
-                        {senalActividad.icono}
-                        <span>{senalActividad.texto}</span>
-                    </div>
-                )}
+                {/* Señal de actividad — slot reservado siempre para que las
+                    cards conserven la misma altura aunque algunas no tengan
+                    indicador. Si no hay señal, se renderiza un placeholder
+                    invisible (&nbsp;) con la misma altura visual. */}
+                <div
+                    data-testid={`actividad-${articulo.id}`}
+                    className="flex min-h-[1.125rem] items-center gap-1 text-xs text-slate-500"
+                >
+                    {senalActividad ? (
+                        <>
+                            {senalActividad.icono}
+                            <span>{senalActividad.texto}</span>
+                        </>
+                    ) : (
+                        <span aria-hidden>&nbsp;</span>
+                    )}
+                </div>
             </div>
         </article>
     );

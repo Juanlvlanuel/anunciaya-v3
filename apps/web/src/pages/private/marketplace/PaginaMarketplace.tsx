@@ -25,7 +25,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Plus, MapPin, AlertCircle, ChevronLeft, Search, Menu, X } from 'lucide-react';
+import { ShoppingCart, Plus, MapPin, AlertCircle, ChevronLeft, Search, Menu, X, Sparkles, CornerRightDown } from 'lucide-react';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
@@ -64,6 +64,8 @@ export function PaginaMarketplace() {
     const { data: trending = [] } = useTrendingMarketplace({
         ciudad,
         excluirIds: idsRecientes,
+        lat: latitud,
+        lng: longitud,
     });
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
@@ -73,6 +75,7 @@ export function PaginaMarketplace() {
     const query = useSearchStore((s) => s.query);
     const setQuery = useSearchStore((s) => s.setQuery);
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+    const abrirModalUbicacion = useUiStore((s) => s.abrirModalUbicacion);
 
     // Buscador móvil inline (mismo patrón que Negocios). Al abrir el input,
     // también abrimos el overlay del store para que se vean sugerencias/
@@ -389,7 +392,9 @@ export function PaginaMarketplace() {
                     </button>
                 </div>
 
-                {/* Estado: sin ciudad seleccionada en el Navbar global */}
+                {/* Estado: sin ciudad seleccionada. En móvil (sin Navbar global)
+                    el botón abre el ModalUbicacion para que el usuario pueda
+                    elegirla sin depender del selector del Navbar. */}
                 {!ciudad && (
                     <div className="mx-3 mt-6 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:mx-0">
                         <div className="flex items-start gap-2.5">
@@ -397,14 +402,21 @@ export function PaginaMarketplace() {
                                 className="h-5 w-5 shrink-0 text-amber-600"
                                 strokeWidth={2}
                             />
-                            <div>
+                            <div className="flex-1">
                                 <strong className="font-semibold">
                                     Selecciona tu ciudad
                                 </strong>
                                 <p className="mt-0.5">
-                                    Usa el selector de ubicación arriba para elegir tu
-                                    ciudad y ver artículos cerca de ti.
+                                    Necesitamos tu ciudad para mostrarte artículos cerca de ti.
                                 </p>
+                                <button
+                                    data-testid="btn-seleccionar-ciudad"
+                                    onClick={abrirModalUbicacion}
+                                    className="mt-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700"
+                                >
+                                    <MapPin className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                    Elegir ciudad
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -489,25 +501,96 @@ export function PaginaMarketplace() {
                     <SeccionCercanos articulos={cercanosDeduplicados} />
                 )}
 
-                {/* Estado: vacío total */}
+                {/* Estado: vacío total — invitación dinámica a publicar (sin card) */}
                 {!isLoading &&
                     !isError &&
                     data &&
                     recientes.length === 0 &&
                     cercanos.length === 0 && (
-                        <div className="mx-3 mb-12 mt-10 rounded-xl border-2 border-slate-200 bg-white p-8 text-center lg:mx-0">
-                            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                                <ShoppingCart
-                                    className="h-8 w-8 text-slate-400"
-                                    strokeWidth={1.5}
+                        <div className="relative mt-12 flex flex-col items-center px-6 text-center lg:mt-20">
+                            {/* Sparkles decorativos */}
+                            <Sparkles
+                                className="absolute left-8 top-2 h-5 w-5 animate-pulse text-teal-400/70"
+                                strokeWidth={2}
+                                style={{ animationDuration: '2.5s' }}
+                            />
+                            <Sparkles
+                                className="absolute right-10 top-10 h-4 w-4 animate-pulse text-teal-300/70"
+                                strokeWidth={2}
+                                style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
+                            />
+
+                            {/* Icono central con halos pulsantes */}
+                            <div className="relative mb-6">
+                                <div
+                                    className="absolute inset-0 -m-5 animate-ping rounded-full bg-teal-300/40"
+                                    style={{ animationDuration: '2.4s' }}
                                 />
+                                <div
+                                    className="absolute inset-0 -m-2 animate-ping rounded-full bg-teal-400/40"
+                                    style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
+                                />
+                                <div
+                                    className="relative flex h-24 w-24 items-center justify-center rounded-full shadow-xl"
+                                    style={{
+                                        background:
+                                            'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                    }}
+                                >
+                                    <ShoppingCart
+                                        className="h-11 w-11 text-white"
+                                        strokeWidth={2}
+                                    />
+                                </div>
                             </div>
-                            <h3 className="mb-2 text-lg font-semibold text-slate-900">
-                                Aún no hay artículos en tu ciudad
+
+                            <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+                                ¡Sé el primero!
                             </h3>
-                            <p className="text-sm text-slate-600">
-                                ¡Sé el primero en publicar algo en {ciudad ?? 'tu zona'}!
+                            <p className="max-w-sm text-base text-slate-600">
+                                Aún no hay artículos en{' '}
+                                <span className="font-bold text-slate-900">
+                                    {ciudad ?? 'tu zona'}
+                                </span>
+                                . Publica algo y empieza a vender hoy mismo.
                             </p>
+
+                            {/* CTA inline para desktop (donde no hay FAB visible al hacer scroll) */}
+                            <button
+                                data-testid="btn-publicar-empty-state"
+                                onClick={handlePublicar}
+                                className="mt-6 hidden cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] lg:inline-flex"
+                            >
+                                <Plus className="h-4 w-4" strokeWidth={2.5} />
+                                Publicar primer artículo
+                            </button>
+                        </div>
+                    )}
+
+                {/* Indicador animado apuntando al FAB — solo móvil cuando feed vacío */}
+                {!isLoading &&
+                    !isError &&
+                    data &&
+                    recientes.length === 0 &&
+                    cercanos.length === 0 && (
+                        <div
+                            data-testid="empty-state-arrow-fab"
+                            className="pointer-events-none fixed bottom-36 right-3 z-20 flex flex-col items-end gap-1 lg:hidden"
+                            style={{ animation: 'mp-arrow-bounce 1.4s ease-in-out infinite' }}
+                        >
+                            <span className="rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-3 py-1.5 text-xs font-bold text-white shadow-lg whitespace-nowrap">
+                                ¡Publica aquí!
+                            </span>
+                            <CornerRightDown
+                                className="h-8 w-8 text-slate-900 drop-shadow"
+                                strokeWidth={3}
+                            />
+                            <style>{`
+                                @keyframes mp-arrow-bounce {
+                                    0%, 100% { transform: translate(0, 0); }
+                                    50% { transform: translate(6px, 6px); }
+                                }
+                            `}</style>
                         </div>
                     )}
 

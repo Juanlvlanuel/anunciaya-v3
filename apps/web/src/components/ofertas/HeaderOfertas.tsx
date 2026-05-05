@@ -197,7 +197,7 @@ export default function HeaderOfertas({
               <div className="flex items-center gap-1 shrink-0">
                 {comprimido && (
                   <span className="text-[10px] tracking-[1px] text-white/55 font-medium uppercase mr-1">
-                    {totalOfertas} HOY
+                    {totalOfertas} OFERTAS
                   </span>
                 )}
                 <button
@@ -276,11 +276,11 @@ export default function HeaderOfertas({
                 {ciudadUpper ? (
                   <>
                     En <span className="font-bold text-white">{ciudad}</span> ·{' '}
-                    {totalOfertas} hoy
+                    {totalOfertas} ofertas
                   </>
                 ) : (
                   <>
-                    <span className="font-bold text-white">{totalOfertas}</span> ofertas hoy
+                    <span className="font-bold text-white">{totalOfertas}</span> ofertas
                   </>
                 )}
               </span>
@@ -406,7 +406,7 @@ export default function HeaderOfertas({
                   {totalOfertas}
                 </span>
                 <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-amber-400/80 uppercase tracking-wider mt-1">
-                  Ofertas hoy
+                  Ofertas
                 </span>
               </div>
             )}
