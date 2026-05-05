@@ -108,13 +108,15 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
                     </div>
                 )}
 
-                {/* Badge "NUEVO" si <24h ─ esquina sup-izq */}
+                {/* Badge "RECIÉN" (publicación <24h) ─ esquina sup-izq.
+                    Texto distinto de "Nuevo" para no chocar con la condición
+                    "nuevo" del artículo (decisión post-pulido visual). */}
                 {esNuevo && (
                     <span
-                        data-testid={`badge-nuevo-${articulo.id}`}
+                        data-testid={`badge-recien-${articulo.id}`}
                         className="absolute left-2 top-2 inline-flex items-center rounded-md bg-teal-500 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm"
                     >
-                        Nuevo
+                        Recién
                     </span>
                 )}
 

@@ -77,3 +77,34 @@
 4. **WhatsApp en perfil del vendedor** (6) — backend + frontend, 15 min.
 5. **Sección Mis Publicaciones** (2) — sprint propio.
 6. **Rediseño completo P2 Detalle** (1) — sprint propio (Sprint 9.3 candidato).
+
+---
+
+## 8. OverlayBuscadorOfertas — pendiente de construir
+
+**Reportado el 2026-05-05** durante la unificación del patrón inmersivo (Navbar oculto en MP, Negocios y Ofertas).
+
+Al ocultar el Navbar global en `/ofertas`, agregamos un botón Search en el header de Ofertas para conservar la simetría visual con MP y Negocios. Pero el botón solo dispara `useSearchStore.abrirBuscador()` y **no hay un overlay propio de Ofertas** que escuche ese estado.
+
+**Estado actual:** click en el botón cambia el state global pero no se ve nada en pantalla. El header se ve correcto y consistente, pero la búsqueda de ofertas no funciona aún.
+
+**Acción:** crear `apps/web/src/components/ofertas/OverlayBuscadorOfertas.tsx` siguiendo el patrón de `OverlayBuscadorMarketplace`:
+- Sugerencias por título de oferta
+- Términos populares (analytics existentes)
+- Filtros por categoría/CardYA/cerca/etc.
+- Montar el overlay en `PaginaOfertas.tsx`
+
+Es trabajo de un sprint propio (estimado: similar al Sprint 6 del MarketPlace).
+
+---
+
+## 9. Header inmersivo de MarketPlace y Ofertas — flecha + buscador + menú
+
+**Aplicado el 2026-05-05** al unificar el patrón inmersivo. Ya quedó:
+
+- MarketPlace móvil: header negro con `[← volver] [logo + título] [buscar] [menú]`. El botón de buscar reusa el `OverlayBuscadorMarketplace` (Sprint 6).
+- Ofertas móvil: header negro con `[← volver] [logo + título] [buscar] [menú]`. El botón de buscar requiere construir `OverlayBuscadorOfertas` (item 8).
+- Negocios móvil: ya tenía flecha + buscar + menú, sin cambios.
+- Servicios: aplicar el mismo patrón cuando se construya la sección.
+
+**No se requiere acción adicional** salvo lo del item 8.

@@ -129,7 +129,7 @@ export function OverlayBuscadorMarketplace() {
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="mx-auto max-h-[80vh] max-w-3xl overflow-y-auto rounded-b-2xl border-x border-b border-slate-200 bg-white shadow-2xl"
+                className="mx-auto mt-20 max-h-[75vh] max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl lg:mt-24"
             >
                 {/* ─── Estado vacío: recientes + populares ─────────────────── */}
                 {!escribiendo && (
@@ -205,11 +205,11 @@ export function OverlayBuscadorMarketplace() {
                     </div>
                 )}
 
-                {/* ─── Sugerencias en vivo ─────────────────────────────────── */}
+                {/* ─── Sugerencias en vivo: cards con preview ─────────────── */}
                 {escribiendo && (
                     <section data-testid="seccion-sugerencias" className="p-2">
                         <h3 className="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                            Sugerencias
+                            Resultados
                         </h3>
                         {cargandoSug && sugerencias.length === 0 ? (
                             <div className="px-3 py-4 text-sm text-slate-500">
@@ -217,31 +217,69 @@ export function OverlayBuscadorMarketplace() {
                             </div>
                         ) : sugerencias.length === 0 ? (
                             <div className="px-3 py-4 text-sm text-slate-500">
-                                No hay sugerencias para "{query.trim()}". Presiona Enter para
+                                No hay resultados para &quot;{query.trim()}&quot;. Presiona Enter para
                                 buscar de todos modos.
                             </div>
                         ) : (
-                            <ul>
-                                {sugerencias.map((titulo, idx) => (
-                                    <li key={`${titulo}-${idx}`}>
-                                        <button
-                                            data-testid={`sugerencia-${idx}`}
-                                            onClick={() => ejecutarBusqueda(titulo)}
-                                            className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-100"
-                                        >
-                                            <Search
-                                                className="h-4 w-4 shrink-0 text-slate-400"
-                                                strokeWidth={2}
-                                            />
-                                            <span className="flex-1 truncate">{titulo}</span>
-                                            <ArrowUpRight
-                                                className="h-4 w-4 shrink-0 text-slate-400"
-                                                strokeWidth={2}
-                                            />
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
+                            <>
+                                <ul className="flex flex-col gap-1">
+                                    {sugerencias.map((articulo, idx) => (
+                                        <li key={articulo.id}>
+                                            <button
+                                                data-testid={`sugerencia-${idx}`}
+                                                onClick={() => {
+                                                    agregarBusquedaReciente(query.trim());
+                                                    setRecientesRev((v) => v + 1);
+                                                    cerrarBuscador();
+                                                    navigate(`/marketplace/articulo/${articulo.id}`);
+                                                }}
+                                                className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-slate-100"
+                                            >
+                                                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                                                    {articulo.fotoPortada ? (
+                                                        <img
+                                                            src={articulo.fotoPortada}
+                                                            alt={articulo.titulo}
+                                                            className="h-full w-full object-cover"
+                                                            loading="lazy"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-full w-full items-center justify-center text-slate-300">
+                                                            <Search className="h-5 w-5" strokeWidth={1.5} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex min-w-0 flex-1 flex-col">
+                                                    <span className="truncate text-sm font-semibold text-slate-900">
+                                                        {articulo.titulo}
+                                                    </span>
+                                                    <span className="truncate text-sm font-bold text-teal-700">
+                                                        {`$${articulo.precio.toLocaleString('es-MX')}`}
+                                                        <span className="ml-2 font-normal text-slate-500 capitalize">
+                                                            · {articulo.condicion.replace('_', ' ')}
+                                                        </span>
+                                                    </span>
+                                                    <span className="truncate text-xs text-slate-400">
+                                                        {articulo.ciudad}
+                                                    </span>
+                                                </div>
+                                                <ArrowUpRight
+                                                    className="h-4 w-4 shrink-0 text-slate-400"
+                                                    strokeWidth={2}
+                                                />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button
+                                    data-testid="btn-ver-todos-resultados"
+                                    onClick={() => ejecutarBusqueda(query)}
+                                    className="mt-1 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border-t border-slate-200 px-3 py-3 text-sm font-semibold text-teal-700 hover:bg-slate-50"
+                                >
+                                    Ver todos los resultados de &quot;{query.trim()}&quot;
+                                    <ArrowUpRight className="h-4 w-4" strokeWidth={2} />
+                                </button>
+                            </>
                         )}
                     </section>
                 )}

@@ -1,9 +1,11 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
-> **Última actualización:** 04 Mayo 2026
-> **Estado:** ✅ v1 completado y desplegado en producción
-> **Versión:** 1.0
-> **Pendientes opcionales:** v1.1 — Sistema de Niveles del Vendedor
+> **Última actualización:** 05 Mayo 2026
+> **Estado:** ✅ v1 + v1.1 (Sprints 9.1 y 9.2) completados y desplegados en producción
+> **Versión:** 1.1.1
+> **Pendientes opcionales:**
+>  - v1.2 — Sistema de Niveles del Vendedor
+>  - Pulido visual y ajustes UX detectados durante verificación: ver `docs/reportes/MarketPlace/Pendientes-Fase-C-Revision-Visual.md`
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - Hooks principales: `apps/web/src/hooks/queries/useMarketplace.ts`
@@ -36,7 +38,7 @@
 11. [Base de Datos — Tablas en Producción](#base-de-datos--tablas-en-producción)
 12. [Cron Jobs en Producción](#cron-jobs-en-producción)
 13. [Decisiones Rechazadas](#decisiones-rechazadas)
-14. [v1.1 Pendiente — Sistema de Niveles del Vendedor](#v11-pendiente--sistema-de-niveles-del-vendedor)
+14. [v1.2 Pendiente — Sistema de Niveles del Vendedor](#v12-pendiente--sistema-de-niveles-del-vendedor)
 
 ---
 
@@ -365,7 +367,15 @@ Blanco con borde slate (estándar de la app).
 
 ### WhatsApp
 
-Verde WhatsApp (`#25D366`) por convención de marca externa. NO usar verde teal aquí.
+Verde brand con gradiente: `bg-linear-to-br from-[#22C55E] to-[#15803D]`. NO usar verde teal aquí. El gradiente da más cuerpo al botón y queda alineado con la estética de los demás CTAs gradient del módulo (CY, dark gradient, etc.).
+
+### ChatYA (CTA de contacto privado)
+
+Botón con **logo oficial de ChatYA** (`/ChatYA.webp`) sin texto. Fondo Dark Gradient de Marca (`bg-linear-to-br from-slate-800 to-slate-950`). Convive con WhatsApp en barra de contacto y perfil del vendedor:
+
+- En **P2 Detalle**: WhatsApp + ChatYA lado a lado (ambas variantes mobile/desktop).
+- En **P3 Perfil del vendedor**: solo ChatYA + Seguir vendedor (WhatsApp queda como pendiente para próximo sprint, ver Pendientes-Fase-C-Revision-Visual §6).
+- El click llama `useChatYAStore.abrirChatTemporal({...})` **+ `useUiStore.abrirChatYA()`** — ambas son obligatorias; si solo se llama `abrirChatTemporal` el panel de ChatYA no se abre y el botón parece roto.
 
 ### Header de página
 
@@ -395,8 +405,12 @@ Imagen arriba + bloque blanco abajo. Distinto del glassmorphism inmersivo de Car
 ### Decisiones visuales específicas tomadas durante implementación
 
 - **Perfil del vendedor sin portada decorativa** — un banner teal full-width o imagen genérica se ve como publicidad. Solo avatar grande centrado en bloque blanco.
-- **Sin badge "✓ Verificado"** — todos los usuarios tienen correo verificado (es requisito de login), por lo que el badge no diferencia a nadie. La diferenciación real vendrá con el sistema de niveles (v1.1).
-- **Buscador físico vive en el Navbar global**, NO local en MarketPlace. El overlay del buscador se ancla al store global `useSearchStore` y solo aporta el contenido (recientes/populares/sugerencias).
+- **Sin badge "✓ Verificado"** — todos los usuarios tienen correo verificado (es requisito de login), por lo que el badge no diferencia a nadie. La diferenciación real vendrá con el sistema de niveles (v1.2).
+- **Buscador físico**:
+  - **Desktop:** input vive en el Navbar global (siempre visible). Al enfocar dispara `useSearchStore.abrirBuscador()` y se muestra el overlay.
+  - **Móvil:** patrón inmersivo (sin Navbar global). El input vive **dentro del header del MarketPlace** y se expande al pulsar la lupa, igual que en Negocios. El input móvil escribe al mismo `useSearchStore.query` para que el overlay reuse toda su lógica (sugerencias, populares, recientes).
+- **Patrón inmersivo móvil** — `/marketplace`, `/marketplace/articulo/:id`, `/marketplace/publicar`, `/marketplace/vendedor/:id`, `/marketplace/buscar`, `/negocios/:id` y `/ofertas` ocultan el Navbar global (banda azul "AnunciaYA Tu Comunidad Local") en móvil. La lógica vive en `MainLayout.tsx → esPaginaConHeaderPropio`. En desktop el Navbar siempre se mantiene (mismo patrón que CardYA / Mis Guardados).
+- **Badge `RECIÉN`** en CardArticulo — antes decía `NUEVO` pero generaba confusión con la condición `nuevo` del artículo. Cambiado a `RECIÉN` el 2026-05-05. Indica publicación con `<24h` desde `created_at`.
 
 
 ---
@@ -414,11 +428,10 @@ Scroll vertical continuo, no estático. Invita a explorar.
 
 ```
 ┌──────────────────────────────────────┐
-│ HEADER DARK STICKY                   │
+│ HEADER DARK STICKY (sin Navbar)      │
 │ ┌──────────────────────────────────┐ │
-│ │ 🛒 MarketPlace                   │ │
-│ │ COMPRA-VENTA LOCAL               │ │
-│ │ 📍 Manzanillo · 247 artículos    │ │
+│ │ ← 🛒 MarketPlace      🔍  ☰     │ │  ← flecha + buscar + menú
+│ │ ─ En Manzanillo · 247 artículos ─│ │
 │ └──────────────────────────────────┘ │
 ├──────────────────────────────────────┤
 │ ✦ LO MÁS FRESCO                      │
@@ -448,7 +461,7 @@ Scroll vertical continuo, no estático. Invita a explorar.
 
 ```
 ┌─────────────────────┐
-│ [NUEVO]        [♥] │  ← badge si <24h + botón guardar
+│ [RECIÉN]       [♥] │  ← badge si <24h + botón guardar
 │                     │
 │      IMAGEN         │  ← portada cuadrada (aspect 1:1)
 │      PORTADA        │
@@ -464,7 +477,9 @@ Scroll vertical continuo, no estático. Invita a explorar.
 - **Tap/click en card** → navega a `/marketplace/articulo/:id` (P2)
 - **Tap en ❤️ guardar** → toggle vía `useGuardados` con `entity_type='articulo_marketplace'`
 - **Tap en "+ Publicar artículo"** → navega a `/marketplace/publicar` (P4 modo creación)
-- **Buscador del Navbar global** abre overlay (P5) cuando se le hace focus en `/marketplace*`
+- **Buscador**:
+  - **Desktop:** focus en input del Navbar global → abre overlay P5.
+  - **Móvil:** lupa en header del MP → input se expande inline, escribir abre overlay P5 con cards preview.
 
 #### Datos del servidor
 
@@ -518,7 +533,7 @@ Scroll vertical continuo, no estático. Invita a explorar.
 │ └────────────────────────────────┘   │
 └──────────────────────────────────────┘
 ┌──────────────────────────────────────┐  ← barra fija inferior
-│ [📱 WhatsApp] [💬 Enviar mensaje]   │
+│ [📱 WhatsApp]   [logo ChatYA]        │  ← lado a lado, logos sin texto
 └──────────────────────────────────────┘
 ```
 
@@ -546,8 +561,9 @@ Scroll vertical continuo, no estático. Invita a explorar.
   - Texto debajo: "Mostraremos un círculo de 500m, no la dirección exacta. Acuerda el punto de encuentro por chat."
 
 - **Barra de contacto:** `apps/web/src/components/marketplace/BarraContacto.tsx`
-  - WhatsApp (verde `#25D366`) → mensaje precargado: `"Hola, vi tu publicación de [título] en AnunciaYA"`
-  - "Enviar mensaje" (Dark Gradient) → `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}`
+  - **WhatsApp** (gradiente verde brand `from-[#22C55E] to-[#15803D]`) con ícono Lucide `MessageCircle`. Mensaje precargado: `"Hola, vi tu publicación de [título] en AnunciaYA"`
+  - **ChatYA** (Dark Gradient) — botón con logo oficial `/ChatYA.webp` sin texto + `aria-label="Contactar por ChatYA"`. Llama `useChatYAStore.abrirChatTemporal({...})` **+ `useUiStore.abrirChatYA()`** (las dos son obligatorias, sin la segunda el panel no aparece). `contextoTipo='marketplace'` + `contextoReferenciaId={articuloId}`.
+  - **Layout:** botones lado a lado en mobile y desktop (no apilados). Padding bajo `py-1.5` para que el botón se ajuste al tamaño del logo.
   - Si vendedor sin teléfono → oculta WhatsApp
   - Si visitante es el dueño → oculta toda la barra
   - Si dueño + estado=pausada → reemplaza la barra con botón "Reactivar publicación"
@@ -585,8 +601,9 @@ Scroll vertical continuo, no estático. Invita a explorar.
   - **Vendidos** — `COUNT(*) WHERE estado='vendida'`
   - **Tiempo de respuesta** — promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor en últimos 30 días, **sin filtro de `contexto_tipo`** (es característica de la persona, no del módulo)
 - 2 botones (ocultos si visitas tu propio perfil):
-  - "Enviar mensaje" (Dark Gradient negro) → ChatYA con `contextoTipo='vendedor_marketplace'`
-  - "Seguir vendedor" (blanco con borde) → `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`
+  - **ChatYA** (Dark Gradient negro) — botón con logo oficial `/ChatYA.webp` sin texto. Llama `useChatYAStore.abrirChatTemporal({...})` + `useUiStore.abrirChatYA()` con `contextoTipo='vendedor_marketplace'`.
+  - **Seguir vendedor** (blanco con borde) → `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`
+- **Pendiente** (item 6 del reporte): agregar botón **WhatsApp** aquí también para consistencia con P2 Detalle. Requiere extender `getVendedorMarketplace` backend para devolver `telefono`.
 - Tabs: **Publicaciones (X)** | **Vendidos (X)** con subrayado teal en activa
 - Grid de cards estilo B (reusa `CardArticulo`)
 - En tab "Vendidos": cada card envuelta en wrapper con overlay slate translúcido + texto "VENDIDO"
@@ -690,7 +707,7 @@ En modo edición:
 
 ### P5 — Buscador Potenciado
 
-**Implementación:** overlay anclado al store global `useSearchStore`. **NO tiene input propio** — el input físico vive en el Navbar global.
+**Implementación:** overlay anclado al store global `useSearchStore`. El overlay NO tiene input propio: el input físico vive en el Navbar global (desktop) o inline dentro del header del MarketPlace (móvil, patrón inmersivo). Ambos escriben al mismo `useSearchStore.query` para que el overlay reuse toda su lógica.
 
 **Componente overlay:** `apps/web/src/components/marketplace/OverlayBuscadorMarketplace.tsx`
 **Página de resultados:** `apps/web/src/pages/private/marketplace/PaginaResultadosMarketplace.tsx`
@@ -698,9 +715,11 @@ En modo edición:
 #### Comportamiento del overlay
 
 - Suscribe a `useSearchStore.buscadorAbierto` y `query`
-- Aparece cuando `buscadorAbierto && pathname.startsWith('/marketplace')`
-- En el Navbar, `onFocus` del input emite `abrirBuscador()` solo en `/marketplace*`
-- `onBlur` con delay cierra el overlay solo si query vacío (permite click dentro del overlay)
+- Aparece cuando `(buscadorAbierto || query.length >= 1) && pathname.startsWith('/marketplace')`
+- **Posicionamiento:** `fixed inset-0` con `mt-20 lg:mt-24` para que el panel quede despegado del Navbar/header (no pegado al borde superior). Esquinas `rounded-2xl`, `max-h-[75vh]` con scroll interno.
+- **Desktop:** `onFocus` del input del Navbar emite `abrirBuscador()` solo en `/marketplace*`. `onBlur` con delay cierra solo si query vacío (permite click dentro del overlay).
+- **Móvil:** la lupa del header del MP expande el input inline. NO llama `abrirBuscador()` directo — el overlay aparece automáticamente cuando `query.length >= 1`. Al borrar todo el texto el overlay desaparece pero el input inline sigue visible.
+- Todos los inputs llevan `autoComplete="off"` para evitar el dropdown nativo del navegador (Chrome) que muestra valores de otras secciones.
 
 #### Estado vacío (al abrir)
 
@@ -710,7 +729,16 @@ En modo edición:
 
 #### Mientras escribes (debounce 300ms)
 
-- Sugerencias en vivo: top 5 títulos completos de artículos existentes (FTS `to_tsvector('spanish', titulo) @@ plainto_tsquery(...)`)
+- **Cards con preview** en lugar de lista plana de títulos. Cada card muestra:
+  - Foto portada (56×56, `object-cover`) — primer foto del array `fotos[foto_portada_index]`
+  - Título completo (truncado si excede)
+  - Precio bold teal-700 con formato `$X,XXX.XX` (`toLocaleString('es-MX')`)
+  - Condición (junto al precio, neutro slate-500: "Seminuevo", "Nuevo", etc.)
+  - Ciudad
+  - Ícono `ArrowUpRight` a la derecha
+- **Click en card** → navega directo a `/marketplace/articulo/:id` (NO va al listado de resultados, salta directo al detalle)
+- **Botón "Ver todos los resultados de '[query]'"** al final del listado → navega a `/marketplace/buscar?q=...` (mantiene el flujo del listado completo cuando el comprador quiere ver más opciones)
+- Fuente: top 5 artículos completos (FTS `to_tsvector('spanish', titulo+descripcion) @@ plainto_tsquery(...)`). Endpoint `GET /marketplace/buscar/sugerencias` devuelve `{ id, titulo, precio, condicion, fotoPortada, ciudad }[]` (antes solo títulos).
 - Solo dispara si `query.length >= 2`
 
 #### Vista de resultados (después de Enter o tap en sugerencia)
@@ -838,9 +866,12 @@ Eventos del MarketPlace que disparan notificaciones (ya implementados):
 | Método | Endpoint | Propósito |
 |--------|----------|-----------|
 | GET | `/api/marketplace/feed` | Feed inicial (recientes + cercanos) por ciudad y GPS |
+| GET | `/api/marketplace/feed/trending` | "Lo más visto hoy" — top por actividad 24h (Sprint 9.1) |
 | GET | `/api/marketplace/articulos/:id` | Detalle público de un artículo |
 | POST | `/api/marketplace/articulos/:id/vista` | Registrar vista (incrementa contador) |
-| GET | `/api/marketplace/buscar/sugerencias` | Sugerencias en vivo (autocompletar) |
+| POST | `/api/marketplace/articulos/:id/heartbeat` | Heartbeat "viendo ahora" (Redis sorted set TTL 2min, Sprint 9.1) |
+| GET | `/api/marketplace/articulos/:id/preguntas` | Q&A público (visitante: respondidas; dueño: pendientes + respondidas) |
+| GET | `/api/marketplace/buscar/sugerencias` | Sugerencias en vivo con preview (top 5 con `id, titulo, precio, condicion, fotoPortada, ciudad`) |
 | GET | `/api/marketplace/buscar/populares` | Top búsquedas populares por ciudad (cache Redis 1h) |
 | GET | `/api/marketplace/buscar` | Resultados de búsqueda con filtros |
 | GET | `/api/marketplace/vendedor/:usuarioId` | Perfil público del vendedor + KPIs |
@@ -857,6 +888,11 @@ Eventos del MarketPlace que disparan notificaciones (ya implementados):
 | DELETE | `/api/marketplace/articulos/:id` | Eliminar (soft delete, solo dueño) |
 | GET | `/api/marketplace/mis-articulos` | Lista paginada de artículos del usuario actual |
 | POST | `/api/marketplace/upload-imagen` | Presigned URL para subir foto a R2 (prefijo `marketplace/`) |
+| POST | `/api/marketplace/articulos/:id/preguntas` | Comprador hace pregunta pública (Sprint 9.2) |
+| POST | `/api/marketplace/preguntas/:id/responder` | Vendedor responde una pregunta pendiente (Sprint 9.2) |
+| POST | `/api/marketplace/preguntas/:id/derivar-a-chat` | Vendedor abre ChatYA con el comprador. **NO** elimina la pregunta pública (cambio post-Sprint 9.2: el flag de soft delete original se quitó porque confundía al usuario al perder la pregunta sin avisar) |
+| DELETE | `/api/marketplace/preguntas/:id` | Vendedor elimina pregunta de su artículo (soft delete) |
+| DELETE | `/api/marketplace/preguntas/:id/mia` | Comprador retira su pregunta — solo si `respondida_at IS NULL` (409 si ya hay respuesta) |
 
 ### Middleware aplicable
 
@@ -963,8 +999,34 @@ CREATE INDEX idx_busquedas_ciudad_fecha ON marketplace_busquedas_log(ciudad, cre
 **`votos`** — agregada en Sprint 5:
 - Check `entity_type` ampliado con `'usuario'`
 
-**`notificaciones`** — agregada en Sprint 1:
-- Check `tipo` ampliado con `'marketplace_nuevo_mensaje'`, `'marketplace_proxima_expirar'`, `'marketplace_expirada'`
+**`notificaciones`** — agregada en Sprint 1, ampliada en Sprint 9.2:
+- Check `tipo` ampliado con `'marketplace_nuevo_mensaje'`, `'marketplace_proxima_expirar'`, `'marketplace_expirada'`, `'marketplace_nueva_pregunta'`, `'marketplace_pregunta_respondida'`
+- **Columna `tipo`:** ampliada a `VARCHAR(50)` (antes `VARCHAR(30)`). El tipo `marketplace_pregunta_respondida` mide 31 caracteres y excedía el límite, lo que hacía que el INSERT fallara silenciosamente por el `.catch(() => {})` del service y la notificación al comprador nunca se guardaba. Migración: `docs/migraciones/2026-05-05-notificaciones-tipo-varchar50.sql`.
+
+**`marketplace_preguntas`** — agregada en Sprint 9.2:
+```sql
+CREATE TABLE marketplace_preguntas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  articulo_id UUID NOT NULL REFERENCES articulos_marketplace(id) ON DELETE CASCADE,
+  comprador_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  pregunta VARCHAR(200) NOT NULL,
+  respuesta VARCHAR(500),
+  respondida_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  CONSTRAINT preguntas_unique_comprador UNIQUE (articulo_id, comprador_id)
+);
+
+CREATE INDEX idx_preguntas_articulo
+  ON marketplace_preguntas(articulo_id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_preguntas_respondidas
+  ON marketplace_preguntas(articulo_id, respondida_at)
+  WHERE respondida_at IS NOT NULL AND deleted_at IS NULL;
+```
+
+**Sistema de Q&A público:** una pregunta por usuario por artículo (UNIQUE). Estado inferido: `respuesta IS NULL` → pendiente, `IS NOT NULL` → respondida, `deleted_at IS NOT NULL` → eliminada. Visibilidad pública solo si `respondida_at IS NOT NULL` (los visitantes solo ven respondidas; el dueño ve pendientes + respondidas).
 
 ---
 
@@ -1116,7 +1178,7 @@ CREATE INDEX idx_busquedas_ciudad_fecha ON marketplace_busquedas_log(ciudad, cre
 
 ---
 
-## 🏆 v1.1 Pendiente — Sistema de Niveles del Vendedor
+## 🏆 v1.2 Pendiente — Sistema de Niveles del Vendedor
 
 > **Estado:** ⏸ Pendiente — diseñado pero no implementado
 > **Recomendación:** implementar después de tener data real de la beta (mínimo 2-3 meses de uso o 50+ ventas confirmadas). Los umbrales de cada nivel son adivinanzas hasta validarse con comportamiento real de usuarios.

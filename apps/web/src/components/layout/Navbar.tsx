@@ -631,6 +631,7 @@ export const Navbar = () => {
                           }
                         }}
                         placeholder={placeholderBuscador}
+                        autoComplete="off"
                         autoCapitalize="off"
                         spellCheck="false"
                         className="

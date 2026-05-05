@@ -22,11 +22,13 @@
  * Ubicación: apps/web/src/components/ofertas/HeaderOfertas.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ChevronLeft,
   Menu,
+  Search,
   Tag,
+  X,
   Zap,
   Calendar,
   CalendarDays,
@@ -38,6 +40,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useMainScrollStore } from '@/stores/useMainScrollStore';
+import { useSearchStore } from '@/stores/useSearchStore';
 import { useUiStore } from '@/stores/useUiStore';
 import {
   useFiltrosOfertasStore,
@@ -76,6 +79,23 @@ export default function HeaderOfertas({
 }: HeaderOfertasProps) {
   const navigate = useNavigate();
   const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+  const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
+  void abrirBuscador; // reservado: dispara el OverlayBuscadorOfertas cuando exista (ver pendiente #8)
+
+  // Buscador móvil inline (mismo patrón visual que Negocios). El input es
+  // local por ahora; cuando exista OverlayBuscadorOfertas se conectará al
+  // useSearchStore global.
+  const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
+  const [busquedaLocal, setBusquedaLocal] = useState('');
+  const inputBusquedaMovilRef = useRef<HTMLInputElement>(null);
+  const handleAbrirBuscadorMovil = () => {
+    setBuscadorMovilAbierto(true);
+    setTimeout(() => inputBusquedaMovilRef.current?.focus(), 100);
+  };
+  const handleCerrarBuscadorMovil = () => {
+    setBusquedaLocal('');
+    setBuscadorMovilAbierto(false);
+  };
   const chipActivo = useFiltrosOfertasStore((s) => s.chipActivo);
   const setChipActivo = useFiltrosOfertasStore((s) => s.setChipActivo);
   const vistaExpandida = useFiltrosOfertasStore((s) => s.vistaExpandida);
@@ -132,62 +152,107 @@ export default function HeaderOfertas({
         {/* MOBILE HEADER                                                  */}
         {/* ══════════════════════════════════════════════════════════════ */}
         <div className="lg:hidden">
-          {/* Fila principal: ChevronLeft + Logo + Título + Menu */}
-          <div
-            className={[
-              'flex items-center justify-between px-3 transition-[padding] duration-300',
-              comprimido ? 'pt-2.5 pb-2' : 'pt-4 pb-2.5',
-            ].join(' ')}
-          >
-            <div className="flex items-center gap-1.5 shrink-0 min-w-0">
-              <button
-                data-testid="btn-volver-ofertas"
-                onClick={() => navigate('/inicio')}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
-              >
-                <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
-              </button>
-              <div
-                className={[
-                  'rounded-lg flex items-center justify-center shrink-0 transition-all duration-300',
-                  comprimido ? 'w-7 h-7' : 'w-9 h-9',
-                ].join(' ')}
-                style={{
-                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                }}
-              >
-                <Tag
+          {!buscadorMovilAbierto ? (
+            /* Fila principal: ChevronLeft + Logo + Título + Buscar + Menu */
+            <div
+              className={[
+                'flex items-center justify-between px-3 transition-[padding] duration-300',
+                comprimido ? 'pt-2.5 pb-2' : 'pt-4 pb-2.5',
+              ].join(' ')}
+            >
+              <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+                <button
+                  data-testid="btn-volver-ofertas"
+                  onClick={() => navigate('/inicio')}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                >
+                  <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                </button>
+                <div
                   className={[
-                    'text-white transition-all duration-300',
-                    comprimido ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5',
+                    'rounded-lg flex items-center justify-center shrink-0 transition-all duration-300',
+                    comprimido ? 'w-7 h-7' : 'w-9 h-9',
                   ].join(' ')}
-                  strokeWidth={2.5}
-                />
-              </div>
-              <span
-                className={[
-                  'font-extrabold text-white tracking-tight truncate transition-all duration-300',
-                  comprimido ? 'text-base' : 'text-2xl',
-                ].join(' ')}
-              >
-                Ofertas <span className="text-amber-400">Locales</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {comprimido && (
-                <span className="text-[10px] tracking-[1px] text-white/55 font-medium uppercase mr-1">
-                  {totalOfertas} HOY
+                  style={{
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                  }}
+                >
+                  <Tag
+                    className={[
+                      'text-white transition-all duration-300',
+                      comprimido ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5',
+                    ].join(' ')}
+                    strokeWidth={2.5}
+                  />
+                </div>
+                <span
+                  className={[
+                    'font-extrabold text-white tracking-tight truncate transition-all duration-300',
+                    comprimido ? 'text-base' : 'text-2xl',
+                  ].join(' ')}
+                >
+                  Ofertas <span className="text-amber-400">Locales</span>
                 </span>
-              )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {comprimido && (
+                  <span className="text-[10px] tracking-[1px] text-white/55 font-medium uppercase mr-1">
+                    {totalOfertas} HOY
+                  </span>
+                )}
+                <button
+                  data-testid="btn-buscar-ofertas"
+                  onClick={handleAbrirBuscadorMovil}
+                  aria-label="Buscar ofertas"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                >
+                  <Search className="w-6 h-6" strokeWidth={2.5} />
+                </button>
+                <button
+                  data-testid="btn-menu-ofertas"
+                  onClick={abrirMenuDrawer}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                >
+                  <Menu className="w-6 h-6" strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Buscador activo: input expandido + X (mismo patrón que Negocios) */
+            <div className="flex items-center gap-2.5 px-3 pt-4 pb-2.5">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-white/40" />
+                <input
+                  ref={inputBusquedaMovilRef}
+                  data-testid="input-buscar-ofertas"
+                  type="text"
+                  value={busquedaLocal}
+                  onChange={(e) => setBusquedaLocal(e.target.value)}
+                  placeholder="Buscar ofertas..."
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  className="w-full rounded-full bg-white/15 py-2 pl-10 pr-10 text-lg text-white placeholder-white/40 outline-none"
+                />
+                {busquedaLocal.trim() && (
+                  <button
+                    onClick={() => { setBusquedaLocal(''); inputBusquedaMovilRef.current?.focus(); }}
+                    className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/25 transition-colors hover:bg-white/40"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <X className="h-4 w-4 text-white" />
+                  </button>
+                )}
+              </div>
               <button
-                data-testid="btn-menu-ofertas"
-                onClick={abrirMenuDrawer}
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                onClick={handleCerrarBuscadorMovil}
+                aria-label="Cerrar buscador"
+                className="shrink-0 cursor-pointer rounded-full p-0.5 text-white/80 hover:bg-white/20"
               >
-                <Menu className="w-6 h-6" strokeWidth={2.5} />
+                <X className="h-7 w-7" />
               </button>
             </div>
-          </div>
+          )}
 
           {/* Subtítulo móvil decorativo — desaparece al comprimir */}
           <div

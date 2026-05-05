@@ -72,6 +72,8 @@ export function MainLayout() {
   const esMisCupones = location.pathname.startsWith('/mis-cupones');
   const esGuardados = location.pathname.startsWith('/guardados');
   const esNegocios = location.pathname === '/negocios';
+  const esMarketplace = location.pathname.startsWith('/marketplace');
+  const esOfertas = location.pathname.startsWith('/ofertas');
 
   // Swipe horizontal entre módulos BS (solo móvil)
   useSwipeNavegacionBS(mobileMainRef);
@@ -99,7 +101,7 @@ export function MainLayout() {
   // Registrar ref de scroll en el store global
   // (para que useScrollDirection, useHideOnScroll, etc. funcionen)
   // ---------------------------------------------------------------------------
-  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios;
+  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios || esPerfilNegocio || esMarketplace || esOfertas;
   useEffect(() => {
     if (esDesktop) {
       setMainScrollRef(mainRef);
@@ -337,7 +339,7 @@ export function MainLayout() {
                 </aside>
               )}
             </>
-          ) : (esCardYA || esMisCupones || esGuardados || esNegocios) ? (
+          ) : esPaginaConHeaderPropio ? (
             /* Páginas con header propio: scroll en body para que el navegador oculte su barra */
             <main className="min-h-screen pb-20">
               <Outlet />

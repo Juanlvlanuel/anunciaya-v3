@@ -23,10 +23,12 @@
  * Ubicación: apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Plus, MapPin, AlertCircle } from 'lucide-react';
+import { ShoppingCart, Plus, MapPin, AlertCircle, ChevronLeft, Search, Menu, X } from 'lucide-react';
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { useSearchStore } from '../../../stores/useSearchStore';
+import { useUiStore } from '../../../stores/useUiStore';
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { useMarketplaceFeed, useTrendingMarketplace } from '../../../hooks/queries/useMarketplace';
 import { CardArticulo } from '../../../components/marketplace/CardArticulo';
@@ -66,8 +68,40 @@ export function PaginaMarketplace() {
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
     const navigate = useNavigate();
+    const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
+    const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
+    const query = useSearchStore((s) => s.query);
+    const setQuery = useSearchStore((s) => s.setQuery);
+    const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+
+    // Buscador móvil inline (mismo patrón que Negocios). Al abrir el input,
+    // también abrimos el overlay del store para que se vean sugerencias/
+    // populares/recientes mientras el usuario escribe.
+    const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
+    const inputBusquedaMovilRef = useRef<HTMLInputElement>(null);
+
     const handlePublicar = () => {
         navigate('/marketplace/publicar');
+    };
+    const handleVolver = () => navigate('/inicio');
+    const handleAbrirBuscadorMovil = () => {
+        // No llamar a abrirBuscador() aquí: el overlay del store debe aparecer
+        // solo cuando el usuario empiece a escribir (query.length >= 1).
+        // Mientras tanto se ve solo el input inline expandido.
+        setBuscadorMovilAbierto(true);
+        setTimeout(() => inputBusquedaMovilRef.current?.focus(), 100);
+    };
+    const handleCerrarBuscadorMovil = () => {
+        setQuery('');
+        cerrarBuscador();
+        setBuscadorMovilAbierto(false);
+    };
+    const handleEnterBusqueda = () => {
+        const termino = query.trim();
+        if (termino.length < 2) return;
+        cerrarBuscador();
+        setBuscadorMovilAbierto(false);
+        navigate(`/marketplace/buscar?q=${encodeURIComponent(termino)}`);
     };
 
     const handleActivarUbicacion = async () => {
@@ -139,27 +173,97 @@ export function PaginaMarketplace() {
 
                         <div className="relative z-10">
                             {/* ═══ MOBILE HEADER (<lg) ═══
-                                Solo logo + subtítulo. La búsqueda la aporta
-                                el Navbar global (useSearchStore + placeholder
-                                'Buscar en Marketplace...'). */}
+                                Patrón inmersivo (sin Navbar global). Dos modos:
+                                  - Cerrado: [← volver] [logo] [buscar] [menú]
+                                  - Abierto: input expandido + X (mismo patrón
+                                    que Negocios). El input escribe a
+                                    useSearchStore.query para que el
+                                    OverlayBuscadorMarketplace muestre
+                                    sugerencias/populares/recientes. */}
                             <div className="lg:hidden">
-                                <div className="flex items-center justify-center gap-2 px-3 pt-4 pb-2">
-                                    <div
-                                        className="flex h-9 w-9 items-center justify-center rounded-lg"
-                                        style={{
-                                            background:
-                                                'linear-gradient(135deg, #2dd4bf, #0d9488)',
-                                        }}
-                                    >
-                                        <ShoppingCart
-                                            className="h-4.5 w-4.5 text-black"
-                                            strokeWidth={2.5}
-                                        />
+                                {!buscadorMovilAbierto ? (
+                                    <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
+                                        <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                                            <button
+                                                data-testid="btn-volver-marketplace"
+                                                onClick={handleVolver}
+                                                aria-label="Volver"
+                                                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                            >
+                                                <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                                            </button>
+                                            <div
+                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                                                style={{
+                                                    background:
+                                                        'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                                }}
+                                            >
+                                                <ShoppingCart
+                                                    className="h-4.5 w-4.5 text-black"
+                                                    strokeWidth={2.5}
+                                                />
+                                            </div>
+                                            <span className="truncate text-2xl font-extrabold tracking-tight text-white">
+                                                Market<span className="text-teal-400">Place</span>
+                                            </span>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-1">
+                                            <button
+                                                data-testid="btn-buscar-marketplace"
+                                                onClick={handleAbrirBuscadorMovil}
+                                                aria-label="Buscar en MarketPlace"
+                                                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                            >
+                                                <Search className="h-6 w-6" strokeWidth={2.5} />
+                                            </button>
+                                            <button
+                                                data-testid="btn-menu-marketplace"
+                                                onClick={abrirMenuDrawer}
+                                                aria-label="Abrir menú"
+                                                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                            >
+                                                <Menu className="h-6 w-6" strokeWidth={2.5} />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <span className="text-2xl font-extrabold tracking-tight text-white">
-                                        Market<span className="text-teal-400">Place</span>
-                                    </span>
-                                </div>
+                                ) : (
+                                    <div className="flex items-center gap-2.5 px-3 pt-4 pb-2.5">
+                                        <div className="relative flex-1">
+                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-white/40" />
+                                            <input
+                                                ref={inputBusquedaMovilRef}
+                                                id="input-busqueda-navbar"
+                                                data-testid="input-buscar-marketplace"
+                                                type="text"
+                                                value={query}
+                                                onChange={(e) => setQuery(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') handleEnterBusqueda(); }}
+                                                placeholder="Buscar en MarketPlace..."
+                                                autoComplete="off"
+                                                autoCapitalize="off"
+                                                spellCheck="false"
+                                                className="w-full rounded-full bg-white/15 py-2 pl-10 pr-10 text-lg text-white placeholder-white/40 outline-none"
+                                            />
+                                            {query.trim() && (
+                                                <button
+                                                    onClick={() => { setQuery(''); inputBusquedaMovilRef.current?.focus(); }}
+                                                    className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/25 transition-colors hover:bg-white/40"
+                                                    aria-label="Limpiar búsqueda"
+                                                >
+                                                    <X className="h-4 w-4 text-white" />
+                                                </button>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={handleCerrarBuscadorMovil}
+                                            aria-label="Cerrar buscador"
+                                            className="shrink-0 cursor-pointer rounded-full p-0.5 text-white/80 hover:bg-white/20"
+                                        >
+                                            <X className="h-7 w-7" />
+                                        </button>
+                                    </div>
+                                )}
                                 {/* Subtítulo decorativo — ciudad + total al estilo Ofertas */}
                                 <div className="flex items-center justify-center gap-2.5 pb-3">
                                     <div
@@ -169,7 +273,7 @@ export function PaginaMarketplace() {
                                                 'linear-gradient(90deg, transparent, rgba(20,184,166,0.7))',
                                         }}
                                     />
-                                    <span className="text-sm font-light text-white/70 tracking-wide whitespace-nowrap">
+                                    <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
                                         {ciudad ? (
                                             <>
                                                 En{' '}

@@ -511,6 +511,15 @@ export function useVendedorPublicaciones(
  * debouncear y solo dispara fetch cuando el query estabilizado tiene >= 2
  * caracteres. Sin esto, cada tecla pegada spamearía el backend.
  */
+export interface SugerenciaArticulo {
+    id: string;
+    titulo: string;
+    precio: number;
+    condicion: string;
+    fotoPortada: string | null;
+    ciudad: string;
+}
+
 export function useBuscadorSugerencias(queryRaw: string, ciudad: string | null) {
     const [queryDebounced, setQueryDebounced] = useState(queryRaw);
 
@@ -521,8 +530,8 @@ export function useBuscadorSugerencias(queryRaw: string, ciudad: string | null) 
 
     return useQuery({
         queryKey: queryKeys.marketplace.sugerencias(queryDebounced, ciudad ?? ''),
-        queryFn: async (): Promise<string[]> => {
-            const response = await api.get<{ success: boolean; data?: string[] }>(
+        queryFn: async (): Promise<SugerenciaArticulo[]> => {
+            const response = await api.get<{ success: boolean; data?: SugerenciaArticulo[] }>(
                 '/marketplace/buscar/sugerencias',
                 { params: { q: queryDebounced, ciudad } }
             );

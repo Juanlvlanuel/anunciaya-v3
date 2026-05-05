@@ -101,25 +101,39 @@ export function sanitizarTerminoParaLog(termino: string): string | null {
 // =============================================================================
 
 /**
- * Devuelve top 5 títulos de artículos activos en la ciudad cuyo
- * `to_tsvector('spanish', titulo)` matchea el query del usuario.
- *
- * Las sugerencias son TÍTULOS COMPLETOS de artículos existentes, no términos
- * extraídos. Esto da resultados más específicos y útiles ("Bicicleta vintage
- * Rinos restaurada") en lugar de genéricos ("bicicleta").
+ * Devuelve top 5 artículos activos en la ciudad cuyo
+ * `to_tsvector('spanish', titulo+descripcion)` matchea el query del usuario,
+ * con preview enriquecido para renderizar cards en el overlay (foto, precio,
+ * condición, ciudad).
  *
  * El caller decide el debounce (300ms en el FE).
  */
+export interface SugerenciaArticuloRow {
+    id: string;
+    titulo: string;
+    precio: number;
+    condicion: string;
+    fotoPortada: string | null;
+    ciudad: string;
+}
+
 export async function obtenerSugerencias(
     queryTexto: string,
     ciudad: string
-): Promise<{ success: true; data: string[] }> {
+): Promise<{ success: true; data: SugerenciaArticuloRow[] }> {
     const q = queryTexto.trim();
     if (q.length < 2) return { success: true, data: [] };
 
     try {
         const resultado = await db.execute(sql`
-            SELECT titulo
+            SELECT
+                id,
+                titulo,
+                precio,
+                condicion,
+                fotos,
+                foto_portada_index,
+                ciudad
             FROM articulos_marketplace
             WHERE estado = 'activa'
               AND deleted_at IS NULL
@@ -133,8 +147,31 @@ export async function obtenerSugerencias(
             created_at DESC
             LIMIT 5
         `);
-        const titulos = (resultado.rows as Array<{ titulo: string }>).map((r) => r.titulo);
-        return { success: true, data: titulos };
+
+        type Raw = {
+            id: string;
+            titulo: string;
+            precio: string | number;
+            condicion: string;
+            fotos: string[] | null;
+            foto_portada_index: number | null;
+            ciudad: string;
+        };
+
+        const items = (resultado.rows as Raw[]).map((r) => {
+            const fotos = Array.isArray(r.fotos) ? r.fotos : [];
+            const idx = r.foto_portada_index ?? 0;
+            const fotoPortada = fotos.length > 0 ? fotos[idx] ?? fotos[0] ?? null : null;
+            return {
+                id: r.id,
+                titulo: r.titulo,
+                precio: typeof r.precio === 'string' ? Number(r.precio) : r.precio,
+                condicion: r.condicion,
+                fotoPortada,
+                ciudad: r.ciudad,
+            };
+        });
+        return { success: true, data: items };
     } catch (error) {
         console.error('Error en obtenerSugerencias:', error);
         return { success: true, data: [] };
