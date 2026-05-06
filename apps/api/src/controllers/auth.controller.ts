@@ -219,6 +219,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     success: resultado.success,
     message: resultado.message,
     data: resultado.data,
+    ...(resultado.errorCode ? { errorCode: resultado.errorCode } : {}),
   });
 }
 // =============================================================================

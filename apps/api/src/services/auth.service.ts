@@ -94,6 +94,7 @@ interface RespuestaServicio<T = unknown> {
   message: string;
   data?: T;
   code?: number; // Código HTTP sugerido
+  errorCode?: string; // Identificador para que el frontend distinga casos (ej. 'CORREO_NO_REGISTRADO')
   correoRegistrado?: boolean;
   esOAuth?: boolean;
 }
@@ -711,8 +712,9 @@ export async function loginUsuario(
     if (!usuario) {
       return {
         success: false,
-        message: 'Correo o contraseña incorrectos',
-        code: 401,
+        message: 'No encontramos una cuenta con este correo',
+        code: 404,
+        errorCode: 'CORREO_NO_REGISTRADO',
       };
     }
 

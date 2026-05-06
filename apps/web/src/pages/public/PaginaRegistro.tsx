@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import { useAuthStore } from '@/stores/useAuthStore';
 import authService, {
@@ -92,6 +92,12 @@ function extraerMensajeError(error: unknown, mensajeDefault: string): string {
 
 export function PaginaRegistro() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Correo prellenado cuando llegan desde el modal de login con un correo
+  // que no existe en BD (errorCode='CORREO_NO_REGISTRADO').
+  const correoInicial =
+    (location.state as { correo?: string } | null)?.correo ?? '';
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CAMBIO: Obtener datosGooglePendiente y limpiarDatosGooglePendiente del store
@@ -562,6 +568,7 @@ export function PaginaRegistro() {
               cargando={cargando}
               onAbrirLogin={abrirModalLogin}
               onTipoCuentaCambio={setTipoCuentaActiva}
+              correoInicial={correoInicial}
             />
           </div>
         </div>

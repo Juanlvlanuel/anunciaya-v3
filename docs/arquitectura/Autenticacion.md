@@ -1,7 +1,7 @@
 # 🔐 AnunciaYA v3.0 - Sistema de Autenticación
 
-**Última actualización:** 30 Enero 2026  
-**Versión:** 5.1 (Completamente Verificada)
+**Última actualización:** 06 Mayo 2026  
+**Versión:** 5.2 (Login con CTA crear cuenta + autoComplete + Header/Footer públicos compartidos)
 
 ---
 
@@ -260,7 +260,10 @@ POST /api/auth/login
     ↓
 Backend:
   1. Busca usuario en PostgreSQL
+     ├─ NO existe → 404 + errorCode: 'CORREO_NO_REGISTRADO'
+     └─ SÍ existe → continúa
   2. Verifica contraseña con bcrypt
+     └─ Falla → 401 "Correo o contraseña incorrectos" (mensaje genérico)
   3. Verifica si doble_factor_habilitado = true
     ↓
 ¿Tiene 2FA?
@@ -283,6 +286,53 @@ Response: { accessToken, refreshToken, usuario }
 ```
 
 **Rate Limiting:** 5 intentos por 15 minutos
+
+#### Diferenciación de errores (UX)
+
+A partir de **v5.2** el backend distingue dos casos de fallo de login mediante
+el campo `errorCode` en el body de la respuesta:
+
+| Caso | HTTP | `message` | `errorCode` |
+|---|---|---|---|
+| Correo no existe en BD | 404 | `"No encontramos una cuenta con este correo"` | `CORREO_NO_REGISTRADO` |
+| Contraseña incorrecta | 401 | `"Correo o contraseña incorrectos"` | (ninguno) |
+
+**Frontend (`VistaLogin.tsx`)**:
+- Si `errorCode === 'CORREO_NO_REGISTRADO'` → muestra bloque azul dentro del
+  modal con `UserPlus` + correo + botón **"Crear cuenta con este correo →"**.
+  Click navega a `/registro` con `state: { correo }`.
+- Si no hay `errorCode` (contraseña errónea) → toast rojo `"Credenciales
+  incorrectas"`. El usuario puede usar **"¿Olvidaste tu contraseña?"**.
+
+**Frontend (`PaginaRegistro.tsx`)**:
+- Lee `useLocation().state.correo` y lo pasa al `FormularioRegistro` como prop
+  `correoInicial`.
+- `FormularioRegistro` aplica `correoInicial` al `useState` inicial del campo
+  `correo` y lo marca como válido (border verde) al montar.
+
+**Trade-off de seguridad:** este flujo permite enumeración de correos
+registrados — un atacante puede saber si un correo existe probándolo en login.
+Aceptado porque el endpoint `/registro` ya permitía la misma enumeración (al
+intentar registrar un correo existente devuelve `"Este correo ya está
+registrado"`). Ganamos UX clara sin pérdida real de seguridad.
+
+#### Anti-autofill del navegador en el formulario de registro
+
+El `FormularioRegistro` define `autoComplete` explícito en cada input para
+evitar que el navegador rellene credenciales antiguas guardadas (Chrome
+sincroniza credenciales entre dispositivos):
+
+| Campo | `autoComplete` |
+|---|---|
+| Nombre del negocio | `organization` |
+| Nombre(s) | `given-name` |
+| Apellidos | `family-name` |
+| Correo | `email` |
+| Teléfono | `tel-national` |
+| Contraseña / Confirmar | `new-password` ← clave para evitar autofill |
+
+`new-password` es el estándar W3C para registros: le dice al navegador *"este
+es un campo de creación, no rellenes con la contraseña guardada"*.
 
 ---
 
@@ -795,7 +845,7 @@ router.post(
 
 ## 📂 Ubicación de Archivos
 
-> ✅ **VERIFICADO:** 30 Enero 2026
+> ✅ **VERIFICADO:** 06 Mayo 2026
 
 ### Backend
 
@@ -830,24 +880,51 @@ apps/web/src/
 │   ├── ModalLogin.tsx                   ✅ Modal principal
 │   ├── ModalInactividad.tsx             ✅ Inactividad
 │   ├── vistas/
-│   │   ├── VistaLogin.tsx               ✅ Login
+│   │   ├── VistaLogin.tsx               ✅ Login + CTA "Crear cuenta con este correo"
 │   │   ├── Vista2FA.tsx                 ✅ 2FA
 │   │   └── VistaRecuperar.tsx           ✅ Recuperar password
 │   └── registro/
-│       ├── FormularioRegistro.tsx       ✅ Formulario
+│       ├── FormularioRegistro.tsx       ✅ Formulario (autoComplete + correoInicial)
 │       ├── ModalBienvenida.tsx          ✅ Post-registro
 │       └── ModalVerificacionEmail.tsx   ✅ Verificar email
+├── components/public/
+│   ├── HeaderPublico.tsx                ✅ Header compartido (artículo, oferta, marketplace)
+│   └── FooterPublico.tsx                ✅ Footer compartido
 ├── pages/
 │   ├── public/
-│   │   ├── PaginaRegistro.tsx           ✅ Registro
-│   │   └── PaginaLanding.tsx            ✅ Landing
+│   │   ├── PaginaRegistro.tsx           ✅ Registro (lee location.state.correo)
+│   │   ├── PaginaLanding.tsx            ✅ Landing
+│   │   ├── PaginaArticuloPublico.tsx    ✅ Artículo público (catálogo negocios)
+│   │   ├── PaginaOfertaPublico.tsx      ✅ Oferta pública
+│   │   └── PaginaArticuloMarketplacePublico.tsx ✅ Artículo público marketplace
 │   └── private/PaginaInicio.tsx         ✅ Dashboard
 ├── stores/useAuthStore.ts               ✅ Zustand store
 ├── services/
 │   ├── authService.ts                   ✅ API calls
-│   └── api.ts                           ✅ Axios + interceptor
+│   └── api.ts                           ✅ Axios + interceptor (RespuestaAPI.errorCode)
 └── utils/tokenUtils.ts                  ✅ Utilidades tokens
 ```
+
+#### Header / Footer públicos compartidos (v5.2)
+
+A partir de **v5.2** el header y footer de las páginas públicas (sin sesión)
+viven en `apps/web/src/components/public/` y se reutilizan en las **3 páginas
+públicas** que tiene la app:
+
+1. `PaginaArticuloPublico` — link compartido de un artículo del catálogo de un
+   negocio (`/p/articulo/:articuloId`).
+2. `PaginaOfertaPublico` — link compartido de una oferta (`/p/oferta/:ofertaId`).
+3. `PaginaArticuloMarketplacePublico` — link compartido de un artículo del
+   MarketPlace (`/p/articulo-marketplace/:articuloId`).
+
+`HeaderPublico` incluye logo AnunciaYA (clic → `/`), beneficios en desktop
+(*¡Únete gratis!*, *Acumula puntos comprando*, *Canjea por recompensas*) y CTA
+"Registrarse" que lleva a `/registro`. `FooterPublico` incluye logo + slogan +
+copyright + redes sociales (3 columnas en desktop, 2 líneas en móvil).
+
+Antes de v5.2 el código del header/footer estaba **duplicado** entre
+`PaginaArticuloPublico` y `PaginaOfertaPublico`, y `PaginaArticuloMarketplacePublico`
+tenía un header genérico distinto. La extracción unifica los 3 destinos.
 
 ---
 

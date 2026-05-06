@@ -26,13 +26,12 @@ import {
     ChevronRight,
     ExternalLink,
     Store,
-    Gift,
-    Coins,
-    Award,
 } from 'lucide-react';
 import api from '../../services/api';
 import { useOpenGraph } from '../../hooks/useOpenGraph';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { HeaderPublico } from '../../components/public/HeaderPublico';
+import { FooterPublico } from '../../components/public/FooterPublico';
 
 // =============================================================================
 // TIPOS
@@ -59,171 +58,6 @@ interface ArticuloPublico {
         ciudad?: string | null;
         whatsapp?: string | null;
     };
-}
-
-// =============================================================================
-// COMPONENTE: Header Público
-// =============================================================================
-
-function HeaderPublico() {
-    const navigate = useNavigate();
-
-    return (
-        <header className="bg-white/95 backdrop-blur-sm border-b border-slate-200 px-4 lg:px-4 2xl:px-6 py-2.5 lg:py-2 2xl:py-2.5 sticky top-0 z-50 shadow-sm">
-            <div className="max-w-6xl lg:max-w-4xl 2xl:max-w-6xl mx-auto flex items-center justify-between">
-                {/* Logo con hover */}
-                <button 
-                    onClick={() => navigate('/')}
-                    className="cursor-pointer transition-transform hover:scale-105"
-                >
-                    <img 
-                        src="/logo-anunciaya.webp" 
-                        alt="AnunciaYA" 
-                        className="h-9 lg:h-8 2xl:h-11"
-                    />
-                </button>
-
-                {/* Beneficios centrados */}
-                <div className="hidden lg:flex items-center gap-5 lg:gap-3 2xl:gap-5">
-                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 text-amber-600">
-                        <Gift className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                        <span className="text-base lg:text-sm 2xl:text-base font-bold">¡Únete gratis!</span>
-                    </div>
-                    <span className="text-slate-300 text-xl lg:text-base 2xl:text-xl font-light">·</span>
-                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 text-blue-600">
-                        <Coins className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                        <span className="text-base lg:text-sm 2xl:text-base font-semibold">Acumula puntos comprando</span>
-                    </div>
-                    <span className="text-slate-300 text-xl lg:text-base 2xl:text-xl font-light">·</span>
-                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2 text-green-600">
-                        <Award className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
-                        <span className="text-base lg:text-sm 2xl:text-base font-bold">Canjea por recompensas</span>
-                    </div>
-                </div>
-
-                {/* Botón Registrarse */}
-                <button
-                    onClick={() => navigate('/registro')}
-                    className="bg-blue-600 hover:bg-blue-700 hover:scale-105 text-white px-5 lg:px-4 2xl:px-5 py-2 lg:py-1.5 2xl:py-2 rounded-lg font-semibold text-sm lg:text-xs 2xl:text-sm cursor-pointer transition-all shadow-md shadow-blue-500/20"
-                >
-                    Registrarse
-                </button>
-            </div>
-        </header>
-    );
-}
-
-// =============================================================================
-// COMPONENTE: Footer Minimalista
-// =============================================================================
-
-function FooterPublico() {
-    return (
-        <footer className="bg-slate-900 text-white">
-            <div className="max-w-6xl lg:max-w-4xl 2xl:max-w-6xl mx-auto px-4 lg:px-4 2xl:px-6 py-4 lg:py-3 2xl:py-4">
-                {/* Desktop: 3 columnas en una fila */}
-                <div className="hidden md:flex items-center justify-between">
-                    {/* Logo y slogan */}
-                    <div className="flex flex-col items-start gap-1 lg:gap-0.5 2xl:gap-1">
-                        <img 
-                            src="/logo-anunciaya.webp" 
-                            alt="AnunciaYA" 
-                            className="h-8 lg:h-7 2xl:h-9"
-                        />
-                        <p className="text-slate-400 text-xs lg:text-[10px] 2xl:text-xs italic">
-                            "Tus compras ahora valen más."
-                        </p>
-                    </div>
-                    
-                    {/* Copyright */}
-                    <p className="text-slate-500 text-xs lg:text-[10px] 2xl:text-xs">
-                        © 2026 AnunciaYA. Todos los derechos reservados.
-                    </p>
-                    
-                    {/* Redes sociales */}
-                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
-                        <span className="text-slate-400 text-xs lg:text-[10px] 2xl:text-xs mr-1">¡Síguenos!</span>
-                        <a 
-                            href="https://facebook.com/anunciaya" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full overflow-hidden hover:scale-110 transition-transform"
-                        >
-                            <img 
-                                src="/facebook.webp" 
-                                alt="Facebook" 
-                                className="w-full h-full object-cover"
-                            />
-                        </a>
-                        <a 
-                            href="https://wa.me/526621234567" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 rounded-full overflow-hidden hover:scale-110 transition-transform"
-                        >
-                            <img 
-                                src="/whatsapp.webp" 
-                                alt="WhatsApp" 
-                                className="w-full h-full object-cover"
-                            />
-                        </a>
-                    </div>
-                </div>
-
-                {/* Móvil: 2 líneas */}
-                <div className="flex flex-col gap-3 md:hidden">
-                    {/* Línea 1: Logo izquierda + Redes derecha */}
-                    <div className="flex items-center justify-between">
-                        {/* Logo y slogan */}
-                        <div className="flex flex-col items-start gap-0.5">
-                            <img 
-                                src="/logo-anunciaya.webp" 
-                                alt="AnunciaYA" 
-                                className="h-8"
-                            />
-                            <p className="text-slate-400 text-[10px] italic">
-                                "Tus compras ahora valen más."
-                            </p>
-                        </div>
-                        
-                        {/* Redes sociales */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-slate-400 text-xs">¡Síguenos!</span>
-                            <a 
-                                href="https://facebook.com/anunciaya" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="w-8 h-8 rounded-full overflow-hidden"
-                            >
-                                <img 
-                                    src="/facebook.webp" 
-                                    alt="Facebook" 
-                                    className="w-full h-full object-cover"
-                                />
-                            </a>
-                            <a 
-                                href="https://wa.me/526621234567" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="w-8 h-8 rounded-full overflow-hidden"
-                            >
-                                <img 
-                                    src="/whatsapp.webp" 
-                                    alt="WhatsApp" 
-                                    className="w-full h-full object-cover"
-                                />
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* Línea 2: Copyright centrado */}
-                    <p className="text-slate-500 text-xs text-center">
-                        © 2026 AnunciaYA. Todos los derechos reservados.
-                    </p>
-                </div>
-            </div>
-        </footer>
-    );
 }
 
 // =============================================================================

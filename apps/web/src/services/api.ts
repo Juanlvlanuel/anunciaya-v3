@@ -483,6 +483,7 @@ export interface RespuestaAPI<T = unknown> {
   message: string;
   data?: T;
   errors?: Record<string, string>;
+  errorCode?: string;
 }
 
 // =============================================================================

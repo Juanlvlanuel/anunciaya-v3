@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, UserPlus, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notificar } from '../../../utils/notificaciones';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -53,6 +53,9 @@ export function VistaLogin({
   const [recordarCorreo, setRecordarCorreo] = useState(false);
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
+  // Cuando el backend confirma que el correo no existe, ofrecemos un CTA
+  // para que el usuario se registre con ese mismo correo prellenado.
+  const [correoNoRegistrado, setCorreoNoRegistrado] = useState<string | null>(null);
 
   // Cargar email guardado
   useEffect(() => {
@@ -75,6 +78,9 @@ export function VistaLogin({
       if (!formularioValido || cargando) return;
 
       setCargando(true);
+
+      // Limpiar el bloque de "correo no registrado" en cada intento nuevo
+      setCorreoNoRegistrado(null);
 
       try {
         const response = await authService.login({
@@ -111,7 +117,12 @@ export function VistaLogin({
             }
           }
         } else {
-          notificar.error(response.message || t('login.error'));
+          // Caso especial: el correo no existe en BD → ofrecer crear cuenta
+          if (response.errorCode === 'CORREO_NO_REGISTRADO') {
+            setCorreoNoRegistrado(email);
+          } else {
+            notificar.error(response.message || t('login.error'));
+          }
         }
       } catch {
         notificar.error(t('login.error'));
@@ -122,10 +133,13 @@ export function VistaLogin({
     [email, password, recordarCorreo, formularioValido, cargando, onCambiarVista, onActualizarDatos, onCerrarModal, navigate, t]
   );
 
-  const handleIrARegistro = useCallback(() => {
-    onCerrarModal();
-    navigate('/registro');
-  }, [onCerrarModal, navigate]);
+  const handleIrARegistro = useCallback(
+    (correoPrellenado?: string) => {
+      onCerrarModal();
+      navigate('/registro', correoPrellenado ? { state: { correo: correoPrellenado } } : undefined);
+    },
+    [onCerrarModal, navigate]
+  );
 
   // Borde del wrapper según estado de validación (TC-14)
   const getBorde = (valor: string, esValido: boolean) => {
@@ -212,6 +226,35 @@ export function VistaLogin({
           </label>
         </div>
 
+        {/* CTA: correo no registrado → crear cuenta con este correo */}
+        {correoNoRegistrado && (
+          <div
+            data-testid="cta-correo-no-registrado"
+            className="mb-4 rounded-xl border-2 border-blue-200 bg-blue-50 p-3"
+          >
+            <div className="flex items-start gap-2">
+              <UserPlus className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" strokeWidth={2.5} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900">
+                  No encontramos una cuenta con
+                </p>
+                <p className="text-sm font-semibold text-blue-700 truncate">
+                  {correoNoRegistrado}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              data-testid="btn-crear-cuenta-con-correo"
+              onClick={() => handleIrARegistro(correoNoRegistrado)}
+              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] lg:cursor-pointer"
+            >
+              Crear cuenta con este correo
+              <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
+
         {/* Botón */}
         <button
           type="submit"
@@ -230,7 +273,7 @@ export function VistaLogin({
         {t('login.sinCuenta')}{' '}
         <button
           type="button"
-          onClick={handleIrARegistro}
+          onClick={() => handleIrARegistro()}
           className="font-semibold text-blue-600 hover:underline lg:cursor-pointer"
         >
           {t('login.registrate')}

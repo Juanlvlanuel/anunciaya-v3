@@ -7,7 +7,9 @@
  * Ruta: `/p/articulo-marketplace/:articuloId`
  *
  * Diferencias con la versión privada (`PaginaArticuloMarketplace`):
- *  - Sin layout privado (no envuelta en `MainLayout`).
+ *  - Sin layout privado (no envuelta en `MainLayout`). Usa `HeaderPublico` y
+ *    `FooterPublico` compartidos con las otras páginas públicas (artículo de
+ *    catálogo, oferta).
  *  - Mete OG tags vía `useOpenGraph` para previews en WhatsApp/FB/Twitter.
  *  - NO muestra el botón WhatsApp directamente (privacidad — evita scrapers
  *    que recolecten teléfonos de vendedores). Solo "Enviar mensaje" que
@@ -28,15 +30,13 @@
  * Ubicación: apps/web/src/pages/public/PaginaArticuloMarketplacePublico.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-    ChevronLeft,
     PackageX,
     PauseCircle,
     AlertCircle,
     MessageSquare,
-    ShoppingCart,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useArticuloMarketplace } from '../../hooks/queries/useMarketplace';
@@ -46,6 +46,8 @@ import { CardVendedor } from '../../components/marketplace/CardVendedor';
 import { MapaUbicacion } from '../../components/marketplace/MapaUbicacion';
 import { ModalAuthRequerido } from '../../components/compartir/ModalAuthRequerido';
 import { Spinner } from '../../components/ui/Spinner';
+import { HeaderPublico } from '../../components/public/HeaderPublico';
+import { FooterPublico } from '../../components/public/FooterPublico';
 import {
     formatearPrecio,
     formatearTiempoRelativo,
@@ -131,30 +133,12 @@ export function PaginaArticuloMarketplacePublico() {
     return (
         <div
             data-testid="pagina-articulo-marketplace-publico"
-            className="min-h-screen bg-white"
+            className={`min-h-screen bg-white flex flex-col ${!noActiva ? 'pb-[72px] lg:pb-0' : ''}`}
         >
-            {/* Header simple — no es el del MainLayout privado */}
-            <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-                <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-                    <button
-                        data-testid="btn-volver-publico"
-                        onClick={() => navigate('/')}
-                        aria-label="Volver al inicio"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
-                    >
-                        <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <ShoppingCart className="h-5 w-5 text-teal-600" strokeWidth={2.5} />
-                        <span className="text-sm font-bold text-slate-900">
-                            AnunciaYA · MarketPlace
-                        </span>
-                    </div>
-                </div>
-            </header>
+            <HeaderPublico />
 
             {/* Contenido — layout 2 cols 60/40 en lg+ */}
-            <div className="mx-auto max-w-5xl px-4 py-6">
+            <div className="flex-1 mx-auto w-full max-w-5xl px-4 py-6">
                 <div className="lg:grid lg:grid-cols-[60%_40%] lg:gap-6">
                     {/* Columna izquierda */}
                     <div className="space-y-5">
@@ -235,6 +219,8 @@ export function PaginaArticuloMarketplacePublico() {
                     </button>
                 </div>
             </div>
+
+            <FooterPublico />
 
             {/* Barra de contacto fija inferior — solo móvil + activa */}
             {!noActiva && (

@@ -7,6 +7,35 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [06 Mayo 2026] - Autenticación v5.2 — Login con CTA + autoComplete + Header público compartido 🔐
+
+**Mejoras de UX en login y registro detectadas durante el cierre visual de MarketPlace.**
+
+**Login: distinguir correo no registrado vs contraseña incorrecta:**
+- Backend `loginUsuario` cuando el correo no existe → `code: 404` + `errorCode: 'CORREO_NO_REGISTRADO'` (antes: 401 genérico igual que contraseña errónea).
+- `RespuestaServicio` (api) y `RespuestaAPI` (web) extendidos con `errorCode?: string`.
+- Controller `auth.controller.login` propaga `errorCode` al body.
+- `VistaLogin` detecta `errorCode === 'CORREO_NO_REGISTRADO'` → muestra bloque azul *"No encontramos una cuenta con {correo} · [Crear cuenta con este correo →]"*. Al hacer click navega a `/registro` con `state: { correo }`.
+- `PaginaRegistro` lee `useLocation().state.correo` y lo pasa al `FormularioRegistro` como prop nueva `correoInicial`.
+- `FormularioRegistro` aplica `correoInicial` al `useState` inicial y lo marca como válido (border verde) al montar.
+- **Trade-off de seguridad documentado:** permite enumeración de correos, pero `/registro` ya la permitía con su mensaje *"este correo ya está registrado"*. Ganamos UX sin pérdida real.
+
+**Anti-autofill en formulario de registro:**
+- Reportado: el navegador rellenaba campos con credenciales antiguas guardadas (Chrome sincroniza entre dispositivos), confundiendo a los usuarios al ver `cliente.prueba@test.con` y `Tijuana22` precargados sin haber escrito nada.
+- Causa raíz: `FormularioRegistro` no tenía `autoComplete` configurado.
+- Fix: cada input recibe valor explícito — `organization` (negocio), `given-name`, `family-name`, `email`, `tel-national`, `new-password` (×2). Especialmente `new-password` es el estándar W3C que le dice al navegador *"esto es creación, no rellenes"*.
+
+**Header / Footer públicos compartidos:**
+- Detectado: `PaginaArticuloMarketplacePublico` tenía un header genérico distinto al de las otras páginas públicas. `PaginaArticuloPublico` y `PaginaOfertaPublico` tenían el header/footer **duplicado** entre sí (~200 líneas).
+- Extracción: nuevos componentes `apps/web/src/components/public/HeaderPublico.tsx` y `FooterPublico.tsx` con la marca real de AnunciaYA (logo, beneficios desktop, CTA Registrarse, footer con redes).
+- Las **3 páginas públicas** ahora usan los mismos componentes — una sola fuente de verdad para futuros cambios de marca.
+
+**Archivos tocados:** `auth.service.ts`, `auth.controller.ts`, `api.ts`, `VistaLogin.tsx`, `PaginaRegistro.tsx`, `FormularioRegistro.tsx`, `PaginaArticuloPublico.tsx`, `PaginaOfertaPublico.tsx`, `PaginaArticuloMarketplacePublico.tsx`, `components/public/HeaderPublico.tsx` (nuevo), `components/public/FooterPublico.tsx` (nuevo).
+
+**Doc actualizado:** `docs/arquitectura/Autenticacion.md` v5.2.
+
+---
+
 ## [03-04 Mayo 2026] - MarketPlace v1 — Compra-venta P2P de objetos físicos 🛒
 
 **Módulo nuevo completo:** sección pública para que usuarios en modo Personal compren y vendan objetos físicos entre sí (P2P), con transacción 100% offline (la app NO procesa pagos ni envíos, solo conecta comprador y vendedor por ChatYA o WhatsApp).

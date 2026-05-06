@@ -38,6 +38,8 @@ interface FormularioRegistroProps {
   cargando: boolean;
   onAbrirLogin: () => void;
   onTipoCuentaCambio?: (tipo: TipoCuenta) => void;
+  /** Correo prellenado cuando el usuario viene desde login con un correo no registrado. */
+  correoInicial?: string;
 }
 
 interface EstadoFormulario {
@@ -95,6 +97,7 @@ export function FormularioRegistro({
   cargando,
   onAbrirLogin,
   onTipoCuentaCambio,
+  correoInicial,
 }: FormularioRegistroProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -112,7 +115,7 @@ export function FormularioRegistro({
     nombreNegocio: '',
     nombre: datosGoogle?.nombre || '',
     apellidos: datosGoogle?.apellidos || '',
-    correo: datosGoogle?.email || '',
+    correo: datosGoogle?.email || correoInicial || '',
     telefono: '',
     lada: '+52',
     contrasena: '',
@@ -140,6 +143,19 @@ export function FormularioRegistro({
       }));
     }
   }, [datosGoogle]);
+
+  // Marcar el correo prellenado (desde login fallido) como válido al montar.
+  // Evita el caso donde el campo aparece con valor pero sin estado de validación.
+  useEffect(() => {
+    if (correoInicial && !datosGoogle) {
+      setValidacion((prev) => ({
+        ...prev,
+        correo: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoInicial),
+      }));
+    }
+    // Solo se ejecuta una vez al montar; el correo se edita libremente después.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [validacion, setValidacion] = useState<EstadoValidacion>({
     nombreNegocio: null,
@@ -489,6 +505,7 @@ export function FormularioRegistro({
               isValid={validacion.nombreNegocio}
               disabled={cargando}
               onBlur={handleBlur('nombreNegocio')}
+              autoComplete="organization"
             />
           )}
 
@@ -504,6 +521,7 @@ export function FormularioRegistro({
               isValid={validacion.nombre}
               disabled={cargando}
               onBlur={handleBlur('nombre')}
+              autoComplete="given-name"
             />
             <InputField
               label="Apellidos"
@@ -515,6 +533,7 @@ export function FormularioRegistro({
               isValid={validacion.apellidos}
               disabled={cargando}
               onBlur={handleBlur('apellidos')}
+              autoComplete="family-name"
             />
           </div>
 
@@ -531,6 +550,7 @@ export function FormularioRegistro({
               errorMessage="Ingresa un correo válido"
               disabled={cargando || !!datosGoogle}
               onBlur={handleBlur('correo')}
+              autoComplete="email"
             />
 
             {/* Teléfono con lada */}
@@ -570,6 +590,7 @@ export function FormularioRegistro({
                   onChange={handleChange('telefono')}
                   onBlur={handleBlur('telefono')}
                   disabled={cargando}
+                  autoComplete="tel-national"
                   className="flex-1 h-full px-3 lg:px-2.5 2xl:px-3 bg-transparent text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
                 />
               </div>
@@ -598,6 +619,7 @@ export function FormularioRegistro({
                       validacion.contrasena.numero
                   }
                   disabled={cargando}
+                  autoComplete="new-password"
                   rightElement={
                     <button
                       type="button"
@@ -628,6 +650,7 @@ export function FormularioRegistro({
                   }
                   errorMessage="Las contraseñas no coinciden"
                   disabled={cargando}
+                  autoComplete="new-password"
                   rightElement={
                     <button
                       type="button"
@@ -788,6 +811,7 @@ interface InputFieldProps {
   errorMessage?: string;
   disabled?: boolean;
   rightElement?: React.ReactNode;
+  autoComplete?: string;
 }
 
 function InputField({
@@ -802,6 +826,7 @@ function InputField({
   errorMessage,
   disabled = false,
   rightElement,
+  autoComplete,
 }: InputFieldProps) {
   return (
     <div>
@@ -824,6 +849,7 @@ function InputField({
           onChange={onChange}
           onBlur={onBlur}
           disabled={disabled}
+          autoComplete={autoComplete}
           className={`w-full h-11 lg:h-10 2xl:h-11 pl-10 lg:pl-9 2xl:pl-10 pr-10 bg-slate-100 border-2 rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isValid === null
             ? 'border-slate-300 focus:border-slate-500'
             : isValid
