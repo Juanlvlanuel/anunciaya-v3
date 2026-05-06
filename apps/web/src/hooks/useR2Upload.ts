@@ -15,6 +15,7 @@
 import { useState, useCallback } from 'react';
 import { generarUrlUploadImagenArticulo } from '../services/articulosService';
 import { eliminarImagenHuerfana } from '../services/r2Service';
+import { optimizarImagen as optimizarImagenUtil } from '../utils/optimizarImagen';
 
 // =============================================================================
 // TIPOS
@@ -56,59 +57,9 @@ interface ResultadoR2Upload {
   setR2Url: (url: string | null) => void;
 }
 
-// =============================================================================
-// HELPER: OPTIMIZAR IMAGEN
-// =============================================================================
-
-/**
- * Redimensiona y comprime la imagen usando canvas antes de subirla.
- * Retorna un Blob WebP optimizado.
- */
-async function optimizarImagen(file: File, maxWidth: number, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const blobUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(blobUrl);
-
-      // Calcular dimensiones manteniendo proporción
-      let { width, height } = img;
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('No se pudo crear contexto canvas'));
-        return;
-      }
-
-      ctx.drawImage(img, 0, 0, width, height);
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Error al comprimir imagen'));
-        },
-        'image/webp',
-        quality
-      );
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(blobUrl);
-      reject(new Error('Error al cargar imagen para optimización'));
-    };
-
-    img.src = blobUrl;
-  });
-}
+// El helper de optimización vive en `apps/web/src/utils/optimizarImagen.ts`
+// y es compartido por este hook y por `useSubirFotoMarketplace` para
+// mantener un único lugar con la lógica de redimensión + WebP.
 
 // =============================================================================
 // HOOK
@@ -137,8 +88,8 @@ export function useR2Upload({
     setImageUrl(blobUrl);
 
     try {
-      // 2. Optimizar imagen
-      const blob = await optimizarImagen(file, maxWidth, quality);
+      // 2. Optimizar imagen (helper compartido)
+      const blob = await optimizarImagenUtil(file, { maxWidth, quality });
       const nombreArchivo = file.name.replace(/\.[^.]+$/, '.webp');
       const contentType = 'image/webp';
 
