@@ -38,7 +38,11 @@ const ZOOM_INICIAL = 15;
 export function MapaUbicacion({ lat, lng, zonaAproximada }: MapaUbicacionProps) {
     return (
         <div data-testid="mapa-ubicacion-marketplace" className="space-y-2">
-            <div className="overflow-hidden rounded-xl border-2 border-slate-200 bg-slate-100">
+            {/* `relative isolate z-0` crea un stacking context propio para
+                que los elementos internos de Leaflet (que usan z-index 400+
+                por default) NO escapen y tapen elementos globales como el
+                BottomNav o la BarraContacto fija. */}
+            <div className="relative z-0 overflow-hidden rounded-xl border-2 border-slate-200 bg-slate-100 isolate">
                 <MapContainer
                     center={[lat, lng]}
                     zoom={ZOOM_INICIAL}

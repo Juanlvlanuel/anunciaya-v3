@@ -137,6 +137,11 @@ const obtenerRutaDestino = (notificacion: Notificacion): string | null => {
         return notificacion.sucursalId && referenciaId
           ? `/negocios/${notificacion.sucursalId}?resenaId=${referenciaId}`
           : null;
+      case 'marketplace':
+        // Cubre todos los tipos `marketplace_*` (nueva_pregunta,
+        // pregunta_respondida, nuevo_mensaje, proxima_expirar, expirada).
+        // En todos, `referencia_id` es el UUID del artículo.
+        return referenciaId ? `/marketplace/articulo/${referenciaId}` : null;
       default:
         return null;
     }

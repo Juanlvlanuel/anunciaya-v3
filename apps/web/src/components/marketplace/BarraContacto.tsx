@@ -82,10 +82,11 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
 
     // ─── Variantes ────────────────────────────────────────────────────────────
 
+    // Variante mobile: sin fondo propio para que herede el color del feed
+    // (azul gradient de la app). Se mantiene padding lateral y vertical para
+    // que los botones no toquen el borde del viewport.
     const claseContenedor =
-        variante === 'mobile'
-            ? 'flex gap-2 border-t border-slate-200 bg-white px-3 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]'
-            : 'flex gap-2';
+        variante === 'mobile' ? 'flex gap-2 px-3 py-2' : 'flex gap-2';
 
     return (
         <div data-testid={`barra-contacto-${variante}`} className={claseContenedor}>

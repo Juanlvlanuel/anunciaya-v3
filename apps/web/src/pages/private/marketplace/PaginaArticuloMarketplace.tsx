@@ -31,6 +31,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import {
     ChevronLeft,
     Heart,
@@ -89,6 +90,11 @@ export function PaginaArticuloMarketplace() {
     const [menuAbierto, setMenuAbierto] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const [modalPreguntaAbierto, setModalPreguntaAbierto] = useState(false);
+
+    // Sincroniza la BarraContacto fija con el BottomNav: cuando el usuario
+    // hace scroll y el BottomNav se oculta, los botones bajan para no quedar
+    // flotando sobre un espacio vacío.
+    const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
 
     const esDueno = !!usuarioActual && !!articulo && usuarioActual.id === articulo.vendedor.id;
 
@@ -187,7 +193,7 @@ export function PaginaArticuloMarketplace() {
     return (
         <div
             data-testid="pagina-articulo-marketplace"
-            className="min-h-full bg-white pb-24 lg:pb-12"
+            className="min-h-full bg-transparent pb-[150px] lg:pb-12"
         >
             {/* ════════════════════════════════════════════════════════════════
                 HEADER TRANSPARENTE FLOTANTE
@@ -289,8 +295,8 @@ export function PaginaArticuloMarketplace() {
                             <BloqueInfo articulo={articulo} />
                         </div>
 
-                        {/* Descripción */}
-                        <div className="px-3 lg:px-0">
+                        {/* Descripción — card propia tipo Mercado Libre */}
+                        <div className="mx-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:mx-0 lg:p-5">
                             <h2 className="mb-2 text-base font-bold text-slate-900 lg:text-lg">
                                 Descripción
                             </h2>
@@ -307,8 +313,8 @@ export function PaginaArticuloMarketplace() {
                             <CardVendedor vendedor={articulo.vendedor} />
                         </div>
 
-                        {/* Mapa */}
-                        <div className="px-3 lg:px-0">
+                        {/* Mapa — card propia */}
+                        <div className="mx-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:mx-0 lg:p-5">
                             <h2 className="mb-2 text-base font-bold text-slate-900 lg:text-lg">
                                 Ubicación aproximada
                             </h2>
@@ -319,8 +325,8 @@ export function PaginaArticuloMarketplace() {
                             />
                         </div>
 
-                        {/* Preguntas y Respuestas */}
-                        <div className="px-3 lg:px-0">
+                        {/* Preguntas y Respuestas — card propia */}
+                        <div className="mx-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:mx-0 lg:p-5">
                             <SeccionPreguntas
                                 articuloId={articulo.id}
                                 esDueno={esDueno}
@@ -364,8 +370,16 @@ export function PaginaArticuloMarketplace() {
 
             {/* ════════════════════════════════════════════════════════════════
                 BARRA FIJA INFERIOR — solo móvil
+                - z-50 para quedar sobre el BottomNav (z-40).
+                - bottom dinámico: 68px cuando BottomNav está visible (sobre él),
+                  0 cuando se oculta al hacer scroll (pegada al borde).
+                - Fondo gradient suave de slate (no blanco duro) para integrarse
+                  con el fondo de la app y no contrastar con la página detalle.
             ════════════════════════════════════════════════════════════════ */}
-            <div className="fixed inset-x-0 bottom-0 z-20 lg:hidden">
+            <div
+                className="fixed inset-x-0 z-50 transition-[bottom] duration-300 ease-out lg:hidden"
+                style={{ bottom: bottomNavVisible ? '68px' : '0px' }}
+            >
                 {usuarioActual?.id === articulo.vendedor.id &&
                 articulo.estado === 'pausada' ? (
                     <div className="border-t border-slate-200 bg-white p-3">

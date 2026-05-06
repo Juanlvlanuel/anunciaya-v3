@@ -53,6 +53,7 @@ import {
     crearPregunta,
     obtenerPreguntasPublicas,
     obtenerPreguntasParaVendedor,
+    obtenerMiPreguntaPendiente,
     responderPregunta,
     eliminarPregunta,
     eliminarPreguntaComprador,
@@ -674,11 +675,22 @@ export async function getPreguntasArticulo(req: Request, res: Response) {
             if (resultado.message === 'Artículo no encontrado') {
                 return res.status(404).json(resultado);
             }
-            // No es el dueño → caer a vista pública
+            // No es el dueño → caer a vista pública con preguntaPendiente del usuario
         }
 
         const preguntas = await obtenerPreguntasPublicas(id);
-        return res.json({ success: true, esDueno: false, data: preguntas });
+        // Si el visitante está autenticado, también devolvemos su pregunta
+        // pendiente (si tiene una) para que vea el estado de su pregunta y
+        // pueda retirarla. Si no está autenticado o no tiene pregunta, será null.
+        const miPreguntaPendiente = usuarioId
+            ? await obtenerMiPreguntaPendiente(id, usuarioId)
+            : null;
+        return res.json({
+            success: true,
+            esDueno: false,
+            data: preguntas,
+            miPreguntaPendiente,
+        });
     } catch (error) {
         console.error('Error en getPreguntasArticulo:', error);
         return res.status(500).json({ success: false, message: 'Error al obtener las preguntas' });

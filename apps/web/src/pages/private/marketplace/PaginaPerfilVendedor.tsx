@@ -29,6 +29,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ChevronLeft,
+    MessageCircle,
     MoreVertical,
     User,
     UserPlus,
@@ -126,6 +127,14 @@ export function PaginaPerfilVendedor() {
     const handleBloquear = () => {
         setMenuAbierto(false);
         notificar.info('Próximamente disponible');
+    };
+
+    const handleWhatsApp = () => {
+        if (!perfil?.telefono) return;
+        const numero = perfil.telefono.replace(/[^\d]/g, '');
+        const mensaje = `Hola ${perfil.nombre}, vi tu perfil en AnunciaYA`;
+        const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
     const handleEnviarMensaje = () => {
@@ -271,9 +280,22 @@ export function PaginaPerfilVendedor() {
                             tiempoRespuesta={perfil.kpis.tiempoRespuesta}
                         />
 
-                        {/* Botones (ocultos si es uno mismo) */}
+                        {/* Botones (ocultos si es uno mismo). WhatsApp solo si el
+                            vendedor registró teléfono — se muestra junto con ChatYA
+                            por consistencia con la P2 Detalle. */}
                         {!esUnoMismo && (
                             <div className="mx-auto mt-5 flex max-w-md flex-col gap-2 lg:flex-row lg:max-w-2xl">
+                                {perfil.telefono && (
+                                    <button
+                                        data-testid="btn-whatsapp-vendedor"
+                                        onClick={handleWhatsApp}
+                                        aria-label="Contactar por WhatsApp"
+                                        className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-[#22C55E] to-[#15803D] px-4 py-1.5 text-base font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
+                                    >
+                                        <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2.5} />
+                                        WhatsApp
+                                    </button>
+                                )}
                                 <button
                                     data-testid="btn-chatya-vendedor"
                                     onClick={handleEnviarMensaje}

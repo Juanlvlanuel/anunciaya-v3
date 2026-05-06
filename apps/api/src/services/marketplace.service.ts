@@ -1171,6 +1171,8 @@ interface PerfilVendedor {
     apellidos: string;
     avatarUrl: string | null;
     ciudad: string | null;
+    /** Teléfono para CTA de WhatsApp en P3. null si el vendedor no lo tiene. */
+    telefono: string | null;
     miembroDesde: string; // ISO de created_at
     kpis: {
         publicacionesActivas: number;
@@ -1214,7 +1216,8 @@ export async function obtenerVendedorPorId(
         // 2) Datos básicos del vendedor + KPIs de articulos en una query
         const datos = await db.execute(sql`
             SELECT
-                u.id, u.nombre, u.apellidos, u.avatar_url, u.ciudad, u.created_at,
+                u.id, u.nombre, u.apellidos, u.avatar_url, u.ciudad, u.telefono,
+                u.created_at,
                 COALESCE(act.total, 0) AS activas,
                 COALESCE(vend.total, 0) AS vendidos
             FROM usuarios u
@@ -1244,6 +1247,7 @@ export async function obtenerVendedorPorId(
             apellidos: string;
             avatar_url: string | null;
             ciudad: string | null;
+            telefono: string | null;
             created_at: string;
             activas: number;
             vendidos: number;
@@ -1258,6 +1262,7 @@ export async function obtenerVendedorPorId(
             apellidos: row.apellidos,
             avatarUrl: row.avatar_url,
             ciudad: row.ciudad,
+            telefono: row.telefono,
             miembroDesde: row.created_at,
             kpis: {
                 publicacionesActivas: row.activas,

@@ -141,25 +141,54 @@ const PATRONES_BUSQUEDA: RegExp[] = [
 // =============================================================================
 
 /**
- * Devuelve el texto en minúsculas y sin acentos, para hacer match
- * case/diacritic-insensitive. Mantiene espacios y signos de puntuación
- * intactos para que `\b` funcione.
+ * Sustituciones leetspeak / variantes comunes para evadir filtros.
+ * Aplicadas en `normalizar()` antes de comparar.
+ */
+const SUSTITUCIONES_LEET: Record<string, string> = {
+    '0': 'o',
+    '1': 'i',
+    '3': 'e',
+    '4': 'a',
+    '5': 's',
+    '7': 't',
+    '8': 'b',
+    '9': 'g',
+    '@': 'a',
+    '$': 's',
+    '€': 'e',
+    '!': 'i',
+    '|': 'i',
+};
+
+/**
+ * Normalización agresiva: minúsculas + sin acentos + sustituciones leetspeak.
+ * Hace match contra variantes como "s0rt30" → "sorteo", "r1f@" → "rifa".
+ * El texto resultante NO se devuelve al usuario, solo se usa para comparar.
  */
 function normalizar(texto: string): string {
-    return texto
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '');
+    let resultado = texto.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+    let mapeado = '';
+    for (const ch of resultado) {
+        mapeado += SUSTITUCIONES_LEET[ch] ?? ch;
+    }
+    return mapeado;
 }
 
 /**
- * Construye una regex con `\b...\b` y la flag `i`. Acepta palabras simples y
- * frases con espacios (los espacios son boundary natural).
+ * Construye una regex que detecta una palabra prohibida permitiendo
+ * separadores no-alfanuméricos entre las letras (ej: "r.i.f.a", "r i f a",
+ * "r_i_f_a"). Los lookarounds `(?<![a-z0-9])` y `(?![a-z0-9])` actúan como
+ * boundary robusto: NO matchea dentro de otras palabras (ej: "deriva" no
+ * matchea "rifa", "soporte" no matchea "sorte").
  */
 function construirRegex(palabra: string): RegExp {
-    // Escapar metacaracteres regex en la palabra antes de envolverla con \b
-    const palabraEscapada = palabra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`\\b${palabraEscapada}\\b`, 'i');
+    const letras = Array.from(palabra).map((c) =>
+        c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    );
+    const patron = letras
+        .map((c) => (c === ' ' ? '[\\W_]+' : c))
+        .join('[\\W_]*');
+    return new RegExp(`(?<![a-z0-9])${patron}(?![a-z0-9])`, 'i');
 }
 
 // =============================================================================

@@ -91,6 +91,29 @@ export interface PreguntasParaVendedor {
 }
 
 /**
+ * Pregunta pendiente del propio comprador autenticado en un artículo —
+ * se muestra en la vista visitante para que el usuario sepa que su pregunta
+ * está esperando respuesta y pueda retirarla. Distinto de los datos públicos
+ * porque incluye solo lo necesario para el bloque inline.
+ */
+export interface MiPreguntaPendiente {
+    id: string;
+    pregunta: string;
+    createdAt: string;
+}
+
+/**
+ * Respuesta del endpoint cuando el visitante NO es dueño:
+ * - `respondidas`: array de preguntas públicas (solo respondidas).
+ * - `miPreguntaPendiente`: pregunta del propio usuario aún sin respuesta,
+ *   o `null` si no está autenticado o no ha preguntado.
+ */
+export interface PreguntasVisitante {
+    respondidas: PreguntaMarketplace[];
+    miPreguntaPendiente: MiPreguntaPendiente | null;
+}
+
+/**
  * Respuesta del endpoint `GET /api/marketplace/feed`.
  */
 export interface FeedMarketplace {
@@ -137,6 +160,8 @@ export interface PerfilVendedorMarketplace {
     apellidos: string;
     avatarUrl: string | null;
     ciudad: string | null;
+    /** Teléfono para CTA WhatsApp en P3. null si el vendedor no lo registró. */
+    telefono: string | null;
     /** ISO o formato Postgres del `created_at` del usuario (cuando se registró) */
     miembroDesde: string;
     kpis: {

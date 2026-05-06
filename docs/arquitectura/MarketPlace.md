@@ -1,8 +1,8 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
-> **Última actualización:** 05 Mayo 2026
-> **Estado:** ✅ v1 + v1.1 (Sprints 9.1 y 9.2) completados y desplegados en producción
-> **Versión:** 1.1.1
+> **Última actualización:** 06 Mayo 2026
+> **Estado:** ✅ v1 + v1.1 (Sprints 9.1 y 9.2) completados y desplegados en producción. Pulido transversal en curso.
+> **Versión:** 1.1.2
 > **Pendientes opcionales:**
 >  - v1.2 — Sistema de Niveles del Vendedor
 >  - Pulido visual y ajustes UX detectados durante verificación: ver `docs/reportes/MarketPlace/Pendientes-Fase-C-Revision-Visual.md`
@@ -564,9 +564,16 @@ Scroll vertical continuo, no estático. Invita a explorar.
   - **WhatsApp** (gradiente verde brand `from-[#22C55E] to-[#15803D]`) con ícono Lucide `MessageCircle`. Mensaje precargado: `"Hola, vi tu publicación de [título] en AnunciaYA"`
   - **ChatYA** (Dark Gradient) — botón con logo oficial `/ChatYA.webp` sin texto + `aria-label="Contactar por ChatYA"`. Llama `useChatYAStore.abrirChatTemporal({...})` **+ `useUiStore.abrirChatYA()`** (las dos son obligatorias, sin la segunda el panel no aparece). `contextoTipo='marketplace'` + `contextoReferenciaId={articuloId}`.
   - **Layout:** botones lado a lado en mobile y desktop (no apilados). Padding bajo `py-1.5` para que el botón se ajuste al tamaño del logo.
+  - **Móvil:** la barra es **`fixed`** y se posiciona dinámicamente sobre el BottomNav. Usa `useHideOnScroll` para sincronizarse: cuando el BottomNav está visible → `bottom: 68px` (sobre él); cuando se oculta al hacer scroll → `bottom: 0` (pegada al borde). Transición suave 300ms. `z-50` para quedar sobre BottomNav (`z-40`). Sin fondo propio (transparente) para heredar el gradient de la app.
   - Si vendedor sin teléfono → oculta WhatsApp
   - Si visitante es el dueño → oculta toda la barra
   - Si dueño + estado=pausada → reemplaza la barra con botón "Reactivar publicación"
+
+- **Layout móvil — secciones envueltas en cards** (estilo Mercado Libre):
+  - Cada bloque (Descripción, Card vendedor, Mapa, Q&A) vive dentro de su propio card `rounded-xl border border-slate-200 bg-white shadow-sm p-4` sobre el fondo gradient nativo de la app.
+  - El contenedor raíz de la página (`PaginaArticuloMarketplace`) usa `bg-transparent` (no `bg-white`) para heredar el gradient del MainLayout.
+  - El `MapaUbicacion` crea su propio stacking context (`relative z-0 isolate`) para que los z-index 400+ de Leaflet no escapen y tapen el BottomNav o la BarraContacto fija.
+  - `pb-[150px]` en el contenedor para reservar espacio bajo el contenido y que la BarraContacto fija + BottomNav no oculten la última sección.
 
 #### Comportamiento
 
@@ -600,10 +607,10 @@ Scroll vertical continuo, no estático. Invita a explorar.
   - **Publicaciones activas** — `COUNT(*) WHERE estado='activa'`
   - **Vendidos** — `COUNT(*) WHERE estado='vendida'`
   - **Tiempo de respuesta** — promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor en últimos 30 días, **sin filtro de `contexto_tipo`** (es característica de la persona, no del módulo)
-- 2 botones (ocultos si visitas tu propio perfil):
+- Botones de contacto (ocultos si visitas tu propio perfil):
+  - **WhatsApp** (gradiente verde brand `from-[#22C55E] to-[#15803D]`) — solo aparece si el vendedor tiene teléfono registrado. Mensaje precargado: `"Hola {nombre}, vi tu perfil en AnunciaYA"`. El backend `getVendedorMarketplace` devuelve `telefono` en el perfil; el tipo `PerfilVendedorMarketplace` incluye `telefono: string | null`.
   - **ChatYA** (Dark Gradient negro) — botón con logo oficial `/ChatYA.webp` sin texto. Llama `useChatYAStore.abrirChatTemporal({...})` + `useUiStore.abrirChatYA()` con `contextoTipo='vendedor_marketplace'`.
   - **Seguir vendedor** (blanco con borde) → `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`
-- **Pendiente** (item 6 del reporte): agregar botón **WhatsApp** aquí también para consistencia con P2 Detalle. Requiere extender `getVendedorMarketplace` backend para devolver `telefono`.
 - Tabs: **Publicaciones (X)** | **Vendidos (X)** con subrayado teal en activa
 - Grid de cards estilo B (reusa `CardArticulo`)
 - En tab "Vendidos": cada card envuelta en wrapper con overlay slate translúcido + texto "VENDIDO"
@@ -692,16 +699,34 @@ En modo edición:
 
 #### Manejo de moderación
 
-- **Rechazo duro (HTTP 422)** → modal inline con palabra detectada visible. No permite continuar.
+- **Validación inline (cliente)** — el wizard no espera al submit final: `apps/web/src/utils/moderacionMarketplace.ts` detecta palabras prohibidas mientras el usuario escribe en `título` (paso 1) y `descripción` (paso 2). Si hay match, muestra el mensaje de la categoría rojo bajo el input y deshabilita el botón "Continuar". Cuando el texto se corrige, el botón se vuelve a habilitar.
+- **Robustez contra evasión** (frontend + backend, lógica equivalente):
+  - **Leetspeak** — sustituciones aplicadas en `normalizar()`: `0→o`, `1→i`, `3→e`, `4→a`, `5→s`, `7→t`, `8→b`, `9→g`, `@→a`, `$→s`, `€→e`, `!→i`, `|→i`. Así "s0rt30" o "r1f@" matchean "sorteo" / "rifa".
+  - **Separadores entre letras** — `construirRegex` permite cualquier carácter no-alfanumérico entre las letras del término (`r.i.f.a`, `r i f a`, `r-i-f-a`, `r_i_f_a` matchean `rifa`).
+  - **Boundary robusto** — lookarounds `(?<![a-z0-9])` y `(?![a-z0-9])` en lugar de `\b`, para evitar que "deriva" matchee "rifa" o que "soporte" matchee "sorte".
+  - **Variantes truncadas** — la lista incluye truncamientos comunes (`sorte`, `sortes`, `rife`, `rifen`, `cachit`, `subastar`, `rematando`, etc.) por si el usuario corta la palabra para evadir.
+- **Rechazo duro (HTTP 422)** del backend → modal inline con palabra detectada visible. No permite continuar.
 - **Sugerencia suave (HTTP 200 con `warning`)** → `ModalSugerenciaModeracion.tsx` con 2 botones:
   - "Editar mi publicación" → cierra modal, vuelve al paso correspondiente
   - "Continuar de todos modos" → reenvía con `confirmadoPorUsuario: true`
 - Botón "Llevar a Servicios" omitido hasta que la sección `/servicios` exista
 
-#### Auto-save
+#### Auto-save (borrador local por usuario)
 
-- `sessionStorage` debounced 500ms bajo key `wizard_marketplace_${articuloId ?? 'nuevo'}`
-- Modo crear y modo editar tienen keys separadas (no se contaminan)
+- **Storage key:** `wizard_marketplace_${usuarioId}_${articuloId ?? 'nuevo'}` — incluye `usuarioId` para que cada cuenta tenga su propio borrador en el mismo navegador. Si cambias de cuenta NO ves el borrador del usuario anterior.
+- **Mecánica:** `sessionStorage` debounced 500ms.
+- **Modo crear vs modo editar** tienen keys separadas (no se contaminan).
+- **Salida del wizard:**
+  - Si el usuario no escribió nada (sin fotos, título, descripción, precio) → sale directo a `/marketplace` sin preguntar.
+  - Si tiene cambios → modal **"¿Salir sin publicar?"** (estilo `ModalAdaptativo` con header gradiente teal y patrón TC-6A) con 3 opciones en una fila:
+    - **Seguir editando** (icono `Pencil`) — cierra el modal.
+    - **Descartar** (icono `XCircle`) — limpia `sessionStorage` y elimina de R2 las fotos subidas en la sesión actual (las preexistentes en modo edición se respetan).
+    - **Guardar borrador** (icono `BookmarkPlus`) — fuerza `sessionStorage.setItem` con el state actual y navega a `/marketplace`.
+
+#### Subida de fotos a R2 (optimizada)
+
+- **Optimización cliente-side antes de subir** — el helper `apps/web/src/utils/optimizarImagen.ts` (compartido con `useR2Upload`) redimensiona a `maxWidth: 1920` y comprime a WebP `quality: 0.85`. Reduce 70-90% el peso de fotos de cámara móvil (5-10MB → ~500KB). Llamado por `useSubirFotoMarketplace` antes del PUT a R2.
+- **Limpieza al quitar foto** — el wizard mantiene un `useRef<Set<string>>` con las URLs subidas en la sesión actual. Al quitar una foto, si la URL está en ese set, dispara `DELETE /api/r2/imagen` (fire-and-forget). Las fotos preexistentes (modo edición) NO se borran al quitarlas — el reference count del helper `eliminarImagenSiHuerfana` del backend se encarga al guardar el artículo.
 
 ---
 
@@ -846,6 +871,10 @@ Eventos del MarketPlace que disparan notificaciones (ya implementados):
 - **`marketplace_proxima_expirar`** — 3 días antes de expirar
 - **`marketplace_expirada`** — al auto-pausar por TTL
 - **`marketplace_nuevo_mensaje`** — reservado (lo dispara ChatYA cuando aplica)
+- **`marketplace_nueva_pregunta`** — al vendedor cuando un comprador pregunta (Sprint 9.2)
+- **`marketplace_pregunta_respondida`** — al comprador cuando el vendedor responde (Sprint 9.2)
+
+**Click en notificación → navega al artículo:** `PanelNotificaciones.tsx → obtenerRutaDestino()` mapea cualquier notificación con `referenciaTipo === 'marketplace'` a `/marketplace/articulo/${referenciaId}`. Cubre los 5 tipos `marketplace_*` arriba — la `referenciaId` siempre es el UUID del artículo.
 
 ### Onboarding y Auth
 
@@ -870,7 +899,7 @@ Eventos del MarketPlace que disparan notificaciones (ya implementados):
 | GET | `/api/marketplace/articulos/:id` | Detalle público de un artículo |
 | POST | `/api/marketplace/articulos/:id/vista` | Registrar vista (incrementa contador) |
 | POST | `/api/marketplace/articulos/:id/heartbeat` | Heartbeat "viendo ahora" (Redis sorted set TTL 2min, Sprint 9.1) |
-| GET | `/api/marketplace/articulos/:id/preguntas` | Q&A público (visitante: respondidas; dueño: pendientes + respondidas) |
+| GET | `/api/marketplace/articulos/:id/preguntas` | Q&A público. Visitante autenticado: `{ data: respondidas[], miPreguntaPendiente }`. Dueño: `{ data: { pendientes, respondidas } }`. |
 | GET | `/api/marketplace/buscar/sugerencias` | Sugerencias en vivo con preview (top 5 con `id, titulo, precio, condicion, fotoPortada, ciudad`) |
 | GET | `/api/marketplace/buscar/populares` | Top búsquedas populares por ciudad (cache Redis 1h) |
 | GET | `/api/marketplace/buscar` | Resultados de búsqueda con filtros |
@@ -1027,6 +1056,10 @@ CREATE INDEX idx_preguntas_respondidas
 ```
 
 **Sistema de Q&A público:** una pregunta por usuario por artículo (UNIQUE). Estado inferido: `respuesta IS NULL` → pendiente, `IS NOT NULL` → respondida, `deleted_at IS NOT NULL` → eliminada. Visibilidad pública solo si `respondida_at IS NOT NULL` (los visitantes solo ven respondidas; el dueño ve pendientes + respondidas).
+
+**Vista visitante autenticado — su propia pregunta pendiente:** además del array de respondidas, el endpoint `GET /articulos/:id/preguntas` devuelve `miPreguntaPendiente: { id, pregunta, createdAt } | null` cuando el caller no es el dueño y tiene una pregunta sin responder en ese artículo. El frontend (`SeccionPreguntas.tsx`) renderiza un bloque amber **"Tu pregunta está pendiente"** con la pregunta + tiempo relativo + botón "Retirar pregunta" (usa `DELETE /preguntas/:id/mia`). El botón "Hacer una pregunta" se oculta automáticamente cuando ya hay pendiente, evitando que el usuario reciba un 409 del UNIQUE constraint.
+
+**Botón "Mensaje privado" (vista dueño):** anteriormente etiquetado como "Por chat", se renombró para reflejar mejor su función. Mantiene el mismo handler (`derivarPreguntaAChat`) que abre ChatYA con datos del comprador, **pero ya no hace soft delete de la pregunta** — la pregunta pública se conserva visible. Tiene `title` con tooltip explicativo: *"Abre un chat privado con el comprador. La pregunta sigue visible públicamente."*
 
 ---
 

@@ -31,7 +31,12 @@ import { useUiStore } from '../../stores/useUiStore';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { notificar } from '../../utils/notificaciones';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
-import type { PreguntaMarketplace, PreguntasParaVendedor } from '../../types/marketplace';
+import type {
+    MiPreguntaPendiente,
+    PreguntaMarketplace,
+    PreguntasParaVendedor,
+    PreguntasVisitante,
+} from '../../types/marketplace';
 
 // =============================================================================
 // PROPS
@@ -75,12 +80,15 @@ export function SeccionPreguntas({
         );
     }
 
-    const publicas = (data as PreguntaMarketplace[] | undefined) ?? [];
+    const visitanteData = data as PreguntasVisitante | undefined;
+    const publicas = visitanteData?.respondidas ?? [];
+    const miPreguntaPendiente = visitanteData?.miPreguntaPendiente ?? null;
 
     return (
         <VistaVisitante
             articuloId={articuloId}
             preguntas={publicas}
+            miPreguntaPendiente={miPreguntaPendiente}
             usuarioAutenticado={usuarioAutenticado}
             onAbrirModalPregunta={onAbrirModalPregunta}
         />
@@ -94,16 +102,36 @@ export function SeccionPreguntas({
 interface VistaVisitanteProps {
     articuloId: string;
     preguntas: PreguntaMarketplace[];
+    miPreguntaPendiente: MiPreguntaPendiente | null;
     usuarioAutenticado: boolean;
     onAbrirModalPregunta: () => void;
 }
 
 function VistaVisitante({
+    articuloId,
     preguntas,
+    miPreguntaPendiente,
     usuarioAutenticado,
     onAbrirModalPregunta,
 }: VistaVisitanteProps) {
     const eliminarMia = useEliminarPreguntaMia();
+
+    const handleRetirarMia = (preguntaId: string) => {
+        eliminarMia.mutate(
+            { preguntaId, articuloId },
+            {
+                onSuccess: () => notificar.exito('Pregunta retirada'),
+                onError: (e) => {
+                    const status = (e as { response?: { status?: number } })?.response?.status;
+                    if (status === 409) {
+                        notificar.info('No puedes retirar una pregunta ya respondida');
+                    } else {
+                        notificar.error('No se pudo retirar la pregunta');
+                    }
+                },
+            }
+        );
+    };
 
     return (
         <div data-testid="seccion-preguntas-visitante" className="space-y-4">
@@ -116,43 +144,75 @@ function VistaVisitante({
                         </span>
                     )}
                 </h2>
-                <button
-                    data-testid="btn-hacer-pregunta"
-                    onClick={usuarioAutenticado ? onAbrirModalPregunta : onAbrirModalPregunta}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                    <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} />
-                    Hacer una pregunta
-                </button>
+                {/* Si el usuario ya tiene pregunta pendiente, ocultamos el CTA
+                    de hacer pregunta (la regla de negocio limita 1 por usuario
+                    por artículo y el backend rebotaría con 409). */}
+                {!miPreguntaPendiente && (
+                    <button
+                        data-testid="btn-hacer-pregunta"
+                        onClick={onAbrirModalPregunta}
+                        className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                        <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} />
+                        Hacer una pregunta
+                    </button>
+                )}
             </div>
 
+            {/* Bloque "Tu pregunta está pendiente" — solo si el visitante
+                autenticado tiene una pregunta sin responder en este artículo. */}
+            {miPreguntaPendiente && (
+                <div
+                    data-testid="mi-pregunta-pendiente"
+                    className="rounded-lg border border-amber-200 bg-amber-50 p-3"
+                >
+                    <div className="flex items-start gap-2">
+                        <Clock
+                            className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"
+                            strokeWidth={2}
+                        />
+                        <div className="flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                                <strong className="text-sm font-semibold text-amber-900">
+                                    Tu pregunta está pendiente
+                                </strong>
+                                <span className="text-xs text-amber-700">
+                                    {formatearTiempoRelativo(miPreguntaPendiente.createdAt)}
+                                </span>
+                            </div>
+                            <p className="mt-1 text-sm text-amber-900">
+                                &quot;{miPreguntaPendiente.pregunta}&quot;
+                            </p>
+                            <p className="mt-1 text-xs text-amber-700">
+                                El vendedor aún no responde. Será visible para todos cuando lo haga.
+                            </p>
+                            <button
+                                data-testid="btn-retirar-mi-pregunta"
+                                onClick={() => handleRetirarMia(miPreguntaPendiente.id)}
+                                disabled={eliminarMia.isPending}
+                                className="mt-2 inline-flex cursor-pointer items-center gap-1 rounded-md text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-60"
+                            >
+                                <Trash2 className="h-3 w-3" strokeWidth={2.5} />
+                                Retirar pregunta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {preguntas.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                    Sé el primero en preguntar sobre este artículo.
-                </p>
+                !miPreguntaPendiente && (
+                    <p className="text-sm text-slate-500">
+                        Sé el primero en preguntar sobre este artículo.
+                    </p>
+                )
             ) : (
                 <div className="divide-y divide-slate-100">
                     {preguntas.map((p) => (
                         <FilaPreguntaPublica
                             key={p.id}
                             pregunta={p}
-                            onEliminarMia={(id) =>
-                                eliminarMia.mutate(
-                                    { preguntaId: id, articuloId: '' },
-                                    {
-                                        onSuccess: () =>
-                                            notificar.exito('Pregunta retirada'),
-                                        onError: (e) => {
-                                            const status = (e as { response?: { status?: number } })?.response?.status;
-                                            if (status === 409) {
-                                                notificar.info('No puedes retirar una pregunta ya respondida');
-                                            } else {
-                                                notificar.error('No se pudo retirar la pregunta');
-                                            }
-                                        },
-                                    }
-                                )
-                            }
+                            onEliminarMia={handleRetirarMia}
                         />
                     ))}
                 </div>
@@ -472,10 +532,12 @@ function FilaPreguntaDueno({
                             data-testid={`btn-derivar-${pregunta.id}`}
                             onClick={onDerivar}
                             disabled={cargandoDerivar}
+                            title="Abre un chat privado con el comprador. La pregunta sigue visible públicamente."
+                            aria-label="Responder por mensaje privado en ChatYA. La pregunta pública se conserva."
                             className="flex cursor-pointer items-center gap-0.5 text-slate-500 transition-colors hover:text-slate-700 disabled:opacity-50"
                         >
                             <MessageSquare className="h-3 w-3" strokeWidth={2} />
-                            Por chat
+                            Mensaje privado
                         </button>
                     </>
                 )}

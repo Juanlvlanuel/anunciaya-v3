@@ -216,6 +216,48 @@ export async function obtenerPreguntasPublicas(
 }
 
 // =============================================================================
+// OBTENER MI PREGUNTA PENDIENTE (comprador)
+// =============================================================================
+
+/**
+ * Devuelve la pregunta pendiente (sin respuesta) del comprador autenticado
+ * sobre un artículo, si existe. Sirve para que la vista de visitante muestre
+ * al usuario que YA hizo una pregunta y está esperando respuesta — evita el
+ * mensaje confuso "Sé el primero en preguntar" cuando ya preguntó.
+ *
+ * Devuelve `null` si:
+ *  - El usuario no tiene pregunta sobre el artículo, o
+ *  - La pregunta ya fue respondida (en ese caso aparece pública), o
+ *  - La pregunta fue eliminada (deleted_at IS NOT NULL).
+ */
+export async function obtenerMiPreguntaPendiente(
+    articuloId: string,
+    compradorId: string
+): Promise<{
+    id: string;
+    pregunta: string;
+    createdAt: string;
+} | null> {
+    const resultado = await db.execute(sql`
+        SELECT id, pregunta, created_at
+        FROM marketplace_preguntas
+        WHERE articulo_id = ${articuloId}
+          AND comprador_id = ${compradorId}
+          AND respondida_at IS NULL
+          AND deleted_at IS NULL
+        LIMIT 1
+    `);
+
+    if (resultado.rows.length === 0) return null;
+    const row = resultado.rows[0] as { id: string; pregunta: string; created_at: string };
+    return {
+        id: row.id,
+        pregunta: row.pregunta,
+        createdAt: row.created_at,
+    };
+}
+
+// =============================================================================
 // OBTENER PREGUNTAS PARA VENDEDOR
 // =============================================================================
 

@@ -32,7 +32,10 @@ import type {
     PublicacionesDeVendedor,
     PreguntaMarketplace,
     PreguntasParaVendedor,
+    PreguntasVisitante,
+    MiPreguntaPendiente,
 } from '../../types/marketplace';
+import { optimizarImagen } from '../../utils/optimizarImagen';
 
 // =============================================================================
 // FEED DEL MARKETPLACE (recientes + cercanos)
@@ -377,9 +380,10 @@ interface UseSubirFotoMarketplaceResult {
  *  2. PUT directo a R2 con el archivo (sin pasar por nuestro server).
  *  3. Devuelve `publicUrl` final.
  *
- * NOTA: este hook intencionalmente NO redimensiona ni comprime. El backend
- * acepta jpeg/png/webp hasta tamaño normal de cámara. Si más adelante
- * vemos archivos > 5MB en producción, se agrega compresión client-side.
+ * Optimiza imágenes antes de subir: redimensiona a 1920px máx, comprime a
+ * WebP con calidad 85%. Reduce 70-90% el peso de fotos de cámara móvil
+ * (5-10MB → ~500KB) y unifica el formato en R2. Reusa el helper compartido
+ * `optimizarImagen` (mismo que usan ChatYA y Business Studio).
  */
 export function useSubirFotoMarketplace(): UseSubirFotoMarketplaceResult {
     const [publicUrl, setPublicUrl] = useState<string | null>(null);
@@ -390,12 +394,20 @@ export function useSubirFotoMarketplace(): UseSubirFotoMarketplaceResult {
         setIsUploading(true);
         setError(null);
         try {
-            // 1. Pedir presigned URL al backend
+            // 1. Optimizar a WebP (redimensiona + comprime client-side)
+            const blobOptimizado = await optimizarImagen(file, {
+                maxWidth: 1920,
+                quality: 0.85,
+            });
+            const nombreArchivo = file.name.replace(/\.[^.]+$/, '.webp');
+            const contentType = 'image/webp';
+
+            // 2. Pedir presigned URL al backend
             const presignResp = await api.post<RespuestaUploadImagen>(
                 '/marketplace/upload-imagen',
                 {
-                    nombreArchivo: file.name,
-                    contentType: file.type,
+                    nombreArchivo,
+                    contentType,
                 }
             );
             if (!presignResp.data.success || !presignResp.data.data) {
@@ -403,11 +415,11 @@ export function useSubirFotoMarketplace(): UseSubirFotoMarketplaceResult {
             }
             const { uploadUrl, publicUrl: urlFinal } = presignResp.data.data;
 
-            // 2. PUT directo a R2 (sin auth de nuestro server)
+            // 3. PUT directo a R2 con el blob WebP optimizado
             const putResp = await fetch(uploadUrl, {
                 method: 'PUT',
-                body: file,
-                headers: { 'Content-Type': file.type },
+                body: blobOptimizado,
+                headers: { 'Content-Type': contentType },
             });
             if (!putResp.ok) {
                 throw new Error(`R2 PUT falló: HTTP ${putResp.status}`);
@@ -647,8 +659,11 @@ export function useBuscadorResultados(
 
 /**
  * Obtiene preguntas de un artículo.
- * - Si `esDueno=true` → GET devuelve `{ pendientes, respondidas }`.
- * - Si `esDueno=false` → GET devuelve array de preguntas respondidas.
+ * - Si `esDueno=true` → devuelve `{ pendientes, respondidas }`.
+ * - Si `esDueno=false` → devuelve `{ respondidas, miPreguntaPendiente }`
+ *   donde `miPreguntaPendiente` es la pregunta del usuario autenticado que
+ *   aún no tiene respuesta (o `null` si no aplica). Permite mostrarle al
+ *   comprador que su pregunta está pendiente y darle opción de retirarla.
  */
 export function usePreguntasArticulo(
     articuloId: string | undefined,
@@ -656,12 +671,19 @@ export function usePreguntasArticulo(
 ) {
     return useQuery({
         queryKey: queryKeys.marketplace.preguntas(articuloId ?? ''),
-        queryFn: async (): Promise<PreguntaMarketplace[] | PreguntasParaVendedor> => {
+        queryFn: async (): Promise<PreguntasVisitante | PreguntasParaVendedor> => {
             const response = await api.get<{
                 success: boolean;
                 data: PreguntaMarketplace[] | PreguntasParaVendedor;
+                miPreguntaPendiente?: MiPreguntaPendiente | null;
             }>(`/marketplace/articulos/${articuloId}/preguntas`);
-            return response.data.data;
+            if (esDueno) {
+                return response.data.data as PreguntasParaVendedor;
+            }
+            return {
+                respondidas: response.data.data as PreguntaMarketplace[],
+                miPreguntaPendiente: response.data.miPreguntaPendiente ?? null,
+            };
         },
         enabled: !!articuloId,
         staleTime: 60 * 1000,
