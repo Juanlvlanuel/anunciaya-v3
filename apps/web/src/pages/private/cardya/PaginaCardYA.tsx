@@ -9,7 +9,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Wallet, Gift, Clock, Ticket, ChevronLeft, Menu } from 'lucide-react';
+import { Wallet, Gift, Clock, Ticket, ChevronLeft, Bell } from 'lucide-react';
+import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
+import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 // useCardyaStore eliminado — React Query maneja datos del servidor
 import {
@@ -85,6 +87,8 @@ export function PaginaCardYA() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+    const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
+    const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
     const [tabActiva, setTabActivaInterno] = useState<TabCardYA>('billeteras');
     const headerRef = useRef<HTMLDivElement>(null);
     const [headerHeight, setHeaderHeight] = useState(0);
@@ -515,7 +519,7 @@ export function PaginaCardYA() {
                                             Card<span className="text-amber-400">YA</span>
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-1 shrink-0">
+                                    <div className="flex items-center gap-0 -mr-1 shrink-0">
                                         <DropdownFiltroEstado
                                             tabActiva={tabActiva}
                                             valor={filtroEstado}
@@ -529,11 +533,24 @@ export function PaginaCardYA() {
                                             compacto
                                         />
                                         <button
+                                            data-testid="btn-notificaciones-cardya"
+                                            onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
+                                            aria-label="Notificaciones"
+                                            className="relative w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                                        >
+                                            <Bell className="w-6 h-6 animate-bell-ring" strokeWidth={2.5} />
+                                            {cantidadNoLeidas > 0 && (
+                                                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold ring-2 ring-black px-1 leading-none">
+                                                    {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
+                                                </span>
+                                            )}
+                                        </button>
+                                        <button
                                             data-testid="btn-menu-cardya"
                                             onClick={abrirMenuDrawer}
                                             className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                                         >
-                                            <Menu className="w-6 h-6" strokeWidth={2.5} />
+                                            <IconoMenuMorph />
                                         </button>
                                     </div>
                                 </div>
@@ -621,52 +638,32 @@ export function PaginaCardYA() {
                                 </div>
                             </div>
 
-                            {/* ── TABS ── */}
-                            <div className="flex items-center">
+                            {/* ── TABS estilo CHIPS (alineado a Ofertas/MP/Negocios) ── */}
+                            <div className="flex items-center px-3 pb-3 lg:px-0 lg:pb-0">
                                 <div
-                                    className="cardya-tabs flex lg:flex-none overflow-x-auto flex-1"
+                                    className="cardya-tabs flex items-center gap-2 lg:flex-none overflow-x-auto flex-1 -mx-3 px-3 lg:mx-0 lg:px-6 lg:py-3 2xl:px-8"
                                 >
-                                    {TABS_CONFIG.map(({ id, label, Icono }) => (
-                                        <button
-                                            key={id}
-                                            data-testid={`tab-cardya-${id}`}
-                                            onClick={() => setTabActiva(id)}
-                                            className="
-                                        flex items-center gap-2 lg:gap-2.5 px-4 lg:px-7 2xl:px-9 py-3 lg:py-3.5
-                                        text-base lg:text-base 2xl:text-[17px] cursor-pointer
-                                        transition-all duration-200 relative whitespace-nowrap shrink-0
-                                    "
-                                            style={{
-                                                color: tabActiva === id ? '#f59e0b' : 'rgba(255,255,255,0.50)',
-                                                fontWeight: tabActiva === id ? 700 : 500,
-                                                background: 'transparent',
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                if (tabActiva !== id) {
-                                                    e.currentTarget.style.color = 'rgba(245,158,11,0.7)';
-                                                    precargarTab(id);
-                                                }
-                                            }}
-                                            onTouchStart={() => {
-                                                if (tabActiva !== id) {
-                                                    precargarTab(id);
-                                                }
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                if (tabActiva !== id) {
-                                                    e.currentTarget.style.color = 'rgba(255,255,255,0.50)';
-                                                }
-                                            }}
-                                        >
-                                            <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" strokeWidth={2} />
-                                            <span>{label}</span>
-                                            {tabActiva === id && (
-                                                <div
-                                                    className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-amber-400"
-                                                />
-                                            )}
-                                        </button>
-                                    ))}
+                                    {TABS_CONFIG.map(({ id, label, Icono }) => {
+                                        const activo = tabActiva === id;
+                                        return (
+                                            <button
+                                                key={id}
+                                                data-testid={`tab-cardya-${id}`}
+                                                onClick={() => setTabActiva(id)}
+                                                onMouseEnter={() => { if (!activo) precargarTab(id); }}
+                                                onTouchStart={() => { if (!activo) precargarTab(id); }}
+                                                className={[
+                                                    'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
+                                                    activo
+                                                        ? 'bg-amber-500 text-white border-amber-400 shadow-md shadow-amber-500/20'
+                                                        : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-amber-400/60',
+                                                ].join(' ')}
+                                            >
+                                                <Icono className="w-4 h-4" strokeWidth={2.5} />
+                                                <span>{label}</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                                 {/* Dropdown desktop — alineado a la derecha en la fila de tabs */}
                                 <div className="hidden lg:flex items-center gap-2.5 ml-auto pr-6 2xl:pr-8">

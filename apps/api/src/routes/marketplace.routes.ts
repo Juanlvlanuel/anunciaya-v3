@@ -36,7 +36,7 @@
 import { Router } from 'express';
 import {
     getFeed,
-    getTrendingFeed,
+    getFeedInfinito,
     getArticulo,
     postRegistrarVista,
     postHeartbeat,
@@ -76,11 +76,12 @@ const router: Router = Router();
 router.get('/feed', verificarTokenOpcional, getFeed);
 
 /**
- * GET /api/marketplace/feed/trending?ciudad=X&excluirIds[]=id1...
- * Top artículos por actividad 24h. Array vacío si < 3 con actividad.
+ * GET /api/marketplace/feed/infinito?ciudad=X&lat=Y&lng=Z&orden=recientes&pagina=1&limite=10
+ * Feed paginado estilo Facebook (rediseño v1.2). Cada artículo trae avatar+nombre
+ * del vendedor y top 2 preguntas respondidas para evitar requests adicionales.
  * IMPORTANTE: declarado ANTES de /articulos/:id para que Express no lo confunda.
  */
-router.get('/feed/trending', verificarTokenOpcional, getTrendingFeed);
+router.get('/feed/infinito', verificarTokenOpcional, getFeedInfinito);
 
 /**
  * GET /api/marketplace/articulos/:id/preguntas

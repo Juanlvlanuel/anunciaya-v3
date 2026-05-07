@@ -179,3 +179,51 @@ export interface PublicacionesDeVendedor {
     data: ArticuloMarketplace[];
     paginacion: { total: number; limit: number; offset: number };
 }
+
+// =============================================================================
+// FEED INFINITO (rediseño v1.2 — estilo Facebook)
+// =============================================================================
+
+/** Datos del vendedor incluidos en cada card del feed infinito. */
+export interface VendedorEnFeed {
+    id: string;
+    nombre: string;
+    apellidos: string;
+    avatarUrl: string | null;
+}
+
+/** Pregunta+respuesta inline en la card del feed (top-2 más recientes). */
+export interface PreguntaInlineFeed {
+    id: string;
+    pregunta: string;
+    respuesta: string;
+    respondidaAt: string;
+    comprador: {
+        id: string;
+        nombre: string;
+        avatarUrl: string | null;
+    };
+}
+
+/**
+ * Artículo del feed infinito — extiende `ArticuloFeed` con los datos del
+ * vendedor y top-2 preguntas respondidas para evitar requests adicionales
+ * al renderizar la card tipo Facebook.
+ */
+export interface ArticuloFeedInfinito extends ArticuloFeed {
+    vendedor: VendedorEnFeed;
+    /** Top 2 preguntas respondidas más recientes. Vacío si el artículo no tiene. */
+    topPreguntas: PreguntaInlineFeed[];
+}
+
+/** Filtros disponibles en el feed infinito. */
+export type OrdenFeedInfinito = 'recientes' | 'vistos' | 'cerca';
+
+/** Respuesta paginada del endpoint `GET /api/marketplace/feed/infinito`. */
+export interface RespuestaFeedInfinito {
+    articulos: ArticuloFeedInfinito[];
+    pagina: number;
+    limite: number;
+    /** true si existe al menos una página más después de la actual. */
+    hayMas: boolean;
+}

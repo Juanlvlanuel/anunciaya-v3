@@ -18,13 +18,13 @@ import {
     crearArticulo,
     obtenerArticuloPorId,
     obtenerFeed,
+    obtenerFeedInfinito,
     obtenerMisArticulos,
     actualizarArticulo,
     cambiarEstado,
     eliminarArticulo,
     registrarVista,
     registrarHeartbeat,
-    obtenerTrending,
     generarUrlUploadImagenMarketplace,
     obtenerVendedorPorId,
     obtenerArticulosDeVendedor,
@@ -40,6 +40,7 @@ import {
     actualizarArticuloSchema,
     cambiarEstadoSchema,
     feedQuerySchema,
+    feedInfinitoQuerySchema,
     misArticulosQuerySchema,
     uploadImagenSchema,
     sugerenciasQuerySchema,
@@ -94,6 +95,43 @@ export async function getFeed(req: Request, res: Response) {
         return res.json(resultado);
     } catch (error) {
         console.error('Error en getFeed:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener el feed',
+        });
+    }
+}
+
+/**
+ * GET /api/marketplace/feed/infinito
+ *
+ * Feed paginado estilo Facebook con orden y filtros. Cada artículo trae avatar
+ * + nombre del vendedor y top 2 preguntas respondidas para evitar requests
+ * adicionales desde el frontend.
+ *
+ * Query params:
+ *   - ciudad (req)
+ *   - lat, lng (req)
+ *   - orden: 'recientes' (default) | 'vistos' | 'cerca'
+ *   - pagina: 1-based, default 1
+ *   - limite: 1-20, default 10
+ *   - precioMin, precioMax (opcionales)
+ */
+export async function getFeedInfinito(req: Request, res: Response) {
+    try {
+        const validacion = feedInfinitoQuerySchema.safeParse(req.query);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Query inválida',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        const resultado = await obtenerFeedInfinito(validacion.data);
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getFeedInfinito:', error);
         return res.status(500).json({
             success: false,
             message: 'Error al obtener el feed',
@@ -532,50 +570,6 @@ export async function getBuscarArticulos(req: Request, res: Response) {
             success: false,
             message: 'Error al ejecutar la búsqueda',
         });
-    }
-}
-
-// =============================================================================
-// TRENDING "LO MÁS VISTO HOY" (Sprint 9.1)
-// =============================================================================
-
-/**
- * GET /api/marketplace/feed/trending?ciudad=X&excluirIds[]=id1&excluirIds[]=id2
- * Devuelve hasta 10 artículos ordenados por score de actividad 24h.
- * Si hay menos de 3 con actividad, devuelve array vacío (sección oculta).
- */
-export async function getTrendingFeed(req: Request, res: Response) {
-    try {
-        const ciudad = (req.query.ciudad as string | undefined)?.trim();
-        if (!ciudad) {
-            return res.status(400).json({ success: false, message: 'ciudad es requerida' });
-        }
-
-        const excluirRaw = req.query.excluirIds;
-        const excluirIds: string[] = Array.isArray(excluirRaw)
-            ? (excluirRaw as string[]).filter((id) => UUID_REGEX.test(id))
-            : typeof excluirRaw === 'string' && UUID_REGEX.test(excluirRaw)
-              ? [excluirRaw]
-              : [];
-
-        // GPS opcional para calcular distanciaMetros — alineado con /feed.
-        const latRaw = req.query.lat as string | undefined;
-        const lngRaw = req.query.lng as string | undefined;
-        const lat = latRaw !== undefined && latRaw !== '' ? Number(latRaw) : null;
-        const lng = lngRaw !== undefined && lngRaw !== '' ? Number(lngRaw) : null;
-        const latValido = lat !== null && !isNaN(lat) && lat >= -90 && lat <= 90;
-        const lngValido = lng !== null && !isNaN(lng) && lng >= -180 && lng <= 180;
-
-        const data = await obtenerTrending(
-            ciudad,
-            excluirIds,
-            latValido ? lat : null,
-            lngValido ? lng : null,
-        );
-        return res.json({ success: true, data });
-    } catch (error) {
-        console.error('Error en getTrendingFeed:', error);
-        return res.status(500).json({ success: false, message: 'Error al obtener trending' });
     }
 }
 

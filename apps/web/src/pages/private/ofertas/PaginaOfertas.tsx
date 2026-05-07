@@ -152,28 +152,26 @@ export default function PaginaOfertas() {
     useState<OfertaFeed | null>(null);
 
   // Vista expandida de la lista densa: false = layout collage + lista única
-  // (8 filas, foto del collage izq/der). true = grid 2 columnas con TODAS las
-  // ofertas, sin collages, para exploración tranquila. Se controla desde el
-  // chip "Todas" del header (no desde un botón aparte).
-  const vistaExpandida = useFiltrosOfertasStore((s) => s.vistaExpandida);
+  // v1.5: el chip 'recientes' es el default. Cuando está activo se muestra el
+  // feed editorial completo (Hero + Carruseles + Ticker + Banner intercalado).
+  // Cualquier otro chip activa la vista grid plano filtrado. La 'vistaExpandida'
+  // (catálogo grid 2 cols) fue eliminada porque su único disparador era el
+  // chip "Todas" que ya no existe.
   const TOPE_VISIBLES = 8;
 
-  // Cuando un chip filtra (≠ 'todas'), mostramos SOLO la lista filtrada y
+  // Cuando un chip filtra (≠ 'recientes'), mostramos SOLO la lista filtrada y
   // ocultamos el feed editorial completo (Hero + Carruseles + Ticker +
   // Banner intercalado). Decisión UX: el chip prominente debe sentirse
   // como un filtro fuerte, no como un cambio invisible en un bloque.
-  // Lo mismo aplica al modo expandido: el usuario quiere ver el catálogo
-  // tranquilo, sin el ruido del feed editorial.
-  const feedEditorialVisible = chipActivo === 'todas' && !vistaExpandida;
+  const feedEditorialVisible = chipActivo === 'recientes';
 
-  // Etiqueta para mostrar qué filtro está activo (solo cuando NO 'todas')
+  // Etiqueta para mostrar qué filtro está activo (solo cuando NO 'recientes')
   const labelChip: Record<typeof chipActivo, string> = {
-    todas: '',
+    recientes: '',
     hoy: 'Hoy',
     esta_semana: 'Esta semana',
     cerca: 'Cerca de ti',
     cardya: 'Aceptan CardYA',
-    nuevas: 'Más nuevas',
     mas_vistas: 'Más vistas',
   };
 
@@ -181,11 +179,11 @@ export default function PaginaOfertas() {
   // Cálculos memoizados
   // ---------------------------------------------------------------------------
 
-  // Lista densa — en modo compacto se muestran solo las primeras 8; en modo
-  // expandido se muestran TODAS las que devolvió el backend.
+  // Lista densa: muestra solo las primeras 8 dentro del feed editorial
+  // (las cards completas filtradas viven abajo).
   const ofertasLista = useMemo(
-    () => (vistaExpandida ? ofertas : ofertas.slice(0, TOPE_VISIBLES)),
-    [ofertas, vistaExpandida]
+    () => ofertas.slice(0, TOPE_VISIBLES),
+    [ofertas]
   );
 
   // Fotos del collage: fijas en las primeras 6 del total (3 pares + 3 impares)
@@ -315,7 +313,6 @@ export default function PaginaOfertas() {
             <HeaderOfertas
               totalOfertas={ofertas.length}
               ciudad={ciudadNombre}
-              onClickMasVistas={() => setChipActivo('mas_vistas')}
             />
           </div>
         </div>
@@ -417,16 +414,12 @@ export default function PaginaOfertas() {
         <section className="mb-6 lg:mb-8 2xl:mb-10">
           <TituloDeBloque
             eyebrow={
-              vistaExpandida
-                ? 'Catálogo completo'
-                : chipActivo === 'todas'
+              chipActivo === 'recientes'
                 ? 'En tu ciudad'
                 : `Filtro · ${labelChip[chipActivo]}`
             }
             titulo={
-              vistaExpandida
-                ? `Todas las ofertas (${ofertas.length})`
-                : chipActivo === 'todas'
+              chipActivo === 'recientes'
                 ? 'Más ofertas activas'
                 : `Resultados: ${labelChip[chipActivo]}`
             }
@@ -441,16 +434,16 @@ export default function PaginaOfertas() {
             <EstadoError onReintentar={() => refetch()} />
           ) : ofertas.length === 0 ? (
             // Distinguimos dos casos:
-            //  - Sin filtros y feed vacío → la ciudad no tiene ofertas todavía
+            //  - Sin filtros (recientes) y feed vacío → la ciudad no tiene ofertas todavía
             //  - Con filtros y feed vacío → el filtro no devuelve resultados
-            chipActivo === 'todas' ? (
+            chipActivo === 'recientes' ? (
               <EstadoCiudadSinOfertas ciudad={ciudadNombre} />
             ) : (
               <EstadoVacioFiltro
                 onLimpiar={() => useFiltrosOfertasStore.getState().resetear()}
               />
             )
-          ) : !vistaExpandida && chipActivo === 'todas' ? (
+          ) : chipActivo === 'recientes' ? (
             // Layout COMPACTO — 3 columnas: collage | lista única | collage.
             // Solo se usa cuando estás en la vista editorial completa (sin
             // filtro). Si hay un chip activo, la lista es resultado de un

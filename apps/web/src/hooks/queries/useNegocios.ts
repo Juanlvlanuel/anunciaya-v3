@@ -27,13 +27,13 @@ import type { NegocioResumen, NegocioCompleto } from '../../types/negocios';
 export function useNegociosLista() {
   const {
     categoria, subcategorias, distancia, cercaDeMi,
-    metodosPago, soloCardya, conEnvio, conServicioDomicilio, busqueda,
+    metodosPago, soloCardya, conEnvio, conServicioDomicilio, aDomicilio, busqueda,
   } = useFiltrosNegociosStore();
   const { latitud, longitud } = useGpsStore();
 
   const filtros = {
     categoria, subcategorias, distancia, cercaDeMi,
-    metodosPago, soloCardya, conEnvio, conServicioDomicilio, busqueda,
+    metodosPago, soloCardya, conEnvio, conServicioDomicilio, aDomicilio, busqueda,
     latitud, longitud,
   };
 
@@ -51,8 +51,11 @@ export function useNegociosLista() {
       if (subcategorias.length > 0) params.subcategoriaIds = subcategorias.join(',');
       if (metodosPago.length > 0) params.metodosPago = metodosPago.join(',');
       if (soloCardya) params.aceptaCardYA = true;
+      // [legacy] flags individuales — actualmente sin UI; el chip activo es `aDomicilio`.
       if (conEnvio) params.tieneEnvio = true;
       if (conServicioDomicilio) params.tieneServicioDomicilio = true;
+      // Chip "A domicilio" — backend interpreta como OR (envío O servicio domicilio).
+      if (aDomicilio) params.aDomicilio = true;
       if (busqueda.trim()) params.busqueda = busqueda.trim();
 
       const response = await api.get<{ success: boolean; data: NegocioResumen[] }>(

@@ -206,6 +206,30 @@ export const feedQuerySchema = z.object({
 export type FeedQueryInput = z.infer<typeof feedQuerySchema>;
 
 // =============================================================================
+// SCHEMA 4b: QUERY DE FEED INFINITO (estilo Facebook)
+// =============================================================================
+// GET /api/marketplace/feed/infinito?ciudad=...&lat=...&lng=...
+//                                    &orden=recientes&pagina=1&limite=10
+//                                    &precioMin=...&precioMax=...
+
+export const feedInfinitoQuerySchema = z.object({
+    ciudad: campoCiudad,
+    lat: z.coerce.number().refine((v) => v >= -90 && v <= 90, {
+        message: 'lat debe estar entre -90 y 90',
+    }),
+    lng: z.coerce.number().refine((v) => v >= -180 && v <= 180, {
+        message: 'lng debe estar entre -180 y 180',
+    }),
+    orden: z.enum(['recientes', 'vistos', 'cerca']).optional().default('recientes'),
+    pagina: z.coerce.number().int().min(1).optional().default(1),
+    limite: z.coerce.number().int().min(1).max(20).optional().default(10),
+    precioMin: z.coerce.number().min(0).optional(),
+    precioMax: z.coerce.number().min(0).optional(),
+});
+
+export type FeedInfinitoQueryInput = z.infer<typeof feedInfinitoQuerySchema>;
+
+// =============================================================================
 // SCHEMA 5: QUERY DE MIS ARTÍCULOS
 // =============================================================================
 // GET /api/marketplace/mis-articulos?estado=...&limit=...&offset=...
@@ -329,6 +353,7 @@ export default {
     actualizarArticuloSchema,
     cambiarEstadoSchema,
     feedQuerySchema,
+    feedInfinitoQuerySchema,
     misArticulosQuerySchema,
     uploadImagenSchema,
     formatearErroresZod,

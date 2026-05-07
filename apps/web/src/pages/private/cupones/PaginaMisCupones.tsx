@@ -11,7 +11,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Ticket, Gift, CheckCircle, ChevronLeft, Menu } from 'lucide-react';
+import { Ticket, Gift, CheckCircle, ChevronLeft, Bell } from 'lucide-react';
+import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
+import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { Spinner } from '../../../components/ui/Spinner';
 import type { CuponCliente } from '../../../services/misCuponesService';
 import { useUiStore } from '../../../stores/useUiStore';
@@ -51,6 +53,8 @@ const ESTILOS = `
 export default function PaginaMisCupones() {
     const navigate = useNavigate();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+    const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
+    const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
     const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
     const headerRef = useRef<HTMLDivElement>(null);
 
@@ -152,13 +156,28 @@ export default function PaginaMisCupones() {
                                                 Mis <span className="text-emerald-400">Cupones</span>
                                             </span>
                                         </div>
-                                        <button
-                                            data-testid="btn-menu-cupones"
-                                            onClick={abrirMenuDrawer}
-                                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
-                                        >
-                                            <Menu className="w-6 h-6" strokeWidth={2.5} />
-                                        </button>
+                                        <div className="flex items-center gap-0 -mr-1 shrink-0">
+                                            <button
+                                                data-testid="btn-notificaciones-cupones"
+                                                onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
+                                                aria-label="Notificaciones"
+                                                className="relative w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                            >
+                                                <Bell className="w-6 h-6 animate-bell-ring" strokeWidth={2.5} />
+                                                {cantidadNoLeidas > 0 && (
+                                                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold ring-2 ring-black px-1 leading-none">
+                                                        {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
+                                                    </span>
+                                                )}
+                                            </button>
+                                            <button
+                                                data-testid="btn-menu-cupones"
+                                                onClick={abrirMenuDrawer}
+                                                className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                            >
+                                                <IconoMenuMorph />
+                                            </button>
+                                        </div>
                                     </div>
                                     {/* Subtítulo móvil */}
                                     <div className="flex items-center justify-center gap-2.5 pb-2">
@@ -242,31 +261,33 @@ export default function PaginaMisCupones() {
                                     </div>
                                 </div>
 
-                                {/* ── TABS ── */}
-                                <div className="flex items-center">
-                                    <div className="cupones-tabs flex lg:flex-none overflow-x-auto flex-1">
+                                {/* ── TABS estilo CHIPS (alineado a CardYA/Ofertas/MP/Negocios) ── */}
+                                <div className="flex items-center px-3 pb-3 lg:px-0 lg:pb-0">
+                                    <div className="cupones-tabs flex items-center gap-2 lg:flex-none overflow-x-auto flex-1 -mx-3 px-3 lg:mx-0 lg:px-6 lg:py-3 2xl:px-8">
                                         {TABS.map(tab => {
                                             const Icono = tab.icono;
-                                            const esActivo = tabActivo === tab.id;
+                                            const activo = tabActivo === tab.id;
                                             return (
                                                 <button
                                                     key={tab.id}
                                                     data-testid={`tab-${tab.id}`}
                                                     onClick={() => setTabActivo(tab.id)}
-                                                    className="flex items-center gap-2 lg:gap-2.5 px-4 lg:px-7 2xl:px-9 py-3 lg:py-3.5 text-base lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
-                                                    style={{
-                                                        color: esActivo ? '#10b981' : 'rgba(255,255,255,0.50)',
-                                                        fontWeight: esActivo ? 700 : 500,
-                                                        background: 'transparent',
-                                                    }}
+                                                    className={[
+                                                        'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
+                                                        activo
+                                                            ? 'bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20'
+                                                            : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-emerald-400/60',
+                                                    ].join(' ')}
                                                 >
-                                                    <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" />
-                                                    {tab.label}
+                                                    <Icono className="w-4 h-4" strokeWidth={2.5} />
+                                                    <span>{tab.label}</span>
                                                     {tab.id === 'activos' && totalActivos > 0 && (
-                                                        <span className="text-[10px] font-bold bg-emerald-500 text-white w-5 h-5 rounded-full flex items-center justify-center">{totalActivos}</span>
-                                                    )}
-                                                    {esActivo && (
-                                                        <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-emerald-400" />
+                                                        <span className={[
+                                                            'text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center',
+                                                            activo ? 'bg-white text-emerald-600' : 'bg-emerald-500 text-white',
+                                                        ].join(' ')}>
+                                                            {totalActivos}
+                                                        </span>
                                                     )}
                                                 </button>
                                             );

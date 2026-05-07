@@ -1,9 +1,61 @@
 # 🏷️ Ofertas — Sección Pública
 
-**Última actualización:** 1 Mayo 2026
-**Versión:** 1.4
+**Última actualización:** 06 Mayo 2026
+**Versión:** 1.5
 **Estado:** ✅ Operacional (Backend + Frontend Editorial completo)
 **Ruta:** `/ofertas`
+
+## 🆕 v1.5 — Header unificado + chips amber con border-2 (06 May 2026)
+
+Cambios alineados al rediseño cross-secciones (MarketPlace, Ofertas, Negocios):
+
+### Header
+
+- Reorganizado a **una sola fila desktop** para igualar el alto de los headers
+  de MarketPlace y Negocios. Layout: Logo "OfertasLocales" izquierda · spacer
+  · CTA "Lo más visto" + chips situacionales (centro, scroll horizontal si
+  no caben) · KPI dos líneas (a la derecha).
+- **KPI dos líneas**: número grande arriba (`text-3xl 2xl:text-[40px]`) +
+  label en color de marca (`text-amber-400/80 uppercase tracking-wider`) abajo.
+- **Eliminada toda la lógica de compresión por scroll**:
+  - State `comprimido` + useEffect de histéresis.
+  - Imports `useScrollDirection`, `useMainScrollStore`.
+  - Constantes `SCROLL_ENTRAR_COMPRIMIDO` / `SCROLL_SALIR_COMPRIMIDO`.
+  - Todas las clases condicionales `comprimido ? X : Y` y transitions
+    (`transition-[padding/opacity/all] duration-300`).
+- Eliminado el subtítulo decorativo desktop *"Las ofertas en {ciudad} ·
+  DESCUENTOS CERCA DE TI"*.
+
+### Chips de filtros
+
+- **Tamaño/efecto unificados con MarketPlace y Negocios**:
+  - Tamaño: `rounded-full px-3.5 py-1.5 text-sm font-semibold`.
+  - Iconos: `w-4 h-4 strokeWidth={2.5}`.
+  - Border `border-2` (antes `border` 1px).
+- **Variante temática amber** (color de marca de Ofertas):
+  - Inactivo: `bg-white/5 text-slate-200 border-white/15`.
+  - Hover: `border-amber-400/60` (tinte de marca).
+  - Activo: `bg-amber-500 text-white border-amber-400 shadow-md shadow-amber-500/20`.
+- **Chip "CardYA" eliminado** del array `CHIPS` + import `CreditCard`
+  removido. Chips actuales: `Todas`, `Hoy`, `Esta semana`, `Cerca`, `Nuevas`.
+
+### Móvil
+
+- Header móvil con tamaño fijo (`pt-4 pb-2.5`, logo `w-9 h-9`, título
+  `text-2xl`), sin transitions ni lógica de compresión.
+- Subtítulo móvil decorativo siempre visible (sin animación de
+  ocultar/mostrar).
+- Fila de chips/CTAs separada como `lg:hidden` (en desktop ya están
+  integrados al header).
+
+### Archivos tocados
+
+- `apps/web/src/components/ofertas/HeaderOfertas.tsx` — reorganizado a 1 fila,
+  eliminada lógica comprimido, chips amber con border-2, CardYA removido,
+  imports limpiados.
+
+---
+
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - Hook principal: `hooks/queries/useOfertasFeed.ts`

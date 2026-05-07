@@ -1,8 +1,84 @@
 # 🏪 Negocios - Directorio Geolocalizado
 
-**Última actualización:** 7 Abril 2026
-**Versión:** 3.0
+**Última actualización:** 06 Mayo 2026
+**Versión:** 3.1
 **Estado:** ✅ 100% Operacional
+
+## 🆕 v3.1 — Header unificado + filtro "A domicilio" + toggle Mapa/Lista flotante (06 May 2026)
+
+Cambios alineados al rediseño cross-secciones (MarketPlace, Ofertas, Negocios):
+
+### Header
+
+- Reorganizado a **una sola fila desktop** para igualar el alto de los headers
+  de MarketPlace y Ofertas (`py-4 2xl:py-5` con logo `h-11 2xl:h-12`).
+  Layout: Logo izquierda · spacer · chips de filtros · KPI dos líneas (a la
+  derecha, alineados al patrón unificado).
+- **KPI dos líneas**: número grande arriba (`text-3xl 2xl:text-[40px]`) +
+  label en color de marca (`text-blue-400/80 uppercase tracking-wider`) abajo.
+- **Eliminada la lógica de compresión por scroll** (`useScrollDirection`,
+  state `comprimido`, useEffect de histéresis). El header ya es lo
+  suficientemente delgado en su tamaño base, comprimirlo era redundante.
+- Eliminado el subtítulo decorativo desktop *"Descubre en {ciudad} ·
+  COMERCIOS CERCA DE TI"*.
+- Eliminado el bloque sticky "radio km" que aparecía cuando `cercaDeMi` estaba
+  activo — esa info ahora se ve directamente en el chip Ciudad como `5 km`.
+
+### Tabs Mapa / Lista
+
+- **Sacadas del header** y convertidas en un **toggle pill flotante**
+  posicionado en `top-28 right-[17.5rem] 2xl:right-[21.5rem]` (offset
+  pre-calculado para no quedar tapado por la `ColumnaDerecha` global).
+- Renderizadas con `createPortal(..., document.body)` para evitar que el
+  `overflow-hidden` del header dark recorte el `fixed`.
+- En móvil siguen como tabs en una fila bajo el header.
+
+### Filtros (ChipsFiltros)
+
+- **"Mi ciudad"** → **"Ciudad"** (más corto).
+- Chip **Subcategoría se oculta** completamente cuando no hay categoría
+  activa o cuando la categoría no tiene subcategorías (antes se mostraba
+  grisado).
+- Nuevo chip combinado **"A domicilio"** que reemplaza "Envíos" + "Servicio
+  a Domicilio". Es un toggle simple del flag `aDomicilio` con semántica
+  **OR** en backend (muestra negocios con envío O servicio domicilio o ambos).
+  - **Backend nuevo**: parámetro `aDomicilio` en `GET /api/negocios` →
+    SQL agrega `AND (s.tiene_envio_domicilio = true OR s.tiene_servicio_domicilio = true)`.
+  - **Frontend store**: nuevo `aDomicilio: boolean` + `toggleADomicilio()`
+    en `useFiltrosNegociosStore`. Los flags individuales `conEnvio` y
+    `conServicioDomicilio` quedaron como legacy (mantenidos por
+    retrocompatibilidad pero sin UI que los toque).
+  - El dueño del negocio sigue configurando los dos flags por separado
+    en BS → Mi Perfil → TabOperacion (tienen semántica distinta:
+    "envío de productos" vs "servicio a domicilio del cliente").
+- **Chips ahora con `border-2`** (antes `border` 1px). Hover muestra tinte
+  de marca (`border-blue-400/60`). Activo: `bg-blue-500 border-blue-400 shadow-blue-500/20`.
+
+### Móvil
+
+- **Eliminado el modal "Ajustar búsqueda"** completo (~140 líneas). Los
+  filtros móviles ahora son **chips inline en una fila scroll horizontal**
+  bajo los tabs (mismo patrón que MarketPlace y Ofertas). Eliminado el
+  state `popupFiltrosMovil`, el botón con icono `SlidersHorizontal` y el
+  import del icono.
+- Header móvil con tamaño fijo (`pt-4 pb-2.5`, logo `w-9 h-9`, título
+  `text-2xl`), sin transitions ni lógica de compresión.
+
+### Archivos tocados (resumen)
+
+**Backend (3):**
+- `apps/api/src/services/negocios.service.ts` — campo `aDomicilio?: boolean` + filtro SQL OR
+- `apps/api/src/controllers/negocios.controller.ts` — lee query param
+- `apps/api/src/routes/negocios.routes.ts` — doc del endpoint actualizada
+
+**Frontend (4):**
+- `apps/web/src/stores/useFiltrosNegociosStore.ts` — `aDomicilio` + `toggleADomicilio`
+- `apps/web/src/hooks/queries/useNegocios.ts` — pasa `aDomicilio` al endpoint
+- `apps/web/src/components/negocios/ChipsFiltros.tsx` — chip combinado + estilos blue
+- `apps/web/src/pages/private/negocios/PaginaNegocios.tsx` — header reorganizado, FAB Mapa/Lista, popup móvil eliminado, chips inline móvil
+
+---
+
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - Lista y perfil: `hooks/queries/useNegocios.ts` (React Query maneja caché)

@@ -34,6 +34,8 @@ import type {
     PreguntasParaVendedor,
     PreguntasVisitante,
     MiPreguntaPendiente,
+    OrdenFeedInfinito,
+    RespuestaFeedInfinito,
 } from '../../types/marketplace';
 import { optimizarImagen } from '../../utils/optimizarImagen';
 
@@ -85,6 +87,92 @@ export function useMarketplaceFeed(params: UseMarketplaceFeedParams) {
                 ? response.data.data
                 : { recientes: [], cercanos: [] };
         },
+        enabled: habilitado,
+        staleTime: 2 * 60 * 1000,
+        placeholderData: keepPreviousData,
+    });
+}
+
+// =============================================================================
+// FEED INFINITO (rediseño v1.2 — estilo Facebook)
+// =============================================================================
+
+interface UseFeedInfinitoParams {
+    ciudad: string | null | undefined;
+    lat: number | null | undefined;
+    lng: number | null | undefined;
+    orden?: OrdenFeedInfinito;
+    precioMin?: number;
+    precioMax?: number;
+    /** Items por página. Default 10. */
+    limite?: number;
+}
+
+/**
+ * Consume `GET /api/marketplace/feed/infinito` con `useInfiniteQuery`.
+ *
+ * Cada página trae 10 artículos enriquecidos con avatar+nombre del vendedor y
+ * top 2 preguntas respondidas. La paginación es offset-based y `hayMas`
+ * determina si existe la siguiente página.
+ *
+ * Decisión de staleTime:
+ * - 2 min para que el usuario no vea cards desactualizadas demasiado tiempo,
+ *   pero sin estresar la BD con refetches al cambiar de tab.
+ *
+ * Decisión de placeholderData:
+ * - `keepPreviousData` para evitar temblor visual al cambiar el orden o los
+ *   filtros (PATRON_REACT_QUERY).
+ */
+export function useFeedInfinitoMarketplace(params: UseFeedInfinitoParams) {
+    const {
+        ciudad,
+        lat,
+        lng,
+        orden = 'recientes',
+        precioMin,
+        precioMax,
+        limite = 10,
+    } = params;
+
+    const habilitado =
+        !!ciudad &&
+        lat !== null &&
+        lat !== undefined &&
+        lng !== null &&
+        lng !== undefined;
+
+    return useInfiniteQuery({
+        queryKey: queryKeys.marketplace.feedInfinito({
+            ciudad: ciudad ?? '',
+            lat: lat ?? 0,
+            lng: lng ?? 0,
+            orden,
+            precioMin,
+            precioMax,
+        }),
+        queryFn: async ({ pageParam }): Promise<RespuestaFeedInfinito> => {
+            const response = await api.get<{
+                success: boolean;
+                data: RespuestaFeedInfinito;
+            }>('/marketplace/feed/infinito', {
+                params: {
+                    ciudad,
+                    lat,
+                    lng,
+                    orden,
+                    pagina: pageParam,
+                    limite,
+                    ...(precioMin !== undefined && { precioMin }),
+                    ...(precioMax !== undefined && { precioMax }),
+                },
+            });
+            return response.data.success
+                ? response.data.data
+                : { articulos: [], pagina: pageParam as number, limite, hayMas: false };
+        },
+        initialPageParam: 1,
+        getNextPageParam: (ultimaPagina) =>
+            ultimaPagina.hayMas ? ultimaPagina.pagina + 1 : undefined,
         enabled: habilitado,
         staleTime: 2 * 60 * 1000,
         placeholderData: keepPreviousData,
@@ -162,41 +250,8 @@ export async function registrarVistaArticulo(articuloId: string): Promise<void> 
 }
 
 // =============================================================================
-// TRENDING "LO MÁS VISTO HOY"
+// HEARTBEAT (presencia en detalle del artículo)
 // =============================================================================
-
-interface UseTrendingMarketplaceParams {
-    ciudad: string | null | undefined;
-    excluirIds: string[];
-    /** GPS opcional — si está presente, las cards traen `distanciaMetros`
-     *  igual que en `/feed`. Sin GPS, viene `null`. */
-    lat?: number | null;
-    lng?: number | null;
-}
-
-/**
- * Consume `GET /api/marketplace/feed/trending?ciudad=X&lat=Y&lng=Z&excluirIds[]=...`.
- * Devuelve array vacío si hay menos de 3 artículos con actividad (backend).
- * staleTime: 5 min — la métrica cambia lento y es costosa de calcular.
- */
-export function useTrendingMarketplace({ ciudad, excluirIds, lat, lng }: UseTrendingMarketplaceParams) {
-    return useQuery({
-        queryKey: queryKeys.marketplace.trending(ciudad ?? '', excluirIds),
-        queryFn: async (): Promise<ArticuloFeed[]> => {
-            const params = new URLSearchParams({ ciudad: ciudad ?? '' });
-            if (lat !== null && lat !== undefined) params.set('lat', String(lat));
-            if (lng !== null && lng !== undefined) params.set('lng', String(lng));
-            excluirIds.forEach((id) => params.append('excluirIds[]', id));
-            const response = await api.get<{ success: boolean; data: ArticuloFeed[] }>(
-                `/marketplace/feed/trending?${params.toString()}`
-            );
-            return response.data.success ? response.data.data : [];
-        },
-        enabled: !!ciudad,
-        staleTime: 5 * 60 * 1000,
-        placeholderData: keepPreviousData,
-    });
-}
 
 /**
  * Señal de presencia activa en el detalle del artículo.

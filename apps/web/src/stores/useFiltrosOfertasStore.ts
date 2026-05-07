@@ -22,38 +22,31 @@ import { create } from 'zustand';
 /**
  * Chips situacionales de la página de Ofertas (header superior).
  *
- * - 'todas'        → sin filtro extra (default)
+ * - 'recientes'    → ordena por created_at DESC (default — vista editorial)
+ * - 'mas_vistas'   → ordena por populares (vistas últimos 7 días)
+ * - 'cerca'        → ordena por distancia (requiere GPS)
  * - 'hoy'          → creadas últimas 24h
  * - 'esta_semana'  → creadas últimas 168h (7 días)
- * - 'cerca'        → ordena por distancia (requiere GPS)
  * - 'cardya'       → solo negocios que participan en CardYA
- * - 'nuevas'       → ordena por created_at DESC
- * - 'mas_vistas'   → ordena por populares (vistas últimos 7 días)
+ *
+ * Nota v1.5: el chip 'todas' fue eliminado (su única función era alternar
+ * la vista editorial vs grid catálogo). Ahora la vista editorial se muestra
+ * cuando `chipActivo === 'recientes'` (default); cualquier otro chip
+ * activa la vista grid filtrada.
  */
 export type ChipSituacional =
-  | 'todas'
+  | 'recientes'
+  | 'mas_vistas'
+  | 'cerca'
   | 'hoy'
   | 'esta_semana'
-  | 'cerca'
-  | 'cardya'
-  | 'nuevas'
-  | 'mas_vistas';
+  | 'cardya';
 
 interface FiltrosOfertasState {
   chipActivo: ChipSituacional;
   busqueda: string;
-  /**
-   * Vista expandida del catálogo (grid 2 columnas, sin feed editorial).
-   * Solo aplica cuando `chipActivo === 'todas'`. Cualquier otro chip la
-   * resetea a `false` automáticamente.
-   *
-   * Se controla desde el chip "Todas" del header (click sobre el chip
-   * cuando ya está activo alterna el modo).
-   */
-  vistaExpandida: boolean;
   setChipActivo: (chip: ChipSituacional) => void;
   setBusqueda: (busqueda: string) => void;
-  toggleVistaExpandida: () => void;
   resetear: () => void;
 }
 
@@ -62,9 +55,8 @@ interface FiltrosOfertasState {
 // =============================================================================
 
 const VALORES_INICIALES = {
-  chipActivo: 'todas' as ChipSituacional,
+  chipActivo: 'recientes' as ChipSituacional,
   busqueda: '',
-  vistaExpandida: false,
 };
 
 // =============================================================================
@@ -76,17 +68,12 @@ export const useFiltrosOfertasStore = create<FiltrosOfertasState>((set, get) => 
 
   setChipActivo: (chip) => {
     if (get().chipActivo === chip) return;
-    // Al cambiar a un chip ≠ 'todas', siempre apaga la vista expandida.
-    set({ chipActivo: chip, vistaExpandida: false });
+    set({ chipActivo: chip });
   },
 
   setBusqueda: (busqueda) => {
     if (get().busqueda === busqueda) return;
     set({ busqueda });
-  },
-
-  toggleVistaExpandida: () => {
-    set({ chipActivo: 'todas', vistaExpandida: !get().vistaExpandida });
   },
 
   resetear: () => set(VALORES_INICIALES),

@@ -46,11 +46,10 @@ function chipAParams(
       return { orden: 'distancia' };
     case 'cardya':
       return { soloCardya: true };
-    case 'nuevas':
+    case 'recientes':
       return { orden: 'recientes' };
     case 'mas_vistas':
       return { orden: 'populares' };
-    case 'todas':
     default:
       return {};
   }

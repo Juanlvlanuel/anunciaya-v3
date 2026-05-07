@@ -62,6 +62,8 @@ import {
  * - metodosPago: string[] (comma separated)
  * - aceptaCardYA: boolean
  * - tieneEnvio: boolean
+ * - tieneServicioDomicilio: boolean
+ * - aDomicilio: boolean (OR de los dos anteriores — chip "A domicilio")
  * - busqueda: string
  * - limite: number (default: 20)
  * - offset: number (default: 0)
@@ -85,6 +87,10 @@ export async function listarSucursalesController(req: Request, res: Response) {
         const aceptaCardYA = req.query.aceptaCardYA === 'true' ? true : req.query.aceptaCardYA === 'false' ? false : undefined;
         const tieneEnvio = req.query.tieneEnvio === 'true' ? true : req.query.tieneEnvio === 'false' ? false : undefined;
         const tieneServicioDomicilio = req.query.tieneServicioDomicilio === 'true' ? true : req.query.tieneServicioDomicilio === 'false' ? false : undefined;
+        // Filtro combinado: muestra negocios con envío O servicio a domicilio (o ambos).
+        // Reemplaza al chip "Entrega" en la sección Negocios. Los flags individuales
+        // arriba se mantienen para no romper clientes que ya los pasaban.
+        const aDomicilio = req.query.aDomicilio === 'true' ? true : req.query.aDomicilio === 'false' ? false : undefined;
         const busqueda = req.query.busqueda as string | undefined;
         const limite = req.query.limite ? parseInt(req.query.limite as string) : 20;
         const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
@@ -100,6 +106,7 @@ export async function listarSucursalesController(req: Request, res: Response) {
             aceptaCardYA,
             tieneEnvio,
             tieneServicioDomicilio,
+            aDomicilio,
             busqueda,
             limite,
             offset,

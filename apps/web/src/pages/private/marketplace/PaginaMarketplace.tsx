@@ -23,19 +23,23 @@
  * Ubicación: apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Plus, MapPin, AlertCircle, ChevronLeft, Search, Menu, X, Sparkles, CornerRightDown } from 'lucide-react';
+import { ShoppingCart, Plus, MapPin, AlertCircle, ChevronLeft, Search, Menu, X, Sparkles, CornerRightDown, Loader2, Bell } from 'lucide-react';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
-import { useDragScroll } from '../../../hooks/useDragScroll';
-import { useMarketplaceFeed, useTrendingMarketplace } from '../../../hooks/queries/useMarketplace';
-import { CardArticulo } from '../../../components/marketplace/CardArticulo';
+import { useMarketplaceFeed, useFeedInfinitoMarketplace } from '../../../hooks/queries/useMarketplace';
+import { CardArticuloFeed } from '../../../components/marketplace/CardArticuloFeed';
+import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
+import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
 import { OverlayBuscadorMarketplace } from '../../../components/marketplace/OverlayBuscadorMarketplace';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
-import type { ArticuloFeed } from '../../../types/marketplace';
+import type { OrdenFeedInfinito } from '../../../types/marketplace';
+import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
+import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
+import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 
 export function PaginaMarketplace() {
     // ─── Stores ────────────────────────────────────────────────────────────────
@@ -49,8 +53,20 @@ export function PaginaMarketplace() {
     const obtenerUbicacion = useGpsStore((s) => s.obtenerUbicacion);
     const cargandoGps = useGpsStore((s) => s.cargando);
 
+    // BottomNav auto-hide tracker — el FAB Publicar baja a `bottom-4` cuando
+    // el BottomNav se oculta y vuelve a `bottom-20` cuando reaparece.
+    const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
+
+    // Notificaciones — botón Bell en el header móvil (entre buscar y menú).
+    const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
+    const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
+
     // ─── React Query ───────────────────────────────────────────────────────────
-    const { data, isLoading, isError, refetch } = useMarketplaceFeed({
+
+    // Feed v1.1 (legacy) — mantenido para el caso de fallback y la sección
+    // antigua "Cercanos" mientras dura la migración. El feed nuevo (v1.2,
+    // estilo Facebook) usa `useFeedInfinitoMarketplace` abajo.
+    const { data, isLoading: isLoadingLegacy, isError: isErrorLegacy, refetch } = useMarketplaceFeed({
         ciudad,
         lat: latitud,
         lng: longitud,
@@ -59,14 +75,43 @@ export function PaginaMarketplace() {
     const recientes = data?.recientes ?? [];
     const cercanos = data?.cercanos ?? [];
 
-    const idsRecientes = useMemo(() => recientes.map((a) => a.id), [recientes]);
+    // Feed v1.2 (estilo Facebook) — orden seleccionable + scroll infinito.
+    const [orden, setOrden] = useState<OrdenFeedInfinito>('recientes');
 
-    const { data: trending = [] } = useTrendingMarketplace({
+    const {
+        data: dataFeedInfinito,
+        isLoading: isLoadingFeed,
+        isError: isErrorFeed,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useFeedInfinitoMarketplace({
         ciudad,
-        excluirIds: idsRecientes,
         lat: latitud,
         lng: longitud,
+        orden,
+        limite: 10,
     });
+
+    const articulosFeed = useMemo(
+        () => dataFeedInfinito?.pages.flatMap((p) => p.articulos) ?? [],
+        [dataFeedInfinito]
+    );
+
+    // Reel: usa los primeros ~12 artículos recientes del feed infinito SOLO
+    // cuando el orden activo es "recientes" (decisión: el reel desaparece al
+    // filtrar). Si ya tenemos cargados <12, usamos los que haya.
+    const articulosReel = useMemo(
+        () => (orden === 'recientes' ? articulosFeed.slice(0, 12) : []),
+        [orden, articulosFeed]
+    );
+
+    // Las cards del feed grande NO deben repetir las cards del reel (los 12
+    // primeros si orden=recientes), para evitar la sensación de duplicado.
+    const articulosFeedSinReel = useMemo(
+        () => (orden === 'recientes' ? articulosFeed.slice(12) : articulosFeed),
+        [orden, articulosFeed]
+    );
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
     const navigate = useNavigate();
@@ -125,17 +170,39 @@ export function PaginaMarketplace() {
         return () => window.removeEventListener('focus', handler);
     }, [ciudad, latitud, longitud, refetch]);
 
+    // ─── Scroll infinito automático con IntersectionObserver ──────────────────
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel || !hasNextPage || isFetchingNextPage) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const [entrada] = entries;
+                if (entrada?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    fetchNextPage();
+                }
+            },
+            { rootMargin: '600px 0px' } // dispara antes de llegar al fondo
+        );
+
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
     // ─── Render ────────────────────────────────────────────────────────────────
 
     const sinGps = !latitud || !longitud;
 
-    // Cercanos deduplicados: excluye los ya mostrados en recientes y trending.
-    const cercanosDeduplicados = useMemo(() => {
-        const excluir = new Set([...idsRecientes, ...trending.map((a) => a.id)]);
-        return cercanos.filter((a) => !excluir.has(a.id));
-    }, [cercanos, idsRecientes, trending]);
+    // Estados unificados: el feed infinito es el principal a partir de v1.2.
+    // Mantengo isLoadingLegacy/isErrorLegacy para no romper el bloque legacy si
+    // se usa, pero la UI principal escucha al feed infinito.
+    const isLoading = isLoadingFeed;
+    const isError = isErrorFeed;
 
-    // Total deduplicado para el KPI del header.
+    // Total para el KPI del header (basado en el feed v1.1 que tiene los
+    // arrays completos de recientes+cercanos por ciudad). Se mantiene.
     const totalArticulos = useMemo(() => {
         if (!data) return 0;
         const ids = new Set([
@@ -144,6 +211,10 @@ export function PaginaMarketplace() {
         ]);
         return ids.size;
     }, [data, recientes, cercanos]);
+
+    // Para suprimir el warning de variables no usadas tras la migración v1.2.
+    void isLoadingLegacy;
+    void isErrorLegacy;
 
     return (
         <div className="min-h-full bg-transparent">
@@ -218,7 +289,20 @@ export function PaginaMarketplace() {
                                                 aria-label="Buscar en MarketPlace"
                                                 className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
                                             >
-                                                <Search className="h-6 w-6" strokeWidth={2.5} />
+                                                <Search className="h-6 w-6 animate-pulse" strokeWidth={2.5} />
+                                            </button>
+                                            <button
+                                                data-testid="btn-notificaciones-marketplace"
+                                                onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
+                                                aria-label="Notificaciones"
+                                                className="relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                            >
+                                                <Bell className="h-6 w-6 animate-bell-ring" strokeWidth={2.5} />
+                                                {cantidadNoLeidas > 0 && (
+                                                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold ring-2 ring-black px-1 leading-none">
+                                                        {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
+                                                    </span>
+                                                )}
                                             </button>
                                             <button
                                                 data-testid="btn-menu-marketplace"
@@ -226,7 +310,7 @@ export function PaginaMarketplace() {
                                                 aria-label="Abrir menú"
                                                 className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
                                             >
-                                                <Menu className="h-6 w-6" strokeWidth={2.5} />
+                                                <IconoMenuMorph />
                                             </button>
                                         </div>
                                     </div>
@@ -268,45 +352,65 @@ export function PaginaMarketplace() {
                                     </div>
                                 )}
                                 {/* Subtítulo decorativo — ciudad + total al estilo Ofertas */}
-                                <div className="flex items-center justify-center gap-2.5 pb-3">
-                                    <div
-                                        className="h-0.5 w-14 rounded-full"
-                                        style={{
-                                            background:
-                                                'linear-gradient(90deg, transparent, rgba(20,184,166,0.7))',
-                                        }}
-                                    />
-                                    <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
-                                        {ciudad ? (
-                                            <>
-                                                En{' '}
-                                                <span className="font-bold text-white">
-                                                    {ciudad}
+                                <div className="pb-2 overflow-hidden">
+                                    <div className="flex items-center justify-center gap-2.5">
+                                        <div
+                                            className="h-0.5 w-14 rounded-full"
+                                            style={{
+                                                background:
+                                                    'linear-gradient(90deg, transparent, rgba(20,184,166,0.7))',
+                                            }}
+                                        />
+                                        <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
+                                            {ciudad ? (
+                                                <>
+                                                    En{' '}
+                                                    <span className="font-bold text-white">
+                                                        {ciudad}
+                                                    </span>
+                                                    {data && (
+                                                        <> · {totalArticulos} artículos</>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
+                                                    Compra-Venta Local
                                                 </span>
-                                                {data && (
-                                                    <> · {totalArticulos} artículos</>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
-                                                Compra-Venta Local
-                                            </span>
-                                        )}
-                                    </span>
-                                    <div
-                                        className="h-0.5 w-14 rounded-full"
-                                        style={{
-                                            background:
-                                                'linear-gradient(90deg, rgba(20,184,166,0.7), transparent)',
-                                        }}
-                                    />
+                                            )}
+                                        </span>
+                                        <div
+                                            className="h-0.5 w-14 rounded-full"
+                                            style={{
+                                                background:
+                                                    'linear-gradient(90deg, rgba(20,184,166,0.7), transparent)',
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Chips de filtros — dentro del header dark
+                                    (mismo patrón que Negocios y Ofertas en
+                                    móvil). Scroll horizontal sin scrollbar. */}
+                                <div className="px-3 pb-3">
+                                    <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                        <ChipsFiltrosFeed
+                                            valor={orden}
+                                            onCambio={setOrden}
+                                            gpsDisponible={!sinGps}
+                                            variant="dark"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* ═══ DESKTOP HEADER (>=lg) ═══ */}
+                            {/* ═══ DESKTOP HEADER (>=lg) ═══
+                                Una sola fila para igualar el alto del header
+                                de Ofertas (`py-4 2xl:py-5` con logo h-11/12).
+                                Layout: Logo + Título a la izquierda · chips
+                                centro · KPI compacto + Publicar derecha. */}
                             <div className="hidden lg:block">
-                                <div className="flex items-center justify-between gap-6 px-6 py-4 2xl:px-8 2xl:py-5">
-                                    {/* Logo */}
+                                <div className="flex items-center justify-between gap-4 px-6 py-4 2xl:px-8 2xl:py-5">
+                                    {/* Izquierda: Logo + título */}
                                     <div className="flex shrink-0 items-center gap-3">
                                         <div
                                             className="flex h-11 w-11 items-center justify-center rounded-lg 2xl:h-12 2xl:w-12"
@@ -320,58 +424,61 @@ export function PaginaMarketplace() {
                                                 strokeWidth={2.5}
                                             />
                                         </div>
-                                        <span className="text-2xl font-extrabold tracking-tight text-white 2xl:text-3xl">
-                                            Market
-                                            <span className="text-teal-400">Place</span>
-                                        </span>
-                                    </div>
-
-                                    {/* Centro: "Compra y vende en Ciudad" + subtítulo.
-                                        Tamaño reducido en `lg:` (1024-1535px) para que
-                                        ciudades largas como "Puerto Peñasco" entren
-                                        completas. En 2xl+ vuelve al tamaño grande. */}
-                                    <div className="min-w-0 flex-1 text-center">
-                                        <h1 className="truncate text-[22px] font-light leading-tight text-white/70 2xl:text-[34px]">
-                                            Compra y vende en{' '}
-                                            <span className="font-bold text-white">
-                                                {ciudad || 'tu ciudad'}
+                                        <div className="flex items-baseline">
+                                            <span className="text-2xl font-extrabold tracking-tight text-white 2xl:text-3xl">
+                                                Market
                                             </span>
-                                        </h1>
-                                        <div className="mt-1.5 flex items-center justify-center gap-3">
-                                            <div
-                                                className="h-0.5 w-20 rounded-full 2xl:w-24"
-                                                style={{
-                                                    background:
-                                                        'linear-gradient(90deg, transparent, rgba(20,184,166,0.7))',
-                                                }}
-                                            />
-                                            <span className="text-sm font-semibold uppercase tracking-[3px] text-teal-400/80 2xl:text-base">
-                                                artículos cerca de ti
+                                            <span className="text-2xl font-extrabold tracking-tight text-teal-400 2xl:text-3xl">
+                                                Place
                                             </span>
-                                            <div
-                                                className="h-0.5 w-20 rounded-full 2xl:w-24"
-                                                style={{
-                                                    background:
-                                                        'linear-gradient(90deg, rgba(20,184,166,0.7), transparent)',
-                                                }}
-                                            />
                                         </div>
                                     </div>
 
-                                    {/* Derecha: solo KPI */}
-                                    {data && (
-                                        <div className="flex shrink-0 flex-col items-end">
-                                            <span
-                                                data-testid="kpi-total-articulos"
-                                                className="text-3xl font-extrabold leading-none tabular-nums text-white 2xl:text-[40px]"
-                                            >
-                                                {totalArticulos}
-                                            </span>
-                                            <span className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-teal-400/80 2xl:text-sm">
-                                                Artículos
-                                            </span>
+                                    {/* Spacer para empujar chips + KPI + Publicar a la derecha */}
+                                    <div className="flex-1" />
+
+                                    {/* Derecha: chips de filtros + KPI dos líneas + botón Publicar.
+                                        Justificados a la derecha junto al KPI (decisión de Juan
+                                        para que las 3 secciones públicas se vean coherentes). */}
+                                    <div className="flex shrink-0 items-center gap-4">
+                                        <div className="min-w-0">
+                                            <ChipsFiltrosFeed
+                                                valor={orden}
+                                                onCambio={setOrden}
+                                                gpsDisponible={!sinGps}
+                                                variant="dark"
+                                            />
                                         </div>
-                                    )}
+                                        {data && (
+                                            <div className="flex flex-col items-end shrink-0">
+                                                <span
+                                                    data-testid="kpi-total-articulos"
+                                                    className="text-3xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                                                >
+                                                    {totalArticulos}
+                                                </span>
+                                                <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-teal-400/80 uppercase tracking-wider mt-1">
+                                                    Artículos
+                                                </span>
+                                            </div>
+                                        )}
+                                        {/* Publicar — botón vertical: círculo "+" + label "Publicar" debajo.
+                                            Separación extra a la izquierda (ml-3 lg:ml-5) para que el círculo
+                                            destaque visualmente del bloque chips+KPI. */}
+                                        <button
+                                            data-testid="btn-publicar-desktop"
+                                            onClick={handlePublicar}
+                                            aria-label="Publicar artículo"
+                                            className="group ml-3 lg:ml-5 flex shrink-0 flex-col items-center gap-1 cursor-pointer transition-transform hover:scale-[1.04]"
+                                        >
+                                            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-500/30 ring-2 ring-teal-300/30 transition-shadow group-hover:shadow-lg group-hover:shadow-teal-500/40">
+                                                <Plus className="h-6 w-6" strokeWidth={2.75} />
+                                            </span>
+                                            <span className="text-xs lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-teal-400/90 group-hover:text-teal-300">
+                                                Publicar
+                                            </span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -383,17 +490,10 @@ export function PaginaMarketplace() {
                 CONTENIDO
             ════════════════════════════════════════════════════════════════ */}
             <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
-                {/* Botón Publicar — solo desktop, debajo del header */}
-                <div className="hidden lg:flex justify-end pt-4 pb-1">
-                    <button
-                        data-testid="btn-publicar-desktop"
-                        onClick={handlePublicar}
-                        className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2 text-sm font-bold text-white shadow-md hover:scale-[1.02] transition-transform"
-                    >
-                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                        Publicar artículo
-                    </button>
-                </div>
+                {/* La barra de filtros + Publicar (desktop) ahora vive dentro
+                    del header dark como segunda fila — así se mueve sticky con
+                    el resto del header sin sentirse desconectada. Ver bloque
+                    DESKTOP HEADER arriba. */}
 
                 {/* Estado: sin ciudad seleccionada. En móvil (sin Navbar global)
                     el botón abre el ModalUbicacion para que el usuario pueda
@@ -517,19 +617,53 @@ export function PaginaMarketplace() {
                     </div>
                 )}
 
-                {/* ─── Sección "Recién publicado" ────────────────────────── */}
-                {!isLoading && !isError && data && recientes.length > 0 && (
-                    <SeccionRecientes articulos={recientes} />
-                )}
+                {/* ════════════════════════════════════════════════════════════════
+                    FEED v1.2 — REEL + CHIPS + FEED INFINITO ESTILO FACEBOOK
+                ════════════════════════════════════════════════════════════════ */}
+                {!isLoading && !isError && articulosFeed.length > 0 && (
+                    <>
+                        {/* Reel: solo se muestra cuando NO hay filtros activos
+                            (orden=recientes). Decisión Juan: el reel solo vive
+                            en el "home" del marketplace. Acotado al mismo ancho
+                            que el feed (max-w-[920px]) para alineación visual. */}
+                        {orden === 'recientes' && articulosReel.length > 0 && (
+                            <div className="mx-auto mt-2 max-w-[920px] lg:mt-4">
+                                <ReelMarketplace articulos={articulosReel} />
+                            </div>
+                        )}
 
-                {/* ─── Sección "Lo más visto hoy" (trending) ─────────────── */}
-                {!isLoading && !isError && trending.length >= 3 && (
-                    <SeccionTrending articulos={trending} />
-                )}
+                        {/* Feed infinito: cards grandes estilo Facebook,
+                            columna centrada ~920px en desktop. */}
+                        <div className="mx-auto max-w-[920px] space-y-4 px-2 py-2 lg:px-4">
+                            {articulosFeedSinReel.map((articulo) => (
+                                <CardArticuloFeed key={articulo.id} articulo={articulo} />
+                            ))}
 
-                {/* ─── Sección "Cerca de ti" (solo si hay GPS, deduplicada) ─ */}
-                {!isLoading && !isError && data && !sinGps && cercanosDeduplicados.length >= 4 && (
-                    <SeccionCercanos articulos={cercanosDeduplicados} />
+                            {/* Sentinel para IntersectionObserver — dispara
+                                fetchNextPage cuando entra en viewport. */}
+                            {hasNextPage && (
+                                <div
+                                    ref={sentinelRef}
+                                    className="flex items-center justify-center py-8"
+                                >
+                                    {isFetchingNextPage ? (
+                                        <Loader2
+                                            className="h-6 w-6 animate-spin text-slate-400"
+                                            strokeWidth={2}
+                                        />
+                                    ) : (
+                                        <div className="h-1 w-1" /> /* spacer */
+                                    )}
+                                </div>
+                            )}
+
+                            {!hasNextPage && articulosFeedSinReel.length > 0 && (
+                                <p className="py-6 text-center text-xs text-slate-400">
+                                    No hay más publicaciones
+                                </p>
+                            )}
+                        </div>
+                    </>
                 )}
 
                 {/* Estado: vacío total — invitación dinámica a publicar (sin card) */}
@@ -635,9 +769,23 @@ export function PaginaMarketplace() {
                 data-testid="fab-publicar-mobile"
                 onClick={handlePublicar}
                 aria-label="Publicar artículo"
-                className="fixed bottom-20 right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg transition-transform hover:scale-105 lg:hidden"
+                style={{
+                    bottom: bottomNavVisible ? '5rem' : '1rem',
+                    transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
+                }}
+                className="fixed right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg hover:scale-105 lg:hidden"
             >
-                <Plus className="h-6 w-6" strokeWidth={2.5} />
+                <Plus
+                    className="h-6 w-6"
+                    strokeWidth={2.5}
+                    style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
+                />
+                <style>{`
+                    @keyframes fab-publicar-pulse {
+                        0%, 100% { transform: rotate(0deg) scale(1); }
+                        50% { transform: rotate(90deg) scale(1.15); }
+                    }
+                `}</style>
             </button>
 
             {/* Overlay del buscador (anclado al useSearchStore global) */}
@@ -647,120 +795,11 @@ export function PaginaMarketplace() {
 }
 
 // =============================================================================
-// SECCIÓN: RECIÉN PUBLICADO (carrusel horizontal)
+// EXPORT
 // =============================================================================
-
-function SeccionRecientes({ articulos }: { articulos: ArticuloFeed[] }) {
-    const carruselRef = useRef<HTMLDivElement>(null);
-    useDragScroll(carruselRef);
-
-    return (
-        <section className="mt-6 lg:mt-8">
-            <div className="flex items-baseline gap-3 px-3 lg:px-0">
-                <h2 className="text-lg font-bold text-slate-900 lg:text-xl 2xl:text-2xl">
-                    Recién publicado
-                </h2>
-                <span className="text-base font-semibold text-teal-500 lg:text-lg 2xl:text-xl">
-                    {articulos.length}
-                </span>
-            </div>
-            {/* Wrapper relativo para la sombra fade derecha */}
-            <div className="relative">
-                <div
-                    ref={carruselRef}
-                    className="mt-3 flex cursor-grab select-none gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_article]:cursor-grab! active:[&_article]:cursor-grabbing! lg:gap-4 lg:px-0"
-                    data-testid="carrusel-recientes"
-                >
-                    {articulos.map((articulo) => (
-                        <div
-                            key={articulo.id}
-                            className="w-44 shrink-0 lg:w-56 2xl:w-60"
-                        >
-                            <CardArticulo articulo={articulo} />
-                        </div>
-                    ))}
-                </div>
-                {/* Sombra fade derecha — indica más contenido */}
-                <div
-                    className="pointer-events-none absolute inset-y-0 right-0 w-16 lg:w-20"
-                    style={{
-                        background: 'linear-gradient(to left, rgba(0,0,0,0.22) 0%, transparent 100%)',
-                    }}
-                />
-            </div>
-        </section>
-    );
-}
-
-// =============================================================================
-// SECCIÓN: LO MÁS VISTO HOY (carrusel horizontal, igual patrón que recientes)
-// =============================================================================
-
-function SeccionTrending({ articulos }: { articulos: ArticuloFeed[] }) {
-    const carruselRef = useRef<HTMLDivElement>(null);
-    useDragScroll(carruselRef);
-
-    return (
-        <section className="mt-8 lg:mt-10">
-            <div className="flex items-baseline gap-3 px-3 lg:px-0">
-                <h2 className="text-lg font-bold text-slate-900 lg:text-xl 2xl:text-2xl">
-                    Lo más visto hoy
-                </h2>
-                <span className="text-base font-semibold text-teal-500 lg:text-lg 2xl:text-xl">
-                    {articulos.length}
-                </span>
-            </div>
-            <div className="relative">
-                <div
-                    ref={carruselRef}
-                    className="mt-3 flex cursor-grab select-none gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&_article]:cursor-grab! active:[&_article]:cursor-grabbing! lg:gap-4 lg:px-0"
-                    data-testid="carrusel-trending"
-                >
-                    {articulos.map((articulo) => (
-                        <div key={articulo.id} className="w-44 shrink-0 lg:w-56 2xl:w-60">
-                            <CardArticulo articulo={articulo} />
-                        </div>
-                    ))}
-                </div>
-                <div
-                    className="pointer-events-none absolute inset-y-0 right-0 w-16 lg:w-20"
-                    style={{
-                        background: 'linear-gradient(to left, rgba(0,0,0,0.22) 0%, transparent 100%)',
-                    }}
-                />
-            </div>
-        </section>
-    );
-}
-
-// =============================================================================
-// SECCIÓN: CERCA DE TI (grid)
-// =============================================================================
-
-interface SeccionCercanosProps {
-    articulos: ArticuloFeed[];
-}
-
-function SeccionCercanos({ articulos }: SeccionCercanosProps) {
-    if (articulos.length === 0) return null;
-
-    return (
-        <section className="mt-8 lg:mt-10">
-            <div className="flex items-baseline gap-3 px-3 lg:px-0">
-                <h2 className="text-lg font-bold text-slate-900 lg:text-xl 2xl:text-2xl">
-                    Cerca de ti
-                </h2>
-            </div>
-            <div
-                data-testid="grid-cercanos"
-                className="mt-3 grid grid-cols-2 gap-3 px-3 lg:grid-cols-4 lg:gap-4 lg:px-0 2xl:grid-cols-6"
-            >
-                {articulos.map((articulo) => (
-                    <CardArticulo key={articulo.id} articulo={articulo} />
-                ))}
-            </div>
-        </section>
-    );
-}
+// Nota v1.2: las secciones legacy `SeccionRecientes`, `SeccionTrending` y
+// `SeccionCercanos` se eliminaron. El feed ahora se renderiza con el reel
+// superior (`<ReelMarketplace>`) + columna centrada de cards estilo Facebook
+// (`<CardArticuloFeed>`) con scroll infinito.
 
 export default PaginaMarketplace;

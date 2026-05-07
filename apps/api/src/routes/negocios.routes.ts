@@ -121,6 +121,8 @@ router.use(verificarToken);
  * - metodosPago: string (comma separated, ej: "efectivo,tarjeta")
  * - aceptaCardYA: boolean (opcional)
  * - tieneEnvio: boolean (opcional)
+ * - tieneServicioDomicilio: boolean (opcional)
+ * - aDomicilio: boolean (opcional) — filtro combinado OR (envío O servicio a domicilio)
  * - busqueda: string (opcional)
  * - limite: number (default: 20)
  * - offset: number (default: 0)

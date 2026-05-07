@@ -66,8 +66,11 @@ interface FiltrosNegociosState {
   // ---------------------------------------------------------------------------
   metodosPago: string[];         // ['efectivo', 'tarjeta', 'transferencia', etc.]
   soloCardya: boolean;           // true = solo negocios que aceptan CardYA
-  conEnvio: boolean;             // true = solo negocios con envío a domicilio
-  conServicioDomicilio: boolean; // true = solo negocios con servicio a domicilio
+  conEnvio: boolean;             // [legacy] true = solo negocios con envío a domicilio
+  conServicioDomicilio: boolean; // [legacy] true = solo negocios con servicio a domicilio
+  /** Filtro combinado OR del chip "A domicilio" — true = negocios con envío
+   *  O servicio a domicilio (o ambos). Backend lo interpreta como una unión. */
+  aDomicilio: boolean;
 
   // ---------------------------------------------------------------------------
   // Estado - Búsqueda por texto
@@ -101,6 +104,8 @@ interface FiltrosNegociosState {
   toggleSoloCardya: () => void;
   toggleConEnvio: () => void;
   toggleConServicioDomicilio: () => void;
+  /** Activa/desactiva el filtro combinado "A domicilio". */
+  toggleADomicilio: () => void;
 
   // ---------------------------------------------------------------------------
   // Acciones - Búsqueda
@@ -139,6 +144,7 @@ const VALORES_INICIALES = {
   soloCardya: false,
   conEnvio: false,
   conServicioDomicilio: false,
+  aDomicilio: false,
   busqueda: '',
   vistaActiva: 'split' as const,
 };
@@ -307,6 +313,15 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
     set({ conServicioDomicilio: !get().conServicioDomicilio });
   },
 
+  /**
+   * Toggle del filtro combinado "A domicilio" (OR de envío + servicio domicilio).
+   * El backend interpreta este flag como una condición unión: muestra negocios
+   * con cualquiera de los dos servicios (o ambos).
+   */
+  toggleADomicilio: () => {
+    set({ aDomicilio: !get().aDomicilio });
+  },
+
   // ---------------------------------------------------------------------------
   // ACCIONES: Búsqueda
   // ---------------------------------------------------------------------------
@@ -394,11 +409,14 @@ export const useFiltrosNegociosStore = create<FiltrosNegociosState>((set, get) =
     // Solo CardYA
     if (state.soloCardya) count++;
 
-    // Con envío
+    // Con envío [legacy]
     if (state.conEnvio) count++;
 
-    // Con servicio a domicilio
+    // Con servicio a domicilio [legacy]
     if (state.conServicioDomicilio) count++;
+
+    // A domicilio (chip combinado)
+    if (state.aDomicilio) count++;
 
     // Búsqueda
     if (state.busqueda.trim() !== '') count++;

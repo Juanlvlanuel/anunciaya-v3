@@ -7,6 +7,49 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [06 Mayo 2026] - Rediseño cross-secciones: Headers unificados + filtros temáticos + Feed Facebook MP 🎨
+
+Rediseño visual transversal de las 3 secciones públicas para coherencia entre módulos. Cada sección mantiene su identidad temática (teal MP, amber Ofertas, blue Negocios) pero los patrones estructurales son idénticos.
+
+**MarketPlace v1.2 — Rediseño completo del feed estilo Facebook:**
+- Backend nuevo: `GET /api/marketplace/feed/infinito` con paginación offset (10 items/página) + datos del vendedor + top 2 preguntas respondidas inline.
+- 4 componentes nuevos: `CardArticuloFeed` (card grande estilo Facebook con thumbnails laterales en desktop, multi-imágenes 16:9, comentarios inline + input pregunta funcional), `CardArticuloReel` (compacta para carrusel), `ReelMarketplace` (auto-scroll 4s + pausa hover/touch + flechas manual), `ChipsFiltrosFeed` (Recientes/Más vistos/Cerca con variantes light/dark).
+- Hook `useFeedInfinitoMarketplace` con `useInfiniteQuery`. Scroll infinito automático con `IntersectionObserver`.
+- Header dark de una sola fila integrada (logo + chips dark + KPI dos líneas + Publicar gradient teal).
+- Eliminado código muerto: secciones legacy (Recientes/Trending/Cercanos), `useTrendingMarketplace`, `obtenerTrending`, `getTrendingFeed`, ruta `/feed/trending`, queryKey `trending`, página temporal `PaginaFeedPreview` + ruta.
+
+**Negocios v3.1 — Header unificado + chip "A domicilio" + toggle Mapa/Lista flotante:**
+- Header reorganizado a una sola fila desktop (logo + chips + KPI dos líneas), eliminada toda la lógica de compresión por scroll.
+- Tabs Mapa/Lista sacadas del header → toggle pill flotante con `createPortal` a `document.body` (offset right ajustado para no quedar tapado por la `ColumnaDerecha`).
+- Chips actualizados: "Mi ciudad" → "Ciudad", subcategoría se oculta sin categoría activa, chip combinado **"A domicilio"** reemplaza "Envíos" + "Servicio a domicilio".
+- Backend: nuevo flag `aDomicilio` que el SQL interpreta como `OR (envío O servicio a domicilio)`. Los flags individuales se conservan como legacy (BS los configura por separado en TabOperacion porque tienen semántica distinta).
+- Eliminado modal "Ajustar búsqueda" móvil (~140 líneas). Filtros móviles ahora son chips inline scroll horizontal (mismo patrón que MP y Ofertas).
+- Chips con `border-2`, hover con tinte blue, activo `bg-blue-500`.
+
+**Ofertas v1.5 — Header unificado + chips amber:**
+- Header reorganizado a una sola fila desktop, eliminada toda la lógica `comprimido` (state, useEffect, useScrollDirection, constantes SCROLL_*).
+- KPI dos líneas con patrón unificado.
+- Chips con tamaño/efecto idénticos a MP y Negocios (`px-3.5 py-1.5 text-sm font-semibold`, iconos `w-4 h-4 strokeWidth=2.5`, `border-2`).
+- Variante temática amber: hover `border-amber-400/60`, activo `bg-amber-500 border-amber-400 shadow-amber-500/20`.
+- Chip "CardYA" eliminado.
+
+**Patrón unificado de KPI (las 3 secciones):**
+- Número grande arriba (`text-3xl 2xl:text-[40px] font-extrabold text-white`).
+- Label en color de marca abajo (`text-{teal|amber|blue}-400/80 uppercase tracking-wider`).
+- Alineado a la derecha del header.
+
+**Patrón unificado de chips (las 3 secciones):**
+- Tamaño: `rounded-full px-3.5 py-1.5 text-sm font-semibold`.
+- Iconos: `w-4 h-4 strokeWidth={2.5}`.
+- Border `border-2`.
+- Inactivo: `bg-white/5 text-slate-200 border-white/15`.
+- Hover: `border-{marca}-400/60` (tinte temático).
+- Activo: `bg-{marca}-500 text-white border-{marca}-400 shadow-{marca}-500/20`.
+
+**Doc actualizada:** `docs/arquitectura/MarketPlace.md` v1.2.0, `docs/arquitectura/Negocios.md` v3.1, `docs/arquitectura/Ofertas.md` v1.5.
+
+---
+
 ## [06 Mayo 2026] - Autenticación v5.2 — Login con CTA + autoComplete + Header público compartido 🔐
 
 **Mejoras de UX en login y registro detectadas durante el cierre visual de MarketPlace.**

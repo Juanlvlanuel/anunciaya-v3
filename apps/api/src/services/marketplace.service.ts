@@ -638,6 +638,227 @@ export async function obtenerFeed(
 }
 
 // =============================================================================
+// OBTENER FEED INFINITO (estilo Facebook)
+// =============================================================================
+
+/**
+ * Tipo de respuesta para cada artículo del feed infinito. Extiende
+ * `ArticuloFeedRow` con datos del vendedor y top-2 preguntas respondidas
+ * para que la card pueda renderizarse sin requests adicionales.
+ */
+export interface ArticuloFeedInfinitoRow extends ArticuloFeedRow {
+    vendedor: {
+        id: string;
+        nombre: string;
+        apellidos: string;
+        avatarUrl: string | null;
+    };
+    /** Top 2 preguntas respondidas más recientes (si las hay). */
+    topPreguntas: Array<{
+        id: string;
+        pregunta: string;
+        respuesta: string;
+        respondidaAt: string;
+        comprador: {
+            id: string;
+            nombre: string;
+            avatarUrl: string | null;
+        };
+    }>;
+}
+
+interface OpcionesFeedInfinito {
+    ciudad: string;
+    lat: number;
+    lng: number;
+    /** Tipo de orden. Default: 'recientes'. */
+    orden?: 'recientes' | 'vistos' | 'cerca';
+    /** Página 1-based. Default: 1. */
+    pagina?: number;
+    /** Items por página. Default: 10, máx: 20. */
+    limite?: number;
+    /** Filtros opcionales de precio. */
+    precioMin?: number;
+    precioMax?: number;
+}
+
+/**
+ * Feed infinito estilo Facebook con orden y filtros configurables.
+ *
+ * Devuelve los artículos enriquecidos con los datos necesarios para la card
+ * tipo Facebook (avatar/nombre del vendedor + top 2 preguntas respondidas)
+ * para evitar N+1 queries desde el frontend.
+ *
+ * Paginación offset-based — suficiente para volúmenes pequeños/medios.
+ * Si en el futuro hace falta resistencia a inserciones concurrentes,
+ * migrar a cursor-based con `(orden_value, created_at, id)`.
+ */
+export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
+    try {
+        const orden = opciones.orden ?? 'recientes';
+        const pagina = Math.max(1, opciones.pagina ?? 1);
+        const limite = Math.min(20, Math.max(1, opciones.limite ?? 10));
+        const offset = (pagina - 1) * limite;
+
+        // Filtros adicionales (precio).
+        const filtroPrecioMin =
+            opciones.precioMin !== undefined && opciones.precioMin > 0
+                ? sql`AND a.precio >= ${opciones.precioMin}`
+                : sql``;
+        const filtroPrecioMax =
+            opciones.precioMax !== undefined && opciones.precioMax > 0
+                ? sql`AND a.precio <= ${opciones.precioMax}`
+                : sql``;
+
+        // ORDER BY según el modo.
+        const orderBy =
+            orden === 'vistos'
+                ? sql`ORDER BY a.total_vistas DESC, a.created_at DESC`
+                : orden === 'cerca'
+                    ? sql`ORDER BY a.ubicacion_aproximada <-> ST_SetSRID(ST_MakePoint(${opciones.lng}, ${opciones.lat}), 4326)::geography`
+                    : sql`ORDER BY a.created_at DESC`;
+
+        // Pedimos `limite + 1` para saber si hay siguiente página sin un
+        // segundo COUNT(*).
+        const resultado = await db.execute(sql`
+            SELECT
+                a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
+                a.condicion, a.acepta_ofertas,
+                a.fotos, a.foto_portada_index,
+                ST_Y(a.ubicacion_aproximada::geometry) AS lat,
+                ST_X(a.ubicacion_aproximada::geometry) AS lng,
+                a.ciudad, a.zona_aproximada, a.estado,
+                a.total_vistas, a.total_mensajes, a.total_guardados,
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at,
+                ST_Distance(
+                    a.ubicacion_aproximada,
+                    ST_SetSRID(ST_MakePoint(${opciones.lng}, ${opciones.lat}), 4326)::geography
+                ) AS distancia_metros,
+                u.id AS vendedor_id,
+                u.nombre AS vendedor_nombre,
+                u.apellidos AS vendedor_apellidos,
+                u.avatar_url AS vendedor_avatar,
+                COALESCE(pq.total, 0) AS total_preguntas_respondidas,
+                COALESCE(
+                    (
+                        SELECT json_agg(p ORDER BY p.respondida_at DESC)
+                        FROM (
+                            SELECT
+                                mp.id,
+                                mp.pregunta,
+                                mp.respuesta,
+                                mp.respondida_at,
+                                uc.id AS comprador_id,
+                                uc.nombre AS comprador_nombre,
+                                uc.avatar_url AS comprador_avatar
+                            FROM marketplace_preguntas mp
+                            INNER JOIN usuarios uc ON uc.id = mp.comprador_id
+                            WHERE mp.articulo_id = a.id
+                              AND mp.respondida_at IS NOT NULL
+                              AND mp.deleted_at IS NULL
+                            ORDER BY mp.respondida_at DESC
+                            LIMIT 2
+                        ) p
+                    ),
+                    '[]'::json
+                ) AS top_preguntas
+            FROM articulos_marketplace a
+            INNER JOIN usuarios u ON u.id = a.usuario_id
+            LEFT JOIN (
+                SELECT articulo_id, COUNT(*)::int AS total
+                FROM marketplace_preguntas
+                WHERE respondida_at IS NOT NULL
+                  AND deleted_at IS NULL
+                GROUP BY articulo_id
+            ) pq ON pq.articulo_id = a.id
+            WHERE a.estado = 'activa'
+              AND a.deleted_at IS NULL
+              AND a.ciudad = ${opciones.ciudad}
+              ${filtroPrecioMin}
+              ${filtroPrecioMax}
+            ${orderBy}
+            LIMIT ${limite + 1}
+            OFFSET ${offset}
+        `);
+
+        type RawTopPregunta = {
+            id: string;
+            pregunta: string;
+            respuesta: string;
+            respondida_at: string;
+            comprador_id: string;
+            comprador_nombre: string;
+            comprador_avatar: string | null;
+        };
+
+        type RawFeedInfinitoRow = RawArticuloDb & {
+            distancia_metros: number | null;
+            vendedor_id: string;
+            vendedor_nombre: string;
+            vendedor_apellidos: string;
+            vendedor_avatar: string | null;
+            total_preguntas_respondidas: number;
+            top_preguntas: RawTopPregunta[] | null;
+        };
+
+        const filas = resultado.rows as unknown as RawFeedInfinitoRow[];
+        const hayMas = filas.length > limite;
+        const filasRecortadas = hayMas ? filas.slice(0, limite) : filas;
+
+        // Enriquecer con datos de Redis (viendo + vistas24h) en paralelo.
+        const articulos: ArticuloFeedInfinitoRow[] = await Promise.all(
+            filasRecortadas.map(async (row): Promise<ArticuloFeedInfinitoRow> => {
+                const [viendo, vistas24h] = await Promise.all([
+                    contarViendo(row.id),
+                    obtenerVistas24h(row.id),
+                ]);
+
+                return {
+                    ...mapearArticulo(row),
+                    distanciaMetros:
+                        row.distancia_metros !== null
+                            ? Math.round(row.distancia_metros)
+                            : null,
+                    viendo,
+                    vistas24h,
+                    totalPreguntasRespondidas: row.total_preguntas_respondidas ?? 0,
+                    vendedor: {
+                        id: row.vendedor_id,
+                        nombre: row.vendedor_nombre,
+                        apellidos: row.vendedor_apellidos,
+                        avatarUrl: row.vendedor_avatar,
+                    },
+                    topPreguntas: (row.top_preguntas ?? []).map((p) => ({
+                        id: p.id,
+                        pregunta: p.pregunta,
+                        respuesta: p.respuesta,
+                        respondidaAt: p.respondida_at,
+                        comprador: {
+                            id: p.comprador_id,
+                            nombre: p.comprador_nombre,
+                            avatarUrl: p.comprador_avatar,
+                        },
+                    })),
+                };
+            })
+        );
+
+        return {
+            success: true,
+            data: {
+                articulos,
+                pagina,
+                limite,
+                hayMas,
+            },
+        };
+    } catch (error) {
+        console.error('Error al obtener feed infinito MarketPlace:', error);
+        throw error;
+    }
+}
+
+// =============================================================================
 // OBTENER MIS ARTÍCULOS (paginado)
 // =============================================================================
 
@@ -1020,127 +1241,6 @@ export async function generarUrlUploadImagenMarketplace(
 }
 
 // =============================================================================
-// TRENDING — "Lo más visto hoy" (Sprint 9.1)
-// =============================================================================
-
-/**
- * Top artículos con más actividad en las últimas 24h para la ciudad dada.
- *
- * Flujo:
- *  1. SQL: top 30 candidatos con guardados_24h + mensajes_24h (datos en BD).
- *  2. JS: para cada candidato, consultar Redis → vistas24h.
- *  3. Score completo = vistas24h * 1 + guardados_24h * 3 + mensajes_24h * 5.
- *  4. Ordenar por score DESC y devolver los primeros 10.
- *  5. Si quedan < 3 artículos → devolver array vacío (sección no aparece en beta).
- *
- * @param ciudad     - Ciudad filtro.
- * @param excluirIds - IDs ya mostrados en otras secciones (deduplicación).
- */
-export async function obtenerTrending(
-    ciudad: string,
-    excluirIds: string[],
-    lat?: number | null,
-    lng?: number | null
-): Promise<ArticuloFeedRow[]> {
-    const filtroExcluir =
-        excluirIds.length > 0
-            ? sql`AND am.id NOT IN (${sql.join(
-                  excluirIds.map((id) => sql`${id}`),
-                  sql`, `
-              )})`
-            : sql``;
-
-    const tieneGps = lat !== undefined && lat !== null && lng !== undefined && lng !== null;
-    const distanciaSelect = tieneGps
-        ? sql`ST_Distance(
-                am.ubicacion_aproximada,
-                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-            ) AS distancia_metros,`
-        : sql`NULL::float AS distancia_metros,`;
-
-    const resultado = await db.execute(sql`
-        SELECT
-            am.id, am.usuario_id, am.titulo, am.descripcion, am.precio,
-            am.condicion, am.acepta_ofertas,
-            am.fotos, am.foto_portada_index,
-            ST_Y(am.ubicacion_aproximada::geometry) AS lat,
-            ST_X(am.ubicacion_aproximada::geometry) AS lng,
-            am.ciudad, am.zona_aproximada, am.estado,
-            am.total_vistas, am.total_mensajes, am.total_guardados,
-            am.expira_at, am.created_at, am.updated_at, am.vendida_at,
-            ${distanciaSelect}
-            COALESCE(g24.total, 0) AS guardados_24h,
-            COALESCE(m24.total, 0) AS mensajes_24h,
-            COALESCE(pq.total, 0) AS total_preguntas_respondidas
-        FROM articulos_marketplace am
-        LEFT JOIN (
-            SELECT entity_id, COUNT(*)::int AS total
-            FROM guardados
-            WHERE entity_type = 'articulo_marketplace'
-              AND created_at > NOW() - INTERVAL '24 hours'
-            GROUP BY entity_id
-        ) g24 ON g24.entity_id = am.id
-        LEFT JOIN (
-            SELECT c.articulo_marketplace_id, COUNT(*)::int AS total
-            FROM chat_mensajes m
-            JOIN chat_conversaciones c ON c.id = m.conversacion_id
-            WHERE m.created_at > NOW() - INTERVAL '24 hours'
-            GROUP BY c.articulo_marketplace_id
-        ) m24 ON m24.articulo_marketplace_id = am.id
-        LEFT JOIN (
-            SELECT articulo_id, COUNT(*)::int AS total
-            FROM marketplace_preguntas
-            WHERE respondida_at IS NOT NULL
-              AND deleted_at IS NULL
-            GROUP BY articulo_id
-        ) pq ON pq.articulo_id = am.id
-        WHERE am.ciudad = ${ciudad}
-          AND am.estado = 'activa'
-          AND am.deleted_at IS NULL
-          ${filtroExcluir}
-        ORDER BY (COALESCE(g24.total, 0) + COALESCE(m24.total, 0)) DESC
-        LIMIT 30
-    `);
-
-    type RawTrendingRow = RawArticuloDb & {
-        distancia_metros: number | null;
-        guardados_24h: number;
-        mensajes_24h: number;
-        total_preguntas_respondidas: number;
-    };
-
-    const candidatos = resultado.rows as unknown as RawTrendingRow[];
-
-    // Enriquecer con Redis y calcular score completo en JS.
-    const enriquecidos = await Promise.all(
-        candidatos.map(async (row) => {
-            const vistas24h = await obtenerVistas24h(row.id);
-            const score =
-                vistas24h * 1.0 +
-                row.guardados_24h * 3.0 +
-                row.mensajes_24h * 5.0;
-            return { row, vistas24h, score };
-        })
-    );
-
-    const ordenados = enriquecidos
-        .filter(({ score }) => score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 10);
-
-    if (ordenados.length < 3) return [];
-
-    return ordenados.map(({ row, vistas24h }) => ({
-        ...mapearArticulo(row),
-        distanciaMetros:
-            row.distancia_metros !== null ? Math.round(row.distancia_metros) : null,
-        viendo: 0,
-        vistas24h,
-        totalPreguntasRespondidas: row.total_preguntas_respondidas ?? 0,
-    }));
-}
-
-// =============================================================================
 // PERFIL DEL VENDEDOR (Sprint 5)
 // =============================================================================
 
@@ -1340,13 +1440,13 @@ export default {
     crearArticulo,
     obtenerArticuloPorId,
     obtenerFeed,
+    obtenerFeedInfinito,
     obtenerMisArticulos,
     actualizarArticulo,
     cambiarEstado,
     eliminarArticulo,
     registrarVista,
     registrarHeartbeat,
-    obtenerTrending,
     generarUrlUploadImagenMarketplace,
     obtenerVendedorPorId,
     obtenerArticulosDeVendedor,

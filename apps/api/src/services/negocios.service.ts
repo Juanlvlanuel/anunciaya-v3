@@ -30,6 +30,9 @@ interface FiltrosListaSucursales {
     aceptaCardYA?: boolean;
     tieneEnvio?: boolean;
     tieneServicioDomicilio?: boolean;
+    /** Filtro combinado OR: negocios con envío O servicio a domicilio (o ambos).
+     *  Reemplaza visualmente al chip "Entrega" en la sección Negocios. */
+    aDomicilio?: boolean;
     busqueda?: string;
     limite?: number;
     offset?: number;
@@ -193,6 +196,7 @@ export async function listarSucursalesCercanas(
             aceptaCardYA,
             tieneEnvio,
             tieneServicioDomicilio,
+            aDomicilio,
             busqueda,
             limite = 20,
             offset = 0,
@@ -385,6 +389,13 @@ export async function listarSucursalesCercanas(
               -- Filtro por servicio a domicilio
               ${tieneServicioDomicilio !== undefined ? sql`
                 AND s.tiene_servicio_domicilio = ${tieneServicioDomicilio}
+              ` : sql``}
+
+              -- Filtro combinado "A domicilio" (OR de los anteriores).
+              -- Reemplaza visualmente al chip individual; los flags individuales
+              -- se mantienen para retrocompatibilidad con clientes legacy.
+              ${aDomicilio === true ? sql`
+                AND (s.tiene_envio_domicilio = true OR s.tiene_servicio_domicilio = true)
               ` : sql``}
 
               -- Búsqueda por nombre

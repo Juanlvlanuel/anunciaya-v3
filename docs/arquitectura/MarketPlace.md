@@ -1,11 +1,87 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
 > **Última actualización:** 06 Mayo 2026
-> **Estado:** ✅ v1 + v1.1 (Sprints 9.1 y 9.2) completados y desplegados en producción. Pulido transversal en curso.
-> **Versión:** 1.1.2
+> **Estado:** ✅ v1 + v1.1 + **v1.2 (rediseño feed estilo Facebook)** completados y desplegados en producción.
+> **Versión:** 1.2.0
 > **Pendientes opcionales:**
->  - v1.2 — Sistema de Niveles del Vendedor
->  - Pulido visual y ajustes UX detectados durante verificación: ver `docs/reportes/MarketPlace/Pendientes-Fase-C-Revision-Visual.md`
+>  - Sistema de Niveles del Vendedor (separado de v1.2)
+>  - Fase 2 del rediseño: layout móvil full-width
+>  - Fase 3: stories de contactos arriba del feed
+>  - Fase 4: sistema de contactos ChatYA desde perfil del vendedor
+
+## 🆕 v1.2 — Rediseño feed estilo Facebook (06 May 2026)
+
+El feed del MarketPlace fue **rediseñado por completo** desde el patrón "carruseles
++ grid Mercado Libre" hacia un patrón **feed social estilo Facebook**.
+
+### Lo que cambió
+
+**Backend nuevo:**
+- `GET /api/marketplace/feed/infinito` — endpoint con paginación offset-based
+  (10 items/página) que devuelve cada artículo enriquecido con datos del
+  vendedor (`{id, nombre, apellidos, avatarUrl}`) y top 2 preguntas respondidas
+  más recientes para evitar requests adicionales al renderizar la card.
+- Filtros del nuevo feed: `orden=recientes|vistos|cerca`, `precioMin`,
+  `precioMax`. La paginación devuelve `{articulos, pagina, limite, hayMas}`.
+
+**Frontend nuevo (4 componentes en `apps/web/src/components/marketplace/`):**
+- `CardArticuloFeed` — card grande estilo Facebook: header con avatar +
+  nombre + ciudad + tiempo, cuerpo con título + precio + descripción,
+  galería principal **16:9** con thumbnails laterales en desktop
+  (`w-24` con scroll vertical), comentarios inline (top 2 preguntas
+  respondidas) e **input funcional para hacer preguntas sin salir del feed**
+  (con auth gate, validación 5-200 chars, mutation con feedback inline).
+  Click avatar → ModalImagenes; click nombre → P3 perfil del vendedor.
+- `CardArticuloReel` — card compacta para el carrusel: aspect 4:5, foto
+  portada con overlays (avatar+nombre arriba, precio+título abajo), ancho
+  fijo `w-44 lg:w-52`.
+- `ReelMarketplace` — carrusel auto-scroll cada 4s, pausa en hover
+  (desktop) / touch (móvil), drag manual, loop infinito, **flechas de
+  navegación manual** que aparecen en hover sobre el reel (desktop).
+- `ChipsFiltrosFeed` — chips Recientes / Más vistos / Cerca de ti con
+  variantes `light` y `dark` para usarse sobre fondo claro u oscuro.
+
+**Hook nuevo:**
+- `useFeedInfinitoMarketplace` con `useInfiniteQuery` de TanStack Query.
+- Tipos: `ArticuloFeedInfinito`, `OrdenFeedInfinito`, `RespuestaFeedInfinito`,
+  `VendedorEnFeed`, `PreguntaInlineFeed` en `apps/web/src/types/marketplace.ts`.
+
+**Página principal `/marketplace`:**
+- Header dark de **una sola fila** integrada (logo + chips dark variant +
+  KPI dos líneas + botón Publicar gradient teal). Misma altura que los
+  headers de Negocios y Ofertas.
+- Reel auto-scroll arriba (visible solo cuando filtro = `recientes`).
+- Chips de filtro sticky en el header dark.
+- Feed infinito en **columna centrada `max-w-[920px]`** con cards
+  estilo Facebook apiladas.
+- **Scroll infinito automático** con `IntersectionObserver` (rootMargin
+  600px) — al acercarse al fondo dispara `fetchNextPage`.
+
+### Lo que se eliminó (código muerto post-v1.2)
+
+| Componente / función | Razón |
+|---|---|
+| Sección "Recién publicado" (carrusel) | Reemplazada por `ReelMarketplace` con cards compactas |
+| Sección "Lo más visto hoy" (trending) | Eliminada — el reel ya cubre la función de "lo nuevo destacado" |
+| Sección "Cerca de ti" (grid) | Reemplazada por feed infinito con orden `cerca` |
+| `useTrendingMarketplace` (hook) | Sin callers |
+| `obtenerTrending` + `getTrendingFeed` (backend) | Sin uso |
+| Ruta `GET /feed/trending` | Eliminada |
+| `queryKeys.marketplace.trending` | Sin uso |
+| `useDragScroll` (hook) — referencia local | Solo lo usaban los 3 carruseles eliminados |
+| `PaginaFeedPreview.tsx` (temporal) | Era checkpoint visual durante diseño |
+| Subcomponentes `SeccionRecientes`, `SeccionTrending`, `SeccionCercanos` | Reemplazados por feed infinito |
+
+### Lo que se conserva
+
+- `obtenerFeed` + `useMarketplaceFeed`: usados solo para calcular el contador
+  `totalArticulos` del KPI del header. Se puede eliminar en una iteración
+  futura agregando `total` a la respuesta de `obtenerFeedInfinito`.
+- `CardArticulo` (legacy): usado en `PaginaGuardados`, `PaginaResultadosMarketplace`,
+  `PaginaPublicarArticulo` (preview wizard) y `PaginaPerfilVendedor`. Solo
+  el feed principal migró a la card grande nueva.
+
+
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - Hooks principales: `apps/web/src/hooks/queries/useMarketplace.ts`

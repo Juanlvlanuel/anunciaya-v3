@@ -15,6 +15,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo, useCallback, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -35,11 +36,10 @@ import {
   Menu,
   Search,
   X,
-  SlidersHorizontal,
   Sparkles,
+  Bell,
 } from 'lucide-react';
 import { useNegociosLista } from '../../../hooks/queries/useNegocios';
-import { useScrollDirection } from '../../../hooks/useScrollDirection';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { usePerfilCategorias, usePerfilSubcategorias } from '../../../hooks/queries/usePerfil';
@@ -47,6 +47,9 @@ import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
+import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
+import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
+import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { CardNegocio } from '../../../components/negocios/CardNegocio';
 import type { NegocioResumen } from '../../../types/negocios';
 
@@ -391,7 +394,7 @@ function MapaControlesZoom({ latitud, longitud }: { mapRef?: unknown; latitud: n
   }, []);
 
   return (
-    <div ref={controlRef} className="absolute bottom-3 right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
+    <div ref={controlRef} className="absolute bottom-3 left-3 lg:left-auto lg:right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
       <button
         data-testid="btn-mapa-zoom-in"
         onPointerDown={(e) => { e.stopPropagation(); map.zoomIn(); }}
@@ -545,7 +548,6 @@ export function PaginaNegocios() {
   const [tabActiva, setTabActiva] = useState<TabNegocios>(window.innerWidth >= 1024 ? 'mapa' : 'lista');
   const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
   const [busquedaLocal, setBusquedaLocal] = useState('');
-  const [popupFiltrosMovil, setPopupFiltrosMovil] = useState(false);
   const inputBusquedaRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const cardsScrollRef = useRef<HTMLDivElement>(null);
@@ -594,6 +596,7 @@ export function PaginaNegocios() {
     soloCardya, toggleSoloCardya,
     conEnvio, toggleConEnvio,
     conServicioDomicilio, toggleConServicioDomicilio,
+    aDomicilio, toggleADomicilio,
     setBusqueda,
     setVistaActiva,
     filtrosActivos, limpiarFiltros,
@@ -672,6 +675,14 @@ export function PaginaNegocios() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  // NOTA: NO agregar useLayoutEffect que llame `btnCategoriaRef.current.getBoundingClientRect()`
+  // aquí. Hay 2 instancias de ChipsFiltros renderizadas (desktop + móvil) que
+  // comparten el mismo ref → el ref termina apuntando al botón oculto con
+  // `lg:hidden`, cuyas coords son {0,0} en `getBoundingClientRect`. Las coords
+  // correctas se calculan en el `onClick` del chip usando `e.currentTarget`
+  // (ver `ChipsFiltros.tsx`).
+
+
   // Auto-scroll al cambiar a lista en mobile
   useEffect(() => {
     if (tabActiva === 'lista' && negocioSeleccionadoId) {
@@ -694,27 +705,21 @@ export function PaginaNegocios() {
     return mainScrollRef ?? undefined;
   }, [tabActiva, mainScrollRef]);
 
-  const { scrollY } = useScrollDirection({
-    scrollRef: scrollRefActivo,
-    threshold: 10,
-    topOffset: 10,
+  // Notificaciones — botón Bell en el header móvil (entre buscar y menú).
+  const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
+  const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
+
+  // BottomNav auto-hide tracker: replicar mismas condiciones que BottomNav.tsx
+  // para que el FAB Mapa/Lista baje cuando el BottomNav se oculta y suba
+  // cuando reaparece. En vista mapa el BottomNav está disabled (siempre visible).
+  const { shouldShow: bottomNavVisible } = useHideOnScroll({
+    direction: 'down',
+    disabled: tabActiva === 'mapa',
   });
 
-  const [comprimido, setComprimido] = useState(false);
-
-  useEffect(() => {
-    if (!comprimido && scrollY > 100) {
-      setComprimido(true);
-    } else if (comprimido && scrollY < 40) {
-      setComprimido(false);
-    }
-  }, [scrollY, comprimido]);
-
-  // Al cambiar de tab, el scroll del nuevo contenedor comienza desde 0;
-  // expandir el header para que el usuario no quede en estado comprimido sin scroll.
-  useEffect(() => {
-    setComprimido(false);
-  }, [tabActiva]);
+  // Header de tamaño fijo (alineado al patrón de Ofertas/MarketPlace).
+  // La lógica de compresión por scroll se eliminó — el header ya es lo
+  // suficientemente delgado en su tamaño base.
 
   // ResizeObserver en el header: actualiza --negocios-header-h en tiempo real
   // mientras dura la transición CSS (300ms), no solo al inicio.
@@ -766,6 +771,7 @@ export function PaginaNegocios() {
     soloCardya, toggleSoloCardya,
     conEnvio, toggleConEnvio,
     conServicioDomicilio, toggleConServicioDomicilio,
+    aDomicilio, toggleADomicilio,
     dropdownDistancia, setDropdownDistancia,
     posDropdownDist, setPosDropdownDist,
     filtrosActivos, limpiarFiltros,
@@ -847,10 +853,7 @@ export function PaginaNegocios() {
                   {!buscadorMovilAbierto ? (
                     <>
                       {/* Fila principal: flecha, nombre, buscador, menú */}
-                      <div className={[
-                        'flex items-center justify-between px-3 transition-[padding] duration-300',
-                        comprimido ? 'pt-2.5 pb-2' : 'pt-4 pb-2.5',
-                      ].join(' ')}>
+                      <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             data-testid="btn-volver-negocios"
@@ -860,35 +863,16 @@ export function PaginaNegocios() {
                             <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
                           </button>
                           <div
-                            className={[
-                              'rounded-lg flex items-center justify-center shrink-0 transition-all duration-300',
-                              comprimido ? 'w-7 h-7' : 'w-9 h-9',
-                            ].join(' ')}
+                            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
                             style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
                           >
-                            <Store
-                              className={[
-                                'text-white transition-all duration-300',
-                                comprimido ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5',
-                              ].join(' ')}
-                              strokeWidth={2.5}
-                            />
+                            <Store className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
                           </div>
-                          <span
-                            className={[
-                              'font-extrabold text-white tracking-tight truncate transition-all duration-300',
-                              comprimido ? 'text-base' : 'text-2xl',
-                            ].join(' ')}
-                          >
+                          <span className="text-2xl font-extrabold text-white tracking-tight truncate">
                             Negocios <span className="text-blue-400">Locales</span>
                           </span>
                         </div>
-                        <div className="flex items-center gap-1 mr-1">
-                          {comprimido && (
-                            <span className="text-[10px] tracking-[1px] text-white/55 font-medium uppercase mr-1">
-                              {negocios.length} HOY
-                            </span>
-                          )}
+                        <div className="flex items-center gap-0 -mr-1">
                           <button
                             data-testid="btn-buscar-negocios"
                             onClick={() => {
@@ -900,24 +884,29 @@ export function PaginaNegocios() {
                             <Search className="w-6 h-6 animate-pulse" strokeWidth={2.5} />
                           </button>
                           <button
+                            data-testid="btn-notificaciones-negocios"
+                            onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
+                            aria-label="Notificaciones"
+                            className="relative w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                          >
+                            <Bell className="w-6 h-6 animate-bell-ring" strokeWidth={2.5} />
+                            {cantidadNoLeidas > 0 && (
+                              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold ring-2 ring-black px-1 leading-none">
+                                {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
+                              </span>
+                            )}
+                          </button>
+                          <button
                             data-testid="btn-menu-negocios"
                             onClick={abrirMenuDrawer}
                             className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
                           >
-                            <Menu className="w-6 h-6" strokeWidth={2.5} />
+                            <IconoMenuMorph />
                           </button>
                         </div>
                       </div>
-                      {/* Subtítulo móvil — se oculta al comprimir */}
-                      <div
-                        className={[
-                          'transition-[opacity,max-height,padding] duration-300 overflow-hidden',
-                          comprimido
-                            ? 'opacity-0 max-h-0 pb-0 pointer-events-none'
-                            : 'opacity-100 max-h-12 pb-2',
-                        ].join(' ')}
-                        aria-hidden={comprimido}
-                      >
+                      {/* Subtítulo móvil decorativo */}
+                      <div className="pb-2 overflow-hidden">
                         <div className="flex items-center justify-center gap-2.5">
                           <div
                             className="h-0.5 w-14 rounded-full"
@@ -975,8 +964,8 @@ export function PaginaNegocios() {
                           className="h-0.5 w-14 rounded-full"
                           style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
                         />
-                        <span className="text-base font-light text-white/70 tracking-wide">
-                          Descubre en <span className="font-bold text-white">{nombreCiudad}</span>
+                        <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
+                          En <span className="font-bold text-white">{nombreCiudad}</span> · {negocios.length} negocios
                         </span>
                         <div
                           className="h-0.5 w-14 rounded-full"
@@ -987,175 +976,65 @@ export function PaginaNegocios() {
                   )}
                 </div>
 
-                {/* ══ DESKTOP HEADER ══ */}
+                {/* ══ DESKTOP HEADER — Una sola fila integrada con TODO:
+                    Logo + tabs Mapa/Lista + chips de filtros + KPI.
+                    Los tabs y chips viven en la fila externa SOLO en móvil. ══ */}
                 <div className="hidden lg:block">
-                  <div className={[
-                    'flex items-center justify-between gap-6 px-6 2xl:px-8 transition-[padding] duration-300',
-                    comprimido ? 'py-3' : 'py-4 2xl:py-5',
-                  ].join(' ')}>
-                    {/* Logo + Título (encoge al comprimir) */}
+                  <div className="flex items-center gap-4 px-6 py-4 2xl:px-8 2xl:py-5">
+                    {/* Logo + Título */}
                     <div className="flex items-center gap-3 shrink-0">
                       <div
-                        className={[
-                          'rounded-lg flex items-center justify-center transition-all duration-300',
-                          comprimido ? 'w-10 h-10' : 'w-11 h-11 2xl:w-12 2xl:h-12',
-                        ].join(' ')}
+                        className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
                         style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
                       >
-                        <Store
-                          className={[
-                            'text-white transition-all duration-300',
-                            comprimido ? 'w-5 h-5' : 'w-6 h-6 2xl:w-6.5 2xl:h-6.5',
-                          ].join(' ')}
-                          strokeWidth={2.5}
-                        />
+                        <Store className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
                       </div>
                       <div className="flex items-baseline">
-                        <span
-                          className={[
-                            'font-extrabold text-white tracking-tight transition-all duration-300',
-                            comprimido ? 'text-2xl' : 'text-2xl 2xl:text-3xl',
-                          ].join(' ')}
-                        >
-                          Negocios{' '}
+                        <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
+                          Negocios
                         </span>
-                        <span
-                          className={[
-                            'font-extrabold text-blue-400 tracking-tight transition-all duration-300',
-                            comprimido ? 'text-2xl' : 'text-2xl 2xl:text-3xl',
-                          ].join(' ')}
-                        >
+                        <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight">
                           Locales
                         </span>
                       </div>
                     </div>
 
-                    {/* Centro: Subtítulo — se oculta al comprimir */}
-                    <div
-                      className={[
-                        'flex-1 text-center min-w-0 transition-[opacity,max-height] duration-300 overflow-hidden',
-                        comprimido
-                          ? 'opacity-0 max-h-0 pointer-events-none'
-                          : 'opacity-100 max-h-24',
-                      ].join(' ')}
-                      aria-hidden={comprimido}
-                    >
-                      <h1 className="text-3xl 2xl:text-[34px] font-light text-white/70 leading-tight truncate">
-                        Descubre en{' '}
-                        <span className="font-bold text-white">{nombreCiudad}</span>
-                      </h1>
-                      <div className="flex items-center justify-center gap-3 mt-1.5">
-                        <div
-                          className="h-0.5 w-20 2xl:w-24 rounded-full"
-                          style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
-                        />
-                        <span className="text-sm 2xl:text-base font-semibold text-blue-400/70 uppercase tracking-[3px]">
-                          comercios cerca de ti
-                        </span>
-                        <div
-                          className="h-0.5 w-20 2xl:w-24 rounded-full"
-                          style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
-                        />
+                    {/* Spacer para empujar chips + KPI a la derecha */}
+                    <div className="flex-1" />
+
+                    {/* Derecha: chips de filtros (junto al KPI).
+                        Las tabs Mapa/Lista ya NO viven aquí — para liberar espacio
+                        ahora son un toggle pill flotante (ver fixed bottom-right). */}
+                    <div className="min-w-0 shrink-0 overflow-hidden">
+                      <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                        <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
                       </div>
                     </div>
 
-                    {/* KPIs — alineados al patrón de Ofertas: número grande blanco,
-                        label en color de marca, justificado a la derecha. */}
-                    <div className="flex items-center gap-5 shrink-0">
-                      {comprimido ? (
-                        <div className="flex items-baseline gap-1.5 shrink-0">
-                          <span
-                            data-testid="kpi-total-negocios"
-                            className="text-2xl font-extrabold text-white leading-none tabular-nums"
-                          >
-                            {negocios.length}
-                          </span>
-                          <span className="text-sm font-semibold text-blue-400/80 uppercase tracking-wider">
-                            Negocios
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-end shrink-0">
-                          <span
-                            data-testid="kpi-total-negocios"
-                            className="text-3xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
-                          >
-                            {negocios.length}
-                          </span>
-                          <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-400/80 uppercase tracking-wider mt-1">
-                            Negocios
-                          </span>
-                        </div>
-                      )}
-                      {/* Separador + radio — solo cuando el filtro de cercanía está activo */}
-                      {cercaDeMi && (
-                        <div
-                          className={[
-                            'flex items-center gap-5 transition-[opacity,max-height] duration-300 overflow-hidden',
-                            comprimido
-                              ? 'opacity-0 max-h-0 pointer-events-none'
-                              : 'opacity-100 max-h-24',
-                          ].join(' ')}
-                          aria-hidden={comprimido}
-                        >
-                          <div className="w-1 h-16 rounded-full" style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.25) 30%, rgba(255,255,255,0.25) 70%, transparent)' }} />
-                          <div className="flex flex-col items-center w-16 2xl:w-18">
-                            <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none whitespace-nowrap">
-                              {distancia} km
-                            </span>
-                            <span className="text-[10px] 2xl:text-[11px] font-semibold text-white/40 uppercase tracking-wider mt-1">
-                              Radio
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                    {/* KPI dos líneas — mismo patrón que Ofertas/MP */}
+                    <div className="flex flex-col items-end shrink-0">
+                      <span
+                        data-testid="kpi-total-negocios"
+                        className="text-3xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                      >
+                        {negocios.length}
+                      </span>
+                      <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-400/80 uppercase tracking-wider mt-1">
+                        Negocios
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* ── TABS ── */}
-                <div className="flex items-center">
-                  <div className="negocios-tabs flex lg:flex-none overflow-x-auto flex-1">
-                    {(window.innerWidth >= 1024 ? TABS_NEGOCIOS_DESKTOP : TABS_NEGOCIOS_MOBILE).map(({ id, label, Icono }) => (
-                      <button
-                        key={id}
-                        data-testid={`tab-negocios-${id}`}
-                        onClick={() => setTabActiva(id)}
-                        className="flex items-center gap-2 lg:gap-2.5 px-4 lg:px-7 2xl:px-9 py-3 lg:py-3.5 text-base lg:text-base 2xl:text-[17px] cursor-pointer relative whitespace-nowrap shrink-0"
-                        style={{
-                          color: tabActiva === id ? '#3b82f6' : 'rgba(255,255,255,0.50)',
-                          fontWeight: tabActiva === id ? 700 : 500,
-                          background: 'transparent',
-                        }}
-                      >
-                        <Icono className="w-4.5 h-4.5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" />
-                        {label}
-                        {id === 'lista' && negocios.length > 0 && (
-                          <span className="text-[10px] font-bold bg-blue-500 text-white w-5 h-5 rounded-full flex items-center justify-center">{negocios.length}</span>
-                        )}
-                        {tabActiva === id && (
-                          <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-blue-400" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                {/* ── TABS Mapa/Lista — eliminadas del header en móvil.
+                       Ahora es un FAB flotante anclado al lado derecho
+                       (ver bloque TOGGLE FLOTANTE más abajo). ── */}
 
-                  {/* Botón filtros mobile — en la fila de tabs */}
-                  <button
-                    data-testid="btn-filtros-movil"
-                    onClick={() => setPopupFiltrosMovil(true)}
-                    className="lg:hidden ml-auto mr-3 w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer shrink-0 relative transition-colors text-white/50 hover:text-white hover:bg-white/10"
-                  >
-                    <SlidersHorizontal className="w-5 h-5" strokeWidth={2.5} />
-                    {filtrosActivos() > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                        {filtrosActivos()}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* ChipsFiltros desktop — en la fila de tabs */}
-                  <div className="hidden lg:flex items-center gap-2 ml-auto pr-6 2xl:pr-8 overflow-x-auto">
+                {/* ── CHIPS FILTROS — solo móvil, scroll horizontal (mismo
+                       patrón que Ofertas y MarketPlace). El popup "Ajustar
+                       búsqueda" se eliminó: los chips son inline ahora. ── */}
+                <div className="px-3 pb-3 lg:hidden">
+                  <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
                   </div>
                 </div>
@@ -1164,6 +1043,79 @@ export function PaginaNegocios() {
             </div>
           </div>
         </div>
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* TOGGLE FLOTANTE Mapa/Lista — solo desktop. Las tabs se sacaron    */}
+        {/* del header dark para liberar espacio horizontal de los chips de   */}
+        {/* filtros. Renderizado por portal en document.body para evitar que  */}
+        {/* el `overflow-hidden` del header dark recorte el `fixed`.          */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {createPortal(
+          <div
+            data-testid="toggle-mapa-lista-flotante"
+            className="hidden lg:flex fixed top-50 lg:right-70 2xl:right-94 z-50 items-center gap-1 rounded-full bg-black p-1.5 shadow-2xl ring-1 ring-white/15 backdrop-blur"
+          >
+            {TABS_NEGOCIOS_DESKTOP.map(({ id, label, Icono }) => {
+              const activo = tabActiva === id;
+              return (
+                <button
+                  key={id}
+                  data-testid={`toggle-flotante-${id}`}
+                  onClick={() => setTabActiva(id)}
+                  aria-pressed={activo}
+                  className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${activo
+                      ? 'bg-white text-blue-700 shadow-md'
+                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                >
+                  <Icono className="w-4 h-4" strokeWidth={2.5} />
+                  {label}
+                  {id === 'lista' && negocios.length > 0 && (
+                    <span className={`text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ${activo ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                      }`}>
+                      {negocios.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* FAB MÓVIL Mapa/Lista — botón circular flotante anclado al lado    */}
+        {/* derecho a media pantalla. Muestra el icono del MODO OPUESTO al    */}
+        {/* actual (señal visual de "click aquí para cambiar"). Solo móvil.   */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {(() => {
+          const opuesta = TABS_NEGOCIOS_MOBILE.find((t) => t.id !== tabActiva);
+          if (!opuesta) return null;
+          const IconoOpuesta = opuesta.Icono;
+          return createPortal(
+            <button
+              type="button"
+              data-testid="fab-toggle-mapa-lista-movil"
+              onClick={() => setTabActiva(opuesta.id)}
+              aria-label={`Cambiar a vista ${opuesta.label}`}
+              style={{
+                bottom: bottomNavVisible ? '5rem' : '1rem',
+                transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
+              }}
+              className="lg:hidden fixed right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg hover:scale-105 active:scale-95"
+            >
+              <IconoOpuesta className="w-6 h-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />
+              <style>{`
+                @keyframes fab-toggle-wiggle {
+                  0%, 100% { transform: rotate(0deg); }
+                  25% { transform: rotate(-12deg); }
+                  75% { transform: rotate(12deg); }
+                }
+              `}</style>
+            </button>,
+            document.body
+          );
+        })()}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* CONTENIDO                                                        */}
@@ -1313,77 +1265,28 @@ export function PaginaNegocios() {
         {/* DROPDOWNS GLOBALES (posición fixed)                              */}
         {/* ══════════════════════════════════════════════════════════════════ */}
 
-        {/* Dropdown distancia */}
-        {dropdownDistancia && (
-          <div
-            data-dropdown
-            className="fixed w-[280px] bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-99999 py-4 px-5"
-            style={{ top: posDropdownDist.top, left: posDropdownDist.left }}
-          >
-            <div className="flex gap-2.5 mb-4">
-              <button
-                onClick={() => { if (cercaDeMi) toggleCercaDeMi(); }}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all ${
-                  !cercaDeMi ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
-                }`}
-              >
-                Mi ciudad
-              </button>
-              <button
-                onClick={() => { if (!cercaDeMi) toggleCercaDeMi(); }}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all ${
-                  cercaDeMi ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
-                }`}
-              >
-                Cerca de mí
-              </button>
-            </div>
-            {cercaDeMi && (
-              <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-sm font-semibold text-slate-500">Distancia</span>
-                  <span className="text-base font-bold text-slate-800">{distancia} km</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="50"
-                  value={distancia}
-                  onChange={(e) => setDistancia(Number(e.target.value))}
-                  className="w-full h-2 rounded-full appearance-none cursor-pointer accent-blue-500"
-                  style={{
-                    background: `linear-gradient(to right, #3b82f6 ${((distancia - 1) / 49) * 100}%, #e2e8f0 ${((distancia - 1) / 49) * 100}%)`,
-                  }}
-                />
-                <div className="flex justify-between mt-1.5">
-                  <span className="text-xs text-slate-400">1 km</span>
-                  <span className="text-xs text-slate-400">50 km</span>
-                </div>
-              </div>
-            )}
-            <button
-              onClick={() => setDropdownDistancia(false)}
-              className="w-full mt-4 py-2 rounded-xl text-sm font-bold text-white cursor-pointer transition-all"
-              style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
-            >
-              Aplicar
-            </button>
-          </div>
-        )}
+        {/* Dropdown distancia ELIMINADO en v3.1.
+            El control ahora vive dentro de ChipsFiltros como un chip
+            secundario "📍 N km ▾" que aparece cuando "Cerca de ti" está
+            activo. Tiene su propio dropdown local con slider en tiempo real. */}
 
+        {/* Dropdowns Categoría/Subcategoría — estilo blanco original (claro
+            sobre fondo dark del header). `position: fixed` con coords
+            calculadas en el `onClick` del chip vía `e.currentTarget`. */}
         {dropdownCategoria && (
           <div
-            className="fixed bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-99999 py-1 overflow-hidden w-[220px]"
+            data-dropdown
+            className="fixed bg-slate-100 rounded-xl border border-slate-300 shadow-md z-99999 py-1.5 overflow-hidden w-[220px]"
             style={{ top: posicionDropdownCat.top, left: posicionDropdownCat.left }}
           >
             <div className="max-h-[300px] overflow-y-auto">
               <button
                 onClick={() => { setCategoria(null); setSubcategorias([]); setDropdownCategoria(false); }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${!categoria ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${!categoria ? 'bg-blue-500 text-white' : 'text-slate-700 hover:bg-slate-200/70'}`}
                 data-testid="dropdown-cat-todas"
               >
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!categoria ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                  {!categoria && <Check className="w-3 h-3 text-white" />}
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!categoria ? 'bg-white ring-2 ring-white/80' : 'bg-slate-300'}`}>
+                  {!categoria && <Check className="w-3 h-3 text-blue-500" strokeWidth={3} />}
                 </div>
                 Todas
               </button>
@@ -1393,11 +1296,11 @@ export function PaginaNegocios() {
                   <button
                     key={cat.id}
                     onClick={() => { setCategoria(cat.id); setSubcategorias([]); setDropdownCategoria(false); }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${isSelected ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${isSelected ? 'bg-blue-500 text-white' : 'text-slate-700 hover:bg-slate-200/70'}`}
                     data-testid={`dropdown-cat-${cat.id}`}
                   >
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-white ring-2 ring-white/80' : 'bg-slate-300'}`}>
+                      {isSelected && <Check className="w-3 h-3 text-blue-500" strokeWidth={3} />}
                     </div>
                     {cat.nombre}
                   </button>
@@ -1409,17 +1312,18 @@ export function PaginaNegocios() {
 
         {dropdownSubcategoria && (
           <div
-            className="fixed bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-99999 py-1 overflow-hidden w-[220px]"
+            data-dropdown
+            className="fixed bg-slate-100 rounded-xl border border-slate-300 shadow-md z-99999 py-1.5 overflow-hidden w-[220px]"
             style={{ top: posicionDropdownSub.top, left: posicionDropdownSub.left }}
           >
             <div className="max-h-[300px] overflow-y-auto">
               <button
                 onClick={() => { setSubcategorias([]); setDropdownSubcategoria(false); }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${subcategoriasSeleccionadas.length === 0 ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${subcategoriasSeleccionadas.length === 0 ? 'bg-blue-500 text-white' : 'text-slate-700 hover:bg-slate-200/70'}`}
                 data-testid="dropdown-subcat-todas"
               >
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${subcategoriasSeleccionadas.length === 0 ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                  {subcategoriasSeleccionadas.length === 0 && <Check className="w-3 h-3 text-white" />}
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${subcategoriasSeleccionadas.length === 0 ? 'bg-white ring-2 ring-white/80' : 'bg-slate-300'}`}>
+                  {subcategoriasSeleccionadas.length === 0 && <Check className="w-3 h-3 text-blue-500" strokeWidth={3} />}
                 </div>
                 Todas
               </button>
@@ -1429,172 +1333,16 @@ export function PaginaNegocios() {
                   <button
                     key={sub.id}
                     onClick={() => { setSubcategorias([sub.id]); setDropdownSubcategoria(false); }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${isSelected ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold cursor-pointer ${isSelected ? 'bg-blue-500 text-white' : 'text-slate-700 hover:bg-slate-200/70'}`}
                     data-testid={`dropdown-subcat-${sub.id}`}
                   >
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-white ring-2 ring-white/80' : 'bg-slate-300'}`}>
+                      {isSelected && <Check className="w-3 h-3 text-blue-500" strokeWidth={3} />}
                     </div>
                     <span className="truncate">{sub.nombre}</span>
                   </button>
                 );
               })}
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* POPUP FILTROS MOBILE                                             */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {popupFiltrosMovil && (
-          <div className="lg:hidden fixed inset-0 z-99999 flex items-center justify-center p-6">
-            {/* Overlay */}
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setPopupFiltrosMovil(false)}
-            />
-            {/* Contenido */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-              {/* Header */}
-              <div
-                className="relative px-5 py-4 overflow-hidden"
-                style={{ background: '#000000' }}
-              >
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.12) 0%, transparent 60%)' }}
-                />
-                <div className="relative z-10 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <SlidersHorizontal className="w-5 h-5 text-blue-400" />
-                    <span className="text-lg font-bold text-white">Ajustar búsqueda</span>
-                  </div>
-                  <button
-                    onClick={() => setPopupFiltrosMovil(false)}
-                    className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center cursor-pointer transition-colors"
-                  >
-                    <X className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Body */}
-              <div className="p-5 space-y-5">
-
-                {/* Toggle Cerca de mí / En mi ciudad */}
-                <div>
-                  <p className="text-sm font-semibold text-slate-500 mb-3">Ubicación</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => { if (cercaDeMi) toggleCercaDeMi(); }}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all ${
-                        !cercaDeMi
-                          ? 'bg-slate-800 text-white shadow-md'
-                          : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
-                      }`}
-                      data-testid="filtro-en-mi-ciudad"
-                    >
-                      En mi ciudad
-                    </button>
-                    <button
-                      onClick={() => { if (!cercaDeMi) toggleCercaDeMi(); }}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all ${
-                        cercaDeMi
-                          ? 'bg-slate-800 text-white shadow-md'
-                          : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
-                      }`}
-                      data-testid="filtro-cerca-de-mi"
-                    >
-                      Cerca de mí
-                    </button>
-                  </div>
-                </div>
-
-                {/* Slider de distancia — solo si cercaDeMi */}
-                {cercaDeMi && (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-sm font-semibold text-slate-500">Distancia</p>
-                      <span className="text-lg font-bold text-slate-800">{distancia} km</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="50"
-                      value={distancia}
-                      onChange={(e) => setDistancia(Number(e.target.value))}
-                      className="w-full h-2 rounded-full appearance-none cursor-pointer accent-blue-500"
-                      style={{
-                        background: `linear-gradient(to right, #3b82f6 ${((distancia - 1) / 49) * 100}%, #e2e8f0 ${((distancia - 1) / 49) * 100}%)`,
-                      }}
-                      data-testid="slider-distancia-movil"
-                    />
-                    <div className="flex justify-between mt-1.5">
-                      <span className="text-xs text-slate-400">1 km</span>
-                      <span className="text-xs text-slate-400">50 km</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Filtros rápidos */}
-                <div>
-                  <p className="text-sm font-semibold text-slate-500 mb-3">Servicios</p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={toggleSoloCardya}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all border flex items-center gap-1.5 ${
-                        soloCardya
-                          ? 'bg-slate-800 text-white border-slate-800'
-                          : 'bg-white text-slate-600 border-2 border-slate-300 hover:border-slate-400'
-                      }`}
-                      data-testid="filtro-cardya-movil"
-                    >
-                      <span className="text-base leading-none">💳</span> CardYA
-                    </button>
-                    <button
-                      onClick={toggleConEnvio}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all border flex items-center gap-1.5 ${
-                        conEnvio
-                          ? 'bg-slate-800 text-white border-slate-800'
-                          : 'bg-white text-slate-600 border-2 border-slate-300 hover:border-slate-400'
-                      }`}
-                      data-testid="filtro-envio-movil"
-                    >
-                      <span className="text-base leading-none">📦</span> Envíos
-                    </button>
-                    <button
-                      onClick={toggleConServicioDomicilio}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all border flex items-center gap-1.5 ${
-                        conServicioDomicilio
-                          ? 'bg-slate-800 text-white border-slate-800'
-                          : 'bg-white text-slate-600 border-2 border-slate-300 hover:border-slate-400'
-                      }`}
-                      data-testid="filtro-servicio-domicilio-movil"
-                    >
-                      <span className="text-base leading-none">🏠</span> Servicio a domicilio
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="px-5 pb-5 flex gap-3">
-                <button
-                  onClick={() => { limpiarFiltros(); setPopupFiltrosMovil(false); }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 cursor-pointer transition-colors"
-                >
-                  Limpiar
-                </button>
-                <button
-                  onClick={() => setPopupFiltrosMovil(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer transition-all"
-                  style={{
-                    background: 'linear-gradient(135deg, #1e293b, #0f172a)',
-                  }}
-                >
-                  Aplicar
-                </button>
-              </div>
             </div>
           </div>
         )}

@@ -148,15 +148,13 @@ export default function DropdownFiltroEstado({ tabActiva, valor, onChange, compa
           ref={btnRef}
           data-testid="dropdown-filtro-estado"
           onClick={toggleDropdown}
-          className="flex items-center justify-center w-10 h-10 rounded-lg cursor-pointer relative"
-          style={{
-            background: seleccionado ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.08)',
-          }}
+          aria-label="Filtrar por estado"
+          className="relative w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
         >
           <Filter
-            className="w-5 h-5"
+            className="w-6 h-6 animate-filter-tilt"
             strokeWidth={2.5}
-            style={{ color: seleccionado ? '#f59e0b' : 'rgba(255,255,255,0.5)' }}
+            style={seleccionado ? { color: '#f59e0b' } : undefined}
           />
           {seleccionado && (
             <div
