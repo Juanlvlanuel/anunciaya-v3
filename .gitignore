@@ -17,6 +17,13 @@ pnpm-debug.log*
 dist/
 build/
 .next/
+*.tsbuildinfo
+
+# Backups
+*.bak
+
+# Worktrees temporales (Claude Code)
+.claude/worktrees/
 
 # IDE
 .vscode/

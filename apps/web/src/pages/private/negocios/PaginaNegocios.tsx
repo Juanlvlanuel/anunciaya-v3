@@ -853,8 +853,8 @@ export function PaginaNegocios() {
                   {!buscadorMovilAbierto ? (
                     <>
                       {/* Fila principal: flecha, nombre, buscador, menú */}
-                      <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
-                        <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center justify-between gap-1 px-2 pt-4 pb-2.5">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
                           <button
                             data-testid="btn-volver-negocios"
                             onClick={() => navigate('/inicio')}
@@ -868,11 +868,16 @@ export function PaginaNegocios() {
                           >
                             <Store className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
                           </div>
-                          <span className="text-2xl font-extrabold text-white tracking-tight truncate">
-                            Negocios <span className="text-blue-400">Locales</span>
+                          <span className="flex flex-col leading-none min-w-0 ml-1.5">
+                            <span className="text-2xl font-extrabold text-white tracking-tight">
+                              Negocios
+                            </span>
+                            <span className="text-xs font-bold uppercase tracking-[0.16em] text-blue-400">
+                              Locales
+                            </span>
                           </span>
                         </div>
-                        <div className="flex items-center gap-0 -mr-1">
+                        <div className="flex items-center gap-0 -mr-1 shrink-0">
                           <button
                             data-testid="btn-buscar-negocios"
                             onClick={() => {

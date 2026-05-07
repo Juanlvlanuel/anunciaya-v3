@@ -135,6 +135,17 @@ export function BottomNav() {
       {/* Inyectar estilos de animación */}
       <style>{animationStyles}</style>
 
+      {/* Strip negro fijo cubriendo SOLO env(safe-area-inset-bottom).
+          Necesario porque cuando el BottomNav se oculta al hacer scroll
+          (infinite feed de MP), la safe-area queda expuesta y la barra
+          nativa de Android samplea el gradiente azul-gris del MainLayout.
+          Este strip garantiza que la barra siempre vea negro sólido. */}
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-black pointer-events-none"
+        style={{ height: 'env(safe-area-inset-bottom)', zIndex: 35 }}
+        aria-hidden="true"
+      />
+
       <nav className="fixed bottom-0 left-0 right-0 z-40 bottomnav-ocultar-teclado" style={hideStyle}>
 
 

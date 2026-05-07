@@ -243,7 +243,7 @@ export function CardArticuloFeed({ articulo, onAuthRequerido }: CardArticuloFeed
     return (
         <article
             data-testid={`card-articulo-feed-${articulo.id}`}
-            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+            className="overflow-hidden bg-white lg:rounded-xl lg:border lg:border-slate-200 lg:shadow-sm"
         >
             {/* ─── HEADER: avatar + vendedor + tiempo ─────────────────────── */}
             <header className="flex items-center gap-3 px-4 py-3">

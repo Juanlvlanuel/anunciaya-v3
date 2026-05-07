@@ -337,7 +337,7 @@ export default function PaginaOfertas() {
             {rotHoy.actual && (
               <section {...rotHoy.pausarHover}>
                 <TituloDeBloque
-                  eyebrow="Oferta del día"
+                  eyebrow="Ofertas del día"
                   titulo="Hoy te recomendamos"
                   iconoLucide={Star}
                   variante="destacado"
@@ -401,7 +401,7 @@ export default function PaginaOfertas() {
         {/*    horizontal que el resto del contenido. Hereda el fondo del */}
         {/*    MainLayout (gradient azul claro).                          */}
         {feedEditorialVisible && ofertasTicker.length > 0 && (
-          <div className="mb-6 lg:mb-8 2xl:mb-10">
+          <div className="mb-6 lg:mb-8 2xl:mb-10 -mx-4 lg:mx-0">
             <TickerOfertas
               ofertas={ofertasTicker}
               cargando={tickerCargando}

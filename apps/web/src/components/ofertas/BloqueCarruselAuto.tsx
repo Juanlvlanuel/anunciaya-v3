@@ -126,7 +126,7 @@ export default function BloqueCarruselAuto({
 
       {cargando && ofertas.length === 0 ? (
         // Skeletons estáticos (no animar — queda raro con el carrusel)
-        <div className="flex gap-2.5 overflow-hidden">
+        <div className="flex gap-2.5 overflow-hidden -mx-4 px-4 lg:mx-0 lg:px-0">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={`skel-${i}`}
@@ -141,8 +141,9 @@ export default function BloqueCarruselAuto({
           ))}
         </div>
       ) : (
-        // Viewport: oculta el desbordamiento del track infinito
-        <div className="carrusel-auto-viewport relative w-full overflow-x-hidden">
+        // Viewport: oculta el desbordamiento del track infinito.
+        // En móvil sangra a los bordes (-mx-4) para full-width.
+        <div className="carrusel-auto-viewport relative overflow-x-hidden -mx-4 lg:mx-0">
           <div className="carrusel-auto-track">
             {/* Originales + duplicado para loop sin corte */}
             {[...ofertas, ...ofertas].map((oferta, idx) => (

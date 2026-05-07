@@ -278,7 +278,7 @@ export function PaginaMarketplace() {
                                                     strokeWidth={2.5}
                                                 />
                                             </div>
-                                            <span className="truncate text-2xl font-extrabold tracking-tight text-white">
+                                            <span className="truncate text-2xl font-extrabold tracking-tight text-white ml-1.5">
                                                 Market<span className="text-teal-400">Place</span>
                                             </span>
                                         </div>
@@ -632,9 +632,10 @@ export function PaginaMarketplace() {
                             </div>
                         )}
 
-                        {/* Feed infinito: cards grandes estilo Facebook,
-                            columna centrada ~920px en desktop. */}
-                        <div className="mx-auto max-w-[920px] space-y-4 px-2 py-2 lg:px-4">
+                        {/* Feed infinito: cards grandes estilo Facebook.
+                            Móvil → full-width sin gap, separador inferior por card.
+                            Desktop → columna centrada ~920px con gap y bordes. */}
+                        <div className="mx-auto max-w-full lg:max-w-[920px] space-y-2 lg:space-y-4 lg:px-4 lg:py-2">
                             {articulosFeedSinReel.map((articulo) => (
                                 <CardArticuloFeed key={articulo.id} articulo={articulo} />
                             ))}

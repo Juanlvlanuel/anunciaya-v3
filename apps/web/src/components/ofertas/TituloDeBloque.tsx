@@ -168,8 +168,8 @@ export default function TituloDeBloque({
   // Subtítulo (eyebrow) en Title Case — más grande, al lado derecho del
   // título, sin uppercase. La capitalización ya viene desde el padre.
   const eyebrowClasses = esDestacado
-    ? 'text-base lg:text-lg 2xl:text-xl text-amber-600 font-semibold tracking-tight whitespace-nowrap'
-    : 'text-sm lg:text-base 2xl:text-lg text-amber-600 font-semibold tracking-tight whitespace-nowrap';
+    ? 'text-lg lg:text-xl 2xl:text-2xl text-amber-600 font-semibold tracking-tight whitespace-nowrap'
+    : 'text-base lg:text-lg 2xl:text-xl text-amber-600 font-semibold tracking-tight whitespace-nowrap';
 
   // `key` cambia cuando cambia el slug → fuerza remount → animación
   // se reproduce de nuevo cuando cambia el bloque (ej. al filtrar chip).
