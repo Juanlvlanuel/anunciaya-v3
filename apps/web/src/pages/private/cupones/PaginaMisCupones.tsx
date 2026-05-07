@@ -28,7 +28,7 @@ import ModalDetalleCupon from './componentes/ModalDetalleCupon';
 
 type TabCupones = 'activos' | 'usados';
 
-const TABS: { id: TabCupones; label: string; icono: React.ComponentType<{ className?: string }> }[] = [
+const TABS: { id: TabCupones; label: string; icono: React.ComponentType<{ className?: string; strokeWidth?: number }> }[] = [
     { id: 'activos', label: 'Activos', icono: Gift },
     { id: 'usados', label: 'Usados', icono: CheckCircle },
 ];
