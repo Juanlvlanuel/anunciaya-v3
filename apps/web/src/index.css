@@ -67,6 +67,10 @@ html {
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  /* Fuerza modo oscuro a nivel browser. Chrome Android aplica scrim oscuro
+     sobre theme-color en la barra del sistema cuando color-scheme=dark, en
+     lugar del scrim claro que aclara el #000 a gris-pálido. */
+  color-scheme: dark;
 }
 
 /* Desktop: ocultar scroll del body (el main tiene su propio scroll) */

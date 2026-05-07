@@ -107,7 +107,16 @@ export function ChipsFiltros({
   const abrirDropdownRadio = () => {
     if (btnRadioRef.current) {
       const rect = btnRadioRef.current.getBoundingClientRect();
-      setPosDropdownRadio({ top: rect.bottom + 8, left: rect.left });
+      // Centrar horizontalmente el dropdown respecto al chip, con clamp para
+      // que no se salga por los bordes del viewport (margen mínimo 8px).
+      const dropdownWidth = 288; // w-72
+      const padding = 8;
+      const ideal = rect.left + rect.width / 2 - dropdownWidth / 2;
+      const left = Math.max(
+        padding,
+        Math.min(ideal, window.innerWidth - dropdownWidth - padding),
+      );
+      setPosDropdownRadio({ top: rect.bottom + 8, left });
     }
     setDropdownRadioAbierto((v) => !v);
   };

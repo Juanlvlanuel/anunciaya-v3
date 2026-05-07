@@ -114,6 +114,19 @@ export function MainLayout() {
   }, [esDesktop, esPaginaConHeaderPropio, setMainScrollRef]);
 
   // ---------------------------------------------------------------------------
+  // Reasegurar fondo negro absoluto (html, body, theme-color) en rutas
+  // AnunciaYA. El init script de index.html ya lo setea, pero algún
+  // re-render dinámico puede haberlo cambiado. Solo aplica en rutas que
+  // montan MainLayout — ScanYA tiene su propio layout y no se afecta.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    document.documentElement.style.background = '#000000';
+    document.body.style.background = '#000000';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', '#000000');
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Detectar cambio de tamaño de pantalla
   // ---------------------------------------------------------------------------
   useEffect(() => {
