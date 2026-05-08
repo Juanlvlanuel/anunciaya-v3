@@ -233,6 +233,17 @@ export interface CrearConversacionInput {
   participante2SucursalId?: string | null;
   contextoTipo?: ContextoTipo;
   contextoReferenciaId?: string | null;
+  /**
+   * FK directa al artículo de MarketPlace cuando la conversación se inicia
+   * desde el detalle de una publicación. El backend usa este id para
+   * obtener un snapshot (titulo, precio, condicion, fotoUrl) y auto-
+   * insertar un mensaje `tipo='sistema'` con la card del artículo embebida
+   * al inicio de la conversación.
+   *
+   * Solo aplica con `contextoTipo === 'marketplace'`. Para
+   * `'vendedor_marketplace'` (contacto desde el perfil) se omite.
+   */
+  articuloMarketplaceId?: string | null;
 }
 
 /**

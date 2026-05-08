@@ -1058,7 +1058,12 @@ export function PaginaNegocios() {
         {createPortal(
           <div
             data-testid="toggle-mapa-lista-flotante"
-            className="hidden lg:flex fixed top-50 lg:right-70 2xl:right-94 z-50 items-center gap-1 rounded-full bg-black p-1.5 shadow-2xl ring-1 ring-white/15 backdrop-blur"
+            // z-40 (no z-50): debe quedar DEBAJO del ChatOverlay desktop
+            // (z-41) para que el chat lo tape al abrirse. z-50 lo dejaba
+            // visible por encima del overlay. z-40 sigue por encima del
+            // header sticky de Negocios (z-20). BottomNav también usa
+            // z-40 pero solo existe en móvil — sin conflicto en desktop.
+            className="hidden lg:flex fixed top-50 lg:right-70 2xl:right-94 z-40 items-center gap-1 rounded-full bg-black p-1.5 shadow-2xl ring-1 ring-white/15 backdrop-blur"
           >
             {TABS_NEGOCIOS_DESKTOP.map(({ id, label, Icono }) => {
               const activo = tabActiva === id;

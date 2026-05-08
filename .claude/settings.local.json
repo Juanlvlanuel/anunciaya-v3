@@ -187,7 +187,17 @@
       "Bash(node -e \"const r=JSON.parse\\(require\\('fs'\\).readFileSync\\('C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\vjjua\\\\\\\\\\\\\\\\AppData\\\\\\\\\\\\\\\\Local\\\\\\\\\\\\\\\\Temp\\\\\\\\\\\\\\\\feed_test.json','utf8'\\)\\); console.log\\('Count:', r.data?.length, '| success:', r.success\\);\")",
       "Bash(npx kill-port *)",
       "Bash(JWT_SECRET=anunciaya_jwt_secret_dev_2024_super_seguro npx playwright test ofertas --reporter=list)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git -C /e/AnunciaYA/anunciaya status)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.embla-carousel.com)",
+      "Bash(curl -sL https://raw.githubusercontent.com/davidjerleke/embla-carousel/master/packages/embla-carousel/src/components/DragHandler.ts)",
+      "WebFetch(domain:blog.r0b.io)",
+      "Bash(curl -sSL -A \"Mozilla/5.0\" \"https://raw.githubusercontent.com/davidjerleke/embla-carousel/master/packages/embla-carousel/src/components/DragHandler.ts\" -o /tmp/embla-drag.ts)",
+      "Bash(sed -n '1,60p' /tmp/embla-drag.ts)",
+      "Bash(curl -sSL --ssl-no-revoke -A \"Mozilla/5.0\" \"https://raw.githubusercontent.com/davidjerleke/embla-carousel/master/packages/embla-carousel/src/components/DragHandler.ts\" -o /tmp/embla-drag.ts)",
+      "WebFetch(domain:developer.chrome.com)",
+      "Bash(pnpm --filter @anunciaya/web add embla-carousel-react embla-carousel-autoplay)"
     ]
   },
   "disableAllHooks": true

@@ -129,6 +129,87 @@
 - **`hidratarAuth` innecesario en rutas ajenas** — No llamar `hidratarAuth()` de AnunciaYA en rutas `/scanya/*`. El empleado no tiene cuenta AnunciaYA y genera 404 innecesarios.
 - **Cursor-based pagination para feeds** — Para ChatYA y futuros feeds sociales: cursor-based pagination > offset-based. Endpoint "jump to message" es prioridad alta.
 
+### Navegación desde un overlay sin flash visual (mayo 2026)
+
+Cuando un overlay full-screen (ChatYA, modales, paneles) navega a otra ruta al cerrarse, hay un riesgo de "flash" donde el usuario ve la ruta donde tenía el overlay abierto antes de ver la ruta destino. Patrón validado en `ChatOverlay.tsx` para resolverlo:
+
+- **Síntoma del flash** — Click en algo dentro del overlay → el overlay se cierra → se ve por un instante la ruta anterior (`/negocios`, `/ofertas`, etc.) → finalmente se renderiza la ruta destino. Causa: React batch ambos setStates (cerrar overlay + cambiar location) en el mismo render, pero el browser puede pintar primero el cierre del overlay y solo después el cambio de ruta.
+
+- **Por qué fallan los enfoques "obvios"**:
+  - `cerrarChatYA()` antes de `navigate(ruta)` → flash garantizado.
+  - `navigate(ruta)` antes de `cerrarChatYA()` en el mismo tick → React batchea, puede haber flash igual.
+  - `requestAnimationFrame` (RAF) o doble RAF → se sincroniza con el paint del navegador, no con el commit de React: insuficiente.
+  - `flushSync(() => navigate(ruta))` solo → React commitea el cambio sincrónicamente pero NO garantiza que el browser ya pintó.
+
+- **Patrón validado** — combinación `flushSync` + `setTimeout(200ms)`:
+
+  ```tsx
+  const handler = (e: Event) => {
+    const ruta = (e as CustomEvent<string>).detail;
+    navegandoExternoRef.current = true;
+    flushSync(() => {
+      navigate(ruta);  // React monta el destino DEBAJO del overlay (que sigue visible)
+    });
+    setTimeout(() => {
+      cerrarChatYA();  // overlay desaparece y revela el destino YA pintado
+      setTimeout(() => { navegandoExternoRef.current = false; }, 100);
+    }, 200);
+  };
+  ```
+
+  Los 200ms le dan tiempo al navegador a completar el paint del componente destino antes de que el `display:none` del overlay lo revele. **100ms NO es suficiente** (testeado), 200ms es el mínimo verificado.
+
+- **Riesgo paralelo: `history.back()` que revierte el navigate** — Si el overlay tiene `useEffect` que hacen `history.pushState` al abrir y `history.back()` al cerrar (patrón típico para que la flecha nativa del celular cierre el overlay), esos backs reviertirán el navigate. Solución: usar un flag (`navegandoExternoRef`) que esos effects lean para skip el `history.back()` durante la navegación externa:
+
+  ```tsx
+  useEffect(() => {
+    if (!chatYAAbierto) {
+      if (overlayHistoryRef.current) {
+        // ... cleanup ...
+        if (!navegandoExternoRef.current && /* otros checks */) {
+          history.back();
+        }
+      }
+      return;
+    }
+    // ...
+  }, [chatYAAbierto, ...]);
+  ```
+
+- **Evento custom como API** — Para que un componente arbitrario (ej. `BurbujaMensaje` dentro del chat) pueda disparar este patrón sin acoplarse al ChatOverlay, usar un evento `window.dispatchEvent(new CustomEvent('chatya:navegar-externo', { detail: ruta }))` que el ChatOverlay escucha. El consumidor solo conoce la ruta, no la mecánica de cierre.
+
+- **Cuándo aplica** — overlays full-screen que tienen contenido clickeable que navega: ChatYA (cards de artículos, links de mensajes), modales con CTAs que llevan a otra página, paneles laterales con accesos directos. NO aplica a popovers/tooltips que no tapan visualmente la ruta de fondo.
+
+### Patrón "navegar atrás" con fallback explícito (mayo 2026)
+
+Para botones "← regresar" en páginas que pueden abrirse por flujo natural O por URL directa (compartir, recargar, abrir nueva pestaña). Validado en P2 `PaginaArticuloMarketplace` y P3 `PaginaPerfilVendedor`:
+
+- **`navigate(-1)` solo** falla en entrada directa: `history.length === 1` puede sacar al usuario fuera del sitio o quedar congelado.
+- **`navigate('/marketplace')` siempre** ignora el historial real — si vienes del feed → detalle → perfil, la flecha del perfil NO debería sacarte al feed, debería volverte al detalle.
+
+**Patrón con `location.key`** — `react-router-dom` v6 expone `location.key`. La primera location de la sesión tiene `key: 'default'`; las navegaciones internas posteriores generan keys únicos. Esto detecta si hay historial interno SIN tocar `history.length` (que cuenta entradas de otros dominios y no es confiable):
+
+```tsx
+const navigate = useNavigate();
+const location = useLocation();
+
+const handleVolver = () => {
+  if (location.key !== 'default') {
+    navigate(-1);  // hay historial interno → equivalente a flecha nativa móvil
+  } else {
+    navigate('/marketplace');  // entrada directa → fallback explícito
+  }
+};
+```
+
+**Beneficios:**
+- Flecha de la app y flecha nativa del celular se comportan idénticamente cuando hay historial.
+- Funciona con gesto swipe iOS y botón atrás Android sin código extra.
+- Fallback solo se activa cuando es realmente necesario (URL directa).
+- No requiere pasar `state.volverA` al navegar — la jerarquía surge naturalmente del historial.
+
+**Aplicar siempre que:** una página pueda recibir tráfico desde links compartidos, OG previews, o ser un destino de recarga manual.
+
 ---
 
 ## ScanYA

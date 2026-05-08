@@ -362,9 +362,12 @@ Jerarquía de capas de la app. Cada nivel debe respetar su rango para evitar que
 | Capa | Z-index | Método | Elementos |
 |------|---------|--------|-----------|
 | Contenido base | `0` – `10` | Tailwind | Cards, badges, elementos estáticos |
-| Columnas laterales | `30` | Tailwind | `ColumnaIzquierda`, `ColumnaDerecha` |
-| Header sticky | `40` – `50` | Tailwind | `MobileHeader` (`z-40`), wrapper en `MainLayout` (`z-50`) |
-| BottomNav | `51` | Tailwind | `BottomNav` fijo en la parte inferior |
+| Columnas laterales | `30` | Tailwind | `ColumnaIzquierda`, `ColumnaDerecha`, FAB móvil de toggle Mapa/Lista |
+| FABs y toggles flotantes (interior) | `40` | Tailwind | `BottomNav` (móvil), Toggle Mapa/Lista flotante desktop, FABs de página que deben quedar DEBAJO del ChatOverlay |
+| **ChatOverlay desktop** | **`41`** | Tailwind | Panel del chat al lado derecho/abajo. Tapa cualquier toggle/FAB de la página subyacente |
+| ChatOverlay móvil | `50` | Tailwind | Full-screen sobre toda la app |
+| Header sticky / Navbar global | `40` – `50` | Tailwind | `MobileHeader` (`z-40`), wrapper Navbar en `MainLayout` (`z-50`) |
+| BottomNav (móvil) | `51` | Tailwind | `BottomNav` fijo en la parte inferior — 1 nivel sobre header sticky |
 | Overlays de contenido | `60` – `100` | Tailwind | Tooltips, dropdowns, popovers dentro del flujo normal |
 | Drawers / Menús laterales | `1001` – `1002` | `style` inline | Overlay (`1001`) + Panel (`1002`). Ver TC-18 |
 | Leaflet overlays | `1000+` | Leaflet interno | Requiere `z-[1000]` para overlays sobre mapas |
@@ -375,6 +378,8 @@ Jerarquía de capas de la app. Cada nivel debe respetar su rango para evitar que
 2. **Portal obligatorio** para cualquier elemento con z-index > 1000 que se renderice dentro de un padre con stacking context (ver TC-18).
 3. **Nunca reusar** el mismo z-index para elementos que pueden coexistir visualmente.
 4. **BottomNav `z-51`** está intencionalmente 1 nivel arriba del header sticky (`z-50`) para que la barra inferior siempre sea visible durante scroll.
+5. **Toggles/FABs de página NO deben superar `z-40`** — el `ChatOverlay` desktop vive en `z-41`. Si un toggle queda por encima, se ve por delante del chat al abrirlo. Caso de referencia: el toggle Mapa/Lista flotante de `PaginaNegocios` se bajó de `z-50` a `z-40` (mayo 2026) tras detectarse este conflicto.
+6. **El navbar global (`z-50`) sí supera al ChatOverlay desktop (`z-41`)** — intencional. El navbar siempre debe ser accesible para que el usuario pueda cerrar el chat (campanita, ícono de chat, perfil).
 
 ---
 

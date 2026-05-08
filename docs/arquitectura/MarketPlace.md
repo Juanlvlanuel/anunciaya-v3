@@ -1,12 +1,83 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
-> **Última actualización:** 07 Mayo 2026
-> **Estado:** ✅ v1 + v1.1 + v1.2 + **v1.3 (Q&A público + polish del feed)** completados y desplegados en producción.
-> **Versión:** 1.3.0
+> **Última actualización:** 08 Mayo 2026
+> **Estado:** ✅ v1 + v1.1 + v1.2 + v1.3 + **v1.4 (UX polish P2/P3 + contexto ChatYA)** completados y desplegados en producción.
+> **Versión:** 1.4.0
 > **Pendientes opcionales:**
 >  - Sistema de Niveles del Vendedor (separado de v1.2)
 >  - Fase 3: stories de contactos arriba del feed
 >  - Fase 4: sistema de contactos ChatYA desde perfil del vendedor
+
+## 🆕 v1.4 — UX polish P2/P3 + contexto ChatYA (08 May 2026)
+
+Iteración de pulido sobre el detalle del artículo (P2) y el perfil del vendedor (P3), más una funcionalidad nueva importante: cuando un comprador inicia una conversación de ChatYA desde MarketPlace, el chat ya nace con **contexto claro** (card del artículo embebida o aviso "X te contactó desde tu perfil") en lugar de quedar vacío.
+
+### Header del Detalle (P2) — limpieza
+
+- **Quitado** el menú "⋯" de 3 puntitos del header (sólo tenía un placeholder "Bloquear vendedor"). Header ahora es solo back + título + share + ❤️.
+- **Tooltips solo en desktop** (`<Tooltip className="hidden lg:block">`) en los botones de share y guardar — patrón consistente con P3 y los tokens de tooltip responsivo (TC-16).
+- Ícono **share** en variante `'dark'` (`DropdownCompartir`) ahora hereda el color del padre (`text-white/50` igual que el ❤️). Antes tenía `text-slate-700` hardcodeado y se veía más oscuro que los demás botones del header.
+
+### Botón ← regresar (P2 y P3) con fallback explícito
+
+`PaginaArticuloMarketplace` y `PaginaPerfilVendedor` ahora detectan si hay historial interno con `location.key !== 'default'`:
+- Hay historial → `navigate(-1)` (idéntico a la flecha nativa Android / gesto swipe iOS).
+- Entrada directa (URL compartida, recarga, link OG) → fallback a `/marketplace`.
+
+Beneficio: si entras al perfil desde el detalle del artículo desde el feed, la flecha respeta esa jerarquía. Si abres un link compartido del perfil, no te saca fuera del sitio. Patrón documentado en `LECCIONES_TECNICAS.md` ("Patrón navegar atrás con fallback explícito").
+
+### Layout del Detalle (móvil)
+
+- **Bloque info** (eyebrow MarketPlace · Ciudad / título / precio / chips / "hace Xd · vistas") ahora envuelto en card propio — antes flotaba sin contenedor entre la galería y la descripción.
+- **Galería pegada al header** en móvil: el wrapper del contenido pasó de `py-5 lg:py-8` a `pb-5 lg:py-8` (sin padding-top en móvil) para eliminar la franja de fondo azul entre el header negro y la primera foto.
+
+### Auditoría de tokens (16 violaciones corregidas)
+
+Pasada de tokens globales sobre el detalle, card del vendedor y mapa de ubicación. Resumen ejecutivo:
+
+| Archivo | Tipo de violación | Cantidad |
+|---------|-------------------|----------|
+| `PaginaArticuloMarketplace.tsx` | Tamaño mínimo móvil (`text-xs` → `text-sm`) | 6 |
+| `PaginaArticuloMarketplace.tsx` | Peso explícito (`font-medium` mínimo) | 2 |
+| `PaginaArticuloMarketplace.tsx` | Tono / borde (`bg-slate-100` → `bg-slate-200`, `border-slate-200` → `border-slate-300`) | 1 |
+| `CardVendedor.tsx` | Tamaño + padding del patrón TC-6 | 3 |
+| `MapaUbicacion.tsx` | Tonos del borde/fondo + texto privacidad | 4 |
+
+Chips ahora siguen el patrón TC-6 ("Badges informativos en contenido"): `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-semibold`.
+
+### Mensaje contextual de ChatYA al iniciar conversación
+
+**Funcionalidad nueva.** Cuando el comprador hace click en el botón "ChatYA" desde el detalle del artículo o desde el perfil del vendedor, el chat NO empieza vacío — siembra contexto inmediato:
+
+| Origen | Botón | Mensaje sistema visible para ambos |
+|--------|-------|------------------------------------|
+| Detalle del artículo (P2) | `BarraContacto` → ChatYA | Card embebida (foto + título + precio + chip "Ver →") clickeable → navega al detalle |
+| Perfil del vendedor (P3) | `PaginaPerfilVendedor` → ChatYA | Pill centrado: "Juan inició la conversación desde tu perfil" |
+
+Además:
+- **Mensaje optimista al abrir el chat** — la card aparece en la ventana del chat ANTES de que el usuario envíe nada (no hay que esperar a materializar la conversación).
+- **Borrador inicial pre-cargado** — el input arranca con `Hola, me interesa tu publicación de "[título]". ` que el usuario puede editar o enviar tal cual.
+- **No incrementa el contador de no leídos** — el mensaje sistema solo actualiza el preview de la conversación; el badge de "X mensajes nuevos" del vendedor solo cuenta mensajes humanos.
+
+Implementación detallada en `docs/arquitectura/ChatYA.md` §4.6 + §4.13.1 + §4.23.
+
+**Sin migración SQL** — la columna `chat_conversaciones.articulo_marketplace_id` y el `tipo='sistema'` ya estaban en la BD desde el Sprint 1.
+
+### Click en card de ChatYA → detalle del artículo (sin flash visual)
+
+Cuando el comprador o el vendedor hace click en la card del artículo dentro del chat:
+1. Se navega al detalle del artículo (`/marketplace/articulo/:id`).
+2. Se cierra el ChatOverlay sin que se vea un flash de la ruta donde estaba abierto el chat.
+
+Patrón con `flushSync(navigate) + setTimeout(200ms, cerrarChatYA)` + flag `navegandoExternoRef` para que los `useEffect` de history del overlay no hagan `history.back()` durante la navegación externa. Documentado en `LECCIONES_TECNICAS.md` ("Navegación desde un overlay sin flash visual").
+
+### Otros cambios menores
+
+- **FAB "Publicar" móvil** — ahora muestra el label "Publicar" debajo del círculo `+` (antes era `hidden lg:inline`). En móvil va dentro de un chip blanco translúcido con `backdrop-blur` y `shadow-md` para legibilidad sobre fotos del feed.
+- **Modal de imágenes** — badge "X/Y" unificado al estilo del carousel del detalle (`rounded-full bg-black/60 px-3 py-1 text-sm font-semibold backdrop-blur-sm`). Subido de `text-xs` → `text-sm` (cumple tokens). Botón verde de descargar pasó de `green-500` (brillante) a `emerald-600` (color semántico de "éxito" según tokens).
+- **Toggle Mapa/Lista (Negocios)** — z-index bajado de `z-50` a `z-40` para quedar debajo del ChatOverlay (`z-41`). Antes el toggle se veía por encima del chat al abrirlo. Actualizada la jerarquía en `TOKENS_GLOBALES.md` §11.
+
+---
 
 ## 🆕 v1.3 — Q&A público + polish del feed (07 May 2026)
 

@@ -800,7 +800,13 @@ export function PaginaMarketplace() {
                         style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
                     />
                 </span>
-                <span className="hidden lg:inline text-base font-bold text-slate-700">Publicar</span>
+                {/* Label "Publicar" — visible en móvil y desktop.
+                    Móvil: chip blanco translúcido con sombra para legibilidad
+                    sobre fotos del feed (fondos impredecibles).
+                    Desktop: texto plano sobre el fondo claro `bg-slate-100`. */}
+                <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:bg-transparent lg:px-0 lg:py-0 lg:text-base lg:shadow-none lg:backdrop-blur-none">
+                    Publicar
+                </span>
                 <style>{`
                     @keyframes fab-publicar-pulse {
                         0%, 100% { transform: rotate(0deg) scale(1); }

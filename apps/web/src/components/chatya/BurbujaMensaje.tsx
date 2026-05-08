@@ -15,7 +15,7 @@
 
 import { memo, useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic, Ticket } from 'lucide-react';
+import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic, Ticket, ChevronRight, ImageOff } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import type { Mensaje, ContenidoImagen } from '../../types/chatya';
@@ -68,10 +68,6 @@ const SWIPE_MAX = 100;
 // TIPOS
 // =============================================================================
 
-// =============================================================================
-// COMPONENTE: UbicacionBurbuja
-// =============================================================================
-
 /** Estructura del JSON que viene en mensaje.contenido para tipo 'ubicacion' */
 interface ContenidoUbicacion {
   latitud: number;
@@ -107,6 +103,178 @@ const iconoPinBurbuja = L.divIcon({
   iconAnchor: [14, 28],
   iconSize: [28, 28],
 });
+
+// =============================================================================
+// COMPONENTE: MensajeSistema
+// =============================================================================
+//
+// Render dedicado para `mensaje.tipo === 'sistema'`. Distinto de los demás
+// mensajes: NO tiene burbuja propia ni avatar ni reacciones — se renderiza
+// CENTRADO en la conversación con look de "evento del sistema" (similar a
+// "Mensajes cifrados de extremo a extremo" o "X creó el grupo" de WhatsApp).
+//
+// El campo `contenido` viene como JSON con un `subtipo` discriminador:
+//
+//  - `subtipo: 'articulo_marketplace'` → card embebida con foto + título +
+//     precio + condicion + botón "Ver publicación →" que navega al detalle.
+//     Lo emite el backend al crear conversación desde el detalle de un
+//     artículo de MarketPlace.
+//
+//  - `subtipo: 'contacto_perfil'` → texto centrado "X inició la conversación
+//     desde tu perfil". Lo emite el backend al crear conversación desde el
+//     perfil del vendedor (sin artículo específico).
+//
+//  - JSON inválido o subtipo desconocido → fallback texto plano centrado
+//     (mantiene compatibilidad con futuros subtipos).
+
+interface MensajeSistemaProps {
+  contenidoRaw: string;
+}
+
+interface SistemaArticuloMP {
+  subtipo: 'articulo_marketplace';
+  articuloId: string;
+  titulo: string;
+  precio: string | number;
+  condicion: string;
+  fotoUrl: string | null;
+}
+
+interface SistemaContactoPerfil {
+  subtipo: 'contacto_perfil';
+  iniciadorNombre: string;
+}
+
+type DatosSistema = SistemaArticuloMP | SistemaContactoPerfil | { subtipo?: string };
+
+function parsearContenidoSistema(raw: string): DatosSistema | null {
+  try {
+    const datos = JSON.parse(raw);
+    if (typeof datos === 'object' && datos !== null) {
+      return datos as DatosSistema;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+const ETIQUETA_CONDICION_MP: Record<string, string> = {
+  nuevo: 'Nuevo',
+  seminuevo: 'Seminuevo',
+  usado: 'Usado',
+  para_reparar: 'Para reparar',
+};
+
+function formatearPrecioMP(valor: string | number): string {
+  const num = typeof valor === 'string' ? Number(valor) : valor;
+  if (!isFinite(num)) return String(valor);
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(num);
+}
+
+function MensajeSistema({ contenidoRaw }: MensajeSistemaProps) {
+  const datos = parsearContenidoSistema(contenidoRaw);
+
+  // ── Subtipo: card de artículo de MarketPlace ─────────────────────────────
+  if (datos && (datos as SistemaArticuloMP).subtipo === 'articulo_marketplace') {
+    const d = datos as SistemaArticuloMP;
+    const irAlArticulo = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (!d.articuloId) {
+        // eslint-disable-next-line no-console
+        console.warn('[MensajeSistema] articulo_marketplace sin articuloId', datos);
+        return;
+      }
+      // Usar evento custom `chatya:navegar-externo` (manejado por
+      // ChatOverlay). Cierra el chat sin disparar `history.back()` y
+      // luego navega a la ruta destino. Si usáramos `navigate(ruta) +
+      // cerrarChatYA()` directamente, el cierre del overlay haría
+      // `history.back()` y nos regresaría a la ruta donde se abrió el
+      // chat (ej: estabas en /negocios cuando lo abriste → te manda
+      // ahí en vez de al detalle del artículo).
+      window.dispatchEvent(
+        new CustomEvent('chatya:navegar-externo', {
+          detail: `/marketplace/articulo/${d.articuloId}`,
+        }),
+      );
+    };
+    return (
+      <div className="flex w-full justify-center my-1">
+        <button
+          type="button"
+          data-testid={`mensaje-sistema-articulo-${d.articuloId}`}
+          onClick={irAlArticulo}
+          className="group flex w-full max-w-sm cursor-pointer items-stretch overflow-hidden rounded-xl border-2 border-slate-300 bg-white text-left shadow-md lg:hover:border-teal-500"
+        >
+          {/* Foto cuadrada izquierda */}
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden bg-slate-200">
+            {d.fotoUrl ? (
+              <img
+                src={d.fotoUrl}
+                alt={d.titulo}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <ImageOff className="h-8 w-8 text-slate-500" strokeWidth={1.5} />
+            )}
+          </div>
+          {/* Contenido */}
+          <div className="flex min-w-0 flex-1 flex-col justify-between p-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold uppercase tracking-wide text-teal-700">
+                MarketPlace
+              </p>
+              <p className="line-clamp-2 text-sm font-bold leading-tight text-slate-900">
+                {d.titulo}
+              </p>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="shrink-0 text-base font-extrabold text-slate-900">
+                {formatearPrecioMP(d.precio)}
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-teal-700 lg:group-hover:text-teal-900">
+                Ver
+                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+            </div>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  // ── Subtipo: contacto desde el perfil ────────────────────────────────────
+  if (datos && (datos as SistemaContactoPerfil).subtipo === 'contacto_perfil') {
+    const d = datos as SistemaContactoPerfil;
+    return (
+      <div className="flex w-full justify-center my-1">
+        <span className="rounded-full bg-white/85 px-3 py-1 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm">
+          {d.iniciadorNombre} inició la conversación desde tu perfil
+        </span>
+      </div>
+    );
+  }
+
+  // ── Fallback: texto plano centrado ───────────────────────────────────────
+  return (
+    <div className="flex w-full justify-center my-1">
+      <span className="rounded-full bg-white/85 px-3 py-1 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm">
+        {contenidoRaw}
+      </span>
+    </div>
+  );
+}
+
+// =============================================================================
+// COMPONENTE: UbicacionBurbuja
+// =============================================================================
 
 function UbicacionBurbuja({
   contenidoRaw,
@@ -1037,6 +1205,21 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
   // Mensaje eliminado — no renderizar nada
   if (mensaje.eliminado) {
     return null;
+  }
+
+  // ── Mensajes del sistema (contexto de MarketPlace, etc.) ──────────────────
+  // Render dedicado: centrado, sin avatar, sin reacciones, sin menú
+  // contextual, sin swipe-to-reply. El `MensajeSistema` parsea el JSON de
+  // `contenido` y elige el render según `subtipo`.
+  if (mensaje.tipo === 'sistema') {
+    return (
+      <div
+        data-testid={`mensaje-${mensaje.id}`}
+        className="w-full"
+      >
+        <MensajeSistema contenidoRaw={mensaje.contenido} />
+      </div>
+    );
   }
 
   return (

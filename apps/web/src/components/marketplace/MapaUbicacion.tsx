@@ -42,7 +42,7 @@ export function MapaUbicacion({ lat, lng, zonaAproximada }: MapaUbicacionProps) 
                 que los elementos internos de Leaflet (que usan z-index 400+
                 por default) NO escapen y tapen elementos globales como el
                 BottomNav o la BarraContacto fija. */}
-            <div className="relative z-0 overflow-hidden rounded-xl border-2 border-slate-200 bg-slate-100 isolate">
+            <div className="relative z-0 overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-200 isolate">
                 <MapContainer
                     center={[lat, lng]}
                     zoom={ZOOM_INICIAL}
@@ -80,7 +80,7 @@ export function MapaUbicacion({ lat, lng, zonaAproximada }: MapaUbicacionProps) 
                 </div>
             )}
 
-            <p className="text-xs leading-relaxed text-slate-500">
+            <p className="text-sm font-medium leading-relaxed text-slate-600">
                 Mostraremos un círculo de 500m, no la dirección exacta. Acuerda el
                 punto de encuentro por chat.
             </p>

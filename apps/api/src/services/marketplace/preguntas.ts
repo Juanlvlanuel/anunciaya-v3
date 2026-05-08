@@ -27,10 +27,14 @@ import { crearNotificacion } from '../notificaciones.service.js';
 
 interface PreguntaPublicaRow {
     id: string;
+    compradorId: string;
     compradorNombre: string;
+    compradorApellidos: string;
+    compradorAvatarUrl: string | null;
     pregunta: string;
-    respuesta: string;
-    respondidaAt: string;
+    respuesta: string | null;
+    respondidaAt: string | null;
+    editadaAt: string | null;
     createdAt: string;
 }
 
@@ -225,8 +229,17 @@ export async function editarPreguntaPropia(
 // =============================================================================
 
 /**
- * Devuelve las preguntas respondidas de un artículo para visitantes.
- * Nombre del comprador: "Nombre I." (inicial del primer apellido).
+ * Devuelve TODAS las preguntas activas de un artículo para visitantes
+ * (respondidas + pendientes), con datos completos del comprador para
+ * que el frontend pueda renderizar avatar + nombre clickeable hacia
+ * el perfil P3 (mismo patrón que el feed).
+ *
+ * Las preguntas pendientes son visibles públicamente — esto da
+ * transparencia: el comprador ve que su pregunta está en cola, otros
+ * compradores ven preguntas duplicadas antes de hacer otra igual, y
+ * el vendedor recibe presión social para responder rápido.
+ *
+ * Orden: más recientes primero (por created_at DESC).
  */
 export async function obtenerPreguntasPublicas(
     articuloId: string
@@ -234,27 +247,34 @@ export async function obtenerPreguntasPublicas(
     const resultado = await db.execute(sql`
         SELECT
             p.id,
-            CONCAT(u.nombre, ' ', LEFT(u.apellidos, 1), '.') AS comprador_nombre,
+            p.comprador_id   AS comprador_id,
+            u.nombre         AS comprador_nombre,
+            u.apellidos      AS comprador_apellidos,
+            u.avatar_url     AS comprador_avatar_url,
             p.pregunta,
             p.respuesta,
             p.respondida_at  AS respondida_at,
+            p.editada_at     AS editada_at,
             p.created_at     AS created_at
         FROM marketplace_preguntas p
         INNER JOIN usuarios u ON u.id = p.comprador_id
         WHERE p.articulo_id = ${articuloId}
-          AND p.respondida_at IS NOT NULL
           AND p.deleted_at IS NULL
-        ORDER BY p.respondida_at DESC
+        ORDER BY p.created_at DESC
     `);
 
     return resultado.rows.map((row) => {
         const r = row as Record<string, unknown>;
         return {
             id: r.id as string,
+            compradorId: r.comprador_id as string,
             compradorNombre: r.comprador_nombre as string,
+            compradorApellidos: r.comprador_apellidos as string,
+            compradorAvatarUrl: r.comprador_avatar_url as string | null,
             pregunta: r.pregunta as string,
-            respuesta: r.respuesta as string,
-            respondidaAt: r.respondida_at as string,
+            respuesta: r.respuesta as string | null,
+            respondidaAt: r.respondida_at as string | null,
+            editadaAt: r.editada_at as string | null,
             createdAt: r.created_at as string,
         };
     });

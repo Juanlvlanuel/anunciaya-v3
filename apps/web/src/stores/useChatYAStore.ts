@@ -92,6 +92,22 @@ export interface ChatTemporal {
   };
   /** Datos para crear la conversación real al enviar el primer mensaje */
   datosCreacion: CrearConversacionInput;
+  /**
+   * Mensaje sistema OPTIMISTA insertado en la ventana del chat al abrir
+   * el chat temporal. Permite mostrar contexto (ej: card del artículo de
+   * MarketPlace) ANTES de que el usuario envíe el primer mensaje, sin
+   * esperar a que el backend cree la conversación. Cuando se materializa
+   * la conversación real, este optimista es reemplazado por el mensaje
+   * sistema real del backend (vía cargarMensajes).
+   */
+  mensajeContextoOptimista?: Mensaje;
+  /**
+   * Texto pre-cargado en el input al abrir el chat temporal. Se guarda
+   * como borrador del temp_id, así el `InputMensaje` lo carga
+   * automáticamente. Útil para sugerir un mensaje inicial — ej:
+   * "Hola, me interesa tu publicación de [título]".
+   */
+  borradorInicial?: string;
 }
 
 interface ChatYAState {
@@ -430,10 +446,17 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
    * el mensaje optimista que ya está en pantalla.
    */
   transicionarAConversacionReal: (conversacionId: string) => {
+    const idTemp = get().conversacionActivaId;
     set({
       conversacionActivaId: conversacionId,
       chatTemporal: null,
     });
+    // Limpiar el borrador residual del id temp_*. El input ya consumió el
+    // texto al enviar; sin esto el localStorage acumularía borradores
+    // huérfanos de chats temporales que ya se materializaron.
+    if (idTemp?.startsWith('temp_')) {
+      get().limpiarBorrador(idTemp);
+    }
   },
 
   /**
@@ -441,16 +464,28 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
    * La conversación real se crea cuando el usuario envía el primer mensaje.
    */
   abrirChatTemporal: (datos: ChatTemporal) => {
+    // Si vienen datos de contexto, sembrar el chat con el mensaje sistema
+    // optimista para que el usuario vea la card (artículo de MarketPlace,
+    // etc.) inmediatamente al abrir, sin tener que enviar primero.
+    const mensajesIniciales = datos.mensajeContextoOptimista
+      ? [datos.mensajeContextoOptimista]
+      : [];
     set({
       vistaActiva: 'chat',
       conversacionActivaId: datos.id,
       chatTemporal: datos,
-      mensajes: [],
-      totalMensajes: 0,
+      mensajes: mensajesIniciales,
+      totalMensajes: mensajesIniciales.length,
       hayMasMensajes: false,
       escribiendo: {},
       cargandoMensajes: false,
     });
+    // Pre-cargar borrador en el id temp. El `InputMensaje` lee borradores
+    // por `conversacionActivaId`, así que esto aparece automáticamente en
+    // el input cuando se abre el chat temporal.
+    if (datos.borradorInicial && datos.borradorInicial.trim().length > 0) {
+      get().guardarBorrador(datos.id, datos.borradorInicial);
+    }
   },
 
   /** Vuelve a la lista de conversaciones, guardando mensajes y fijados en caché */
@@ -877,12 +912,27 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   enviarMensaje: async (datos: EnviarMensajeInput, _idExistente?: string) => {
     // Si el chat es temporal, materializarlo como conversación real ANTES de enviar.
     // Esto cubre todos los tipos de mensaje (texto, imagen, audio, documento, ubicación).
+    //
+    // Tras materializar, sincronizamos los mensajes desde el backend si la
+    // conversación viene de un contexto de MarketPlace. El backend auto-inserta
+    // un mensaje `tipo='sistema'` (card del artículo o aviso "te contactó desde
+    // el perfil") al crear la conversación, pero el evento `chatya:mensaje-nuevo`
+    // suele llegar mientras `conversacionActivaId` aún es `temp_*`, por lo que
+    // el handler de socket lo descarta. El GET de mensajes garantiza que el
+    // mensaje sistema aparezca en la ventana del chat para el iniciador.
     {
       const { conversacionActivaId: idActual, chatTemporal } = get();
       if (idActual?.startsWith('temp_') && chatTemporal) {
-        const conv = await get().crearConversacion(chatTemporal.datosCreacion);
+        const datosCreacion = chatTemporal.datosCreacion;
+        const conv = await get().crearConversacion(datosCreacion);
         if (!conv) return null;
         get().transicionarAConversacionReal(conv.id);
+        const esContextoMarketplace =
+          datosCreacion.contextoTipo === 'marketplace' ||
+          datosCreacion.contextoTipo === 'vendedor_marketplace';
+        if (esContextoMarketplace) {
+          await get().cargarMensajes(conv.id);
+        }
       }
     }
 

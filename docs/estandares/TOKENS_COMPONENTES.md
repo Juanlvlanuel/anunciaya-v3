@@ -27,6 +27,7 @@
 20. [Avatares](#20-avatares)
 21. [Carrusel con Drag-to-Scroll (estándar de la app)](#21-carrusel-con-drag-to-scroll-estándar-de-la-app)
 22. [Modales contenidos en preview (PortalTargetContext)](#22-modales-contenidos-en-preview-portaltargetcontext)
+23. [Lightbox / Modal de Imágenes — Indicadores y Botones Flotantes](#23-lightbox--modal-de-imágenes--indicadores-y-botones-flotantes)
 
 ---
 
@@ -1868,3 +1869,62 @@ return (
 ### Cuándo agregar un nuevo target
 
 Cualquier nuevo contexto donde un componente con modales se embeba en un espacio menor al viewport: dashboard widgets, demos, previews adicionales, etc. Basta con envolver el wrapper con `PortalTargetProvider` y darle `relative overflow-hidden`.
+
+---
+
+## 23. Lightbox / Modal de Imágenes — Indicadores y Botones Flotantes
+
+Patrón unificado para el lightbox fullscreen (`ModalImagenes.tsx`) y para los carouseles que comparten su estética (galería del detalle de MarketPlace, futuras galerías de negocios/ofertas).
+
+### Badge contador "X/N" (indicador de imagen actual)
+
+Pill negro translúcido con backdrop-blur que flota sobre la imagen mostrando la posición del slide actual.
+
+```tsx
+<div className="pointer-events-none absolute bottom-3 [right|left]-3 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+  {indiceActual + 1}/{total}
+</div>
+```
+
+| Aspecto | Token | Notas |
+|---------|-------|-------|
+| Forma | `rounded-full` | Pill |
+| Fondo | `bg-black/60` | NO `bg-opacity-70` (sintaxis legacy de Tailwind) |
+| Blur | `backdrop-blur-sm` | Suaviza el fondo de la imagen detrás |
+| Padding | `px-3 py-1` | Compacto |
+| Texto | `text-sm font-semibold text-white` | Cumple mínimo móvil de tokens |
+| Formato | `1/4` (sin espacios) | NO `1 / 4` |
+| Posición | `bottom-3 right-3` (carousel) o `bottom-3 left-3` (modal con botón descargar a la derecha) | Sin variantes responsive |
+| Pointer | `pointer-events-none` | No interfiere con swipe ni gestos |
+
+**Implementaciones actuales:**
+- `apps/web/src/components/marketplace/GaleriaArticulo.tsx` — carrusel móvil + foto principal desktop.
+- `apps/web/src/components/ui/ModalImagenes.tsx` — lightbox fullscreen.
+
+### Botones flotantes circulares (cerrar / descargar / acciones)
+
+Botones circulares con sombra, semi-transparentes, que flotan sobre la imagen en las esquinas. Usan colores neutros para acciones estándar y color semántico solo para acción primaria (descargar).
+
+| Tipo | Posición | Color base | Color hover | Tamaño |
+|------|----------|------------|-------------|--------|
+| Cerrar (X) | `top-2.5 right-2.5` | `bg-black/50` | `hover:bg-red-500` | `w-9 h-9 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9` |
+| Descargar | `bottom-3 right-3` | `bg-emerald-600` | `hover:bg-emerald-700` | `w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10` |
+
+**Reglas:**
+- **Verde "descargar":** usar SIEMPRE `emerald-600`/`emerald-700` (color semántico de "éxito" según TG-8). Nunca `green-500` u otros tonos brillantes — `green-500` es muy lima y se ve juvenil sobre fondo oscuro.
+- **Cerrar (X):** fondo neutro semi-transparente con hover rojo (señaliza acción destructiva sutilmente).
+- Sombra: `shadow-lg` (los botones flotan sobre la imagen y necesitan profundidad).
+- Animación de feedback: `hover:scale-105 active:scale-95` con `transition-all duration-100`.
+- Cursor: `cursor-pointer` siempre.
+
+### Cuándo aplicar
+
+- Cualquier galería/carousel de imágenes con paginación visible (X/N).
+- Modales fullscreen tipo lightbox.
+- Visores de imágenes embebidos (chat, perfil, catálogo) que muestren paginación.
+
+### Cuándo NO aplicar
+
+- Imágenes individuales sin paginación (no necesitan badge).
+- Iconos de UI generales (usar tokens de íconos estándar).
+- Cards estáticas (la jerarquía visual del card ya delimita la imagen).

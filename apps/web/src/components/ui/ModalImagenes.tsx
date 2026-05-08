@@ -285,7 +285,7 @@ export const ModalImagenes = ({
           <button
             onClick={descargarImagen}
             disabled={descargando}
-            className="absolute bottom-3 right-3 lg:bottom-2.5 lg:right-2.5 2xl:bottom-3 2xl:right-3 w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 bg-green-500 hover:bg-green-600 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-100 hover:scale-105 active:scale-95 cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute bottom-3 right-3 lg:bottom-2.5 lg:right-2.5 2xl:bottom-3 2xl:right-3 w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 bg-emerald-600 hover:bg-emerald-700 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-100 hover:scale-105 active:scale-95 cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Descargar imagen"
           >
             {descargando ? (
@@ -297,10 +297,13 @@ export const ModalImagenes = ({
             )}
           </button>
 
-          {/* Indicador de posición */}
+          {/* Indicador de posición — mismo estilo que el badge del carousel
+              en el detalle del artículo (GaleriaArticulo): pill negro
+              translúcido con backdrop-blur. Va en bottom-left para no
+              chocar con el botón de descargar (bottom-right). */}
           {hayMultiplesImagenes && (
-            <div className="absolute bottom-3 left-3 lg:bottom-2.5 lg:left-2.5 2xl:bottom-3 2xl:left-3 bg-black bg-opacity-70 text-white px-4 py-1 lg:px-3 lg:py-0.5 2xl:px-4 2xl:py-1 rounded-full text-sm lg:text-xs 2xl:text-sm font-medium">
-              {indiceActual + 1} / {images.length}
+            <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+              {indiceActual + 1}/{images.length}
             </div>
           )}
         </div>

@@ -7,6 +7,60 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [08 Mayo 2026] - MarketPlace v1.4 — UX polish P2/P3 + contexto ChatYA + auditoría de tokens 🎨💬
+
+Iteración de pulido sobre el detalle del artículo (P2) y el perfil del vendedor (P3), más una funcionalidad nueva importante: **mensaje contextual al iniciar conversación de ChatYA** desde MarketPlace. El chat ya nace con la card del artículo embebida o con un aviso "X te contactó desde tu perfil" según el origen — no más chat vacío sin contexto.
+
+**Header del Detalle (P2) — limpieza:**
+- Quitado el menú "⋯" de 3 puntitos (sólo tenía un placeholder "Bloquear vendedor"). Header ahora es back + título + share + ❤️.
+- Tooltips con `<Tooltip className="hidden lg:block">` en los botones — solo aparecen en desktop, consistente con P3.
+- Ícono share en variante `dark` ahora hereda color del padre (`text-white/50` igual que el ❤️). Antes tenía `text-slate-700` hardcodeado.
+
+**Botón ← regresar (P2 y P3) con fallback `location.key`:**
+- Si hay historial interno → `navigate(-1)` (idéntico a flecha nativa Android / swipe iOS).
+- Entrada directa por URL → fallback a `/marketplace`.
+- Patrón documentado en `LECCIONES_TECNICAS.md` ("Patrón navegar atrás con fallback explícito").
+
+**Layout del Detalle (móvil):**
+- Bloque info (eyebrow MarketPlace · Ciudad / título / precio / chips / vistas) ahora dentro de un card propio. Antes flotaba sin contenedor.
+- Galería pegada al header: `py-5 lg:py-8` → `pb-5 lg:py-8`. Sin franja de fondo azul entre el header negro y la primera foto.
+
+**Auditoría de tokens — 16 violaciones corregidas:**
+- `PaginaArticuloMarketplace.tsx` (9): chips `text-xs → text-sm`, descripción y cuerpo Estado404 ganan `font-medium`, fondo del icono de Estado404 `bg-slate-100 → bg-slate-200`, barra fija inferior `border-slate-200 → border-2 border-slate-300`. Chip "Acepta ofertas" y `ChipCondicion` siguen el patrón TC-6 (`gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold`).
+- `CardVendedor.tsx` (3): ciudad `text-xs → text-sm`, trust badges con responsive `text-sm lg:text-xs 2xl:text-sm` + `gap-1.5`.
+- `MapaUbicacion.tsx` (4): borde `border-slate-200 → border-slate-300`, fondo `bg-slate-100 → bg-slate-200`, texto privacidad `text-xs text-slate-500 → text-sm font-medium text-slate-600`.
+
+**Mensaje contextual de ChatYA al iniciar conversación (funcionalidad nueva):**
+- Backend `apps/api/src/services/chatya.service.ts`: nuevo helper `insertarMensajeContextoMarketplace`. Persiste `articulo_marketplace_id` (columna FK que ya existía pero no se usaba). Auto-inserta mensaje `tipo='sistema'` con JSON discriminado (`subtipo: 'articulo_marketplace'` o `'contacto_perfil'`). `emisorId=NULL`, no incrementa contador de no leídos. Emite por Socket.io a ambos.
+- Backend types: `ContextoTipo` agrega `'vendedor_marketplace'`. `CrearConversacionInput` agrega `articuloMarketplaceId?: string | null`.
+- Frontend `BurbujaMensaje.tsx`: nuevo sub-componente `MensajeSistema` con render dedicado (card embebida del artículo o pill centrado tipo WhatsApp). Sin chrome de mensajes normales (avatar, reacciones, swipe, menú contextual).
+- Frontend `useChatYAStore.ts`: `ChatTemporal` extendido con `mensajeContextoOptimista` + `borradorInicial`. `abrirChatTemporal` siembra ambos al inicio. La card aparece ANTES de enviar nada y el input arranca con `Hola, me interesa tu publicación de "[título]". `.
+- Frontend `BarraContacto.tsx`: pasa `articuloMarketplaceId` y construye el optimista. `transicionarAConversacionReal` limpia el borrador residual del `temp_*`.
+- Política de duplicación: detalle del artículo siempre inserta nueva card (cada interés es distinto); perfil no duplica si convo existe.
+- **Sin migración SQL** — `articulo_marketplace_id` y `tipo='sistema'` ya estaban en BD.
+- Doc en `ChatYA.md` §4.6 + §4.13.1 + §4.23.
+
+**Click en card de ChatYA → detalle del artículo sin flash visual:**
+- Patrón `flushSync(navigate) + setTimeout(200ms, cerrarChatYA)` en el handler de `chatya:navegar-externo` del `ChatOverlay`. Garantiza que el componente destino esté pintado debajo del overlay antes de que el `display:none` lo revele.
+- Flag `navegandoExternoRef` activado para que los `useEffect` de history del overlay/chat NO ejecuten `history.back()` durante navegación externa (que revertiría el navigate).
+- Patrón documentado en `LECCIONES_TECNICAS.md` ("Navegación desde un overlay sin flash visual").
+
+**Cambios menores:**
+- FAB "Publicar" móvil: label "Publicar" ahora visible en móvil dentro de un chip blanco translúcido con `backdrop-blur` y `shadow-md` (antes `hidden lg:inline`).
+- Modal de imágenes: badge "X/Y" unificado al estilo del carousel del detalle (`rounded-full bg-black/60 px-3 py-1 text-sm font-semibold backdrop-blur-sm`). Botón verde de descargar pasó de `green-500` (brillante) a `emerald-600` (color semántico).
+- Toggle Mapa/Lista (Negocios): z-index `z-50 → z-40` para quedar debajo del ChatOverlay (`z-41`). Actualizada jerarquía en `TOKENS_GLOBALES.md` §11.
+
+**Doc actualizada:**
+- `docs/arquitectura/MarketPlace.md` v1.4.0
+- `docs/arquitectura/ChatYA.md` v7.2 (§3.1 BD, §4.6 mensajes sistema, §4.13.1 mensaje contextual, §4.23 borrador inicial)
+- `docs/estandares/LECCIONES_TECNICAS.md` (2 lecciones nuevas: navegación desde overlay sin flash, navegar-atrás con fallback)
+- `docs/estandares/TOKENS_GLOBALES.md` §11 (z-index del toggle Mapa/Lista)
+- `docs/estandares/TOKENS_COMPONENTES.md` (nuevo TC para Modal de Imágenes)
+
+**Sin migraciones SQL.**
+
+---
+
 ## [07 Mayo 2026] - MarketPlace v1.3 — Q&A público + polish del feed + bugs de persistencia 💬❤️
 
 Iteración de pulido sobre el feed v1.2 del MarketPlace. Se hicieron públicas las preguntas pendientes (no solo las respondidas), se agregó edición/borrado de la pregunta propia, se levantó el límite de 1 pregunta por usuario por artículo, se cerró un set de bugs de persistencia del corazón "Guardado" y se completó el polish visual de la card.

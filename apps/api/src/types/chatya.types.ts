@@ -27,9 +27,14 @@ export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 // Visión v3 (abril 2026): 'dinamica' removido del alcance v1 (Dinámicas
 // descartadas) y 'empleo' renombrado a 'servicio' (sección pública unificada).
 // CHECK constraint de chat_conv.contexto_tipo en BD ya sincronizado en Fase D.
+//
+// 'vendedor_marketplace' (mayo 2026): conversaciones iniciadas desde el perfil
+// del vendedor en MarketPlace (sin un artículo específico). Distinto de
+// 'marketplace' que SÍ tiene un artículo de referencia.
 export type ContextoTipo =
   | 'negocio'
   | 'marketplace'
+  | 'vendedor_marketplace'
   | 'oferta'
   | 'servicio'
   | 'directo'
@@ -47,6 +52,14 @@ export interface CrearConversacionInput {
   participante2SucursalId?: string | null;
   contextoTipo?: ContextoTipo;
   contextoReferenciaId?: string | null;
+  /**
+   * FK a `articulos_marketplace.id`. Solo aplica cuando
+   * `contextoTipo === 'marketplace'`. Permite al backend hacer JOIN para
+   * obtener snapshot del artículo y auto-insertar el mensaje contextual al
+   * crear la conversación. Independiente de `contextoReferenciaId` (que es
+   * genérico) — esta columna existe específicamente en BD con FK real.
+   */
+  articuloMarketplaceId?: string | null;
 }
 
 export interface EnviarMensajeInput {

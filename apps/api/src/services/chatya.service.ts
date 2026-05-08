@@ -19,6 +19,7 @@ import {
     chatMensajesFijados,
     chatContactos,
     ofertas,
+    articulosMarketplace,
 } from '../db/schemas/schema.js';
 import { eq, and, or, desc, sql, ne, count, isNull } from 'drizzle-orm';
 import { emitirAUsuario } from '../socket.js';
@@ -642,6 +643,25 @@ export async function crearObtenerConversacion(
                     .where(eq(chatConversaciones.id, existente.id));
             }
 
+            // Caso "convo ya existe": SOLO se inserta una nueva card de
+            // contexto cuando vienen del DETALLE de un artículo (marketplace +
+            // articuloMarketplaceId). Para el caso del PERFIL (vendedor_
+            // marketplace) no se duplica — el comprador y el vendedor ya
+            // tienen historia previa y no aporta repetir el "te contactó desde
+            // el perfil".
+            if (
+                input.contextoTipo === 'marketplace' &&
+                input.articuloMarketplaceId
+            ) {
+                await insertarMensajeContextoMarketplace(
+                    existente.id,
+                    'marketplace',
+                    input.articuloMarketplaceId,
+                    usuarioId,
+                    input.participante2Id,
+                );
+            }
+
             return obtenerConversacion(existente.id, usuarioId, input.participante1SucursalId ?? null);
         }
 
@@ -657,13 +677,180 @@ export async function crearObtenerConversacion(
                 participante2SucursalId: input.participante2SucursalId ?? null,
                 contextoTipo: input.contextoTipo ?? 'directo',
                 contextoReferenciaId: input.contextoReferenciaId ?? null,
+                articuloMarketplaceId: input.articuloMarketplaceId ?? null,
             })
             .returning();
+
+        // Auto-insertar mensaje contextual al crear NUEVA conversación de
+        // MarketPlace. Cubre los dos puntos de entrada:
+        //   - 'marketplace' + articuloMarketplaceId → card de la publicación
+        //   - 'vendedor_marketplace' (sin artículo) → texto sistema "X te
+        //     contactó desde tu perfil"
+        if (input.contextoTipo === 'marketplace' && input.articuloMarketplaceId) {
+            await insertarMensajeContextoMarketplace(
+                nueva.id,
+                'marketplace',
+                input.articuloMarketplaceId,
+                usuarioId,
+                input.participante2Id,
+            );
+        } else if (input.contextoTipo === 'vendedor_marketplace') {
+            await insertarMensajeContextoMarketplace(
+                nueva.id,
+                'vendedor_marketplace',
+                null,
+                usuarioId,
+                input.participante2Id,
+            );
+        }
 
         return obtenerConversacion(nueva.id, usuarioId, input.participante1SucursalId ?? null);
     } catch (error) {
         console.error('Error en crearObtenerConversacion:', error);
         return { success: false, message: 'Error al crear conversación', code: 500 };
+    }
+}
+
+// =============================================================================
+// HELPER: INSERTAR MENSAJE SISTEMA DE CONTEXTO (MarketPlace)
+// =============================================================================
+
+/**
+ * Inserta un mensaje `tipo='sistema'` con JSON discriminado para dar
+ * contexto al inicio de una conversación de MarketPlace.
+ *
+ * Subtipos:
+ *  - `articulo_marketplace`: el comprador contactó desde el detalle del
+ *    artículo. JSON contiene snapshot (titulo, precio, condicion, fotoUrl,
+ *    articuloId) que el frontend renderiza como card embebida.
+ *  - `contacto_perfil`: el comprador contactó desde el perfil del vendedor
+ *    sin un artículo específico. JSON contiene el nombre del iniciador para
+ *    el texto "X te contactó desde tu perfil".
+ *
+ * El mensaje:
+ *  - Tiene `emisorId = NULL` (es del sistema, no de un usuario).
+ *  - Actualiza el preview de la conversación pero NO incrementa contadores
+ *    de no leídos — solo los mensajes de personas reales suman al badge.
+ *  - Se emite por Socket.io a ambos participantes para render en vivo.
+ *
+ * Si el artículo ya no existe (404), no inserta nada — no se rompe el flujo
+ * principal de creación de conversación.
+ */
+async function insertarMensajeContextoMarketplace(
+    conversacionId: string,
+    contextoTipo: 'marketplace' | 'vendedor_marketplace',
+    articuloMarketplaceId: string | null,
+    iniciadorId: string,
+    receptorId: string,
+): Promise<void> {
+    try {
+        let contenido: string | null = null;
+        let previewTexto: string | null = null;
+
+        if (contextoTipo === 'marketplace' && articuloMarketplaceId) {
+            const [art] = await db
+                .select({
+                    id: articulosMarketplace.id,
+                    titulo: articulosMarketplace.titulo,
+                    precio: articulosMarketplace.precio,
+                    condicion: articulosMarketplace.condicion,
+                    fotos: articulosMarketplace.fotos,
+                    fotoPortadaIndex: articulosMarketplace.fotoPortadaIndex,
+                })
+                .from(articulosMarketplace)
+                .where(eq(articulosMarketplace.id, articuloMarketplaceId))
+                .limit(1);
+
+            if (!art) return;
+
+            const fotos = (art.fotos as string[] | null) ?? [];
+            const idx = Math.max(0, Math.min(art.fotoPortadaIndex ?? 0, fotos.length - 1));
+            const fotoUrl = fotos[idx] ?? null;
+
+            contenido = JSON.stringify({
+                subtipo: 'articulo_marketplace',
+                articuloId: art.id,
+                titulo: art.titulo,
+                precio: art.precio,
+                condicion: art.condicion,
+                fotoUrl,
+            });
+            previewTexto = `Sobre: ${art.titulo}`.substring(0, 100);
+        } else if (contextoTipo === 'vendedor_marketplace') {
+            const [u] = await db
+                .select({ nombre: usuarios.nombre, apellidos: usuarios.apellidos })
+                .from(usuarios)
+                .where(eq(usuarios.id, iniciadorId))
+                .limit(1);
+            if (!u) return;
+            const nombreIniciador = `${u.nombre ?? ''} ${u.apellidos ?? ''}`.trim() || 'Alguien';
+            contenido = JSON.stringify({
+                subtipo: 'contacto_perfil',
+                iniciadorNombre: nombreIniciador,
+            });
+            previewTexto = 'Conversación iniciada desde el perfil';
+        }
+
+        if (!contenido || !previewTexto) return;
+
+        const [msg] = await db
+            .insert(chatMensajes)
+            .values({
+                conversacionId,
+                emisorId: null,
+                emisorModo: null,
+                emisorSucursalId: null,
+                tipo: 'sistema',
+                contenido,
+                estado: 'enviado',
+            })
+            .returning();
+
+        // Actualiza preview SIN incrementar no leídos (mensajes sistema no
+        // generan badge — patrón consistente con "Mis Notas").
+        const ahora = new Date().toISOString();
+        await db
+            .update(chatConversaciones)
+            .set({
+                ultimoMensajeTexto: previewTexto,
+                ultimoMensajeFecha: ahora,
+                ultimoMensajeTipo: 'sistema',
+                ultimoMensajeEstado: 'enviado',
+                ultimoMensajeEmisorId: null,
+                updatedAt: ahora,
+            })
+            .where(eq(chatConversaciones.id, conversacionId));
+
+        // Emisión Socket.io a ambos lados — el receptor ve la card aparecer
+        // sin recargar; el iniciador la ve también para confirmar contexto.
+        const mensajeResponse: MensajeResponse = {
+            id: msg.id,
+            conversacionId: msg.conversacionId,
+            emisorId: null,
+            emisorModo: null,
+            emisorSucursalId: null,
+            empleadoId: null,
+            tipo: 'sistema',
+            contenido: msg.contenido,
+            estado: msg.estado as EstadoMensaje,
+            editado: msg.editado,
+            editadoAt: msg.editadoAt,
+            eliminado: msg.eliminado,
+            eliminadoAt: msg.eliminadoAt,
+            respuestaAId: null,
+            reenviadoDeId: null,
+            createdAt: msg.createdAt ?? '',
+            entregadoAt: msg.entregadoAt,
+            leidoAt: msg.leidoAt,
+        };
+
+        emitirAUsuario(iniciadorId, 'chatya:mensaje-nuevo', { conversacionId, mensaje: mensajeResponse });
+        emitirAUsuario(receptorId, 'chatya:mensaje-nuevo', { conversacionId, mensaje: mensajeResponse });
+    } catch (error) {
+        // No romper el flujo principal de creación de conversación si falla
+        // el mensaje de contexto — peor caso, la conversación queda sin la
+        // card y el usuario igual puede chatear normal.
+        console.error('Error en insertarMensajeContextoMarketplace:', error);
     }
 }
 

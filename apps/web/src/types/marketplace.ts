@@ -77,11 +77,19 @@ export interface ArticuloFeed extends ArticuloMarketplace {
  */
 export interface PreguntaMarketplace {
     id: string;
-    /** "Nombre I." — inicial del apellido para anonimato parcial */
+    /** UUID del comprador — necesario para BotonComentarista (P3 navegación). */
+    compradorId: string;
+    /** Nombre completo (no anonimizado) — antes era "Nombre I." */
     compradorNombre: string;
+    /** Apellidos completos del comprador. */
+    compradorApellidos: string;
+    /** URL del avatar (puede ser null si el comprador no subió foto). */
+    compradorAvatarUrl: string | null;
     pregunta: string;
     respuesta: string | null;
     respondidaAt: string | null;
+    /** Timestamp de la última edición (null si nunca se editó). */
+    editadaAt: string | null;
     createdAt: string;
 }
 
@@ -104,12 +112,17 @@ export interface MiPreguntaPendiente {
 
 /**
  * Respuesta del endpoint cuando el visitante NO es dueño:
- * - `respondidas`: array de preguntas públicas (solo respondidas).
+ * - `preguntas`: TODAS las preguntas activas (respondidas + pendientes),
+ *   con datos completos del comprador (id, nombre, apellidos, avatarUrl)
+ *   para renderizar avatar + nombre clickeable hacia el perfil P3
+ *   (mismo patrón que el feed).
  * - `miPreguntaPendiente`: pregunta del propio usuario aún sin respuesta,
- *   o `null` si no está autenticado o no ha preguntado.
+ *   o `null` si no está autenticado o no ha preguntado. Se conserva
+ *   principalmente para saber si ocultar el botón "Hacer una pregunta"
+ *   (evita duplicados — el backend rechaza con 409).
  */
 export interface PreguntasVisitante {
-    respondidas: PreguntaMarketplace[];
+    preguntas: PreguntaMarketplace[];
     miPreguntaPendiente: MiPreguntaPendiente | null;
 }
 

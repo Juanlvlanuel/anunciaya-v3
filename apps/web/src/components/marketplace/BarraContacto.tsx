@@ -26,6 +26,7 @@ import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';
 import type { ArticuloMarketplaceDetalle } from '../../types/marketplace';
+import type { Mensaje } from '../../types/chatya';
 
 interface BarraContactoProps {
     articulo: ArticuloMarketplaceDetalle;
@@ -62,6 +63,46 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
             return;
         }
         const idTemp = `temp_marketplace_${id}_${Date.now()}`;
+
+        // ── Mensaje sistema OPTIMISTA con la card del artículo ──
+        // Se inserta en la ventana del chat ANTES de que el usuario envíe
+        // nada, dándole contexto inmediato al abrir. Lleva un id `temp_*`
+        // para que `cargarMensajes` lo reemplace por el real (con UUID del
+        // backend) cuando se materialice la conversación.
+        const fotos = articulo.fotos ?? [];
+        const idxPortada = Math.max(
+            0,
+            Math.min(articulo.fotoPortadaIndex ?? 0, fotos.length - 1),
+        );
+        const fotoUrl = fotos[idxPortada] ?? fotos[0] ?? null;
+        const optimistaSistema: Mensaje = {
+            id: `temp_sistema_${id}`,
+            conversacionId: idTemp,
+            emisorId: null,
+            emisorModo: null,
+            emisorSucursalId: null,
+            empleadoId: null,
+            tipo: 'sistema',
+            contenido: JSON.stringify({
+                subtipo: 'articulo_marketplace',
+                articuloId: id,
+                titulo,
+                precio: articulo.precio,
+                condicion: articulo.condicion,
+                fotoUrl,
+            }),
+            estado: 'enviado',
+            editado: false,
+            editadoAt: null,
+            eliminado: false,
+            eliminadoAt: null,
+            respuestaAId: null,
+            reenviadoDeId: null,
+            createdAt: new Date().toISOString(),
+            entregadoAt: null,
+            leidoAt: null,
+        };
+
         abrirChatTemporal({
             id: idTemp,
             otroParticipante: {
@@ -75,7 +116,14 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
                 participante2Modo: 'personal',
                 contextoTipo: 'marketplace',
                 contextoReferenciaId: id,
+                // Activa el mensaje sistema con la card del artículo en el
+                // primer render del chat. El backend hace JOIN para obtener
+                // el snapshot (foto/título/precio) y emite el mensaje vía
+                // Socket.io a ambos participantes.
+                articuloMarketplaceId: id,
             },
+            mensajeContextoOptimista: optimistaSistema,
+            borradorInicial: `Hola, me interesa tu publicación de "${titulo}". `,
         });
         abrirChatYA();
     };

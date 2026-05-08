@@ -1,9 +1,11 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v7.1 — Actualizado 2026-03-23 — **MÓDULO COMPLETADO ✅**
+> **Versión:** v7.2 — Actualizado 2026-05-08 — **MÓDULO COMPLETADO ✅**
+>
+> **Cambios v7.2 (mayo 2026):** mensaje contextual de MarketPlace (§4.6, §4.13.1), columna `articulo_marketplace_id`, contexto `'vendedor_marketplace'`, borrador inicial en chats temporales (§4.23), patrón "navegar desde overlay sin flash" (ver `LECCIONES_TECNICAS.md`).
 
-**Fecha:** 23 Marzo 2026
-**Versión:** 7.1
+**Fecha:** 08 Mayo 2026
+**Versión:** 7.2
 **Proyecto:** AnunciaYA v3.0  
 **Chat de origen:** Chat Cerebro del Proyecto (Opus 4.6)  
 **Propósito:** Documento de referencia para implementar ChatYA en múltiples sesiones de chat. Contiene TODAS las decisiones, especificaciones, progreso y referencia técnica completa.
@@ -95,8 +97,9 @@ _Ninguna pendiente._
 | participante2_id | UUID FK → usuarios | ON DELETE CASCADE |
 | participante2_modo | VARCHAR(15) | 'personal' \| 'comercial' |
 | participante2_sucursal_id | UUID FK → negocio_sucursales | Nullable, ON DELETE SET NULL |
-| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'servicio' \| 'directo' \| 'notas' |
+| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'vendedor_marketplace' \| 'oferta' \| 'servicio' \| 'directo' \| 'notas' |
 | contexto_referencia_id | UUID | Nullable. ID del recurso de origen |
+| articulo_marketplace_id | UUID FK → articulos_marketplace | Nullable, ON DELETE SET NULL. FK directa al artículo cuando la conversación se inicia desde el detalle de una publicación de MarketPlace. Permite snapshot eficiente vía JOIN sin parsear `contexto_referencia_id`. Índice parcial cuando IS NOT NULL |
 | ultimo_mensaje_texto | VARCHAR(100) | Preview truncado del último mensaje |
 | ultimo_mensaje_fecha | TIMESTAMPTZ | Para ordenar la lista de chats |
 | ultimo_mensaje_tipo | VARCHAR(20) | 'texto' \| 'imagen' \| 'audio' \| 'documento' \| 'ubicacion' \| 'contacto' \| 'sistema' \| 'cupon' |
@@ -117,7 +120,9 @@ _Ninguna pendiente._
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | Se actualiza con cada mensaje. TTL se basa en este campo |
 
-**CHECK constraints:** modos válidos, contexto_tipo válido (`'negocio' | 'marketplace' | 'oferta' | 'dinamica' | 'empleo' | 'directo' | 'notas'`), no auto-chat excepto cuando `contexto_tipo = 'notas'` (Mis Notas permite p1 = p2).
+**CHECK constraints:** modos válidos, contexto_tipo válido (`'negocio' | 'marketplace' | 'vendedor_marketplace' | 'oferta' | 'servicio' | 'directo' | 'notas'`), no auto-chat excepto cuando `contexto_tipo = 'notas'` (Mis Notas permite p1 = p2).
+
+> **`'vendedor_marketplace'` (Sprint 9.x, mayo 2026):** conversaciones iniciadas desde el **perfil del vendedor** (P3) en MarketPlace, sin un artículo específico de referencia. Distinto de `'marketplace'` que sí lleva `articulo_marketplace_id`. Ver §4.13.1.
 
 ### 3.2 `chat_mensajes`
 
@@ -282,6 +287,15 @@ Lógica nombres: Respuesta → "Tú" (si `emisorId === miId`) o nombre del conta
 ### 4.6 Mensajes de Sistema
 
 - ✅ Separadores de fecha ("Hoy", "Ayer", "15 de febrero") — banda azul semitransparente que cruza todo el ancho del área de mensajes
+- ✅ **Mensajes `tipo='sistema'` con JSON discriminado** (mayo 2026) — el `contenido` se parsea como JSON con un campo `subtipo` que decide el render. Patrón reusable para cualquier "evento del sistema" en una conversación. `emisorId = NULL` (no hay autor humano), preview se actualiza pero **no incrementa el contador de no leídos** (consistente con "Mis Notas").
+
+  | `subtipo` | Cuándo se inserta | Render frontend |
+  |-----------|-------------------|-----------------|
+  | `articulo_marketplace` | Al crear/contactar conversación desde el **detalle de un artículo** de MarketPlace. Snapshot incluye `articuloId`, `titulo`, `precio`, `condicion`, `fotoUrl` | Card embebida centrada (foto izq + eyebrow MARKETPLACE + título + precio + chip "Ver →"). Click navega al detalle del artículo cerrando ChatYA sin flash visual (ver §17.x) |
+  | `contacto_perfil` | Al crear conversación desde el **perfil del vendedor** (sin artículo). Incluye `iniciadorNombre` | Pill centrado tipo WhatsApp: "Juan inició la conversación desde tu perfil" |
+  | (subtipo desconocido) | Fallback futuro | Texto plano centrado (mantiene compat con nuevos subtipos) |
+
+  El render dedicado vive en `BurbujaMensaje.tsx` con un sub-componente `MensajeSistema`. Usa `flex w-full justify-center` y NO renderiza burbuja normal, avatar, reacciones, swipe-to-reply ni menú contextual — son eventos informativos, no mensajes de un participante.
 
 ### 4.7 Lista de Conversaciones
 
@@ -394,6 +408,103 @@ El backend resuelve el nombre del recurso de origen (JOIN/lookup) y lo envía co
 **Regla de visibilidad:** Solo se muestra al **receptor** del chat (`conversacion.participante1Id !== miId`). Quien inició el chat ya sabe desde dónde lo hizo. El caso `'negocio'` ("Desde: Tu perfil") solo aplica en modo comercial — en modo personal el usuario no tiene perfil de negocio.
 
 **Ubicación UI:** Header de VentanaChat (subtítulo inline: `🟢 En línea · Desde: Tu perfil`).
+
+### 4.13.1 Mensaje contextual de MarketPlace (mayo 2026)
+
+Cuando un comprador inicia una conversación con un vendedor de MarketPlace, el chat **NO empieza vacío** — el sistema siembra contexto inmediato visible para ambos participantes. Patrón paralelo al "contexto de origen" (§4.13) pero más rico visualmente: en lugar de un subtítulo en el header, es una card del artículo (o un pill informativo) embebida como primer mensaje del hilo.
+
+**Dos puntos de entrada cubiertos:**
+
+| Origen | Botón en frontend | `contextoTipo` | Mensaje sistema generado |
+|--------|-------------------|----------------|--------------------------|
+| Detalle del artículo (P2) | `BarraContacto.tsx` → "ChatYA" | `'marketplace'` + `articuloMarketplaceId` | Card del artículo (subtipo `articulo_marketplace`) |
+| Perfil del vendedor (P3) | `PaginaPerfilVendedor.tsx` → "ChatYA" | `'vendedor_marketplace'` (sin id) | Pill "X inició desde tu perfil" (subtipo `contacto_perfil`) |
+
+> **No aplica desde "Hacer una pregunta" en P2 Q&A** — esa sección tiene su propio flujo público y NO genera mensaje contextual.
+
+#### Flujo backend — `crearObtenerConversacion`
+
+1. El frontend envía `articuloMarketplaceId` (opcional) en el body junto con `contextoTipo`.
+2. El service persiste el ID en la columna FK `chat_conversaciones.articulo_marketplace_id` (que ya existía pero no se usaba).
+3. Al crear NUEVA conversación O al reusar una existente desde detalle (ver "Política de duplicación" abajo), llama al helper `insertarMensajeContextoMarketplace`:
+   - Para `'marketplace'` con `articuloMarketplaceId`: hace `SELECT` al artículo, arma snapshot y hace `INSERT` en `chat_mensajes` con `tipo='sistema'` y `contenido` = JSON `{ subtipo: 'articulo_marketplace', articuloId, titulo, precio, condicion, fotoUrl }`.
+   - Para `'vendedor_marketplace'`: lookup nombre del iniciador, JSON `{ subtipo: 'contacto_perfil', iniciadorNombre }`.
+   - `emisorId = NULL` → es del sistema, no de un usuario.
+   - Actualiza preview de la conversación (`ultimoMensajeTexto = "Sobre: <titulo>"` o `"Conversación iniciada desde el perfil"`) **sin incrementar `no_leidos_p1/p2`**.
+   - Emite `chatya:mensaje-nuevo` por Socket.io a ambos participantes.
+4. Si el artículo ya no existe (404 silencioso), no se inserta nada — el flujo principal NO se rompe.
+
+#### Política de duplicación cuando la conversación ya existe
+
+| Caso | Política | Razón |
+|------|----------|-------|
+| Detalle del artículo (`'marketplace'`) | **Siempre se inserta nueva card**, aunque la convo exista | El comprador puede preguntar por artículos distintos del mismo vendedor en momentos distintos. Cada card delimita el contexto del nuevo interés |
+| Perfil del vendedor (`'vendedor_marketplace'`) | **NO se duplica** si la convo existe | El "te contactó desde el perfil" no aporta repetido. Convo existente = ya hay historia previa |
+
+#### Frontend — Mensaje sistema OPTIMISTA al abrir chat temporal
+
+El sistema NO espera a que el usuario envíe el primer mensaje para mostrar la card. Cuando el comprador hace click en "ChatYA" desde el detalle, el chat temporal abre **ya con la card visible** + un borrador inicial pre-cargado.
+
+**Extensión de `ChatTemporal`** (en `useChatYAStore.ts`):
+
+```ts
+export interface ChatTemporal {
+  id: string;                  // 'temp_marketplace_<articuloId>_<timestamp>'
+  otroParticipante: { ... };
+  datosCreacion: CrearConversacionInput;
+  mensajeContextoOptimista?: Mensaje;   // mayo 2026
+  borradorInicial?: string;             // mayo 2026
+}
+```
+
+**`abrirChatTemporal` siembra ambos al inicio:**
+
+- `mensajeContextoOptimista` → se inserta en `state.mensajes` con id `temp_sistema_<articuloId>`. La burbuja `MensajeSistema` lo renderiza idéntico al real.
+- `borradorInicial` → se guarda como borrador con la key `temp_*` vía `guardarBorrador`. El `InputMensaje` lo lee automáticamente al abrir.
+
+**Ejemplo desde `BarraContacto.tsx`:**
+
+```tsx
+abrirChatTemporal({
+  id: idTemp,
+  otroParticipante: { ... },
+  datosCreacion: {
+    contextoTipo: 'marketplace',
+    contextoReferenciaId: id,
+    articuloMarketplaceId: id,
+    // ...
+  },
+  mensajeContextoOptimista: { /* Mensaje con tipo='sistema' + JSON */ },
+  borradorInicial: `Hola, me interesa tu publicación de "${titulo}". `,
+});
+```
+
+**Materialización (cuando el usuario envía el primer mensaje):**
+
+1. `enviarMensaje` detecta el id `temp_*` y llama `crearConversacion(datosCreacion)`.
+2. El backend persiste la conversación + el mensaje sistema real (el del paso 3 de "Flujo backend").
+3. `transicionarAConversacionReal` cambia el id activo y **limpia el borrador residual** del `temp_*` (evita basura en localStorage).
+4. **Para contextos `'marketplace'` y `'vendedor_marketplace'`** se llama `cargarMensajes(conv.id)` adicional — reemplaza el optimista (`temp_sistema_*`) por el real (UUID del backend) que viene en la lista. Sin este paso, el evento Socket.io del mensaje sistema llega cuando `conversacionActivaId` aún es `temp_*` y el handler lo descarta → el comprador no vería la card hasta refresh.
+
+#### Render del mensaje sistema (frontend)
+
+`BurbujaMensaje.tsx` tiene un branch dedicado al inicio del render:
+
+```tsx
+if (mensaje.tipo === 'sistema') {
+  return (
+    <div data-testid={...} className="w-full">
+      <MensajeSistema contenidoRaw={mensaje.contenido} />
+    </div>
+  );
+}
+```
+
+`MensajeSistema` parsea el JSON, identifica el `subtipo` y renderiza la card o el pill correspondiente. **No** se aplica el chrome normal de mensajes (avatar, reacciones, swipe, menú contextual). Si el JSON es inválido, fallback a texto plano centrado para preservar compatibilidad con futuros subtipos.
+
+#### Click en la card del artículo → navegar al detalle
+
+La card es clickeable. Al hacer click dispara el evento custom `chatya:navegar-externo` (ya existente, manejado por `ChatOverlay`). El handler usa el patrón "navega-luego-cierra-con-delay" para evitar el flash visual de la ruta donde estaba abierto el chat — ver lección dedicada en `LECCIONES_TECNICAS.md` ("Navegación desde un overlay sin flash visual").
 
 ### 4.14 Búsqueda
 
@@ -619,6 +730,8 @@ Visor tipo WhatsApp/Telegram. `VisorImagenesChat.tsx` con `createPortal(…, doc
 - ✅ En lista de conversaciones: `Borrador: [texto]` en color amber
 
 **Implementación:** Store `borradores: Record<string, string>` + `guardarBorrador(id, texto)` / `limpiarBorrador(id)`. InputMensaje detecta cambio de conversación con `useEffect` + `conversacionAnteriorRef`. `useAuthStore.logout()` llama `useChatYAStore.getState().limpiar()` para borrar estado y localStorage de ChatYA.
+
+**Borrador inicial pre-cargado en chats temporales (mayo 2026):** `abrirChatTemporal({ ..., borradorInicial: 'Hola, me interesa...' })` indexa el texto sugerido bajo el id `temp_*` del chat temporal. `InputMensaje` lo lee como cualquier borrador. Al materializar la conversación, `transicionarAConversacionReal` limpia el borrador del `temp_*` (evita basura en localStorage). Usado por `BarraContacto` del MarketPlace para sugerir el primer mensaje cuando el comprador abre el chat desde el detalle de un artículo. Ver §4.13.1.
 
 ### 4.24 Pendientes por implementar
 

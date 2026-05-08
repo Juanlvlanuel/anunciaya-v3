@@ -116,7 +116,7 @@ export function GaleriaArticulo({
                 {total > 1 && (
                     <div
                         data-testid="indicador-galeria"
-                        className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm"
+                        className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm"
                     >
                         {indiceActual + 1}/{total}
                     </div>
@@ -170,7 +170,7 @@ export function GaleriaArticulo({
                         className="h-full max-h-[480px] w-full object-contain transition-transform group-hover:scale-[1.02] 2xl:max-h-[560px]"
                     />
                     {total > 1 && (
-                        <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                        <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
                             {indiceActual + 1}/{total}
                         </span>
                     )}

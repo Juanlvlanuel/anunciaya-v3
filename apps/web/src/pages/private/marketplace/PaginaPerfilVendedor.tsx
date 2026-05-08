@@ -42,7 +42,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
     ChevronLeft,
     UserPlus,
@@ -57,6 +57,7 @@ import {
     Sparkles,
     Ban,
     ShieldOff,
+    MessageCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
@@ -117,6 +118,7 @@ function aFeed(a: ArticuloMarketplace): ArticuloFeed {
 export function PaginaPerfilVendedor() {
     const { usuarioId } = useParams<{ usuarioId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const usuarioActual = useAuthStore((s) => s.usuario);
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
     const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
@@ -179,7 +181,20 @@ export function PaginaPerfilVendedor() {
             (b) => b.tipo === 'usuario' && b.bloqueadoId === usuarioId,
         );
 
-    const handleVolver = () => navigate(-1);
+    // El botón ← respeta el historial real del browser (igual que la flecha
+    // nativa del celular y el gesto de swipe iOS). Solo cuando NO hay historial
+    // interno (entrada por URL directa, refresh, link compartido), cae a un
+    // fallback explícito al feed del marketplace.
+    //
+    // `location.key === 'default'` detecta la primera location de la sesión:
+    // las navegaciones internas posteriores generan keys únicos.
+    const handleVolver = () => {
+        if (location.key !== 'default') {
+            navigate(-1);
+        } else {
+            navigate('/marketplace');
+        }
+    };
 
     const handleToggleBloqueo = async () => {
         if (!perfil || !usuarioActual || accionBloqueoEnCurso) return;
@@ -411,7 +426,7 @@ export function PaginaPerfilVendedor() {
 
             {/* CONTENEDOR */}
             <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
-                <div className="px-3 py-5 lg:py-8">
+                <div className="px-3 py-5 lg:px-0 lg:py-8">
 
                     <HeroCard
                         perfil={perfil}
@@ -598,18 +613,19 @@ function HeroCard({
                     mensajes). El banner inferior explica el estado. */}
                 {!esUnoMismo && !estaBloqueado && (
                     <div className="flex w-full flex-row gap-2 lg:w-auto lg:shrink-0 lg:flex-col">
+                        {/* Mismo estilo que BarraContacto (P2 detalle):
+                            WhatsApp con MessageCircle icon en gradient brand
+                            (#22C55E → #15803D) y ChatYA con Dark Gradient
+                            slate + logo oficial. Coherencia visual entre P2
+                            y perfil del vendedor. */}
                         {perfil.telefono && (
                             <button
                                 data-testid="btn-whatsapp-vendedor"
                                 onClick={onWhatsApp}
                                 aria-label="Contactar por WhatsApp"
-                                className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-linear-to-br from-[#25D366] to-[#128C7E] px-3 text-sm font-bold text-white shadow-md lg:h-11 lg:flex-none lg:gap-2.5 lg:px-4 lg:cursor-pointer lg:hover:brightness-110 lg:min-w-[180px]"
+                                className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-linear-to-br from-[#22C55E] to-[#15803D] px-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:h-11 lg:flex-none lg:gap-2.5 lg:px-4 lg:cursor-pointer lg:min-w-[180px]"
                             >
-                                <img
-                                    src="/whatsapp.webp"
-                                    alt=""
-                                    className="h-6 w-6 shrink-0 lg:h-7 lg:w-7"
-                                />
+                                <MessageCircle className="h-5 w-5 shrink-0 lg:h-6 lg:w-6" strokeWidth={2.5} />
                                 WhatsApp
                             </button>
                         )}
@@ -617,13 +633,12 @@ function HeroCard({
                             data-testid="btn-chatya-vendedor"
                             onClick={onEnviarMensaje}
                             aria-label="Contactar por ChatYA"
-                            className="flex h-10 flex-1 items-center justify-center rounded-lg px-3 text-white shadow-md lg:h-11 lg:flex-none lg:px-4 lg:cursor-pointer lg:hover:brightness-110 lg:min-w-[180px]"
-                            style={{ backgroundColor: CHATYA_BLUE }}
+                            className="flex h-10 flex-1 items-center justify-center rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-3 text-white shadow-md transition-transform hover:scale-[1.01] lg:h-11 lg:flex-none lg:px-4 lg:cursor-pointer lg:min-w-[180px]"
                         >
                             <img
                                 src="/ChatYA.webp"
                                 alt="ChatYA"
-                                className="h-6 w-auto shrink-0 object-contain lg:h-7"
+                                className="h-7 w-auto shrink-0 object-contain lg:h-9"
                             />
                         </button>
                     </div>

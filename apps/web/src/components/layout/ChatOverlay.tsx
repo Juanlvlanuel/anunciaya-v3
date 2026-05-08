@@ -21,6 +21,7 @@
  */
 
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { X, StickyNote, Pin, BellOff, Archive, Trash2, ArrowLeft, ShieldBan, ShieldOff, UserPlus, UserMinus } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
@@ -166,20 +167,34 @@ export function ChatOverlay() {
 
   // ---------------------------------------------------------------------------
   // Evento externo: navegar a otra ruta cerrando ChatYA sin history.back()
+  //
+  // Patrón "navega + delay + cierra":
+  //  1. `navegandoExternoRef.current = true` — los effects de history
+  //     (overlay/chat) leen este flag y NO ejecutan `history.back()`,
+  //     que revertiría el navigate.
+  //  2. `flushSync(navigate)` — fuerza a React a procesar el cambio de
+  //     location SINCRÓNICAMENTE; cuando retorna, el componente destino
+  //     ya está montado en el DOM (debajo del overlay que sigue visible).
+  //  3. `setTimeout(cerrarChatYA, 200)` — el overlay queda visible 200ms
+  //     más, dándole tiempo al navegador a pintar el componente destino
+  //     antes de ocultarse. Sin este delay, el `display:none` del overlay
+  //     puede aplicarse antes del paint del destino y se ve un frame de
+  //     la ruta anterior.
+  //
+  // 200ms es el valor mínimo verificado que funciona consistentemente —
+  // 100ms era insuficiente, dejaba ver la ruta anterior.
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const handler = (e: Event) => {
       const ruta = (e as CustomEvent<string>).detail;
       navegandoExternoRef.current = true;
-      // Limpiar todos los flags de history para que no disparen history.back()
-      overlayHistoryRef.current = false;
-      chatHistoryRef.current = false;
-      visorHistoryRef.current = false;
-      panelHistoryRef.current = false;
-      cerrarChatYA();
-      navigate(ruta);
-      // Resetear flag tras el ciclo
-      setTimeout(() => { navegandoExternoRef.current = false; }, 100);
+      flushSync(() => {
+        navigate(ruta);
+      });
+      setTimeout(() => {
+        cerrarChatYA();
+        setTimeout(() => { navegandoExternoRef.current = false; }, 100);
+      }, 200);
     };
     window.addEventListener('chatya:navegar-externo', handler);
     return () => window.removeEventListener('chatya:navegar-externo', handler);
@@ -460,8 +475,15 @@ export function ChatOverlay() {
         // Y el state actual aún es del overlay (no de un modal de ScanYA que lo
         // reemplazó por la exclusión mutua). Evita que el back del chat dispare
         // el popstate del modal recién abierto y lo cierre por accidente.
+        // Tampoco si estamos en navegación externa (`chatya:navegar-externo`)
+        // — el navigate ya empujó la ruta destino y un history.back la
+        // revertiría a la anterior.
         const stateActual = history.state as { scanyaModal?: boolean } | null;
-        if (location.pathname === overlayPathnameRef.current && !stateActual?.scanyaModal) {
+        if (
+          !navegandoExternoRef.current &&
+          location.pathname === overlayPathnameRef.current &&
+          !stateActual?.scanyaModal
+        ) {
           history.back();
         }
       }
@@ -510,7 +532,11 @@ export function ChatOverlay() {
           window.removeEventListener('popstate', chatHandlerRef.current);
           chatHandlerRef.current = null;
         }
-        history.back();
+        // En navegación externa el navigate ya empujó la ruta destino;
+        // un history.back aquí la revertiría a la anterior.
+        if (!navegandoExternoRef.current) {
+          history.back();
+        }
       }
       return;
     }

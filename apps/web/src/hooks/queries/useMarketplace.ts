@@ -736,7 +736,7 @@ export function usePreguntasArticulo(
                 return response.data.data as PreguntasParaVendedor;
             }
             return {
-                respondidas: response.data.data as PreguntaMarketplace[],
+                preguntas: response.data.data as PreguntaMarketplace[],
                 miPreguntaPendiente: response.data.miPreguntaPendiente ?? null,
             };
         },
