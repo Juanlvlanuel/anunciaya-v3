@@ -151,7 +151,7 @@ export function BotonComentarista({
             {popupAbierto && createPortal(
                 <div
                     ref={popupRef}
-                    className="fixed z-[10010] hidden lg:block"
+                    className="fixed z-10010 hidden lg:block"
                     style={{ top: popupPos.top, left: popupPos.left, width: 240 }}
                 >
                     <div className="overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-lg">
